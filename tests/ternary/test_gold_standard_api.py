@@ -13,8 +13,8 @@ import pytest
 import polars as pl
 from typing import Any, List, Dict, Tuple
 
-from mountainash_expressions.utils.expressions.ternary.constants import TernaryLogicValues
-from mountainash_expressions.utils.expressions.ternary import (
+from mountainash_expressions.constants import CONST_TERNARY_LOGIC_VALUES, CONST_DATAFRAME_FRAMEWORK
+from mountainash_expressions import (
     TernaryExpressionBuilder,
     PolarsTernaryExpressionVisitor,
     IbisTernaryExpressionVisitor,
@@ -25,7 +25,6 @@ from mountainash_expressions.utils.expressions.ternary import (
 )
 from mountainash_dataframes.utils.dataframe_utils import DataFrameUtils
 from mountainash_dataframes.utils.dataframe_handlers.dataframe_strategy_factory import DataFrameStrategyFactory
-from mountainash_expressions.constants import CONST_DATAFRAME_FRAMEWORK
 
 # try:
 #     from mountainash_dataframes.utils.expressions.ternary.ternary_expression_pyspark import (
@@ -63,7 +62,7 @@ class TestTernaryExpressionBuilderAPI:
             "age": [25, 30, -999999999, 35, 28],
             "score": [85.5, 92.0, -999999999.0, 78.5, 88.0],
             "active": [True, False, None, True, False],
-            "category": ["A", "B", "<NOT_SET>", "A", "C"],
+            "category": ["A", "B", None, "A", "C"],
             "salary": [50000, 75000, None, 60000, 55000],
             "years_exp": [2, 5, -999999999, 8, 3],
             "department": ["Engineering", "Sales", None, "Engineering", "Marketing"]
