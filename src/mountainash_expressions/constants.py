@@ -2,7 +2,7 @@ from typing import Union, Optional, Set
 from mountainash_constants import BaseValueConstant
 
 
-class CONST_DATAFRAME_FRAMEWORK(BaseValueConstant):
+class CONST_VISITOR_BACKEND(BaseValueConstant):
     """
     Enumeration for different dataframe frameworks.
 
@@ -10,15 +10,13 @@ class CONST_DATAFRAME_FRAMEWORK(BaseValueConstant):
         - PANDAS (str): Pandas dataframe framework.
         - POLARS (str): Polars dataframe framework.
         - IBIS (str): Ibis dataframe framework.
-        - NUMPY (str): Numpy array framework.
-        - PYARROW_RECORDBATCH (str): PyArrow RecordBatch framework.
-        - PYARROW_TABLE (str): PyArrow Table framework.
+        - PYARROW (str): PyArrow framework.
     """
     PANDAS =   "pandas"
     POLARS =   "polars"
     IBIS =     "ibis"
-    PYARROW_RECORDBATCH = "pyarrow_recordbatch"
-    PYARROW_TABLE = "pyarrow_table"
+    PYARROW = "pyarrow"
+
     # NUMPY =    "numpy"
     # XARRAY = "xarray"
     # PYSPARK = "pyspark"
