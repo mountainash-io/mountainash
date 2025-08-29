@@ -1,12 +1,36 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ibis.expr.types import s
+
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_NODE_TYPES
+from ...visitors.core.base_visitor import Visitor
 
 
 class ExpressionNode(ABC):
+
+    @property
     @abstractmethod
-    def accept(self, visitor: 'ExpressionVisitor') -> Callable:
+    def _expression_type(self) -> str:
+        pass
+
+    @property
+    def expression_type(self) -> str:
+        return self._expression_type
+
+
+    @property
+    @abstractmethod
+    def _logic_type(self) -> str:
+        pass
+
+    @property
+    def logic_type(self) -> str:
+        return self._logic_type
+
+
+    @abstractmethod
+    def accept(self, visitor: 'Visitor') -> Callable:
         pass
 
     @abstractmethod
@@ -27,20 +51,23 @@ class ExpressionNode(ABC):
 
 class LiteralExpressionNode(ExpressionNode):
 
-    expression_type = "literal"
 
     def __init__(self, operator: str, value1: Any, value2: Any):
+
         self.operator = operator
         self.value1 = value1
         self.value2 = value2
 
+    @property
+    def _expression_type(self) -> str:
+        return CONST_EXPRESSION_NODE_TYPES.LITERAL
+
+
     @abstractmethod
-    def accept(self, visitor: 'ExpressionVisitor') -> Callable:
+    def accept(self, visitor: 'Visitor') -> Callable:
         pass
 
 class ColumnExpressionNode(ExpressionNode):
-
-    expression_type = "column"
 
     def __init__(self, operator: str, column: str, value: Optional[Any], compare_column: Optional[str] = None):
         self.operator = operator
@@ -48,29 +75,22 @@ class ColumnExpressionNode(ExpressionNode):
         self.value = value
         self.compare_column = compare_column
 
+    @property
+    def _expression_type(self) -> str:
+        return CONST_EXPRESSION_NODE_TYPES.COLUMN
+
+
     @abstractmethod
-    def accept(self, visitor: 'ExpressionVisitor') -> Callable:
+    def accept(self, visitor: 'Visitor') -> Callable:
         pass
 
 class LogicalExpressionNode(ExpressionNode):
 
-    expression_type = "logical"
+    @property
+    def _expression_type(self) -> str:
+        return CONST_EXPRESSION_NODE_TYPES.LOGICAL
+
 
     def __init__(self, operator: str, operands: List[ExpressionNode]):
         self.operator = operator
         self.operands = operands
-
-
-class ExpressionVisitor(ABC):
-
-    @abstractmethod
-    def visit_literal_expression(self, expression_node: LiteralExpressionNode) -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_column_expression(self, expression_node: ColumnExpressionNode) -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_logical_expression(self, expression_node: LogicalExpressionNode) -> Callable:
-        pass

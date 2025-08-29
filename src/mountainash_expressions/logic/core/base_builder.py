@@ -1,7 +1,6 @@
-from typing import Any, List, Union, Callable, Optional
+from typing import Any, List, Union
 from abc import ABC, abstractmethod
-from . import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-
+from . import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
 class ExpressionBuilder:
 
