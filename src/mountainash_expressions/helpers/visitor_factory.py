@@ -1,7 +1,7 @@
 from typing import Any, Callable
-from ..core import ExpressionVisitor
-from ..boolean import BooleanExpressionVisitor, IbisBooleanExpressionVisitor, PolarsBooleanExpressionVisitor, PandasBooleanExpressionVisitor, PyArrowBooleanExpressionVisitor
-from ..ternary import TernaryExpressionVisitor, IbisTernaryExpressionVisitor, PolarsTernaryExpressionVisitor, PandasTernaryExpressionVisitor, PyArrowTernaryExpressionVisitor
+from ..visitors import ExpressionVisitor
+from ..visitors.boolean import BooleanExpressionVisitor, IbisBooleanExpressionVisitor, PolarsBooleanExpressionVisitor, PandasBooleanExpressionVisitor, PyArrowBooleanExpressionVisitor
+from ..visitors.ternary import TernaryExpressionVisitor, IbisTernaryExpressionVisitor, PolarsTernaryExpressionVisitor, PandasTernaryExpressionVisitor, PyArrowTernaryExpressionVisitor
 
 import pandas as pd
 import pyarrow as pa
@@ -22,7 +22,7 @@ class ExpressionVisitorFactory:
             'polars':   PolarsBooleanExpressionVisitor,
             'ibis':     IbisBooleanExpressionVisitor,
             'pandas':   PandasBooleanExpressionVisitor,
-            'pandas':   PyArrowBooleanExpressionVisitor
+            'pyarrow':  PyArrowBooleanExpressionVisitor
         },
         "ternary": {
             'polars':   PolarsTernaryExpressionVisitor,
@@ -33,33 +33,55 @@ class ExpressionVisitorFactory:
     }
 
     @classmethod
-    def _get_strategy(cls, df: Any, logic_type: str) -> ExpressionVisitor:
+    def create_visitor(cls, backend: str, logic_type: str) -> ExpressionVisitor:
+        """Get visitor for current backend"""
+        try:
+            return cls._visitors_registry[logic_type][backend]()
+        except KeyError:
+            raise ValueError(f"Unsupported backend '{backend}' for logic type '{logic_type}'")
+
+
+    @classmethod
+    def create_visitor_for_backend(cls, table: Any, logic_type: str) -> ExpressionVisitor:
+        """Get visitor for current backend and logic type"""
+        backend = cls._identify_backend(table)
+        return cls.create_visitor(backend, logic_type)
+
+
+    @classmethod
+    def create_boolean_visitor_for_backend(cls, table: Any, **kwargs) -> BooleanExpressionVisitor:
+        """Get boolean visitor for current backend"""
+        backend = cls._identify_backend(table)
+        return cls.create_visitor(backend, "boolean")
+
+    @classmethod
+    def create_ternary_visitor_for_backend(cls, table: Any, **kwargs) -> TernaryExpressionVisitor:
+        """Get ternary visitor for current backend"""
+        backend = cls._identify_backend(table)
+        return cls.create_visitor(backend, "ternary")
+
+
+    @classmethod
+    def _identify_backend(cls, table: Any) -> str:
 
         # Always available strategies first
-        if isinstance(df, (BaseDataFrame, ir.Table)):
-            return cls._visitors_registry[logic_type]["ibis"]()
-        elif isinstance(df, pd.DataFrame):
-            return cls._visitors_registry[logic_type]["pandas"]()
-        elif isinstance(df, (pl.DataFrame, pl.LazyFrame)):
-            return cls._visitors_registry[logic_type]["polars"]()
+        if isinstance(table, (BaseDataFrame, ir.Table)):
+            return "ibis"
+        elif isinstance(table, pd.DataFrame):
+            return "pandas"
+        elif isinstance(table, (pl.DataFrame, pl.LazyFrame)):
+            return "polars"
 
         # PyArrow detection
-        elif hasattr(pa, 'Table') and isinstance(df, pa.Table):
-            return cls._visitors_registry[logic_type]["pyarrow"]()
-        elif (isinstance(df, pa.RecordBatch) if hasattr(pa, 'RecordBatch') else False):
-            return cls._visitors_registry[logic_type]["pyarrow"]()
+        elif hasattr(pa, 'Table') and isinstance(table, pa.Table):
+            return "pyarrow"
+        elif (isinstance(table, pa.RecordBatch) if hasattr(pa, 'RecordBatch') else False):
+            return "pyarrow"
         else:
-            raise ValueError(f"Unsupported dataframe type: {type(df)}")
+            raise ValueError(f"Unsupported dataframe type: {type(table)}")
 
-    @classmethod
-    def get_boolean_visitor(cls, table: Any,  **kwargs) -> BooleanExpressionVisitor:
-        """Get boolean visitor for current backend"""
-        return cls._get_strategy(table, "boolean")
 
-    @classmethod
-    def get_ternary_visitor(cls, table: Any, **kwargs) -> TernaryExpressionVisitor:
-        """Get ternary visitor for current backend"""
-        return cls._get_strategy(table, "ternary")
+
 
     # def get_raw_visitor(self) -> RawExpressionVisitor:
     #     """Get raw visitor for current backend"""
