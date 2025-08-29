@@ -1,0 +1,5 @@
+
+cli:
+  plugins:
+    pycoverage:
+      report_type: "xml"

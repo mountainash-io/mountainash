@@ -1,0 +1,301 @@
+[metadata]
+allow-direct-references = true
+
+[version]
+path = "src/mountainash_expressions/__version__.py"
+
+[build.targets.wheel]
+packages = ["src/mountainash_expressions"]
+
+
+#================
+# Env: dev
+#================
+
+[envs.dev]
+python = "3.12" #,  "3.11",, "3.10" ] # "3.8", "3.9","3.9",
+installer = "uv"
+dependencies = [
+
+    # "mountainash_constants @      {root:uri}/../mountainash-constants",
+    # "mountainash_settings @       {root:uri}/../mountainash-settings",
+
+    # "mountainash_utils_files @        {root:uri}/../mountainash-utils-files",
+    # "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",
+    # "mountainash_utils_ssh @          {root:uri}/../mountainash-utils-ssh",
+
+]
+
+#================
+# Env: build_github
+#================
+[envs.build_github]
+installer = "uv"
+dependencies = [
+    "cyclonedx-bom==4.5.0",
+
+    # "mountainash_constants @      {root:uri}/temp/mountainash-constants",
+    # "mountainash_settings @       {root:uri}/temp/mountainash-settings",
+
+    # "mountainash_utils_files @        {root:uri}/temp/mountainash-utils-files",
+    # "mountainash_utils_os @           {root:uri}/temp/mountainash-utils-os",
+    # "mountainash_utils_ssh @          {root:uri}/temp/mountainash-utils-ssh",
+
+]
+[envs.build_github.scripts]
+sbom-all = "cyclonedx-py environment > ./sbom-full.xml"
+sbom-direct = "cyclonedx-py requirements > ./sbom-direct.xml"
+export-requirements = "hatch dep show requirements > ./requirements.txt"
+
+#================
+# Env: default
+#================
+[envs.default]
+installer = "uv"
+dependencies = [
+    # "mountainash_constants @      {root:uri}/../mountainash-constants",
+    # "mountainash_settings @       {root:uri}/../mountainash-settings",
+    # "mountainash_utils_files @        {root:uri}/../mountainash-utils-files",
+    # "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",
+    # "mountainash_utils_ssh @          {root:uri}/../mountainash-utils-ssh",
+]
+
+#================
+# Env: tower
+#================
+[envs.tower]
+installer = "uv"
+
+dependencies = []
+
+
+#================
+# Env: test_github
+#================
+[[envs.test_github.matrix]]
+python = ["3.12"] #,"3.11", "3.10", # "3.8", "3.9","3.9",
+
+[envs.test_github]
+installer = "uv"
+
+dependencies = [
+    # "coverage[toml]>=6.5",
+    "pytest==8.3.5",
+    "pytest-check==2.5.3",
+    "pytest-cov==6.1.1",
+
+
+    "mountainash_constants @      {root:uri}/temp/mountainash-constants",
+    "mountainash_settings @       {root:uri}/temp/mountainash-settings",
+
+    "mountainash_utils_files @        {root:uri}/temp/mountainash-utils-files",
+    "mountainash_utils_os @           {root:uri}/temp/mountainash-utils-os",
+    # "mountainash_utils_ssh @          {root:uri}/temp/mountainash-utils-ssh",
+
+]
+[envs.test_github.scripts]
+test = "pytest"
+test-cov = "pytest --cov --junitxml=junit.xml -o junit_family=legacy  --cov-report=xml"
+
+
+#================
+# Env: test
+#================
+[[envs.test.matrix]]
+python = ["3.12"] #,  "3.11",, "3.10" ] # "3.8", "3.9","3.9",
+
+[envs.test]
+type = "virtual"
+installer = "uv"
+dependencies = [
+    "coverage[toml]>=6.5",
+    "pytest==8.3.5",
+    "pytest-asyncio>=0.23.0",    # Async test support
+    "pytest-check==2.5.3",
+    "pytest-mock==3.12.0",
+    "pytest-json-report>=1.5.0", # Structured JSON output
+    "pytest-metadata>=2.0.0",    # Additional test metadata
+    "pytest-benchmark>=4.0.0",   # Performance benchmarking
+    "pytest-cov>=4.1.0",         # Better coverage integration
+    "pytest-clarity>=1.0.1",     # Better test output diff
+    "pytest-timeout>=2.1.0",     # Test timing control
+    "pytest-picked>=0.5.0",      # Changed files testing
+
+    "psutil>=7.0.0",
+    "xarray==2024.11.0",         # For xarray expression testing
+    "narwhals",
+
+    "mountainash_constants @      {root:uri}/../mountainash-constants",
+    "mountainash_settings @       {root:uri}/../mountainash-settings",
+
+    "mountainash_utils_files @        {root:uri}/../mountainash-utils-files",
+    "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",
+    # "mountainash_utils_ssh @          {root:uri}/../mountainash-utils-ssh",
+
+]
+[envs.test.scripts]
+# ===========================================
+# CORE TESTING COMMANDS - Use these daily
+# ===========================================
+
+test = [
+    "pytest --cov --junitxml=junit.xml",
+    "coverage json --pretty-print",
+    "coverage xml",
+    "coverage html",
+    "coverage report --show-missing",
+]
+
+# Quick testing for iteration (no coverage overhead)
+test-quick = "pytest"
+
+# ===========================================
+# TARGETED TESTING - For debugging specific issues
+# ===========================================
+
+# Target specific files/tests with coverage
+test-target = [
+    "coverage run --source=src  -m pytest {args}",
+    "coverage xml",
+    "coverage json --pretty-print",
+    "coverage report --show-missing",
+]
+
+# Target specific files/tests without coverage (fastest iteration)
+test-target-quick = "pytest {args}"
+
+# Only changed files (with coverage)
+test-changed = [
+    "coverage run -m pytest --picked",
+    "coverage json --pretty-print",
+    "coverage report --show-missing",
+]
+
+# Only changed files (without coverage)
+test-changed-quick = "pytest --picked"
+
+# ===========================================
+# SPECIALIZED TESTING
+# ===========================================
+
+# Performance benchmarks only
+test-perf = "pytest --benchmark-only"
+test-perf-target = "pytest --benchmark-only {args}"
+
+# Specific test markers
+test-unit = "pytest -m unit"
+test-integration = "pytest -m integration"
+test-performance = "pytest -m performance"
+
+# ===========================================
+# CI/REPORTING - For automated environments
+# ===========================================
+
+# Full CI suite with all reports
+test-ci = [
+    "coverage run -m pytest --json-report --json-report-file=pytest_report.json --junitxml=junit.xml",
+    "coverage json --pretty-print",
+    "coverage xml",
+    "coverage html",
+    "coverage report --show-missing",
+]
+
+
+# #================
+# # Env: test
+# #================
+# [[envs.test.matrix]]
+# python = [ "3.12"] #,  "3.11",, "3.10" ] # "3.8", "3.9","3.9",
+
+# [envs.test]
+# installer = "uv"
+# dependencies = [
+#   "coverage[toml]>=6.5",
+#   "pytest==8.3.5",
+#   "pytest-check==2.5.3",
+#   "pytest-mock==3.12.0",
+#   "pytest-json-report>=1.5.0",    # Structured JSON output
+#   "pytest-metadata>=2.0.0",       # Additional test metadata
+#   "pytest-benchmark>=4.0.0",      # Performance benchmarking
+#   "pytest-cov>=4.1.0",           # Better coverage integration
+#   "pytest-clarity>=1.0.1",       # Better test output diff
+#   "pytest-timeout>=2.1.0",       # Test timing control
+#   "pytest-picked>=0.5.0",         # Changed files testing
+
+#   "mountainash_constants @      {root:uri}/../mountainash-constants",
+#   "mountainash_settings @       {root:uri}/../mountainash-settings",
+
+#   "mountainash_utils_files @        {root:uri}/../mountainash-utils-files",
+#   "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",
+#   "mountainash_utils_ssh @          {root:uri}/../mountainash-utils-ssh",
+# ]
+# [envs.test.scripts]
+# # Basic test commands
+# test = "pytest"
+# test-file = "pytest {args}"  # For specific file targeting
+# test-changed = "pytest --picked"  # Only changed files
+
+# # Coverage commands
+# test-cov = [
+#     "coverage run -m pytest",
+#     "coverage json --pretty-print",  # JSON output for agent consumption
+#     "coverage xml",                  # XML for CI tools
+#     "coverage html"                  # HTML for human review
+# ]
+
+# # Targeted testing with coverage
+# test-cov-file = [
+#     "coverage run -m pytest {args}",
+#     "coverage json --pretty-print"
+# ]
+
+# # Performance testing
+# test-perf = "pytest --benchmark-only"
+# test-perf-file = "pytest --benchmark-only {args}"
+
+# # Combined report generation
+# test-full-report = [
+#     "pytest --json-report --json-report-file=pytest_report.json",
+#     "coverage run -m pytest",
+#     "coverage json --pretty-print",
+#     "coverage xml"
+# ]
+# test-cov-junit = [
+#   "pytest --cov --junitxml=junit.xml"
+# ]
+
+
+#================
+# Env: ruff
+#================
+[envs.ruff]
+installer = "uv"
+dependencies = ["ruff==0.3.7"]
+[envs.ruff.scripts]
+check = "ruff check ./src"
+fix = "ruff check ./src --fix"
+
+#================
+# Env: radon
+#================
+# Radon Complexity Checks
+[envs.radon]
+installer = "uv"
+dependencies = ["radon==6.0.1"]
+[envs.radon.scripts]
+radon-cc = "radon cc ./src -nd"
+radon-mi = "radon mi ./src -nd"
+radon-cc-strict = "radon cc ./src -nc"
+radon-mi-strict = "radon mi ./src -nc"
+radon-mi-detail = "radon mi ./src"
+radon-cc-detail = "radon cc ./src"
+
+#================
+# Env: mypy
+#================
+# Mypy Type checks
+[envs.mypy]
+installer = "uv"
+dependencies = ["mypy==1.10.1"]
+[envs.mypy.scripts]
+check = "mypy --install-types --non-interactive {args:src/mountainash_expressions tests}"

@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+dependencies = [
+    # Core framework dependencies (always required)
+    "ibis-framework[pandas,sqlite,duckdb] == 10.4.0",
+    "numpy>=1.23.2,<3",
+    "pandas>=2.2.0",  # Primary DataFrame library - always required
+    "polars==1.16.0",  # Required for IbisDataFrame default backend
+    "pyarrow==17.0.0", "pyarrow-hotfix>=0.4,<1",
+
+    # Core utilities (always required)
+    "rich>=12.4.4,<14",
+    "universal_pathlib==0.2.2",
+    "openlineage-python==1.17.1",
+    "sqlalchemy",
+    "duckdb",
+    "psutil>=7.0.0",
+    "narwhals"
+
+]
+keywords = []
+name = "mountainash_expressions"
+dynamic = ["version"]
+description = 'Mountain Ash - DataFrames'
+readme = "README.md"
+requires-python = ">=3.10"
+# license = "Proprietary"
+authors = [
+    { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+[project.optional-dependencies]
+# DataFrame libraries (optional)
+xarray = ["xarray==2024.11.0"]
+pyspark = ["pyspark>=3.5.0"]
+
+# Database backends (via ibis)
+mssql = ["pyodbc==5.2.0", "ibis-framework[mssql] == 10.4.0"]
+snowflake = ["snowflake-connector-python==3.12.3", "ibis-framework[snowflake] == 10.4.0"]
+postgres = ["psycopg2-binary==2.9.9", "ibis-framework[postgres] == 10.4.0"]
+bigquery = ["ibis-framework[bigquery] == 10.4.0"]
+trino = ["ibis-framework[trino] == 10.4.0"]
+
+# Convenience groups
+dataframes = ["xarray"]
+databases = ["mssql", "snowflake", "postgres", "bigquery", "trino"]
+distributed = ["pyspark"]
+all = ["dataframes", "databases", "distributed"]
+
+
+[project.urls]
+Documentation = "https://github.com/mountainash-io/mountainash-expressions#readme"
+Issues = "https://github.com/mountainash-io/mountainash-expressions/issues"
+Source = "https://github.com/mountainash-io/mountainash-expressions"
+
+#================
+# Tool: Coverage
+#================
+[tool.coverage.run]
+source_pkgs = ["mountainash_expressions", "tests"]
+branch = true
+parallel = true
+omit = ["src/mountainash_expressions/__version__.py"]
+
+[tool.coverage.paths]
+mountainash_data = [
+    "src/mountainash_expressions",
+    "*/mountainash-expressions/src/mountainash_expressions",
+]
+tests = ["tests", "*/mountainash-expressions/tests"]
+
+[tool.coverage.report]
+exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]
+
+
+[tool.pyright]
+venvPath = "/home/nathanielramm/git/mountainash-ide/mountainash-dev-local/.venv"
+venv = ".venv"
