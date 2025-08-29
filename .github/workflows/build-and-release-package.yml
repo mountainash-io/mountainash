@@ -1,0 +1,465 @@
+name: Build and Release Wheel with SBOMs
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - "main"
+      - "develop"
+      - "release*"
+      - "feature*"
+      - "bugfix*"
+      - "hotfix*"
+
+  # Add manual workflow dispatch with fallback branch selection
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Type of release to create"
+        required: true
+        default: "production"
+        type: "choice"
+        options:
+          - production
+          - rc
+          - beta
+
+      source_branch:
+        description: "Branch containing code to release"
+        required: true
+        default: "main"
+        type: "string"
+
+      fallback_branch:
+        description: "Fallback branch to use for dependencies"
+        required: true
+        default: "main"
+        type: choice
+        options:
+          - develop
+          - main
+
+jobs:
+  build-and-release:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        python-version: ["3.12"]
+
+    env:
+      BUILD_ENV: "build_github"
+
+    steps:
+      # ======================================================
+      # INITIALIZE
+
+      - name: Setup Environment Variables
+        run: |
+          echo "PACKAGE_SRCDIR=mountainash_expressions" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=mountainash-expressions" >> $GITHUB_ENV
+          echo "ORGNAME=mountainash-io" >> $GITHUB_ENV
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Checkout Repository (PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Checkout Repository (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.source_branch }}
+          fetch-depth: 0
+
+      # - name: Set Branch Vars
+      #   run: |
+      #     echo "SOURCE_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV
+      #     echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
+
+      - name: Set Branch Vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For manual runs, use the specified source branch
+            echo "SOURCE_BRANCH=${{ github.event.inputs.source_branch }}" >> $GITHUB_ENV
+            echo "TARGET_BRANCH=${{ github.event.inputs.source_branch }}" >> $GITHUB_ENV
+            echo "FALLBACK_BRANCH=${{ github.event.inputs.fallback_branch }}" >> $GITHUB_ENV
+            echo "MANUAL_RELEASE_TYPE=${{ github.event.inputs.release_type }}" >> $GITHUB_ENV
+          else
+            # Normal PR merge behavior
+            echo "SOURCE_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV
+            echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
+            echo "FALLBACK_BRANCH=main" >> $GITHUB_ENV
+            echo "MANUAL_RELEASE_TYPE=" >> $GITHUB_ENV
+          fi
+
+      # ======================================================
+      # DEPENDENCIES
+
+      - name: Python Dependencies
+        run: |
+          pip install hatchling==1.25.0
+          pip install hatch==1.12.0
+
+      # Checkout Mountain Ash Dependencies
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_dependencies.yml
+
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ${{ env.TARGET_BRANCH }}
+          default-branch: ${{ env.FALLBACK_BRANCH }}
+          token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
+          org-name: ${{ env.ORGNAME }}
+
+      # ======================================================
+      # CONFIGURE RELEASE
+
+      - name: Get Base Version
+        id: base_version
+        run: |
+          # BASE_VERSION=$(python -c "import sys; sys.path.append('src'); from ${{env.PACKAGE_SRCDIR}}.__version__ import __version__; print(__version__)")
+          BASE_VERSION=$(hatch version)
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
+
+          # Validate semantic version format
+          if [[ ! "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Base version must be in semantic version format (X.Y.Z)"
+            exit 1
+          fi
+
+      - name: Determine Release Configuration
+        id: release_config
+        run: |
+          # Initialize variables
+          RELEASE_TYPE=""
+          VERSION_SUFFIX=""
+          IS_PRERELEASE="true"
+          RELEASE_TITLE=""
+          RELEASE_DESCRIPTION=""
+
+          # Function to get latest version number
+          get_latest_version() {
+            local prefix="$1"
+            local suffix="$2"
+            curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases" | \
+              jq -r --arg prefix "$prefix" --arg suffix "$suffix" \
+              "map(select(.tag_name | startswith(\$prefix) and contains(\$suffix))) | .[0].tag_name" || echo ""
+          }
+
+          # Check for manual workflow run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Using manual release type: ${{ env.MANUAL_RELEASE_TYPE }}"
+
+            case "${{ env.MANUAL_RELEASE_TYPE }}" in
+              "production")
+                RELEASE_TYPE="production"
+                VERSION_SUFFIX=""
+                IS_PRERELEASE="false"
+                RELEASE_TITLE="Production Release"
+                RELEASE_DESCRIPTION="Production release from ${SOURCE_BRANCH} branch"
+                ;;
+              "rc")
+                RELEASE_TYPE="rc"
+                # Get latest RC number for this version
+                LATEST_RC=$(get_latest_version "v${BASE_VERSION}" "rc")
+                RC_NUM=$(echo "$LATEST_RC" | grep -oP 'rc\K\d+' || echo "0")
+                VERSION_SUFFIX="rc$((RC_NUM + 1))"
+                RELEASE_TITLE="Release Candidate"
+                RELEASE_DESCRIPTION="Release candidate from ${SOURCE_BRANCH} branch"
+                ;;
+              "beta")
+                RELEASE_TYPE="beta"
+                # Extract feature name from branch if possible
+                FEATURE_NAME=$(echo ${SOURCE_BRANCH} | grep -oP '(feature|bugfix|hotfix)/\K[^/]+' || echo "manual")
+                # Get latest beta number for this feature
+                LATEST_BETA=$(get_latest_version "v${BASE_VERSION}" "beta.${FEATURE_NAME}")
+                BETA_NUM=$(echo "$LATEST_BETA" | grep -oP 'beta\.[^.]+\.\K\d+' || echo "0")
+                VERSION_SUFFIX="beta.${FEATURE_NAME}.$((BETA_NUM + 1))"
+                RELEASE_TITLE="Beta Release"
+                RELEASE_DESCRIPTION="Beta release from ${SOURCE_BRANCH} branch"
+                ;;
+            esac
+          else
+
+            # Determine release type and version suffix
+            case "${{ env.TARGET_BRANCH }}" in
+              "main")
+                if [[ "${{ env.SOURCE_BRANCH }}" =~ ^(release|hotfix)/ ]]; then
+                  RELEASE_TYPE="production"
+                  VERSION_SUFFIX=""
+                  IS_PRERELEASE="false"
+                  RELEASE_TITLE="Production Release"
+                  RELEASE_DESCRIPTION="Full production release from release branch"
+                else
+                  echo "Error: Only release branches can target main"
+                  exit 1
+                fi
+                ;;
+
+              "develop")
+                RELEASE_TYPE="rc"
+                # Get latest RC number for this version
+                LATEST_RC=$(get_latest_version "v${BASE_VERSION}" "rc")
+                RC_NUM=$(echo "$LATEST_RC" | grep -oP 'rc\K\d+' || echo "0")
+                VERSION_SUFFIX="rc$((RC_NUM + 1))"
+                RELEASE_TITLE="Release Candidate"
+                RELEASE_DESCRIPTION="Release candidate for testing and validation"
+                ;;
+
+              *)
+                if [[ "{{ env.SOURCE_BRANCH }}" == feature/* || "$SOURCE_BRANCH" == bugfix/* ]]; then
+                  RELEASE_TYPE="beta"
+                  # Extract feature/bugfix name from branch
+                  FEATURE_NAME=$(echo {{ env.SOURCE_BRANCH }} | cut -d'/' -f2)
+                  # Get latest beta number for this feature
+                  LATEST_BETA=$(get_latest_version "v${BASE_VERSION}" "beta.${FEATURE_NAME}")
+                  BETA_NUM=$(echo "$LATEST_BETA" | grep -oP 'beta\.[^.]+\.\K\d+' || echo "0")
+                  VERSION_SUFFIX="beta.${FEATURE_NAME}.$((BETA_NUM + 1))"
+                  RELEASE_TITLE="Beta Release"
+                  RELEASE_DESCRIPTION="Beta release for feature testing: ${FEATURE_NAME}"
+                fi
+                ;;
+            esac
+          fi
+
+          # Set full version
+          FULL_VERSION="${BASE_VERSION}${VERSION_SUFFIX:+$VERSION_SUFFIX}"
+
+          # Output all variables
+          {
+            echo "RELEASE_TYPE=${RELEASE_TYPE}"
+            echo "VERSION_SUFFIX=${VERSION_SUFFIX}"
+            echo "IS_PRERELEASE=${IS_PRERELEASE}"
+            echo "FULL_VERSION=${FULL_VERSION}"
+            echo "RELEASE_TITLE=${RELEASE_TITLE}"
+            echo "RELEASE_DESCRIPTION=${RELEASE_DESCRIPTION}"
+          } >> $GITHUB_OUTPUT
+
+          echo "VERSION=${FULL_VERSION}" >> $GITHUB_ENV
+
+      - name: Validate Release
+        run: |
+          # Check if tag already exists
+          if git rev-parse "v${{ env.VERSION }}" >/dev/null 2>&1; then
+            echo "Error: Tag v${{ env.VERSION }} already exists"
+            exit 1
+          fi
+
+          # Check if release already exists
+          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ env.VERSION }}" \
+            | jq -r '.id')
+          if [ "$RELEASE_ID" != "null" ]; then
+            echo "Error: Release v${{ env.VERSION }} already exists"
+            exit 1
+          fi
+
+      - name: Create Release Branch
+        if: startsWith(github.head_ref, 'release/') != true
+        run: |
+          RELEASE_BRANCH="release/${BASE_VERSION}"
+          if ! git ls-remote --exit-code --heads origin $RELEASE_BRANCH; then
+            git checkout -b $RELEASE_BRANCH
+            git push -u origin $RELEASE_BRANCH
+          fi
+
+      # ======================================================
+      # BUILD ARTIFACTS
+
+      - name: Setup Build Environment
+        run: |
+          hatch env create ${{ env.BUILD_ENV }}
+
+      - name: Modify Version for Build with Hatch
+        if: steps.release_config.outputs.VERSION_SUFFIX != ''
+        run: |
+          # Backup original version file
+          cp src/${{ env.PACKAGE_SRCDIR }}/__version__.py src/${{ env.PACKAGE_SRCDIR }}/__version__.py.bak
+          # Update version with suffix
+          echo "__version__ = '${{ env.VERSION }}'" > src/${{ env.PACKAGE_SRCDIR }}/__version__.py
+
+      - name: Verify Version Before Build
+        run: |
+          echo "Checking version from Hatch:"
+          hatch version
+
+      - name: Build Package
+        id: build
+        run: |
+          hatch -e ${{ env.BUILD_ENV }} build
+          echo "WHEEL_FILE=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
+          echo "WHEEL_FILENAME=$(basename $(ls dist/*.whl))" >> $GITHUB_OUTPUT
+
+      - name: Restore Original Version
+        if: steps.release_config.outputs.VERSION_SUFFIX != ''
+        run: |
+          mv src/${{ env.PACKAGE_SRCDIR }}/__version__.py.bak src/${{ env.PACKAGE_SRCDIR }}/__version__.py
+
+      - name: Generate SBOMs
+        run: |
+          hatch run ${{ env.BUILD_ENV }}:sbom-all
+          hatch run ${{ env.BUILD_ENV }}:export-requirements
+          hatch run ${{ env.BUILD_ENV }}:sbom-direct
+          mv ./sbom-full.xml ./${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-sbom-full.json
+          mv ./sbom-direct.xml ./${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-sbom-direct.json
+
+      # ======================================================
+      # PUBLISH
+
+      - name: Create and Push Tag
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag -a "v${{ env.VERSION }}" -m "Release v${{ env.VERSION }}"
+          git push origin "v${{ env.VERSION }}"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.VERSION }}
+          release_name: ${{ steps.release_config.outputs.RELEASE_TITLE }} v${{ env.VERSION }}
+          draft: false
+          prerelease: ${{ steps.release_config.outputs.IS_PRERELEASE }}
+          body: |
+            ${{ steps.release_config.outputs.RELEASE_DESCRIPTION }}
+
+            ## Release Details
+            - Type: ${{ steps.release_config.outputs.RELEASE_TYPE }}
+            - Source Branch: ${{ github.head_ref }}
+            - Target Branch: ${{ github.base_ref }}
+            - Version: ${{ env.VERSION }}
+
+            ## Package Information
+            - Package: ${{ env.PACKAGE_NAME }}
+            - Base Version: ${{ env.BASE_VERSION }}
+            ${{ steps.release_config.outputs.VERSION_SUFFIX && format('- Version Suffix: {0}', steps.release_config.outputs.VERSION_SUFFIX) || '' }}
+
+      - name: Upload Package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.build.outputs.WHEEL_FILE }}
+          asset_name: ${{ steps.build.outputs.WHEEL_FILENAME }}
+          asset_content_type: application/octet-stream
+
+      - name: Upload SBOM (Full)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-sbom-full.json
+          asset_name: ${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-sbom-full.json
+          asset_content_type: application/xml
+
+      - name: Upload SBOM (Direct)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-sbom-direct.json
+          asset_name: ${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-sbom-direct.json
+          asset_content_type: application/xml
+
+      - name: Setup Wheels Repository
+        run: |
+          # Configure git
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+          # Clone the wheels repository
+          git clone https://x-access-token:${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}@github.com/${{ env.ORGNAME }}/mountainash-wheels.git wheels-repo
+
+          # Go to the wheels repository
+          cd wheels-repo
+
+          # Generate a unique branch name using a timestamp
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          BRANCH_NAME="release/${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-${TIMESTAMP}"
+
+          # Create a new branch for this release
+          git checkout -b $BRANCH_NAME
+
+          # Create package directory if it doesn't exist
+          mkdir -p ${{ env.PACKAGE_NAME }}
+
+          # Copy the newly built wheel to the repository
+          cp ../${{ steps.build.outputs.WHEEL_FILE }} ${{ env.PACKAGE_NAME }}/
+
+          # Add the new wheel file
+          git add .
+
+          # Commit the changes
+          git commit -m "Add ${{ steps.build.outputs.WHEEL_FILENAME }} to wheels repository"
+
+          # Push the branch to the repository
+          git push -u origin $BRANCH_NAME
+
+          # Export the branch name for later steps
+          echo "WHEELS_BRANCH=${BRANCH_NAME}" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        run: |
+          # Create a simpler PR body
+          PR_BODY="This PR adds the following wheel file to the wheels repository:\n- ${{ steps.build.outputs.WHEEL_FILENAME }}\n\nThis was automatically generated from the release workflow of ${{ github.repository }}."
+
+          # Properly escape the PR body for JSON
+          PR_BODY_ESCAPED=$(echo "$PR_BODY" | jq -Rs .)
+
+          # Create the PR
+          PR_RESPONSE=$(curl -X POST \
+            -H "Authorization: token ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ env.ORGNAME }}/mountainash-wheels/pulls \
+            -d "{
+              \"title\": \"Add ${{ env.PACKAGE_NAME }} v${{ env.VERSION }} to wheels repository\",
+              \"body\": ${PR_BODY_ESCAPED},
+              \"head\": \"${WHEELS_BRANCH}\",
+              \"base\": \"main\"
+            }")
+
+            echo "API Response: $PR_RESPONSE"
+
+            # Extract PR URL and number
+            PR_URL=$(echo "$PR_RESPONSE" | jq -r '.html_url')
+            PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+
+            # Add labels to the PR
+            if [ "$PR_NUMBER" != "null" ]; then
+              curl -X POST \
+                -H "Authorization: token ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                https://api.github.com/repos/${{ env.ORGNAME }}/mountainash-wheels/issues/$PR_NUMBER/labels \
+                -d '{
+                  "labels": ["automated", "wheel"]
+                }'
+
+              echo "PR_URL=${PR_URL}" >> $GITHUB_ENV
+              echo "::notice::Pull Request created: ${PR_URL}"
+            else
+              echo "::error::Failed to create Pull Request"
+              echo "$PR_RESPONSE"
+              exit 1
+          fi

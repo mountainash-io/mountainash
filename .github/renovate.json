@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboardApproval"],
+  "timezone": "Australia/Melbourne",
+  "baseBranches": ["main"],
+  "packageRules": [
+    {
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["pyproject.toml", "hatch.toml"],
+      "groupName": "Python dependencies",
+      "schedule": ["after 5pm on Friday"],
+      "automerge": false,
+      "commitMessagePrefix": "chore(python dependencies):"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github dependencies",
+      "automerge": true,
+      "schedule": ["after 5pm on Saturday"],
+      "commitMessagePrefix": "chore(github dependencies):"
+    },
+    {
+      "excludePackagePatterns": ["^@types/"]
+    }
+  ],
+  "schedule": ["on the first day of the month"],
+  "prConcurrentLimit": 10,
+  "assignees": ["discreteds"],
+  "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "assignees": ["discreteds"]
+  },
+  "commitMessagePrefix": "chore(dependencies):"
+}

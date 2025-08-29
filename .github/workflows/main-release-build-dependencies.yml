@@ -1,0 +1,71 @@
+# Pre-merge validation workflow
+name: Validate Main Release PR - Build Dependencies 
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  main-release-build-dependencies:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        python-version: ["3.12"]
+    
+    env:
+      BUILD_ENV: 'build_github'
+
+    steps:
+
+      # ======================================================
+      # INITIALIZE
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0      # Get the target branch name (branch PR was merged into)
+
+      - name: Set Branch Vars
+        run: |
+          echo "SOURCE_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
+
+      # ======================================================
+      # DEPENDENCIES
+
+      - name: Python Dependencies
+        run: |
+          pip install hatchling==1.25.0
+          pip install hatch==1.12.0
+
+      # Checkout Mountain Ash Dependencies
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_dependencies.yml
+
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ${{ env.TARGET_BRANCH }}
+          default-branch: main
+          token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
+          org-name: ${{ env.ORGNAME }}          
+
+      # ======================================================
+      # BUILD ARTIFACTS
+
+      - name: Setup Build Environment
+        run: |
+          hatch env create ${{ env.BUILD_ENV }}

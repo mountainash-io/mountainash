@@ -1,0 +1,20 @@
+# Pre-merge validation workflow
+name: Validate Main Release PR - Source Branch
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  pre-release-validation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate Source Branch
+        run: |
+          if [[ ! "${{ github.head_ref }}" =~ ^(release|hotfix)/ ]]; then
+            echo "Error: Only release/* or hotfix/* branches can target main"
+            exit 1
+          fi

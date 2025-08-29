@@ -1,0 +1,100 @@
+name: Pytest
+
+on:
+  pull_request_target:
+    paths:
+      - "src/mountainash_expressions/**"
+  workflow_dispatch:
+    inputs:
+      fallback_branch:
+        description: "Fallback branch to use"
+        required: true
+        default: "develop"
+        type: choice
+        options:
+          - develop
+          - main
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        python-version: ["3.12"] #, "3.8", "3.9", "3.10","3.11",]
+
+    steps:
+      # Current Branch
+      - name: Get branch name
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}})" >> $GITHUB_ENV
+
+      # Set fallback branch
+      - name: Set fallback branch
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "FALLBACK_BRANCH=${{ github.event.inputs.fallback_branch }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            echo "FALLBACK_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
+          else
+            echo "FALLBACK_BRANCH=develop" >> $GITHUB_ENV
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_NAME }}
+          fetch-depth: 0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          check-latest: true
+
+      - name: Display SQLite version
+        run: |
+          python -c "import sqlite3; print(f'SQLite version: {sqlite3.sqlite_version}')"
+
+      # Checkout Mountain Ash Dependencies
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_dependencies.yml
+
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ${{ env.BRANCH_NAME }}
+          default-branch: ${{ env.FALLBACK_BRANCH }}
+          token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
+          org-name: ${{ env.ORGNAME }}
+
+      # Install Hatch
+      - name: Install Hatch
+        run: pip install hatch
+
+      - name: Create virtual environment
+        run: hatch env create test_github
+
+      #Run Pytest
+      # - name: Run tests
+      #   run: hatch run test_github:test
+
+      # Run Pytest with Coverage
+      - name: Run Coverage Tests
+        run: hatch run test_github:test-cov
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

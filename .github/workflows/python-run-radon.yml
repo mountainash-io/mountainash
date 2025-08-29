@@ -1,0 +1,38 @@
+name: Radon Complexity Checks
+
+on:
+  pull_request_target:
+    paths:
+      - "src/mountainash_expressions/**"
+  workflow_dispatch:
+
+jobs:
+  complexity-checks:
+    runs-on: ubuntu-24.04
+    steps:
+      # Current Branch
+      - name: Get branch name
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}})" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_NAME }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Hatch
+        run: pip install hatch
+
+      - name: Create virtual environment
+        run: hatch env create radon
+
+      - name: Complexity checks with radon - cc
+        run: hatch run radon:radon-cc
+
+      - name: Complexity checks with radon - mi
+        run: hatch run radon:radon-mi

@@ -1,0 +1,82 @@
+# .github/actions/checkout-dependencies/action.yml
+name: 'Checkout Dependencies'
+description: 'Checks out multiple repository dependencies'
+
+inputs:
+  dependencies:
+    required: true
+    description: 'JSON string of dependencies to checkout'
+    type: string
+  target-branch:
+    required: true
+    type: string
+  default-branch:
+    required: false
+    type: string
+    default: 'main'
+  token:
+    description: 'GitHub token for authentication'
+    required: true
+  org-name:
+    description: 'GitHub organization name'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Process Dependencies
+      shell: bash
+      run: |
+        # Debug: Show received input
+        # echo "Received dependencies input:"
+        # echo '${{ inputs.dependencies }}' | jq '.'
+        
+        # Process each dependency
+        echo '${{ inputs.dependencies }}' | jq -c '.[]' | while read -r dep; do
+          # Extract values with error checking
+          repo=$(echo "$dep" | jq -r '.name // empty')
+          if [ -z "$repo" ]; then
+            echo "Error: Invalid repository name in dependency"
+            continue
+          fi
+
+          org_name=$(echo "$dep" | jq -r '.["org-name"] // "${{ inputs.org-name }}"')
+
+          # default_branch=$(echo "$dep" | jq -r '.["default-branch"] // "main"')
+          default_branch=${{ inputs.default-branch }}
+          
+          echo "Processing dependency: $org_name/$repo"
+          echo "Target branch: $target_branch"
+          echo "Default branch: $default_branch"
+          
+          # Determine Branch
+          target_branch="${{ inputs.target-branch }}"
+          selected_branch=""
+          
+          response=$(curl -s -H "Authorization: token ${{ inputs.token }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$org_name/$repo/branches/$target_branch")
+          
+          if echo "$response" | jq -e '.name' >/dev/null 2>&1; then
+            selected_branch="$target_branch"
+            echo "Using target branch: $selected_branch"
+          else
+            selected_branch="$default_branch"
+            echo "Target branch not found, using default: $selected_branch"
+          fi
+          
+          echo "Cloning $org_name/$repo from branch $selected_branch"
+          
+          # Create temp directory if it doesn't exist
+          mkdir -p temp
+          
+          # Checkout Repository
+          git clone --depth 1 --branch "$selected_branch" \
+            "https://x-access-token:${{ inputs.token }}@github.com/$org_name/$repo.git" \
+            "temp/$repo" || {
+              echo "Error: Failed to clone $org_name/$repo"
+              continue
+            }
+          
+          echo "Successfully checked out $org_name/$repo on branch $selected_branch"
+        done

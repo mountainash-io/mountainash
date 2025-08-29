@@ -1,0 +1,134 @@
+name: Generate Changelog Entry
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - "main"
+
+jobs:
+  generate-changelog:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Setup Environment Variables
+        run: |
+          echo "PACKAGE_NAME=mountainash-dataframes" >> $GITHUB_ENV
+          echo "ORGNAME=mountainash-io" >> $GITHUB_ENV
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract PR Information
+        id: pr_info
+        run: |
+          # Get PR details
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          SOURCE_BRANCH="${{ github.event.pull_request.head.ref }}"
+          MERGE_COMMIT="${{ github.event.pull_request.merge_commit_sha }}"
+
+          # Get all commits in the PR
+          COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/commits" | \
+            jq -r '.[] | "- \(.commit.message | split("\n")[0]) (\(.sha[0:7]))"')
+
+          # Get changed files
+          FILES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/files" | \
+            jq -r '.[] | .filename' | head -20)
+
+          # Get diff stats
+          DIFF_STATS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" | \
+            jq -r '"Files changed: \(.changed_files), Additions: +\(.additions), Deletions: -\(.deletions)"')
+
+          # Export variables for next step
+          {
+            echo "PR_NUMBER=${PR_NUMBER}"
+            echo "PR_TITLE=${PR_TITLE}"
+            echo "PR_AUTHOR=${PR_AUTHOR}"
+            echo "SOURCE_BRANCH=${SOURCE_BRANCH}"
+            echo "MERGE_COMMIT=${MERGE_COMMIT}"
+            echo "DIFF_STATS=${DIFF_STATS}"
+          } >> $GITHUB_OUTPUT
+
+          # Multi-line variables need special handling
+          {
+            echo "PR_BODY<<EOF"
+            echo "${PR_BODY}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "COMMITS<<EOF"
+            echo "${COMMITS}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "FILES<<EOF"
+            echo "${FILES}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Generate Changelog Entry with Claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          direct_prompt: |
+            I need you to analyze this merged pull request and generate a standardized changelog entry for the CHANGELOG.md file.
+
+            ## PR Information:
+            - **Number:** #${{ steps.pr_info.outputs.PR_NUMBER }}
+            - **Title:** ${{ steps.pr_info.outputs.PR_TITLE }}
+            - **Author:** ${{ steps.pr_info.outputs.PR_AUTHOR }}
+            - **Source Branch:** ${{ steps.pr_info.outputs.SOURCE_BRANCH }}
+            - **Merge Commit:** ${{ steps.pr_info.outputs.MERGE_COMMIT }}
+            - **Stats:** ${{ steps.pr_info.outputs.DIFF_STATS }}
+
+            ## PR Description:
+            ${{ steps.pr_info.outputs.PR_BODY }}
+
+            ## Commits in this PR:
+            ${{ steps.pr_info.outputs.COMMITS }}
+
+            ## Changed Files:
+            ${{ steps.pr_info.outputs.FILES }}
+
+            ## Task:
+
+            1. **First, read the current CHANGELOG.md file** to understand the existing format and style
+
+            2. **Generate a changelog entry** in the exact same format as existing entries, following these guidelines:
+               - Use one of these types: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**, **Security**
+               - Focus on WHAT was changed and WHY, not HOW it was implemented
+               - Describe user/developer visible impacts
+               - Keep it concise but informative
+               - Use consistent terminology with the project
+
+            3. **Update the CHANGELOG.md file** by:
+               - Adding today's date in YYYY-MM-DD format
+               - Inserting the new entry at the top (after the header, before existing entries)
+               - Following the existing format exactly
+               - Including the PR reference: `(#${{ steps.pr_info.outputs.PR_NUMBER }} by @${{ steps.pr_info.outputs.PR_AUTHOR }})`
+
+            4. **Commit the changes** with this exact commit message:
+            ```
+            Update CHANGELOG.md for PR #${{ steps.pr_info.outputs.PR_NUMBER }}
+
+            🤖 Generated with [Claude Code](https://claude.ai/code)
+
+            Co-Authored-By: Claude <noreply@anthropic.com>
+            ```
+
+            **Important:** Only update the CHANGELOG.md file. Do not make any other changes to the codebase.
+
+            **Note:** This is an automated process running after a PR merge to main. The goal is to maintain a consistent, high-quality changelog that helps users understand what changed in each release.

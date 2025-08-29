@@ -1,0 +1,41 @@
+# .github/workflows/actions/load-dependencies/action.yml
+name: "Load Dependencies"
+description: "Loads and processes dependency configuration"
+
+inputs:
+  config-path:
+    description: "Path to dependencies configuration file"
+    required: true
+    default: ".github/config/mountainash_dependencies.yml"
+
+outputs:
+  dependencies:
+    description: "JSON string of processed dependencies"
+    value: ${{ steps.parse-deps.outputs.deps }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        # Install yq for YAML processing
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq
+
+    - name: Parse Dependencies
+      id: parse-deps
+      shell: bash
+      run: |
+        # Create a properly escaped JSON string
+        DEPS=$(yq eval -o=json '.dependencies' "${{ inputs.config-path }}" | jq -c .)
+        # Use GitHub's special delimiter for multi-line strings
+        echo "deps<<EOF" >> $GITHUB_OUTPUT
+        echo "$DEPS" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Debug Output
+      shell: bash
+      run: |
+        echo "Generated dependencies:"
+        yq eval -o=json '.dependencies' "${{ inputs.config-path }}" | jq '.'
