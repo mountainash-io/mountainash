@@ -3,11 +3,13 @@ from functools import reduce
 
 import pandas as pd
 
-from . import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ..core.backends import PandasBackendVisitor
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...logic.core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from ...logic.boolean import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ..core import ExpressionVisitor, PandasBackendVisitor
+from . import BooleanExpressionVisitor
+
 
 class PandasBooleanExpressionVisitor(PandasBackendVisitor, BooleanExpressionVisitor):
 
@@ -19,34 +21,34 @@ class PandasBooleanExpressionVisitor(PandasBackendVisitor, BooleanExpressionVisi
 
     # Binary Comparisons
 
-    def _eq(self, LHS: Any, RHS: Any) -> Callable:
+    def _eq(self, LHS: Any, RHS: Any) -> pd.Series:
         return LHS == RHS
 
-    def _ne(self, LHS: Any, RHS: Any) -> Callable:
+    def _ne(self, LHS: Any, RHS: Any) -> pd.Series:
         return LHS != RHS
 
-    def _gt(self, LHS: Any, RHS: Any) -> Callable:
+    def _gt(self, LHS: Any, RHS: Any) -> pd.Series:
         return LHS > RHS
 
-    def _lt(self, LHS: Any, RHS: Any) -> Callable:
+    def _lt(self, LHS: Any, RHS: Any) -> pd.Series:
         return LHS < RHS
 
-    def _ge(self, LHS: Any, RHS: Any) -> Callable:
+    def _ge(self, LHS: Any, RHS: Any) -> pd.Series:
         return LHS >= RHS
 
-    def _le(self, LHS: Any, RHS: Any) -> Callable:
+    def _le(self, LHS: Any, RHS: Any) -> pd.Series:
         return LHS <= RHS
 
-    def _in(self, LHS: Any, RHS: Any) -> Callable:
+    def _in(self, LHS: Any, RHS: Any) -> pd.Series:
         RHS_as_list = list(RHS) if not isinstance(RHS, list) else RHS # Ensure it's a list
         return LHS.isin(RHS_as_list)
 
 
     # Unary Comparisons
-    def _is_null(self, LHS: Any) -> Callable:
+    def _is_null(self, LHS: Any) -> pd.Series:
         return LHS.isnull()
 
-    def _not_null(self, LHS: Any) -> Callable:
+    def _not_null(self, LHS: Any) -> pd.Series:
         return LHS.notnull()
 
 

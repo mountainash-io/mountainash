@@ -3,11 +3,15 @@ from functools import reduce
 
 import polars as pl
 
-from . import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ..core.backends import PolarsBackendVisitor
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...logic.core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from ...logic.boolean import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
+
+from ..core import ExpressionVisitor, PolarsBackendVisitor
+from . import BooleanExpressionVisitor
+
+
 
 class PolarsBooleanExpressionVisitor(PolarsBackendVisitor, BooleanExpressionVisitor):
 
@@ -19,34 +23,34 @@ class PolarsBooleanExpressionVisitor(PolarsBackendVisitor, BooleanExpressionVisi
 
     # Binary Comparisons
 
-    def _eq(self, LHS: Any, RHS: Any) -> Callable:
+    def _eq(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS == RHS
 
-    def _ne(self, LHS: Any, RHS: Any) -> Callable:
+    def _ne(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS != RHS
 
-    def _gt(self, LHS: Any, RHS: Any) -> Callable:
+    def _gt(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS > RHS
 
-    def _lt(self, LHS: Any, RHS: Any) -> Callable:
+    def _lt(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS < RHS
 
-    def _ge(self, LHS: Any, RHS: Any) -> Callable:
+    def _ge(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS >= RHS
 
-    def _le(self, LHS: Any, RHS: Any) -> Callable:
+    def _le(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS <= RHS
 
-    def _in(self, LHS: Any, RHS: Any) -> Callable:
+    def _in(self, LHS: Any, RHS: Any) -> pl.Expr:
         RHS_as_list = list(RHS) if not isinstance(RHS, list) else RHS # Ensure it's a list
         return LHS.is_in(RHS_as_list)
 
 
     # Unary Comparisons
-    def _is_null(self, LHS: Any) -> Callable:
+    def _is_null(self, LHS: Any) -> pl.Expr:
         return LHS.is_null()
 
-    def _not_null(self, LHS: Any) -> Callable:
+    def _not_null(self, LHS: Any) -> pl.Expr:
         return LHS.is_not_null()
 
 

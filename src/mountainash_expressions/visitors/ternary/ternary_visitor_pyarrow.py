@@ -1,49 +1,32 @@
 # file: src/mountainash_dataframes/utils/expressions/ternary/ternary_expression_ibis.py
 
 """
-Ibis Ternary Expression Visitor
+PyArrow Ternary Expression Visitor
 
 This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
 
-from typing import Callable, Any, Optional, List, Literal
+from typing import Callable, Any, Optional
 from functools import reduce
 
 import pyarrow as pa
 import pyarrow.compute as pc
 
-from numpy import add
-from .ternary_nodes import TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode, TernaryExpressionNode
-from .ternary_visitor import TernaryExpressionVisitor
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from .constants import TernaryLogicValues
-from ..core.backends import PyArrowBackendVisitor
+from ...constants import CONST_TERNARY_LOGIC_VALUES
+from ...logic.core import LogicalExpressionNode
+from ..core import PyArrowBackendVisitor
+from . import TernaryExpressionVisitor
 
-
-# from .constants import TernaryLogicValues
-from .value_mappings import DEFAULT_TERNARY_MAPPER, TernaryValueMapper
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+# from .value_mappings import DEFAULT_TERNARY_MAPPER
 
 
 class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVisitor ):
     """Ternary-aware Ibis visitor with lambda-based operations following boolean pattern."""
 
-    _backend = "pyarrow"
-    _logic_type = "ternary"
 
-
-    def __init__(self, ternary_mapper: Optional[TernaryValueMapper] = None, filter_mode: bool = False):
-        """Initialize ternary visitor.
-
-        Args:
-            ternary_mapper: Custom ternary value mapper for UNKNOWN values
-            filter_mode: If True, convert ternary results to boolean for filtering operations
-        """
-        super().__init__()
-        self.ternary_mapper = ternary_mapper or DEFAULT_TERNARY_MAPPER
-        self.filter_mode = filter_mode
-
+    def __init__(self):
+        pass
 
     # ===============
     # Unary Booleanise Operations
@@ -58,7 +41,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: pc.equal(expression_node.operands[0].accept(self)(table), pa.scalar(TernaryLogicValues.TERNARY_TRUE))
+        return lambda table: pc.equal(expression_node.operands[0].accept(self)(table), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE))
 
     def _is_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -69,7 +52,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: pc.equal(expression_node.operands[0].accept(self)(table), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+        return lambda table: pc.equal(expression_node.operands[0].accept(self)(table), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
 
     def _is_unknown(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -80,7 +63,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: pc.equal(expression_node.operands[0].accept(self)(table), pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN))
+        return lambda table: pc.equal(expression_node.operands[0].accept(self)(table), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN))
 
 
     def _maybe_true(self,  expression_node: LogicalExpressionNode )-> Callable:
@@ -93,7 +76,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
             raise ValueError("Negation operation requires exactly one operand")
 
         return lambda table: pc.is_in(expression_node.operands[0].accept(self)(table),
-            ( pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN)))
+            ( pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)))
 
     def _maybe_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -105,7 +88,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
             raise ValueError("Negation operation requires exactly one operand")
 
         return lambda table: pc.is_in(expression_node.operands[0].accept(self)(table),
-            ( pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN), pa.scalar(TernaryLogicValues.TERNARY_FALSE)))
+            ( pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)))
 
     def _is_known(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -117,7 +100,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
             raise ValueError("Negation operation requires exactly one operand")
 
         return lambda table: pc.is_in(expression_node.operands[0].accept(self)(table),
-            ( pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE)))
+            ( pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)))
 
 
 
@@ -131,44 +114,44 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
 
         return  pc.if_else(
                     pc.or_(self._is_unknown_value(LHS), self._is_unknown_value(RHS)),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.equal(LHS, RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.equal(LHS, RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
 
     def _ne(self, LHS: Any, RHS: Any) -> pa.Array:
         return  pc.if_else(
                     pc.or_(self._is_unknown_value(LHS), self._is_unknown_value(RHS)),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.not_equal(LHS,RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.not_equal(LHS,RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _gt(self, LHS: Any, RHS: Any) -> pa.Array:
         return  pc.if_else(
                     pc.or_(self._is_unknown_value(LHS), self._is_unknown_value(RHS)),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.greater(LHS ,RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.greater(LHS ,RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _lt(self, LHS: Any, RHS: Any) -> pa.Array:
         return  pc.if_else(
                     pc.or_(self._is_unknown_value(LHS), self._is_unknown_value(RHS)),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.less(LHS ,RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.less(LHS ,RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _ge(self, LHS: Any, RHS: Any) -> pa.Array:
         return  pc.if_else(
                     pc.or_(self._is_unknown_value(LHS), self._is_unknown_value(RHS)),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.greater_equal(LHS ,RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.greater_equal(LHS ,RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _le(self, LHS: Any, RHS: Any) -> pa.Array:
         return  pc.if_else(
                     pc.or_(self._is_unknown_value(LHS), self._is_unknown_value(RHS)),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.less_equal(LHS ,RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.less_equal(LHS ,RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _in(self, LHS: Any, RHS: Any) -> pa.Array:
@@ -177,8 +160,8 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
 
         return  pc.if_else(
                     self._is_unknown_value(LHS),
-                    pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
-                    pc.if_else(pc.is_in(LHS, RHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+                    pc.if_else(pc.is_in(LHS, RHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
 
@@ -186,14 +169,14 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     # TODO: These need rearranging! As Null == Unknown!
     def _is_null(self, LHS: Any) -> pa.Array:
         return  pc.if_else(
-                    pc.is_null(LHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE),
-                    pc.if_else(self._is_unknown_value(LHS), pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pc.is_null(LHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE),
+                    pc.if_else(self._is_unknown_value(LHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _not_null(self, LHS: Any) -> pa.Array:
         return  pc.if_else(
-                    pc.is_valid(LHS), pa.scalar(TernaryLogicValues.TERNARY_TRUE),
-                    pc.if_else(self._is_unknown_value(LHS), pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN), pa.scalar(TernaryLogicValues.TERNARY_FALSE))
+                    pc.is_valid(LHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE),
+                    pc.if_else(self._is_unknown_value(LHS), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN), pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     # ===============
@@ -214,11 +197,11 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
 
             expression = expression_node.operands[0].accept(self)(table)
 
-            return pc.if_else(pc.equal(expression, pa.scalar(TernaryLogicValues.TERNARY_TRUE)),
-                            pa.scalar(TernaryLogicValues.TERNARY_FALSE),
-                            pc.if_else(pc.equal(expression, pa.scalar(TernaryLogicValues.TERNARY_FALSE)),
-                                pa.scalar(TernaryLogicValues.TERNARY_TRUE),
-                                pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN)))
+            return pc.if_else(pc.equal(expression, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)),
+                            pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE),
+                            pc.if_else(pc.equal(expression, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)),
+                                pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE),
+                                pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)))
 
         return evaluate_expression
 
@@ -235,22 +218,22 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     #     """XOR_PARITY: odd number TRUE (parity semantics)."""
 
     #     if not expression_node:
-    #         return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+    #         return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
     #     def evaluate_expression(table: Any) -> pa.Array:
     #         expressions = [operand.accept(self)(table) for operand in expression_node.operands]
 
-    #         true_count = self._count_value_direct(expressions, pa.scalar(TernaryLogicValues.TERNARY_TRUE))
-    #         unknown_count = self._count_value_direct(expressions, pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN))
+    #         true_count = self._count_value_direct(expressions, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE))
+    #         unknown_count = self._count_value_direct(expressions, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN))
 
 
     #         return pc.if_else(pc.greater(unknown_count, pa.scalar(0)),
-    #                            pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
+    #                            pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
     #                            pc.if_else(
     #                                 pc.equal(pc.bit_wise_and(true_count, pa.scalar(1)), pa.scalar(1)),
-    #                                 pa.scalar(TernaryLogicValues.TERNARY_TRUE),
-    #                                 pa.scalar(TernaryLogicValues.TERNARY_FALSE),
+    #                                 pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE),
+    #                                 pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE),
     #                     )
     #         )
 
@@ -261,21 +244,21 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     def _xor(self, expression_node: LogicalExpressionNode,) -> Callable[[Any], pa.Array]:
         """XOR: exactly one TRUE using count-based approach (exclusive semantics)."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pa.Array:
             expressions = [operand.accept(self)(table) for operand in expression_node.operands]
 
-            true_count = self._count_value_direct(expressions, pa.scalar(TernaryLogicValues.TERNARY_TRUE))
-            unknown_count = self._count_value_direct(expressions, pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN))
+            true_count = self._count_value_direct(expressions, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE))
+            unknown_count = self._count_value_direct(expressions, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN))
 
             return pc.if_else(pc.greater(unknown_count, pa.scalar(0)),
-                            pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN),
+                            pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
                             pc.if_else(
                                 pc.equal(true_count, pa.scalar(1)),
-                                pa.scalar(TernaryLogicValues.TERNARY_TRUE),
-                                pa.scalar(TernaryLogicValues.TERNARY_FALSE),
+                                pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE),
+                                pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE),
                     )
                 )
 
@@ -289,7 +272,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     #     """Ternary Optimistic AND using prime multiplication."""
 
     #     if not expression_node:
-    #         return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+    #         return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
     #     def evaluate_expression(table: Any) -> pa.Array:
     #         expressions = [operand.accept(self)(table) for operand in expression_node.operands]
@@ -297,11 +280,11 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     #         min_val = reduce(lambda x, y: pc.min_element_wise(x, y), expressions)
 
     #         return pc.if_else(
-    #             pc.and_(pc.equal(max_val, pa.scalar(TernaryLogicValues.TERNARY_TRUE)),  pc.greater_equal(min_val, pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN))),
-    #                                 pa.scalar(TernaryLogicValues.TERNARY_TRUE),
-    #                                 pc.if_else( pc.equal(max_val, pa.scalar(TernaryLogicValues.TERNARY_FALSE)),
-    #                                             pa.scalar(TernaryLogicValues.TERNARY_FALSE),
-    #                                             pa.scalar(TernaryLogicValues.TERNARY_UNKNOWN)
+    #             pc.and_(pc.equal(max_val, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)),  pc.greater_equal(min_val, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN))),
+    #                                 pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE),
+    #                                 pc.if_else( pc.equal(max_val, pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)),
+    #                                             pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE),
+    #                                             pa.scalar(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
     #                                 )
     #         )
 
@@ -313,7 +296,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     def _and(self, expression_node: LogicalExpressionNode) -> Callable[[Any], pa.Array]:
         """Ternary STRICT_AND using prime multiplication."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pa.Array:
@@ -327,7 +310,7 @@ class PyArrowTernaryExpressionVisitor(PyArrowBackendVisitor, TernaryExpressionVi
     def _or(self, expression_node: LogicalExpressionNode) -> Callable[[Any], pa.Array]:
         """Ternary OR using prime multiplication."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pa.Array:

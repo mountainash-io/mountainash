@@ -1,33 +1,52 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional, Dict
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from .boolean_logic_type_converter import BooleanLogicTypeConverter
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_LOGIC_TYPES
+from ...logic.core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from ...logic.boolean import BooleanExpressionConverter
+from ..core import ExpressionVisitor
+
 from functools import reduce
 
 class BooleanExpressionVisitor(ExpressionVisitor):
 
-    logic_type = "boolean"
+
+    @property
+    def _logic_type(self) -> str:
+        return CONST_EXPRESSION_LOGIC_TYPES.BOOLEAN
+
+
+    @abstractmethod
+    def _format_column(self,  column: str, table: Any) -> Any:
+        pass
+
+    @abstractmethod
+    def _format_literal(self, value: Any, table: Any) -> Any:
+        pass
+
+    @abstractmethod
+    def _format_list(self, value: Any) -> Any:
+        pass
+
 
     # ===============
     # Logic Type Conversion
     # ===============
 
-    def __init__(self, logic_converter: Optional[BooleanLogicTypeConverter] = None):
+    def __init__(self, logic_converter: Optional[BooleanExpressionConverter] = None):
         """Initialize boolean visitor with logic type converter.
-        
+
         Args:
             logic_converter: Optional converter for logic type transformations
         """
-        self.logic_converter = logic_converter or BooleanLogicTypeConverter()
+        self.logic_converter = logic_converter or BooleanExpressionConverter()
 
     def convert_to_boolean(self, expression_node: ExpressionNode) -> ExpressionNode:
         """Convert expression node to boolean logic type.
-        
+
         Args:
             expression_node: Expression node to convert
-            
+
         Returns:
             Converted boolean expression node
         """
@@ -151,54 +170,10 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         """Dynamic property to get boolean comparison operations with current mode."""
         return self._boolean_comparison_ops()
 
-    # @abstractmethod
-    # def _boolean_comparison_ops(self) -> Dict[str, Callable]:
-    #     """Abstract method to define boolean comparison operations."""
-    #     pass
-
     @property
     def boolean_logical_ops(self) -> Dict[str, Callable]:
         """Dynamic property to get boolean logical operations with current filter mode."""
         return self._boolean_logical_ops()
-
-
-    @abstractmethod
-    def _format_column(self,  column: str, table: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _format_literal(self, value: Any, table: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _format_list(self, value: Any) -> Any:
-        pass
-
-
-    # @abstractmethod
-    # def _boolean_logical_ops(self) -> Dict[str, Callable]:
-    #     """Abstract method to define boolean logical operations."""
-    #     pass
-
-    # @property
-    # def boolean_conditional_ops(self) -> Dict[str, Callable]:
-    #     """Dynamic property to get boolean conditional with current filter mode."""
-    #     return self._boolean_comparison_ops()
-
-    # @abstractmethod
-    # def _boolean_conditional_ops(self) -> Dict[str, Callable]:
-    #     """Abstract method to define boolean conditional operations."""
-    #     pass
-
-
-    # ===============
-    # Abstract Visitor Operations
-    # ===============
-
-    # @abstractmethod
-    # def _combine(self, table: Any, operands: List[ExpressionNode], combine_func: Callable) -> Callable:
-    #     """Abstract method to combine expressions using a specified function."""
-    #     pass
 
 
 

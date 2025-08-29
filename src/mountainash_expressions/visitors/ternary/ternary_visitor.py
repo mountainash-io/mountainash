@@ -6,27 +6,20 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional, Dict
 from functools import reduce
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from ..core import ExpressionVisitor, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode, ExpressionNode
-from .ternary_builder import TernaryExpressionBuilder
-from .ternary_logic_type_converter import TernaryLogicTypeConverter
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_LOGIC_TYPES, CONST_TERNARY_LOGIC_VALUES
 
+from ...logic.core import ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode, ExpressionNode
+from ...logic.ternary import TernaryExpressionConverter
+
+from ..core.base_expression_visitor import ExpressionVisitor
 
 class TernaryExpressionVisitor(ExpressionVisitor):
 
-    logic_type = "ternary"
 
-    # @abstractmethod
-    # def visit_literal_expression(self, expression_node: LiteralExpressionNode) -> Callable:
-    #     pass
+    @property
+    def _logic_type(self) -> str:
+        return CONST_EXPRESSION_LOGIC_TYPES.TERNARY
 
-    # @abstractmethod
-    # def visit_column_expression(self, expression_node: ColumnExpressionNode) -> Callable:
-    #     pass
-
-    # @abstractmethod
-    # def visit_logical_expression(self, expression_node: LogicalExpressionNode) -> Callable:
-    #     pass
 
     @abstractmethod
     def _format_column(self,  column: str, table: Any) -> Any:
@@ -44,25 +37,15 @@ class TernaryExpressionVisitor(ExpressionVisitor):
     # Logic Type Conversion
     # ===============
 
-    def __init__(self, logic_converter: Optional[TernaryLogicTypeConverter] = None):
+    def __init__(
+        # self, logic_converter: Optional[TernaryLogicTypeConverter] = None
+        ):
         """Initialize ternary visitor with logic type converter.
-        
-        Args:
-            logic_converter: Optional converter for logic type transformations
-        """
-        self.logic_converter = logic_converter or TernaryLogicTypeConverter()
 
-    def convert_to_ternary(self, expression_node: ExpressionNode) -> ExpressionNode:
-        """Convert expression node to ternary logic type.
-        
-        Args:
-            expression_node: Expression node to convert
-            
-        Returns:
-            Converted ternary expression node
+        Args: None
         """
-        return self.logic_converter.convert(expression_node)
-
+        # self.logic_converter = logic_converter or TernaryLogicTypeConverter()
+        pass
 
 
 
@@ -80,8 +63,8 @@ class TernaryExpressionVisitor(ExpressionVisitor):
             raise TypeError("Expected a LiteralExpressionNode instance")
 
         # Check if conversion needed
-        if self.logic_converter.needs_conversion(expression_node):
-            expression_node = self.convert_to_ternary(expression_node)
+        if TernaryExpressionConverter.needs_conversion(expression_node,  self.logic_type):
+            expression_node = TernaryExpressionConverter.convert(expression_node,  self.logic_type
 
         if expression_node.operator not in self.comparison_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
@@ -181,9 +164,11 @@ class TernaryExpressionVisitor(ExpressionVisitor):
             CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_TRUE:   self._always_true,
             CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_FALSE:  self._always_false,
             CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_UNKNOWN:self._always_unknown,
+
             CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE:       self._is_true,
             CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE:      self._is_false,
             CONST_EXPRESSION_LOGIC_OPERATORS.IS_UNKNOWN:    self._is_unknown,
+
             CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_TRUE:    self._maybe_true,
             CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_FALSE:   self._maybe_false,
             CONST_EXPRESSION_LOGIC_OPERATORS.IS_KNOWN:      self._is_known,
@@ -196,11 +181,6 @@ class TernaryExpressionVisitor(ExpressionVisitor):
         }
 
         return _logical_ops
-
-
-
-
-
 
     @property
     def comparison_ops(self) -> Dict[str, Callable]:
@@ -239,43 +219,20 @@ class TernaryExpressionVisitor(ExpressionVisitor):
     # Constant Operations
     def _always_true(self) -> Callable:
         """Always true expression."""
-        return lambda table: self._format_literal(TernaryLogicValues.TERNARY_TRUE, table)
+        return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, table)
 
     def _always_false(self) -> Callable:
         """Always false expression."""
-        return lambda table: self._format_literal(TernaryLogicValues.TERNARY_FALSE, table)
+        return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE, table)
 
     def _always_unknown(self) -> Callable:
         """Always false expression."""
-        return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
-
-
-
+        return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
     # ===============
-    # Abstract Visitor Operations
-    # ===============
-
-
     # Logical Operations
     # ===============
-
-
-    # @abstractmethod
-    # def _always_true(self) -> Callable:
-    #     """Abstract method to return an always true expression."""
-    #     pass
-
-    # @abstractmethod
-    # def _always_false(self) -> Callable:
-    #     """Abstract method to return always false expression."""
-    #     pass
-
-    # @abstractmethod
-    # def _always_unknown(self) -> Callable:
-    #     """Abstract method to return always unknown expression."""
-    #     pass
 
     @abstractmethod
     def _is_true(self, expression_node: LogicalExpressionNode) -> Callable:

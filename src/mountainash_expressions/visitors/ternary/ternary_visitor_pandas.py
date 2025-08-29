@@ -1,50 +1,32 @@
 # file: src/mountainash_dataframes/utils/expressions/ternary/ternary_expression_ibis.py
 
 """
-Ibis Ternary Expression Visitor
+Pandas Ternary Expression Visitor
 
 This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
 
-from typing import Callable, Any, Optional, List, Literal
+from typing import Callable, Any, Optional
 import ibis
-import ibis.expr.types as ir
-from functools import reduce
+# from functools import reduce
 import pandas as pd
 import numpy as np
 
-# from numpy import add
-from .ternary_nodes import TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode, TernaryExpressionNode
-from .ternary_visitor import TernaryExpressionVisitor
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from .constants import TernaryLogicValues
-from ..core.backends import PandasBackendVisitor
+from ...constants import CONST_TERNARY_LOGIC_VALUES
+from ...logic.core import LogicalExpressionNode
+# from ...logic.ternary import TernaryExpressionNode, TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode
 
-
-# from .constants import TernaryLogicValues
-from .value_mappings import DEFAULT_TERNARY_MAPPER, TernaryValueMapper
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ..core import PandasBackendVisitor
+from . import TernaryExpressionVisitor
 
 
 class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisitor):
     """Ternary-aware Ibis visitor with lambda-based operations following boolean pattern."""
 
-    _backend = "ibis"
-    _logic_type = "ternary"
 
-
-    def __init__(self, ternary_mapper: Optional[TernaryValueMapper] = None, filter_mode: bool = False):
-        """Initialize ternary visitor.
-
-        Args:
-            ternary_mapper: Custom ternary value mapper for UNKNOWN values
-            filter_mode: If True, convert ternary results to boolean for filtering operations
-        """
-        super().__init__()
-        self.ternary_mapper = ternary_mapper or DEFAULT_TERNARY_MAPPER
-        self.filter_mode = filter_mode
-
+    def __init__(self):
+        pass
 
 
     # ===============
@@ -60,7 +42,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == TernaryLogicValues.TERNARY_TRUE
+        return lambda table: expression_node.operands[0].accept(self)(table) == CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 
     def _is_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -71,7 +53,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == TernaryLogicValues.TERNARY_FALSE
+        return lambda table: expression_node.operands[0].accept(self)(table) == CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
     def _is_unknown(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -82,7 +64,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == TernaryLogicValues.TERNARY_UNKNOWN
+        return lambda table: expression_node.operands[0].accept(self)(table) == CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
 
 
     def _maybe_true(self,  expression_node: LogicalExpressionNode )-> Callable:
@@ -94,7 +76,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) in ( TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_UNKNOWN)
+        return lambda table: expression_node.operands[0].accept(self)(table) in ( CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
 
     def _maybe_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -105,7 +87,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) in ( TernaryLogicValues.TERNARY_UNKNOWN, TernaryLogicValues.TERNARY_FALSE)
+        return lambda table: expression_node.operands[0].accept(self)(table) in ( CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
 
     def _is_known(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -116,7 +98,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) in ( TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+        return lambda table: expression_node.operands[0].accept(self)(table) in ( CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
 
 
     # ===============
@@ -129,8 +111,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS == RHS, TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS == RHS, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -138,8 +120,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS != RHS, TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS != RHS, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -147,8 +129,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS > RHS, TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS > RHS, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -156,8 +138,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS < RHS, TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS < RHS, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -165,8 +147,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS >= RHS, TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS >= RHS, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -175,8 +157,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS <= RHS, TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS <= RHS, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
     def _in(self, LHS: Any, RHS: Any) -> pd.Series:
@@ -185,8 +167,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     self._is_unknown_value(LHS),
-                    TernaryLogicValues.TERNARY_UNKNOWN,
-                    np.where(LHS.isin(RHS_as_list), TernaryLogicValues.TERNARY_TRUE, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
+                    np.where(LHS.isin(RHS_as_list), CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -197,8 +179,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     LHS.isna(),
-                    TernaryLogicValues.TERNARY_TRUE,
-                    np.where(self._is_unknown_value(LHS), TernaryLogicValues.TERNARY_UNKNOWN, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+                    np.where(self._is_unknown_value(LHS), CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
 
@@ -207,8 +189,8 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
 
         return  pd.Series(np.where(
                     LHS.notna(),
-                    TernaryLogicValues.TERNARY_TRUE,
-                    np.where(self._is_unknown_value(LHS), TernaryLogicValues.TERNARY_UNKNOWN, TernaryLogicValues.TERNARY_FALSE)
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+                    np.where(self._is_unknown_value(LHS), CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
                 ), index=LHS.index)
 
     # ===============
@@ -228,11 +210,11 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
         callable_expr = expression_node.operands[0].accept(self)
 
         return lambda table: pd.Series(np.where(
-                    callable_expr(table) == TernaryLogicValues.TERNARY_TRUE,
-                    TernaryLogicValues.TERNARY_FALSE,
-                    np.where(callable_expr(table) == TernaryLogicValues.TERNARY_FALSE,
-                                TernaryLogicValues.TERNARY_TRUE,
-                                TernaryLogicValues.TERNARY_UNKNOWN))
+                    callable_expr(table) == CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+                    CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE,
+                    np.where(callable_expr(table) == CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE,
+                                CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+                                CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN))
         )
 
 
@@ -249,23 +231,23 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
     #     """XOR_PARITY: odd number TRUE (parity semantics)."""
 
     #     if not expression_node:
-    #         return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+    #         return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
     #     def evaluate_expression(table: Any) -> pd.Series:
 
     #         series = [operand.accept(self)(table) for operand in expression_node.operands]
 
-    #         true_count = self._count_value_direct(series, TernaryLogicValues.TERNARY_TRUE)
-    #         unknown_count = self._count_value_direct(series, TernaryLogicValues.TERNARY_UNKNOWN)
+    #         true_count = self._count_value_direct(series, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)
+    #         unknown_count = self._count_value_direct(series, CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
 
     #         return pd.Series(np.where(
     #                         unknown_count > 0,
-    #                         TernaryLogicValues.TERNARY_UNKNOWN,
+    #                         CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
     #                         np.where(
     #                                 true_count % 2 == 1,
-    #                                 TernaryLogicValues.TERNARY_TRUE,
-    #                                 TernaryLogicValues.TERNARY_FALSE,
+    #                                 CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+    #                                 CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE,
     #                     )
     #         ))
 
@@ -276,24 +258,24 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
     def _xor(self, expression_node: LogicalExpressionNode,) -> Callable:
         """XOR: exactly one TRUE using count-based approach (exclusive semantics)."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pd.Series:
 
             series = [operand.accept(self)(table) for operand in expression_node.operands]
 
-            true_count = self._count_value_direct(series, TernaryLogicValues.TERNARY_TRUE)
-            unknown_count = self._count_value_direct(series, TernaryLogicValues.TERNARY_UNKNOWN)
+            true_count = self._count_value_direct(series, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)
+            unknown_count = self._count_value_direct(series, CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
 
 
             return pd.Series(np.where(
                             unknown_count > 0,
-                            TernaryLogicValues.TERNARY_UNKNOWN,
+                            CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN,
                             np.where(
                                     true_count == 1,
-                                    TernaryLogicValues.TERNARY_TRUE,
-                                    TernaryLogicValues.TERNARY_FALSE,
+                                    CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+                                    CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE,
                         )
             ))
 
@@ -308,7 +290,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
     #     """Ternary Optimistic AND using prime multiplication."""
 
     #     if not expression_node:
-    #         return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+    #         return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
     #     def evaluate_expression(table: Any) -> pd.Series:
@@ -320,11 +302,11 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
     #         min_val = stacked_series.min(axis=1)
 
     #         return pd.Series(np.where(
-    #             (max_val == TernaryLogicValues.TERNARY_TRUE) & (min_val >= TernaryLogicValues.TERNARY_UNKNOWN),
-    #                                 TernaryLogicValues.TERNARY_TRUE,
-    #                                 np.where( max_val == TernaryLogicValues.TERNARY_FALSE,
-    #                                             TernaryLogicValues.TERNARY_FALSE,
-    #                                             TernaryLogicValues.TERNARY_UNKNOWN
+    #             (max_val == CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE) & (min_val >= CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN),
+    #                                 CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE,
+    #                                 np.where( max_val == CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE,
+    #                                             CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE,
+    #                                             CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
     #                                 )
     #         ))
 
@@ -336,7 +318,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
     def _and(self, expression_node: LogicalExpressionNode) -> Callable:
         """Ternary STRICT_AND using prime multiplication."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pd.Series:
@@ -358,7 +340,7 @@ class PandasTernaryExpressionVisitor(PandasBackendVisitor, TernaryExpressionVisi
     def _or(self, expression_node: LogicalExpressionNode) -> Callable:
         """Ternary OR using prime multiplication."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
         def evaluate_expression(table: Any) -> pd.Series:
             series = [operand.accept(self)(table) for operand in expression_node.operands]

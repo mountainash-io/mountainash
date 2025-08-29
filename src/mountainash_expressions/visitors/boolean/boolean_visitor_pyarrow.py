@@ -5,11 +5,13 @@ from typing_extensions import Pattern
 import pyarrow as pa
 import pyarrow.compute as pc
 
-from . import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ..core.backends import PyArrowBackendVisitor
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...logic.core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from ...logic.boolean import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ..core import ExpressionVisitor, PyArrowBackendVisitor
+from . import BooleanExpressionVisitor
+
 
 class PyArrowBooleanExpressionVisitor(PyArrowBackendVisitor, BooleanExpressionVisitor):
 
@@ -20,33 +22,33 @@ class PyArrowBooleanExpressionVisitor(PyArrowBackendVisitor, BooleanExpressionVi
 
     # Binary Comparisons
 
-    def _eq(self, LHS: Any, RHS: Any) -> Any:
+    def _eq(self, LHS: Any, RHS: Any) -> pa.Array:
         return pc.equal(LHS, RHS)
 
-    def _ne(self, LHS: Any, RHS: Any) -> Any:
+    def _ne(self, LHS: Any, RHS: Any) -> pa.Array:
         return pc.not_equal(LHS, RHS)
 
-    def _gt(self, LHS: Any, RHS: Any) -> Any:
+    def _gt(self, LHS: Any, RHS: Any) -> pa.Array:
         return pc.greater(LHS, RHS)
 
-    def _lt(self, LHS: Any, RHS: Any) -> Any:
+    def _lt(self, LHS: Any, RHS: Any) -> pa.Array:
         return pc.less(LHS, RHS)
 
-    def _ge(self, LHS: Any, RHS: Any) -> Any:
+    def _ge(self, LHS: Any, RHS: Any) -> pa.Array:
         return pc.greater_equal(LHS, RHS)
 
-    def _le(self, LHS: Any, RHS: Any) -> Any:
+    def _le(self, LHS: Any, RHS: Any) -> pa.Array:
         return pc.less_equal(LHS, RHS)
 
-    def _in(self, LHS: Any, RHS: Any) -> Any:
+    def _in(self, LHS: Any, RHS: Any) -> pa.Array:
         RHS_as_list = list(RHS) if not isinstance(RHS, list) else RHS
         return pc.is_in(LHS, pa.array(RHS_as_list))
 
     # Unary Comparisons
-    def _is_null(self, LHS: Any) -> Any:
+    def _is_null(self, LHS: Any) -> pa.Array:
         return pc.is_null(LHS)
 
-    def _not_null(self, LHS: Any) -> Any:
+    def _not_null(self, LHS: Any) -> pa.Array:
         return pc.is_valid(LHS)
 
 

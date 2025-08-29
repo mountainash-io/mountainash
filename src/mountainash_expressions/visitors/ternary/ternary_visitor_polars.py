@@ -1,48 +1,33 @@
 # file: src/mountainash_dataframes/utils/expressions/ternary/ternary_expression_ibis.py
 
 """
-Ibis Ternary Expression Visitor
+Polars Ternary Expression Visitor
 
 This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
 
-from typing import Callable, Any, Optional, List, Literal
-import ibis
-import ibis.expr.types as ir
+from typing import Callable, Any, Optional
 from functools import reduce
+
 import polars as pl
+# from numpy import add
 
-from numpy import add
-from .ternary_nodes import TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode, TernaryExpressionNode
-from .ternary_visitor import TernaryExpressionVisitor
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from .constants import TernaryLogicValues
-from ..core.backends import PolarsBackendVisitor
+from ...constants import CONST_TERNARY_LOGIC_VALUES
+from ...logic.core import LogicalExpressionNode
 
+from ..core import PolarsBackendVisitor
+from . import TernaryExpressionVisitor
 
-# from .constants import TernaryLogicValues
-from .value_mappings import DEFAULT_TERNARY_MAPPER, TernaryValueMapper
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+# from .value_mappings import DEFAULT_TERNARY_MAPPER, TernaryValueMapper
 
 
 class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisitor):
     """Ternary-aware Polars visitor with lambda-based operations following boolean pattern."""
 
-    _backend = "polars"
-    _logic_type = "ternary"
 
-
-    def __init__(self, ternary_mapper: Optional[TernaryValueMapper] = None, filter_mode: bool = False):
-        """Initialize ternary visitor.
-
-        Args:
-            ternary_mapper: Custom ternary value mapper for UNKNOWN values
-            filter_mode: If True, convert ternary results to boolean for filtering operations
-        """
-        super().__init__()
-        self.ternary_mapper = ternary_mapper or DEFAULT_TERNARY_MAPPER
-        self.filter_mode = filter_mode
+    def __init__(self):
+        pass
 
 
     # ===============
@@ -58,7 +43,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(TernaryLogicValues.TERNARY_TRUE)
+        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)
 
     def _is_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -69,7 +54,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(TernaryLogicValues.TERNARY_FALSE)
+        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
 
     def _is_unknown(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -80,7 +65,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)
+        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
 
 
     def _maybe_true(self,  expression_node: LogicalExpressionNode )-> Callable:
@@ -92,7 +77,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) in ( pl.lit(TernaryLogicValues.TERNARY_TRUE), pl.lit(TernaryLogicValues.TERNARY_UNKNOWN))
+        return lambda table: expression_node.operands[0].accept(self)(table) in ( pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN))
 
     def _maybe_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -103,7 +88,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) in ( pl.lit(TernaryLogicValues.TERNARY_UNKNOWN), pl.lit(TernaryLogicValues.TERNARY_FALSE))
+        return lambda table: expression_node.operands[0].accept(self)(table) in ( pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN), pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
 
     def _is_known(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -114,7 +99,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) in ( pl.lit(TernaryLogicValues.TERNARY_TRUE), pl.lit(TernaryLogicValues.TERNARY_FALSE))
+        return lambda table: expression_node.operands[0].accept(self)(table) in ( pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE), pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
 
 
     # ===============
@@ -127,56 +112,56 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
 
         return  pl.when(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS == RHS).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
 
     def _ne(self, LHS: Any, RHS: Any) -> pl.Expr:
         return  pl.when(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS != RHS).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _gt(self, LHS: Any, RHS: Any) -> pl.Expr:
         return  pl.when(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS > RHS).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _lt(self, LHS: Any, RHS: Any) -> pl.Expr:
         return  pl.when(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS < RHS).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _ge(self, LHS: Any, RHS: Any) -> pl.Expr:
         return  pl.when(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS >= RHS).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _le(self, LHS: Any, RHS: Any) -> pl.Expr:
         return  pl.when(
                     self._is_unknown_value(LHS) | self._is_unknown_value(RHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS <= RHS).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _in(self, LHS: Any, RHS: Any) -> pl.Expr:
@@ -185,10 +170,10 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
 
         return  pl.when(
                     self._is_unknown_value(LHS)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                     pl.when(LHS.is_in(RHS_as_list)).then(
-                        pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
 
@@ -197,19 +182,19 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     def _is_null(self, LHS: Any) -> pl.Expr:
         return  pl.when(
                     LHS.is_null()).then(
-                    pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
                     pl.when(self._is_unknown_value(LHS)).then(
-                        pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
-                        pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
+                        pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     def _not_null(self, LHS: Any) -> pl.Expr:
         return  pl.when(
                     LHS.is_not_null()).then(
-                    pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
                     pl.when(self._is_unknown_value(LHS)).then(
-                            pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
-                            pl.lit(TernaryLogicValues.TERNARY_FALSE))
+                            pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
+                            pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE))
                 )
 
     # ===============
@@ -228,11 +213,11 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
 
         callable_expr = expression_node.operands[0].accept(self)
 
-        return lambda table:     pl.when(callable_expr(table) == pl.lit(TernaryLogicValues.TERNARY_TRUE)).then(
-                    pl.lit(TernaryLogicValues.TERNARY_FALSE)).otherwise(
-                    pl.when(callable_expr(table) == pl.lit(TernaryLogicValues.TERNARY_FALSE)).then(
-                                pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                                pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)))
+        return lambda table:     pl.when(callable_expr(table) == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).then(
+                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)).otherwise(
+                    pl.when(callable_expr(table) == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)).then(
+                                pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                                pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)))
 
 
 
@@ -249,21 +234,21 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     #     """XOR_PARITY: odd number TRUE (parity semantics)."""
 
     #     if not expression_node:
-    #         return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+    #         return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
     #     def evaluate_expression(table: Any) -> pl.Expr:
     #         expressions = [operand.accept(self)(table) for operand in expression_node.operands]
 
-    #         true_count = self._count_value_direct(expressions, TernaryLogicValues.TERNARY_TRUE)
-    #         unknown_count = self._count_value_direct(expressions, TernaryLogicValues.TERNARY_UNKNOWN)
+    #         true_count = self._count_value_direct(expressions, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)
+    #         unknown_count = self._count_value_direct(expressions, CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
 
 
     #         return pl.when(unknown_count > pl.lit(0)).then(
-    #                 pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+    #                 pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
     #                 pl.when(true_count % 2 == pl.lit(1)).then(
-    #                         pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-    #                         pl.lit(TernaryLogicValues.TERNARY_FALSE)
+    #                         pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+    #                         pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)
     #                     )
     #         )
 
@@ -274,21 +259,21 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     def _xor(self, expression_node: LogicalExpressionNode,) -> Callable[[Any], pl.Expr]:
         """XOR: exactly one TRUE using count-based approach (exclusive semantics)."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pl.Expr:
             expressions = [operand.accept(self)(table) for operand in expression_node.operands]
 
-            true_count = self._count_value_direct(expressions, TernaryLogicValues.TERNARY_TRUE)
-            unknown_count = self._count_value_direct(expressions, TernaryLogicValues.TERNARY_UNKNOWN)
+            true_count = self._count_value_direct(expressions, CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)
+            unknown_count = self._count_value_direct(expressions, CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
 
             return pl.when(unknown_count > pl.lit(0)).then(
-                                pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)).otherwise(
+                                pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)).otherwise(
                                 pl.when(
                                     true_count == pl.lit(1)).then(
-                                    pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-                                    pl.lit(TernaryLogicValues.TERNARY_FALSE),
+                                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+                                    pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE),
                     )
                 )
 
@@ -302,7 +287,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     #     """Ternary Optimistic AND using prime multiplication."""
 
     #     if not expression_node:
-    #         return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+    #         return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
     #     def evaluate_expression(table: Any) -> pl.Expr:
@@ -311,11 +296,11 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     #         min_val = reduce(lambda x, y: pl.min_horizontal(x, y), expressions)
 
     #         return pl.when(
-    #             (max_val == pl.lit(TernaryLogicValues.TERNARY_TRUE)) & (min_val >= pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)) ).then(
-    #                                 pl.lit(TernaryLogicValues.TERNARY_TRUE)).otherwise(
-    #                                 pl.when( max_val == pl.lit(TernaryLogicValues.TERNARY_FALSE)).then(
-    #                                             pl.lit(TernaryLogicValues.TERNARY_FALSE)).otherwise(
-    #                                             pl.lit(TernaryLogicValues.TERNARY_UNKNOWN)
+    #             (max_val == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)) & (min_val >= pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)) ).then(
+    #                                 pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE)).otherwise(
+    #                                 pl.when( max_val == pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)).then(
+    #                                             pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE)).otherwise(
+    #                                             pl.lit(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN)
     #                                 )
     #         )
 
@@ -325,7 +310,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     def _and(self, expression_node: LogicalExpressionNode) -> Callable[[Any], pl.Expr]:
         """Ternary STRICT_AND using prime multiplication."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pl.Expr:
@@ -339,7 +324,7 @@ class PolarsTernaryExpressionVisitor(PolarsBackendVisitor, TernaryExpressionVisi
     def _or(self, expression_node: LogicalExpressionNode) -> Callable[[Any], pl.Expr]:
         """Ternary OR using prime multiplication."""
         if not expression_node:
-            return lambda table: self._format_literal(TernaryLogicValues.TERNARY_UNKNOWN, table)
+            return lambda table: self._format_literal(CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN, table)
 
 
         def evaluate_expression(table: Any) -> pl.Expr:

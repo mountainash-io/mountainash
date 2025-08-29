@@ -6,18 +6,15 @@ from functools import reduce
 import ibis
 import ibis.expr.types as ir
 
-from . import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ..core.backends import IbisBackendVisitor
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...logic.core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from ...logic.boolean import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ..core import ExpressionVisitor, IbisBackendVisitor
+from . import BooleanExpressionVisitor
+
 
 class IbisBooleanExpressionVisitor(IbisBackendVisitor, BooleanExpressionVisitor):
-
-
-
-
-
 
     # ===============
     # Comparison Operations
