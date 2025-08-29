@@ -14,13 +14,16 @@ from functools import reduce
 import pyarrow as pa
 import pyarrow.compute as pc
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from .base_backend_visitor import BaseBackendVisitor
+from ....constants import CONST_VISITOR_BACKEND
+from .. import BaseBackendVisitor
 
 class PyArrowBackendVisitor(BaseBackendVisitor):
     """Ternary-aware Ibis visitor with lambda-based operations following boolean pattern."""
 
-    _backend = "pyarrow"
+    @property
+    def _backend_type(self) -> str:
+        return CONST_VISITOR_BACKEND.PYARROW
+
 
     def _is_unknown_value(self, array: pa.Array) -> pa.Array:
         """Type-safe UNKNOWN value detection for PyArrow arrays.

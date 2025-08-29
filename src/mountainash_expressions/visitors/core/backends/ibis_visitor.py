@@ -12,13 +12,16 @@ import ibis
 import ibis.expr.types as ir
 from functools import reduce
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from .base_backend_visitor import BaseBackendVisitor
+from ....constants import CONST_VISITOR_BACKEND
+from .. import BaseBackendVisitor
 
 class IbisBackendVisitor(BaseBackendVisitor):
     """Ternary-aware Ibis visitor with lambda-based operations following boolean pattern."""
 
-    _backend = "ibis"
+    @property
+    def _backend_type(self) -> str:
+        return CONST_VISITOR_BACKEND.IBIS
+
 
     def _is_unknown_value(self, expr):
         """Type-safe UNKNOWN value detection for Ibis expressions.

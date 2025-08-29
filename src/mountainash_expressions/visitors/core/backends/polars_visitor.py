@@ -13,13 +13,15 @@ import ibis.expr.types as ir
 from functools import reduce
 import polars as pl
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from .base_backend_visitor import BaseBackendVisitor
+from ....constants import CONST_VISITOR_BACKEND
+from .. import BaseBackendVisitor
 
 class PolarsBackendVisitor(BaseBackendVisitor):
     """Ternary-aware Ibis visitor with lambda-based operations following boolean pattern."""
 
-    _backend = "polars"
+    @property
+    def _backend_type(self) -> str:
+        return CONST_VISITOR_BACKEND.POLARS
 
     def _is_unknown_value(self, expr: pl.Expr) -> pl.Expr:
         """Type-safe UNKNOWN value detection for Polars expressions.
