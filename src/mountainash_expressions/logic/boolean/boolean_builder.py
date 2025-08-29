@@ -2,12 +2,10 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional
 
 from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from ..core import ExpressionVisitor, ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from .boolean_nodes import BooleanExpressionNode,  BooleanExpressionVisitor, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
+# from ..core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from .boolean_nodes import BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
 class BooleanExpressionBuilder:
-
-
 
 
     # =====================================

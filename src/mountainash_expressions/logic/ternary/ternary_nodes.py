@@ -4,18 +4,20 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from ..core.base_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode, ExpressionVisitor
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_LOGIC_TYPES
+from ..core.base_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
-from ..visitor_factory import ExpressionVisitorFactory
-from
+from ...visitors.core import ExpressionVisitor, Visitor
+from ...helpers.visitor_factory import ExpressionVisitorFactory
 
 class TernaryExpressionNode(ExpressionNode):
 
-    logic_type = "ternary"
+    @property
+    def _logic_type(self) -> str:
+        return CONST_EXPRESSION_LOGIC_TYPES.TERNARY
 
     @abstractmethod
-    def accept(self, visitor: 'ExpressionVisitor') -> Callable:
+    def accept(self, visitor: Visitor) -> Callable:
         pass
 
     @abstractmethod
@@ -29,7 +31,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean TRUE check."""
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
 
@@ -39,7 +41,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean FALSE check."""
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
 
@@ -49,7 +51,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_UNKNOWN, [self])
             return visitor.visit_logical_expression(logical_node)(table)
 
@@ -61,7 +63,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean TRUE OR UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_TRUE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
 
@@ -71,7 +73,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean FALSE OR UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_FALSE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
 
@@ -81,7 +83,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean NOT UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_KNOWN, [self])
             return visitor.visit_logical_expression(logical_node)(table)
 
@@ -103,7 +105,7 @@ class TernaryLiteralExpressionNode(TernaryExpressionNode, LiteralExpressionNode)
     def eval(self) -> Callable:
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             return visitor.visit_literal_expression(self)(table)
 
         return eval_expr
@@ -121,7 +123,7 @@ class TernaryColumnExpressionNode(TernaryExpressionNode, ColumnExpressionNode):
     def eval(self) -> Callable:
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             return visitor.visit_column_expression(self)(table)
 
         return eval_expr
@@ -142,7 +144,7 @@ class TernaryLogicalExpressionNode(TernaryExpressionNode, LogicalExpressionNode)
     def eval(self) -> Callable:
 
         def eval_expr(table: Any) -> Any:
-            visitor = ExpressionVisitorFactory.get_ternary_visitor(table)
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             return visitor.visit_logical_expression(self)(table)
 
         return eval_expr

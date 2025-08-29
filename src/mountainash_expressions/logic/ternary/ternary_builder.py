@@ -4,91 +4,9 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
 
 from .ternary_nodes import TernaryExpressionNode, TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode
-
-
-# class TernaryExpressionNode(ABC):
-#     @abstractmethod
-#     def accept(self, visitor: 'TernaryExpressionVisitor') -> Callable:
-#         pass
-
-#     # #TODO: We need a VisitorFactory, based upon the type of visitor we want to use.
-#     # # This is a placeholder for the visitor type, which should be defined based on the context
-#     # def expr(self, vistor_type: str, mode: str) -> Callable:
-
-#     #     visitor = TernaryVisitorFactory.get_visitor(vistor_type, mode)
-#     #     return self.accept(visitor)
-
-
-# class TernaryLiteralExpressionNode(TernaryExpressionNode):
-
-#     def __init__(self, value1: Any, operator: str, value2: Any):
-#         self.value1 = value1
-#         self.operator = operator
-#         self.value2 = value2
-
-#     def accept(self, visitor: 'TernaryExpressionVisitor') -> Callable:
-#         return visitor.visit_ternary_literal_expression(self)
-
-
-# class TernaryColumnExpressionNode(TernaryExpressionNode):
-#     def __init__(self, column: str, operator: str, value: Any, compare_column: Optional[str] = None):
-#         self.column = column
-#         self.operator = operator
-#         self.value = value
-#         self.compare_column = compare_column
-
-#     def accept(self, visitor: 'TernaryExpressionVisitor') -> Callable:
-#         return visitor.visit_ternary_column_expression(self)
-
-
-
-
-
-# class TernaryLogicalExpressionNode(TernaryExpressionNode):
-#     # ALWAYS_TRUE_OP = "__always_true__"
-#     # ALWAYS_FALSE_OP = "__always_false__"
-#     # ALWAYS_UNKNOWN_OP = "__always_unknown__"
-
-#     def __init__(self, operator: str, operands: List[TernaryExpressionNode]):
-#         self.operator = operator
-#         self.operands = operands
-
-#     @classmethod
-#     def always_true(cls) -> 'TernaryLogicalExpressionNode':
-#         """Creates a logical condition that always evaluates to True."""
-#         return cls(operator=CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_TRUE, operands=[])
-
-#     @classmethod
-#     def always_false(cls) -> 'TernaryLogicalExpressionNode':
-#         """Creates a logical condition that always evaluates to False."""
-#         return cls(operator=CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_FALSE, operands=[])
-
-#     @classmethod
-#     def always_unknown(cls) -> 'TernaryLogicalExpressionNode':
-#         """Creates a logical condition that always evaluates to Unknown."""
-#         return cls(operator=CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_UNKNOWN, operands=[])
-
-
-#     def accept(self, visitor: 'TernaryExpressionVisitor') -> Callable:
-#         return visitor.visit_ternary_logical_expression(self)
-
-# class TernaryExpressionVisitor(ABC):
-
-#     @abstractmethod
-#     def visit_ternary_column_expression(self, expression: TernaryColumnExpressionNode) -> Callable:
-#         pass
-
-#     @abstractmethod
-#     def visit_ternary_logical_expression(self, expression: TernaryLogicalExpressionNode) -> Callable:
-#         pass
-
-#     @abstractmethod
-#     def visit_ternary_literal_expression(self, expression: TernaryLiteralExpressionNode) -> Callable:
-#         pass
-
 
 class TernaryExpressionBuilder:
 
@@ -121,28 +39,28 @@ class TernaryExpressionBuilder:
     #############
     # Shortcut Aliases - Column to Column
     @classmethod
-    def col_eq(cls, column1: str, column2: str) -> TernaryColumnExpressionNode:
-        return cls.column_equals(column1, column2)
+    def col_eq(cls, column_lhs: str, column_rhs: str) -> TernaryColumnExpressionNode:
+        return cls.column_equals(column_lhs, column_rhs)
 
     @classmethod
-    def col_ne(cls, column1: str, column2: str) -> TernaryColumnExpressionNode:
-        return cls.column_not_equals(column1, column2)
+    def col_ne(cls, column_lhs: str, column_rhs: str) -> TernaryColumnExpressionNode:
+        return cls.column_not_equals(column_lhs, column_rhs)
 
     @classmethod
-    def col_gt(cls, column1: str, column2: str) -> TernaryColumnExpressionNode:
-        return cls.column_greater_than(column1, column2)
+    def col_gt(cls, column_lhs: str, column_rhs: str) -> TernaryColumnExpressionNode:
+        return cls.column_greater_than(column_lhs, column_rhs)
 
     @classmethod
-    def col_lt(cls, column1: str, column2: str) -> TernaryColumnExpressionNode:
-        return cls.column_less_than(column1, column2)
+    def col_lt(cls, column_lhs: str, column_rhs: str) -> TernaryColumnExpressionNode:
+        return cls.column_less_than(column_lhs, column_rhs)
 
     @classmethod
-    def col_ge(cls, column1: str, column2: str) -> TernaryColumnExpressionNode:
-        return cls.column_greater_than_or_equal(column1, column2)
+    def col_ge(cls, column_lhs: str, column_rhs: str) -> TernaryColumnExpressionNode:
+        return cls.column_greater_than_or_equal(column_lhs, column_rhs)
 
     @classmethod
-    def col_le(cls, column1: str, column2: str) -> TernaryColumnExpressionNode:
-        return cls.column_less_than_or_equal(column1, column2)
+    def col_le(cls, column_lhs: str, column_rhs: str) -> TernaryColumnExpressionNode:
+        return cls.column_less_than_or_equal(column_lhs, column_rhs)
 
 
 
@@ -163,39 +81,39 @@ class TernaryExpressionBuilder:
 
     # Column to Value comparison
     @classmethod
-    def equals(cls, column: str, value: Any) -> TernaryColumnExpressionNode:
-        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.EQ, column, value)
+    def equals(cls, column_lhs: str, value: Any) -> TernaryColumnExpressionNode:
+        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.EQ, column_lhs, value)
 
     @classmethod
-    def not_equals(cls, column: str, value: Any) -> TernaryColumnExpressionNode:
-        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.NE, column, value)
+    def not_equals(cls, column_lhs: str, value: Any) -> TernaryColumnExpressionNode:
+        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.NE, column_lhs, value)
 
     @classmethod
-    def greater_than(cls, column: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
-        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.GT, column, value)
+    def greater_than(cls, column_lhs: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
+        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.GT, column_lhs, value)
 
     @classmethod
-    def less_than(cls, column: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
-        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.LT, column, value)
+    def less_than(cls, column_lhs: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
+        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.LT, column_lhs, value)
 
     @classmethod
-    def greater_than_or_equal(cls, column: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
-        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.GE, column, value)
+    def greater_than_or_equal(cls, column_lhs: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
+        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.GE, column_lhs, value)
 
     @classmethod
-    def less_than_or_equal(cls, column: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
-        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.LE, column, value)
+    def less_than_or_equal(cls, column_lhs: str, value: Union[int, float]) -> TernaryColumnExpressionNode:
+        return TernaryColumnExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.LE, column_lhs, value)
 
 
     @classmethod
-    def between(cls, column: str, lower: Union[int, float], upper: Union[int, float], lower_eq: bool=True, upper_eq: bool = True) -> TernaryLogicalExpressionNode:
+    def between(cls, column_lhs: str, lower: Union[int, float], upper: Union[int, float], lower_eq: bool=True, upper_eq: bool = True) -> TernaryLogicalExpressionNode:
 
         lower_operator = CONST_EXPRESSION_LOGIC_OPERATORS.GE if lower_eq else CONST_EXPRESSION_LOGIC_OPERATORS.GT
         upper_operator = CONST_EXPRESSION_LOGIC_OPERATORS.LE if upper_eq else CONST_EXPRESSION_LOGIC_OPERATORS.LT
 
         return TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.AND, [
-            TernaryColumnExpressionNode(lower_operator, column, lower),
-            TernaryColumnExpressionNode(upper_operator, column, upper)
+            TernaryColumnExpressionNode(lower_operator, column_lhs, lower),
+            TernaryColumnExpressionNode(upper_operator, column_lhs, upper)
         ])
 
     @classmethod
@@ -238,7 +156,65 @@ class TernaryExpressionBuilder:
 
 
 
-    # Logical operators on multiple ColumnConditions
+
+    # =====================================
+    # Literal Comparisons
+    # =====================================
+    @classmethod
+    def literal_is_null(cls, value: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_NULL, value, None)
+
+    @classmethod
+    def literal_not_null(cls, value: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_NOT_NULL, value, None)
+
+    # =====================================
+    # Column to Column comparison
+    # =====================================
+    @classmethod
+    def literal_equals(cls, value_lhs: Any, value2: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.EQ, value_lhs, value2)
+
+    @classmethod
+    def literal_not_equals(cls, value_lhs: Any, value2: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.NE, value_lhs, value2)
+
+    @classmethod
+    def literal_greater_than(cls, value_lhs: Any, value2: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.GT, value_lhs, value2)
+
+    @classmethod
+    def literal_less_than(cls, value_lhs: Any, value2: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.LT, value_lhs, value2)
+
+    @classmethod
+    def literal_greater_than_or_equal(cls, value_lhs: Any, value2: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.GE, value_lhs, value2)
+
+    @classmethod
+    def literal_less_than_or_equal(cls, value_lhs: Any, value2: Any) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.LE, value_lhs, value2)
+
+
+    @classmethod
+    def literal_between(cls, value_lhs: str, lower: Union[int, float], upper: Union[int, float], lower_eq: bool=True, upper_eq: bool = True) -> TernaryLogicalExpressionNode:
+
+        lower_operator = CONST_EXPRESSION_LOGIC_OPERATORS.GE if lower_eq else CONST_EXPRESSION_LOGIC_OPERATORS.GT
+        upper_operator = CONST_EXPRESSION_LOGIC_OPERATORS.LE if upper_eq else CONST_EXPRESSION_LOGIC_OPERATORS.LT
+
+        return TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.AND, [
+            TernaryLiteralExpressionNode(lower_operator, value_lhs, lower),
+            TernaryLiteralExpressionNode(upper_operator, value_lhs, upper)
+        ])
+
+
+    @classmethod
+    def literal_in_list(cls, value_lhs: Any, values: List[Any]) -> TernaryLiteralExpressionNode:
+        return TernaryLiteralExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IN, value_lhs, values)
+
+
+
+    # N-ary Logical operators on multiple ColumnConditions
 
     @classmethod
     def and_(cls, *conditions: TernaryExpressionNode) -> TernaryLogicalExpressionNode:
@@ -258,6 +234,7 @@ class TernaryExpressionBuilder:
         the result may be UNKNOWN depending on the other values.
         """
         return TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.XOR_EXCLUSIVE, list(conditions))
+
 
 
     #Unary logical operations
