@@ -1,9 +1,15 @@
+from .visitors.boolean import BooleanExpressionVisitor
 from .visitors.boolean import IbisBooleanExpressionVisitor, PolarsBooleanExpressionVisitor, PandasBooleanExpressionVisitor, PyArrowBooleanExpressionVisitor
+from .logic.boolean import BooleanExpressionNode, BooleanExpressionBuilder, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
+from .logic.boolean import BooleanExpressionBuilder
 
-from .boolean import BooleanExpressionNode, BooleanExpressionBuilder, BooleanExpressionVisitor, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
-from .ternary import PolarsTernaryExpressionVisitor, IbisTernaryExpressionVisitor, PandasTernaryExpressionVisitor, PyArrowTernaryExpressionVisitor#, XarrayTernaryExpressionVisitor, NumPyTernaryExpressionVisitor
-from .ternary import TernaryExpressionNode, TernaryExpressionBuilder, TernaryExpressionVisitor, TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode
+from .visitors.ternary import TernaryExpressionVisitor
+from .visitors.ternary import  PolarsTernaryExpressionVisitor, IbisTernaryExpressionVisitor, PandasTernaryExpressionVisitor, PyArrowTernaryExpressionVisitor
+from .logic.ternary import TernaryExpressionNode, TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode
+from .logic.ternary import TernaryExpressionBuilder
+
 from .helpers import ExpressionVisitorFactory
+
 
 
 import importlib.util
