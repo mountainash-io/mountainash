@@ -2,16 +2,17 @@
 
 
 
-from abc import ABC, abstractmethod
-from typing import Any, List, Union, Callable, Optional, Dict
+from abc import abstractmethod
+from typing import Any, List, Callable, Dict, TYPE_CHECKING
 from functools import reduce
 
-from ..constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES, CONST_TERNARY_LOGIC_VALUES
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES, CONST_TERNARY_LOGIC_VALUES
+from ..expression_visitor import ExpressionVisitor
 
-from ..logic import ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode, ExpressionNode
-from ..logic.ternary import TernaryExpressionConverter
-
-from .base_expression_visitor import ExpressionVisitor
+if TYPE_CHECKING:
+    from ...logic import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+else:
+    from ...logic import ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
 class TernaryExpressionVisitor(ExpressionVisitor):
 
@@ -62,9 +63,9 @@ class TernaryExpressionVisitor(ExpressionVisitor):
         if not issubclass(type(expression_node), (LiteralExpressionNode)):
             raise TypeError("Expected a LiteralExpressionNode instance")
 
-        # Check if conversion needed
-        if TernaryExpressionConverter.needs_conversion(expression_node,  self.logic_type):
-            expression_node = TernaryExpressionConverter.convert(expression_node,  self.logic_type
+        # # Check if conversion needed
+        # if TernaryExpressionConverter.needs_conversion(expression_node,  self.logic_type):
+        #     expression_node = TernaryExpressionConverter.convert(expression_node,  self.logic_type)
 
         if expression_node.operator not in self.comparison_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
@@ -86,9 +87,9 @@ class TernaryExpressionVisitor(ExpressionVisitor):
         if not issubclass(type(expression_node), (ColumnExpressionNode)):
             raise TypeError("Expected a ColumnExpressionNode instance")
 
-        # Check if conversion needed
-        if self.logic_converter.needs_conversion(expression_node):
-            expression_node = self.convert_to_ternary(expression_node)
+        # # Check if conversion needed
+        # if self.logic_converter.needs_conversion(expression_node):
+        #     expression_node = self.convert_to_ternary(expression_node)
 
         if expression_node.operator not in self.comparison_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
@@ -112,9 +113,9 @@ class TernaryExpressionVisitor(ExpressionVisitor):
         if not issubclass(type(expression_node), (LogicalExpressionNode)):
             raise TypeError("Expected a LogicalExpressionNode instance")
 
-        # Check if conversion needed
-        if self.logic_converter.needs_conversion(expression_node):
-            expression_node = self.convert_to_ternary(expression_node)
+        # # Check if conversion needed
+        # if self.logic_converter.needs_conversion(expression_node):
+        #     expression_node = self.convert_to_ternary(expression_node)
 
         if expression_node.operator not in self.logical_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
@@ -190,7 +191,7 @@ class TernaryExpressionVisitor(ExpressionVisitor):
     # Concrete Universal Helper Methods
     # ===============
 
-    def _combine(self, table: Any, expression_nodes: List[ExpressionNode], combine_func):
+    def _combine(self, table: Any, expression_nodes: List["ExpressionNode"], combine_func):
         """ Combine multiple expressions using a specified function."""
 
         if not expression_nodes:

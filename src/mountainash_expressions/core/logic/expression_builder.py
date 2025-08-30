@@ -1,6 +1,6 @@
 from typing import Any, List, Union
-from abc import ABC, abstractmethod
-from . import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+from abc import abstractmethod
+from .expression_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
 class ExpressionBuilder:
 

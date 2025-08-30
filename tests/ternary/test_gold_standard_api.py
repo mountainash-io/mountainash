@@ -13,7 +13,7 @@ import pytest
 import polars as pl
 from typing import Any, List, Dict, Tuple
 
-from mountainash_expressions.constants import CONST_TERNARY_LOGIC_VALUES, CONST_DATAFRAME_FRAMEWORK
+from mountainash_expressions import CONST_TERNARY_LOGIC_VALUES, CONST_VISITOR_BACKENDS
 from mountainash_expressions import (
     TernaryExpressionBuilder,
     PolarsTernaryExpressionVisitor,
@@ -24,7 +24,7 @@ from mountainash_expressions import (
     # XarrayTernaryExpressionVisitor
 )
 from mountainash_dataframes.utils.dataframe_utils import DataFrameUtils
-from mountainash_dataframes.utils.dataframe_handlers.dataframe_strategy_factory import DataFrameStrategyFactory
+# from mountainash_dataframes.utils.dataframe_handlers.dataframe_strategy_factory import DataFrameStrategyFactory
 
 # try:
 #     from mountainash_dataframes.utils.expressions.ternary.ternary_expression_pyspark import (
@@ -39,11 +39,10 @@ PYSPARK_AVAILABLE = False
 def get_all_backend_configs():
     """Get all available backend visitor configurations for comprehensive testing."""
     configs = [
-        (CONST_DATAFRAME_FRAMEWORK.POLARS, PolarsTernaryExpressionVisitor),
-        (CONST_DATAFRAME_FRAMEWORK.IBIS, IbisTernaryExpressionVisitor),
-        (CONST_DATAFRAME_FRAMEWORK.PANDAS, PandasTernaryExpressionVisitor),
-        (CONST_DATAFRAME_FRAMEWORK.PYARROW_TABLE, PyArrowTernaryExpressionVisitor),
-        # (CONST_DATAFRAME_FRAMEWORK.PYARROW_RECORDBATCH, PyArrowTernaryExpressionVisitor)
+        (CONST_VISITOR_BACKENDS.POLARS, PolarsTernaryExpressionVisitor),
+        (CONST_VISITOR_BACKENDS.IBIS, IbisTernaryExpressionVisitor),
+        (CONST_VISITOR_BACKENDS.PANDAS, PandasTernaryExpressionVisitor),
+        (CONST_VISITOR_BACKENDS.PYARROW, PyArrowTernaryExpressionVisitor),
     ]
 
     return configs

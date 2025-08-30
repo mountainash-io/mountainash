@@ -1,17 +1,17 @@
-from typing import Callable, List, Dict, Any
-from functools import reduce
+from typing import Callable, Any
 
-import pandas as pd
+import polars as pl
 
-from ...core.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from ...core.logic import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ...core.logic.boolean import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
+
+from ...core.logic import LogicalExpressionNode
+# from ...core.logic.boolean import  BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
 from ...core.visitor import BooleanExpressionVisitor
-from . import PandasBackendVisitorMixin
+from . import PolarsBackendVisitorMixin
 
 
-class PandasBooleanExpressionVisitor(PandasBackendVisitorMixin, BooleanExpressionVisitor):
+
+class PolarsBooleanExpressionVisitor(PolarsBackendVisitorMixin, BooleanExpressionVisitor):
 
 
 
@@ -21,35 +21,35 @@ class PandasBooleanExpressionVisitor(PandasBackendVisitorMixin, BooleanExpressio
 
     # Binary Comparisons
 
-    def _eq(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _eq(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS == RHS
 
-    def _ne(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _ne(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS != RHS
 
-    def _gt(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _gt(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS > RHS
 
-    def _lt(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _lt(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS < RHS
 
-    def _ge(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _ge(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS >= RHS
 
-    def _le(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _le(self, LHS: Any, RHS: Any) -> pl.Expr:
         return LHS <= RHS
 
-    def _in(self, LHS: Any, RHS: Any) -> pd.Series:
+    def _in(self, LHS: Any, RHS: Any) -> pl.Expr:
         RHS_as_list = list(RHS) if not isinstance(RHS, list) else RHS # Ensure it's a list
-        return LHS.isin(RHS_as_list)
+        return LHS.is_in(RHS_as_list)
 
 
     # Unary Comparisons
-    def _is_null(self, LHS: Any) -> pd.Series:
-        return LHS.isnull()
+    def _is_null(self, LHS: Any) -> pl.Expr:
+        return LHS.is_null()
 
-    def _not_null(self, LHS: Any) -> pd.Series:
-        return LHS.notnull()
+    def _not_null(self, LHS: Any) -> pl.Expr:
+        return LHS.is_not_null()
 
 
 
@@ -66,7 +66,7 @@ class PandasBooleanExpressionVisitor(PandasBackendVisitorMixin, BooleanExpressio
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == True
+        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(True)
 
     def _is_false(self,  expression_node: LogicalExpressionNode )-> Callable:
         """Does the expression resolve to true? Only one node."""
@@ -77,8 +77,7 @@ class PandasBooleanExpressionVisitor(PandasBackendVisitorMixin, BooleanExpressio
         if len(expression_node.operands) != 1:
             raise ValueError("Negation operation requires exactly one operand")
 
-        return lambda table: expression_node.operands[0].accept(self)(table) == False
-
+        return lambda table: expression_node.operands[0].accept(self)(table) == pl.lit(False)
 
     # Unary Operations
     def _negate(self,  expression_node: LogicalExpressionNode )-> Callable:
@@ -106,12 +105,12 @@ class PandasBooleanExpressionVisitor(PandasBackendVisitorMixin, BooleanExpressio
         """Boolean exclusive XOR: exactly one operand must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if == 1
-        combine_func = lambda x, y: x.astype(int) + y.astype(int)
-        return lambda table: self._combine(table, expression_node.operands, combine_func) == 1
+        def combine_func(x, y): x.cast(pl.Int32) + y.cast(pl.Int32)
+        return lambda table: self._combine(table, expression_node.operands, combine_func) == pl.lit(1)
 
     def _xor_parity(self, expression_node: LogicalExpressionNode) -> Callable:
         """Boolean parity XOR: odd number of operands must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if odd
-        combine_func = lambda x, y: x.astype(int) + y.astype(int)
-        return lambda table: self._combine(table, expression_node.operands, combine_func) % 2 == 1
+        def combine_func(x, y): x.cast(pl.Int32) + y.cast(pl.Int32)
+        return lambda table: self._combine(table, expression_node.operands, combine_func) % 2 == pl.lit(1)

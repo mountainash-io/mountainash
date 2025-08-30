@@ -1,14 +1,12 @@
 # file: src/mountainash_dataframes/utils/expressions/boolean/boolean_expression_ibis.py
 #
-from typing import Callable, List, Dict, Any
-from functools import reduce
+from typing import Callable, Any
 
 import ibis
 import ibis.expr.types as ir
 
-from ...core.constants import CONST_EXPRESSION_LOGIC_OPERATORS
-from ...core.logic import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ...core.logic.boolean import BooleanExpressionVisitor, BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
+from ...core.logic import LogicalExpressionNode
+# from ...core.logic.boolean import BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
 from ...core.visitor import BooleanExpressionVisitor
 from . import IbisBackendVisitorMixin
@@ -112,12 +110,12 @@ class IbisBooleanExpressionVisitor(IbisBackendVisitorMixin, BooleanExpressionVis
         """Boolean exclusive XOR: exactly one operand must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if == 1
-        combine_func = lambda x, y: x.cast('int32') + y.cast('int32')
+        def combine_func (x, y): x.cast('int32') + y.cast('int32')
         return lambda table: self._combine(table, expression_node.operands, combine_func) == ibis.literal(1)
 
     def _xor_parity(self, expression_node: LogicalExpressionNode) -> Callable:
         """Boolean parity XOR: odd number of operands must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if odd
-        combine_func = lambda x, y: x.cast('int32') + y.cast('int32')
+        def combine_func(x, y): x.cast('int32') + y.cast('int32')
         return lambda table: self._combine(table, expression_node.operands, combine_func) % 2 == ibis.literal(1)

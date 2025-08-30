@@ -1,7 +1,6 @@
-from abc import ABC, abstractmethod
-from typing import Any, List, Union, Callable, Optional
+from typing import Any, List, Union
 
-from mountainash_dataframes.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
 # from ..core import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 from .boolean_nodes import BooleanExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
 
@@ -255,7 +254,6 @@ class BooleanExpressionBuilder:
     @classmethod
     def any(cls, *expressions: BooleanExpressionNode) -> BooleanLogicalExpressionNode:
         """Equivalent to OR(condition1, condition2, ...)"""
-        combined = cls.or_(*expressions)
         return cls.or_(*expressions)
 
     @classmethod

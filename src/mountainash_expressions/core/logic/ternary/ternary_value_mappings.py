@@ -8,7 +8,6 @@ and internal prime-based ternary logic representation.
 from typing import Any, Dict, Optional, Set, Union
 from dataclasses import dataclass
 
-from functools import lru_cache
 import ibis
 
 @dataclass

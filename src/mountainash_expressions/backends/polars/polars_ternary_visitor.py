@@ -7,13 +7,13 @@ This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
 
-from typing import Callable, Any, Optional
+from typing import Callable, Any
 from functools import reduce
 
 import polars as pl
 # from numpy import add
 
-from ...core.constants import CONST_VISITOR_BACKENDS, CONST_TERNARY_LOGIC_VALUES
+from ...core.constants import CONST_TERNARY_LOGIC_VALUES
 from ...core.logic import LogicalExpressionNode
 from ...core.visitor import TernaryExpressionVisitor
 

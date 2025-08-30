@@ -2,15 +2,15 @@
 
 
 
-from abc import ABC, abstractmethod
-from typing import Any, List, Union, Callable, Optional
-
+from abc import abstractmethod
+from typing import Any, List, Callable, Optional, TYPE_CHECKING
 
 from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
-from ...visitor import ExpressionVisitor, ExpressionVisitorFactory, ExpressionVisitorProtocol
 
-from ..base_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from . import TernaryLogicalExpressionNode
+if TYPE_CHECKING:
+    from ...visitor import ExpressionVisitorProtocol
+
+from ..expression_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
 
 class TernaryExpressionNode(ExpressionNode):
@@ -21,7 +21,7 @@ class TernaryExpressionNode(ExpressionNode):
 
 
     @abstractmethod
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         pass
 
     @abstractmethod
@@ -35,6 +35,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean TRUE check."""
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
@@ -45,6 +46,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean FALSE check."""
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
@@ -55,6 +57,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_UNKNOWN, [self])
             return visitor.visit_logical_expression(logical_node)(table)
@@ -67,6 +70,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean TRUE OR UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_TRUE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
@@ -77,6 +81,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean FALSE OR UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_FALSE, [self])
             return visitor.visit_logical_expression(logical_node)(table)
@@ -87,6 +92,7 @@ class TernaryExpressionNode(ExpressionNode):
         """Convert ternary result to boolean NOT UNKNOWN check."""
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_KNOWN, [self])
             return visitor.visit_logical_expression(logical_node)(table)
@@ -103,12 +109,13 @@ class TernaryLiteralExpressionNode(TernaryExpressionNode, LiteralExpressionNode)
         self.value1 = value1
         self.value2 = value2
 
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         return visitor.visit_literal_expression(self)
 
     def eval(self) -> Callable:
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             return visitor.visit_literal_expression(self)(table)
 
@@ -123,12 +130,13 @@ class TernaryColumnExpressionNode(TernaryExpressionNode, ColumnExpressionNode):
         self.value = value
         self.compare_column = compare_column
 
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         return visitor.visit_column_expression(self)
 
     def eval(self) -> Callable:
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             return visitor.visit_column_expression(self)(table)
 
@@ -144,12 +152,13 @@ class TernaryLogicalExpressionNode(TernaryExpressionNode, LogicalExpressionNode)
         self.operands = operands
 
 
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         return visitor.visit_logical_expression(self)
 
     def eval(self) -> Callable:
 
         def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
             visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
             return visitor.visit_logical_expression(self)(table)
 

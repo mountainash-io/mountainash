@@ -1,9 +1,10 @@
 
-from typing import Callable, Protocol
-
-from ..logic import LiteralExpressionNode, ColumnExpressionNode, LogicalExpressionNode
+from typing import Callable, Protocol, TYPE_CHECKING
 from ..constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
+from abc import abstractmethod
 
+if TYPE_CHECKING:
+    from ..logic.expression_node_protocol import ExpressionNodeProtocol
 
 class ExpressionVisitorProtocol(Protocol):
     """Protocol for expression nodes"""
@@ -14,8 +15,15 @@ class ExpressionVisitorProtocol(Protocol):
     def logic_type(self) -> CONST_LOGIC_TYPES: ...
 
 
-    def visit_literal_expression(self, expression_node: LiteralExpressionNode) -> Callable: ...
 
-    def visit_column_expression(self, expression_node: ColumnExpressionNode) -> Callable: ...
+    @abstractmethod
+    def visit_literal_expression(self, expression_node: "ExpressionNodeProtocol") -> Callable:
+        pass
 
-    def visit_logical_expression(self, expression_node: LogicalExpressionNode) -> Callable: ...
+    @abstractmethod
+    def visit_column_expression(self, expression_node: "ExpressionNodeProtocol") -> Callable:
+        pass
+
+    @abstractmethod
+    def visit_logical_expression(self, expression_node: "ExpressionNodeProtocol") -> Callable:
+        pass

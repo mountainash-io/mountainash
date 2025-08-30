@@ -1,19 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Union, Callable, Optional, Protocol, final
+from typing import Any, List, Callable, Optional, final, TYPE_CHECKING
 
-from ibis.expr.types import s
+# from ibis.expr.types import s  # Removed - not used and causes import error
 
-from ..constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
-from ..visitor import ExpressionVisitorProtocol
+from ..constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
+
+if TYPE_CHECKING:
+    from ..visitor.expression_visitor_protocol import ExpressionVisitorProtocol
 
 
-class ExpressionNodeProtocol(Protocol):
-    """Protocol for expression nodes"""
-    @property
-    def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES: ...
+# class ExpressionNodeProtocol(Protocol):
+#     """Protocol for expression nodes"""
+#     @property
+#     def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES: ...
 
-    @property
-    def logic_type(self) -> CONST_LOGIC_TYPES: ...
+#     @property
+#     def logic_type(self) -> CONST_LOGIC_TYPES: ...
 
 
 
@@ -32,22 +34,22 @@ class ExpressionNode(ABC):
 
 
     @abstractmethod
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         pass
 
     @abstractmethod
     def eval(self) -> Callable:
         pass
 
-    @abstractmethod
-    def eval_is_true(self) -> Callable:
-        """Convert result to boolean TRUE check."""
-        pass
+    # @abstractmethod
+    # def eval_is_true(self) -> Callable:
+    #     """Convert result to boolean TRUE check."""
+    #     pass
 
-    @abstractmethod
-    def eval_is_false(self) -> Callable:
-        """Convert result to boolean FALSE check."""
-        pass
+    # @abstractmethod
+    # def eval_is_false(self) -> Callable:
+    #     """Convert result to boolean FALSE check."""
+    #     pass
 
 
 
@@ -67,7 +69,7 @@ class LiteralExpressionNode(ExpressionNode):
 
 
     @abstractmethod
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         pass
 
 class ColumnExpressionNode(ExpressionNode):
@@ -85,7 +87,7 @@ class ColumnExpressionNode(ExpressionNode):
 
 
     @abstractmethod
-    def accept(self, visitor: ExpressionVisitorProtocol) -> Callable:
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
         pass
 
 class LogicalExpressionNode(ExpressionNode):

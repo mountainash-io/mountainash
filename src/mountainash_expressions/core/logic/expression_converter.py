@@ -7,8 +7,7 @@ that handles conversion from other logic types to its target type.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Union
-from .base_nodes import ExpressionNode, LiteralExpressionNode, ColumnExpressionNode, LogicalExpressionNode
+from .expression_nodes import ExpressionNode, LiteralExpressionNode, ColumnExpressionNode, LogicalExpressionNode
 
 
 class ExpressionConverter(ABC):

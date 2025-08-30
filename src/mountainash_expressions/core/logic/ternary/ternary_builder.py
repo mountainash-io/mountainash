@@ -2,8 +2,7 @@
 
 
 
-from abc import ABC, abstractmethod
-from typing import Any, List, Union, Callable, Optional
+from typing import Any, List, Union
 from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS
 
 from .ternary_nodes import TernaryExpressionNode, TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode

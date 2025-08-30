@@ -1,7 +1,7 @@
 
 from .ibis_visitor import IbisBackendVisitorMixin
-from .boolean_visitor_ibis import IbisBooleanExpressionVisitor
-from .ternary_visitor_ibis import IbisTernaryExpressionVisitor
+from .ibis_boolean_visitor import IbisBooleanExpressionVisitor
+from .ibis_ternary_visitor import IbisTernaryExpressionVisitor
 
 __all__ = [
 

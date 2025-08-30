@@ -1,7 +1,7 @@
 
 from .polars_visitor import PolarsBackendVisitorMixin
-from .boolean_visitor_polars import PolarsBooleanExpressionVisitor
-from .ternary_visitor_polars import PolarsTernaryExpressionVisitor
+from .polars_boolean_visitor import PolarsBooleanExpressionVisitor
+from .polars_ternary_visitor import PolarsTernaryExpressionVisitor
 
 
 __all__ = [

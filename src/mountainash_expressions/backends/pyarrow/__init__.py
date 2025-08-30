@@ -1,6 +1,6 @@
 from .pyarrow_visitor import PyArrowBackendVisitorMixin
-from .boolean_visitor_pyarrow import PyArrowBooleanExpressionVisitor
-from .ternary_visitor_pyarrow import PyArrowTernaryExpressionVisitor
+from .pyarrow_boolean_visitor import PyArrowBooleanExpressionVisitor
+from .pyarrow_ternary_visitor import PyArrowTernaryExpressionVisitor
 
 
 __all__ = [

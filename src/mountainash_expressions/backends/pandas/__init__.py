@@ -1,7 +1,7 @@
 
 from .pandas_visitor import PandasBackendVisitorMixin
-from .boolean_visitor_pandas import PandasBooleanExpressionVisitor
-from .ternary_visitor_pandas import PandasTernaryExpressionVisitor
+from .pandas_boolean_visitor import PandasBooleanExpressionVisitor
+from .pandas_ternary_visitor import PandasTernaryExpressionVisitor
 
 
 __all__ = [

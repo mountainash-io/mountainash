@@ -1,13 +1,11 @@
 
-from typing import Callable, Protocol
+from typing import Callable, TYPE_CHECKING
 from abc import ABC, abstractmethod
 
-from ..logic import LiteralExpressionNode, ColumnExpressionNode, LogicalExpressionNode
-from ..constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
-from .expression_visitor_protocol import ExpressionVisitorProtocol
+from ..constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
-
-
+if TYPE_CHECKING:
+    from ..logic.expression_node_protocol import ExpressionNodeProtocol
 
 
 class ExpressionVisitor(ABC):
@@ -23,13 +21,13 @@ class ExpressionVisitor(ABC):
         pass
 
     @abstractmethod
-    def visit_literal_expression(self, expression_node: LiteralExpressionNode) -> Callable:
+    def visit_literal_expression(self, expression_node: "ExpressionNodeProtocol") -> Callable:
         pass
 
     @abstractmethod
-    def visit_column_expression(self, expression_node: ColumnExpressionNode) -> Callable:
+    def visit_column_expression(self, expression_node: "ExpressionNodeProtocol") -> Callable:
         pass
 
     @abstractmethod
-    def visit_logical_expression(self, expression_node: LogicalExpressionNode) -> Callable:
+    def visit_logical_expression(self, expression_node: "ExpressionNodeProtocol") -> Callable:
         pass

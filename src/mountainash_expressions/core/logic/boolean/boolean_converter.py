@@ -9,9 +9,8 @@ Note: Converting from ternary to boolean is potentially lossy since ternary logi
 includes UNKNOWN states that have no direct boolean equivalent.
 """
 
-from typing import Any
-from ..core.base_nodes import ExpressionNode, LiteralExpressionNode, ColumnExpressionNode, LogicalExpressionNode
-from ..core import ExpressionConverter
+from .boolean_nodes import ExpressionNode, LiteralExpressionNode, ColumnExpressionNode, LogicalExpressionNode
+from ..expression_converter import ExpressionConverter
 from .boolean_nodes import BooleanLiteralExpressionNode, BooleanColumnExpressionNode, BooleanLogicalExpressionNode
 
 

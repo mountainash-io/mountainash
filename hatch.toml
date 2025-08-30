@@ -87,6 +87,7 @@ dependencies = [
 
     "mountainash_constants @      {root:uri}/temp/mountainash-constants",
     "mountainash_settings @       {root:uri}/temp/mountainash-settings",
+    "mountainash_dataframes @       {root:uri}/temp/mountainash-dataframes",
 
     "mountainash_utils_files @        {root:uri}/temp/mountainash-utils-files",
     "mountainash_utils_os @           {root:uri}/temp/mountainash-utils-os",
@@ -127,6 +128,7 @@ dependencies = [
 
     "mountainash_constants @      {root:uri}/../mountainash-constants",
     "mountainash_settings @       {root:uri}/../mountainash-settings",
+    "mountainash_dataframes @       {root:uri}/../mountainash-dataframes",
 
     "mountainash_utils_files @        {root:uri}/../mountainash-utils-files",
     "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",

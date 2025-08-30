@@ -7,7 +7,7 @@ This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
 
-from typing import Callable, Any, Optional, List, Literal
+from typing import Any
 import pyarrow as pa
 import pyarrow.compute as pc
 

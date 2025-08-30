@@ -1,10 +1,13 @@
-from abc import ABC, abstractmethod
-from typing import Any, List, Union, Callable, Optional, Dict
+from abc import abstractmethod
+from typing import Any, List, Callable, Dict, TYPE_CHECKING
 
-from ..constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
-from ..logic import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
-from ..logic.boolean import BooleanExpressionConverter
-from . import ExpressionVisitor
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
+from .. import ExpressionVisitor
+
+if TYPE_CHECKING:
+    from ...logic import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+else:
+    from ...logic import ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
 from functools import reduce
 
@@ -39,16 +42,16 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         if expression_node.operator not in self.boolean_comparison_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
 
-        #Combine into one!
-        conversion_result = conversion_analysis(expression_node, self.logic_type)
-        # node_conversion_required = should_convert_node(expression_node, self.logic_type)
+        # #Combine into one!
+        # conversion_result = conversion_analysis(expression_node, self.logic_type)
+        # # node_conversion_required = should_convert_node(expression_node, self.logic_type)
 
-        if conversion_result.convert_node == True:
-            expression_node = convert_expression(expression_node, self.logic_type)
+        # if conversion_result.convert_node == True:
+        #     expression_node = convert_expression(expression_node, self.logic_type)
 
-        if conversion_result.convert_visitor == True:
-            delegate_visitor = ExpressionVisitorFactory.create_visitor(self.backend_type, expression_node.logic_type)
-            return expression_node.accept(delegate_visitor)
+        # if conversion_result.convert_visitor == True:
+        #     delegate_visitor = ExpressionVisitorFactory.create_visitor(self.backend_type, expression_node.logic_type)
+        #     return expression_node.accept(delegate_visitor)
 
         return self._process_literal_expression(expression_node)
 
@@ -76,14 +79,14 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         if not issubclass(type(expression_node), (ColumnExpressionNode)):
             raise TypeError("Expected a ColumnExpressionNode instance")
 
-        conversion_result = conversion_analysis(expression_node, self.logic_type)
+        # conversion_result = conversion_analysis(expression_node, self.logic_type)
 
-        if conversion_result.convert_node == True:
-            expression_node = convert_expression(expression_node, self.logic_type)
+        # if conversion_result.convert_node == True:
+        #     expression_node = convert_expression(expression_node, self.logic_type)
 
-        if conversion_result.convert_visitor == True:
-            delegate_visitor = ExpressionVisitorFactory.create_visitor(self.backend_type, expression_node.logic_type)
-            return expression_node.accept(delegate_visitor)
+        # if conversion_result.convert_visitor == True:
+        #     delegate_visitor = ExpressionVisitorFactory.create_visitor(self.backend_type, expression_node.logic_type)
+        #     return expression_node.accept(delegate_visitor)
 
         return self._process_column_expression(expression_node)
 
@@ -116,14 +119,14 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         if not issubclass(type(expression_node), (LogicalExpressionNode)):
             raise TypeError("Expected a LogicalExpressionNode instance")
 
-        conversion_result = conversion_analysis(expression_node, self.logic_type)
+        # conversion_result = conversion_analysis(expression_node, self.logic_type)
 
-        if conversion_result.convert_node == True:
-            expression_node = convert_expression(expression_node, self.logic_type)
+        # if conversion_result.convert_node == True:
+        #     expression_node = convert_expression(expression_node, self.logic_type)
 
-        if conversion_result.convert_visitor == True:
-            delegate_visitor = ExpressionVisitorFactory.create_visitor(self.backend_type, expression_node.logic_type)
-            return expression_node.accept(delegate_visitor)
+        # if conversion_result.convert_visitor == True:
+        #     delegate_visitor = ExpressionVisitorFactory.create_visitor(self.backend_type, expression_node.logic_type)
+        #     return expression_node.accept(delegate_visitor)
 
         return self._process_logical_expression(expression_node)
 
@@ -303,7 +306,7 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     # Helper Methods
     # ===============
 
-    def _combine(self, table: Any, expression_nodes: List[ExpressionNode], combine_func):
+    def _combine(self, table: Any, expression_nodes: List["ExpressionNode"], combine_func):
         """ Combine multiple expressions using a specified function."""
 
         if not expression_nodes:

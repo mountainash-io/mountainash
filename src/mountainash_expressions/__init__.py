@@ -1,56 +1,95 @@
-from .visitors.boolean import BooleanExpressionVisitor
-from .visitors.boolean import IbisBooleanExpressionVisitor, PolarsBooleanExpressionVisitor, PandasBooleanExpressionVisitor, PyArrowBooleanExpressionVisitor
-from .logic.boolean import BooleanExpressionNode, BooleanExpressionBuilder, BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanLiteralExpressionNode
-from .logic.boolean import BooleanExpressionBuilder
-
-from .visitors.ternary import TernaryExpressionVisitor
-from .visitors.ternary import  PolarsTernaryExpressionVisitor, IbisTernaryExpressionVisitor, PandasTernaryExpressionVisitor, PyArrowTernaryExpressionVisitor
-from .logic.ternary import TernaryExpressionNode, TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryLiteralExpressionNode
-from .logic.ternary import TernaryExpressionBuilder
-
-from .helpers import ExpressionVisitorFactory
 
 
+# Backend visitor imports
+from .backends import (
+    IbisBooleanExpressionVisitor,
+    IbisTernaryExpressionVisitor,
+    PandasBooleanExpressionVisitor,
+    PandasTernaryExpressionVisitor,
+    PolarsBooleanExpressionVisitor,
+    PolarsTernaryExpressionVisitor,
+    PyArrowBooleanExpressionVisitor,
+    PyArrowTernaryExpressionVisitor
+)
+
+# Boolean logic imports
+from .core.logic.boolean import (
+    # BooleanExpressionNode,
+    BooleanExpressionBuilder,
+    # BooleanColumnExpressionNode,
+    # BooleanLogicalExpressionNode,
+    # BooleanLiteralExpressionNode
+)
+
+# Ternary logic imports
+from .core.logic.ternary import (
+    # TernaryExpressionNode,
+    TernaryExpressionBuilder,
+    # TernaryColumnExpressionNode,
+    # TernaryLogicalExpressionNode,
+    # TernaryLiteralExpressionNode
+)
+
+# Constants
+from .core.constants import (
+    CONST_VISITOR_BACKENDS,
+    CONST_LOGIC_TYPES,
+    CONST_EXPRESSION_NODE_TYPES,
+    CONST_EXPRESSION_LOGIC_OPERATORS,
+    CONST_TERNARY_LOGIC_VALUES
+)
+
+# Core visitor imports
+# from .core.visitor import (
+#     ExpressionVisitor,
+#     BooleanExpressionVisitor,
+#     TernaryExpressionVisitor,
+#     ExpressionVisitorFactory
+# )
 
 import importlib.util
 
 PYSPARK_AVAILABLE = importlib.util.find_spec("pyspark") is not None
 
 __all__ = [
+    # Core visitor classes
+    # "ExpressionVisitor",
+    # "BooleanExpressionVisitor",
+    # "TernaryExpressionVisitor",
+    # "ExpressionVisitorFactory",
+
+    # Backend Boolean visitors
     "IbisBooleanExpressionVisitor",
     "PolarsBooleanExpressionVisitor",
     "PandasBooleanExpressionVisitor",
     "PyArrowBooleanExpressionVisitor",
-    # "NumpyExpressionVisitor",
 
-    "BooleanExpressionNode",
-    "BooleanExpressionBuilder",
-    "BooleanExpressionVisitor",
-    "BooleanColumnExpressionNode",
-    "BooleanLogicalExpressionNode",
-    "BooleanLiteralExpressionNode",
-
-    "TernaryExpressionNode",
-    "TernaryExpressionBuilder",
-    "TernaryExpressionVisitor",
-    "TernaryColumnExpressionNode",
-    "TernaryLogicalExpressionNode",
-    "TernaryLiteralExpressionNode",
-
-    "PolarsTernaryExpressionVisitor",
+    # Backend Ternary visitors
     "IbisTernaryExpressionVisitor",
+    "PolarsTernaryExpressionVisitor",
     "PandasTernaryExpressionVisitor",
     "PyArrowTernaryExpressionVisitor",
 
+    # Boolean expression nodes
+    # "BooleanExpressionNode",
+    "BooleanExpressionBuilder",
+    # "BooleanColumnExpressionNode",
+    # "BooleanLogicalExpressionNode",
+    # "BooleanLiteralExpressionNode",
 
-    "ExpressionVisitorFactory"
-    # "XarrayTernaryExpressionVisitor",
-    # "NumPyTernaryExpressionVisitor"
-    # "IbisExpressionVisitor",
-    # "PandasExpressionVisitor",
-    # "PyArrowExpressionVisitor",
-    # "NumpyExpressionVisitor",
+    # Ternary expression nodes
+    # "TernaryExpressionNode",
+    "TernaryExpressionBuilder",
+    # "TernaryColumnExpressionNode",
+    # "TernaryLogicalExpressionNode",
+    # "TernaryLiteralExpressionNode",
 
+    # Constants
+    "CONST_VISITOR_BACKENDS",
+    "CONST_LOGIC_TYPES",
+    "CONST_EXPRESSION_NODE_TYPES",
+    "CONST_EXPRESSION_LOGIC_OPERATORS",
+    "CONST_TERNARY_LOGIC_VALUES",
 ]
 
 # if PYSPARK_AVAILABLE:
