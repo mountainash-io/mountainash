@@ -4,7 +4,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, List, Union, Callable, Optional
-from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_EXPRESSION_LOGIC_TYPES
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
 from ..core.base_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
 
 from ...visitors.core import ExpressionVisitor, Visitor
@@ -14,7 +14,7 @@ class TernaryExpressionNode(ExpressionNode):
 
     @property
     def _logic_type(self) -> str:
-        return CONST_EXPRESSION_LOGIC_TYPES.TERNARY
+        return CONST_LOGIC_TYPES.TERNARY
 
     @abstractmethod
     def accept(self, visitor: Visitor) -> Callable:
