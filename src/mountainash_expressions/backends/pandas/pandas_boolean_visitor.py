@@ -104,12 +104,12 @@ class PandasBooleanExpressionVisitor(PandasBackendVisitorMixin, BooleanExpressio
         """Boolean exclusive XOR: exactly one operand must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if == 1
-        def combine_func(x, y): x.astype(int) + y.astype(int)
+        def combine_func(x, y): return x.astype(int) + y.astype(int)
         return lambda table: self._combine(table, expression_node.operands, combine_func) == 1
 
     def _xor_parity(self, expression_node: LogicalExpressionNode) -> Callable:
         """Boolean parity XOR: odd number of operands must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if odd
-        def combine_func(x, y): x.astype(int) + y.astype(int)
+        def combine_func(x, y): return x.astype(int) + y.astype(int)
         return lambda table: self._combine(table, expression_node.operands, combine_func) % 2 == 1

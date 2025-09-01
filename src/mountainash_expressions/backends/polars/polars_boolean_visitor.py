@@ -105,12 +105,12 @@ class PolarsBooleanExpressionVisitor(PolarsBackendVisitorMixin, BooleanExpressio
         """Boolean exclusive XOR: exactly one operand must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if == 1
-        def combine_func(x, y): x.cast(pl.Int32) + y.cast(pl.Int32)
+        def combine_func(x, y): return x.cast(pl.Int32) + y.cast(pl.Int32)
         return lambda table: self._combine(table, expression_node.operands, combine_func) == pl.lit(1)
 
     def _xor_parity(self, expression_node: LogicalExpressionNode) -> Callable:
         """Boolean parity XOR: odd number of operands must be TRUE."""
 
         # Use reduce pattern: convert booleans to integers, sum them, check if odd
-        def combine_func(x, y): x.cast(pl.Int32) + y.cast(pl.Int32)
+        def combine_func(x, y): return x.cast(pl.Int32) + y.cast(pl.Int32)
         return lambda table: self._combine(table, expression_node.operands, combine_func) % 2 == pl.lit(1)

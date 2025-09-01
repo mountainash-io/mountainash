@@ -103,12 +103,12 @@ class PyArrowBooleanExpressionVisitor(PyArrowBackendVisitorMixin, BooleanExpress
     def _xor_exclusive(self, expression_node: LogicalExpressionNode) -> Callable:
         """Boolean exclusive XOR: exactly one operand must be TRUE."""
 
-        def combine_func(x, y): pc.add(x.cast(pa.int64()), y.cast(pa.int64()))
+        def combine_func(x, y): return pc.add(x.cast(pa.int64()), y.cast(pa.int64()))
         return lambda table: pc.equal(self._combine(table, expression_node.operands, combine_func), pa.scalar(1))
 
 
     def _xor_parity(self, expression_node: LogicalExpressionNode) -> Callable:
         """Boolean parity XOR: odd number of operands must be TRUE."""
 
-        def combine_func(x, y): pc.add(x.cast(pa.int64()), y.cast(pa.int64()))
+        def combine_func(x, y): return pc.add(x.cast(pa.int64()), y.cast(pa.int64()))
         return lambda table: pc.equal( pc.bit_wise_and(self._combine(table, expression_node.operands, combine_func), pa.scalar(1)), pa.scalar(1))
