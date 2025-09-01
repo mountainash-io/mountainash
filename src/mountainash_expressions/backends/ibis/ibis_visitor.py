@@ -59,7 +59,7 @@ class IbisBackendVisitorMixin(BackendVisitorMixin):
     # ===============
 
     def _format_column(self,  column: str, table: Any) -> Any:
-        return table[column]
+        return ibis._[column]
 
     def _format_literal(self, value: Any, table: Optional[Any]=None) -> Any:
         return ibis.literal(value)
