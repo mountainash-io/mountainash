@@ -1,0 +1,165 @@
+# file: src/mountainash_dataframes/utils/expressions/ternary/base.py
+
+
+
+from abc import abstractmethod
+from typing import Any, List, Callable, Optional, TYPE_CHECKING
+
+from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
+
+if TYPE_CHECKING:
+    from ...visitor import ExpressionVisitorProtocol
+
+from ..expression_nodes import ExpressionNode, ColumnExpressionNode, LogicalExpressionNode, LiteralExpressionNode
+
+
+class TernaryExpressionNode(ExpressionNode):
+
+    @property
+    def logic_type(self) -> CONST_LOGIC_TYPES:
+        return CONST_LOGIC_TYPES.TERNARY
+
+
+    @abstractmethod
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
+        pass
+
+    @abstractmethod
+    def eval(self) -> Callable:
+        pass
+
+    #TODO: We need a VisitorFactory, based upon the type of visitor we want to use.
+    # This is a placeholder for the visitor type, which should be defined based on the context
+
+    def eval_is_true(self) -> Callable:
+        """Convert ternary result to boolean TRUE check."""
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE, [self])
+            return visitor.visit_logical_expression(logical_node)(table)
+
+        return eval_expr
+
+    def eval_is_false(self) -> Callable:
+        """Convert ternary result to boolean FALSE check."""
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE, [self])
+            return visitor.visit_logical_expression(logical_node)(table)
+
+        return eval_expr
+
+    def eval_is_unknown(self) -> Callable:
+        """Convert ternary result to boolean UNKNOWN check."""
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_UNKNOWN, [self])
+            return visitor.visit_logical_expression(logical_node)(table)
+
+        return eval_expr
+
+
+
+    def eval_maybe_true(self) -> Callable:
+        """Convert ternary result to boolean TRUE OR UNKNOWN check."""
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_TRUE, [self])
+            return visitor.visit_logical_expression(logical_node)(table)
+
+        return eval_expr
+
+    def eval_maybe_false(self) -> Callable:
+        """Convert ternary result to boolean FALSE OR UNKNOWN check."""
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.MAYBE_FALSE, [self])
+            return visitor.visit_logical_expression(logical_node)(table)
+
+        return eval_expr
+
+    def eval_is_known(self) -> Callable:
+        """Convert ternary result to boolean NOT UNKNOWN check."""
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            logical_node = TernaryLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_KNOWN, [self])
+            return visitor.visit_logical_expression(logical_node)(table)
+
+        return eval_expr
+
+
+
+
+class TernaryLiteralExpressionNode(TernaryExpressionNode, LiteralExpressionNode):
+
+    def __init__(self, operator: str, value1: Any, value2: Any):
+        self.operator = operator
+        self.value1 = value1
+        self.value2 = value2
+
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
+        return visitor.visit_literal_expression(self)
+
+    def eval(self) -> Callable:
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            return visitor.visit_literal_expression(self)(table)
+
+        return eval_expr
+
+
+
+class TernaryColumnExpressionNode(TernaryExpressionNode, ColumnExpressionNode):
+    def __init__(self, operator: str, column: str, value: Any, compare_column: Optional[str] = None):
+        self.operator = operator
+        self.column = column
+        self.value = value
+        self.compare_column = compare_column
+
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
+        return visitor.visit_column_expression(self)
+
+    def eval(self) -> Callable:
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            return visitor.visit_column_expression(self)(table)
+
+        return eval_expr
+
+
+
+
+class TernaryLogicalExpressionNode(TernaryExpressionNode, LogicalExpressionNode):
+
+    def __init__(self, operator: str, operands: List[TernaryExpressionNode]):
+        self.operator = operator
+        self.operands = operands
+
+
+    def accept(self, visitor: "ExpressionVisitorProtocol") -> Callable:
+        return visitor.visit_logical_expression(self)
+
+    def eval(self) -> Callable:
+
+        def eval_expr(table: Any) -> Any:
+            from ...visitor import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.create_visitor_for_backend(table, self.logic_type)
+            return visitor.visit_logical_expression(self)(table)
+
+        return eval_expr
