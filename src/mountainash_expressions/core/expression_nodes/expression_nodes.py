@@ -42,6 +42,7 @@ class NativeBackendExpressionNode(ExpressionNode):
         return CONST_EXPRESSION_NODE_TYPES.NATIVE_BACKEND
 
     def __init__(self, operator: str, native_expr: Any):
+        self.operator = operator
         self.native_expr = native_expr
 
 
@@ -53,6 +54,7 @@ class SourceExpressionNode(ExpressionNode):
         return CONST_EXPRESSION_NODE_TYPES.SOURCE
 
     def __init__(self, operator: str, value: Any):
+        self.operator = operator
         self.value = value
 
 
@@ -133,7 +135,18 @@ class ComparisonExpressionNode(ExpressionNode):
     def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
         return CONST_EXPRESSION_NODE_TYPES.COMPARISON
 
+class CollectionExpressionNode(ExpressionNode):
 
+    @property
+    @final
+    def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
+        return CONST_EXPRESSION_NODE_TYPES.COLLECTION
+
+
+    def __init__(self, operator: str, element: Any, container: Any ):
+        self.operator = operator
+        self.element = element
+        self.container = container
 
 class ArithmeticExpressionNode(ExpressionNode):
 
@@ -164,18 +177,7 @@ class ConditionalIfElseExpressionNode(ExpressionNode):
         self.consequence = consequence
         self.alternative = alternative
 
-class CollectionExpressionNode(ExpressionNode):
 
-    @property
-    @final
-    def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-        return CONST_EXPRESSION_NODE_TYPES.COLLECTION
-
-
-    def __init__(self, operator: str, element: Any, container: Any ):
-        self.operator = operator
-        self.operands = element
-        self.operands = container
 
 # class PatternExpressionNode(ExpressionNode):
 

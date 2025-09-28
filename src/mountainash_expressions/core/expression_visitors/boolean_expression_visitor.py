@@ -204,7 +204,7 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     # Literal Collection Expression
     def visit_collection_expression(self, expression_node: CollectionExpressionNode) -> Any:
 
-        if expression_node.operator not in self.boolean_comparison_ops:
+        if expression_node.operator not in self.boolean_collection_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
 
         element_expression_parameter =  ExpressionParameter(expression_node.element)
@@ -218,19 +218,20 @@ class BooleanExpressionVisitor(ExpressionVisitor):
 
     def _process_collection_expression(self, expression_node: CollectionExpressionNode, element: ExpressionNode, container: ExpressionNode) -> Any:
 
-        if expression_node.operator not in self.boolean_comparison_ops:
+        if expression_node.operator not in self.boolean_collection_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
 
-        op_func = self.boolean_comparison_ops[expression_node.operator]
+        op_func = self.boolean_collection_ops[expression_node.operator]
         return op_func(element, container)
 
 
+    #TODO: Arithmetic and Conditional
 
 
 
-    # Logical Operations
     # ===============
-
+    # Abstract Finegrained Operations
+    # ===============
 
     # Logical Constant Operations
     def _B_always_true(self) -> Any:
