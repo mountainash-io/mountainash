@@ -90,7 +90,7 @@ dependencies = [
     "mountainash_dataframes @       {root:uri}/temp/mountainash-dataframes",
 
     "mountainash_utils_files @        {root:uri}/temp/mountainash-utils-files",
-    "mountainash_utils_os @           {root:uri}/temp/mountainash-utils-os",
+    # "mountainash_utils_os @           {root:uri}/temp/mountainash-utils-os",
     # "mountainash_utils_ssh @          {root:uri}/temp/mountainash-utils-ssh",
 
 ]
@@ -131,7 +131,7 @@ dependencies = [
     "mountainash_dataframes @       {root:uri}/../mountainash-dataframes",
 
     "mountainash_utils_files @        {root:uri}/../mountainash-utils-files",
-    "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",
+    # "mountainash_utils_os @           {root:uri}/../mountainash-utils-os",
     # "mountainash_utils_ssh @          {root:uri}/../mountainash-utils-ssh",
 
 ]

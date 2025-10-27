@@ -1,10 +1,10 @@
 # Pre-merge validation workflow
-name: Validate Main Release PR - Build Dependencies 
+name: Validate Main Release PR - Build Dependencies
 
 on:
   pull_request:
     branches:
-      - 'main'
+      - "main"
 
 jobs:
   main-release-build-dependencies:
@@ -14,12 +14,11 @@ jobs:
       matrix:
         os: [ubuntu-24.04]
         python-version: ["3.12"]
-    
+
     env:
-      BUILD_ENV: 'build_github'
+      BUILD_ENV: "build_github"
 
     steps:
-
       # ======================================================
       # INITIALIZE
 
@@ -32,7 +31,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
-          fetch-depth: 0      # Get the target branch name (branch PR was merged into)
+          fetch-depth: 0 # Get the target branch name (branch PR was merged into)
 
       - name: Set Branch Vars
         run: |
@@ -45,7 +44,7 @@ jobs:
       - name: Python Dependencies
         run: |
           pip install hatchling==1.25.0
-          pip install hatch==1.12.0
+          pip install hatch==1.14.2
 
       # Checkout Mountain Ash Dependencies
       - name: Load Dependencies
@@ -61,7 +60,7 @@ jobs:
           target-branch: ${{ env.TARGET_BRANCH }}
           default-branch: main
           token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
-          org-name: ${{ env.ORGNAME }}          
+          org-name: ${{ env.ORGNAME }}
 
       # ======================================================
       # BUILD ARTIFACTS
