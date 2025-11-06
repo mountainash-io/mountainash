@@ -1,0 +1,301 @@
+===========================================
+COMPLETE FILE LISTING - mountainash-expressions
+===========================================
+
+ACTIVE SOURCE (src/mountainash_expressions/)
+=============================================
+
+20 Python Files, ~2,634 lines of code
+
+Location: /home/nathanielramm/git/mountainash/mountainash-expressions/src/mountainash_expressions/
+
+DIRECTORY TREE:
+===============
+
+src/mountainash_expressions/
+│
+├── backends/
+│   └── narwhals/
+│       ├── __init__.py                              (9 lines)
+│       ├── narwhals_visitor.py                      (72 lines)
+│       ├── narwhals_boolean_visitor.py              (117 lines)
+│       ├── narwhals_ternary_visitor.py              (282 lines)
+│       └── narwhals_parameters.py                   (0 lines - EMPTY)
+│
+└── core/
+    ├── backend_visitors/
+    │   └── backend_visitor.py                       (43 lines)
+    │
+    ├── expression_nodes/
+    │   ├── expression_nodes.py                      (259 lines)
+    │   └── boolean_expession_nodes.py               (129 lines)
+    │
+    ├── expression_parameters/
+    │   └── expression_parameter.py                  (~150 lines)
+    │
+    └── expression_visitors/
+        ├── expression_visitor.py                    (154 lines)
+        ├── boolean_expression_visitor.py            (342 lines)
+        │
+        ├── boolean_mixins/
+        │   ├── boolean_collection_visitor_mixin.py      (104 lines)
+        │   ├── boolean_comparison_visitor_mixin.py      (104 lines)
+        │   ├── boolean_logical_visitor_mixin.py         (104 lines)
+        │   ├── boolean_logicial_constant_visitor_mixin.py (69 lines)
+        │   └── boolean_unary_visitor_mixin.py           (103 lines)
+        │
+        └── common_mixins/
+            ├── cast_visitor_mixin.py                (150 lines)
+            ├── literal_visitor_mixin.py             (150 lines)
+            ├── native_expression_visitor_mixin.py   (150 lines)
+            └── source_visitor_mixin.py              (150 lines)
+
+
+DETAILED FILE MANIFEST:
+=======================
+
+NARWHALS BACKEND (5 files):
+---------------------------
+
+1. /src/mountainash_expressions/backends/narwhals/__init__.py
+   Purpose: Package initialization and exports
+   Exports: NarwhalsBackendVisitorMixin, NarwhalsBooleanExpressionVisitor, NarwhalsTernaryExpressionVisitor
+   Lines: 9
+
+2. /src/mountainash_expressions/backends/narwhals/narwhals_visitor.py
+   Purpose: Base Narwhals visitor mixin
+   Key Methods: _col(), _lit(), _as_list(), _as_set(), _is_null(), _not_null(), _is_unknown_value()
+   Class: NarwhalsBackendBaseVisitor(BackendVisitorMixin)
+   Lines: 72
+
+3. /src/mountainash_expressions/backends/narwhals/narwhals_boolean_visitor.py
+   Purpose: Boolean expression support for Narwhals backend
+   Class: NarwhalsBooleanExpressionVisitor
+   Lines: 117
+
+4. /src/mountainash_expressions/backends/narwhals/narwhals_ternary_visitor.py
+   Purpose: Ternary (3-valued logic) expression support for Narwhals
+   Class: NarwhalsTernaryExpressionVisitor
+   Lines: 282
+
+5. /src/mountainash_expressions/backends/narwhals/narwhals_parameters.py
+   Purpose: Parameters and configuration placeholder
+   Lines: 0 (EMPTY FILE)
+
+
+BACKEND VISITORS ABSTRACTION (1 file):
+--------------------------------------
+
+6. /src/mountainash_expressions/core/backend_visitors/backend_visitor.py
+   Purpose: Abstract base class defining backend visitor interface
+   Class: BackendVisitor (ABC)
+   Key Methods: backend_type, _col(), _lit(), _as_list(), _as_set(), _is_null(), _not_null()
+   Lines: 43
+
+
+EXPRESSION NODES (2 files):
+---------------------------
+
+7. /src/mountainash_expressions/core/expression_nodes/expression_nodes.py
+   Purpose: Base expression node hierarchy
+   Classes:
+     - ExpressionNode (ABC)
+     - NativeBackendExpressionNode
+     - SourceExpressionNode
+     - LiteralExpressionNode
+     - CastExpressionNode
+     - LogicalConstantExpressionNode
+     - UnaryExpressionNode
+     - LogicalExpressionNode
+     - ComparisonExpressionNode
+     - CollectionExpressionNode
+     - ArithmeticExpressionNode
+     - ConditionalIfElseExpressionNode
+   Lines: 259
+
+8. /src/mountainash_expressions/core/expression_nodes/boolean_expession_nodes.py
+   Purpose: Boolean-specific expression node implementations [NOTE: typo in filename]
+   Classes:
+     - BooleanExpressionNode
+     - BooleanUnaryExpressionNode
+     - BooleanLogicalExpressionNode
+     - BooleanComparisonExpressionNode
+     - BooleanConditionalIfElseExpressionNode
+     - BooleanCollectionExpressionNode
+   Key Methods: eval(), eval_is_true(), eval_is_false()
+   Lines: 129
+
+
+EXPRESSION PARAMETERS (1 file):
+-------------------------------
+
+9. /src/mountainash_expressions/core/expression_parameters/expression_parameter.py
+   Purpose: Parameter type detection and conversion
+   Classes:
+     - ParameterType (enum with: EXPRESSION_NODE, NATIVE_EXPRESSION, COLUMN_REFERENCE, LITERAL_VALUE, UNKNOWN)
+     - ExpressionParameter
+   Key Methods: _detect_type(), _is_expression_node(), _is_literal(), _is_native_expression()
+   Lines: ~150
+
+
+EXPRESSION VISITORS - BASE (2 files):
+-------------------------------------
+
+10. /src/mountainash_expressions/core/expression_visitors/expression_visitor.py
+    Purpose: Abstract base visitor interface
+    Class: ExpressionVisitor (ABC)
+    Key Properties: backend_type, logic_type
+    Key Properties: source_ops, literal_ops, cast_ops
+    Key Methods: visit_*_expression() for all node types, _process_*_expression()
+    Abstract Methods: _col(), _lit(), _cast(), visit_logical_constant_expression(), etc.
+    Lines: 154
+
+11. /src/mountainash_expressions/core/expression_visitors/boolean_expression_visitor.py
+    Purpose: Boolean logic visitor implementation
+    Class: BooleanExpressionVisitor(ExpressionVisitor)
+    Lines: 342
+
+
+EXPRESSION VISITORS - BOOLEAN MIXINS (5 files):
+----------------------------------------------
+
+12. /src/mountainash_expressions/core/expression_visitors/boolean_mixins/boolean_collection_visitor_mixin.py
+    Purpose: Collection operations (IN, contains)
+    Lines: ~104
+
+13. /src/mountainash_expressions/core/expression_visitors/boolean_mixins/boolean_comparison_visitor_mixin.py
+    Purpose: Comparison operations (==, !=, >, <, >=, <=)
+    Lines: ~104
+
+14. /src/mountainash_expressions/core/expression_visitors/boolean_mixins/boolean_logical_visitor_mixin.py
+    Purpose: Logical operations (AND, OR, XOR)
+    Lines: ~104
+
+15. /src/mountainash_expressions/core/expression_visitors/boolean_mixins/boolean_logicial_constant_visitor_mixin.py
+    Purpose: Logical constants (TRUE, FALSE) [NOTE: typo in filename - "logicial"]
+    Lines: ~69
+
+16. /src/mountainash_expressions/core/expression_visitors/boolean_mixins/boolean_unary_visitor_mixin.py
+    Purpose: Unary operations (NOT)
+    Lines: ~103
+
+
+EXPRESSION VISITORS - COMMON MIXINS (4 files):
+----------------------------------------------
+
+17. /src/mountainash_expressions/core/expression_visitors/common_mixins/cast_visitor_mixin.py
+    Purpose: Type casting operations (CAST operator)
+    Lines: ~150
+
+18. /src/mountainash_expressions/core/expression_visitors/common_mixins/literal_visitor_mixin.py
+    Purpose: Literal value handling (LIT operator)
+    Lines: ~150
+
+19. /src/mountainash_expressions/core/expression_visitors/common_mixins/native_expression_visitor_mixin.py
+    Purpose: Backend-native expression passthrough
+    Lines: ~150
+
+20. /src/mountainash_expressions/core/expression_visitors/common_mixins/source_visitor_mixin.py
+    Purpose: Source column reference handling (COL operator)
+    Lines: ~150
+
+
+IMPORT CHAIN ANALYSIS:
+=======================
+
+Issue: Circular imports and missing modules
+
+Files attempt to import from non-existent modules:
+- expression_nodes.py imports: from ..constants
+- boolean_expession_nodes.py imports: from ...constants
+- backend_visitor.py imports: from ...constants
+- All visitors import: from ..constants or ...constants
+
+THESE IMPORTS FAIL because:
+  constants.py does NOT exist in src/mountainash_expressions/
+  
+Constants are available ONLY in:
+  _deprecated/mountainash_expressions/core/constants.py (52 files archive)
+
+
+PACKAGE INITIALIZATION STATUS:
+==============================
+
+__init__.py Files Found: 1 / 9 required
+  EXISTS:   src/mountainash_expressions/backends/narwhals/__init__.py
+  MISSING:  src/mountainash_expressions/__init__.py (MAIN PACKAGE)
+  MISSING:  src/mountainash_expressions/core/__init__.py
+  MISSING:  src/mountainash_expressions/core/backend_visitors/__init__.py
+  MISSING:  src/mountainash_expressions/core/expression_nodes/__init__.py
+  MISSING:  src/mountainash_expressions/core/expression_parameters/__init__.py
+  MISSING:  src/mountainash_expressions/core/expression_visitors/__init__.py
+  MISSING:  src/mountainash_expressions/core/expression_visitors/boolean_mixins/__init__.py
+  MISSING:  src/mountainash_expressions/core/expression_visitors/common_mixins/__init__.py
+  MISSING:  src/mountainash_expressions/backends/__init__.py
+
+
+DEPRECATED ARCHIVE (_deprecated/mountainash_expressions/):
+===========================================================
+
+52 Python files from OLD architecture containing:
+  - Complete constants definitions (CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES, etc.)
+  - Legacy logic/ folder structure (boolean/, ternary/)
+  - Legacy visitors/ folder structure
+  - All 5 backend implementations (ibis/, narwhals/, pandas/, polars/, pyarrow/)
+
+
+CODE STATISTICS:
+================
+
+Total Python Files in src/: 20
+Total Lines of Code: ~2,634
+Distribution:
+  - Narwhals Backend: 5 files, ~471 lines
+  - Expression Nodes: 2 files, ~388 lines
+  - Expression Visitors (base): 2 files, ~496 lines
+  - Boolean Mixins: 5 files, ~484 lines
+  - Common Mixins: 4 files, ~600 lines
+  - Expression Parameters: 1 file, ~150 lines
+  - Backend Visitor: 1 file, ~43 lines
+
+
+IMPLEMENTATION STATUS:
+======================
+
+IMPLEMENTED & FUNCTIONAL:
+  ✓ Base expression node hierarchy (11 types)
+  ✓ Boolean expression nodes (6 types)
+  ✓ Expression parameter type detection
+  ✓ Boolean visitor implementation
+  ✓ Boolean operation mixins (5 handlers)
+  ✓ Common operation mixins (4 handlers)
+  ✓ Backend visitor abstract interface
+  ✓ Narwhals backend (Boolean & Ternary support)
+
+NOT IMPLEMENTED (in src/):
+  ✗ Constants module
+  ✗ Main package __init__.py
+  ✗ Subdirectory __init__.py files (8 missing)
+  ✗ Expression builder
+  ✗ Expression converter
+  ✗ Conversion matrix (Boolean ↔ Ternary)
+  ✗ Visitor factory
+  ✗ Ternary node implementations
+  ✗ Pandas backend
+  ✗ Polars backend
+  ✗ Ibis backend
+  ✗ PyArrow backend
+
+
+KNOWN ISSUES:
+=============
+
+1. Typo in filename: "boolean_expession_nodes.py" (missing 'r' in 'expression')
+2. Typo in filename: "boolean_logicial_constant_visitor_mixin.py" (should be 'logical')
+3. Missing constants.py - code imports from non-existent module
+4. Only 1 of 9 required __init__.py files exists
+5. Only Narwhals backend implemented (not Pandas, Polars, Ibis, PyArrow)
+6. Architecture differs significantly from CLAUDE.md description
+7. Empty narwhals_parameters.py file (0 bytes)
+8. References to non-existent ExpressionVisitorFactory class
+
