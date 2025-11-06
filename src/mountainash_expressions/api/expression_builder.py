@@ -23,6 +23,10 @@ from ..core.constants import (
     CONST_EXPRESSION_LOGICAL_COLLECTION_OPERATORS,
     CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS,
     CONST_EXPRESSION_ARITHMETIC_OPERATORS,
+    CONST_EXPRESSION_STRING_OPERATORS,
+    CONST_EXPRESSION_PATTERN_OPERATORS,
+    CONST_EXPRESSION_CONDITIONAL_OPERATORS,
+    CONST_EXPRESSION_TEMPORAL_OPERATORS,
 )
 from ..core.expression_nodes import (
     ExpressionNode,
@@ -33,6 +37,10 @@ from ..core.expression_nodes import (
     CollectionExpressionNode,
     UnaryExpressionNode,
     ArithmeticExpressionNode,
+    StringExpressionNode,
+    PatternExpressionNode,
+    ConditionalIfElseExpressionNode,
+    TemporalExpressionNode,
 )
 from ..core.expression_nodes.boolean_expression_nodes import (
     BooleanComparisonExpressionNode,
@@ -483,6 +491,385 @@ class ExpressionBuilder:
         other_node = self._to_node(other)
         node = ArithmeticExpressionNode(
             CONST_EXPRESSION_ARITHMETIC_OPERATORS.FLOOR_DIVIDE,
+            self._node,
+            other_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    # ========================================
+    # String Operations
+    # ========================================
+
+    def str_upper(self) -> ExpressionBuilder:
+        """Convert string to uppercase."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.UPPER, self._node)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_lower(self) -> ExpressionBuilder:
+        """Convert string to lowercase."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.LOWER, self._node)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_trim(self) -> ExpressionBuilder:
+        """Trim whitespace from both sides."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.TRIM, self._node)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_length(self) -> ExpressionBuilder:
+        """Get string length."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.LENGTH, self._node)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_contains(self, substring: str) -> ExpressionBuilder:
+        """Check if string contains substring (returns boolean)."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.CONTAINS, self._node, substring)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_starts_with(self, prefix: str) -> ExpressionBuilder:
+        """Check if string starts with prefix (returns boolean)."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.STARTS_WITH, self._node, prefix)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_ends_with(self, suffix: str) -> ExpressionBuilder:
+        """Check if string ends with suffix (returns boolean)."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.ENDS_WITH, self._node, suffix)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_replace(self, old: str, new: str) -> ExpressionBuilder:
+        """Replace substring."""
+        node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.REPLACE, self._node, old, new)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def str_substring(self, start: int, length: int = None) -> ExpressionBuilder:
+        """Extract substring."""
+        if length is None:
+            node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.SUBSTRING, self._node, start)
+        else:
+            node = StringExpressionNode(CONST_EXPRESSION_STRING_OPERATORS.SUBSTRING, self._node, start, length)
+        return ExpressionBuilder(node, self._logic_type)
+
+    # ========================================
+    # Pattern Matching Operations
+    # ========================================
+
+    def like(self, pattern: str) -> ExpressionBuilder:
+        """
+        SQL LIKE pattern matching (% and _ wildcards).
+
+        Args:
+            pattern: Pattern with % (any chars) and _ (single char) wildcards
+
+        Returns:
+            Boolean expression indicating if string matches pattern
+
+        Example:
+            >>> ma.col("name").like("John%")  # Starts with "John"
+            >>> ma.col("email").like("%@%.com")  # Contains @ and ends with .com
+        """
+        node = PatternExpressionNode(CONST_EXPRESSION_PATTERN_OPERATORS.LIKE, self._node, pattern)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def regex_match(self, pattern: str) -> ExpressionBuilder:
+        r"""
+        Check if string fully matches regex pattern.
+
+        Args:
+            pattern: Regular expression pattern
+
+        Returns:
+            Boolean expression indicating if string matches pattern
+
+        Example:
+            >>> ma.col("phone").regex_match(r"^\d{3}-\d{3}-\d{4}$")
+        """
+        node = PatternExpressionNode(CONST_EXPRESSION_PATTERN_OPERATORS.REGEX_MATCH, self._node, pattern)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def regex_contains(self, pattern: str) -> ExpressionBuilder:
+        r"""
+        Check if string contains regex pattern.
+
+        Args:
+            pattern: Regular expression pattern
+
+        Returns:
+            Boolean expression indicating if string contains pattern
+
+        Example:
+            >>> ma.col("text").regex_contains(r"\d+")  # Contains digits
+        """
+        node = PatternExpressionNode(CONST_EXPRESSION_PATTERN_OPERATORS.REGEX_CONTAINS, self._node, pattern)
+        return ExpressionBuilder(node, self._logic_type)
+
+    def regex_replace(self, pattern: str, replacement: str) -> ExpressionBuilder:
+        r"""
+        Replace text matching regex pattern.
+
+        Args:
+            pattern: Regular expression pattern
+            replacement: Replacement string
+
+        Returns:
+            String expression with replacements applied
+
+        Example:
+            >>> ma.col("text").regex_replace(r"\d+", "X")  # Replace digits with X
+        """
+        node = PatternExpressionNode(CONST_EXPRESSION_PATTERN_OPERATORS.REGEX_REPLACE, self._node, pattern, replacement)
+        return ExpressionBuilder(node, self._logic_type)
+
+    # ========================================
+    # Conditional Operations
+    # ========================================
+
+    def fill_null(self, value: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
+        """
+        Replace null values with specified value.
+
+        Args:
+            value: Value to use for nulls
+
+        Returns:
+            Expression with nulls replaced
+
+        Example:
+            >>> ma.col("score").fill_null(0)
+        """
+        value_node = self._to_node(value)
+        node = ConditionalIfElseExpressionNode(
+            CONST_EXPRESSION_CONDITIONAL_OPERATORS.FILL_NULL,
+            condition=self._node,
+            consequence=value_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    # ========================================
+    # Temporal Operations
+    # ========================================
+
+    def dt_year(self) -> ExpressionBuilder:
+        """
+        Extract year from datetime.
+
+        Returns:
+            Expression with year extracted
+
+        Example:
+            >>> ma.col("date").dt_year()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.YEAR,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_month(self) -> ExpressionBuilder:
+        """
+        Extract month from datetime.
+
+        Returns:
+            Expression with month extracted
+
+        Example:
+            >>> ma.col("date").dt_month()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.MONTH,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_day(self) -> ExpressionBuilder:
+        """
+        Extract day from datetime.
+
+        Returns:
+            Expression with day extracted
+
+        Example:
+            >>> ma.col("date").dt_day()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DAY,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_hour(self) -> ExpressionBuilder:
+        """
+        Extract hour from datetime.
+
+        Returns:
+            Expression with hour extracted
+
+        Example:
+            >>> ma.col("timestamp").dt_hour()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.HOUR,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_minute(self) -> ExpressionBuilder:
+        """
+        Extract minute from datetime.
+
+        Returns:
+            Expression with minute extracted
+
+        Example:
+            >>> ma.col("timestamp").dt_minute()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.MINUTE,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_second(self) -> ExpressionBuilder:
+        """
+        Extract second from datetime.
+
+        Returns:
+            Expression with second extracted
+
+        Example:
+            >>> ma.col("timestamp").dt_second()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.SECOND,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_weekday(self) -> ExpressionBuilder:
+        """
+        Extract day of week from datetime (0=Monday, 6=Sunday).
+
+        Returns:
+            Expression with weekday extracted
+
+        Example:
+            >>> ma.col("date").dt_weekday()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.WEEKDAY,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_week(self) -> ExpressionBuilder:
+        """
+        Extract week number from datetime.
+
+        Returns:
+            Expression with week number extracted
+
+        Example:
+            >>> ma.col("date").dt_week()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.WEEK,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_quarter(self) -> ExpressionBuilder:
+        """
+        Extract quarter from datetime (1-4).
+
+        Returns:
+            Expression with quarter extracted
+
+        Example:
+            >>> ma.col("date").dt_quarter()
+        """
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.QUARTER,
+            self._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_add_days(self, days: Union[ExpressionBuilder, int]) -> ExpressionBuilder:
+        """
+        Add days to a date.
+
+        Args:
+            days: Number of days to add
+
+        Returns:
+            Expression with days added
+
+        Example:
+            >>> ma.col("date").dt_add_days(7)
+        """
+        days_node = self._to_node(days)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_DAYS,
+            self._node,
+            days_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_add_months(self, months: Union[ExpressionBuilder, int]) -> ExpressionBuilder:
+        """
+        Add months to a date.
+
+        Args:
+            months: Number of months to add
+
+        Returns:
+            Expression with months added
+
+        Example:
+            >>> ma.col("date").dt_add_months(3)
+        """
+        months_node = self._to_node(months)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_MONTHS,
+            self._node,
+            months_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_add_years(self, years: Union[ExpressionBuilder, int]) -> ExpressionBuilder:
+        """
+        Add years to a date.
+
+        Args:
+            years: Number of years to add
+
+        Returns:
+            Expression with years added
+
+        Example:
+            >>> ma.col("date").dt_add_years(1)
+        """
+        years_node = self._to_node(years)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_YEARS,
+            self._node,
+            years_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_diff_days(self, other_date: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
+        """
+        Calculate difference in days between this date and another date.
+
+        Args:
+            other_date: Date to subtract from this date
+
+        Returns:
+            Expression with difference in days (self - other_date)
+
+        Example:
+            >>> ma.col("end_date").dt_diff_days(ma.col("start_date"))
+        """
+        other_node = self._to_node(other_date)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_DAYS,
             self._node,
             other_node
         )

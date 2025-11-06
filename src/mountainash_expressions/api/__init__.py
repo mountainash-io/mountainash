@@ -24,17 +24,19 @@ Helper Functions:
     >>> result = df.filter(ma.col("age").gt(30).compile(df))
 """
 
-from typing import Any, List
+from typing import Any, List, Union
 
 from .expression_builder import ExpressionBuilder
 from ..core.constants import (
     CONST_LOGIC_TYPES,
     CONST_EXPRESSION_SOURCE_OPERATORS,
     CONST_EXPRESSION_LITERAL_OPERATORS,
+    CONST_EXPRESSION_CONDITIONAL_OPERATORS,
 )
 from ..core.expression_nodes import (
     SourceExpressionNode,
     LiteralExpressionNode,
+    ConditionalIfElseExpressionNode,
 )
 
 
@@ -79,9 +81,9 @@ def lit(value: Any, logic_type: CONST_LOGIC_TYPES = CONST_LOGIC_TYPES.BOOLEAN) -
         >>> expr = lit(42)
         >>> expr = lit("hello")
     """
-    # For literals, we can just store the value directly
-    # The visitor's _process_operand() will handle converting it
-    return ExpressionBuilder(value, logic_type)
+    # Create a proper LiteralExpressionNode
+    node = LiteralExpressionNode(CONST_EXPRESSION_LITERAL_OPERATORS.LIT, value)
+    return ExpressionBuilder(node, logic_type)
 
 
 # ========================================
@@ -184,6 +186,131 @@ def with_columns(dataframe: Any, **named_exprs) -> Any:
 
 
 # ========================================
+# Conditional Operations
+# ========================================
+
+class WhenBuilder:
+    """
+    Builder for fluent when().then().otherwise() conditional expressions.
+
+    Example:
+        >>> expr = when(col("age") > 65).then("senior").otherwise("non-senior")
+    """
+
+    def __init__(self, condition: ExpressionBuilder, logic_type: CONST_LOGIC_TYPES = CONST_LOGIC_TYPES.BOOLEAN):
+        self._condition = condition
+        self._logic_type = logic_type
+
+    def then(self, consequence: Union[ExpressionBuilder, Any]) -> "WhenThenBuilder":
+        """
+        Specify the value to return if condition is true.
+
+        Args:
+            consequence: Value if condition is true
+
+        Returns:
+            WhenThenBuilder to continue chain with otherwise()
+        """
+        return WhenThenBuilder(self._condition, consequence, self._logic_type)
+
+
+class WhenThenBuilder:
+    """
+    Intermediate builder after then(), requires otherwise() to complete.
+
+    Example:
+        >>> expr = when(col("age") > 65).then("senior").otherwise("non-senior")
+    """
+
+    def __init__(self, condition: ExpressionBuilder, consequence: Any, logic_type: CONST_LOGIC_TYPES):
+        self._condition = condition
+        self._consequence = consequence
+        self._logic_type = logic_type
+
+    def otherwise(self, alternative: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
+        """
+        Specify the value to return if condition is false.
+
+        Args:
+            alternative: Value if condition is false
+
+        Returns:
+            ExpressionBuilder with complete conditional expression
+        """
+        # Helper to convert value to ExpressionBuilder
+        def to_builder(val):
+            if isinstance(val, ExpressionBuilder):
+                return val
+            else:
+                # Wrap as literal
+                return lit(val, self._logic_type)
+
+        # Convert all parts to ExpressionBuilder
+        condition_builder = to_builder(self._condition)
+        consequence_builder = to_builder(self._consequence)
+        alternative_builder = to_builder(alternative)
+
+        node = ConditionalIfElseExpressionNode(
+            CONST_EXPRESSION_CONDITIONAL_OPERATORS.WHEN,
+            condition=condition_builder._node,
+            consequence=consequence_builder._node,
+            alternative=alternative_builder._node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+
+def when(condition: ExpressionBuilder, logic_type: CONST_LOGIC_TYPES = CONST_LOGIC_TYPES.BOOLEAN) -> WhenBuilder:
+    """
+    Start a conditional when-then-otherwise expression.
+
+    Args:
+        condition: Boolean condition to evaluate
+        logic_type: Logic system to use (BOOLEAN or TERNARY)
+
+    Returns:
+        WhenBuilder to continue chain with then()
+
+    Example:
+        >>> expr = when(col("age") > 65).then("senior").otherwise("non-senior")
+        >>> expr = when(col("score") >= 90).then("A").otherwise("B")
+    """
+    return WhenBuilder(condition, logic_type)
+
+
+def coalesce(*values: Union[ExpressionBuilder, Any], logic_type: CONST_LOGIC_TYPES = CONST_LOGIC_TYPES.BOOLEAN) -> ExpressionBuilder:
+    """
+    Return first non-null value from a list.
+
+    Args:
+        *values: Two or more expressions or values
+        logic_type: Logic system to use (BOOLEAN or TERNARY)
+
+    Returns:
+        ExpressionBuilder with coalesce expression
+
+    Example:
+        >>> expr = coalesce(col("phone_mobile"), col("phone_home"), col("phone_work"))
+        >>> expr = coalesce(col("preferred_name"), col("first_name"))
+    """
+    if len(values) < 2:
+        raise ValueError("coalesce() requires at least 2 values")
+
+    # Convert all values to nodes
+    value_nodes = []
+    for value in values:
+        if isinstance(value, ExpressionBuilder):
+            value_nodes.append(value._node)
+        else:
+            value_nodes.append(value)
+
+    node = ConditionalIfElseExpressionNode(
+        CONST_EXPRESSION_CONDITIONAL_OPERATORS.COALESCE,
+        values=value_nodes
+    )
+    return ExpressionBuilder(node, logic_type)
+
+
+# ========================================
 # Logical Combinators (for convenience)
 # ========================================
 
@@ -268,6 +395,9 @@ __all__ = [
     "filter",
     "select",
     "with_columns",
+    # Conditional operations
+    "when",
+    "coalesce",
     # Logical combinators
     "and_",
     "or_",

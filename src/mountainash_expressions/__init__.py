@@ -35,6 +35,9 @@ from .api import (
     filter,
     select,
     with_columns,
+    # Conditional operations
+    when,
+    coalesce,
     # Logical combinators
     and_,
     or_,
