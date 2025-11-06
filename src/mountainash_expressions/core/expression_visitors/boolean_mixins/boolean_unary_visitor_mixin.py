@@ -1,15 +1,14 @@
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, List, Callable, Dict, TYPE_CHECKING
 
-from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
+from ...constants import CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS, CONST_EXPRESSION_SOURCE_OPERATORS, CONST_LOGIC_TYPES
 from .. import ExpressionVisitor
-
-if TYPE_CHECKING:
-    from ..expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalExpressionNode, ArithmeticExpressionNode, CollectionExpressionNode, StringExpressionNode
-
+from ...expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, CollectionExpressionNode, UnaryExpressionNode
+from ...expression_parameters import ExpressionParameter
 from functools import reduce
 
-class BooleanExpressionVisitor(ExpressionVisitor):
+class BooleanUnaryExpressionVisitor(ExpressionVisitor):
 
     @property
     def logic_type(self) -> CONST_LOGIC_TYPES:
@@ -26,10 +25,10 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     @property
     def boolean_unary_ops(self) -> Dict[str, Callable]:
         boolean_unary_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE:       self._is_true,
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE:      self._is_false,
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_NULL:       self._is_null,
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_NOT_NULL:   self._not_null,
+            CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS.IS_TRUE:       self._B_is_true,
+            CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS.IS_FALSE:      self._B_is_false,
+            CONST_EXPRESSION_SOURCE_OPERATORS.IS_NULL:              self._B_is_null,
+            CONST_EXPRESSION_SOURCE_OPERATORS.IS_NOT_NULL:          self._B_not_null,
         }
 
         return boolean_unary_ops
@@ -42,7 +41,7 @@ class BooleanExpressionVisitor(ExpressionVisitor):
 
     # ===============
     # Unary Expressions
-    def visit_unary_expression(self, expression_node: UnaryExpressionNode) -> Any:
+    def visit_unary_expression(self, expression_node: LogicalUnaryExpressionNode) -> Any:
 
         if expression_node.operator not in self.boolean_unary_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
@@ -53,7 +52,7 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         return self._process_unary_expression(expression_node, operand_expression_node)
 
 
-    def _process_unary_expression(self, expression_node: UnaryExpressionNode, operand_expression_node: ExpressionNode) -> Any:
+    def _process_unary_expression(self, expression_node: LogicalUnaryExpressionNode, operand_expression_node: ExpressionNode) -> Any:
 
         if expression_node.operator not in self.boolean_unary_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")

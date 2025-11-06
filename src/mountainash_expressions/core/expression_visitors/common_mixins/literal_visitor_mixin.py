@@ -1,77 +1,32 @@
 
+from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Dict, Any
 from abc import ABC, abstractmethod
 
-from ..constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
+from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS, CONST_EXPRESSION_LITERAL_OPERATORS
 
 if TYPE_CHECKING:
-    from .expression_nodes import ExpressionNode
+    from ...expression_nodes import ExpressionNode, LiteralExpressionNode
+    from ...expression_parameters import ExpressionParameter
 
-
-class ExpressionVisitor(ABC):
-
-    @property
-    @abstractmethod
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
-        pass
-
-    @property
-    @abstractmethod
-    def logic_type(self) -> CONST_LOGIC_TYPES:
-        pass
-
-
-    @property
-    def source_ops(self) -> Dict[str, Callable]:
-        source_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.COL:   self._col,
-        }
-
-        return source_ops
+class LiteralExpressionVisitor(ABC):
 
     @property
     def literal_ops(self) -> Dict[str, Callable]:
         literal_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.LIT:   self._lit,
+            CONST_EXPRESSION_LITERAL_OPERATORS.LIT:   self._lit,
         }
 
         return literal_ops
 
-    @property
-    def cast_ops(self) -> Dict[str, Callable]:
-        cast_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.CAST:   self._cast,
-        }
-
-        return cast_ops
 
 
-    def visit_source_expression(self, expression_node: SourceExpressionNode) -> Any:
-
-        if expression_node.operator not in self.source_ops:
-            raise ValueError(f"Unsupported operator: {expression_node.operator}")
-
-        value_parameter =  ExpressionParameter(expression_node.operand)
-        value_expression_node = value_parameter.resolve_to_expression_node()
-
-        return self._process_source_expression(expression_node, value_expression_node)
-
-
-    def _process_source_expression(self, expression_node: SourceExpressionNode, value_expression_node: "ExpressionNode") -> Any:
-
-        if expression_node.operator not in self.source_ops:
-            raise ValueError(f"Unsupported operator: {expression_node.operator}")
-
-        op_func = self.source_ops[expression_node.operator]
-        return op_func(value_expression_node)
-
-
-    def visit_literal_expression(self, expression_node: SourceExpressionNode) -> Any:
+    def visit_literal_expression(self, expression_node: LiteralExpressionNode) -> Any:
 
         if expression_node.operator not in self.literal_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}")
 
-        value_parameter =  ExpressionParameter(expression_node.operand)
+        value_parameter =  ExpressionParameter(expression_node.value)
         value_expression_node = value_parameter.resolve_to_expression_node()
 
         return self._process_literal_expression(expression_node, value_expression_node)
@@ -86,69 +41,6 @@ class ExpressionVisitor(ABC):
         return op_func(value_expression_node)
 
 
-    def visit_cast_expression(self, expression_node: CastExpressionNode) -> Any:
-
-        if expression_node.operator not in self.cast_ops:
-            raise ValueError(f"Unsupported operator: {expression_node.operator}")
-
-        value_parameter =  ExpressionParameter(expression_node.operand)
-        value_expression_node = value_parameter.resolve_to_expression_node()
-
-        return self._process_literal_expression(expression_node, value_expression_node)
-
-
-    def _process_literal_expression(self, expression_node: CastExpressionNode, value_expression_node: "ExpressionNode") -> Any:
-
-        if expression_node.operator not in self.cast_ops:
-            raise ValueError(f"Unsupported operator: {expression_node.operator}")
-
-        op_func = self.cast_ops[expression_node.operator]
-        return op_func(value_expression_node, expression_node.type, **expression_node.kwargs)
-
-
-
-
-
-    @abstractmethod
-    def _col(self,  value: str) -> Any:
-        pass
-
     @abstractmethod
     def _lit(self, value: Any) -> Any:
-        pass
-
-
-    @abstractmethod
-    def _cast(self, value: Any, type: Any, **kwargs) -> Any:
-        pass
-
-
-
-    @abstractmethod
-    def visit_logical_constant_expression(self, expression_node: "ExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_unary_expression(self, expression_node: "ExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_logical_expression(self, expression_node: "ExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_comparison_expression(self, expression_node: "ExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_collection_expression(self, expression_node: "ExpressionNode") -> Callable:
-        pass
-
-
-    @abstractmethod
-    def visit_conditional_expression(self, expression_node: "ExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_arithmetic_expression(self, expression_node: "ExpressionNode") -> Callable:
         pass

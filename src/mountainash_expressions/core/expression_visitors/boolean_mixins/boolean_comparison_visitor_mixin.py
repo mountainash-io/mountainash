@@ -1,15 +1,14 @@
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, List, Callable, Dict, TYPE_CHECKING
 
-from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
+from ...constants import CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS, CONST_LOGIC_TYPES
 from .. import ExpressionVisitor
-
-if TYPE_CHECKING:
-    from ..expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalExpressionNode, ArithmeticExpressionNode, CollectionExpressionNode, StringExpressionNode
-
+from ...expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, CollectionExpressionNode, UnaryExpressionNode
+from ...expression_parameters import ExpressionParameter
 from functools import reduce
 
-class BooleanExpressionVisitor(ExpressionVisitor):
+class BooleanComparisonExpressionVisitor(ExpressionVisitor):
 
     @property
     def logic_type(self) -> CONST_LOGIC_TYPES:
@@ -25,12 +24,13 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         """Abstract method to define boolean comparison operations."""
 
         boolean_comparison_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.EQ:            self._eq,
-            CONST_EXPRESSION_LOGIC_OPERATORS.NE:            self._ne,
-            CONST_EXPRESSION_LOGIC_OPERATORS.GT:            self._gt,
-            CONST_EXPRESSION_LOGIC_OPERATORS.LT:            self._lt,
-            CONST_EXPRESSION_LOGIC_OPERATORS.GE:            self._ge,
-            CONST_EXPRESSION_LOGIC_OPERATORS.LE:            self._le,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.EQ:            self._B_eq,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.NE:            self._B_ne,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.GT:            self._B_gt,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.LT:            self._B_lt,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.GE:            self._B_ge,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.LE:            self._B_le,
+            # CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.BETWEEN:            self._B_le,
         }
 
         return boolean_comparison_ops
@@ -50,13 +50,13 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         left_resolved_expr = left_expression_parameter.resolve_to_expression_node()
         right_resolved_expr = right_expression_parameter.resolve_to_expression_node()
 
-        return self._process_boolean_comparison_expression(expression_node, left_resolved_expr, right_resolved_expr)
+        return self._process_comparison_expression(expression_node, left_resolved_expr, right_resolved_expr)
 
 
     def _process_comparison_expression(self, expression_node: ComparisonExpressionNode, left: ExpressionNode, right: ExpressionNode) -> Any:
 
         if expression_node.operator not in self.boolean_comparison_ops:
-            raise ValueError(f"Unsupported operator: {expression_node.operator}")
+            raise ValueError(f"Unsupported operator: {expression_node.operator}" )
 
         op_func = self.boolean_comparison_ops[expression_node.operator]
         return op_func(left, right)

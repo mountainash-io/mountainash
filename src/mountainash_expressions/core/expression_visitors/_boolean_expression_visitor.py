@@ -1,11 +1,28 @@
 from abc import abstractmethod
 from typing import Any, List, Callable, Dict, TYPE_CHECKING
 
-from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
-from .. import ExpressionVisitor
+from ..constants import (
+    CONST_EXPRESSION_SOURCE_OPERATORS,
+    CONST_EXPRESSION_LOGICAL_OPERATORS,
+    CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS,
+    CONST_EXPRESSION_LOGICAL_COLLECTION_OPERATORS,
+    CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS,
+    CONST_EXPRESSION_LOGICAL_CONSTANT_OPERATORS,
+    CONST_LOGIC_TYPES
+)
+from .expression_visitor import ExpressionVisitor
+from ..expression_parameters import ExpressionParameter
+from ..expression_nodes import (
+    ExpressionNode,
+    LogicalConstantExpressionNode,
+    UnaryExpressionNode,
+    LogicalExpressionNode,
+    ComparisonExpressionNode,
+    CollectionExpressionNode,
+)
 
 if TYPE_CHECKING:
-    from ..expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalExpressionNode, ArithmeticExpressionNode, CollectionExpressionNode, StringExpressionNode
+    from ..expression_nodes import ConditionalExpressionNode, ArithmeticExpressionNode, StringExpressionNode
 
 from functools import reduce
 
@@ -27,8 +44,8 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     @property
     def boolean_logical_constant_ops(self) -> Dict[str, Callable]:
         boolean_logical_constant_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_TRUE:   self._always_true,
-            CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_FALSE:  self._always_false,
+            CONST_EXPRESSION_LOGICAL_CONSTANT_OPERATORS.ALWAYS_TRUE:   self._always_true,
+            CONST_EXPRESSION_LOGICAL_CONSTANT_OPERATORS.ALWAYS_FALSE:  self._always_false,
         }
 
         return boolean_logical_constant_ops
@@ -37,10 +54,10 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     @property
     def boolean_unary_ops(self) -> Dict[str, Callable]:
         boolean_unary_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE:       self._is_true,
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE:      self._is_false,
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_NULL:       self._is_null,
-            CONST_EXPRESSION_LOGIC_OPERATORS.IS_NOT_NULL:   self._not_null,
+            CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS.IS_TRUE:       self._is_true,
+            CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS.IS_FALSE:      self._is_false,
+            CONST_EXPRESSION_SOURCE_OPERATORS.IS_NULL:       self._is_null,
+            CONST_EXPRESSION_SOURCE_OPERATORS.IS_NOT_NULL:   self._not_null,
         }
 
         return boolean_unary_ops
@@ -65,12 +82,12 @@ class BooleanExpressionVisitor(ExpressionVisitor):
         """Abstract method to define boolean comparison operations."""
 
         boolean_comparison_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.EQ:            self._eq,
-            CONST_EXPRESSION_LOGIC_OPERATORS.NE:            self._ne,
-            CONST_EXPRESSION_LOGIC_OPERATORS.GT:            self._gt,
-            CONST_EXPRESSION_LOGIC_OPERATORS.LT:            self._lt,
-            CONST_EXPRESSION_LOGIC_OPERATORS.GE:            self._ge,
-            CONST_EXPRESSION_LOGIC_OPERATORS.LE:            self._le,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.EQ:            self._eq,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.NE:            self._ne,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.GT:            self._gt,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.LT:            self._lt,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.GE:            self._ge,
+            CONST_EXPRESSION_LOGICAL_COMPARISON_OPERATORS.LE:            self._le,
         }
 
         return boolean_comparison_ops
@@ -79,12 +96,12 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     def boolean_collection_ops(self) -> Dict[str, Callable]:
         """Abstract method to define boolean comparison operations."""
 
-        boolean_comparison_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.IN:            self._in,
-            CONST_EXPRESSION_LOGIC_OPERATORS.NOT_IN:        self._not_in,
+        boolean_collection_ops = {
+            CONST_EXPRESSION_LOGICAL_COLLECTION_OPERATORS.IN:            self._in,
+            CONST_EXPRESSION_LOGICAL_COLLECTION_OPERATORS.NOT_IN:        self._not_in,
         }
 
-        return boolean_comparison_ops
+        return boolean_collection_ops
 
 
 

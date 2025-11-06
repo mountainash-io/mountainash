@@ -1,15 +1,14 @@
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, List, Callable, Dict, TYPE_CHECKING
 
-from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
+from ...constants import CONST_EXPRESSION_LOGICAL_CONSTANT_OPERATORS, CONST_LOGIC_TYPES
 from .. import ExpressionVisitor
-
-if TYPE_CHECKING:
-    from ..expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalExpressionNode, ArithmeticExpressionNode, CollectionExpressionNode, StringExpressionNode
-
+from ...expression_nodes import ExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, CollectionExpressionNode, UnaryExpressionNode
+from ...expression_parameters import ExpressionParameter
 from functools import reduce
 
-class BooleanExpressionVisitor(ExpressionVisitor):
+class BooleanConstantExpressionVisitor(ExpressionVisitor):
 
     @property
     def logic_type(self) -> CONST_LOGIC_TYPES:
@@ -27,8 +26,8 @@ class BooleanExpressionVisitor(ExpressionVisitor):
     @property
     def boolean_logical_constant_ops(self) -> Dict[str, Callable]:
         boolean_logical_constant_ops = {
-            CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_TRUE:   self._always_true,
-            CONST_EXPRESSION_LOGIC_OPERATORS.ALWAYS_FALSE:  self._always_false,
+            CONST_EXPRESSION_LOGICAL_CONSTANT_OPERATORS.ALWAYS_TRUE:   self._B_always_true,
+            CONST_EXPRESSION_LOGICAL_CONSTANT_OPERATORS.ALWAYS_FALSE:  self._B_always_false,
         }
 
         return boolean_logical_constant_ops
