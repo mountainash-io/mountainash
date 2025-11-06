@@ -30,6 +30,22 @@ from .arithmetic_mixins import (
     ArithmeticOperatorsExpressionVisitor
 )
 
+from .string_mixins import (
+    StringOperatorsExpressionVisitor
+)
+
+from .pattern_mixins import (
+    PatternOperatorsExpressionVisitor
+)
+
+from .conditional_mixins import (
+    ConditionalOperatorsExpressionVisitor
+)
+
+from .temporal_mixins import (
+    TemporalOperatorsExpressionVisitor
+)
+
 
 class UniversalBooleanExpressionVisitor(
     CastExpressionVisitor,
@@ -40,7 +56,11 @@ class UniversalBooleanExpressionVisitor(
     BooleanConstantExpressionVisitor,
     BooleanOperatorsExpressionVisitor,
     BooleanUnaryExpressionVisitor,
-    ArithmeticOperatorsExpressionVisitor
+    ArithmeticOperatorsExpressionVisitor,
+    StringOperatorsExpressionVisitor,
+    PatternOperatorsExpressionVisitor,
+    ConditionalOperatorsExpressionVisitor,
+    TemporalOperatorsExpressionVisitor
 ):
     """
     Universal Boolean logic visitor that works with any backend.
@@ -243,6 +263,202 @@ class UniversalBooleanExpressionVisitor(
         left_expr = self._process_operand(left)
         right_expr = self._process_operand(right)
         return self.backend.floor_divide(left_expr, right_expr)
+
+    # ========================================
+    # String Operations (Universal - no logic prefix)
+    # ========================================
+
+    def _str_upper(self, operand: Any) -> Any:
+        """Convert string to uppercase"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.str_upper(operand_expr)
+
+    def _str_lower(self, operand: Any) -> Any:
+        """Convert string to lowercase"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.str_lower(operand_expr)
+
+    def _str_trim(self, operand: Any) -> Any:
+        """Trim whitespace from both sides"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.str_trim(operand_expr)
+
+    def _str_ltrim(self, operand: Any) -> Any:
+        """Trim whitespace from left side"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.str_ltrim(operand_expr)
+
+    def _str_rtrim(self, operand: Any) -> Any:
+        """Trim whitespace from right side"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.str_rtrim(operand_expr)
+
+    def _str_substring(self, operand: Any, start: Any, length: Any = None, **kwargs) -> Any:
+        """Extract substring"""
+        operand_expr = self._process_operand(operand)
+        start_val = self._process_operand(start) if not isinstance(start, int) else start
+        length_val = self._process_operand(length) if length is not None and not isinstance(length, int) else length
+        return self.backend.str_substring(operand_expr, start_val, length_val)
+
+    def _str_concat(self, operand: Any, *others: Any, **kwargs) -> Any:
+        """Concatenate strings"""
+        operand_expr = self._process_operand(operand)
+        others_expr = [self._process_operand(o) for o in others]
+        return self.backend.str_concat(operand_expr, *others_expr, **kwargs)
+
+    def _str_length(self, operand: Any) -> Any:
+        """Get string length"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.str_length(operand_expr)
+
+    def _str_replace(self, operand: Any, old: Any, new: Any, **kwargs) -> Any:
+        """Replace substring"""
+        operand_expr = self._process_operand(operand)
+        old_val = old if isinstance(old, str) else self._process_operand(old)
+        new_val = new if isinstance(new, str) else self._process_operand(new)
+        return self.backend.str_replace(operand_expr, old_val, new_val)
+
+    def _str_contains(self, operand: Any, substring: Any, **kwargs) -> Any:
+        """Check if string contains substring"""
+        operand_expr = self._process_operand(operand)
+        substring_val = substring if isinstance(substring, str) else self._process_operand(substring)
+        return self.backend.str_contains(operand_expr, substring_val)
+
+    def _str_starts_with(self, operand: Any, prefix: Any, **kwargs) -> Any:
+        """Check if string starts with prefix"""
+        operand_expr = self._process_operand(operand)
+        prefix_val = prefix if isinstance(prefix, str) else self._process_operand(prefix)
+        return self.backend.str_starts_with(operand_expr, prefix_val)
+
+    def _str_ends_with(self, operand: Any, suffix: Any, **kwargs) -> Any:
+        """Check if string ends with suffix"""
+        operand_expr = self._process_operand(operand)
+        suffix_val = suffix if isinstance(suffix, str) else self._process_operand(suffix)
+        return self.backend.str_ends_with(operand_expr, suffix_val)
+
+    # ========================================
+    # Pattern Matching Operations (Universal)
+    # ========================================
+
+    def _pattern_like(self, operand: Any, pattern: Any, **kwargs) -> Any:
+        """SQL LIKE pattern matching (% and _ wildcards)"""
+        operand_expr = self._process_operand(operand)
+        pattern_val = pattern if isinstance(pattern, str) else self._process_operand(pattern)
+        return self.backend.pattern_like(operand_expr, pattern_val)
+
+    def _pattern_regex_match(self, operand: Any, pattern: Any, **kwargs) -> Any:
+        """Check if string fully matches regex pattern"""
+        operand_expr = self._process_operand(operand)
+        pattern_val = pattern if isinstance(pattern, str) else self._process_operand(pattern)
+        return self.backend.pattern_regex_match(operand_expr, pattern_val)
+
+    def _pattern_regex_contains(self, operand: Any, pattern: Any, **kwargs) -> Any:
+        """Check if string contains regex pattern"""
+        operand_expr = self._process_operand(operand)
+        pattern_val = pattern if isinstance(pattern, str) else self._process_operand(pattern)
+        return self.backend.pattern_regex_contains(operand_expr, pattern_val)
+
+    def _pattern_regex_replace(self, operand: Any, pattern: Any, replacement: Any, **kwargs) -> Any:
+        """Replace text matching regex pattern"""
+        operand_expr = self._process_operand(operand)
+        pattern_val = pattern if isinstance(pattern, str) else self._process_operand(pattern)
+        replacement_val = replacement if isinstance(replacement, str) else self._process_operand(replacement)
+        return self.backend.pattern_regex_replace(operand_expr, pattern_val, replacement_val)
+
+    # ========================================
+    # Conditional Operations (Universal)
+    # ========================================
+
+    def _conditional_when(self, condition: Any, consequence: Any, alternative: Any) -> Any:
+        """Conditional if-then-else expression"""
+        condition_expr = self._process_operand(condition)
+        consequence_expr = self._process_operand(consequence)
+        alternative_expr = self._process_operand(alternative)
+        return self.backend.conditional_when(condition_expr, consequence_expr, alternative_expr)
+
+    def _conditional_coalesce(self, values: List[Any]) -> Any:
+        """Return first non-null value"""
+        values_expr = [self._process_operand(v) for v in values]
+        return self.backend.conditional_coalesce(values_expr)
+
+    def _conditional_fill_null(self, operand: Any, fill_value: Any) -> Any:
+        """Replace null values with specified value"""
+        operand_expr = self._process_operand(operand)
+        fill_value_expr = self._process_operand(fill_value)
+        return self.backend.conditional_fill_null(operand_expr, fill_value_expr)
+
+    # ========================================
+    # Temporal Operations (Universal)
+    # ========================================
+
+    def _temporal_year(self, operand: Any) -> Any:
+        """Extract year from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_year(operand_expr)
+
+    def _temporal_month(self, operand: Any) -> Any:
+        """Extract month from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_month(operand_expr)
+
+    def _temporal_day(self, operand: Any) -> Any:
+        """Extract day from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_day(operand_expr)
+
+    def _temporal_hour(self, operand: Any) -> Any:
+        """Extract hour from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_hour(operand_expr)
+
+    def _temporal_minute(self, operand: Any) -> Any:
+        """Extract minute from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_minute(operand_expr)
+
+    def _temporal_second(self, operand: Any) -> Any:
+        """Extract second from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_second(operand_expr)
+
+    def _temporal_weekday(self, operand: Any) -> Any:
+        """Extract day of week from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_weekday(operand_expr)
+
+    def _temporal_week(self, operand: Any) -> Any:
+        """Extract week number from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_week(operand_expr)
+
+    def _temporal_quarter(self, operand: Any) -> Any:
+        """Extract quarter from datetime"""
+        operand_expr = self._process_operand(operand)
+        return self.backend.temporal_quarter(operand_expr)
+
+    def _temporal_add_days(self, operand: Any, days: Any) -> Any:
+        """Add days to a date"""
+        operand_expr = self._process_operand(operand)
+        days_expr = self._process_operand(days)
+        return self.backend.temporal_add_days(operand_expr, days_expr)
+
+    def _temporal_add_months(self, operand: Any, months: Any) -> Any:
+        """Add months to a date"""
+        operand_expr = self._process_operand(operand)
+        months_expr = self._process_operand(months)
+        return self.backend.temporal_add_months(operand_expr, months_expr)
+
+    def _temporal_add_years(self, operand: Any, years: Any) -> Any:
+        """Add years to a date"""
+        operand_expr = self._process_operand(operand)
+        years_expr = self._process_operand(years)
+        return self.backend.temporal_add_years(operand_expr, years_expr)
+
+    def _temporal_diff_days(self, operand: Any, other_date: Any) -> Any:
+        """Calculate difference in days between two dates"""
+        operand_expr = self._process_operand(operand)
+        other_date_expr = self._process_operand(other_date)
+        return self.backend.temporal_diff_days(operand_expr, other_date_expr)
 
     # ========================================
     # Unary Logical Operations

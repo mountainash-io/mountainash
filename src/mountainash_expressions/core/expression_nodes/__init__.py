@@ -12,7 +12,10 @@ from .expression_nodes import (
     ComparisonExpressionNode,
     CollectionExpressionNode,
     ArithmeticExpressionNode,
+    StringExpressionNode,
+    PatternExpressionNode,
     ConditionalIfElseExpressionNode,
+    TemporalExpressionNode,
 )
 
 from .boolean_expression_nodes import (
@@ -37,7 +40,10 @@ __all__ = [
     "ComparisonExpressionNode",
     "CollectionExpressionNode",
     "ArithmeticExpressionNode",
+    "StringExpressionNode",
+    "PatternExpressionNode",
     "ConditionalIfElseExpressionNode",
+    "TemporalExpressionNode",
     # Boolean nodes
     "BooleanExpressionNode",
     "BooleanUnaryExpressionNode",

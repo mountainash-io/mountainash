@@ -4,10 +4,10 @@ from typing import Callable, TYPE_CHECKING, Dict, Any
 from abc import ABC, abstractmethod
 
 from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS, CONST_EXPRESSION_LITERAL_OPERATORS
+from ...expression_parameters import ExpressionParameter
 
 if TYPE_CHECKING:
     from ...expression_nodes import ExpressionNode, LiteralExpressionNode
-    from ...expression_parameters import ExpressionParameter
 
 class LiteralExpressionVisitor(ABC):
 
