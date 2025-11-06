@@ -6,6 +6,7 @@ Narwhals Ternary Expression Visitor
 This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
+from __future__ import annotations
 
 from typing import Callable, Any
 from functools import reduce

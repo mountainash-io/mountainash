@@ -1,4 +1,5 @@
 # core/expression_system/parameter.py
+from __future__ import annotations
 from enum import Enum, auto
 from typing import Any, Optional, TYPE_CHECKING
 from abc import ABC, abstractmethod
@@ -27,7 +28,7 @@ class ExpressionParameter:
     def __init__(
         self,
         value: Any,
-        expression_system: 'NativeExpressionSystem',
+        expression_system: Optional['NativeExpressionSystem'] = None,
         visitor: Optional['ExpressionVisitor'] = None
     ):
         """
@@ -35,7 +36,7 @@ class ExpressionParameter:
 
         Args:
             value: The parameter value to be converted
-            expression_system: Backend system for native expression creation
+            expression_system: Optional backend system for native expression creation
             visitor: Optional visitor for recursive MountainAsh node conversion
         """
         self.value = value
@@ -53,8 +54,8 @@ class ExpressionParameter:
         if self._is_expression_node():
             return ParameterType.EXPRESSION_NODE
 
-        # 2. Native backend expressions
-        if self.expression_system.is_native_expression(self.value):
+        # 2. Native backend expressions (only if expression_system available)
+        if self.expression_system and self.expression_system.is_native_expression(self.value):
             return ParameterType.NATIVE_EXPRESSION
 
         # 3. String disambiguation (column vs literal)
@@ -73,7 +74,7 @@ class ExpressionParameter:
 
     def _is_expression_node(self) -> bool:
         """Check if value is a MountainAsh expression node."""
-        from ...core.logic import ExpressionNode
+        from ..expression_nodes import ExpressionNode
         return isinstance(self.value, ExpressionNode)
 
     def _is_literal(self) -> bool:
@@ -136,6 +137,30 @@ class ExpressionParameter:
     def type_name(self) -> str:
         """Human-readable type name for debugging."""
         return self._type.value
+
+    def resolve_to_expression_node(self) -> 'ExpressionNode':
+        """
+        Resolve parameter to an ExpressionNode.
+
+        This is simpler than to_native_expression - it just checks if the value
+        is already an ExpressionNode and returns it as-is. Otherwise, it returns
+        the value unchanged (which should be handled by the calling code).
+
+        Returns:
+            The value if it's an ExpressionNode, otherwise the value itself
+
+        Note:
+            This method is used by visitors to handle parameters that might already
+            be expression nodes. For creating new nodes from raw values, the calling
+            code should construct the appropriate node type explicitly.
+        """
+        from ..expression_nodes import ExpressionNode
+
+        if isinstance(self.value, ExpressionNode):
+            return self.value
+        else:
+            # Return the raw value - caller will need to wrap it in appropriate node
+            return self.value
 
     def __repr__(self) -> str:
         return f"ExpressionParameter(type={self.type_name}, value={repr(self.value)})"

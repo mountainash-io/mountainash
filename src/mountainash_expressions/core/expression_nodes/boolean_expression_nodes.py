@@ -1,8 +1,9 @@
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, List, Callable, Optional, TYPE_CHECKING
 
 from .expression_nodes import ExpressionNode, UnaryExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalIfElseExpressionNode, CollectionExpressionNode
-from ...constants import CONST_EXPRESSION_LOGIC_OPERATORS, CONST_LOGIC_TYPES
+from ..constants import CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS, CONST_LOGIC_TYPES
 
 if TYPE_CHECKING:
     from ..expression_visitors import ExpressionVisitor, ExpressionVisitorFactory
@@ -27,7 +28,7 @@ class BooleanExpressionNode(ExpressionNode):
 
         def eval_expr(backend: Any) -> Any:
             visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            logical_node = BooleanLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_TRUE, [self])
+            logical_node = BooleanLogicalExpressionNode(CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS.IS_TRUE, [self])
             return visitor.visit_boolean_logical_expression(logical_node)
 
         return eval_expr
@@ -37,7 +38,7 @@ class BooleanExpressionNode(ExpressionNode):
 
         def eval_expr(backend: Any) -> Any:
             visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            logical_node = BooleanLogicalExpressionNode(CONST_EXPRESSION_LOGIC_OPERATORS.IS_FALSE, [self])
+            logical_node = BooleanLogicalExpressionNode(CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS.IS_FALSE, [self])
             return visitor.visit_boolean_logical_expression(logical_node)
 
         return eval_expr
@@ -45,7 +46,7 @@ class BooleanExpressionNode(ExpressionNode):
 
 class BooleanUnaryExpressionNode(UnaryExpressionNode, BooleanExpressionNode):
 
-    def accept(self, visitor: "ExpressionVisitor") -> Any:
+    def accept(self, visitor: ExpressionVisitor) -> Any:
         return visitor.visit_boolean_unary_expression(self)
 
     def eval(self) -> Any:
@@ -59,7 +60,7 @@ class BooleanUnaryExpressionNode(UnaryExpressionNode, BooleanExpressionNode):
 
 class BooleanLogicalExpressionNode(LogicalExpressionNode, BooleanExpressionNode):
 
-    def accept(self, visitor: "ExpressionVisitor") -> Any:
+    def accept(self, visitor: ExpressionVisitor) -> Any:
         return visitor.visit_logical_expression(self)
 
     def eval(self) -> Any:
@@ -73,13 +74,13 @@ class BooleanLogicalExpressionNode(LogicalExpressionNode, BooleanExpressionNode)
 
 class BooleanComparisonExpressionNode(ComparisonExpressionNode, BooleanExpressionNode):
 
-    def accept(self, visitor: "ExpressionVisitor") -> Callable:
+    def accept(self, visitor: ExpressionVisitor) -> Callable:
         return visitor.visit_boolean_comparison_expression(self)
 
     def eval(self) -> Callable:
 
         def eval_expr(backend: Any) -> Any:
-            visitor = ExpressionVisitorFactory.create_visitor_for_backend(backend, self.logic_type)
+            visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
             return visitor.visit_boolean_comparison_expression(self)
 
         return eval_expr
@@ -88,26 +89,26 @@ class BooleanComparisonExpressionNode(ComparisonExpressionNode, BooleanExpressio
 
 class BooleanConditionalIfElseExpressionNode(ConditionalIfElseExpressionNode, BooleanExpressionNode):
 
-    def accept(self, visitor: "ExpressionVisitor") -> Callable:
+    def accept(self, visitor: ExpressionVisitor) -> Callable:
         return visitor.visit_boolean_conditional_ifelse_expression(self)
 
     def eval(self) -> Callable:
 
         def eval_expr(backend: Any) -> Any:
-            visitor = ExpressionVisitorFactory.create_visitor_for_backend(backend, self.logic_type)
+            visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
             return visitor.visit_boolean_conditional_ifelse_expression(self)
 
         return eval_expr
 
 class BooleanCollectionExpressionNode(CollectionExpressionNode, BooleanExpressionNode):
 
-    def accept(self, visitor: "ExpressionVisitor") -> Callable:
+    def accept(self, visitor: ExpressionVisitor) -> Callable:
         return visitor.visit_boolean_collection_expression(self)
 
     def eval(self) -> Callable:
 
         def eval_expr(backend: Any) -> Any:
-            visitor = ExpressionVisitorFactory.create_visitor_for_backend(backend, self.logic_type)
+            visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
             return visitor.visit_boolean_collection_expression(self)
 
         return eval_expr

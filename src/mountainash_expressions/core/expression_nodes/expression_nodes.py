@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collection
 
@@ -6,9 +7,7 @@ from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collecti
 from ..constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
 
 if TYPE_CHECKING:
-    from ..visitor.expression_visitor import ExpressionVisitor
-
-
+    from ..expression_visitors.expression_visitor import ExpressionVisitor
 
 
 class ExpressionNode(ABC):
@@ -39,7 +38,7 @@ class NativeBackendExpressionNode(ExpressionNode):
     @property
     @final
     def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-        return CONST_EXPRESSION_NODE_TYPES.NATIVE_BACKEND
+        return CONST_EXPRESSION_NODE_TYPES.NATIVE
 
     def __init__(self, operator: str, native_expr: Any):
         self.operator = operator
@@ -100,7 +99,7 @@ class UnaryExpressionNode(ExpressionNode):
     @property
     @final
     def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-        return CONST_EXPRESSION_NODE_TYPES.UNARY
+        return CONST_EXPRESSION_NODE_TYPES.LOGICAL_UNARY
 
     def __init__(self, operator: str, operand: Any):
         self.operator = operator
@@ -133,7 +132,7 @@ class ComparisonExpressionNode(ExpressionNode):
     @property
     @final
     def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-        return CONST_EXPRESSION_NODE_TYPES.COMPARISON
+        return CONST_EXPRESSION_NODE_TYPES.LOGICAL_COMPARISON
 
 class CollectionExpressionNode(ExpressionNode):
 
@@ -149,17 +148,91 @@ class CollectionExpressionNode(ExpressionNode):
         self.container = container
 
 class ArithmeticExpressionNode(ExpressionNode):
+    """
+    Node representing arithmetic operations (ADD, SUBTRACT, MULTIPLY, etc.).
+
+    Arithmetic operations return numeric values and can be used with any logic system.
+    The logic_type determines how NULL values are handled during arithmetic operations.
+    """
 
     @property
     @final
     def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
         return CONST_EXPRESSION_NODE_TYPES.ARITHMETIC
 
+    @property
+    def logic_type(self) -> CONST_LOGIC_TYPES:
+        """
+        Arithmetic operations can work with any logic system.
+        Defaults to BOOLEAN but can be overridden.
+        """
+        return CONST_LOGIC_TYPES.BOOLEAN
 
     def __init__(self, operator: str, left: Any, right: Any):
         self.operator = operator
         self.left = left
         self.right = right
+
+    def accept(self, visitor: "ExpressionVisitor") -> Any:
+        return visitor.visit_arithmetic_expression(self)
+
+    def eval(self) -> Callable:
+        def eval_expr(backend: Any) -> Any:
+            from ..expression_visitors import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
+            return visitor.visit_arithmetic_expression(self)
+        return eval_expr
+
+
+class StringExpressionNode(ExpressionNode):
+    """
+    Node representing string operations (UPPER, LOWER, TRIM, SUBSTRING, etc.).
+
+    String operations return string values (or integers for LENGTH) and are universal
+    across all logic systems.
+
+    Supports both:
+    - Unary operations: UPPER, LOWER, TRIM, LENGTH (just operand)
+    - Operations with arguments: SUBSTRING(start, end), REPLACE(old, new), CONCAT(*args)
+    """
+
+    @property
+    @final
+    def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
+        return CONST_EXPRESSION_NODE_TYPES.STRING
+
+    @property
+    def logic_type(self) -> CONST_LOGIC_TYPES:
+        """
+        String operations can work with any logic system.
+        Defaults to BOOLEAN but can be overridden.
+        """
+        return CONST_LOGIC_TYPES.BOOLEAN
+
+    def __init__(self, operator: str, operand: Any, *args, **kwargs):
+        """
+        Initialize string expression node.
+
+        Args:
+            operator: String operator (from CONST_EXPRESSION_STRING_OPERATORS)
+            operand: The string expression to operate on
+            *args: Additional positional arguments (e.g., start, end for substring)
+            **kwargs: Additional keyword arguments
+        """
+        self.operator = operator
+        self.operand = operand
+        self.args = args
+        self.kwargs = kwargs
+
+    def accept(self, visitor: "ExpressionVisitor") -> Any:
+        return visitor.visit_string_expression(self)
+
+    def eval(self) -> Callable:
+        def eval_expr(backend: Any) -> Any:
+            from ..expression_visitors import ExpressionVisitorFactory
+            visitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
+            return visitor.visit_string_expression(self)
+        return eval_expr
 
 
 class ConditionalIfElseExpressionNode(ExpressionNode):

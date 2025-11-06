@@ -6,14 +6,19 @@ Ibis Ternary Expression Visitor
 This module provides a clean, lambda-based approach to ternary logic expressions
 that mirrors the boolean system design while handling three-valued logic (TRUE/FALSE/UNKNOWN).
 """
+from __future__ import annotations
 
 from typing import Any, Optional
 import narwhals as nw
 
 from ...core.constants import CONST_VISITOR_BACKENDS
-from ...core.visitor import BackendVisitorMixin
+from ...core.backend_visitors import BackendVisitor
+# from ...core.expression_visitors.common_mixins import CastExpressionVisitor, LiteralExpressionVisitor, SourceExpressionVisitor #, NativeBackendExpressionVisitor
 
-class NarwhalsBackendBaseVisitor(BackendVisitorMixin):
+from ...core.expression_visitors.common_mixins import CastExpressionVisitor, LiteralExpressionVisitor, SourceExpressionVisitor #, NativeBackendExpressionVisitor
+
+
+class NarwhalsBackendBaseVisitor(BackendVisitor, CastExpressionVisitor, LiteralExpressionVisitor, SourceExpressionVisitor):
     """Ternary-aware Narwhals visitor with lambda-based operations following boolean pattern."""
 
     @property
@@ -27,11 +32,18 @@ class NarwhalsBackendBaseVisitor(BackendVisitorMixin):
     # ===============
 
     # Baseline source values
-    def _col(self,  value: str) -> nw.Expr:
-        return nw.col(value)
+    def _col(self,  column: Any, /,  **kwargs) -> nw.Expr:
+        return nw.col(column, **kwargs)
 
     def _lit(self, value: Any) -> nw.Expr:
         return nw.lit(value)
+
+    # Unary Comparisons
+    def _is_null(self, column: nw.Expr, /,  **kwargs) -> nw.Expr:
+        return column.is_null()
+
+    def _is_not_null(self, column: nw.Expr, /,  **kwargs) -> nw.Expr:
+        return ~column.is_null()
 
 
     # Collection Formatting - Python
@@ -40,14 +52,6 @@ class NarwhalsBackendBaseVisitor(BackendVisitorMixin):
 
     def _as_set(self, value: Any) -> Any:
         return set(value) if not isinstance(value, set) else value # Ensure it's a set
-
-
-    # Unary Comparisons
-    def _is_null(self, value: Any) -> nw.Expr:
-        return value.is_null()
-
-    def _not_null(self, value: Any) -> nw.Expr:
-        return value.is_not_null()
 
 
 
