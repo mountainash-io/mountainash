@@ -52,6 +52,7 @@ class CONST_EXPRESSION_NODE_TYPES(Enum):
         - ARITHMETIC: Arithmetic operations (ADD, SUB, MUL, DIV)
         - STRING: String operations (UPPER, LOWER, TRIM, etc.)
         - CONDITIONAL_IF_ELSE: Conditional if-else expressions
+        - TEMPORAL: Temporal/datetime operations (YEAR, MONTH, DAY, etc.)
     """
     NATIVE =        "native_backend"
     SOURCE =                "source"
@@ -65,7 +66,9 @@ class CONST_EXPRESSION_NODE_TYPES(Enum):
     COLLECTION =            "collection"
     ARITHMETIC =            "arithmetic"
     STRING =                "string"
+    PATTERN =               "pattern"
     CONDITIONAL_IF_ELSE =   "conditional_if_else"
+    TEMPORAL =              "temporal"
 
 
 class CONST_EXPRESSION_NATIVE_OPERATORS(Enum):
@@ -201,6 +204,76 @@ class CONST_EXPRESSION_STRING_OPERATORS(Enum):
     CONTAINS = auto()
     STARTS_WITH = auto()
     ENDS_WITH = auto()
+
+
+class CONST_EXPRESSION_PATTERN_OPERATORS(Enum):
+    """
+    Enumeration for pattern matching operators.
+
+    Attributes:
+        - LIKE: SQL-style pattern matching (% and _ wildcards)
+        - REGEX_MATCH: Check if string matches regex pattern (full match)
+        - REGEX_CONTAINS: Check if string contains regex pattern
+        - REGEX_REPLACE: Replace text using regex pattern
+    """
+    LIKE = auto()
+    REGEX_MATCH = auto()
+    REGEX_CONTAINS = auto()
+    REGEX_REPLACE = auto()
+
+
+class CONST_EXPRESSION_CONDITIONAL_OPERATORS(Enum):
+    """
+    Enumeration for conditional operators.
+
+    Attributes:
+        - WHEN: Conditional if-then-else expression
+        - COALESCE: Return first non-null value
+        - FILL_NULL: Replace null values with specified value
+    """
+    WHEN = auto()
+    COALESCE = auto()
+    FILL_NULL = auto()
+
+
+class CONST_EXPRESSION_TEMPORAL_OPERATORS(Enum):
+    """
+    Enumeration for temporal/datetime operators.
+
+    Attributes:
+        Date/Time Extraction:
+        - YEAR: Extract year from datetime
+        - MONTH: Extract month from datetime
+        - DAY: Extract day from datetime
+        - HOUR: Extract hour from datetime
+        - MINUTE: Extract minute from datetime
+        - SECOND: Extract second from datetime
+        - WEEKDAY: Extract day of week from datetime
+        - WEEK: Extract week number from datetime
+        - QUARTER: Extract quarter from datetime
+
+        Date Arithmetic:
+        - ADD_DAYS: Add days to a date
+        - ADD_MONTHS: Add months to a date
+        - ADD_YEARS: Add years to a date
+        - DIFF_DAYS: Calculate difference in days between dates
+    """
+    # Date/Time Extraction
+    YEAR = auto()
+    MONTH = auto()
+    DAY = auto()
+    HOUR = auto()
+    MINUTE = auto()
+    SECOND = auto()
+    WEEKDAY = auto()
+    WEEK = auto()
+    QUARTER = auto()
+
+    # Date Arithmetic
+    ADD_DAYS = auto()
+    ADD_MONTHS = auto()
+    ADD_YEARS = auto()
+    DIFF_DAYS = auto()
 
 
 class CONST_EXPRESSION_LOGICAL_OPERATORS(Enum):

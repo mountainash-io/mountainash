@@ -438,3 +438,159 @@ class PolarsExpressionSystem(ExpressionSystem):
             pl.Expr representing modulo
         """
         return left % right
+
+    # ========================================
+    # Pattern Matching Operations
+    # ========================================
+
+    def pattern_like(self, operand: Any, pattern: str) -> pl.Expr:
+        """
+        SQL LIKE pattern matching (% and _ wildcards).
+        Convert SQL LIKE syntax to regex for Polars.
+        """
+        # Convert SQL LIKE pattern to regex
+        import re
+        # Use placeholders for SQL wildcards before escaping (use unique strings without _ or %)
+        pattern = pattern.replace('%', '\x00PERCENT\x00').replace('_', '\x00UNDERSCORE\x00')
+        # Escape all regex special characters
+        regex_pattern = re.escape(pattern)
+        # Replace placeholders with regex equivalents
+        regex_pattern = regex_pattern.replace('\x00PERCENT\x00', '.*').replace('\x00UNDERSCORE\x00', '.')
+        # Anchor the pattern for full match
+        regex_pattern = f'^{regex_pattern}$'
+        return operand.str.contains(regex_pattern, literal=False)
+
+    def pattern_regex_match(self, operand: Any, pattern: str) -> pl.Expr:
+        """
+        Check if string fully matches regex pattern.
+        """
+        # Anchor pattern for full match if not already anchored
+        if not pattern.startswith('^'):
+            pattern = '^' + pattern
+        if not pattern.endswith('$'):
+            pattern = pattern + '$'
+        return operand.str.contains(pattern, literal=False)
+
+    def pattern_regex_contains(self, operand: Any, pattern: str) -> pl.Expr:
+        """
+        Check if string contains regex pattern.
+        """
+        return operand.str.contains(pattern, literal=False)
+
+    def pattern_regex_replace(self, operand: Any, pattern: str, replacement: str) -> pl.Expr:
+        """
+        Replace text matching regex pattern.
+        """
+        return operand.str.replace(pattern, replacement, literal=False)
+
+    # ========================================
+    # Conditional Operations
+    # ========================================
+
+    def conditional_when(self, condition: Any, consequence: Any, alternative: Any) -> pl.Expr:
+        """
+        Conditional if-then-else using Polars when().then().otherwise().
+        """
+        return pl.when(condition).then(consequence).otherwise(alternative)
+
+    def conditional_coalesce(self, values: List[Any]) -> pl.Expr:
+        """
+        Return first non-null value using Polars coalesce().
+        """
+        return pl.coalesce(values)
+
+    def conditional_fill_null(self, operand: Any, fill_value: Any) -> pl.Expr:
+        """
+        Replace null values using Polars fill_null().
+        """
+        return operand.fill_null(fill_value)
+
+    # ========================================
+    # Temporal Operations
+    # ========================================
+
+    def temporal_year(self, operand: Any) -> pl.Expr:
+        """Extract year from datetime using Polars dt.year()."""
+        return operand.dt.year()
+
+    def temporal_month(self, operand: Any) -> pl.Expr:
+        """Extract month from datetime using Polars dt.month()."""
+        return operand.dt.month()
+
+    def temporal_day(self, operand: Any) -> pl.Expr:
+        """Extract day from datetime using Polars dt.day()."""
+        return operand.dt.day()
+
+    def temporal_hour(self, operand: Any) -> pl.Expr:
+        """Extract hour from datetime using Polars dt.hour()."""
+        return operand.dt.hour()
+
+    def temporal_minute(self, operand: Any) -> pl.Expr:
+        """Extract minute from datetime using Polars dt.minute()."""
+        return operand.dt.minute()
+
+    def temporal_second(self, operand: Any) -> pl.Expr:
+        """Extract second from datetime using Polars dt.second()."""
+        return operand.dt.second()
+
+    def temporal_weekday(self, operand: Any) -> pl.Expr:
+        """
+        Extract day of week from datetime using Polars dt.weekday() (0=Monday, 6=Sunday).
+        Note: Polars returns ISO weekday (1=Monday, 7=Sunday), we convert to 0-6.
+        """
+        return operand.dt.weekday() - 1
+
+    def temporal_week(self, operand: Any) -> pl.Expr:
+        """Extract week number from datetime using Polars dt.week()."""
+        return operand.dt.week()
+
+    def temporal_quarter(self, operand: Any) -> pl.Expr:
+        """Extract quarter from datetime using Polars dt.quarter()."""
+        return operand.dt.quarter()
+
+    def temporal_add_days(self, operand: Any, days: Any) -> pl.Expr:
+        """
+        Add days to a date using Polars dt.offset_by().
+
+        Args:
+            operand: Date/datetime expression
+            days: Number of days to add (can be expression or literal)
+        """
+        # Convert days to duration string format
+        # If days is a literal, create duration string directly
+        # If days is an expression, need to use concat to create duration string
+        return operand.dt.offset_by(days.cast(pl.Utf8) + pl.lit("d"))
+
+    def temporal_add_months(self, operand: Any, months: Any) -> pl.Expr:
+        """
+        Add months to a date using Polars dt.offset_by().
+
+        Args:
+            operand: Date/datetime expression
+            months: Number of months to add (can be expression or literal)
+        """
+        return operand.dt.offset_by(months.cast(pl.Utf8) + pl.lit("mo"))
+
+    def temporal_add_years(self, operand: Any, years: Any) -> pl.Expr:
+        """
+        Add years to a date using Polars dt.offset_by().
+
+        Args:
+            operand: Date/datetime expression
+            years: Number of years to add (can be expression or literal)
+        """
+        return operand.dt.offset_by(years.cast(pl.Utf8) + pl.lit("y"))
+
+    def temporal_diff_days(self, operand: Any, other_date: Any) -> pl.Expr:
+        """
+        Calculate difference in days between two dates.
+
+        Args:
+            operand: First date
+            other_date: Second date
+
+        Returns:
+            Difference in days (operand - other_date)
+        """
+        # Subtract dates to get duration, then extract days
+        return (operand - other_date).dt.total_days()

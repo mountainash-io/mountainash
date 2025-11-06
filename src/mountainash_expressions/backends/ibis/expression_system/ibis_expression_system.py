@@ -449,3 +449,159 @@ class IbisExpressionSystem(ExpressionSystem):
             ir.Expr representing modulo
         """
         return left % right
+
+    # ========================================
+    # Pattern Matching Operations
+    # ========================================
+
+    def pattern_like(self, operand: Any, pattern: str) -> ir.Expr:
+        """
+        SQL LIKE pattern matching using Ibis like() method.
+        """
+        return operand.like(pattern)
+
+    def pattern_regex_match(self, operand: Any, pattern: str) -> ir.Expr:
+        """
+        Check if string fully matches regex pattern.
+        Ibis re_search returns a boolean directly.
+        """
+        # For full match, anchor the pattern
+        if not pattern.startswith('^'):
+            pattern = '^' + pattern
+        if not pattern.endswith('$'):
+            pattern = pattern + '$'
+        return operand.re_search(pattern)
+
+    def pattern_regex_contains(self, operand: Any, pattern: str) -> ir.Expr:
+        """
+        Check if string contains regex pattern.
+        Ibis re_search returns a boolean directly.
+        """
+        return operand.re_search(pattern)
+
+    def pattern_regex_replace(self, operand: Any, pattern: str, replacement: str) -> ir.Expr:
+        """
+        Replace text matching regex pattern using Ibis re_replace().
+        """
+        return operand.re_replace(pattern, replacement)
+
+    # ========================================
+    # Conditional Operations
+    # ========================================
+
+    def conditional_when(self, condition: Any, consequence: Any, alternative: Any) -> ir.Expr:
+        """
+        Conditional if-then-else using Ibis ifelse().
+        """
+        return condition.ifelse(consequence, alternative)
+
+    def conditional_coalesce(self, values: List[Any]) -> ir.Expr:
+        """
+        Return first non-null value using Ibis coalesce().
+        """
+        return ibis.coalesce(*values)
+
+    def conditional_fill_null(self, operand: Any, fill_value: Any) -> ir.Expr:
+        """
+        Replace null values using Ibis fill_null().
+        """
+        # Use fill_null instead of fillna (deprecated in v9.1+)
+        if hasattr(operand, 'fill_null'):
+            return operand.fill_null(fill_value)
+        else:
+            # Fallback for older versions
+            return operand.fillna(fill_value)
+
+    # ========================================
+    # Temporal Operations
+    # ========================================
+
+    def temporal_year(self, operand: Any) -> ir.Expr:
+        """Extract year from datetime using Ibis year()."""
+        return operand.year()
+
+    def temporal_month(self, operand: Any) -> ir.Expr:
+        """Extract month from datetime using Ibis month()."""
+        return operand.month()
+
+    def temporal_day(self, operand: Any) -> ir.Expr:
+        """Extract day from datetime using Ibis day()."""
+        return operand.day()
+
+    def temporal_hour(self, operand: Any) -> ir.Expr:
+        """Extract hour from datetime using Ibis hour()."""
+        return operand.hour()
+
+    def temporal_minute(self, operand: Any) -> ir.Expr:
+        """Extract minute from datetime using Ibis minute()."""
+        return operand.minute()
+
+    def temporal_second(self, operand: Any) -> ir.Expr:
+        """Extract second from datetime using Ibis second()."""
+        return operand.second()
+
+    def temporal_weekday(self, operand: Any) -> ir.Expr:
+        """
+        Extract day of week from datetime using Ibis day_of_week.
+        Note: Ibis returns ISO weekday (1=Monday, 7=Sunday),
+        we convert to 0=Monday, 6=Sunday for consistency.
+        """
+        # Get ISO weekday (1-7) and subtract 1 to get (0-6)
+        return operand.day_of_week.index() - 1
+
+    def temporal_week(self, operand: Any) -> ir.Expr:
+        """Extract week number from datetime using Ibis week_of_year()."""
+        return operand.week_of_year()
+
+    def temporal_quarter(self, operand: Any) -> ir.Expr:
+        """Extract quarter from datetime using Ibis quarter()."""
+        return operand.quarter()
+
+    def temporal_add_days(self, operand: Any, days: Any) -> ir.Expr:
+        """
+        Add days to a date using Ibis interval.
+
+        Args:
+            operand: Date/datetime expression
+            days: Number of days to add (can be expression or literal)
+        """
+        # Create an interval and add to date
+        # If days is a literal int, use ibis.interval directly
+        # If days is an expression, we need to convert it
+        return operand + ibis.interval(days=days)
+
+    def temporal_add_months(self, operand: Any, months: Any) -> ir.Expr:
+        """
+        Add months to a date using Ibis interval.
+
+        Args:
+            operand: Date/datetime expression
+            months: Number of months to add (can be expression or literal)
+        """
+        return operand + ibis.interval(months=months)
+
+    def temporal_add_years(self, operand: Any, years: Any) -> ir.Expr:
+        """
+        Add years to a date using Ibis interval.
+
+        Args:
+            operand: Date/datetime expression
+            years: Number of years to add (can be expression or literal)
+        """
+        return operand + ibis.interval(years=years)
+
+    def temporal_diff_days(self, operand: Any, other_date: Any) -> ir.Expr:
+        """
+        Calculate difference in days between two dates.
+
+        Args:
+            operand: First date
+            other_date: Second date
+
+        Returns:
+            Difference in days (operand - other_date)
+        """
+        # Subtract dates to get interval, then extract days
+        # In Ibis, date subtraction returns an interval
+        diff = operand.delta(other_date, 'day')
+        return diff

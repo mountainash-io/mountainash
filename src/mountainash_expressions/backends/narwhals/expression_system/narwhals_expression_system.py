@@ -438,3 +438,167 @@ class NarwhalsExpressionSystem(ExpressionSystem):
             nw.Expr representing modulo
         """
         return left % right
+
+    # ========================================
+    # Pattern Matching Operations
+    # ========================================
+
+    def pattern_like(self, operand: Any, pattern: str) -> nw.Expr:
+        """
+        SQL LIKE pattern matching (% and _ wildcards).
+        Convert SQL LIKE syntax to regex for Narwhals.
+        """
+        # Convert SQL LIKE pattern to regex
+        import re
+        # Use placeholders for SQL wildcards before escaping (use unique strings without _ or %)
+        pattern = pattern.replace('%', '\x00PERCENT\x00').replace('_', '\x00UNDERSCORE\x00')
+        # Escape all regex special characters
+        regex_pattern = re.escape(pattern)
+        # Replace placeholders with regex equivalents
+        regex_pattern = regex_pattern.replace('\x00PERCENT\x00', '.*').replace('\x00UNDERSCORE\x00', '.')
+        # Anchor the pattern for full match
+        regex_pattern = f'^{regex_pattern}$'
+        return operand.str.contains(regex_pattern)
+
+    def pattern_regex_match(self, operand: Any, pattern: str) -> nw.Expr:
+        """
+        Check if string fully matches regex pattern.
+        """
+        # Anchor pattern for full match if not already anchored
+        if not pattern.startswith('^'):
+            pattern = '^' + pattern
+        if not pattern.endswith('$'):
+            pattern = pattern + '$'
+        return operand.str.contains(pattern)
+
+    def pattern_regex_contains(self, operand: Any, pattern: str) -> nw.Expr:
+        """
+        Check if string contains regex pattern.
+        """
+        return operand.str.contains(pattern)
+
+    def pattern_regex_replace(self, operand: Any, pattern: str, replacement: str) -> nw.Expr:
+        """
+        Replace text matching regex pattern.
+        """
+        return operand.str.replace(pattern, replacement)
+
+    # ========================================
+    # Conditional Operations
+    # ========================================
+
+    def conditional_when(self, condition: Any, consequence: Any, alternative: Any) -> nw.Expr:
+        """
+        Conditional if-then-else using Narwhals when().then().otherwise().
+        """
+        return nw.when(condition).then(consequence).otherwise(alternative)
+
+    def conditional_coalesce(self, values: List[Any]) -> nw.Expr:
+        """
+        Return first non-null value using Narwhals coalesce().
+        """
+        return nw.coalesce(values)
+
+    def conditional_fill_null(self, operand: Any, fill_value: Any) -> nw.Expr:
+        """
+        Replace null values using Narwhals fill_null().
+        """
+        return operand.fill_null(fill_value)
+
+    # ========================================
+    # Temporal Operations
+    # ========================================
+
+    def temporal_year(self, operand: Any) -> nw.Expr:
+        """Extract year from datetime using Narwhals dt.year()."""
+        return operand.dt.year()
+
+    def temporal_month(self, operand: Any) -> nw.Expr:
+        """Extract month from datetime using Narwhals dt.month()."""
+        return operand.dt.month()
+
+    def temporal_day(self, operand: Any) -> nw.Expr:
+        """Extract day from datetime using Narwhals dt.day()."""
+        return operand.dt.day()
+
+    def temporal_hour(self, operand: Any) -> nw.Expr:
+        """Extract hour from datetime using Narwhals dt.hour()."""
+        return operand.dt.hour()
+
+    def temporal_minute(self, operand: Any) -> nw.Expr:
+        """Extract minute from datetime using Narwhals dt.minute()."""
+        return operand.dt.minute()
+
+    def temporal_second(self, operand: Any) -> nw.Expr:
+        """Extract second from datetime using Narwhals dt.second()."""
+        return operand.dt.second()
+
+    def temporal_weekday(self, operand: Any) -> nw.Expr:
+        """
+        Extract day of week from datetime using Narwhals dt.weekday() (0=Monday, 6=Sunday).
+        Note: Narwhals returns ISO weekday (1=Monday, 7=Sunday), we convert to 0-6.
+        """
+        return operand.dt.weekday() - 1
+
+    def temporal_week(self, operand: Any) -> nw.Expr:
+        """Extract week number from datetime using Narwhals dt.week()."""
+        # Note: Narwhals may use dt.week() or dt.iso_week()
+        return operand.dt.week() if hasattr(operand.dt, 'week') else operand.dt.iso_week()
+
+    def temporal_quarter(self, operand: Any) -> nw.Expr:
+        """
+        Extract quarter from datetime.
+        Note: Narwhals may not have dt.quarter(), so we calculate from month.
+        """
+        if hasattr(operand.dt, 'quarter'):
+            return operand.dt.quarter()
+        else:
+            # Calculate quarter from month: Q1(1-3), Q2(4-6), Q3(7-9), Q4(10-12)
+            # Formula: (month - 1) // 3 + 1
+            month = operand.dt.month()
+            return ((month - 1) // 3 + 1)
+
+    def temporal_add_days(self, operand: Any, days: Any) -> nw.Expr:
+        """
+        Add days to a date using Narwhals dt.offset_by().
+
+        Args:
+            operand: Date/datetime expression
+            days: Number of days to add (can be expression or literal)
+        """
+        # Convert days to duration string format
+        return operand.dt.offset_by(days.cast(nw.String) + nw.lit("d"))
+
+    def temporal_add_months(self, operand: Any, months: Any) -> nw.Expr:
+        """
+        Add months to a date using Narwhals dt.offset_by().
+
+        Args:
+            operand: Date/datetime expression
+            months: Number of months to add (can be expression or literal)
+        """
+        return operand.dt.offset_by(months.cast(nw.String) + nw.lit("mo"))
+
+    def temporal_add_years(self, operand: Any, years: Any) -> nw.Expr:
+        """
+        Add years to a date using Narwhals dt.offset_by().
+
+        Args:
+            operand: Date/datetime expression
+            years: Number of years to add (can be expression or literal)
+        """
+        return operand.dt.offset_by(years.cast(nw.String) + nw.lit("y"))
+
+    def temporal_diff_days(self, operand: Any, other_date: Any) -> nw.Expr:
+        """
+        Calculate difference in days between two dates.
+
+        Args:
+            operand: First date
+            other_date: Second date
+
+        Returns:
+            Difference in days (operand - other_date)
+        """
+        # Subtract dates to get duration, then extract days
+        return (operand - other_date).dt.total_days()
