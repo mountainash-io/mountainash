@@ -139,6 +139,40 @@ class UniversalBooleanExpressionVisitor(
         """Process multiple operands."""
         return [self._process_operand(op) for op in operands]
 
+    def _process_temporal_scalar(self, scalar: Any) -> Any:
+        """
+        Process temporal scalar parameters (hours, days, months, etc.).
+
+        Temporal scalars can be:
+        1. ExpressionNodes (e.g., col("hours_to_add")) → compile to backend expression
+        2. Column references (strings) → convert to backend col()
+        3. Raw Python values (int, float) → pass through unchanged for backend to handle
+
+        Unlike _process_operand(), this does NOT wrap raw values in lit() because
+        temporal backends need raw values (e.g., ibis.interval(hours=2) not hours=ibis.literal(2)).
+
+        Args:
+            scalar: Parameter value (ExpressionNode, string, or raw value)
+
+        Returns:
+            Compiled backend expression or raw value
+        """
+        # If it's an ExpressionNode, visit it recursively
+        if isinstance(scalar, ExpressionNode):
+            return scalar.accept(self)
+
+        # If it's a string, treat as column reference
+        if isinstance(scalar, str):
+            return self.backend.col(scalar)
+
+        # Check if it's already a backend-native expression
+        if not isinstance(scalar, (int, float, bool, type(None))):
+            return scalar
+
+        # For raw values (int, float, etc.), pass through unchanged
+        # Backends will handle conversion as needed (Ibis uses raw, Polars converts to lit)
+        return scalar
+
     # ========================================
     # Comparison Operations
     # ========================================
@@ -454,11 +488,85 @@ class UniversalBooleanExpressionVisitor(
         years_expr = self._process_operand(years)
         return self.backend.temporal_add_years(operand_expr, years_expr)
 
+    def _temporal_add_hours(self, operand: Any, hours: Any) -> Any:
+        """Add hours to a datetime"""
+        operand_expr = self._process_operand(operand)
+        hours_expr = self._process_operand(hours)
+        return self.backend.temporal_add_hours(operand_expr, hours_expr)
+
+    def _temporal_add_minutes(self, operand: Any, minutes: Any) -> Any:
+        """Add minutes to a datetime"""
+        operand_expr = self._process_operand(operand)
+        minutes_expr = self._process_operand(minutes)
+        return self.backend.temporal_add_minutes(operand_expr, minutes_expr)
+
+    def _temporal_add_seconds(self, operand: Any, seconds: Any) -> Any:
+        """Add seconds to a datetime"""
+        operand_expr = self._process_operand(operand)
+        seconds_expr = self._process_operand(seconds)
+        return self.backend.temporal_add_seconds(operand_expr, seconds_expr)
+
+    def _temporal_diff_hours(self, operand: Any, other_datetime: Any) -> Any:
+        """Calculate difference in hours between two datetimes"""
+        operand_expr = self._process_operand(operand)
+        other_datetime_expr = self._process_operand(other_datetime)
+        return self.backend.temporal_diff_hours(operand_expr, other_datetime_expr)
+
+    def _temporal_diff_minutes(self, operand: Any, other_datetime: Any) -> Any:
+        """Calculate difference in minutes between two datetimes"""
+        operand_expr = self._process_operand(operand)
+        other_datetime_expr = self._process_operand(other_datetime)
+        return self.backend.temporal_diff_minutes(operand_expr, other_datetime_expr)
+
+    def _temporal_diff_seconds(self, operand: Any, other_datetime: Any) -> Any:
+        """Calculate difference in seconds between two datetimes"""
+        operand_expr = self._process_operand(operand)
+        other_datetime_expr = self._process_operand(other_datetime)
+        return self.backend.temporal_diff_seconds(operand_expr, other_datetime_expr)
+
     def _temporal_diff_days(self, operand: Any, other_date: Any) -> Any:
         """Calculate difference in days between two dates"""
         operand_expr = self._process_operand(operand)
         other_date_expr = self._process_operand(other_date)
         return self.backend.temporal_diff_days(operand_expr, other_date_expr)
+
+    def _temporal_diff_months(self, operand: Any, other_date: Any) -> Any:
+        """Calculate difference in months between two dates"""
+        operand_expr = self._process_operand(operand)
+        other_date_expr = self._process_operand(other_date)
+        return self.backend.temporal_diff_months(operand_expr, other_date_expr)
+
+    def _temporal_diff_years(self, operand: Any, other_date: Any) -> Any:
+        """Calculate difference in years between two dates"""
+        operand_expr = self._process_operand(operand)
+        other_date_expr = self._process_operand(other_date)
+        return self.backend.temporal_diff_years(operand_expr, other_date_expr)
+
+    def _temporal_truncate(self, operand: Any, unit: Any) -> Any:
+        """Truncate datetime to specified unit"""
+
+        #TODO: Investigate if this can be an expression!
+        from ..expression_nodes import LiteralExpressionNode
+        operand_expr = self._process_operand(operand)
+        # For truncate, unit should be a raw string scalar
+        if isinstance(unit, LiteralExpressionNode):
+            unit_value = unit.value
+        else:
+            unit_value = self._process_temporal_scalar(unit)
+        return self.backend.temporal_truncate(operand_expr, unit_value)
+
+    def _temporal_offset_by(self, operand: Any, offset: Any) -> Any:
+        """Add/subtract flexible duration"""
+        #TODO: Investigate if this can be an expression!
+        #
+        from ..expression_nodes import LiteralExpressionNode
+        operand_expr = self._process_operand(operand)
+        # For offset_by, offset should be a raw string scalar
+        if isinstance(offset, LiteralExpressionNode):
+            offset_value = offset.value
+        else:
+            offset_value = self._process_temporal_scalar(offset)
+        return self.backend.temporal_offset_by(operand_expr, offset_value)
 
     # ========================================
     # Unary Logical Operations

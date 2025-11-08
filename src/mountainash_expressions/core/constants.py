@@ -252,11 +252,27 @@ class CONST_EXPRESSION_TEMPORAL_OPERATORS(Enum):
         - WEEK: Extract week number from datetime
         - QUARTER: Extract quarter from datetime
 
-        Date Arithmetic:
+        Date Arithmetic (Add):
         - ADD_DAYS: Add days to a date
+        - ADD_HOURS: Add hours to a datetime
+        - ADD_MINUTES: Add minutes to a datetime
+        - ADD_SECONDS: Add seconds to a datetime
         - ADD_MONTHS: Add months to a date
         - ADD_YEARS: Add years to a date
+
+        Date Arithmetic (Difference):
         - DIFF_DAYS: Calculate difference in days between dates
+        - DIFF_HOURS: Calculate difference in hours between datetimes
+        - DIFF_MINUTES: Calculate difference in minutes between datetimes
+        - DIFF_SECONDS: Calculate difference in seconds between datetimes
+        - DIFF_MONTHS: Calculate difference in months between dates
+        - DIFF_YEARS: Calculate difference in years between dates
+
+        Date Truncation:
+        - TRUNCATE: Truncate datetime to specified unit (day, hour, month, year, etc.)
+
+        Flexible Operations:
+        - OFFSET_BY: Add/subtract flexible duration using string format (e.g., "1d", "2h30m", "-3mo")
     """
     # Date/Time Extraction
     YEAR = auto()
@@ -269,11 +285,27 @@ class CONST_EXPRESSION_TEMPORAL_OPERATORS(Enum):
     WEEK = auto()
     QUARTER = auto()
 
-    # Date Arithmetic
+    # Date Arithmetic - Add
     ADD_DAYS = auto()
+    ADD_HOURS = auto()
+    ADD_MINUTES = auto()
+    ADD_SECONDS = auto()
     ADD_MONTHS = auto()
     ADD_YEARS = auto()
+
+    # Date Arithmetic - Difference
     DIFF_DAYS = auto()
+    DIFF_HOURS = auto()
+    DIFF_MINUTES = auto()
+    DIFF_SECONDS = auto()
+    DIFF_MONTHS = auto()
+    DIFF_YEARS = auto()
+
+    # Date Truncation
+    TRUNCATE = auto()
+
+    # Flexible Operations
+    OFFSET_BY = auto()
 
 
 class CONST_EXPRESSION_LOGICAL_OPERATORS(Enum):

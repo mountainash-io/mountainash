@@ -33,20 +33,33 @@ class TemporalOperatorsExpressionVisitor(ExpressionVisitor):
         """Map temporal operators to their implementation methods."""
         return {
             # Date/Time Extraction
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.YEAR:       self._temporal_year,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.MONTH:      self._temporal_month,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.DAY:        self._temporal_day,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.HOUR:       self._temporal_hour,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.MINUTE:     self._temporal_minute,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.SECOND:     self._temporal_second,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.WEEKDAY:    self._temporal_weekday,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.WEEK:       self._temporal_week,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.QUARTER:    self._temporal_quarter,
-            # Date Arithmetic
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_DAYS:   self._temporal_add_days,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_MONTHS: self._temporal_add_months,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_YEARS:  self._temporal_add_years,
-            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_DAYS:  self._temporal_diff_days,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.YEAR:        self._temporal_year,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.MONTH:       self._temporal_month,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DAY:         self._temporal_day,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.HOUR:        self._temporal_hour,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.MINUTE:      self._temporal_minute,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.SECOND:      self._temporal_second,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.WEEKDAY:     self._temporal_weekday,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.WEEK:        self._temporal_week,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.QUARTER:     self._temporal_quarter,
+            # Date Arithmetic - Add
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_DAYS:    self._temporal_add_days,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_HOURS:   self._temporal_add_hours,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_MINUTES: self._temporal_add_minutes,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_SECONDS: self._temporal_add_seconds,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_MONTHS:  self._temporal_add_months,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_YEARS:   self._temporal_add_years,
+            # Date Arithmetic - Difference
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_DAYS:   self._temporal_diff_days,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_HOURS:  self._temporal_diff_hours,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_MINUTES: self._temporal_diff_minutes,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_SECONDS: self._temporal_diff_seconds,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_MONTHS: self._temporal_diff_months,
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_YEARS:  self._temporal_diff_years,
+            # Date Truncation
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.TRUNCATE:    self._temporal_truncate,
+            # Flexible Operations
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.OFFSET_BY:   self._temporal_offset_by,
         }
 
     # ===============
@@ -182,12 +195,27 @@ class TemporalOperatorsExpressionVisitor(ExpressionVisitor):
         pass
 
     # ===============
-    # Abstract Methods - Date Arithmetic
+    # Abstract Methods - Date Arithmetic (Add)
     # ===============
 
     @abstractmethod
     def _temporal_add_days(self, operand: ExpressionNode, days: ExpressionNode) -> Any:
         """Add days to a date."""
+        pass
+
+    @abstractmethod
+    def _temporal_add_hours(self, operand: ExpressionNode, hours: ExpressionNode) -> Any:
+        """Add hours to a datetime."""
+        pass
+
+    @abstractmethod
+    def _temporal_add_minutes(self, operand: ExpressionNode, minutes: ExpressionNode) -> Any:
+        """Add minutes to a datetime."""
+        pass
+
+    @abstractmethod
+    def _temporal_add_seconds(self, operand: ExpressionNode, seconds: ExpressionNode) -> Any:
+        """Add seconds to a datetime."""
         pass
 
     @abstractmethod
@@ -200,7 +228,62 @@ class TemporalOperatorsExpressionVisitor(ExpressionVisitor):
         """Add years to a date."""
         pass
 
+    # ===============
+    # Abstract Methods - Date Arithmetic (Difference)
+    # ===============
+
     @abstractmethod
     def _temporal_diff_days(self, operand: ExpressionNode, other_date: ExpressionNode) -> Any:
         """Calculate difference in days between two dates."""
+        pass
+
+    @abstractmethod
+    def _temporal_diff_hours(self, operand: ExpressionNode, other_datetime: ExpressionNode) -> Any:
+        """Calculate difference in hours between two datetimes."""
+        pass
+
+    @abstractmethod
+    def _temporal_diff_minutes(self, operand: ExpressionNode, other_datetime: ExpressionNode) -> Any:
+        """Calculate difference in minutes between two datetimes."""
+        pass
+
+    @abstractmethod
+    def _temporal_diff_seconds(self, operand: ExpressionNode, other_datetime: ExpressionNode) -> Any:
+        """Calculate difference in seconds between two datetimes."""
+        pass
+
+    @abstractmethod
+    def _temporal_diff_months(self, operand: ExpressionNode, other_date: ExpressionNode) -> Any:
+        """Calculate difference in months between two dates."""
+        pass
+
+    @abstractmethod
+    def _temporal_diff_years(self, operand: ExpressionNode, other_date: ExpressionNode) -> Any:
+        """Calculate difference in years between two dates."""
+        pass
+
+    # ===============
+    # Abstract Methods - Date Truncation & Flexible Operations
+    # ===============
+
+    @abstractmethod
+    def _temporal_truncate(self, operand: ExpressionNode, unit: ExpressionNode) -> Any:
+        """
+        Truncate datetime to specified unit.
+
+        Args:
+            operand: Datetime expression
+            unit: Unit to truncate to ('day', 'hour', 'month', 'year', etc.)
+        """
+        pass
+
+    @abstractmethod
+    def _temporal_offset_by(self, operand: ExpressionNode, offset: ExpressionNode) -> Any:
+        """
+        Add/subtract flexible duration using string format.
+
+        Args:
+            operand: Datetime expression
+            offset: Duration string (e.g., "1d", "2h30m", "-3mo")
+        """
         pass

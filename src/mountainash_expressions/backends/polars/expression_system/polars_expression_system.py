@@ -556,10 +556,9 @@ class PolarsExpressionSystem(ExpressionSystem):
             operand: Date/datetime expression
             days: Number of days to add (can be expression or literal)
         """
-        # Convert days to duration string format
-        # If days is a literal, create duration string directly
-        # If days is an expression, need to use concat to create duration string
-        return operand.dt.offset_by(days.cast(pl.Utf8) + pl.lit("d"))
+        # Convert raw values to Polars expressions
+        days_expr = pl.lit(days) if not isinstance(days, pl.Expr) else days
+        return operand.dt.offset_by(days_expr.cast(pl.Utf8) + pl.lit("d"))
 
     def temporal_add_months(self, operand: Any, months: Any) -> pl.Expr:
         """
@@ -569,7 +568,9 @@ class PolarsExpressionSystem(ExpressionSystem):
             operand: Date/datetime expression
             months: Number of months to add (can be expression or literal)
         """
-        return operand.dt.offset_by(months.cast(pl.Utf8) + pl.lit("mo"))
+        # Convert raw values to Polars expressions
+        months_expr = pl.lit(months) if not isinstance(months, pl.Expr) else months
+        return operand.dt.offset_by(months_expr.cast(pl.Utf8) + pl.lit("mo"))
 
     def temporal_add_years(self, operand: Any, years: Any) -> pl.Expr:
         """
@@ -579,7 +580,9 @@ class PolarsExpressionSystem(ExpressionSystem):
             operand: Date/datetime expression
             years: Number of years to add (can be expression or literal)
         """
-        return operand.dt.offset_by(years.cast(pl.Utf8) + pl.lit("y"))
+        # Convert raw values to Polars expressions
+        years_expr = pl.lit(years) if not isinstance(years, pl.Expr) else years
+        return operand.dt.offset_by(years_expr.cast(pl.Utf8) + pl.lit("y"))
 
     def temporal_diff_days(self, operand: Any, other_date: Any) -> pl.Expr:
         """
@@ -594,3 +597,67 @@ class PolarsExpressionSystem(ExpressionSystem):
         """
         # Subtract dates to get duration, then extract days
         return (operand - other_date).dt.total_days()
+
+    def temporal_add_hours(self, operand: Any, hours: Any) -> pl.Expr:
+        """Add hours to a datetime using Polars dt.offset_by()."""
+        # Convert raw values to Polars expressions
+        hours_expr = pl.lit(hours) if not isinstance(hours, pl.Expr) else hours
+        return operand.dt.offset_by(hours_expr.cast(pl.Utf8) + pl.lit("h"))
+
+    def temporal_add_minutes(self, operand: Any, minutes: Any) -> pl.Expr:
+        """Add minutes to a datetime using Polars dt.offset_by()."""
+        # Convert raw values to Polars expressions
+        minutes_expr = pl.lit(minutes) if not isinstance(minutes, pl.Expr) else minutes
+        return operand.dt.offset_by(minutes_expr.cast(pl.Utf8) + pl.lit("m"))
+
+    def temporal_add_seconds(self, operand: Any, seconds: Any) -> pl.Expr:
+        """Add seconds to a datetime using Polars dt.offset_by()."""
+        # Convert raw values to Polars expressions
+        seconds_expr = pl.lit(seconds) if not isinstance(seconds, pl.Expr) else seconds
+        return operand.dt.offset_by(seconds_expr.cast(pl.Utf8) + pl.lit("s"))
+
+    def temporal_diff_hours(self, operand: Any, other_datetime: Any) -> pl.Expr:
+        """Calculate difference in hours between two datetimes."""
+        return (operand - other_datetime).dt.total_hours()
+
+    def temporal_diff_minutes(self, operand: Any, other_datetime: Any) -> pl.Expr:
+        """Calculate difference in minutes between two datetimes."""
+        return (operand - other_datetime).dt.total_minutes()
+
+    def temporal_diff_seconds(self, operand: Any, other_datetime: Any) -> pl.Expr:
+        """Calculate difference in seconds between two datetimes."""
+        return (operand - other_datetime).dt.total_seconds()
+
+    def temporal_diff_months(self, operand: Any, other_date: Any) -> pl.Expr:
+        """
+        Calculate difference in months between two dates.
+        Note: This is an approximate calculation based on days / 30.
+        """
+        # Polars doesn't have direct month difference, approximate it
+        years_diff = operand.dt.year() - other_date.dt.year()
+        months_diff = operand.dt.month() - other_date.dt.month()
+        return years_diff * 12 + months_diff
+
+    def temporal_diff_years(self, operand: Any, other_date: Any) -> pl.Expr:
+        """Calculate difference in years between two dates."""
+        return operand.dt.year() - other_date.dt.year()
+
+    def temporal_truncate(self, operand: Any, unit: Any) -> pl.Expr:
+        """
+        Truncate datetime to specified unit using Polars dt.truncate().
+
+        Args:
+            operand: Datetime expression
+            unit: Unit string ('1d', '1h', '1mo', '1y', etc.)
+        """
+        return operand.dt.truncate(unit)
+
+    def temporal_offset_by(self, operand: Any, offset: Any) -> pl.Expr:
+        """
+        Add/subtract flexible duration using Polars dt.offset_by().
+
+        Args:
+            operand: Datetime expression
+            offset: Duration string (e.g., "1d", "2h30m", "-3mo")
+        """
+        return operand.dt.offset_by(offset)

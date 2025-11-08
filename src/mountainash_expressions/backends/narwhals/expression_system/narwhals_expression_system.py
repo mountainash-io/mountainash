@@ -558,36 +558,81 @@ class NarwhalsExpressionSystem(ExpressionSystem):
             month = operand.dt.month()
             return ((month - 1) // 3 + 1)
 
-    def temporal_add_days(self, operand: Any, days: Any) -> nw.Expr:
+    def _extract_literal_value(self, value: Any) -> Any:
         """
-        Add days to a date using Narwhals dt.offset_by().
+        Extract the literal value from a Narwhals Expr if it's a literal.
 
         Args:
-            operand: Date/datetime expression
-            days: Number of days to add (can be expression or literal)
+            value: Either a raw Python value or a nw.Expr
+
+        Returns:
+            The raw Python value
+
+        Raises:
+            ValueError: If the Expr is not a literal (e.g., column reference)
         """
-        # Convert days to duration string format
-        return operand.dt.offset_by(days.cast(nw.String) + nw.lit("d"))
+        if not isinstance(value, nw.Expr):
+            # Already a raw value
+            return value
+
+        # Try to extract literal value from Expr string representation
+        str_repr = str(value)
+        if str_repr.startswith('lit(value='):
+            # Extract value from: "lit(value=2, dtype=None)"
+            import re
+            match = re.search(r'lit\(value=([^,]+)', str_repr)
+            if match:
+                return eval(match.group(1))
+
+        # Not a literal - must be column reference or other expression
+        raise ValueError(
+            "Narwhals backend does not support column expressions for temporal operations. "
+            "Use literal values only."
+        )
+
+    def temporal_add_days(self, operand: Any, days: Any) -> nw.Expr:
+        """Add days to a date using Narwhals dt.offset_by()."""
+        days = self._extract_literal_value(days)
+        return operand.dt.offset_by(f"{days}d")
 
     def temporal_add_months(self, operand: Any, months: Any) -> nw.Expr:
-        """
-        Add months to a date using Narwhals dt.offset_by().
-
-        Args:
-            operand: Date/datetime expression
-            months: Number of months to add (can be expression or literal)
-        """
-        return operand.dt.offset_by(months.cast(nw.String) + nw.lit("mo"))
+        """Add months to a date using Narwhals dt.offset_by()."""
+        months = self._extract_literal_value(months)
+        return operand.dt.offset_by(f"{months}mo")
 
     def temporal_add_years(self, operand: Any, years: Any) -> nw.Expr:
-        """
-        Add years to a date using Narwhals dt.offset_by().
+        """Add years to a date using Narwhals dt.offset_by()."""
+        years = self._extract_literal_value(years)
+        return operand.dt.offset_by(f"{years}y")
 
-        Args:
-            operand: Date/datetime expression
-            years: Number of years to add (can be expression or literal)
-        """
-        return operand.dt.offset_by(years.cast(nw.String) + nw.lit("y"))
+    def temporal_add_hours(self, operand: Any, hours: Any) -> nw.Expr:
+        """Add hours to a datetime using Narwhals dt.offset_by()."""
+        hours = self._extract_literal_value(hours)
+        return operand.dt.offset_by(f"{hours}h")
+
+    def temporal_add_minutes(self, operand: Any, minutes: Any) -> nw.Expr:
+        """Add minutes to a datetime using Narwhals dt.offset_by()."""
+        minutes = self._extract_literal_value(minutes)
+        return operand.dt.offset_by(f"{minutes}m")
+
+    def temporal_add_seconds(self, operand: Any, seconds: Any) -> nw.Expr:
+        """Add seconds to a datetime using Narwhals dt.offset_by()."""
+        seconds = self._extract_literal_value(seconds)
+        return operand.dt.offset_by(f"{seconds}s")
+
+    def temporal_diff_hours(self, operand: Any, other_datetime: Any) -> nw.Expr:
+        """Calculate difference in hours between two datetimes."""
+        # Narwhals doesn't have total_hours(), use total_seconds() / 3600
+        # Floor to match Polars total_hours() behavior (returns integers)
+        return ((operand - other_datetime).dt.total_seconds() / 3600).floor()
+
+    def temporal_diff_minutes(self, operand: Any, other_datetime: Any) -> nw.Expr:
+        """Calculate difference in minutes between two datetimes."""
+        return (operand - other_datetime).dt.total_minutes()
+
+    def temporal_diff_seconds(self, operand: Any, other_datetime: Any) -> nw.Expr:
+        """Calculate difference in seconds between two datetimes."""
+        return (operand - other_datetime).dt.total_seconds()
 
     def temporal_diff_days(self, operand: Any, other_date: Any) -> nw.Expr:
         """
@@ -602,3 +647,88 @@ class NarwhalsExpressionSystem(ExpressionSystem):
         """
         # Subtract dates to get duration, then extract days
         return (operand - other_date).dt.total_days()
+
+    def temporal_diff_months(self, operand: Any, other_date: Any) -> nw.Expr:
+        """
+        Calculate difference in months between two dates.
+        Note: This is an approximate calculation.
+        """
+        years_diff = operand.dt.year() - other_date.dt.year()
+        months_diff = operand.dt.month() - other_date.dt.month()
+        return years_diff * 12 + months_diff
+
+    def temporal_diff_years(self, operand: Any, other_date: Any) -> nw.Expr:
+        """Calculate difference in years between two dates."""
+        return operand.dt.year() - other_date.dt.year()
+
+    def temporal_truncate(self, operand: Any, unit: Any) -> nw.Expr:
+        """
+        Truncate datetime to specified unit using Narwhals dt.truncate().
+
+        Args:
+            operand: Datetime expression
+            unit: Unit string ('1d', '1h', '1mo', '1y', etc.)
+        """
+        return operand.dt.truncate(unit)
+
+    def temporal_offset_by(self, operand: Any, offset: Any) -> nw.Expr:
+        """
+        Add/subtract flexible duration using Narwhals dt.offset_by().
+
+        Args:
+            operand: Datetime expression
+            offset: Duration string (e.g., "1d", "2h30m", "-3mo", "1d2h")
+
+        Note: Narwhals dt.offset_by() only supports single-unit strings,
+        so we parse complex strings and apply them sequentially.
+        """
+        # Parse the duration string into individual components
+        components = self._parse_duration_string(offset)
+
+        # Apply each component sequentially
+        result = operand
+        for component in components:
+            result = result.dt.offset_by(component)
+
+        return result
+
+    def _parse_duration_string(self, duration: str) -> list:
+        """
+        Parse a duration string into Narwhals-compatible offset strings.
+
+        Args:
+            duration: Duration string like "1d2h", "-3mo", "2h30m"
+
+        Returns:
+            List of offset strings for Narwhals (e.g., ["1d", "2h"])
+
+        Examples:
+            "1d2h" -> ["1d", "2h"]
+            "-3mo" -> ["-3mo"]
+            "2h30m" -> ["2h", "30m"]
+        """
+        import re
+
+        # Handle negative sign
+        is_negative = duration.startswith('-')
+        if is_negative:
+            duration = duration[1:]
+
+        components = []
+
+        # Pattern: number followed by unit
+        # Units: y, mo, d, h, m, s
+        # Need to handle 'mo' before 'm' to avoid confusion
+        pattern = r'(\d+)(y|mo|d|h|m|s)'
+
+        matches = re.findall(pattern, duration)
+
+        for value_str, unit in matches:
+            value = int(value_str)
+            if is_negative:
+                value = -value
+
+            # Build Narwhals offset string
+            components.append(f"{value}{unit}")
+
+        return components

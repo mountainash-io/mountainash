@@ -74,11 +74,17 @@ class ExpressionVisitorFactory:
 
         # Narwhals detection FIRST - check for narwhals DataFrame/LazyFrame
         # Narwhals wraps other backends, so we need to check for it before checking for polars/pandas
-        if "narwhals" in module_name:
-            return CONST_VISITOR_BACKENDS.NARWHALS
-
-        # Also check if object has _compliant_frame attribute (narwhals pattern)
-        if hasattr(dataframe, "_compliant_frame"):
+        if "narwhals" in module_name or hasattr(dataframe, "_compliant_frame"):
+            # Check if Narwhals is wrapping Ibis - this is not supported
+            if hasattr(dataframe, "implementation"):
+                impl = dataframe.implementation
+                # Check if it's wrapping Ibis (impl.value == 'ibis')
+                if hasattr(impl, "value") and impl.value == "ibis":
+                    raise ValueError(
+                        "Narwhals-wrapped Ibis tables are not supported due to upstream compatibility issues. "
+                        "Please unwrap the Ibis table using `df.to_native()` and use the Ibis backend directly."
+                    )
+            # Use Narwhals backend for other implementations (Polars, Pandas, etc.)
             return CONST_VISITOR_BACKENDS.NARWHALS
 
         # Ibis detection
@@ -219,29 +225,29 @@ def _auto_register_narwhals():
         # ExpressionSystem not available, skip registration
         pass
 
-    # Register boolean visitor (legacy, for backwards compatibility)
-    try:
-        from ...backends.narwhals.narwhals_boolean_visitor import NarwhalsBooleanExpressionVisitor
-        ExpressionVisitorFactory.register(
-            CONST_VISITOR_BACKENDS.NARWHALS,
-            CONST_LOGIC_TYPES.BOOLEAN,
-            NarwhalsBooleanExpressionVisitor
-        )
-    except ImportError:
-        # Boolean visitor not available, skip registration
-        pass
+    # # Register boolean visitor (legacy, for backwards compatibility)
+    # try:
+    #     from ...backends.narwhals.narwhals_boolean_visitor import NarwhalsBooleanExpressionVisitor
+    #     ExpressionVisitorFactory.register(
+    #         CONST_VISITOR_BACKENDS.NARWHALS,
+    #         CONST_LOGIC_TYPES.BOOLEAN,
+    #         NarwhalsBooleanExpressionVisitor
+    #     )
+    # except ImportError:
+    #     # Boolean visitor not available, skip registration
+    #     pass
 
-    # Register ternary visitor (separate try-except so boolean can work independently)
-    try:
-        from ...backends.narwhals.narwhals_ternary_visitor import NarwhalsTernaryExpressionVisitor
-        ExpressionVisitorFactory.register(
-            CONST_VISITOR_BACKENDS.NARWHALS,
-            CONST_LOGIC_TYPES.TERNARY,
-            NarwhalsTernaryExpressionVisitor
-        )
-    except ImportError:
-        # Ternary visitor not available, skip registration
-        pass
+    # # Register ternary visitor (separate try-except so boolean can work independently)
+    # try:
+    #     from ...backends.narwhals.narwhals_ternary_visitor import NarwhalsTernaryExpressionVisitor
+    #     ExpressionVisitorFactory.register(
+    #         CONST_VISITOR_BACKENDS.NARWHALS,
+    #         CONST_LOGIC_TYPES.TERNARY,
+    #         NarwhalsTernaryExpressionVisitor
+    #     )
+    # except ImportError:
+    #     # Ternary visitor not available, skip registration
+    #     pass
 
 
 # Auto-register Polars ExpressionSystem on import

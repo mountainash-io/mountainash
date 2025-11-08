@@ -854,6 +854,38 @@ class ExpressionBuilder:
         )
         return ExpressionBuilder(node, self._logic_type)
 
+
+
+    def dt_add_hours(self, hours: Union[ExpressionBuilder, int]) -> ExpressionBuilder:
+        """Add hours to a datetime."""
+        hours_node = self._to_node(hours)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_HOURS,
+            self._node,
+            hours_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_add_minutes(self, minutes: Union[ExpressionBuilder, int]) -> ExpressionBuilder:
+        """Add minutes to a datetime."""
+        minutes_node = self._to_node(minutes)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_MINUTES,
+            self._node,
+            minutes_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_add_seconds(self, seconds: Union[ExpressionBuilder, int]) -> ExpressionBuilder:
+        """Add seconds to a datetime."""
+        seconds_node = self._to_node(seconds)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.ADD_SECONDS,
+            self._node,
+            seconds_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
     def dt_diff_days(self, other_date: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
         """
         Calculate difference in days between this date and another date.
@@ -872,6 +904,77 @@ class ExpressionBuilder:
             CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_DAYS,
             self._node,
             other_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_diff_hours(self, other_datetime: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
+        """Calculate difference in hours between two datetimes."""
+        other_node = self._to_node(other_datetime)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_HOURS,
+            self._node,
+            other_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_diff_minutes(self, other_datetime: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
+        """Calculate difference in minutes between two datetimes."""
+        other_node = self._to_node(other_datetime)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_MINUTES,
+            self._node,
+            other_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_diff_seconds(self, other_datetime: Union[ExpressionBuilder, Any]) -> ExpressionBuilder:
+        """Calculate difference in seconds between two datetimes."""
+        other_node = self._to_node(other_datetime)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.DIFF_SECONDS,
+            self._node,
+            other_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_truncate(self, unit: str) -> ExpressionBuilder:
+        """
+        Truncate datetime to specified unit.
+
+        Args:
+            unit: Unit to truncate to ('1d', '1h', '1mo', etc.)
+
+        Example:
+            >>> ma.col("timestamp").dt_truncate("1d")  # Truncate to day
+            >>> ma.col("timestamp").dt_truncate("1h")  # Truncate to hour
+        """
+        # Wrap unit as literal to prevent it being treated as column name
+        unit_node = LiteralExpressionNode(CONST_EXPRESSION_LITERAL_OPERATORS.LIT, unit)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.TRUNCATE,
+            self._node,
+            unit_node
+        )
+        return ExpressionBuilder(node, self._logic_type)
+
+    def dt_offset_by(self, offset: str) -> ExpressionBuilder:
+        """
+        Add/subtract flexible duration using string format.
+
+        Args:
+            offset: Duration string (e.g., "1d", "2h30m", "-3mo")
+
+        Example:
+            >>> ma.col("timestamp").dt_offset_by("1d")      # Add 1 day
+            >>> ma.col("timestamp").dt_offset_by("2h30m")   # Add 2 hours 30 minutes
+            >>> ma.col("timestamp").dt_offset_by("-3mo")    # Subtract 3 months
+        """
+        # Wrap offset as literal to prevent it being treated as column name
+        offset_node = LiteralExpressionNode(CONST_EXPRESSION_LITERAL_OPERATORS.LIT, offset)
+        node = TemporalExpressionNode(
+            CONST_EXPRESSION_TEMPORAL_OPERATORS.OFFSET_BY,
+            self._node,
+            offset_node
         )
         return ExpressionBuilder(node, self._logic_type)
 

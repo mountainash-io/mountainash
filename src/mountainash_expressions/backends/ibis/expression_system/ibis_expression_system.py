@@ -1,8 +1,10 @@
 """Ibis backend implementation of ExpressionSystem."""
 
 from typing import Any, List
+import warnings
 import ibis
 import ibis.expr.types as ir
+from ibis.common.deferred import Deferred
 
 from ....core.expression_system import ExpressionSystem
 from ....core.constants import CONST_VISITOR_BACKENDS
@@ -23,6 +25,41 @@ class IbisExpressionSystem(ExpressionSystem):
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
         """Return Ibis backend type."""
         return CONST_VISITOR_BACKENDS.IBIS
+
+    def _warn_if_reverse_operator_bug(self, left: Any, right: Any, operation: str) -> None:
+        """
+        Warn if encountering known Ibis bug with reverse operators.
+
+        Ibis has a bug where literal + Deferred fails with InputTypeError.
+        This affects: literal(n) + ibis._['col'], literal(n) - ibis._['col'], etc.
+
+        Issue: Reverse arithmetic operators fail with Deferred column references
+        Affects: Ibis versions <= 11.0.0 (and possibly later)
+
+        This warning alerts users that expressions like `5 + ma.col("x")` may fail
+        at runtime with Ibis, even though they work with other backends.
+
+        Args:
+            left: Left operand
+            right: Right operand
+            operation: Operation name (for warning message)
+
+        See: docs/_IBIS_REVERSE_OPERATOR_BUG_FIX.md for details
+        """
+        # Check if left is a literal scalar and right is a Deferred column reference
+        is_left_scalar = isinstance(left, (ir.IntegerScalar, ir.FloatingScalar, ir.BooleanScalar, ir.Scalar))
+        is_right_deferred = isinstance(right, Deferred)
+
+        if is_left_scalar and is_right_deferred:
+            warnings.warn(
+                f"Detected potential Ibis reverse operator bug: {operation} with literal on left "
+                f"and column reference on right may fail with InputTypeError. "
+                f"This is a known Ibis bug affecting versions <= 11.0.0. "
+                f"Consider rewriting as 'ma.col(x) {operation} value' instead of 'value {operation} ma.col(x)'. "
+                f"See docs/_IBIS_REVERSE_OPERATOR_BUG_FIX.md for details.",
+                UserWarning,
+                stacklevel=4
+            )
 
     # ========================================
     # Core Primitives
@@ -165,6 +202,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing subtraction
         """
+        self._warn_if_reverse_operator_bug(left, right, '-')
         return left - right
 
     def multiply(self, left: Any, right: Any) -> ir.Expr:
@@ -178,6 +216,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing multiplication
         """
+        self._warn_if_reverse_operator_bug(left, right, '*')
         return left * right
 
     def divide(self, left: Any, right: Any) -> ir.Expr:
@@ -191,6 +230,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing division
         """
+        self._warn_if_reverse_operator_bug(left, right, '/')
         return left / right
 
     def modulo(self, left: Any, right: Any) -> ir.Expr:
@@ -204,6 +244,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing modulo
         """
+        self._warn_if_reverse_operator_bug(left, right, '%')
         return left % right
 
     def power(self, left: Any, right: Any) -> ir.Expr:
@@ -217,6 +258,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing exponentiation
         """
+        self._warn_if_reverse_operator_bug(left, right, '**')
         return left ** right
 
     def floor_divide(self, left: Any, right: Any) -> ir.Expr:
@@ -230,6 +272,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing floor division
         """
+        self._warn_if_reverse_operator_bug(left, right, '//')
         return left // right
 
     # ========================================
@@ -395,7 +438,7 @@ class IbisExpressionSystem(ExpressionSystem):
         return value.cast(dtype)
 
     # ========================================
-    # Arithmetic Operations
+    # Arithmetic Operations (Legacy aliases)
     # ========================================
 
     def add(self, left: Any, right: Any) -> ir.Expr:
@@ -409,6 +452,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing addition
         """
+        self._warn_if_reverse_operator_bug(left, right, '+')
         return left + right
 
     def sub(self, left: Any, right: Any) -> ir.Expr:
@@ -422,6 +466,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing subtraction
         """
+        self._warn_if_reverse_operator_bug(left, right, '-')
         return left - right
 
     def mul(self, left: Any, right: Any) -> ir.Expr:
@@ -435,6 +480,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing multiplication
         """
+        self._warn_if_reverse_operator_bug(left, right, '*')
         return left * right
 
     def mod(self, left: Any, right: Any) -> ir.Expr:
@@ -448,6 +494,7 @@ class IbisExpressionSystem(ExpressionSystem):
         Returns:
             ir.Expr representing modulo
         """
+        self._warn_if_reverse_operator_bug(left, right, '%')
         return left % right
 
     # ========================================
@@ -457,6 +504,9 @@ class IbisExpressionSystem(ExpressionSystem):
     def pattern_like(self, operand: Any, pattern: str) -> ir.Expr:
         """
         SQL LIKE pattern matching using Ibis like() method.
+
+        Note: The Ibis Polars backend does not support LIKE operations.
+        This is an upstream limitation in Ibis.
         """
         return operand.like(pattern)
 
@@ -558,37 +608,48 @@ class IbisExpressionSystem(ExpressionSystem):
         return operand.quarter()
 
     def temporal_add_days(self, operand: Any, days: Any) -> ir.Expr:
-        """
-        Add days to a date using Ibis interval.
-
-        Args:
-            operand: Date/datetime expression
-            days: Number of days to add (can be expression or literal)
-        """
-        # Create an interval and add to date
-        # If days is a literal int, use ibis.interval directly
-        # If days is an expression, we need to convert it
-        return operand + ibis.interval(days=days)
+        """Add days to a date - supports both literals and expressions."""
+        return self._temporal_duration_add(operand, days, 'days', 'D')
 
     def temporal_add_months(self, operand: Any, months: Any) -> ir.Expr:
         """
-        Add months to a date using Ibis interval.
+        Add months to a date - literal values only.
 
-        Args:
-            operand: Date/datetime expression
-            months: Number of months to add (can be expression or literal)
+        Note: Months are calendar-based (variable length), not duration-based.
+        Ibis does not support vectorized month arithmetic via Interval casting.
         """
-        return operand + ibis.interval(months=months)
+        if isinstance(months, ir.Expr):
+            # Try to extract literal value if it's an Ibis literal expression
+            if hasattr(months, 'op') and hasattr(months.op(), 'value'):
+                months_value = months.op().value
+                return operand + ibis.interval(months=months_value)
+            else:
+                raise NotImplementedError(
+                    "Ibis does not support vectorized month arithmetic with column expressions. "
+                    "Only literal values are supported for temporal_add_months()."
+                )
+        else:
+            return operand + ibis.interval(months=months)
 
     def temporal_add_years(self, operand: Any, years: Any) -> ir.Expr:
         """
-        Add years to a date using Ibis interval.
+        Add years to a date - literal values only.
 
-        Args:
-            operand: Date/datetime expression
-            years: Number of years to add (can be expression or literal)
+        Note: Years are calendar-based (variable length), not duration-based.
+        Ibis does not support vectorized year arithmetic via Interval casting.
         """
-        return operand + ibis.interval(years=years)
+        if isinstance(years, ir.Expr):
+            # Try to extract literal value if it's an Ibis literal expression
+            if hasattr(years, 'op') and hasattr(years.op(), 'value'):
+                years_value = years.op().value
+                return operand + ibis.interval(years=years_value)
+            else:
+                raise NotImplementedError(
+                    "Ibis does not support vectorized year arithmetic with column expressions. "
+                    "Only literal values are supported for temporal_add_years()."
+                )
+        else:
+            return operand + ibis.interval(years=years)
 
     def temporal_diff_days(self, operand: Any, other_date: Any) -> ir.Expr:
         """
@@ -605,3 +666,218 @@ class IbisExpressionSystem(ExpressionSystem):
         # In Ibis, date subtraction returns an interval
         diff = operand.delta(other_date, 'day')
         return diff
+
+    def _temporal_duration_add(self, operand: Any, value: Any, unit: str, interval_unit: str) -> ir.Expr:
+        """
+        Helper for adding duration-based temporal units (days, hours, minutes, seconds).
+
+        Args:
+            operand: Timestamp/date expression to add to
+            value: Duration value (literal, Expr, or Deferred)
+            unit: Unit name for ibis.interval() (e.g., 'hours', 'days')
+            interval_unit: Unit code for Interval datatype (e.g., 'h', 'D')
+
+        Returns:
+            Expression with duration added
+        """
+        import ibis.expr.datatypes as dt
+        from ibis.common.deferred import Deferred
+
+        # Check if it's a backend expression (Expr or Deferred)
+        if isinstance(value, (ir.Expr, Deferred)):
+            # For Expr, check if it's a literal
+            if isinstance(value, ir.Expr) and hasattr(value, 'op') and hasattr(value.op(), 'value'):
+                # Literal expression → extract value and use ibis.interval()
+                scalar_value = value.op().value
+                return operand + ibis.interval(**{unit: scalar_value})
+            else:
+                # Column, Deferred, or complex expression → cast to Interval for vectorized operation
+                value_interval = value.cast(dt.Interval(interval_unit))
+                return operand + value_interval
+        else:
+            # Raw Python value → use ibis.interval() for readability
+            return operand + ibis.interval(**{unit: value})
+
+    def temporal_add_hours(self, operand: Any, hours: Any) -> ir.Expr:
+        """Add hours to a datetime - supports both literals and expressions."""
+        return self._temporal_duration_add(operand, hours, 'hours', 'h')
+
+    def temporal_add_minutes(self, operand: Any, minutes: Any) -> ir.Expr:
+        """Add minutes to a datetime - supports both literals and expressions."""
+        return self._temporal_duration_add(operand, minutes, 'minutes', 'm')
+
+    def temporal_add_seconds(self, operand: Any, seconds: Any) -> ir.Expr:
+        """Add seconds to a datetime - supports both literals and expressions."""
+        return self._temporal_duration_add(operand, seconds, 'seconds', 's')
+
+    def temporal_diff_hours(self, operand: Any, other_datetime: Any) -> ir.Expr:
+        """
+        Calculate difference in hours between two datetimes.
+
+        Note: Uses epoch_seconds() approach for universal backend compatibility.
+        The .delta() method is not supported by all Ibis backends (e.g., Polars).
+        """
+        return (operand.epoch_seconds() - other_datetime.epoch_seconds()) // 3600
+
+    def temporal_diff_minutes(self, operand: Any, other_datetime: Any) -> ir.Expr:
+        """
+        Calculate difference in minutes between two datetimes.
+
+        Note: Uses epoch_seconds() approach for universal backend compatibility.
+        The .delta() method is not supported by all Ibis backends (e.g., Polars).
+        """
+        return (operand.epoch_seconds() - other_datetime.epoch_seconds()) // 60
+
+    def temporal_diff_seconds(self, operand: Any, other_datetime: Any) -> ir.Expr:
+        """
+        Calculate difference in seconds between two datetimes.
+
+        Note: Uses epoch_seconds() approach for universal backend compatibility.
+        The .delta() method is not supported by all Ibis backends (e.g., Polars).
+        """
+        return operand.epoch_seconds() - other_datetime.epoch_seconds()
+
+    def temporal_diff_months(self, operand: Any, other_date: Any) -> ir.Expr:
+        """
+        Calculate difference in months between two dates.
+        Note: Approximate calculation using year and month components.
+        """
+        years_diff = operand.year() - other_date.year()
+        months_diff = operand.month() - other_date.month()
+        return years_diff * 12 + months_diff
+
+    def temporal_diff_years(self, operand: Any, other_date: Any) -> ir.Expr:
+        """Calculate difference in years between two dates."""
+        return operand.year() - other_date.year()
+
+    def temporal_truncate(self, operand: Any, unit: Any) -> ir.Expr:
+        """
+        Truncate datetime to specified unit using Ibis truncate().
+
+        Args:
+            operand: Datetime expression
+            unit: Unit string (Polars-style like "1d", "1h" or Ibis-style like "D", "day")
+
+        Note: Converts Polars-style duration strings (e.g., "1d") to Ibis IntervalUnit
+        values (e.g., "D" or "day").
+        """
+        # Convert Polars-style duration string to Ibis IntervalUnit
+        ibis_unit = self._convert_to_ibis_truncate_unit(unit)
+        return operand.truncate(ibis_unit)
+
+    def _convert_to_ibis_truncate_unit(self, unit: str) -> str:
+        """
+        Convert Polars-style duration string to Ibis IntervalUnit.
+
+        Args:
+            unit: Duration string like "1d", "1h", "1mo", "1y" (Polars style)
+                  or "D", "day", "h", "hour" (Ibis style)
+
+        Returns:
+            Ibis IntervalUnit string
+
+        Examples:
+            "1d" -> "D"
+            "1h" -> "h"
+            "1mo" -> "M"
+            "D" -> "D" (passthrough)
+        """
+        import re
+
+        # If it's already an Ibis-style unit (single letter or word), pass through
+        if not re.match(r'^\d+', unit):
+            return unit
+
+        # Parse Polars-style: number + unit
+        match = re.match(r'^\d+(y|mo|d|h|m|s|w)$', unit)
+        if not match:
+            # If it doesn't match expected pattern, pass through and let Ibis handle it
+            return unit
+
+        unit_code = match.group(1)
+
+        # Map to Ibis IntervalUnit codes
+        unit_mapping = {
+            'y': 'Y',    # year
+            'mo': 'M',   # month
+            'w': 'W',    # week
+            'd': 'D',    # day
+            'h': 'h',    # hour
+            'm': 'm',    # minute
+            's': 's',    # second
+        }
+
+        return unit_mapping.get(unit_code, unit)
+
+    def temporal_offset_by(self, operand: Any, offset: Any) -> ir.Expr:
+        """
+        Add/subtract flexible duration.
+
+        Args:
+            operand: Datetime expression
+            offset: Duration string (e.g., "1d", "2h", "-3mo", "1d2h")
+
+        Note: This parses the offset string and constructs ibis.interval().
+        Supports: y (years), mo (months), d (days), h (hours), m (minutes), s (seconds)
+        """
+        # Parse the duration string and build intervals
+        intervals = self._parse_duration_string(offset)
+
+        # Apply all intervals to the operand
+        result = operand
+        for interval in intervals:
+            result = result + interval
+
+        return result
+
+    def _parse_duration_string(self, duration: str) -> list:
+        """
+        Parse a duration string into Ibis intervals.
+
+        Args:
+            duration: Duration string like "1d2h", "-3mo", "2h30m"
+
+        Returns:
+            List of ibis.interval() objects
+
+        Examples:
+            "1d2h" -> [interval(days=1), interval(hours=2)]
+            "-3mo" -> [interval(months=-3)]
+            "2h30m" -> [interval(hours=2), interval(minutes=30)]
+        """
+        import re
+
+        # Handle negative sign
+        is_negative = duration.startswith('-')
+        if is_negative:
+            duration = duration[1:]
+
+        intervals = []
+
+        # Pattern: number followed by unit
+        # Units: y, mo, d, h, m, s
+        # Need to handle 'mo' before 'm' to avoid confusion
+        pattern = r'(\d+)(y|mo|d|h|m|s)'
+
+        matches = re.findall(pattern, duration)
+
+        for value_str, unit in matches:
+            value = int(value_str)
+            if is_negative:
+                value = -value
+
+            # Map unit to ibis.interval parameter
+            if unit == 'y':
+                intervals.append(ibis.interval(years=value))
+            elif unit == 'mo':
+                intervals.append(ibis.interval(months=value))
+            elif unit == 'd':
+                intervals.append(ibis.interval(days=value))
+            elif unit == 'h':
+                intervals.append(ibis.interval(hours=value))
+            elif unit == 'm':
+                intervals.append(ibis.interval(minutes=value))
+            elif unit == 's':
+                intervals.append(ibis.interval(seconds=value))
+
+        return intervals
