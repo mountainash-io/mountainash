@@ -18,6 +18,16 @@ Quick Start:
     >>>
     >>> # Or use helper functions
     >>> result = ma.filter(df, ma.col("age").gt(30))
+    >>>
+    >>> # Natural language temporal filtering (like journalctl/find)
+    >>> # Show logs from last 10 minutes
+    >>> recent_logs = ma.filter(logs, ma.within_last(ma.col("timestamp"), "10 minutes"))
+    >>>
+    >>> # Find files older than 7 days
+    >>> old_files = ma.filter(files, ma.older_than(ma.col("created_at"), "7 days"))
+    >>>
+    >>> # Date arithmetic and temporal operations
+    >>> expr = ma.col("timestamp").dt_add_hours(2).dt_truncate("1d")
 """
 
 from .__version__ import __version__
@@ -42,6 +52,23 @@ from .api import (
     and_,
     or_,
     not_,
+)
+
+# Temporal helpers - natural language time filtering
+from .api.temporal_helpers import (
+    # Parsing utilities
+    parse_time_expression,
+    to_timedelta,
+    to_offset_string,
+    # Absolute time functions
+    time_ago,
+    since,
+    # Filter expressions
+    within_last,
+    within_next,
+    between_last,
+    older_than,
+    newer_than,
 )
 
 # Core constants
@@ -82,7 +109,7 @@ from .core.expression_nodes import (
 # Visitor pattern
 from .core.expression_visitors import (
     ExpressionVisitor,
-    BooleanExpressionVisitor,
+    # BooleanExpressionVisitor,
     ExpressionVisitorFactory,
 )
 
@@ -127,7 +154,7 @@ __all__ = [
 
     # Visitor pattern
     "ExpressionVisitor",
-    "BooleanExpressionVisitor",
+    # "BooleanExpressionVisitor",
     "ExpressionVisitorFactory",
 
     # Backend visitor
@@ -136,4 +163,16 @@ __all__ = [
     # Parameter system
     "ExpressionParameter",
     "ParameterType",
+
+    # Temporal helpers - natural language time filtering
+    "parse_time_expression",
+    "to_timedelta",
+    "to_offset_string",
+    "time_ago",
+    "since",
+    "within_last",
+    "within_next",
+    "between_last",
+    "older_than",
+    "newer_than",
 ]
