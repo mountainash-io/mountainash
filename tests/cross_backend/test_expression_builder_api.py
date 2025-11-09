@@ -347,18 +347,13 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [15, 25, 35]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+        backend_expr = expr.compile(df)
+        # result = df.select(backend_expr.alias("result"))
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        expected = [15, 25, 35]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_rsub(self, backend_name, backend_factory, select_and_extract):
         """Test __rsub__ (other - self)."""
@@ -371,18 +366,13 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [90, 80, 70]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+        backend_expr = expr.compile(df)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+
+        expected = [90, 80, 70]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_rmul(self, backend_name, backend_factory, select_and_extract):
         """Test __rmul__ (other * self)."""
@@ -395,18 +385,12 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [50, 100, 150]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+        backend_expr = expr.compile(df)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        expected = [50, 100, 150]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_rtruediv(self, backend_name, backend_factory, select_and_extract):
         """Test __rtruediv__ (other / self)."""
@@ -419,18 +403,12 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [50.0, 25.0, 20.0]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+        backend_expr = expr.compile(df)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        expected = [50.0, 25.0, 20.0]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_rmod(self, backend_name, backend_factory, select_and_extract):
         """Test __rmod__ (other % self)."""
@@ -443,18 +421,13 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [1, 0, 2]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+
+        backend_expr = expr.compile(df)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        expected = [1, 0, 2]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_rpow(self, backend_name, backend_factory, select_and_extract):
         """Test __rpow__ (other ** self)."""
@@ -467,18 +440,12 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [4, 8, 16]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+        backend_expr = expr.compile(df)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        expected = [4, 8, 16]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_rfloordiv(self, backend_name, backend_factory, select_and_extract):
         """Test __rfloordiv__ (other // self)."""
@@ -491,18 +458,13 @@ class TestReverseArithmeticOperators:
         # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
         # Reverse operators with literals fail with InputTypeError
         if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
-            expected = [33, 20, 14]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
+
+        backend_expr = expr.compile(df)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+
+        expected = [33, 20, 14]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
@@ -705,8 +667,6 @@ class TestOperatorChainingAndPrecedence:
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
-        print(get_result(result, backend_name))
-
         count = get_result_count(result, backend_name)
         assert count == 1, f"[{backend_name}] Expected 1 rows"
 
@@ -724,7 +684,6 @@ class TestOperatorChainingAndPrecedence:
         expr = (((ma.col("price") - ma.col("discount")) * ma.col("quantity")) > 200) & ma.col("in_stock")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
-        print(get_result(result, backend_name))
 
         count = get_result_count(result, backend_name)
         assert count == 1, f"[{backend_name}] Expected 2 rows"

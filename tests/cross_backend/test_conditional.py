@@ -348,7 +348,7 @@ class TestConditionalEdgeCases:
         """Test coalesce when all values are null."""
         # DuckDB doesn't support creating tables with all NULL columns
         if backend_name == "ibis-duckdb":
-            pytest.skip(
+            pytest.xfail(
                 "DuckDB does not support creating tables with all NULL columns. "
                 "This is a genuine backend limitation, not a bug."
             )

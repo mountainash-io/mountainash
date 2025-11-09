@@ -126,11 +126,6 @@ class TestTimeDifferences:
 
     def test_diff_hours(self, backend_name, backend_factory, select_and_extract):
         """Test calculating difference in hours between datetimes."""
-        # if backend_name == "narwhals":
-        #     pytest.xfail(
-        #         "Narwhals backend uses .dt.total_hours() which doesn't exist in Narwhals API. "
-        #         "Needs implementation fix."
-        #     )
 
         data = {
             "start": [
@@ -295,6 +290,12 @@ class TestFlexibleOffsetBy:
 
     def test_offset_subtract_months(self, backend_name, backend_factory, select_and_extract):
         """Test subtracting months."""
+        if backend_name == "ibis-polars":
+            pytest.xfail(
+                "Ibis Polars backend doesn't support calendar-based intervals (months/years). "
+                "Only duration-based intervals (days/hours/minutes/seconds) are supported."
+            )
+
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite limitation: Interval subtraction not supported")
 

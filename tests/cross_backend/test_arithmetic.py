@@ -53,7 +53,7 @@ class TestBasicArithmetic:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_subtraction(self, backend_name, backend_factory):
+    def test_subtraction(self, backend_name, backend_factory, select_and_extract):
         """Test subtraction operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -64,22 +64,14 @@ class TestBasicArithmetic:
         expr = ma.col("a").subtract(ma.col("b"))
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [8, 17, 26, 35, 44]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiplication(self, backend_name, backend_factory):
+    def test_multiplication(self, backend_name, backend_factory, select_and_extract):
         """Test multiplication operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -90,22 +82,15 @@ class TestBasicArithmetic:
         expr = ma.col("a").multiply(ma.col("c"))
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
+
 
         expected = [10, 40, 90, 160, 250]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_division(self, backend_name, backend_factory):
+    def test_division(self, backend_name, backend_factory, select_and_extract):
         """Test division operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -116,15 +101,7 @@ class TestBasicArithmetic:
         expr = ma.col("a").divide(ma.col("b"))
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [10/2, 20/3, 30/4, 40/5, 50/6]
 
@@ -134,7 +111,7 @@ class TestBasicArithmetic:
                 f"[{backend_name}] At index {i}: expected {exp}, got {act}"
             )
 
-    def test_modulo(self, backend_name, backend_factory):
+    def test_modulo(self, backend_name, backend_factory, select_and_extract):
         """Test modulo operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -145,22 +122,14 @@ class TestBasicArithmetic:
         expr = ma.col("a").modulo(ma.col("b"))
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [0, 2, 2, 0, 2]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_power(self, backend_name, backend_factory):
+    def test_power(self, backend_name, backend_factory, select_and_extract):
         """Test power operation."""
         data = {
             "c": [1, 2, 3, 4, 5]
@@ -170,22 +139,14 @@ class TestBasicArithmetic:
         expr = ma.col("c").power(2)
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [1, 4, 9, 16, 25]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_floor_division(self, backend_name, backend_factory):
+    def test_floor_division(self, backend_name, backend_factory, select_and_extract):
         """Test floor division operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -196,15 +157,7 @@ class TestBasicArithmetic:
         expr = ma.col("a").floor_divide(ma.col("b"))
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [5, 6, 7, 8, 8]
         assert actual == expected, (
@@ -230,7 +183,7 @@ class TestBasicArithmetic:
 class TestPythonMagicOperators:
     """Test Python magic operators (+, -, *, /, etc.)."""
 
-    def test_plus_operator(self, backend_name, backend_factory):
+    def test_plus_operator(self, backend_name, backend_factory, select_and_extract):
         """Test + operator."""
         data = {
             "x": [10, 20, 30],
@@ -241,22 +194,14 @@ class TestPythonMagicOperators:
         expr = ma.col("x") + ma.col("y")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [12, 24, 35]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_minus_operator(self, backend_name, backend_factory):
+    def test_minus_operator(self, backend_name, backend_factory, select_and_extract):
         """Test - operator."""
         data = {
             "x": [10, 20, 30],
@@ -267,22 +212,14 @@ class TestPythonMagicOperators:
         expr = ma.col("x") - ma.col("y")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [8, 16, 25]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiply_operator(self, backend_name, backend_factory):
+    def test_multiply_operator(self, backend_name, backend_factory, select_and_extract):
         """Test * operator."""
         data = {
             "x": [10, 20, 30],
@@ -293,22 +230,14 @@ class TestPythonMagicOperators:
         expr = ma.col("x") * ma.col("y")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [20, 80, 150]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_divide_operator(self, backend_name, backend_factory):
+    def test_divide_operator(self, backend_name, backend_factory, select_and_extract):
         """Test / operator."""
         data = {
             "x": [10, 20, 30],
@@ -319,15 +248,7 @@ class TestPythonMagicOperators:
         expr = ma.col("x") / ma.col("y")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [5.0, 5.0, 6.0]
 
@@ -355,7 +276,7 @@ class TestPythonMagicOperators:
 class TestComplexArithmetic:
     """Test chaining and complex arithmetic operations."""
 
-    def test_chained_operations(self, backend_name, backend_factory):
+    def test_chained_operations(self, backend_name, backend_factory, select_and_extract):
         """Test chaining multiple arithmetic operations."""
         data = {
             "a": [10, 20, 30],
@@ -368,22 +289,14 @@ class TestComplexArithmetic:
         expr = (ma.col("a") + ma.col("b")) * ma.col("c")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [12, 46, 102]  # (10+2)*1=12, (20+3)*2=46, (30+4)*3=102
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_mixed_literals_and_columns(self, backend_name, backend_factory):
+    def test_mixed_literals_and_columns(self, backend_name, backend_factory, select_and_extract):
         """Test mixing literal values with column references."""
         data = {
             "a": [10, 20, 30]
@@ -394,15 +307,7 @@ class TestComplexArithmetic:
         expr = ma.col("a") * 2 + 5
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [25, 45, 65]  # 10*2+5=25, 20*2+5=45, 30*2+5=65
         assert actual == expected, (
@@ -428,7 +333,7 @@ class TestComplexArithmetic:
 class TestArithmeticEdgeCases:
     """Test edge cases for arithmetic operations."""
 
-    def test_negative_numbers(self, backend_name, backend_factory):
+    def test_negative_numbers(self, backend_name, backend_factory, select_and_extract):
         """Test arithmetic with negative numbers."""
         data = {
             "a": [-10, -20, 30],
@@ -439,22 +344,14 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") + ma.col("b")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [-8, -23, 34]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_zero_operations(self, backend_name, backend_factory):
+    def test_zero_operations(self, backend_name, backend_factory, select_and_extract):
         """Test arithmetic with zero."""
         data = {
             "a": [10, 0, 30],
@@ -466,15 +363,7 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") + ma.col("zero")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            # Polars, pandas (via narwhals), and narwhals all use .to_list()
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [10, 0, 30]
         assert actual == expected, (
@@ -482,7 +371,7 @@ class TestArithmeticEdgeCases:
         )
 
 
-    def test_large_numbers(self, backend_name, backend_factory):
+    def test_large_numbers(self, backend_name, backend_factory, select_and_extract):
         """Test arithmetic with large numbers."""
         data = {
             "a": [1000000, 2000000, 3000000],
@@ -493,21 +382,14 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") + ma.col("b")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [1500000, 3000000, 4500000]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_floating_point_operations(self, backend_name, backend_factory):
+    def test_floating_point_operations(self, backend_name, backend_factory, select_and_extract):
         """Test arithmetic with floating point numbers."""
         data = {
             "a": [1.5, 2.5, 3.5],
@@ -518,21 +400,14 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") + ma.col("b")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [2.0, 4.0, 6.0]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_power_with_zero(self, backend_name, backend_factory):
+    def test_power_with_zero(self, backend_name, backend_factory, select_and_extract):
         """Test power operation with zero exponent."""
         data = {
             "a": [5, 10, 100]
@@ -543,21 +418,14 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") ** 0
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [1, 1, 1]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_power_with_one(self, backend_name, backend_factory):
+    def test_power_with_one(self, backend_name, backend_factory, select_and_extract):
         """Test power operation with one as exponent."""
         data = {
             "a": [5, 10, 100]
@@ -568,21 +436,14 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") ** 1
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [5, 10, 100]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_floor_division_with_negatives(self, backend_name, backend_factory):
+    def test_floor_division_with_negatives(self, backend_name, backend_factory, select_and_extract):
         """Test floor division with negative numbers."""
         data = {
             "a": [-10, 10, -10],
@@ -593,14 +454,7 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") // ma.col("b")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         # Floor division rounds toward negative infinity
         expected = [-4, -4, 3]
@@ -608,7 +462,7 @@ class TestArithmeticEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_modulo_with_negatives(self, backend_name, backend_factory):
+    def test_modulo_with_negatives(self, backend_name, backend_factory, select_and_extract):
         """Test modulo operation with negative numbers.
 
         KNOWN ISSUE: SQLite and DuckDB use different modulo semantics than Python.
@@ -640,14 +494,7 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") % ma.col("b")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         # Python modulo: result has same sign as divisor
         # This is the EXPECTED behavior for consistency
@@ -657,7 +504,7 @@ class TestArithmeticEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiply_by_zero(self, backend_name, backend_factory):
+    def test_multiply_by_zero(self, backend_name, backend_factory, select_and_extract):
         """Test multiplication by zero."""
         data = {
             "a": [10, 20, 30, -5]
@@ -667,21 +514,14 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") * 0
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [0, 0, 0, 0]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiply_by_one(self, backend_name, backend_factory):
+    def test_multiply_by_one(self, backend_name, backend_factory, select_and_extract):
         """Test multiplication by one (identity)."""
         data = {
             "a": [10, 20, 30, -5]
@@ -691,21 +531,15 @@ class TestArithmeticEdgeCases:
         expr = ma.col("a") * 1
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [10, 20, 30, -5]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_subtract_from_zero(self, backend_name, backend_factory):
+    def test_subtract_from_zero(self, backend_name, backend_factory, select_and_extract):
         """Test subtracting from zero (negation)."""
         from ibis.common.exceptions import InputTypeError
 
@@ -734,7 +568,7 @@ class TestArithmeticEdgeCases:
                 f"[{backend_name}] Expected {expected}, got {actual}"
             )
 
-    def test_complex_chained_operations(self, backend_name, backend_factory):
+    def test_complex_chained_operations(self, backend_name, backend_factory, select_and_extract):
         """Test complex chained arithmetic operations.
 
         KNOWN ISSUE: SQLite performs integer division instead of float division.
@@ -769,14 +603,7 @@ class TestArithmeticEdgeCases:
         expr = (ma.col("a") + ma.col("b")) * ma.col("c") - ma.col("a") / ma.col("b")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         # (10+2)*5 - 10/2 = 60 - 5.0 = 55.0
         # (20+3)*10 - 20/3 = 230 - 6.666... = 223.333...
@@ -791,7 +618,7 @@ class TestArithmeticEdgeCases:
             assert math.isclose(a, e, rel_tol=1e-9), \
                 f"[{backend_name}] At index {i}: expected {e}, got {a}"
 
-    def test_mixed_integer_float(self, backend_name, backend_factory):
+    def test_mixed_integer_float(self, backend_name, backend_factory, select_and_extract):
         """Test operations with mixed integer and float types."""
         data = {
             "int_col": [10, 20, 30],
@@ -802,14 +629,7 @@ class TestArithmeticEdgeCases:
         expr = ma.col("int_col") * ma.col("float_col")
         backend_expr = expr.compile(df)
 
-        if backend_name.startswith("ibis-"):
-            result = df.select(backend_expr.name("result"))
-            actual = result["result"].execute().tolist()
-        else:
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
 
         expected = [25.0, 70.0, 135.0]
         assert actual == expected, (
