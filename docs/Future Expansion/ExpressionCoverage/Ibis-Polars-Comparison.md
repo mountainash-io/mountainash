@@ -11,11 +11,11 @@ This document provides a comprehensive comparison between Ibis-Polars backend ex
 
 ### Quick Stats
 
-- **Ibis-Polars Operations Cataloged:** ~150+ distinct expression operations
+- **Ibis-Polars Operations Cataloged:** ~170+ distinct expression operations
 - **mountainash-expressions Operations:** ~65+ operations across 7 categories
-- **Estimated Coverage:** ~40-45% of Ibis-Polars expression capabilities
-- **Total Gap:** 88 operations
-- **Critical Gaps:** Math functions (26), Array operations (18)
+- **Estimated Coverage:** ~38-42% of Ibis-Polars expression capabilities
+- **Total Gap:** 103 operations
+- **Critical Gaps:** Math functions (26), Array operations (18), Window functions (17)
 
 ### Coverage Summary
 
@@ -429,6 +429,83 @@ This document provides a comprehensive comparison between Ibis-Polars backend ex
 **Assessment:** Complete gap, but niche use cases.
 
 **Priority:** LOW - Rarely used outside specialized domains.
+
+---
+
+### 20. Window/Analytic Functions ❌ **0% Coverage - CRITICAL GAP**
+
+**IMPORTANT:** Window functions are a distinct category that operate over a "window" of rows defined by partitioning and ordering. They are neither simple expressions nor table aggregations.
+
+#### Pure Analytic Functions (Ranking)
+
+| Operation | Ibis-Polars | mountainash | Priority |
+|-----------|-------------|-------------|----------|
+| `ops.MinRank` | ✅ | ❌ | **Critical** |
+| `ops.DenseRank` | ✅ | ❌ | **Critical** |
+| `ops.RowNumber` | ✅ | ❌ | **Critical** |
+| `ops.PercentRank` | ✅ | ❌ | High |
+| `ops.CumeDist` | ✅ | ❌ | High |
+| `ops.NTile` | ✅ | ❌ | High |
+
+#### Offset/Position Functions
+
+| Operation | Ibis-Polars | mountainash | Priority |
+|-----------|-------------|-------------|----------|
+| `ops.Lag` | ✅ | ❌ | **Critical** |
+| `ops.Lead` | ✅ | ❌ | **Critical** |
+| `ops.NthValue` | ✅ | ❌ | High |
+| `ops.FirstValue` | ✅ | ❌ | High |
+| `ops.LastValue` | ✅ | ❌ | High |
+
+#### Cumulative Functions
+
+| Operation | Ibis-Polars | mountainash | Priority |
+|-----------|-------------|-------------|----------|
+| `cumsum()` | ✅ | ❌ | **Critical** |
+| `cummean()` | ✅ | ❌ | High |
+| `cummin()` | ✅ | ❌ | High |
+| `cummax()` | ✅ | ❌ | High |
+| `cumany()` | ✅ | ❌ | Medium |
+| `cumall()` | ✅ | ❌ | Medium |
+
+#### Window Specification
+
+| Feature | Ibis-Polars | mountainash | Priority |
+|---------|-------------|-------------|----------|
+| `.over(group_by, order_by)` | ✅ | ❌ | **Critical** |
+| `ROWS BETWEEN` frames | ✅ | ❌ | **Critical** |
+| `RANGE BETWEEN` frames | ✅ | ❌ | High |
+
+**Assessment:** Complete absence of window function support.
+
+**Priority:** **CRITICAL** - Window functions are essential for:
+- Ranking and top-N queries
+- Time series analysis (moving averages, running totals)
+- Sequential comparisons (lag/lead)
+- Percentile calculations
+- Cumulative aggregations
+
+**Complexity:** High - Requires:
+- Window specification system (PARTITION BY, ORDER BY)
+- Frame specification (ROWS/RANGE BETWEEN)
+- Integration with both analytic and aggregation functions
+
+**Use Cases:**
+```python
+# Ranking - Top 3 per category
+rank().over(group_by="category", order_by=sales.desc()) <= 3
+
+# Time series - 7-day moving average
+mean().over(rows=(-6, 0), order_by=date)
+
+# Sequential - Compare to previous period
+current - lag(1).over(order_by=month)
+
+# Cumulative - Running total
+cumsum()
+```
+
+**Total Window Operations:** 17
 
 ---
 
@@ -1253,11 +1330,11 @@ Total operations cataloged from `/home/nathanielramm/git/ibis/ibis/backends/pola
 
 | Priority | Operations | Effort (weeks) | Categories |
 |----------|-----------|----------------|------------|
-| **CRITICAL** | 26 | 4-6 | Math operations |
+| **CRITICAL** | 43 | 8-11 | Math operations (26), Window functions (17) |
 | **HIGH** | 30 | 8-12 | Arrays (18), Conditionals (5), Temporal Const/Parse (7) |
 | **MEDIUM** | 20 | 4-6 | String advanced (11), Temporal extractions (5), Type ops (1), Misc (3) |
 | **LOW** | 12 | 2-3 | Bitwise (6), Misc (6) |
-| **TOTAL** | **88** | **18-27** | All categories |
+| **TOTAL** | **105** | **22-32** | All categories |
 
 ---
 
@@ -1270,7 +1347,7 @@ mountainash-expressions has built a **solid foundation** with excellent coverage
 - Pattern matching (100%+)
 - Temporal arithmetic (86%)
 
-However, to reach feature parity with Ibis-Polars, **88 operations** need to be added, with **Math operations** (26) being the most critical gap.
+However, to reach feature parity with Ibis-Polars, **105 operations** need to be added, with **Math operations** (26) and **Window functions** (17) being the most critical gaps.
 
 ### Key Strengths
 1. Clean, extensible architecture (mixin-based)
@@ -1280,18 +1357,19 @@ However, to reach feature parity with Ibis-Polars, **88 operations** need to be 
 
 ### Key Gaps
 1. **Math operations** - Complete absence, critical for analytics
-2. **Array operations** - Complete absence, important for data science
-3. **Advanced conditionals** - Missing CASE WHEN patterns
-4. **Temporal construction** - Can't build dates from parts
+2. **Window functions** - Complete absence, essential for ranking/time series
+3. **Array operations** - Complete absence, important for data science
+4. **Advanced conditionals** - Missing CASE WHEN patterns
+5. **Temporal construction** - Can't build dates from parts
 
 ### Recommended Next Steps
 
 1. **Immediate:** Implement Phase 1 (Essential Math) - 2-3 weeks
 2. **Short-term:** Implement Phase 2 (Advanced Conditionals) - 1-2 weeks
 3. **Medium-term:** Phases 3-5 (Strings, Temporal, Advanced Math) - 6-9 weeks
-4. **Long-term:** Phases 6-7 (Arrays, Specialized Ops) - 5-8 weeks
+4. **Long-term:** Phases 6-8 (Arrays, Specialized Ops, Window Functions) - 8-13 weeks
 
-**Total estimated effort to 80%+ coverage:** 14-22 weeks of focused development.
+**Total estimated effort to 80%+ coverage:** 17-27 weeks of focused development.
 
 ---
 
