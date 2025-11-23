@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collection
-
+from enum import Enum
 # from ibis.expr.types import s  # Removed - not used and causes import error
 
 from ..constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
@@ -32,6 +32,15 @@ class ExpressionNode(ABC):
     def eval(self) -> Callable:
         pass
 
+    @property
+    def operator(self) -> Enum:
+        return self._operator
+
+    @operator.setter
+    def operator(self, operator: Enum):
+        self._operator = operator
+
+
 
 class NativeBackendExpressionNode(ExpressionNode):
 
@@ -45,7 +54,7 @@ class NativeBackendExpressionNode(ExpressionNode):
         self.native_expr = native_expr
 
 
-class SourceExpressionNode(ExpressionNode):
+class ColumnExpressionNode(ExpressionNode):
 
     @property
     @final

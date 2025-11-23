@@ -58,8 +58,8 @@ class BooleanComparisonExpressionVisitor(ExpressionVisitor):
         if expression_node.operator not in self.boolean_comparison_ops:
             raise ValueError(f"Unsupported operator: {expression_node.operator}" )
 
-        op_func = self.boolean_comparison_ops[expression_node.operator]
-        return op_func(left, right)
+        visitor_operator = self.boolean_comparison_ops[expression_node.operator]
+        return visitor_operator(left, right)
 
 
     # ===============

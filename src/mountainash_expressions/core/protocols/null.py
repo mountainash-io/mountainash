@@ -1,0 +1,69 @@
+
+from __future__ import annotations
+from typing import Callable, TYPE_CHECKING, Dict, Any, List, Union
+from abc import ABC, abstractmethod
+from typing import Protocol, runtime_checkable
+from enum import Enum, auto
+from typing_extensions import TypeAlias
+
+from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS, CONST_EXPRESSION_SOURCE_OPERATORS
+
+if TYPE_CHECKING:
+    from ..expression_nodes.null import ExpressionNode, NullExpressionNode, NullConstantExpressionNode, NullLogicalExpressionNode
+    from ...types import SupportedExpressions
+    from ..expression_builders.base_expression_builder import ExpressionBuilder
+
+
+class ENUM_NULL_OPERATORS(Enum):
+    """
+    Enumeration for pattern matching operators.
+
+    Attributes:
+        - COALESCE: Return first non-null value from list
+        - FILL_NULL: Replace null values with specified value
+        - NULL_IF: Return null if condition met
+    """
+    FILL_NULL = auto()
+    NULL_IF = auto()
+
+    ALWAYS_NULL = auto()
+
+    IS_NULL = auto()
+    NOT_NULL = auto()
+
+validNullExpresionNodes: TypeAlias = Union[NullExpressionNode, NullConstantExpressionNode, NullLogicalExpressionNode]
+
+
+class NullVisitorProtocol(Protocol):
+
+    def visit_expression(self, node: validNullExpresionNodes) -> Any: ...
+
+    def fill_null(self, node: NullExpressionNode) -> SupportedExpressions: ...
+    def null_if(self, node: NullExpressionNode) -> SupportedExpressions: ...
+
+    def always_null(self) -> SupportedExpressions: ...
+
+    def is_null(self, node: NullLogicalExpressionNode) -> Any: ...
+    def not_null(self, node: NullLogicalExpressionNode) -> Any: ...
+
+
+class NullExpressionProtocol(Protocol):
+
+    def fill_null(self, operand: SupportedExpressions, value: SupportedExpressions) -> SupportedExpressions: ...
+    def null_if(self, operand: SupportedExpressions, condition: SupportedExpressions) -> SupportedExpressions: ...
+
+    def always_null(self) -> SupportedExpressions: ...
+
+    def is_null(self, operand: SupportedExpressions) -> SupportedExpressions: ...
+    def not_null(self, operand: SupportedExpressions) -> SupportedExpressions: ...
+
+
+class NullBuilderProtocol(Protocol):
+
+    def fill_null(self, value: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
+    def null_if(self, condition: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
+
+    def always_null(self) -> ExpressionBuilder: ...
+
+    def is_null(self) -> ExpressionBuilder: ...
+    def not_null(self) -> ExpressionBuilder: ...

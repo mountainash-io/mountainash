@@ -22,18 +22,18 @@ class CONST_VISITOR_BACKENDS(Enum):
     # XARRAY = "xarray"
     # PYSPARK = "pyspark"
 
-class CONST_LOGIC_TYPES(Enum):
-    """
-    Enumeration for different logic systems.
+# class CONST_LOGIC_TYPES(Enum):
+#     """
+#     Enumeration for different logic systems.
 
-    Attributes:
-        - BOOLEAN (str): Boolean (binary) logic system.
-        - TERNARY (str): Ternary (three-valued) logic system.
-        - FUZZY (str): Fuzzy logic system.
-    """
-    BOOLEAN =   "boolean"
-    TERNARY =   "ternary"
-    FUZZY =     "fuzzy"
+#     Attributes:
+#         - BOOLEAN (str): Boolean (binary) logic system.
+#         - TERNARY (str): Ternary (three-valued) logic system.
+#         - FUZZY (str): Fuzzy logic system.
+#     """
+#     BOOLEAN =   "boolean"
+#     TERNARY =   "ternary"
+#     FUZZY =     "fuzzy"
 
 class CONST_EXPRESSION_NODE_TYPES(Enum):
     """
@@ -41,7 +41,7 @@ class CONST_EXPRESSION_NODE_TYPES(Enum):
 
     Attributes:
         - NATIVE_BACKEND: Backend-native expression passthrough
-        - SOURCE: Source data reference (columns)
+        - COLUMN: Source data reference (columns)
         - LITERAL: Literal values
         - CAST: Type casting operations
         - LOGICAL_CONSTANT: Logical constants (ALWAYS_TRUE, ALWAYS_FALSE, etc.)
@@ -54,21 +54,21 @@ class CONST_EXPRESSION_NODE_TYPES(Enum):
         - CONDITIONAL_IF_ELSE: Conditional if-else expressions
         - TEMPORAL: Temporal/datetime operations (YEAR, MONTH, DAY, etc.)
     """
-    NATIVE =        "native_backend"
-    SOURCE =                "source"
-    LITERAL =               "literal"
-    CAST =                  "cast"
-    ALIAS =                  "alias"
-    LOGICAL =               "logical"
-    LOGICAL_COMPARISON =            "comparison"
-    LOGICAL_CONSTANT =      "logical_constant"
-    LOGICAL_UNARY =                 "unary"
-    COLLECTION =            "collection"
-    ARITHMETIC =            "arithmetic"
-    STRING =                "string"
-    PATTERN =               "pattern"
-    CONDITIONAL_IF_ELSE =   "conditional_if_else"
-    TEMPORAL =              "temporal"
+    NATIVE =                auto()
+    COLUMN =                auto()
+    LITERAL =               auto()
+    CAST =                  auto()
+    ALIAS =                 auto()
+    LOGICAL =               auto()
+    LOGICAL_COMPARISON =    auto()
+    LOGICAL_CONSTANT =      auto()
+    LOGICAL_UNARY =         auto()
+    COLLECTION =            auto()
+    ARITHMETIC =            auto()
+    STRING =                auto()
+    PATTERN =               auto()
+    CONDITIONAL_IF_ELSE =   auto()
+    TEMPORAL =              auto()
 
 
 class CONST_EXPRESSION_NATIVE_OPERATORS(Enum):
@@ -89,8 +89,6 @@ class CONST_EXPRESSION_SOURCE_OPERATORS(Enum):
     Enumeration for expression logical unary operators.
     """
     COL = auto()
-    IS_NULL = auto()
-    IS_NOT_NULL = auto()
 
     # ALIAS = auto()
 

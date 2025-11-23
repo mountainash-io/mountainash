@@ -5,8 +5,9 @@ from typing import Any, Optional, TYPE_CHECKING
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-    from .base import ExpressionSystem
-    from ..visitor import ExpressionVisitor
+    from ..expression_system import ExpressionSystem
+    from ..expression_visitors import ExpressionVisitor
+    from ..expression_nodes import ExpressionNode
 
 class ParameterType(Enum):
     """Enumeration of parameter types in priority order."""
@@ -28,8 +29,8 @@ class ExpressionParameter:
     def __init__(
         self,
         value: Any,
-        expression_system: Optional['NativeExpressionSystem'] = None,
-        visitor: Optional['ExpressionVisitor'] = None
+        expression_system: Optional[ExpressionSystem] = None,
+        visitor: Optional[ExpressionVisitor] = None
     ):
         """
         Initialize parameter with value and conversion context.
@@ -55,6 +56,7 @@ class ExpressionParameter:
             return ParameterType.EXPRESSION_NODE
 
         # 2. Native backend expressions (only if expression_system available)
+        # TODO: Is this needed - can't it be detected by type?
         if self.expression_system and self.expression_system.is_native_expression(self.value):
             return ParameterType.NATIVE_EXPRESSION
 
@@ -74,11 +76,14 @@ class ExpressionParameter:
 
     def _is_expression_node(self) -> bool:
         """Check if value is a MountainAsh expression node."""
-        from ..expression_nodes import ExpressionNode
         return isinstance(self.value, ExpressionNode)
 
     def _is_literal(self) -> bool:
-        """Check if value is a Python literal."""
+        """Check if value is a Python literal.
+        What else can be a literal?
+        Returns:
+            bool: True if value is a Python literal, False otherwise.
+        """
         return self.value is None or isinstance(self.value, (bool, int, float))
 
     def _looks_like_column_name(self, s: str) -> bool:
@@ -110,12 +115,10 @@ class ExpressionParameter:
             TypeError: If parameter type cannot be converted
         """
         if self._type == ParameterType.EXPRESSION_NODE:
-            if not self.visitor:
-                raise ValueError(
-                    "Cannot convert ExpressionNode without visitor context. "
-                    "Provide visitor when creating ExpressionParameter."
-                )
-            return self.value.accept(self.visitor)
+            if self.visitor:
+                return self.value.accept(self.visitor)
+            else:
+                return self.value.eval()
 
         elif self._type == ParameterType.NATIVE_EXPRESSION:
             return self.value  # Already in correct format
@@ -138,7 +141,7 @@ class ExpressionParameter:
         """Human-readable type name for debugging."""
         return self._type.value
 
-    def resolve_to_expression_node(self) -> 'ExpressionNode':
+    def resolve_to_expression_node(self) -> ExpressionNode:
         """
         Resolve parameter to an ExpressionNode.
 

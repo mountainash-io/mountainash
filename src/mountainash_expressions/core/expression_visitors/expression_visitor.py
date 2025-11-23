@@ -1,36 +1,43 @@
 
 from typing import Callable, TYPE_CHECKING, Dict, Any
 from abc import ABC, abstractmethod
+from enum import Enum
 
 from ..constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
-from ..expression_nodes import (
-    SourceExpressionNode,
-    LiteralExpressionNode,
-    CastExpressionNode,
-    LogicalConstantExpressionNode,
-    UnaryExpressionNode,
-)
+# from ..expression_nodes import (
+#     SourceExpressionNode,
+#     LiteralExpressionNode,
+#     CastExpressionNode,
+#     LogicalConstantExpressionNode,
+#     UnaryExpressionNode,
+# )
 from ..expression_parameters import ExpressionParameter
+from ..expression_system.base import ExpressionSystem
+from ..protocols.core.column import ENUM_COLUMN_OPERATORS, ColumnVisitorProtocol, ColumnOperatorProtocol
+from ..protocols.core.literal import ENUM_LITERAL_OPERATORS, LiteralVisitorProtocol, LiteralOperatorProtocol
+
+from ...types import SupportedExpressions
 
 if TYPE_CHECKING:
     from ..expression_nodes import (
 
     ExpressionNode,
-    NativeBackendExpressionNode,
-    SourceExpressionNode,
+    ColumnExpressionNode,
     LiteralExpressionNode,
-    CastExpressionNode,
-    LogicalConstantExpressionNode,
-    UnaryExpressionNode,
-    LogicalExpressionNode,
-    ComparisonExpressionNode,
-    CollectionExpressionNode,
+    # NativeBackendExpressionNode,
+    # CastExpressionNode,
+    # LogicalConstantExpressionNode,
+    # UnaryExpressionNode,
+    # LogicalExpressionNode,
+    # ComparisonExpressionNode,
+    # CollectionExpressionNode,
     # ArithmeticExpressionNode,
     # ConditionalIfElseExpressionNode,
 )
 
 
-class ExpressionVisitor(ABC):
+
+class ExpressionVisitor() #ColumnVisitorProtocol, LiteralVisitorProtocol):
 
     @property
     @abstractmethod
@@ -41,6 +48,30 @@ class ExpressionVisitor(ABC):
     @abstractmethod
     def logic_type(self) -> CONST_LOGIC_TYPES:
         pass
+
+
+    def __init__(self, expression_system: ExpressionSystem):
+        """
+        Initialize with an ExpressionSystem implementation.
+
+        Args:
+            expression_system: Backend-specific ExpressionSystem
+        """
+        self.backend: ExpressionSystem = expression_system
+
+
+    def _get_expr_op(self, expr_ops: Dict[Enum, Callable], node: ExpressionNode) -> Callable:
+        if (op_func := expr_ops.get(node.operator, None)) is None:
+            raise ValueError(f"Unsupported operator: {node.operator}")
+
+        return op_func
+
+
+    @abstractmethod
+    def visit_expression_node(self, node: Any) -> SupportedExpressions: ...
+
+    # @abstractmethod
+    # def visit_literal_expression(self, node: LiteralExpressionNode) -> SupportedExpressions: ...
 
 
     # @property
@@ -148,43 +179,36 @@ class ExpressionVisitor(ABC):
 
 
 
-    @abstractmethod
-    def visit_source_expression(self, expression_node: SourceExpressionNode) -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_literal_expression(self, expression_node: LiteralExpressionNode) -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_cast_expression(self, expression_node: CastExpressionNode) -> Callable:
-        pass
 
     # @abstractmethod
-    # def visit_native_expression(self, expression_node: "NativeBackendExpressionNode") -> Callable:
+    # def visit_cast_expression(self, expression_node: CastExpressionNode) -> Callable:
+    #     pass
+
+    # # @abstractmethod
+    # # def visit_native_expression(self, expression_node: "NativeBackendExpressionNode") -> Callable:
+    # #     pass
+
+
+    # @abstractmethod
+    # def visit_unary_expression(self, expression_node: UnaryExpressionNode) -> Callable:
+    #     pass
+
+    # @abstractmethod
+    # def visit_logical_constant_expression(self, expression_node: LogicalConstantExpressionNode) -> Callable:
     #     pass
 
 
-    @abstractmethod
-    def visit_unary_expression(self, expression_node: UnaryExpressionNode) -> Callable:
-        pass
+    # @abstractmethod
+    # def visit_logical_expression(self, expression_node: "LogicalExpressionNode") -> Callable:
+    #     pass
 
-    @abstractmethod
-    def visit_logical_constant_expression(self, expression_node: LogicalConstantExpressionNode) -> Callable:
-        pass
+    # @abstractmethod
+    # def visit_comparison_expression(self, expression_node: "ComparisonExpressionNode") -> Callable:
+    #     pass
 
-
-    @abstractmethod
-    def visit_logical_expression(self, expression_node: "LogicalExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_comparison_expression(self, expression_node: "ComparisonExpressionNode") -> Callable:
-        pass
-
-    @abstractmethod
-    def visit_collection_expression(self, expression_node: "CollectionExpressionNode") -> Callable:
-        pass
+    # @abstractmethod
+    # def visit_collection_expression(self, expression_node: "CollectionExpressionNode") -> Callable:
+    #     pass
 
 
     # @abstractmethod

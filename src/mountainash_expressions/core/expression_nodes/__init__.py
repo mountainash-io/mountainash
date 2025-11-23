@@ -1,54 +1,94 @@
 """Expression node classes for building expression trees."""
 
-from .expression_nodes import (
-    ExpressionNode,
+from .base_expression_node import ExpressionNode
+
+from .core.core_expression_nodes import (
+    # ExpressionNode,
     NativeBackendExpressionNode,
-    SourceExpressionNode,
+    ColumnExpressionNode,
     LiteralExpressionNode,
-    CastExpressionNode,
-    LogicalConstantExpressionNode,
-    UnaryExpressionNode,
-    LogicalExpressionNode,
-    ComparisonExpressionNode,
-    CollectionExpressionNode,
+    # CastExpressionNode,
+    # LogicalConstantExpressionNode,
+    # UnaryExpressionNode,
+    # LogicalExpressionNode,
+    # ComparisonExpressionNode,
+    # CollectionExpressionNode,
+    # ArithmeticExpressionNode,
+    # StringExpressionNode,
+    # PatternExpressionNode,
+    # ConditionalIfElseExpressionNode,
+    # TemporalExpressionNode,
+)
+from .arithmetic_expression_nodes import (
     ArithmeticExpressionNode,
-    StringExpressionNode,
-    PatternExpressionNode,
-    ConditionalIfElseExpressionNode,
-    TemporalExpressionNode,
+    ArithmeticIterableExpressionNode,
+    SupportedArithmeticExpressionNodeTypes
 )
 
 from .boolean_expression_nodes import (
     BooleanExpressionNode,
     BooleanUnaryExpressionNode,
-    BooleanLogicalExpressionNode,
     BooleanComparisonExpressionNode,
-    BooleanConditionalIfElseExpressionNode,
     BooleanCollectionExpressionNode,
+    BooleanIterableExpressionNode,
+    SupportedBooleanExpressionNodeTypes
 )
+
+from .core_expression_nodes import (
+    ExpressionNode,
+    ColumnExpressionNode,
+    LiteralExpressionNode,
+    NativeBackendExpressionNode,
+    SupportedCoreExpressionNodeTypes
+)
+
+
+from .null_expression_nodes import (
+    NullExpressionNode,
+    NullConstantExpressionNode,
+    NullConditionalExpressionNode,
+    NullLogicalExpressionNode,
+    SupportedNullExpresionNodeTypes
+}
 
 __all__ = [
     # Base nodes
     "ExpressionNode",
-    "NativeBackendExpressionNode",
-    "SourceExpressionNode",
+    "ColumnExpressionNode",
     "LiteralExpressionNode",
-    "CastExpressionNode",
-    "LogicalConstantExpressionNode",
-    "UnaryExpressionNode",
-    "LogicalExpressionNode",
-    "ComparisonExpressionNode",
-    "CollectionExpressionNode",
+    "NativeBackendExpressionNode",
+
     "ArithmeticExpressionNode",
-    "StringExpressionNode",
-    "PatternExpressionNode",
-    "ConditionalIfElseExpressionNode",
-    "TemporalExpressionNode",
-    # Boolean nodes
+    "ArithmeticIterableExpressionNode",
+    "SupportedArithmeticExpressionNodeTypes",
+
+    "ColumnExpressionNode",
+    "LiteralExpressionNode",
+    "NativeBackendExpressionNode",
+    "SupportedCoreExpressionNodeTypes",
+
+    "NullExpressionNode",
+    "NullConstantExpressionNode",
+    "NullConditionalExpressionNode",
+    "NullLogicalExpressionNode",
+
+
+    # "CastExpressionNode",
+    # "LogicalConstantExpressionNode",
+    # "UnaryExpressionNode",
+    # "LogicalExpressionNode",
+    # "ComparisonExpressionNode",
+    # "CollectionExpressionNode",
+    # "ArithmeticExpressionNode",
+    # "StringExpressionNode",
+    # "PatternExpressionNode",
+    # "ConditionalIfElseExpressionNode",
+    # "TemporalExpressionNode",
+    # # Boolean nodes
     "BooleanExpressionNode",
     "BooleanUnaryExpressionNode",
-    "BooleanLogicalExpressionNode",
     "BooleanComparisonExpressionNode",
-    "BooleanConditionalIfElseExpressionNode",
     "BooleanCollectionExpressionNode",
+    "BooleanIterableExpressionNode",
+    "SupportedBooleanExpressionNodeTypes"
 ]
