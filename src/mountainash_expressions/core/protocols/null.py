@@ -6,10 +6,9 @@ from typing import Protocol, runtime_checkable
 from enum import Enum, auto
 from typing_extensions import TypeAlias
 
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS, CONST_EXPRESSION_SOURCE_OPERATORS
 
 if TYPE_CHECKING:
-    from ..expression_nodes.null import ExpressionNode, NullExpressionNode, NullConstantExpressionNode, NullLogicalExpressionNode
+    from ..expression_nodes import ExpressionNode, NullExpressionNode, NullConstantExpressionNode, NullConditionalExpressionNode, NullLogicalExpressionNode,SupportedNullExpressionNodeTypes
     from ...types import SupportedExpressions
     from ..expression_builders.base_expression_builder import ExpressionBuilder
 
@@ -31,17 +30,16 @@ class ENUM_NULL_OPERATORS(Enum):
     IS_NULL = auto()
     NOT_NULL = auto()
 
-validNullExpresionNodes: TypeAlias = Union[NullExpressionNode, NullConstantExpressionNode, NullLogicalExpressionNode]
 
 
 class NullVisitorProtocol(Protocol):
 
-    def visit_expression(self, node: validNullExpresionNodes) -> Any: ...
+    def visit_expression_node(self, node: SupportedNullExpressionNodeTypes) -> Any: ...
 
     def fill_null(self, node: NullExpressionNode) -> SupportedExpressions: ...
-    def null_if(self, node: NullExpressionNode) -> SupportedExpressions: ...
+    def null_if(self, node: NullConditionalExpressionNode) -> SupportedExpressions: ...
 
-    def always_null(self) -> SupportedExpressions: ...
+    def always_null(self, node: NullConstantExpressionNode) -> SupportedExpressions: ...
 
     def is_null(self, node: NullLogicalExpressionNode) -> Any: ...
     def not_null(self, node: NullLogicalExpressionNode) -> Any: ...

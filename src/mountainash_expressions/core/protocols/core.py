@@ -7,19 +7,15 @@ from abc import ABC, abstractmethod
 from ...types import SupportedExpressions
 from typing_extensions import TypeAlias
 
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS, CONST_EXPRESSION_NATIVE_OPERATORS
 
 if TYPE_CHECKING:
     from ..expression_nodes import ExpressionNode
-    from ..expression_nodes.core.core_expression_nodes import ColumnExpressionNode, LiteralExpressionNode, NativeBackendExpressionNode
+    from ..expression_nodes import ColumnExpressionNode, LiteralExpressionNode, SupportedCoreExpressionNodeTypes
 
     # from ...expression_parameters import ExpressionParameter
     from ...types import SupportedExpressions
     from ..expression_builders.base_expression_builder import ExpressionBuilder
 
-
-
-validArithmeticExpresionNodes: TypeAlias = Union[ColumnExpressionNode, LiteralExpressionNode, NativeBackendExpressionNode]
 
 
 class ENUM_CORE_OPERATORS(Enum):
@@ -33,21 +29,16 @@ class ENUM_CORE_OPERATORS(Enum):
 
 class CoreVisitorProtocol(Protocol):
 
-    def visit_column_expression(self, node: ColumnExpressionNode) -> SupportedExpressions: ...
-    def col(self,  node: ColumnExpressionNode) -> SupportedExpressions: ...
-
-    def visit_literal_expression(self, node: LiteralExpressionNode) -> SupportedExpressions: ...
+    def visit_expression_node(self, node: SupportedCoreExpressionNodeTypes) -> SupportedExpressions: ...
+    def col(self, node: ColumnExpressionNode) -> SupportedExpressions: ...
     def lit(self, node: LiteralExpressionNode) -> SupportedExpressions: ...
 
-    def visit_native_expression(self, expression_node: NativeBackendExpressionNode) -> SupportedExpressions: ...
-    def native(self,  node: NativeBackendExpressionNode) -> SupportedExpressions: ...
 
 
 class CoreExpressionProtocol(Protocol):
 
     def col(self,   column: str, /,  **kwargs) -> SupportedExpressions: ...
     def lit(self,   value: Any) -> SupportedExpressions: ...
-    def native(self,  expr: SupportedExpressions) -> SupportedExpressions: ...
 
 
 class CoreBuilderProtocol(Protocol):

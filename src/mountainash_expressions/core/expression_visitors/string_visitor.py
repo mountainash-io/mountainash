@@ -19,11 +19,16 @@ from ...types import SupportedExpressions
 
 if TYPE_CHECKING:
     from ..expression_nodes import (
-    StringExpressionNode,
-    StringIterableExpressionNode,
-    StringLogicalExpressionNode,
-    PatternExpressionNode,
-    PatternLogicalExpressionNode
+        StringExpressionNode,
+        StringIterableExpressionNode,
+        StringSuffixExpressionNode,
+        StringPrefixExpressionNode,
+        StringSubstringExpressionNode,
+        StringPatternExpressionNode,
+        StringReplaceExpressionNode,
+        StringPatternReplaceExpressionNode,
+        StringSplitExpressionNode,
+        SupportedStringExpressionNodeTypes
 )
 
 
@@ -66,27 +71,10 @@ class StringExpressionVisitor(ExpressionVisitor,
     # ========================================
 
 
-    def visit_expression_node(self, node: SupportedStringExpressionNodes) -> SupportedExpressions:
+    def visit_expression_node(self, node: SupportedStringExpressionNodeTypes) -> SupportedExpressions:
         op_func = self._get_expr_op(self._string_ops, node)
         return op_func(node)
 
-
-    def visit_string_iterable_expression(self, node: StringIterableExpressionNode) -> SupportedExpressions:
-        op_func = self._get_expr_op(self._string_iterable_ops, node)
-        return op_func(node)
-
-    def visit_string_logical_expression(self, node: StringLogicalExpressionNode) -> SupportedExpressions:
-        op_func = self._get_expr_op(self._string_logical_ops, node)
-        return op_func(node)
-
-
-    def visit_pattern_expression(self, node: PatternExpressionNode) -> SupportedExpressions:
-        op_func = self._get_expr_op(self._pattern_ops, node)
-        return op_func(node)
-
-    def visit_pattern_logical_expression(self, node: PatternLogicalExpressionNode) -> SupportedExpressions:
-        op_func = self._get_expr_op(self._pattern_logical_ops, node)
-        return op_func(node)
 
 
     # ========================================
@@ -124,7 +112,7 @@ class StringExpressionVisitor(ExpressionVisitor,
         return self.backend.str_rtrim(operand_expr)
 
 
-    def str_substring(self, node: StringExpressionNode) -> SupportedExpressions:
+    def str_substring(self, node: StringSubstringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
@@ -136,13 +124,13 @@ class StringExpressionVisitor(ExpressionVisitor,
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
         return self.backend.str_length(operand_expr)
 
-    def str_replace(self, node: StringExpressionNode) -> SupportedExpressions:
+    def str_replace(self, node: StringReplaceExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
         return self.backend.str_replace(operand_expr)
 
-    def str_split(self, node: StringExpressionNode) -> SupportedExpressions:
+    def str_split(self, node: StringSplitExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
@@ -166,37 +154,37 @@ class StringExpressionVisitor(ExpressionVisitor,
     # String Logical Operations
     # ========================================
 
-    def str_contains(self, node: StringExpressionNode) -> SupportedExpressions:
+    def str_contains(self, node: StringSubstringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.str_contains(operand_expr, node.value)
+        return self.backend.str_contains(operand_expr, node.substring)
 
 
-    def str_starts_with(self, node: StringExpressionNode) -> SupportedExpressions:
+    def str_starts_with(self, node: StringPrefixExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.str_starts_with(operand_expr, node.value)
+        return self.backend.str_starts_with(operand_expr, node.prefix)
 
 
-    def str_ends_with(self, node: StringExpressionNode) -> SupportedExpressions:
+    def str_ends_with(self, node: StringSuffixExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.str_ends_with(operand_expr, node.value)
+        return self.backend.str_ends_with(operand_expr, node.suffix)
 
     # ========================================
     # String Pattern  Operations
     # ========================================
 
-    def pat_regex_replace(self, node: PatternExpressionNode) -> SupportedExpressions:
+    def pat_regex_replace(self, node: StringPatternReplaceExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.pat_regex_replace(operand_expr, node.value)
+        return self.backend.pat_regex_replace(operand_expr, node.pattern, node.replacement)
 
 
 
@@ -204,22 +192,22 @@ class StringExpressionVisitor(ExpressionVisitor,
     # String Pattern Logical Operations
     # ========================================
 
-    def pat_like(self, node: PatternLogicalExpressionNode) -> SupportedExpressions:
+    def pat_like(self, node: StringPatternExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.pat_like(operand_expr, node.value)
+        return self.backend.pat_like(operand_expr, node.pattern)
 
 
-    def pat_regex_match(self, node: PatternLogicalExpressionNode) -> SupportedExpressions:
+    def pat_regex_match(self, node: StringPatternExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.pat_regex_match(operand_expr, node.value)
+        return self.backend.pat_regex_match(operand_expr, node.pattern)
 
 
-    def pat_regex_contains(self, node: PatternLogicalExpressionNode) -> SupportedExpressions:
+    def pat_regex_contains(self, node: StringPatternExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.pat_regex_contains(operand_expr, node.value)
+        return self.backend.pat_regex_contains(operand_expr, node.pattern)

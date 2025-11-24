@@ -1,6 +1,6 @@
 
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, Dict, Any
+from typing import Callable, TYPE_CHECKING, Dict, Any, Union
 from typing import Protocol
 from enum import Enum, auto
 from abc import ABC, abstractmethod
@@ -13,7 +13,7 @@ from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
-    from ..expression_nodes.name import ExpressionNode, NameExpressionNode
+    from ..expression_nodes import ExpressionNode, NameExpressionNode, NameAliasExpressionNode, NamePrefixExpressionNode, NameSuffixExpressionNode, SupportedNameExpressionNodeTypes
     from ..expression_parameters import ExpressionParameter
     from ..expression_builders.base_expression_builder import ExpressionBuilder
     from ...types import SupportedExpressions
@@ -30,14 +30,13 @@ class ENUM_NAME_OPERATORS(Enum):
     NAME_TO_UPPER = auto()
     NAME_TO_LOWER = auto()
 
-
 class NameVisitorProtocol(Protocol):
 
-    def visit_expression(self, node: NameExpressionNode) -> SupportedExpressions: ...
+    def visit_expression_node(self, node: SupportedNameExpressionNodeTypes) -> SupportedExpressions: ...
 
-    def alias(self, node: NameExpressionNode) -> SupportedExpressions: ...
-    def prefix(self, node: NameExpressionNode) -> SupportedExpressions: ...
-    def suffix(self, node: NameExpressionNode) -> SupportedExpressions: ...
+    def alias(self, node: NameAliasExpressionNode) -> SupportedExpressions: ...
+    def prefix(self, node: NamePrefixExpressionNode) -> SupportedExpressions: ...
+    def suffix(self, node: NameSuffixExpressionNode) -> SupportedExpressions: ...
     def to_upper(self, node: NameExpressionNode) -> SupportedExpressions: ...
     def to_lower(self, node: NameExpressionNode) -> SupportedExpressions: ...
 

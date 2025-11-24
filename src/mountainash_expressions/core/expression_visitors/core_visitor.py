@@ -18,20 +18,8 @@ from ...types import SupportedExpressions
 
 if TYPE_CHECKING:
     from ..expression_nodes import (
-
-    ExpressionNode,
-    # NativeBackendExpressionNode,
     ColumnExpressionNode,
     LiteralExpressionNode,
-
-    # CastExpressionNode,
-    # LogicalConstantExpressionNode,
-    # UnaryExpressionNode,
-    # LogicalExpressionNode,
-    # ComparisonExpressionNode,
-    # CollectionExpressionNode,
-    # ArithmeticExpressionNode,
-    # ConditionalIfElseExpressionNode,
 )
 
 
@@ -54,7 +42,7 @@ class CoreExpressionVisitor(ExpressionVisitor,
     # Core Vistors
     # ========================================
 
-    def visit_expression_node(self, node: SupportedCoreExpresionNodeTypes) -> SupportedExpressions:
+    def visit_expression_node(self, node: SupportedCoreExpressionNodeTypes) -> SupportedExpressions:
         op_func = self._get_expr_op(self._core_ops, node)
         return op_func(node)
 

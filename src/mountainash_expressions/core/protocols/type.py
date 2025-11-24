@@ -10,11 +10,10 @@ from ibis.expr.visualize import get_type
 
 
 if TYPE_CHECKING:
-    from ..expression_nodes.type import ExpressionNode, CastExpressionNode
+    from ..expression_nodes import ExpressionNode, TypeExpressionNode, SupportedTypeExpressionNodeTypes
     from ..expression_parameters import ExpressionParameter
     from ...types import SupportedExpressions
     from ..expression_builders.base_expression_builder import ExpressionBuilder
-    from ...types import SupportedExpressions
 
 
 class ENUM_TYPE_OPERATORS(Enum):
@@ -38,8 +37,8 @@ class ENUM_TYPE_OPERATORS(Enum):
 
 class TypeVisitorProtocol(Protocol):
 
-    def visit_expression(self, node: CastExpressionNode) -> SupportedExpressions: ...
-    def cast(self, node: CastExpressionNode) -> SupportedExpressions: ...
+    def visit_expression_node(self, node: SupportedTypeExpressionNodeTypes) -> SupportedExpressions: ...
+    def cast(self, node: TypeExpressionNode) -> SupportedExpressions: ...
 
 class TypeExpressionProtocol(Protocol):
     def cast(self, operand_expr: SupportedExpressions, type: Any, **kwargs) -> SupportedExpressions: ...

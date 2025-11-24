@@ -14,7 +14,7 @@ from ...types import SupportedExpressions
 
 
 from ..expression_nodes import ExpressionNode
-from ..expression_nodes.boolean_expression_nodes import BooleanIterableExpressionNode, BooleanComparisonExpressionNode, BooleanCollectionExpressionNode, BooleanUnaryExpressionNode, BooleanConstantExpressionNode, SupportedBooleanExpressionNodeTypes
+from ..expression_nodes import BooleanIterableExpressionNode, BooleanComparisonExpressionNode, BooleanCollectionExpressionNode, BooleanUnaryExpressionNode, BooleanConstantExpressionNode, SupportedBooleanExpressionNodeTypes, BooleanIsCloseExpressionNode,BooleanBetweenExpressionNode
 
 from ..protocols import BooleanVisitorProtocol, ENUM_BOOLEAN_OPERATORS
 
@@ -67,8 +67,6 @@ class BooleanExpressionVisitor(ExpressionVisitor,
     # ===============
     # Expression Visitor Methods
     # ===============
-
-
 
     # ===============
     # Logical Expressions
@@ -237,14 +235,14 @@ class BooleanExpressionVisitor(ExpressionVisitor,
         return self.backend.le(left_expr, right_expr)
 
 
-    def is_close(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
+    def is_close(self, node: BooleanIsCloseExpressionNode) -> SupportedExpressions:
         """Boolean less-than-or-equal: NULLs treated as False."""
         left_expr =  ExpressionParameter(node.left).to_native_expression()
         right_expr = ExpressionParameter(node.right).to_native_expression()
         precision = node.precision
         return self.backend.is_close(left_expr, right_expr, precision)
 
-    def between(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
+    def between(self, node: BooleanBetweenExpressionNode) -> SupportedExpressions:
         """Boolean less-than-or-equal: NULLs treated as False."""
         left_expr =  ExpressionParameter(node.left).to_native_expression()
         right_expr = ExpressionParameter(node.right).to_native_expression()

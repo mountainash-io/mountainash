@@ -12,7 +12,7 @@ from .null import NullVisitorProtocol, NullExpressionProtocol, NullBuilderProtoc
 from .string import StringVisitorProtocol, StringExpressionProtocol, StringBuilderProtocol, ENUM_STRING_OPERATORS
 from .temporal import TemporalVisitorProtocol, TemporalExpressionProtocol, TemporalBuilderProtocol, ENUM_TEMPORAL_OPERATORS
 from .type import TypeVisitorProtocol, TypeExpressionProtocol, TypeBuilderProtocol, ENUM_TYPE_OPERATORS
-
+from .native import NativeVisitorProtocol, NativeExpressionProtocol, ENUM_NATIVE_OPERATORS
 
 
 __all__ = [
@@ -50,7 +50,11 @@ __all__ = [
 
 "TypeVisitorProtocol",
 "TypeExpressionProtocol",
-"TypeBuilderProtocol"
+"TypeBuilderProtocol",
+
+"NativeVisitorProtocol",
+"NativeExpressionProtocol",
+
 
 # Enums
 "ENUM_ARITHMETIC_OPERATORS",
@@ -61,5 +65,7 @@ __all__ = [
 "ENUM_NULL_OPERATORS",
 "ENUM_STRING_OPERATORS",
 "ENUM_TEMPORAL_OPERATORS",
-"ENUM_TYPE_OPERATORS"
+"ENUM_TYPE_OPERATORS",
+"ENUM_NATIVE_OPERATORS"
+
 ]

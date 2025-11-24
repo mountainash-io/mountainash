@@ -7,24 +7,21 @@ from functools import reduce
 from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
 
-from ..expression_parameters import ExpressionParameter
-from ..expression_system.base import ExpressionSystem
-from .expression_visitor import ExpressionVisitor
-
-
-from ..protocols import ENUM_NULL_OPERATORS, NullVisitorProtocol
-from ..protocols.null.null_constant import ENUM_NULL_CONSTANT_OPERATORS, NullConstantVisitorProtocol
-from ..protocols.null.null_logical import ENUM_NULL_LOGICAL_OPERATORS, NullLogicalVisitorProtocol
-
-from ....types import SupportedExpressions
 
 
 if TYPE_CHECKING:
-    from ..expression_nodes.null_expression_nodes import (
-    NullExpressionNode,
-    NullConstantExpressionNode,
-    NullLogicalExpressionNode
-)
+    from ..expression_nodes import (
+        NullExpressionNode,
+        NullConstantExpressionNode,
+        NullConditionalExpressionNode,
+        NullLogicalExpressionNode,
+    SupportedNullExpressionNodeTypes
+    )
+    from ..expression_parameters import ExpressionParameter
+    from ..expression_system.base import ExpressionSystem
+    from .expression_visitor import ExpressionVisitor
+    from ..protocols import ENUM_NULL_OPERATORS, NullVisitorProtocol
+    from ...types import SupportedExpressions
 
 
 class NullExpressionVisitor(ExpressionVisitor,
@@ -49,18 +46,8 @@ class NullExpressionVisitor(ExpressionVisitor,
     # Boolean Comparison Operations
     # ========================================
 
-    def visit_expression_node(self, node: NullExpressionNode) -> SupportedExpressions:
+    def visit_expression_node(self, node: SupportedNullExpressionNodeTypes) -> SupportedExpressions:
         op_func = self._get_expr_op(self._null_ops, node)
-        return op_func(node)
-
-
-    def visit_null_constant_expression(self, node: NullConstantExpressionNode) -> SupportedExpressions:
-        op_func = self._get_expr_op(self._null_constant_ops, node)
-        return op_func(node)
-
-
-    def visit_null_logical_expression(self, node: NullLogicalExpressionNode) -> SupportedExpressions:
-        op_func = self._get_expr_op(self._null_logical_ops, node)
         return op_func(node)
 
 
@@ -69,20 +56,20 @@ class NullExpressionVisitor(ExpressionVisitor,
     # ========================================
 
 
-    def is_null(self, node: NullExpressionNode) -> SupportedExpressions:
+    def is_null(self, node: NullLogicalExpressionNode) -> SupportedExpressions:
         """Create a subtract expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
         return self.backend.is_null(operand_expr)
 
-    def not_null(self, node: NullExpressionNode) -> SupportedExpressions:
+    def not_null(self, node: NullLogicalExpressionNode) -> SupportedExpressions:
         """Create a subtract expression."""
 
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
         is_null_result =  self.backend.is_null(operand_expr)
         return self.backend.not_(is_null_result)
 
-    def always_null(self) -> SupportedExpressions:
+    def always_null(self, node: NullConstantExpressionNode) -> SupportedExpressions:
         """Create a subtract expression."""
         return self.backend.lit(None)
 
@@ -93,7 +80,7 @@ class NullExpressionVisitor(ExpressionVisitor,
         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
         return self.backend.fill_null(operand_expr, node.value)
 
-    def null_if(self, node: NullExpressionNode) -> SupportedExpressions:
+    def null_if(self, node: NullConditionalExpressionNode) -> SupportedExpressions:
          """Create a subtract expression."""
 
          operand_expr =  ExpressionParameter(node.operand).to_native_expression()
