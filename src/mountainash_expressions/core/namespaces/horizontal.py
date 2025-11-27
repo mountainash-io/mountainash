@@ -1,28 +1,31 @@
-"""Iterable operations namespace."""
+"""Horizontal operations namespace.
+
+Horizontal operations work row-wise across multiple columns.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Union
 
 from .base import BaseNamespace
-from ..protocols import ENUM_ITERABLE_OPERATORS
-from ..expression_nodes.iterable_expression_nodes import IterableExpressionNode
+from ..protocols import ENUM_HORIZONTAL_OPERATORS, HorizontalBuilderProtocol
+from ..expression_nodes.horizontal_expression_nodes import HorizontalExpressionNode
 
 if TYPE_CHECKING:
     from ..expression_api.base import BaseExpressionAPI
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class IterableNamespace(BaseNamespace):
+class HorizontalNamespace(BaseNamespace, HorizontalBuilderProtocol):
     """
-    Iterable operations namespace.
+    Horizontal operations namespace.
 
-    Provides methods that operate on multiple values.
+    Provides methods that operate across multiple columns row-wise.
 
     Methods:
         coalesce: Return first non-null value
-        greatest: Return maximum value
-        least: Return minimum value
+        greatest: Return maximum value across columns
+        least: Return minimum value across columns
     """
 
     def coalesce(
@@ -43,8 +46,8 @@ class IterableNamespace(BaseNamespace):
             # Returns a if not null, else b if not null, else 0
         """
         operands = [self._node] + [self._to_node_or_value(other) for other in others]
-        node = IterableExpressionNode(
-            ENUM_ITERABLE_OPERATORS.COALESCE,
+        node = HorizontalExpressionNode(
+            ENUM_HORIZONTAL_OPERATORS.COALESCE,
             *operands,
         )
         return self._build(node)
@@ -67,8 +70,8 @@ class IterableNamespace(BaseNamespace):
             # Max of a, b, c for each row
         """
         operands = [self._node] + [self._to_node_or_value(other) for other in others]
-        node = IterableExpressionNode(
-            ENUM_ITERABLE_OPERATORS.GREATEST,
+        node = HorizontalExpressionNode(
+            ENUM_HORIZONTAL_OPERATORS.GREATEST,
             *operands,
         )
         return self._build(node)
@@ -91,8 +94,8 @@ class IterableNamespace(BaseNamespace):
             # Min of a, b, c for each row
         """
         operands = [self._node] + [self._to_node_or_value(other) for other in others]
-        node = IterableExpressionNode(
-            ENUM_ITERABLE_OPERATORS.LEAST,
+        node = HorizontalExpressionNode(
+            ENUM_HORIZONTAL_OPERATORS.LEAST,
             *operands,
         )
         return self._build(node)

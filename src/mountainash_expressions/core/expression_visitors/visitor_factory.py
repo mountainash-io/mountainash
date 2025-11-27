@@ -93,15 +93,10 @@ class ExpressionVisitorFactory:
             ColumnExpressionNode,
             LiteralExpressionNode,
             StringExpressionNode,
-            StringIterableExpressionNode,
-            StringSuffixExpressionNode,
-            StringPrefixExpressionNode,
-            StringSubstringExpressionNode,
-            StringSearchExpressionNode,
-            StringPatternExpressionNode,
-            StringReplaceExpressionNode,
-            StringPatternReplaceExpressionNode,
-            StringSplitExpressionNode,
+            StringPatternNode,
+            StringReplaceNode,
+            StringSliceNode,
+            StringConcatNode,
             TemporalExtractExpressionNode,
             TemporalDiffExpressionNode,
             TemporalAdditionExpressionNode,
@@ -117,7 +112,7 @@ class ExpressionVisitorFactory:
             NamePrefixExpressionNode,
             NameSuffixExpressionNode,
             NameExpressionNode,
-            IterableExpressionNode,
+            HorizontalExpressionNode,
             NativeExpressionNode,
         )
         from ..expression_nodes.conditional_expression_nodes import ConditionalExpressionNode
@@ -148,15 +143,10 @@ class ExpressionVisitorFactory:
         # String nodes
         elif isinstance(node, (
             StringExpressionNode,
-            StringIterableExpressionNode,
-            StringSuffixExpressionNode,
-            StringPrefixExpressionNode,
-            StringSubstringExpressionNode,
-            StringSearchExpressionNode,
-            StringPatternExpressionNode,
-            StringReplaceExpressionNode,
-            StringPatternReplaceExpressionNode,
-            StringSplitExpressionNode
+            StringPatternNode,
+            StringReplaceNode,
+            StringSliceNode,
+            StringConcatNode,
         )):
             from .string_visitor import StringExpressionVisitor
             return StringExpressionVisitor(expression_system)
@@ -198,10 +188,10 @@ class ExpressionVisitorFactory:
             from .name_visitor import NameExpressionVisitor
             return NameExpressionVisitor(expression_system)
 
-        # Iterable nodes
-        elif isinstance(node, IterableExpressionNode):
-            from .iterable_visitor import IterableExpressionVisitor
-            return IterableExpressionVisitor(expression_system)
+        # Horizontal nodes
+        elif isinstance(node, HorizontalExpressionNode):
+            from .horizontal_visitor import HorizontalExpressionVisitor
+            return HorizontalExpressionVisitor(expression_system)
 
         # Native nodes
         elif isinstance(node, NativeExpressionNode):
@@ -219,20 +209,62 @@ class ExpressionVisitorFactory:
                 f"Node: {node}"
             )
 
+    # String aliases for backend identification
+    _BACKEND_ALIASES: Dict[str, CONST_VISITOR_BACKENDS] = {
+        # Polars
+        "polars": CONST_VISITOR_BACKENDS.POLARS,
+        "pl": CONST_VISITOR_BACKENDS.POLARS,
+        # Ibis
+        "ibis": CONST_VISITOR_BACKENDS.IBIS,
+        "ir": CONST_VISITOR_BACKENDS.IBIS,
+        # Narwhals
+        "narwhals": CONST_VISITOR_BACKENDS.NARWHALS,
+        "nw": CONST_VISITOR_BACKENDS.NARWHALS,
+        # Pandas (for future)
+        "pandas": CONST_VISITOR_BACKENDS.PANDAS,
+        "pd": CONST_VISITOR_BACKENDS.PANDAS,
+    }
+
     @classmethod
-    def _identify_backend(cls, dataframe: Any) -> CONST_VISITOR_BACKENDS:
+    def _identify_backend(cls, dataframe_or_backend: Any) -> CONST_VISITOR_BACKENDS:
         """
-        Identify the backend framework from a DataFrame/Table object.
+        Identify the backend framework from a DataFrame/Table object or string identifier.
 
         Args:
-            dataframe: The DataFrame or Table object
+            dataframe_or_backend: Either:
+                - A DataFrame/Table object (pl.DataFrame, nw.DataFrame, ir.Table, etc.)
+                - A string identifier ("polars", "pl", "ibis", "ir", "narwhals", "nw")
+                - A CONST_VISITOR_BACKENDS enum value
 
         Returns:
             The identified backend constant
 
         Raises:
             ValueError: If backend cannot be identified
+
+        Examples:
+            >>> _identify_backend(polars_df)  # Auto-detect from DataFrame
+            >>> _identify_backend("polars")   # Explicit string
+            >>> _identify_backend("ibis")     # Explicit string
+            >>> _identify_backend(CONST_VISITOR_BACKENDS.POLARS)  # Pass-through
         """
+        # Handle string identifiers
+        if isinstance(dataframe_or_backend, str):
+            backend_lower = dataframe_or_backend.lower()
+            if backend_lower in cls._BACKEND_ALIASES:
+                return cls._BACKEND_ALIASES[backend_lower]
+            raise ValueError(
+                f"Unknown backend identifier: '{dataframe_or_backend}'. "
+                f"Valid options: {list(cls._BACKEND_ALIASES.keys())}"
+            )
+
+        # Handle CONST_VISITOR_BACKENDS enum directly (pass-through)
+        if isinstance(dataframe_or_backend, CONST_VISITOR_BACKENDS):
+            return dataframe_or_backend
+
+        # Auto-detect from DataFrame object
+        dataframe = dataframe_or_backend
+
         # Get the module and class name
         module_name = type(dataframe).__module__
         class_name = type(dataframe).__name__

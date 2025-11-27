@@ -1,14 +1,14 @@
-"""Polars iterable operations implementation."""
+"""Polars horizontal operations implementation."""
 
 from typing import Any
 import polars as pl
 
 from .base import PolarsBaseExpressionSystem
-from ....core.protocols import IterableExpressionProtocol
+from ....core.protocols import HorizontalExpressionProtocol
 
 
-class PolarsIterableExpressionSystem(PolarsBaseExpressionSystem, IterableExpressionProtocol):
-    """Polars implementation of iterable operations."""
+class PolarsHorizontalExpressionSystem(PolarsBaseExpressionSystem, HorizontalExpressionProtocol):
+    """Polars implementation of horizontal operations."""
 
     def coalesce(self, *operands: Any) -> pl.Expr:
         """

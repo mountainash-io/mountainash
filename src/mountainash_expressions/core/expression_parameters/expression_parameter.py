@@ -13,8 +13,7 @@ class ParameterType(Enum):
     """Enumeration of parameter types in priority order."""
     EXPRESSION_NODE = auto()      # MountainAsh expression nodes
     NATIVE_EXPRESSION = auto()    # Backend-specific expressions (pl.Expr, nw.Expr)
-    COLUMN_REFERENCE = auto()     # String column names
-    LITERAL_VALUE = auto()        # Python literals (int, float, bool, None)
+    LITERAL_VALUE = auto()        # Python literals (int, float, str, bool, None)
     UNKNOWN = auto()              # Cannot determine type
 
 class ExpressionParameter:
@@ -56,23 +55,63 @@ class ExpressionParameter:
             return ParameterType.EXPRESSION_NODE
 
         # 2. Native backend expressions (only if expression_system available)
-        # TODO: Is this needed - can't it be detected by type?
-        if self.expression_system and self.expression_system.is_native_expression(self.value):
-            return ParameterType.NATIVE_EXPRESSION
+        if self.expression_system:
+            if self.expression_system.is_native_expression(self.value):
+                return ParameterType.NATIVE_EXPRESSION
 
-        # 3. String disambiguation (column vs literal)
-        if isinstance(self.value, str):
-            if self._looks_like_column_name(self.value):
-                return ParameterType.COLUMN_REFERENCE
-            else:
-                return ParameterType.LITERAL_VALUE
+            # Check for backend mismatch - native expression for wrong backend
+            detected_backend = self._detect_native_expression_backend()
+            if detected_backend is not None:
+                expected_backend = getattr(self.expression_system, 'backend_type', None)
+                if expected_backend is not None:
+                    expected_name = expected_backend.value if hasattr(expected_backend, 'value') else str(expected_backend)
+                    raise TypeError(
+                        f"Backend mismatch: received {detected_backend} expression but "
+                        f"compiling for {expected_name} backend. "
+                        f"Native expressions must match the target DataFrame's backend."
+                    )
 
-        # 4. Python literals
+        # 3. Python literals (including strings)
+        # Note: Strings are ALWAYS treated as literals. Use ma.col("name") for column references.
         if self._is_literal():
             return ParameterType.LITERAL_VALUE
 
-        # 5. Unknown type
+        # 4. Unknown type
         return ParameterType.UNKNOWN
+
+    def _detect_native_expression_backend(self) -> Optional[str]:
+        """
+        Detect if value is a native expression and return its backend name.
+
+        Returns:
+            Backend name string ('polars', 'narwhals', 'ibis') if value is a
+            recognized native expression, None otherwise.
+        """
+        # Check Polars
+        try:
+            import polars as pl
+            if isinstance(self.value, pl.Expr):
+                return 'polars'
+        except ImportError:
+            pass
+
+        # Check Narwhals
+        try:
+            import narwhals as nw
+            if isinstance(self.value, nw.Expr):
+                return 'narwhals'
+        except ImportError:
+            pass
+
+        # Check Ibis
+        try:
+            import ibis.expr.types as ir
+            if isinstance(self.value, ir.Expr):
+                return 'ibis'
+        except ImportError:
+            pass
+
+        return None
 
     def _is_expression_node(self) -> bool:
         """Check if value is a MountainAsh expression node."""
@@ -83,6 +122,7 @@ class ExpressionParameter:
 
         Includes:
         - None
+        - str (ALWAYS literal - use ma.col() for column references)
         - bool, int, float
         - datetime, date, time, timedelta
         - list, tuple (for is_in operations)
@@ -93,25 +133,8 @@ class ExpressionParameter:
         from datetime import datetime, date, time, timedelta
         return self.value is None or isinstance(
             self.value,
-            (bool, int, float, datetime, date, time, timedelta, list, tuple)
+            (str, bool, int, float, datetime, date, time, timedelta, list, tuple)
         )
-
-    def _looks_like_column_name(self, s: str) -> bool:
-        """
-        Heuristic to determine if string is likely a column name.
-
-        Column names typically:
-        - Are valid Python identifiers
-        - May contain dots for qualified names (table.column)
-        - Don't contain spaces or special characters
-        """
-        # Check for qualified column name (table.column)
-        if '.' in s:
-            parts = s.split('.')
-            return all(part.isidentifier() for part in parts)
-
-        # Simple column name
-        return s.isidentifier()
 
     def to_native_expression(self) -> Any:
         """
@@ -149,9 +172,6 @@ class ExpressionParameter:
 
         elif self._type == ParameterType.NATIVE_EXPRESSION:
             return self.value  # Already in correct format
-
-        elif self._type == ParameterType.COLUMN_REFERENCE:
-            return self.expression_system.col(self.value)
 
         elif self._type == ParameterType.LITERAL_VALUE:
             return self.expression_system.lit(self.value)

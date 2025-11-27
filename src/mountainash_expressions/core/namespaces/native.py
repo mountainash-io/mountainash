@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .base import BaseNamespace
-from ..protocols import ENUM_NATIVE_OPERATORS
+from ..protocols import ENUM_NATIVE_OPERATORS, NativeBuilderProtocol
 from ..expression_nodes import NativeExpressionNode
 
 if TYPE_CHECKING:
     from ..expression_api.base import BaseExpressionAPI
 
 
-class NativeNamespace(BaseNamespace):
+class NativeNamespace(BaseNamespace, NativeBuilderProtocol):
     """
     Native expression passthrough namespace.
 

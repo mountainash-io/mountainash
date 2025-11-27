@@ -8,12 +8,15 @@ and entry point functions for creating expressions.
 from .base import BaseNamespace
 
 # Flat namespaces (methods accessed directly on API)
-from .comparison.boolean import BooleanComparisonNamespace
-from .logical.boolean import BooleanLogicalNamespace
+from .boolean import BooleanNamespace
 from .arithmetic import ArithmeticNamespace
+
+# Backwards compatibility aliases
+BooleanComparisonNamespace = BooleanNamespace
+BooleanLogicalNamespace = BooleanNamespace
 from .null import NullNamespace
 from .type import TypeNamespace
-from .iterable import IterableNamespace
+from .horizontal import HorizontalNamespace
 from .native import NativeNamespace
 from .conditional import ConditionalNamespace, WhenBuilder, WhenThenBuilder
 
@@ -23,18 +26,19 @@ from .datetime import DateTimeNamespace
 from .name import NameNamespace
 
 # Entry point functions
-from .entrypoints import col, lit, coalesce, greatest, least, when
+from .entrypoints import col, lit, coalesce, greatest, least, when, native
 
 __all__ = [
     # Base
     "BaseNamespace",
     # Flat namespaces
-    "BooleanComparisonNamespace",
-    "BooleanLogicalNamespace",
+    "BooleanNamespace",
+    "BooleanComparisonNamespace",  # Backwards compatibility alias
+    "BooleanLogicalNamespace",  # Backwards compatibility alias
     "ArithmeticNamespace",
     "NullNamespace",
     "TypeNamespace",
-    "IterableNamespace",
+    "HorizontalNamespace",
     "NativeNamespace",
     "ConditionalNamespace",
     # Explicit namespaces
@@ -51,4 +55,5 @@ __all__ = [
     "greatest",
     "least",
     "when",
+    "native",
 ]

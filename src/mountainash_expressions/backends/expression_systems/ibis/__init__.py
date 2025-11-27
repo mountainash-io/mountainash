@@ -11,7 +11,7 @@ from .string import IbisStringExpressionSystem
 from .temporal import IbisTemporalExpressionSystem
 from .type import IbisTypeExpressionSystem
 from .null import IbisNullExpressionSystem
-from .iterable import IbisIterableExpressionSystem
+from .horizontal import IbisHorizontalExpressionSystem
 from .name import IbisNameExpressionSystem
 from .native import IbisNativeExpressionSystem
 from .conditional import IbisConditionalExpressionSystem
@@ -26,7 +26,7 @@ class IbisExpressionSystem(
     IbisTemporalExpressionSystem,
     IbisTypeExpressionSystem,
     IbisNullExpressionSystem,
-    IbisIterableExpressionSystem,
+    IbisHorizontalExpressionSystem,
     IbisNameExpressionSystem,
     IbisNativeExpressionSystem,
     IbisConditionalExpressionSystem,
@@ -39,7 +39,7 @@ class IbisExpressionSystem(
 
     Includes:
     - Core, Boolean, Arithmetic, String, Temporal, Type, Null operations
-    - Iterable: coalesce(), greatest(), least()
+    - Horizontal: coalesce(), greatest(), least()
     - Name: alias(), prefix(), suffix(), to_upper(), to_lower()
     - Native: native() (passthrough for backend-native expressions)
     """

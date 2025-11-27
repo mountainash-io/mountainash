@@ -1,14 +1,14 @@
-"""Ibis iterable operations implementation."""
+"""Ibis horizontal operations implementation."""
 
 from typing import Any
 import ibis
 
 from .base import IbisBaseExpressionSystem
-from ....core.protocols import IterableExpressionProtocol
+from ....core.protocols import HorizontalExpressionProtocol
 
 
-class IbisIterableExpressionSystem(IbisBaseExpressionSystem, IterableExpressionProtocol):
-    """Ibis implementation of iterable operations."""
+class IbisHorizontalExpressionSystem(IbisBaseExpressionSystem, HorizontalExpressionProtocol):
+    """Ibis implementation of horizontal operations."""
 
     def coalesce(self, *operands: Any) -> Any:
         """

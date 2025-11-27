@@ -6,7 +6,7 @@
 from .arithmetic_protocols import ArithmeticVisitorProtocol, ArithmeticExpressionProtocol, ArithmeticBuilderProtocol, ENUM_ARITHMETIC_OPERATORS
 from .boolean_protocols import BooleanVisitorProtocol, BooleanExpressionProtocol, BooleanBuilderProtocol, ENUM_BOOLEAN_OPERATORS
 from .core_protocols import CoreVisitorProtocol, CoreExpressionProtocol, CoreBuilderProtocol, ENUM_CORE_OPERATORS
-from .iterable_protocols import IterableVisitorProtocol, IterableExpressionProtocol, IterableBuilderProtocol, ENUM_ITERABLE_OPERATORS
+from .horizontal_protocols import HorizontalVisitorProtocol, HorizontalExpressionProtocol, HorizontalBuilderProtocol, ENUM_HORIZONTAL_OPERATORS
 from .name_protocols import NameVisitorProtocol, NameExpressionProtocol, NameBuilderProtocol, ENUM_NAME_OPERATORS
 from .null_protocols import NullVisitorProtocol, NullExpressionProtocol, NullBuilderProtocol, ENUM_NULL_OPERATORS
 from .string_protocols import StringVisitorProtocol, StringExpressionProtocol, StringBuilderProtocol, ENUM_STRING_OPERATORS
@@ -28,9 +28,9 @@ __all__ = [
 "CoreExpressionProtocol",
 "CoreBuilderProtocol",
 
-"IterableVisitorProtocol",
-"IterableExpressionProtocol",
-"IterableBuilderProtocol",
+"HorizontalVisitorProtocol",
+"HorizontalExpressionProtocol",
+"HorizontalBuilderProtocol",
 
 "NameVisitorProtocol",
 "NameExpressionProtocol",
@@ -61,7 +61,7 @@ __all__ = [
 "ENUM_ARITHMETIC_OPERATORS",
 "ENUM_BOOLEAN_OPERATORS",
 "ENUM_CORE_OPERATORS",
-"ENUM_ITERABLE_OPERATORS",
+"ENUM_HORIZONTAL_OPERATORS",
 "ENUM_NAME_OPERATORS",
 "ENUM_NULL_OPERATORS",
 "ENUM_STRING_OPERATORS",

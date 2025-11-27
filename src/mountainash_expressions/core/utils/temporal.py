@@ -188,6 +188,91 @@ def since(duration: str, reference: datetime = None) -> datetime:
     return reference - delta
 
 
+# =============================================================================
+# Expression Builder Functions
+# =============================================================================
+
+def within_last(column_expr, duration: str):
+    """
+    Create expression for "within last X time" filtering.
+
+    Like journalctl --since, this filters for timestamps greater than
+    (now - duration).
+
+    Args:
+        column_expr: Column expression (ma.col("timestamp"))
+        duration: Time expression like "10 minutes", "2 hours"
+
+    Returns:
+        Boolean expression for filtering
+
+    Example:
+        >>> # Filter for events in last 10 minutes
+        >>> expr = within_last(ma.col("timestamp"), "10 minutes")
+        >>> result = df.filter(expr.compile(df))
+    """
+    import mountainash_expressions as ma
+
+    threshold = time_ago(duration)
+    return column_expr.gt(ma.lit(threshold))
+
+
+def older_than(column_expr, duration: str):
+    """
+    Create expression for "older than X time" filtering.
+
+    Like find -mtime, this filters for timestamps less than
+    (now - duration).
+
+    Args:
+        column_expr: Column expression (ma.col("timestamp"))
+        duration: Time expression like "7 days", "1 month"
+
+    Returns:
+        Boolean expression for filtering
+
+    Example:
+        >>> # Filter for files older than 7 days
+        >>> expr = older_than(ma.col("created_at"), "7 days")
+        >>> result = df.filter(expr.compile(df))
+    """
+    import mountainash_expressions as ma
+
+    threshold = time_ago(duration)
+    return column_expr.lt(ma.lit(threshold))
+
+
+def between_last(column_expr, older_duration: str, newer_duration: str):
+    """
+    Create expression for "between X and Y ago" filtering.
+
+    Filters for timestamps that fall between two time points in the past.
+    Note: older_duration should be larger than newer_duration.
+
+    Args:
+        column_expr: Column expression (ma.col("timestamp"))
+        older_duration: The older bound (e.g., "8 hours" - further in past)
+        newer_duration: The newer bound (e.g., "2 hours" - more recent)
+
+    Returns:
+        Boolean expression for filtering
+
+    Example:
+        >>> # Filter for events between 8 and 2 hours ago
+        >>> expr = between_last(ma.col("timestamp"), "8 hours", "2 hours")
+        >>> result = df.filter(expr.compile(df))
+    """
+    import mountainash_expressions as ma
+
+    older_threshold = time_ago(older_duration)  # Further back
+    newer_threshold = time_ago(newer_duration)  # More recent
+
+    # Column must be > older threshold AND < newer threshold
+    return column_expr.gt(ma.lit(older_threshold)).and_(
+        column_expr.lt(ma.lit(newer_threshold))
+    )
+
+
 __all__ = [
     "TIME_UNITS",
     "parse_time_expression",
@@ -195,4 +280,8 @@ __all__ = [
     "to_offset_string",
     "time_ago",
     "since",
+    # Expression builders
+    "within_last",
+    "older_than",
+    "between_last",
 ]

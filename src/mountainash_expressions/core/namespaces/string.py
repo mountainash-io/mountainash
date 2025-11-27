@@ -5,18 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from .base import BaseNamespace
-from ..protocols import ENUM_STRING_OPERATORS
+from ..protocols import ENUM_STRING_OPERATORS, StringBuilderProtocol
 from ..expression_nodes import (
     StringExpressionNode,
-    StringIterableExpressionNode,
-    StringSuffixExpressionNode,
-    StringPrefixExpressionNode,
-    StringSubstringExpressionNode,
-    StringPatternExpressionNode,
-    StringSearchExpressionNode,
-    StringReplaceExpressionNode,
-    StringPatternReplaceExpressionNode,
-    StringSplitExpressionNode,
+    StringPatternNode,
+    StringReplaceNode,
+    StringSliceNode,
+    StringConcatNode,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +19,7 @@ if TYPE_CHECKING:
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class StringNamespace(BaseNamespace):
+class StringNamespace(BaseNamespace, StringBuilderProtocol):
     """
     String operations namespace accessed via .str accessor.
 
@@ -169,7 +164,7 @@ class StringNamespace(BaseNamespace):
         """
         start_node = self._to_node_or_value(start)
         length_node = self._to_node_or_value(length) if length is not None else None
-        node = StringSubstringExpressionNode(
+        node = StringSliceNode(
             ENUM_STRING_OPERATORS.STR_SUBSTRING,
             self._node,
             start_node,
@@ -197,7 +192,7 @@ class StringNamespace(BaseNamespace):
         """
         old_node = self._to_node_or_value(old)
         new_node = self._to_node_or_value(new)
-        node = StringReplaceExpressionNode(
+        node = StringReplaceNode(
             ENUM_STRING_OPERATORS.STR_REPLACE,
             self._node,
             old_node,
@@ -222,7 +217,7 @@ class StringNamespace(BaseNamespace):
             >>> col("first").str.concat(" ", col("last"))
         """
         operands = [self._node] + [self._to_node_or_value(other) for other in others]
-        node = StringIterableExpressionNode(
+        node = StringConcatNode(
             ENUM_STRING_OPERATORS.STR_CONCAT,
             *operands,
         )
@@ -245,8 +240,8 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.split(",")  # "a,b,c" -> ["a", "b", "c"]
         """
         separator_node = self._to_node_or_value(separator)
-        node = StringSplitExpressionNode(
-            ENUM_STRING_OPERATORS.STR_SUBSTRING,  # TODO: Verify this operator
+        node = StringPatternNode(
+            ENUM_STRING_OPERATORS.STR_SUBSTRING,  # TODO: Add STR_SPLIT operator
             self._node,
             separator_node,
         )
@@ -293,7 +288,7 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.contains("hello")
         """
         substring_node = self._to_node_or_value(substring)
-        node = StringSearchExpressionNode(
+        node = StringPatternNode(
             ENUM_STRING_OPERATORS.STR_CONTAINS,
             self._node,
             substring_node,
@@ -317,7 +312,7 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.starts_with("hello")
         """
         prefix_node = self._to_node_or_value(prefix)
-        node = StringPrefixExpressionNode(
+        node = StringPatternNode(
             ENUM_STRING_OPERATORS.STR_STARTS_WITH,
             self._node,
             prefix_node,
@@ -341,7 +336,7 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.ends_with("world")
         """
         suffix_node = self._to_node_or_value(suffix)
-        node = StringSuffixExpressionNode(
+        node = StringPatternNode(
             ENUM_STRING_OPERATORS.STR_ENDS_WITH,
             self._node,
             suffix_node,
@@ -370,7 +365,7 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.like("hello%")   # Starts with "hello"
         """
         pattern_node = self._to_node_or_value(pattern)
-        node = StringPatternExpressionNode(
+        node = StringPatternNode(
             ENUM_STRING_OPERATORS.PAT_LIKE,
             self._node,
             pattern_node,
@@ -394,7 +389,7 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.regex_match(r"^\\d{3}-\\d{4}$")
         """
         pattern_node = self._to_node_or_value(pattern)
-        node = StringPatternExpressionNode(
+        node = StringPatternNode(
             ENUM_STRING_OPERATORS.PAT_REGEX_MATCH,
             self._node,
             pattern_node,
@@ -418,7 +413,7 @@ class StringNamespace(BaseNamespace):
             >>> col("text").str.regex_contains(r"\\d+")  # Contains digits
         """
         pattern_node = self._to_node_or_value(pattern)
-        node = StringPatternExpressionNode(
+        node = StringPatternNode(
             ENUM_STRING_OPERATORS.PAT_REGEX_CONTAINS,
             self._node,
             pattern_node,
@@ -445,7 +440,7 @@ class StringNamespace(BaseNamespace):
         """
         pattern_node = self._to_node_or_value(pattern)
         replacement_node = self._to_node_or_value(replacement)
-        node = StringPatternReplaceExpressionNode(
+        node = StringReplaceNode(
             ENUM_STRING_OPERATORS.PAT_REGEX_REPLACE,
             self._node,
             pattern_node,

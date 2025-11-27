@@ -10,7 +10,7 @@ from enum import Enum, auto
 if TYPE_CHECKING:
     from ..expression_nodes import ExpressionNode, TypeExpressionNode, SupportedTypeExpressionNodeTypes
     from ...types import SupportedExpressions
-    from ..expression_builders.base_expression_builder import ExpressionBuilder
+    from ..namespaces import BaseNamespace
 
 
 class ENUM_TYPE_OPERATORS(Enum):
@@ -41,4 +41,4 @@ class TypeExpressionProtocol(Protocol):
     def cast(self, operand_expr: SupportedExpressions, type: Any, **kwargs) -> SupportedExpressions: ...
 
 class TypeBuilderProtocol(Protocol):
-    def cast(self, type: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
+    def cast(self, type: Union[BaseNamespace,ExpressionNode, Any]) -> BaseNamespace: ...

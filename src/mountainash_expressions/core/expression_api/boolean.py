@@ -13,7 +13,7 @@ from ..namespaces import (
     ArithmeticNamespace,
     NullNamespace,
     TypeNamespace,
-    IterableNamespace,
+    HorizontalNamespace,
     NativeNamespace,
 )
 # Import explicit namespaces
@@ -48,7 +48,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     - Arithmetic: add, sub, mul, div, mod, pow, etc.
     - Null: is_null, is_not_null, fill_null, etc.
     - Type: cast
-    - Iterable: coalesce, greatest, least
+    - Horizontal: coalesce, greatest, least
     - Native: native
 
     Explicit namespaces (methods accessed via accessor):
@@ -69,7 +69,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         ArithmeticNamespace,
         NullNamespace,
         TypeNamespace,
-        IterableNamespace,
+        HorizontalNamespace,
         NativeNamespace,
     )
 

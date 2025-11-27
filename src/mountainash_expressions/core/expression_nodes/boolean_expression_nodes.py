@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, TYPE_CHECKING, Iterable
+from typing import Any, TYPE_CHECKING, Iterable
 from pydantic import Field
 
 from .base_expression_node import ExpressionNode
@@ -9,7 +9,6 @@ from ..protocols import ENUM_BOOLEAN_OPERATORS
 if TYPE_CHECKING:
     from ..expression_visitors import ExpressionVisitorFactory
     from ..expression_visitors.boolean_visitor import BooleanExpressionVisitor
-
     from ...types import SupportedExpressions
 
 
@@ -26,34 +25,30 @@ class BooleanExpressionNode(ExpressionNode):
     def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
         return visitor.visit_expression_node(self)
 
-    def eval(self) -> Callable:
+    def eval(self, dataframe: Any) -> SupportedExpressions:
+        from ..expression_visitors import ExpressionVisitorFactory
+        backend_type = ExpressionVisitorFactory._identify_backend(dataframe)
+        expression_system = ExpressionVisitorFactory._expression_systems_registry[backend_type]()
+        visitor = ExpressionVisitorFactory.get_visitor_for_node(self, expression_system)
+        return visitor.visit_expression_node(self)
 
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
-
-        return eval_expr
-
-
-    def eval_is_true(self) -> Callable:
+    def eval_is_true(self, dataframe: Any) -> SupportedExpressions:
         """Convert ternary result to boolean TRUE check."""
+        from ..expression_visitors import ExpressionVisitorFactory
+        backend_type = ExpressionVisitorFactory._identify_backend(dataframe)
+        expression_system = ExpressionVisitorFactory._expression_systems_registry[backend_type]()
+        visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(expression_system, self.logic_type)
+        logical_node = BooleanUnaryExpressionNode(ENUM_BOOLEAN_OPERATORS.IS_TRUE, [self])
+        return visitor.visit_expression_node(logical_node)
 
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            logical_node = BooleanUnaryExpressionNode(ENUM_BOOLEAN_OPERATORS.IS_TRUE, [self])
-            return visitor.visit_expression_node(logical_node)
-
-        return eval_expr
-
-    def eval_is_false(self) -> Callable:
+    def eval_is_false(self, dataframe: Any) -> SupportedExpressions:
         """Convert ternary result to boolean FALSE check."""
-
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            logical_node = BooleanUnaryExpressionNode(ENUM_BOOLEAN_OPERATORS.IS_FALSE, [self])
-            return visitor.visit_expression_node(logical_node)
-
-        return eval_expr
+        from ..expression_visitors import ExpressionVisitorFactory
+        backend_type = ExpressionVisitorFactory._identify_backend(dataframe)
+        expression_system = ExpressionVisitorFactory._expression_systems_registry[backend_type]()
+        visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(expression_system, self.logic_type)
+        logical_node = BooleanUnaryExpressionNode(ENUM_BOOLEAN_OPERATORS.IS_FALSE, [self])
+        return visitor.visit_expression_node(logical_node)
 
 
 class BooleanUnaryExpressionNode(BooleanExpressionNode):

@@ -46,12 +46,14 @@ from . import backends  # noqa: F401
 # ========================================
 # Public API (Primary Interface)
 # ========================================
-from .api import (
+from .core.expression_api import (
     # Expression API classes
     BaseExpressionAPI,
     BooleanExpressionAPI,
-    ExpressionBuilder,  # Backwards compatibility alias
+    # ExpressionBuilder,  # Backwards compatibility alias
+)
 
+from .core.namespaces.entrypoints import (
     # Entry point functions (from namespaces)
     col,
     lit,
@@ -59,6 +61,7 @@ from .api import (
     greatest,
     least,
     when,
+    native,
 )
 
 # ========================================
@@ -77,11 +80,12 @@ __all__ = [
     # Expression API classes
     "BaseExpressionAPI",
     "BooleanExpressionAPI",
-    "ExpressionBuilder",  # Deprecated alias
+    # "ExpressionBuilder",  # Deprecated alias
 
     # Factory functions (PRIMARY API)
     "col",
     "lit",
+    "native",
 
     # Conditional functions
     "coalesce",

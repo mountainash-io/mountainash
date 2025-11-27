@@ -1,8 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
-# from ibis.expr.types import s  # Removed - not used and causes import error
 
 
 if TYPE_CHECKING:
@@ -16,9 +15,8 @@ class ExpressionNode(BaseModel, ABC):
     model_config = ConfigDict(
         use_enum_values=False,  # CRITICAL: Keep Enum identity, don't convert to values
         validate_assignment=True,
-        arbitrary_types_allowed=True,  # For Callable if needed
+        arbitrary_types_allowed=True,
     )
-    # operator: Enum = Field()
 
     operator: Any = Field()
 
@@ -28,5 +26,13 @@ class ExpressionNode(BaseModel, ABC):
         pass
 
     @abstractmethod
-    def eval(self) -> Callable:
+    def eval(self, dataframe: Any) -> SupportedExpressions:
+        """Evaluate this node against a DataFrame.
+
+        Args:
+            dataframe: DataFrame to detect backend from (pl.DataFrame, nw.DataFrame, ir.Table, etc.)
+
+        Returns:
+            Backend-native expression (pl.Expr | nw.Expr | ir.Expr)
+        """
         pass

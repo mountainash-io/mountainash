@@ -13,6 +13,7 @@ from enum import Enum, auto
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
     from ..expression_api.base import BaseExpressionAPI
+    from ..namespaces import BaseNamespace
 
 
 class ENUM_CONDITIONAL_OPERATORS(Enum):

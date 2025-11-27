@@ -1,32 +1,34 @@
-"""Boolean comparison operations namespace."""
+"""Boolean operations namespace (comparison and logical)."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Union
 
-from ..base import BaseNamespace
-from ...protocols import ENUM_BOOLEAN_OPERATORS
-from ...expression_nodes import (
+from .base import BaseNamespace
+from ..protocols import ENUM_BOOLEAN_OPERATORS, BooleanBuilderProtocol
+from ..expression_nodes import (
     BooleanComparisonExpressionNode,
     BooleanCollectionExpressionNode,
     BooleanConstantExpressionNode,
     BooleanIsCloseExpressionNode,
     BooleanBetweenExpressionNode,
+    BooleanIterableExpressionNode,
+    BooleanUnaryExpressionNode,
 )
 
 if TYPE_CHECKING:
-    from ...expression_api.base import BaseExpressionAPI
-    from ...expression_nodes.base_expression_node import ExpressionNode
+    from ..expression_api.base import BaseExpressionAPI
+    from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class BooleanComparisonNamespace(BaseNamespace):
+class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
     """
-    Comparison operations producing boolean results.
+    Boolean operations namespace.
 
-    Provides comparison operators (eq, ne, gt, lt, ge, le),
-    collection membership (is_in, is_not_in), and boolean constants.
+    Provides comparison operators that produce boolean results,
+    and logical operators that combine boolean values.
 
-    Methods:
+    Comparison Operations:
         eq: Equal to (==)
         ne: Not equal to (!=)
         gt: Greater than (>)
@@ -39,6 +41,15 @@ class BooleanComparisonNamespace(BaseNamespace):
         is_not_in: Value not in collection
         always_true: Constant TRUE
         always_false: Constant FALSE
+
+    Logical Operations:
+        and_: Logical AND
+        or_: Logical OR
+        xor_: Logical XOR (exclusive or)
+        xor_parity: XOR parity (odd number of TRUE)
+        not_: Logical NOT
+        is_true: Check if TRUE (for ternary logic)
+        is_false: Check if FALSE (for ternary logic)
     """
 
     # ========================================
@@ -172,18 +183,14 @@ class BooleanComparisonNamespace(BaseNamespace):
         Returns:
             New ExpressionAPI with between node.
         """
-        # Note: BooleanBetweenExpressionNode(operator, left, right, closed)
-        # where left is the value, right is upper bound, and we need to handle lower separately
-        # Based on the constructor, this seems wrong - let me check the visitor to understand usage
         lower_node = self._to_node_or_value(lower)
         upper_node = self._to_node_or_value(upper)
         node = BooleanBetweenExpressionNode(
             ENUM_BOOLEAN_OPERATORS.BETWEEN,
             self._node,  # value to check
-            lower_node,  # should be lower, but constructor says "right"
+            lower_node,
             closed,
         )
-        # TODO: Verify this matches visitor expectations
         return self._build(node)
 
     # ========================================
@@ -249,5 +256,134 @@ class BooleanComparisonNamespace(BaseNamespace):
         """Return a constant FALSE value."""
         node = BooleanConstantExpressionNode(
             ENUM_BOOLEAN_OPERATORS.ALWAYS_FALSE,
+        )
+        return self._build(node)
+
+    # ========================================
+    # Logical Operators (Iterable)
+    # ========================================
+
+    def and_(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """
+        Logical AND operation.
+
+        Args:
+            *others: Other expressions to AND with this one.
+
+        Returns:
+            New ExpressionAPI with AND node.
+        """
+        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        node = BooleanIterableExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.AND,
+            *operands,
+        )
+        return self._build(node)
+
+    def or_(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """
+        Logical OR operation.
+
+        Args:
+            *others: Other expressions to OR with this one.
+
+        Returns:
+            New ExpressionAPI with OR node.
+        """
+        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        node = BooleanIterableExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.OR,
+            *operands,
+        )
+        return self._build(node)
+
+    def xor_(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """
+        Logical XOR operation (exclusive or).
+
+        Args:
+            *others: Other expressions to XOR with this one.
+
+        Returns:
+            New ExpressionAPI with XOR node.
+        """
+        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        node = BooleanIterableExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.XOR,
+            *operands,
+        )
+        return self._build(node)
+
+    def xor_parity(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """
+        XOR parity check (odd number of TRUE values).
+
+        Returns TRUE if an odd number of operands are TRUE.
+
+        Args:
+            *others: Other expressions to check parity with.
+
+        Returns:
+            New ExpressionAPI with XOR_PARITY node.
+        """
+        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        node = BooleanIterableExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.XOR_PARITY,
+            *operands,
+        )
+        return self._build(node)
+
+    # ========================================
+    # Unary Operators
+    # ========================================
+
+    def not_(self) -> BaseExpressionAPI:
+        """
+        Logical NOT operation.
+
+        Returns:
+            New ExpressionAPI with NOT node.
+        """
+        node = BooleanUnaryExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.NOT,
+            self._node,
+        )
+        return self._build(node)
+
+    def is_true(self) -> BaseExpressionAPI:
+        """
+        Check if expression evaluates to TRUE (for ternary logic).
+
+        Returns:
+            New ExpressionAPI with IS_TRUE node.
+        """
+        node = BooleanUnaryExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.IS_TRUE,
+            self._node,
+        )
+        return self._build(node)
+
+    def is_false(self) -> BaseExpressionAPI:
+        """
+        Check if expression evaluates to FALSE (for ternary logic).
+
+        Returns:
+            New ExpressionAPI with IS_FALSE node.
+        """
+        node = BooleanUnaryExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.IS_FALSE,
+            self._node,
         )
         return self._build(node)

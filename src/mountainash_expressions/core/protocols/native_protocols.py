@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Protocol
 from enum import Enum, auto
-from ...types import SupportedExpressions
 
 if TYPE_CHECKING:
     from ..expression_nodes import NativeExpressionNode
+    from ..namespaces import BaseNamespace
 
     # from ...expression_parameters import ExpressionParameter
     from ...types import SupportedExpressions

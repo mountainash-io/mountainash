@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from .base import BaseNamespace
-from ..protocols import ENUM_NAME_OPERATORS
+from ..protocols import ENUM_NAME_OPERATORS, NameBuilderProtocol
 from ..expression_nodes import (
     NameExpressionNode,
     NameAliasExpressionNode,
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class NameNamespace(BaseNamespace):
+class NameNamespace(BaseNamespace, NameBuilderProtocol):
     """
     Name/alias operations namespace accessed via .name accessor.
 

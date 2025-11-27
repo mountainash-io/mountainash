@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from .base import BaseNamespace
-from ..protocols import ENUM_ARITHMETIC_OPERATORS
+from ..protocols import ENUM_ARITHMETIC_OPERATORS, ArithmeticBuilderProtocol
 from ..expression_nodes import (
     ArithmeticExpressionNode,
     ArithmeticIterableExpressionNode,
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class ArithmeticNamespace(BaseNamespace):
+class ArithmeticNamespace(BaseNamespace, ArithmeticBuilderProtocol):
     """
     Arithmetic operations namespace.
 

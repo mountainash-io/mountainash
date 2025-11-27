@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from .base import BaseNamespace
-from ..protocols import ENUM_NULL_OPERATORS
+from ..protocols import ENUM_NULL_OPERATORS, NullBuilderProtocol
 from ..expression_nodes import (
     NullExpressionNode,
     NullConditionalExpressionNode,
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class NullNamespace(BaseNamespace):
+class NullNamespace(BaseNamespace, NullBuilderProtocol):
     """
     NULL operations namespace.
 

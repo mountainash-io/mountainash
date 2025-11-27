@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from .base import BaseNamespace
-from ..protocols import ENUM_TYPE_OPERATORS
+from ..protocols import ENUM_TYPE_OPERATORS, TypeBuilderProtocol
 from ..expression_nodes import TypeExpressionNode
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class TypeNamespace(BaseNamespace):
+class TypeNamespace(BaseNamespace, TypeBuilderProtocol):
     """
     Type casting operations namespace.
 

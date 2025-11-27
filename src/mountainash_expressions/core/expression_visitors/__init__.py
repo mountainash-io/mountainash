@@ -13,7 +13,7 @@ from .null_visitor import NullExpressionVisitor
 from .string_visitor import StringExpressionVisitor
 
 from .native_visitor import NativeExpressionVisitor
-from .iterable_visitor import IterableExpressionVisitor
+from .horizontal_visitor import HorizontalExpressionVisitor
 from .temporal_visitor import TemporalExpressionVisitor
 from .type_visitor import TypeExpressionVisitor
 from .name_visitor import NameExpressionVisitor
@@ -33,7 +33,7 @@ __all__ = [
     "StringExpressionVisitor",
 
     "NativeExpressionVisitor",
-    "IterableExpressionVisitor",
+    "HorizontalExpressionVisitor",
     "TemporalExpressionVisitor",
     "TypeExpressionVisitor",
     "NameExpressionVisitor",

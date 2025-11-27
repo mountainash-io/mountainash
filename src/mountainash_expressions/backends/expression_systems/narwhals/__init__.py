@@ -11,7 +11,7 @@ from .string import NarwhalsStringExpressionSystem
 from .temporal import NarwhalsTemporalExpressionSystem
 from .type import NarwhalsTypeExpressionSystem
 from .null import NarwhalsNullExpressionSystem
-from .iterable import NarwhalsIterableExpressionSystem
+from .horizontal import NarwhalsHorizontalExpressionSystem
 from .name import NarwhalsNameExpressionSystem
 from .native import NarwhalsNativeExpressionSystem
 from .conditional import NarwhalsConditionalExpressionSystem
@@ -26,7 +26,7 @@ class NarwhalsExpressionSystem(
     NarwhalsTemporalExpressionSystem,
     NarwhalsTypeExpressionSystem,
     NarwhalsNullExpressionSystem,
-    NarwhalsIterableExpressionSystem,
+    NarwhalsHorizontalExpressionSystem,
     NarwhalsNameExpressionSystem,
     NarwhalsNativeExpressionSystem,
     NarwhalsConditionalExpressionSystem,
@@ -39,7 +39,7 @@ class NarwhalsExpressionSystem(
 
     Includes:
     - Core, Boolean, Arithmetic, String, Temporal, Type, Null operations
-    - Iterable: coalesce(), greatest(), least()
+    - Horizontal: coalesce(), greatest(), least()
     - Name: alias(), prefix(), suffix(), to_upper(), to_lower()
     - Native: native() (passthrough for backend-native expressions)
     """

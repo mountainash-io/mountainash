@@ -120,7 +120,7 @@ class BaseExpressionAPI(ABC):
         """Get the underlying expression node or raw value."""
         return self._node
 
-    def compile(self, dataframe: Any, logic_type: Any = None) -> Any:
+    def compile(self, dataframe: Any) -> Any:
         """
         Compile expression to backend-native expression.
 
@@ -144,7 +144,7 @@ class BaseExpressionAPI(ABC):
         from ...constants import CONST_LOGIC_TYPES
         from ..expression_nodes.base_expression_node import ExpressionNode
 
-        logic = logic_type or CONST_LOGIC_TYPES.BOOLEAN
+        # logic = logic_type or CONST_LOGIC_TYPES.BOOLEAN
 
         # Detect backend and get ExpressionSystem
         backend_type = ExpressionVisitorFactory._identify_backend(dataframe)
@@ -156,7 +156,7 @@ class BaseExpressionAPI(ABC):
             visitor = ExpressionVisitorFactory.get_visitor_for_node(
                 self._node,
                 expression_system,
-                logic
+                # logic
             )
             return self._node.accept(visitor)
         else:

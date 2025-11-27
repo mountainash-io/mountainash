@@ -36,7 +36,7 @@ from .name_expression_nodes import (
 
 from .native_expression_nodes import NativeExpressionNode
 
-from .iterable_expression_nodes import IterableExpressionNode
+from .horizontal_expression_nodes import HorizontalExpressionNode
 
 from .null_expression_nodes import (
     NullExpressionNode,
@@ -48,7 +48,13 @@ from .null_expression_nodes import (
 from .type_expression_nodes import TypeExpressionNode
 
 from .string_expression_nodes import (
+    # New consolidated classes
     StringExpressionNode,
+    StringPatternNode,
+    StringReplaceNode,
+    StringSliceNode,
+    StringConcatNode,
+    # Backwards compatibility aliases (deprecated)
     StringIterableExpressionNode,
     StringSuffixExpressionNode,
     StringPrefixExpressionNode,
@@ -78,7 +84,7 @@ if TYPE_CHECKING:
         SupportedNullExpressionNodeTypes,
         SupportedTemporalExpressionNodeTypes,
         SupportedStringExpressionNodeTypes,
-        SupportedIterableExpressionNodeTypes,
+        SupportedHorizontalExpressionNodeTypes,
         SupportedNameExpressionNodeTypes,
         SupportedNativeExpressionNodeTypes,
         SupportedTypeExpressionNodeTypes
@@ -101,7 +107,7 @@ __all__ = [
 
     "NativeExpressionNode",
 
-    "IterableExpressionNode",
+    "HorizontalExpressionNode",
 
     "NameAliasExpressionNode",
     "NamePrefixExpressionNode",
@@ -124,7 +130,13 @@ __all__ = [
     "BooleanBetweenExpressionNode",
 
 
+    # New consolidated string nodes
     "StringExpressionNode",
+    "StringPatternNode",
+    "StringReplaceNode",
+    "StringSliceNode",
+    "StringConcatNode",
+    # Backwards compatibility aliases (deprecated)
     "StringIterableExpressionNode",
     "StringSuffixExpressionNode",
     "StringPrefixExpressionNode",

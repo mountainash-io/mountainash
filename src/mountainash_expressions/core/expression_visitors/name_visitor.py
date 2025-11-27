@@ -60,7 +60,7 @@ class NameExpressionVisitor(ExpressionVisitor,
     def alias(self, node: NameAliasExpressionNode) -> SupportedExpressions:
 
         operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
-        return self.backend.alias(operand_expr, node.alias)
+        return self.backend.alias(operand_expr, node.name)
 
     def prefix(self, node: NamePrefixExpressionNode) -> SupportedExpressions:
 

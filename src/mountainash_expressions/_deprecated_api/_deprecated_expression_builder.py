@@ -30,8 +30,8 @@ from ..core.expression_api import (
     BooleanExpressionAPI,
 )
 from ..core.expression_builders.core_expression_builder import col, lit
-from ..core.expression_nodes import IterableExpressionNode
-from ..core.protocols import ENUM_ITERABLE_OPERATORS
+from ..core.expression_nodes import HorizontalExpressionNode
+from ..core.protocols import ENUM_HORIZONTAL_OPERATORS
 
 # Backwards compatibility aliases
 ExpressionBuilder = BooleanExpressionAPI
@@ -67,8 +67,8 @@ def coalesce(*values: Union[BooleanExpressionAPI, Any]) -> BooleanExpressionAPI:
             return lit(val)._node
 
     operands = [to_node(v) for v in values]
-    node = IterableExpressionNode(
-        ENUM_ITERABLE_OPERATORS.COALESCE,
+    node = HorizontalExpressionNode(
+        ENUM_HORIZONTAL_OPERATORS.COALESCE,
         *operands,
     )
     return BooleanExpressionAPI(node)

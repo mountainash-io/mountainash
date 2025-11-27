@@ -176,7 +176,7 @@ class PolarsTemporalExpressionSystem(PolarsBaseExpressionSystem, TemporalExpress
         Returns:
             pl.Expr with year difference (operand - other_date)
         """
-        return operand.dt.year() - other_date.dt.year()
+        return operand.dt.year() - other.dt.year()
 
     def dt_diff_months(self, operand: Any, other_date: Any) -> pl.Expr:
         """

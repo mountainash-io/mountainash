@@ -20,7 +20,7 @@ from ..protocols import (
     TemporalExpressionProtocol,
     TypeExpressionProtocol,
     NameExpressionProtocol,
-    IterableExpressionProtocol,
+    HorizontalExpressionProtocol,
     NativeExpressionProtocol,
 )
 
@@ -38,7 +38,7 @@ class ExpressionSystem(
     TemporalExpressionProtocol,
     TypeExpressionProtocol,
     NameExpressionProtocol,
-    IterableExpressionProtocol,
+    HorizontalExpressionProtocol,
     NativeExpressionProtocol,
 ):
     """

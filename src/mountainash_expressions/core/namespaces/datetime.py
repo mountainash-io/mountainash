@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Union, Optional
 
 from .base import BaseNamespace
-from ..protocols import ENUM_TEMPORAL_OPERATORS
+from ..protocols import ENUM_TEMPORAL_OPERATORS, TemporalBuilderProtocol
 from ..expression_nodes import (
     TemporalExtractExpressionNode,
     TemporalDiffExpressionNode,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from ..expression_nodes.base_expression_node import ExpressionNode
 
 
-class DateTimeNamespace(BaseNamespace):
+class DateTimeNamespace(BaseNamespace, TemporalBuilderProtocol):
     """
     DateTime operations namespace accessed via .dt accessor.
 
@@ -672,7 +672,7 @@ class DateTimeNamespace(BaseNamespace):
     def between_last(
         self,
         start_duration: str,
-        end_duration: str = None,
+        end_duration: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """
         Create expression for "between X and Y time ago".

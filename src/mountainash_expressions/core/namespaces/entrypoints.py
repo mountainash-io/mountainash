@@ -15,9 +15,9 @@ The api/ layer re-exports these for user convenience.
 from __future__ import annotations
 from typing import Any, Union, TYPE_CHECKING
 
-from ..protocols import ENUM_CORE_OPERATORS, ENUM_ITERABLE_OPERATORS
-from ..expression_nodes import ColumnExpressionNode, LiteralExpressionNode
-from ..expression_nodes.iterable_expression_nodes import IterableExpressionNode
+from ..protocols import ENUM_CORE_OPERATORS, ENUM_HORIZONTAL_OPERATORS, ENUM_NATIVE_OPERATORS
+from ..expression_nodes import ColumnExpressionNode, LiteralExpressionNode, NativeExpressionNode
+from ..expression_nodes.horizontal_expression_nodes import HorizontalExpressionNode
 from .conditional import WhenBuilder
 
 if TYPE_CHECKING:
@@ -85,7 +85,7 @@ def lit(value: Any) -> BaseExpressionAPI:
 
 
 # ============================================================================
-# Iterable Entry Points
+# Horizontal Entry Points
 # ============================================================================
 
 def _to_node(val: Any) -> Any:
@@ -119,8 +119,8 @@ def coalesce(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
     from ..expression_api import BooleanExpressionAPI
 
     operands = [_to_node(e) for e in exprs]
-    node = IterableExpressionNode(
-        ENUM_ITERABLE_OPERATORS.COALESCE,
+    node = HorizontalExpressionNode(
+        ENUM_HORIZONTAL_OPERATORS.COALESCE,
         *operands,
     )
     return BooleanExpressionAPI(node)
@@ -149,8 +149,8 @@ def greatest(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
     from ..expression_api import BooleanExpressionAPI
 
     operands = [_to_node(e) for e in exprs]
-    node = IterableExpressionNode(
-        ENUM_ITERABLE_OPERATORS.GREATEST,
+    node = HorizontalExpressionNode(
+        ENUM_HORIZONTAL_OPERATORS.GREATEST,
         *operands,
     )
     return BooleanExpressionAPI(node)
@@ -179,8 +179,8 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
     from ..expression_api import BooleanExpressionAPI
 
     operands = [_to_node(e) for e in exprs]
-    node = IterableExpressionNode(
-        ENUM_ITERABLE_OPERATORS.LEAST,
+    node = HorizontalExpressionNode(
+        ENUM_HORIZONTAL_OPERATORS.LEAST,
         *operands,
     )
     return BooleanExpressionAPI(node)
@@ -208,6 +208,50 @@ def when(condition: Union[BaseExpressionAPI, ExpressionNode, Any]) -> WhenBuilde
 
 
 # ============================================================================
+# Native Expression Entry Points
+# ============================================================================
+
+def native(expr: Any) -> BaseExpressionAPI:
+    """
+    Wrap a backend-native expression in the abstract expression API.
+
+    This is an "escape hatch" that allows mixing backend-specific expressions
+    with mountainash expressions. The native expression is passed through
+    unchanged during compilation.
+
+    IMPORTANT: The native expression must match the backend of the DataFrame
+    it will be used with. A Polars expression cannot be used with an Ibis table.
+
+    Args:
+        expr: A backend-native expression (pl.Expr, nw.Expr, ibis.Expr, etc.)
+
+    Returns:
+        BooleanExpressionAPI wrapping the native expression
+
+    Example:
+        >>> import polars as pl
+        >>> import mountainash_expressions as ma
+        >>>
+        >>> # Use a native Polars expression
+        >>> native_filter = pl.col("status").is_in(["active", "pending"])
+        >>> ma_expr = ma.native(native_filter)
+        >>>
+        >>> # Combine with mountainash expressions
+        >>> combined = ma_expr.and_(ma.col("age").gt(18))
+        >>>
+        >>> # Use in filter
+        >>> result = df.filter(combined.compile(df))
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    node = NativeExpressionNode(
+        ENUM_NATIVE_OPERATORS.NATIVE,
+        expr,
+    )
+    return BooleanExpressionAPI(node)
+
+
+# ============================================================================
 # Exports
 # ============================================================================
 
@@ -215,10 +259,12 @@ __all__ = [
     # Core
     "col",
     "lit",
-    # Iterable
+    # Horizontal
     "coalesce",
     "greatest",
     "least",
     # Conditional
     "when",
+    # Native
+    "native",
 ]

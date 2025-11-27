@@ -1,3 +1,11 @@
+"""
+Horizontal operations protocols.
+
+Horizontal operations work row-wise across multiple columns:
+- coalesce: first non-null value
+- greatest: maximum value across columns
+- least: minimum value across columns
+"""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
@@ -6,39 +14,45 @@ from enum import Enum, auto
 from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
-    from ..expression_nodes import ExpressionNode, IterableExpressionNode, SupportedIterableExpressionNodeTypes
+    from ..expression_nodes import ExpressionNode, HorizontalExpressionNode, SupportedHorizontalExpressionNodeTypes
     from ...types import SupportedExpressions
-    from ..expression_builders.base_expression_builder import ExpressionBuilder
+    from ..namespaces import BaseNamespace
 
-    validArithmeticExpresionNodes: TypeAlias = IterableExpressionNode
+    validHorizontalExpressionNodes: TypeAlias = HorizontalExpressionNode
 
 
-class ENUM_ITERABLE_OPERATORS(Enum):
+class ENUM_HORIZONTAL_OPERATORS(Enum):
     """
-    Enumeration for expression logical unary operators.
+    Enumeration for horizontal operators.
+
+    Horizontal operations work across multiple columns for each row.
     """
     COALESCE = auto()
     GREATEST = auto()
     LEAST = auto()
 
-class IterableVisitorProtocol(Protocol):
 
-    def visit_expression_node(self, node: SupportedIterableExpressionNodeTypes) -> SupportedExpressions: ...
+class HorizontalVisitorProtocol(Protocol):
+    """Protocol for horizontal operation visitors."""
 
-    def coalesce(self, node: IterableExpressionNode) -> SupportedExpressions: ...
-    def greatest(self, node: IterableExpressionNode) -> SupportedExpressions: ...
-    def least(self,    node: IterableExpressionNode) -> SupportedExpressions: ...
+    def visit_expression_node(self, node: SupportedHorizontalExpressionNodeTypes) -> SupportedExpressions: ...
+
+    def coalesce(self, node: HorizontalExpressionNode) -> SupportedExpressions: ...
+    def greatest(self, node: HorizontalExpressionNode) -> SupportedExpressions: ...
+    def least(self,    node: HorizontalExpressionNode) -> SupportedExpressions: ...
 
 
-
-class IterableExpressionProtocol(Protocol):
+class HorizontalExpressionProtocol(Protocol):
+    """Protocol for backend horizontal operations."""
 
     def coalesce(self, *operands: SupportedExpressions) -> SupportedExpressions: ...
     def greatest(self, *operands: SupportedExpressions) -> SupportedExpressions: ...
     def least(self,    *operands: SupportedExpressions) -> SupportedExpressions: ...
 
-class IterableBuilderProtocol(Protocol):
 
-    def coalesce(self, *other: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
-    def greatest(self, *other: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
-    def least(self,    *other: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
+class HorizontalBuilderProtocol(Protocol):
+    """Protocol for horizontal operation builders."""
+
+    def coalesce(self, *other: Union[BaseNamespace, ExpressionNode, Any]) -> BaseNamespace: ...
+    def greatest(self, *other: Union[BaseNamespace, ExpressionNode, Any]) -> BaseNamespace: ...
+    def least(self,    *other: Union[BaseNamespace, ExpressionNode, Any]) -> BaseNamespace: ...

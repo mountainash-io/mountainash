@@ -38,12 +38,12 @@ Basic Usage:
 
 from __future__ import annotations
 
-# Re-export expression API classes
-from .expression_builder import (
-    BaseExpressionAPI,
-    BooleanExpressionAPI,
-    ExpressionBuilder,  # Backwards compatibility alias
-)
+# # Re-export expression API classes
+# from .expression_builder import (
+#     BaseExpressionAPI,
+#     BooleanExpressionAPI,
+#     ExpressionBuilder,  # Backwards compatibility alias
+# )
 
 # Entry point functions and conditional builders from namespaces
 from ..core.namespaces import (
@@ -53,23 +53,24 @@ from ..core.namespaces import (
     greatest,
     least,
     when,
+    native,
     WhenBuilder,
     WhenThenBuilder,
 )
 
-# Re-export temporal helpers
-from .temporal_helpers import (
-    parse_time_expression,
-    to_timedelta,
-    to_offset_string,
-    time_ago,
-    since,
-    within_last,
-    within_next,
-    between_last,
-    older_than,
-    newer_than,
-)
+# # Re-export temporal helpers
+# from .temporal_helpers import (
+#     parse_time_expression,
+#     to_timedelta,
+#     to_offset_string,
+#     time_ago,
+#     since,
+#     within_last,
+#     within_next,
+#     between_last,
+#     older_than,
+#     newer_than,
+# )
 
 __all__ = [
     # Expression API classes
@@ -84,6 +85,7 @@ __all__ = [
     "greatest",
     "least",
     "when",
+    "native",
     "WhenBuilder",
     "WhenThenBuilder",
 

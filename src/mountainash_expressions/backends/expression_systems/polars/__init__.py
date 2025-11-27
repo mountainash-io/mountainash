@@ -16,7 +16,7 @@ from .string import PolarsStringExpressionSystem
 from .temporal import PolarsTemporalExpressionSystem
 from .type import PolarsTypeExpressionSystem
 from .null import PolarsNullExpressionSystem
-from .iterable import PolarsIterableExpressionSystem
+from .horizontal import PolarsHorizontalExpressionSystem
 from .name import PolarsNameExpressionSystem
 from .native import PolarsNativeExpressionSystem
 from .conditional import PolarsConditionalExpressionSystem
@@ -31,7 +31,7 @@ class PolarsExpressionSystem(
     PolarsTemporalExpressionSystem,
     PolarsTypeExpressionSystem,
     PolarsNullExpressionSystem,
-    PolarsIterableExpressionSystem,
+    PolarsHorizontalExpressionSystem,
     PolarsNameExpressionSystem,
     PolarsNativeExpressionSystem,
     PolarsConditionalExpressionSystem,
@@ -48,7 +48,7 @@ class PolarsExpressionSystem(
     - Temporal: dt_year(), dt_month(), dt_add_days(), dt_diff_hours(), etc.
     - Type: cast()
     - Null: is_null()
-    - Iterable: coalesce(), greatest(), least()
+    - Horizontal: coalesce(), greatest(), least()
     - Name: alias(), prefix(), suffix(), to_upper(), to_lower()
     - Native: native() (passthrough for backend-native expressions)
 

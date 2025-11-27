@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
     # from ...expression_parameters import ExpressionParameter
     from ...types import SupportedExpressions
-    from ..expression_builders.base_expression_builder import ExpressionBuilder
+    from ..namespaces import BaseNamespace
 
 
 
@@ -22,7 +22,6 @@ class ENUM_CORE_OPERATORS(Enum):
     """
     COL = auto()
     LIT = auto()
-    NATIVE = auto()
 
 
 class CoreVisitorProtocol(Protocol):
@@ -35,14 +34,14 @@ class CoreVisitorProtocol(Protocol):
 
 class CoreExpressionProtocol(Protocol):
 
-    def col(self,   column: str, /,  **kwargs) -> SupportedExpressions: ...
-    def lit(self,   value: Any) -> SupportedExpressions: ...
+    def col(self, name: str, **kwargs) -> SupportedExpressions: ...
+    def lit(self, value: Any) -> SupportedExpressions: ...
 
 
 class CoreBuilderProtocol(Protocol):
 
-    def col(self,  column: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
-    def lit(self, value: Union[ExpressionBuilder,ExpressionNode, Any]) -> ExpressionBuilder: ...
+    def col(self,  name: Union[BaseNamespace,ExpressionNode, Any]) -> BaseNamespace: ...
+    def lit(self, value: Union[BaseNamespace,ExpressionNode, Any]) -> BaseNamespace: ...
 
     # Native expressions can be parameter to other Nodes
-    # def native(self) -> ExpressionBuilder: ...
+    # def native(self) -> BaseNamespace: ...

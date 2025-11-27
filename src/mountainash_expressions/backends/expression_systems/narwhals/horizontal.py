@@ -1,14 +1,14 @@
-"""Narwhals iterable operations implementation."""
+"""Narwhals horizontal operations implementation."""
 
 from typing import Any
 import narwhals as nw
 
 from .base import NarwhalsBaseExpressionSystem
-from ....core.protocols import IterableExpressionProtocol
+from ....core.protocols import HorizontalExpressionProtocol
 
 
-class NarwhalsIterableExpressionSystem(NarwhalsBaseExpressionSystem, IterableExpressionProtocol):
-    """Narwhals implementation of iterable operations."""
+class NarwhalsHorizontalExpressionSystem(NarwhalsBaseExpressionSystem, HorizontalExpressionProtocol):
+    """Narwhals implementation of horizontal operations."""
 
     def coalesce(self, *operands: Any) -> nw.Expr:
         """

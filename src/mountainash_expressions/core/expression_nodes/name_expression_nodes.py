@@ -1,6 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, TYPE_CHECKING
-# from ibis.expr.types import s  # Removed - not used and causes import error
+from typing import Any, TYPE_CHECKING
 from pydantic import Field
 from .base_expression_node import ExpressionNode
 
@@ -20,12 +19,12 @@ class BaseNameExpressionNode(ExpressionNode):
     def accept(self, visitor: NameExpressionVisitor) -> SupportedExpressions:
         return visitor.visit_expression_node(self)
 
-    def eval(self) -> Callable:
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            from ..expression_visitors import ExpressionVisitorFactory
-            visitor: NameExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
-        return eval_expr
+    def eval(self, dataframe: Any) -> SupportedExpressions:
+        from ..expression_visitors import ExpressionVisitorFactory
+        backend_type = ExpressionVisitorFactory._identify_backend(dataframe)
+        expression_system = ExpressionVisitorFactory._expression_systems_registry[backend_type]()
+        visitor = ExpressionVisitorFactory.get_visitor_for_node(self, expression_system)
+        return visitor.visit_expression_node(self)
 
 
 class NameExpressionNode(BaseNameExpressionNode):
@@ -40,13 +39,13 @@ class NameExpressionNode(BaseNameExpressionNode):
 class NameAliasExpressionNode(BaseNameExpressionNode):
 
     operand: Any = Field()
-    alias: Any = Field()
+    name: Any = Field()
 
-    def __init__(self, operator: ENUM_NAME_OPERATORS, operand: Any, alias: Any):
+    def __init__(self, operator: ENUM_NAME_OPERATORS, operand: Any, name: Any):
         super().__init__(
             operator=operator,
             operand=operand,
-            alias=alias
+            name=name
         )
 
 class NamePrefixExpressionNode(BaseNameExpressionNode):
