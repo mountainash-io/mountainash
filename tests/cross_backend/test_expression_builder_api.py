@@ -350,7 +350,7 @@ class TestReverseArithmeticOperators:
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         backend_expr = expr.compile(df)
-        # result = df.select(backend_expr.alias("result"))
+        # result = df.select(backend_expr.name.alias("result"))
         actual = select_and_extract(df, backend_expr, "result", backend_name)
         expected = [15, 25, 35]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
@@ -584,18 +584,6 @@ class TestPropertiesAndHelpers:
         # node property should return the underlying node
         assert expr.node is not None, f"[{backend_name}] node property should not be None"
 
-    def test_logic_type_property(self, backend_name, backend_factory, select_and_extract):
-        """Test logic_type property returns logic type."""
-        from mountainash_expressions.core.constants import CONST_LOGIC_TYPES
-
-        data = {"age": [25, 30, 35]}
-        df = backend_factory.create(data, backend_name)
-
-        expr = ma.col("age")
-
-        # logic_type should be BOOLEAN by default
-        assert expr.logic_type == CONST_LOGIC_TYPES.BOOLEAN, \
-            f"[{backend_name}] logic_type should be BOOLEAN by default"
 
     def test_repr_method(self, backend_name, backend_factory, select_and_extract):
         """Test __repr__ method returns string representation."""
@@ -607,8 +595,8 @@ class TestPropertiesAndHelpers:
         # __repr__ should return a string
         repr_str = repr(expr)
         assert isinstance(repr_str, str), f"[{backend_name}] repr() should return string"
-        assert "ExpressionBuilder" in repr_str, \
-            f"[{backend_name}] repr() should contain 'ExpressionBuilder'"
+        assert "BooleanExpressionAPI" in repr_str, \
+            f"[{backend_name}] repr() should contain 'BooleanExpressionAPI'"
 
 
 # =============================================================================
@@ -733,28 +721,29 @@ class TestRealWorldAPIPatterns:
 
         # Calculate total: price * (1 + tax_rate)
         # Note: (1 + tax_rate) triggers reverse operator
-        expr = ma.col("price") * (1 + ma.col("tax_rate"))
+        # Alias applied BEFORE compile (on ExpressionBuilder)
+        expr = (ma.col("price") * (1 + ma.col("tax_rate"))).name.alias("total")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("total"))
-                _ = result["total"].execute().tolist()
-        else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("total"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
+        backend_expr = expr.compile(df)
+        result = df.select(backend_expr)
+
+        # Handle lazy evaluation for different backends
+        if backend_name == "narwhals-ibis":
+            result = result.collect()
             actual = result["total"].to_list()
-            expected = [110.0, 230.0, 360.0]
+        elif backend_name.startswith("ibis-"):
+            # Ibis returns a Table - need to execute to get result
+            actual = result["total"].execute().tolist()
+        else:
+            actual = result["total"].to_list()
 
-            # Use approximate comparison for floating point
-            import math
-            for i, (a, e) in enumerate(zip(actual, expected)):
-                assert math.isclose(a, e, rel_tol=1e-9), \
-                    f"[{backend_name}] At index {i}: expected {e}, got {a}"
+        expected = [110.0, 230.0, 360.0]
+
+        # Use approximate comparison for floating point
+        import math
+        for i, (a, e) in enumerate(zip(actual, expected)):
+            assert math.isclose(a, e, rel_tol=1e-9), \
+                f"[{backend_name}] At index {i}: expected {e}, got {a}"
 
     def test_range_check_pattern(self, backend_name, backend_factory, get_result_count):
         """Test range checking pattern (between values)."""

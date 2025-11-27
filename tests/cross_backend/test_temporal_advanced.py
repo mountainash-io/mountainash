@@ -45,7 +45,7 @@ class TestAddTimeComponents:
         df = backend_factory.create(data, backend_name)
 
         # Add 2 hours
-        expr = ma.col("timestamp").dt_add_hours(2)
+        expr = ma.col("timestamp").dt.add_hours(2)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -69,7 +69,7 @@ class TestAddTimeComponents:
         df = backend_factory.create(data, backend_name)
 
         # Add 30 minutes
-        expr = ma.col("timestamp").dt_add_minutes(30)
+        expr = ma.col("timestamp").dt.add_minutes(30)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -93,7 +93,7 @@ class TestAddTimeComponents:
         df = backend_factory.create(data, backend_name)
 
         # Add 15 seconds
-        expr = ma.col("timestamp").dt_add_seconds(15)
+        expr = ma.col("timestamp").dt.add_seconds(15)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -140,7 +140,7 @@ class TestTimeDifferences:
         df = backend_factory.create(data, backend_name)
 
         # Calculate difference in hours
-        expr = ma.col("end").dt_diff_hours(ma.col("start"))
+        expr = ma.col("end").dt.diff_hours(ma.col("start"))
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "diff", backend_name)
@@ -166,7 +166,7 @@ class TestTimeDifferences:
         df = backend_factory.create(data, backend_name)
 
         # Calculate difference in minutes
-        expr = ma.col("end").dt_diff_minutes(ma.col("start"))
+        expr = ma.col("end").dt.diff_minutes(ma.col("start"))
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "diff", backend_name)
@@ -206,7 +206,7 @@ class TestDateTimeTruncation:
         df = backend_factory.create(data, backend_name)
 
         # Truncate to day
-        expr = ma.col("timestamp").dt_truncate("1d")
+        expr = ma.col("timestamp").dt.truncate("1d")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -233,7 +233,7 @@ class TestDateTimeTruncation:
         df = backend_factory.create(data, backend_name)
 
         # Truncate to hour
-        expr = ma.col("timestamp").dt_truncate("1h")
+        expr = ma.col("timestamp").dt.truncate("1h")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -275,7 +275,7 @@ class TestFlexibleOffsetBy:
         df = backend_factory.create(data, backend_name)
 
         # Add 1 day 2 hours
-        expr = ma.col("timestamp").dt_offset_by("1d2h")
+        expr = ma.col("timestamp").dt.offset_by("1d2h")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -308,7 +308,7 @@ class TestFlexibleOffsetBy:
         df = backend_factory.create(data, backend_name)
 
         # Subtract 3 months
-        expr = ma.col("timestamp").dt_offset_by("-3mo")
+        expr = ma.col("timestamp").dt.offset_by("-3mo")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -353,9 +353,9 @@ class TestChainingTimeOperations:
         # 10:00 + 2h = 12:00, + 30m = 12:30, truncate to hour = 12:00
         expr = (
             ma.col("timestamp")
-            .dt_add_hours(2)
-            .dt_add_minutes(30)
-            .dt_truncate("1h")
+            .dt.add_hours(2)
+            .dt.add_minutes(30)
+            .dt.truncate("1h")
         )
         backend_expr = expr.compile(df)
 
@@ -377,9 +377,9 @@ class TestChainingTimeOperations:
         # 10:00 + 1d = next day 10:00, + 2h = 12:00, + 30m = 12:30
         expr = (
             ma.col("timestamp")
-            .dt_add_days(1)
-            .dt_add_hours(2)
-            .dt_add_minutes(30)
+            .dt.add_days(1)
+            .dt.add_hours(2)
+            .dt.add_minutes(30)
         )
         backend_expr = expr.compile(df)
 
@@ -415,7 +415,7 @@ class TestTemporalEdgeCases:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_add_hours(0)
+        expr = ma.col("timestamp").dt.add_hours(0)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -436,7 +436,7 @@ class TestTemporalEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Add -2 hours (subtract 2 hours)
-        expr = ma.col("timestamp").dt_add_hours(-2)
+        expr = ma.col("timestamp").dt.add_hours(-2)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -475,7 +475,7 @@ class TestDateTimeExtraction:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_year()
+        expr = ma.col("timestamp").dt.year()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "year", backend_name)
@@ -496,7 +496,7 @@ class TestDateTimeExtraction:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_month()
+        expr = ma.col("timestamp").dt.month()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "month", backend_name)
@@ -517,7 +517,7 @@ class TestDateTimeExtraction:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_day()
+        expr = ma.col("timestamp").dt.day()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "day", backend_name)
@@ -538,7 +538,7 @@ class TestDateTimeExtraction:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_hour()
+        expr = ma.col("timestamp").dt.hour()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "hour", backend_name)
@@ -559,7 +559,7 @@ class TestDateTimeExtraction:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_minute()
+        expr = ma.col("timestamp").dt.minute()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "minute", backend_name)
@@ -580,7 +580,7 @@ class TestDateTimeExtraction:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("timestamp").dt_second()
+        expr = ma.col("timestamp").dt.second()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "second", backend_name)

@@ -37,7 +37,7 @@ class TestCaseConversion:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("name").str_upper()
+        expr = ma.col("name").str.upper()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "upper", backend_name)
@@ -54,7 +54,7 @@ class TestCaseConversion:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("name").str_lower()
+        expr = ma.col("name").str.lower()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "lower", backend_name)
@@ -90,7 +90,7 @@ class TestTrimOperations:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_trim()
+        expr = ma.col("text").str.trim()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "trimmed", backend_name)
@@ -126,7 +126,7 @@ class TestStringLength:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("word").str_length()
+        expr = ma.col("word").str.length()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "len", backend_name)
@@ -162,7 +162,7 @@ class TestStringContains:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_contains("hello")
+        expr = ma.col("text").str.contains("hello")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -179,7 +179,7 @@ class TestStringContains:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_contains("world")
+        expr = ma.col("text").str.contains("world")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -215,7 +215,7 @@ class TestStringStartsEndsWith:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("filename").str_starts_with("test")
+        expr = ma.col("filename").str.starts_with("test")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -232,7 +232,7 @@ class TestStringStartsEndsWith:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("filename").str_ends_with(".csv")
+        expr = ma.col("filename").str.ends_with(".csv")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -268,7 +268,7 @@ class TestStringReplace:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_replace("hello", "hi")
+        expr = ma.col("text").str.replace("hello", "hi")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
@@ -285,7 +285,7 @@ class TestStringReplace:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_replace("bar", "baz")
+        expr = ma.col("text").str.replace("bar", "baz")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
@@ -321,7 +321,7 @@ class TestStringSubstring:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_substring(0, 3)
+        expr = ma.col("text").str.substring(0, 3)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "sub", backend_name)
@@ -338,7 +338,7 @@ class TestStringSubstring:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_substring(2)
+        expr = ma.col("text").str.substring(2)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "sub", backend_name)
@@ -375,7 +375,7 @@ class TestChainingStringOperations:
         df = backend_factory.create(data, backend_name)
 
         # Chain: trim -> lowercase
-        expr = ma.col("name").str_trim().str_lower()
+        expr = ma.col("name").str.trim().str.lower()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "cleaned", backend_name)
@@ -393,7 +393,7 @@ class TestChainingStringOperations:
         df = backend_factory.create(data, backend_name)
 
         # Chain: trim -> upper -> check starts with "HELLO"
-        expr = ma.col("text").str_trim().str_upper().str_starts_with("HELLO")
+        expr = ma.col("text").str.trim().str.upper().str.starts_with("HELLO")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -434,7 +434,7 @@ class TestStringWithBooleanFilter:
         # Filter: age > 30 AND city contains "New"
         # Charlie: age 35 > 30, city "New York" contains "New" ✓
         # David: age 40 > 30, city "Chicago" does NOT contain "New" ✗
-        expr = (ma.col("age") > 30) & ma.col("city").str_contains("New")
+        expr = (ma.col("age") > 30) & ma.col("city").str.contains("New")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -453,8 +453,8 @@ class TestStringWithBooleanFilter:
         df = backend_factory.create(data, backend_name)
 
         # Filter: age < 40 AND (name starts with "A" or "B")
-        expr_a = ma.col("name").str_starts_with("A")
-        expr_b = ma.col("name").str_starts_with("B")
+        expr_a = ma.col("name").str.starts_with("A")
+        expr_b = ma.col("name").str.starts_with("B")
         expr = (ma.col("age") < 40) & (expr_a | expr_b)
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
@@ -493,7 +493,7 @@ class TestStringWithArithmetic:
         df = backend_factory.create(data, backend_name)
 
         # Get length of name and add to score
-        expr_len = ma.col("name").str_length()
+        expr_len = ma.col("name").str.length()
         expr_result = expr_len + ma.col("score")
         backend_expr = expr_result.compile(df)
 
@@ -531,7 +531,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Length of empty strings
-        expr = ma.col("text").str_length()
+        expr = ma.col("text").str.length()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "len", backend_name)
@@ -549,7 +549,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Uppercase
-        expr = ma.col("text").str_upper()
+        expr = ma.col("text").str.upper()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "upper", backend_name)
@@ -566,7 +566,7 @@ class TestStringEdgeCases:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_trim()
+        expr = ma.col("text").str.trim()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "trimmed", backend_name)
@@ -585,7 +585,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Extract from position 0 with no length limit (entire string)
-        expr = ma.col("text").str_substring(0)
+        expr = ma.col("text").str.substring(0)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "sub", backend_name)
@@ -603,7 +603,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Try to replace "xyz" which doesn't exist
-        expr = ma.col("text").str_replace("xyz", "abc")
+        expr = ma.col("text").str.replace("xyz", "abc")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
@@ -622,7 +622,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Empty string is contained in all strings
-        expr = ma.col("text").str_contains("")
+        expr = ma.col("text").str.contains("")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -641,7 +641,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # All strings start with empty string
-        expr = ma.col("text").str_starts_with("")
+        expr = ma.col("text").str.starts_with("")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -659,7 +659,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # All strings end with empty string
-        expr = ma.col("text").str_ends_with("")
+        expr = ma.col("text").str.ends_with("")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -677,7 +677,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Replace all occurrences of a word
-        expr = ma.col("text").str_replace("test", "exam")
+        expr = ma.col("text").str.replace("test", "exam")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
@@ -700,7 +700,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Search for lowercase "hello"
-        expr = ma.col("text").str_contains("hello")
+        expr = ma.col("text").str.contains("hello")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -719,7 +719,7 @@ class TestStringEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Start at position 10 (beyond all strings)
-        expr = ma.col("text").str_substring(10, 5)
+        expr = ma.col("text").str.substring(10, 5)
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "sub", backend_name)
@@ -737,7 +737,7 @@ class TestStringEdgeCases:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("text").str_length()
+        expr = ma.col("text").str.length()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "len", backend_name)

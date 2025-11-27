@@ -419,7 +419,7 @@ class TestBooleanWithStringOperations:
         df = backend_factory.create(data, backend_name)
 
         # (name contains "Smith") AND (age > 28)
-        expr = ma.col("name").str_contains("Smith") & (ma.col("age") > 28)
+        expr = ma.col("name").str.contains("Smith") & (ma.col("age") > 28)
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -435,7 +435,7 @@ class TestBooleanWithStringOperations:
         df = backend_factory.create(data, backend_name)
 
         # (filename starts with "test") OR (filename ends with ".json")
-        expr = ma.col("filename").str_starts_with("test") | ma.col("filename").str_ends_with(".json")
+        expr = ma.col("filename").str.starts_with("test") | ma.col("filename").str.ends_with(".json")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 

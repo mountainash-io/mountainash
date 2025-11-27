@@ -309,9 +309,9 @@ class TestConditionalsWithStringOperations:
 
         # Uppercase if age > 28, otherwise lowercase
         expr = ma.when(ma.col("age") > 28).then(
-            ma.col("name").str_upper()
+            ma.col("name").str.upper()
         ).otherwise(
-            ma.col("name").str_lower()
+            ma.col("name").str.lower()
         )
         backend_expr = expr.compile(df)
 

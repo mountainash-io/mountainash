@@ -47,7 +47,7 @@ class TestSQLLikePatterns:
         df = backend_factory.create(data, backend_name)
 
         # Pattern: starts with "John"
-        expr = ma.col("name").like("John%")
+        expr = ma.col("name").str.like("John%")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -69,7 +69,7 @@ class TestSQLLikePatterns:
         df = backend_factory.create(data, backend_name)
 
         # Pattern: ends with "Smith"
-        expr = ma.col("name").like("%Smith")
+        expr = ma.col("name").str.like("%Smith")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -91,7 +91,7 @@ class TestSQLLikePatterns:
         df = backend_factory.create(data, backend_name)
 
         # Pattern: contains "oh"
-        expr = ma.col("name").like("%oh%")
+        expr = ma.col("name").str.like("%oh%")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -127,7 +127,7 @@ class TestRegexMatch:
         df = backend_factory.create(data, backend_name)
 
         # Match exactly NNN-NNN-NNNN format
-        expr = ma.col("phone").regex_match(r"\d{3}-\d{3}-\d{4}")
+        expr = ma.col("phone").str.regex_match(r"\d{3}-\d{3}-\d{4}")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -145,7 +145,7 @@ class TestRegexMatch:
         df = backend_factory.create(data, backend_name)
 
         # Match 10 consecutive digits
-        expr = ma.col("phone").regex_match(r"\d{10}")
+        expr = ma.col("phone").str.regex_match(r"\d{10}")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -181,7 +181,7 @@ class TestRegexContains:
         df = backend_factory.create(data, backend_name)
 
         # Contains any digits
-        expr = ma.col("text").regex_contains(r"\d+")
+        expr = ma.col("text").str.regex_contains(r"\d+")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -199,7 +199,7 @@ class TestRegexContains:
         df = backend_factory.create(data, backend_name)
 
         # Contains word "hello"
-        expr = ma.col("text").regex_contains(r"hello")
+        expr = ma.col("text").str.regex_contains(r"hello")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -235,7 +235,7 @@ class TestRegexReplace:
         df = backend_factory.create(data, backend_name)
 
         # Replace all digits with X
-        expr = ma.col("text").regex_replace(r"\d+", "X")
+        expr = ma.col("text").str.regex_replace(r"\d+", "X")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
@@ -253,7 +253,7 @@ class TestRegexReplace:
         df = backend_factory.create(data, backend_name)
 
         # Replace "hello" with "hi"
-        expr = ma.col("text").regex_replace(r"hello", "hi")
+        expr = ma.col("text").str.regex_replace(r"hello", "hi")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
@@ -295,7 +295,7 @@ class TestPatternWithBooleanLogic:
         df = backend_factory.create(data, backend_name)
 
         # Filter: age > 28 AND name starts with "J"
-        expr = (ma.col("age") > 28) & ma.col("name").like("J%")
+        expr = (ma.col("age") > 28) & ma.col("name").str.like("J%")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -315,7 +315,7 @@ class TestPatternWithBooleanLogic:
         df = backend_factory.create(data, backend_name)
 
         # Filter: age < 40 AND email contains "example"
-        expr = (ma.col("age") < 40) & ma.col("email").regex_contains(r"example")
+        expr = (ma.col("age") < 40) & ma.col("email").str.regex_contains(r"example")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -351,7 +351,7 @@ class TestChainedPatternOperations:
         df = backend_factory.create(data, backend_name)
 
         # Replace digits, then uppercase
-        expr = ma.col("text").regex_replace(r"\d+", "").str_upper()
+        expr = ma.col("text").str.regex_replace(r"\d+", "").str.upper()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -369,7 +369,7 @@ class TestChainedPatternOperations:
         df = backend_factory.create(data, backend_name)
 
         # Trim, then replace digits, then uppercase
-        expr = ma.col("text").str_trim().regex_replace(r"\d+", "").str_upper()
+        expr = ma.col("text").str.trim().str.regex_replace(r"\d+", "").str.upper()
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "result", backend_name)
@@ -405,7 +405,7 @@ class TestRealWorldPatterns:
         df = backend_factory.create(data, backend_name)
 
         # Simple email pattern: something@something.something
-        expr = ma.col("email").regex_match(r"[^@]+@[^@]+\.[^@]+")
+        expr = ma.col("email").str.regex_match(r"[^@]+@[^@]+\.[^@]+")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -423,7 +423,7 @@ class TestRealWorldPatterns:
         df = backend_factory.create(data, backend_name)
 
         # Format as XXX-XXX-XXXX
-        expr = ma.col("phone").regex_replace(r"(\d{3})(\d{3})(\d{4})", r"\1-\2-\3")
+        expr = ma.col("phone").str.regex_replace(r"(\d{3})(\d{3})(\d{4})", r"\1-\2-\3")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "formatted", backend_name)
@@ -459,7 +459,7 @@ class TestComplexRegexPatterns:
         df = backend_factory.create(data, backend_name)
 
         # Pattern: starts with letters, then digits
-        expr = ma.col("text").regex_contains(r"^[a-z]+\d+")
+        expr = ma.col("text").str.regex_contains(r"^[a-z]+\d+")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -477,7 +477,7 @@ class TestComplexRegexPatterns:
         df = backend_factory.create(data, backend_name)
 
         # Pattern: only digits
-        expr = ma.col("text").regex_match(r"\d+")
+        expr = ma.col("text").str.regex_match(r"\d+")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -517,7 +517,7 @@ class TestPatternEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Pattern: exact match empty string
-        expr = ma.col("text").like("")
+        expr = ma.col("text").str.like("")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -542,7 +542,7 @@ class TestPatternEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Pattern that won't match anything
-        expr = ma.col("text").regex_contains(r"xyz123")
+        expr = ma.col("text").str.regex_contains(r"xyz123")
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -566,7 +566,7 @@ class TestPatternEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         # Replace pattern that doesn't exist - should return original
-        expr = ma.col("text").regex_replace(r"\d+", "X")
+        expr = ma.col("text").str.regex_replace(r"\d+", "X")
         backend_expr = expr.compile(df)
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
