@@ -1,16 +1,15 @@
 from __future__ import annotations
-from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
-from typing import Protocol, runtime_checkable
+from typing import Any, TYPE_CHECKING
+from typing import Protocol
 from enum import Enum, auto
 
-from ...constants import CONST_EXPRESSION_CONDITIONAL_OPERATORS, CONST_LOGIC_TYPES
-from ...expression_nodes import ExpressionNode, ConditionalIfElseExpressionNode
-from ...expression_builders.base_expression_builder import ExpressionBuilder
+from ....expression_nodes import ExpressionNode
+from ....expression_nodes._deprecated.expression_nodes import ConditionalIfElseExpressionNode
 
 
 if TYPE_CHECKING:
-    from ....types import SupportedExpressions
+    from .....types import SupportedExpressions
+    from ....expression_builders.base_expression_builder import BaseExpressionBuilder as ExpressionBuilder
 
 class ENUM_CONDITIONAL_OPERATORS(Enum):
     """
@@ -18,10 +17,12 @@ class ENUM_CONDITIONAL_OPERATORS(Enum):
 
     Attributes:
         - WHEN: Conditional if-then-else expression
+        - IF_THEN_ELSE: Conditional if-then-else expression
         - COALESCE: Return first non-null value
         - FILL_NULL: Replace null values with specified value
     """
     WHEN = auto()
+    IF_THEN_ELSE = auto()
     COALESCE = auto()
     FILL_NULL = auto()
 

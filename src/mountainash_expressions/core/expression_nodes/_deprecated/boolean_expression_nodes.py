@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Any, List, Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
 
 from .expression_nodes import ExpressionNode, UnaryExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalIfElseExpressionNode, CollectionExpressionNode
 from ..constants import CONST_EXPRESSION_LOGICAL_UNARY_OPERATORS, CONST_LOGIC_TYPES

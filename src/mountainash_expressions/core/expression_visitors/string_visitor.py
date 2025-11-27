@@ -1,14 +1,12 @@
+from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, Dict, Any, Literal
-from abc import ABC, abstractmethod
+
+from typing import Callable, TYPE_CHECKING, Dict
 from enum import Enum
-from functools import reduce
 
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
 
 from ..expression_parameters import ExpressionParameter
-from ..expression_system.base import ExpressionSystem
 from .expression_visitor import ExpressionVisitor
 
 
@@ -24,6 +22,7 @@ if TYPE_CHECKING:
         StringSuffixExpressionNode,
         StringPrefixExpressionNode,
         StringSubstringExpressionNode,
+        StringSearchExpressionNode,
         StringPatternExpressionNode,
         StringReplaceExpressionNode,
         StringPatternReplaceExpressionNode,
@@ -84,57 +83,55 @@ class StringExpressionVisitor(ExpressionVisitor,
     def str_upper(self, node: StringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_upper(operand_expr)
 
     def str_lower(self, node: StringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_lower(operand_expr)
 
     def str_trim(self, node: StringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_trim(operand_expr)
 
     def str_ltrim(self, node: StringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_ltrim(operand_expr)
 
     def str_rtrim(self, node: StringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_rtrim(operand_expr)
 
 
     def str_substring(self, node: StringSubstringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.str_substring(operand_expr)
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
+        return self.backend.str_substring(operand_expr, node.start, node.length)
 
     def str_length(self, node: StringExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_length(operand_expr)
 
     def str_replace(self, node: StringReplaceExpressionNode) -> SupportedExpressions:
-        """Create a literal value expression."""
-
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.str_replace(operand_expr)
+        """Replace substring with replacement."""
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
+        return self.backend.str_replace(operand_expr, node.substring, node.replacement)
 
     def str_split(self, node: StringSplitExpressionNode) -> SupportedExpressions:
-        """Create a literal value expression."""
-
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.str_split(operand_expr)
+        """Split string by separator."""
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
+        return self.backend.str_split(operand_expr, node.separator)
 
 
     # ========================================
@@ -146,7 +143,7 @@ class StringExpressionVisitor(ExpressionVisitor,
         String concatenate all operands
         """
 
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         return self.backend.str_concat(expr_list)
 
@@ -154,25 +151,25 @@ class StringExpressionVisitor(ExpressionVisitor,
     # String Logical Operations
     # ========================================
 
-    def str_contains(self, node: StringSubstringExpressionNode) -> SupportedExpressions:
+    def str_contains(self, node: StringSearchExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_contains(operand_expr, node.substring)
 
 
     def str_starts_with(self, node: StringPrefixExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_starts_with(operand_expr, node.prefix)
 
 
     def str_ends_with(self, node: StringSuffixExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.str_ends_with(operand_expr, node.suffix)
 
     # ========================================
@@ -183,7 +180,7 @@ class StringExpressionVisitor(ExpressionVisitor,
         """Create a literal value expression."""
 
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.pat_regex_replace(operand_expr, node.pattern, node.replacement)
 
 
@@ -195,19 +192,19 @@ class StringExpressionVisitor(ExpressionVisitor,
     def pat_like(self, node: StringPatternExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.pat_like(operand_expr, node.pattern)
 
 
     def pat_regex_match(self, node: StringPatternExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.pat_regex_match(operand_expr, node.pattern)
 
 
     def pat_regex_contains(self, node: StringPatternExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.pat_regex_contains(operand_expr, node.pattern)

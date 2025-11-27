@@ -1,24 +1,13 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collection, Literal
-from enum import Enum
+from typing import Any, List, Callable, TYPE_CHECKING
+from pydantic import Field
+from .base_expression_node import ExpressionNode
+from ..protocols import ENUM_STRING_OPERATORS
 # from ibis.expr.types import s  # Removed - not used and causes import error
 
-from ...constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
-
-from ..base_expression_node import ExpressionNode
 
 if TYPE_CHECKING:
-    from ..expression_visitors.expression_visitor import ExpressionVisitor
     from ..expression_visitors import StringExpressionVisitor
-    from ...types import SupportedExpressions
-
-
-    StringExpressionNode,
-    StringIterableExpressionNode,
-    StringLogicalExpressionNode,
-    PatternExpressionNode,
-    PatternLogicalExpressionNode
 
 
 class BaseStringExpressionNode(ExpressionNode):
@@ -33,11 +22,7 @@ class BaseStringExpressionNode(ExpressionNode):
     - Operations with arguments: SUBSTRING(start, end), REPLACE(old, new), CONCAT(*args)
     """
 
-    @property
-    @final
-    def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-        return CONST_EXPRESSION_NODE_TYPES.STRING
-
+    operator: ENUM_STRING_OPERATORS = Field()
 
     def accept(self, visitor: StringExpressionVisitor) -> Any:
         return visitor.visit_expression_node(self)
@@ -50,90 +35,144 @@ class BaseStringExpressionNode(ExpressionNode):
         return eval_expr
 
 
-class StringExpressionNode(BaseStringExpressionNode):
 
-    def __init__(self, operator: str, operand: Any, *args, **kwargs):
-        self.operator = operator
-        self.operand = operand
-        self.substring = substring
-        self.prefix = prefix
-        self.suffix = suffix
-        self.old = old
-        self.new = new
-        self.start = start
-        self.length = length
+
+class StringExpressionNode(BaseStringExpressionNode):
+    operand: Any = Field()
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any):
+        super().__init__(
+            operator=operator,
+            operand=operand
+        )
+
+
+class StringIterableExpressionNode(BaseStringExpressionNode):
+    operands: List[Any] = Field()
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, *operands: Any):
+        super().__init__(
+            operator=operator,
+            operands=list(operands)
+        )
 
 
 class StringSuffixExpressionNode(BaseStringExpressionNode):
 
-    def __init__(self, operator: str, operand: Any, suffix: Any):
-        self.operator = operator
-        self.operand = operand
-        self.suffix = suffix
+    operand: Any = Field()
+    suffix: Any = Field()
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, suffix:Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            suffix = suffix
+
+        )
+
 
 
 class StringPrefixExpressionNode(BaseStringExpressionNode):
 
-    def __init__(self, operator: str, operand: Any, prefix: Any):
-        self.operator = operator
-        self.operand = operand
-        self.prefix = prefix
+    operand: Any = Field()
+    prefix: Any = Field()
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, prefix:Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            prefix = prefix
+        )
+
+class StringSubstringExpressionNode(BaseStringExpressionNode):
+    operand: Any = Field()
+    start: Any = Field()
+    length: Any = Field()
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, start:Any, length:Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            start = start,
+            length = length
+        )
 
 
-class StringLengthExpressionNode(BaseStringExpressionNode):
+class StringSearchExpressionNode(BaseStringExpressionNode):
+    operand: Any = Field()
+    substring: Any = Field()
 
-    def __init__(self, operator: str, operand: Any, start: Any, length:Any):
-        self.operator = operator
-        self.operand = operand
-        self.start = start
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, substring:Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            substring = substring
+        )
 
+class StringPatternExpressionNode(BaseStringExpressionNode):
+    operand: Any = Field()
+    pattern: Any = Field()
 
-class StringContainsExpressionNode(BaseStringExpressionNode):
-
-    def __init__(self, operator: str, operand: Any, substring: Any):
-        self.operator = operator
-        self.operand = operand
-        self.substring = substring
-
-
-
-substring, prefix, suffix, old, new, start, length, pattern, replacement
-
-class StringLogicalExpressionNode(ExpressionNode):
-    """
-    Node representing logical string operations (UPPER, LOWER, TRIM, SUBSTRING, etc.).
-    """
-
-    def __init__(self, operator: str, operand: Any, *args, **kwargs):
-        """
-        Initialize string expression node.
-
-        Args:
-            operator: String operator (from CONST_EXPRESSION_STRING_OPERATORS)
-            operand: The string expression to operate on
-            *args: Additional positional arguments (e.g., start, end for substring)
-            **kwargs: Additional keyword arguments
-        """
-        self.operator = operator
-        self.operand = operand
-        self.args = args
-        self.kwargs = kwargs
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, pattern:Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            pattern = pattern
+        )
 
 
-
-class StringIterableExpressionNode(ExpressionNode):
-    """
-    Node representing iterable string operations (CONCAT).
-
-
-    """
+class StringReplaceExpressionNode(BaseStringExpressionNode):
+    operand: Any = Field()
+    substring: Any = Field()
+    replacement: Any = Field()
 
 
-    def __init__(self, operator: str, *operands: Any):
-        """
-        Args:
-            operator: String operator (from CONST_EXPRESSION_STRING_OPERATORS)
-            operand: The string expression to operate on
-        """
-        self.operator = operator
-        self.operands = operands
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, substring:Any, replacement: Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            substring = substring,
+            replacement = replacement
+        )
+
+class StringPatternReplaceExpressionNode(BaseStringExpressionNode):
+    operand: Any = Field()
+    pattern: Any = Field()
+    replacement: Any = Field()
+
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, pattern:Any, replacement: Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            pattern = pattern,
+            replacement = replacement
+        )
+
+
+class StringSplitExpressionNode(BaseStringExpressionNode):
+    separator: Any = Field()
+
+    def __init__(self, operator: ENUM_STRING_OPERATORS, operand: Any, separator:Any):
+        super().__init__(
+            operator=operator,
+            operand = operand,
+            separator = separator
+        )
+
+
+
+
+# class StringIterableExpressionNode(ExpressionNode):
+#     """
+#     Node representing iterable string operations (CONCAT).
+#     """
+
+#     def __init__(self, operator: str, *operands: Any):
+#         """
+#         Args:
+#             operator: String operator (from CONST_EXPRESSION_STRING_OPERATORS)
+#             operand: The string expression to operate on
+#         """
+#         self.operator = operator
+#         self.operands = operands

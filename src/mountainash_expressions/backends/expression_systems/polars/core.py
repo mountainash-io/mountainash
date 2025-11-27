@@ -1,19 +1,17 @@
 """Polars backend implementation of ExpressionSystem."""
 
-from typing import Any, List
+from typing import Any
 import polars as pl
 
-from ....core.expression_system import ExpressionSystem
-from ....core.constants import CONST_VISITOR_BACKENDS
 
 from .base import PolarsBaseExpressionSystem
-from ....core.protocols.core.column import ColumnExpressionProtocol
-from ....core.protocols.core.literal import LiteralExpressionProtocol
-from ....runtime_imports import import_polars
+from ....core.protocols import CoreExpressionProtocol
 
 from ....types import PolarsExpr
 
-class PolarsCoreExpressionSystem(PolarsBaseExpressionSystem, ColumnExpressionProtocol, LiteralExpressionProtocol):
+
+class PolarsCoreExpressionSystem(PolarsBaseExpressionSystem,
+                                  CoreExpressionProtocol):
 
     # ========================================
     # Core Primitives

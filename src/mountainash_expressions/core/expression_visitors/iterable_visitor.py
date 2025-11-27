@@ -1,11 +1,9 @@
 from __future__ import annotations
-from abc import abstractmethod
-from typing import Any, List, Callable, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict
 from enum import Enum
 
 # from pandas.core.arrays.datetimelike import isin
 
-from ...constants import CONST_LOGIC_TYPES
 
 from .expression_visitor import ExpressionVisitor
 from ..expression_parameters import ExpressionParameter
@@ -13,10 +11,12 @@ from functools import reduce
 from ...types import SupportedExpressions
 
 
-from ..expression_nodes import ExpressionNode
-from ..expression_nodes import IterableExpressionNode, SupportedIterableExpressionNodeTypes
+from ..expression_nodes import IterableExpressionNode
 
 from ..protocols import IterableVisitorProtocol, ENUM_ITERABLE_OPERATORS
+
+if TYPE_CHECKING:
+    from ..expression_nodes import SupportedIterableExpressionNodeTypes
 
 
 
@@ -58,19 +58,19 @@ class IterableExpressionVisitor(ExpressionVisitor,
         if not isinstance(node, IterableExpressionNode):
             raise TypeError(f"Expected IterableIterableExpressionNode, got {type(node)}")
 
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         return reduce(lambda x, y: self.backend.coalesce(x, y), expr_list)
 
     def greatest(self, node: IterableExpressionNode) -> SupportedExpressions:
         # Process all operands
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         return reduce(lambda x, y: self.backend.greatest(x, y), expr_list)
 
     def least(self, node: IterableExpressionNode) -> SupportedExpressions:
 
         # Process all operands
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         return reduce(lambda x, y: self.backend.least(x, y), expr_list)

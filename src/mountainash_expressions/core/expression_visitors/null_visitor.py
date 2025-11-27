@@ -1,13 +1,12 @@
+from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, Dict, Any, Literal
-from abc import ABC, abstractmethod
+from typing import Callable, TYPE_CHECKING, Dict
 from enum import Enum
-from functools import reduce
 
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
-
-
-
+from ..expression_parameters import ExpressionParameter
+from .expression_visitor import ExpressionVisitor
+from ..protocols import ENUM_NULL_OPERATORS, NullVisitorProtocol
+from ...types import SupportedExpressions
 
 if TYPE_CHECKING:
     from ..expression_nodes import (
@@ -15,13 +14,8 @@ if TYPE_CHECKING:
         NullConstantExpressionNode,
         NullConditionalExpressionNode,
         NullLogicalExpressionNode,
-    SupportedNullExpressionNodeTypes
+        SupportedNullExpressionNodeTypes
     )
-    from ..expression_parameters import ExpressionParameter
-    from ..expression_system.base import ExpressionSystem
-    from .expression_visitor import ExpressionVisitor
-    from ..protocols import ENUM_NULL_OPERATORS, NullVisitorProtocol
-    from ...types import SupportedExpressions
 
 
 class NullExpressionVisitor(ExpressionVisitor,
@@ -59,13 +53,13 @@ class NullExpressionVisitor(ExpressionVisitor,
     def is_null(self, node: NullLogicalExpressionNode) -> SupportedExpressions:
         """Create a subtract expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.is_null(operand_expr)
 
     def not_null(self, node: NullLogicalExpressionNode) -> SupportedExpressions:
         """Create a subtract expression."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         is_null_result =  self.backend.is_null(operand_expr)
         return self.backend.not_(is_null_result)
 
@@ -75,13 +69,15 @@ class NullExpressionVisitor(ExpressionVisitor,
 
 
     def fill_null(self, node: NullExpressionNode) -> SupportedExpressions:
-        """Create a subtract expression."""
+        """Fill null values with a specified value."""
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-        return self.backend.fill_null(operand_expr, node.value)
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
+        value_expr = ExpressionParameter(node.value, expression_system=self.backend).to_native_expression()
+        return self.backend.fill_null(operand_expr, value_expr)
 
     def null_if(self, node: NullConditionalExpressionNode) -> SupportedExpressions:
-         """Create a subtract expression."""
+        """Return NULL if condition is true, otherwise return the value."""
 
-         operand_expr =  ExpressionParameter(node.operand).to_native_expression()
-         return self.backend.null_if(operand_expr, node.condition)
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
+        condition_expr = ExpressionParameter(node.condition, expression_system=self.backend).to_native_expression()
+        return self.backend.null_if(operand_expr, condition_expr)

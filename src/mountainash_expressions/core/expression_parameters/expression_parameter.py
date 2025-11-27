@@ -2,12 +2,12 @@
 from __future__ import annotations
 from enum import Enum, auto
 from typing import Any, Optional, TYPE_CHECKING
-from abc import ABC, abstractmethod
+
+from ..expression_nodes import ExpressionNode
 
 if TYPE_CHECKING:
     from ..expression_system import ExpressionSystem
     from ..expression_visitors import ExpressionVisitor
-    from ..expression_nodes import ExpressionNode
 
 class ParameterType(Enum):
     """Enumeration of parameter types in priority order."""
@@ -80,11 +80,21 @@ class ExpressionParameter:
 
     def _is_literal(self) -> bool:
         """Check if value is a Python literal.
-        What else can be a literal?
+
+        Includes:
+        - None
+        - bool, int, float
+        - datetime, date, time, timedelta
+        - list, tuple (for is_in operations)
+
         Returns:
             bool: True if value is a Python literal, False otherwise.
         """
-        return self.value is None or isinstance(self.value, (bool, int, float))
+        from datetime import datetime, date, time, timedelta
+        return self.value is None or isinstance(
+            self.value,
+            (bool, int, float, datetime, date, time, timedelta, list, tuple)
+        )
 
     def _looks_like_column_name(self, s: str) -> bool:
         """
@@ -115,10 +125,27 @@ class ExpressionParameter:
             TypeError: If parameter type cannot be converted
         """
         if self._type == ParameterType.EXPRESSION_NODE:
+            # If visitor provided, use it (for same-type child nodes)
             if self.visitor:
                 return self.value.accept(self.visitor)
+
+            # Otherwise, dispatch to appropriate visitor for this node type
+            elif self.expression_system:
+                from ..expression_visitors import ExpressionVisitorFactory
+                from ...constants import CONST_LOGIC_TYPES
+
+                visitor = ExpressionVisitorFactory.get_visitor_for_node(
+                    self.value,
+                    self.expression_system,
+                    CONST_LOGIC_TYPES.BOOLEAN
+                )
+                return self.value.accept(visitor)
+
             else:
-                return self.value.eval()
+                raise ValueError(
+                    f"ExpressionNode {type(self.value).__name__} requires either visitor or expression_system. "
+                    f"Use: ExpressionParameter(value, expression_system=self.backend)"
+                )
 
         elif self._type == ParameterType.NATIVE_EXPRESSION:
             return self.value  # Already in correct format
@@ -130,9 +157,12 @@ class ExpressionParameter:
             return self.expression_system.lit(self.value)
 
         else:
+            backend_name = getattr(self.expression_system, 'backend_type', 'unknown')
+            if hasattr(backend_name, 'value'):
+                backend_name = backend_name.value
             raise TypeError(
                 f"Cannot convert {type(self.value).__name__} to "
-                f"{self.expression_system.get_backend_name()} expression. "
+                f"{backend_name} expression. "
                 f"Value: {repr(self.value)}"
             )
 

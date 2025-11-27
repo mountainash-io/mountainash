@@ -1,28 +1,13 @@
 """Expression node classes for building expression trees."""
 
+from typing import TYPE_CHECKING
+
 from .base_expression_node import ExpressionNode
 
-from .core.core_expression_nodes import (
-    # ExpressionNode,
-    NativeBackendExpressionNode,
-    ColumnExpressionNode,
-    LiteralExpressionNode,
-    # CastExpressionNode,
-    # LogicalConstantExpressionNode,
-    # UnaryExpressionNode,
-    # LogicalExpressionNode,
-    # ComparisonExpressionNode,
-    # CollectionExpressionNode,
-    # ArithmeticExpressionNode,
-    # StringExpressionNode,
-    # PatternExpressionNode,
-    # ConditionalIfElseExpressionNode,
-    # TemporalExpressionNode,
-)
 from .arithmetic_expression_nodes import (
     ArithmeticExpressionNode,
     ArithmeticIterableExpressionNode,
-    SupportedArithmeticExpressionNodeTypes
+
 )
 
 from .boolean_expression_nodes import (
@@ -31,41 +16,97 @@ from .boolean_expression_nodes import (
     BooleanComparisonExpressionNode,
     BooleanCollectionExpressionNode,
     BooleanIterableExpressionNode,
-    SupportedBooleanExpressionNodeTypes
+    BooleanConstantExpressionNode,
+    BooleanIsCloseExpressionNode,
+    BooleanBetweenExpressionNode
+    # SupportedBooleanExpressionNodeTypes
 )
 
 from .core_expression_nodes import (
-    ExpressionNode,
     ColumnExpressionNode,
-    LiteralExpressionNode,
-    NativeBackendExpressionNode,
-    SupportedCoreExpressionNodeTypes
+    LiteralExpressionNode
 )
 
+from .name_expression_nodes import (
+    NameAliasExpressionNode,
+    NamePrefixExpressionNode,
+    NameSuffixExpressionNode,
+    NameExpressionNode,
+)
+
+from .native_expression_nodes import NativeExpressionNode
+
+from .iterable_expression_nodes import IterableExpressionNode
 
 from .null_expression_nodes import (
     NullExpressionNode,
     NullConstantExpressionNode,
     NullConditionalExpressionNode,
-    NullLogicalExpressionNode,
-    SupportedNullExpresionNodeTypes
-}
+    NullLogicalExpressionNode
+)
+
+from .type_expression_nodes import TypeExpressionNode
+
+from .string_expression_nodes import (
+    StringExpressionNode,
+    StringIterableExpressionNode,
+    StringSuffixExpressionNode,
+    StringPrefixExpressionNode,
+    StringSubstringExpressionNode,
+    StringSearchExpressionNode,
+    StringPatternExpressionNode,
+    StringReplaceExpressionNode,
+    StringPatternReplaceExpressionNode,
+    StringSplitExpressionNode,
+)
+
+from .temporal_expression_nodes import (
+    TemporalExtractExpressionNode,
+    TemporalDiffExpressionNode,
+    TemporalAdditionExpressionNode,
+    TemporalTruncateExpressionNode,
+    TemporalOffsetExpressionNode,
+    TemporalSnapshotExpressionNode
+
+)
+
+if TYPE_CHECKING:
+    from .types import (
+        SupportedArithmeticExpressionNodeTypes,
+        SupportedCoreExpressionNodeTypes,
+        SupportedBooleanExpressionNodeTypes,
+        SupportedNullExpressionNodeTypes,
+        SupportedTemporalExpressionNodeTypes,
+        SupportedStringExpressionNodeTypes,
+        SupportedIterableExpressionNodeTypes,
+        SupportedNameExpressionNodeTypes,
+        SupportedNativeExpressionNodeTypes,
+        SupportedTypeExpressionNodeTypes
+
+    )
+
+
 
 __all__ = [
     # Base nodes
     "ExpressionNode",
     "ColumnExpressionNode",
     "LiteralExpressionNode",
-    "NativeBackendExpressionNode",
 
     "ArithmeticExpressionNode",
     "ArithmeticIterableExpressionNode",
-    "SupportedArithmeticExpressionNodeTypes",
 
     "ColumnExpressionNode",
     "LiteralExpressionNode",
-    "NativeBackendExpressionNode",
-    "SupportedCoreExpressionNodeTypes",
+
+    "NativeExpressionNode",
+
+    "IterableExpressionNode",
+
+    "NameAliasExpressionNode",
+    "NamePrefixExpressionNode",
+    "NameSuffixExpressionNode",
+    "NameExpressionNode",
 
     "NullExpressionNode",
     "NullConstantExpressionNode",
@@ -73,22 +114,35 @@ __all__ = [
     "NullLogicalExpressionNode",
 
 
-    # "CastExpressionNode",
-    # "LogicalConstantExpressionNode",
-    # "UnaryExpressionNode",
-    # "LogicalExpressionNode",
-    # "ComparisonExpressionNode",
-    # "CollectionExpressionNode",
-    # "ArithmeticExpressionNode",
-    # "StringExpressionNode",
-    # "PatternExpressionNode",
-    # "ConditionalIfElseExpressionNode",
-    # "TemporalExpressionNode",
-    # # Boolean nodes
     "BooleanExpressionNode",
     "BooleanUnaryExpressionNode",
     "BooleanComparisonExpressionNode",
     "BooleanCollectionExpressionNode",
     "BooleanIterableExpressionNode",
-    "SupportedBooleanExpressionNodeTypes"
+    "BooleanConstantExpressionNode",
+    "BooleanIsCloseExpressionNode",
+    "BooleanBetweenExpressionNode",
+
+
+    "StringExpressionNode",
+    "StringIterableExpressionNode",
+    "StringSuffixExpressionNode",
+    "StringPrefixExpressionNode",
+    "StringSubstringExpressionNode",
+    "StringSearchExpressionNode",
+    "StringPatternExpressionNode",
+    "StringReplaceExpressionNode",
+    "StringPatternReplaceExpressionNode",
+    "StringSplitExpressionNode",
+
+
+    "TemporalExtractExpressionNode",
+    "TemporalDiffExpressionNode",
+    "TemporalAdditionExpressionNode",
+    "TemporalTruncateExpressionNode",
+    "TemporalOffsetExpressionNode",
+    "TemporalSnapshotExpressionNode",
+
+    "TypeExpressionNode",
+
 ]

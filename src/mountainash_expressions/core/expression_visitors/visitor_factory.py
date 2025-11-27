@@ -1,6 +1,8 @@
 """Expression visitor factory for automatic backend and logic type detection."""
 
-from typing import Any, Dict, Type, Optional
+from __future__ import annotations
+
+from typing import Any, Dict, Type
 from ..constants import CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES
 from ..expression_system import ExpressionSystem
 from .expression_visitor import ExpressionVisitor
@@ -53,6 +55,169 @@ class ExpressionVisitorFactory:
             expression_system_class: The ExpressionSystem class to instantiate
         """
         cls._expression_systems_registry[backend] = expression_system_class
+
+    @classmethod
+    def get_visitor_for_node(
+        cls,
+        node: Any,
+        expression_system: ExpressionSystem,
+        logic_type: CONST_LOGIC_TYPES = CONST_LOGIC_TYPES.BOOLEAN
+    ) -> ExpressionVisitor:
+        """
+        Get appropriate visitor for a specific node type.
+
+        This enables self-organising dispatch where each visitor can create
+        the appropriate visitor for child nodes of different types.
+
+        Args:
+            node: The expression node to visit
+            expression_system: The ExpressionSystem to inject into the visitor
+            logic_type: Logic system (BOOLEAN/TERNARY)
+
+        Returns:
+            Appropriate visitor instance for this node type
+
+        Raises:
+            ValueError: If no visitor is registered for the node type
+        """
+        from ..expression_nodes import (
+            BooleanComparisonExpressionNode,
+            BooleanIterableExpressionNode,
+            BooleanCollectionExpressionNode,
+            BooleanUnaryExpressionNode,
+            BooleanConstantExpressionNode,
+            BooleanIsCloseExpressionNode,
+            BooleanBetweenExpressionNode,
+            ArithmeticExpressionNode,
+            ArithmeticIterableExpressionNode,
+            ColumnExpressionNode,
+            LiteralExpressionNode,
+            StringExpressionNode,
+            StringIterableExpressionNode,
+            StringSuffixExpressionNode,
+            StringPrefixExpressionNode,
+            StringSubstringExpressionNode,
+            StringSearchExpressionNode,
+            StringPatternExpressionNode,
+            StringReplaceExpressionNode,
+            StringPatternReplaceExpressionNode,
+            StringSplitExpressionNode,
+            TemporalExtractExpressionNode,
+            TemporalDiffExpressionNode,
+            TemporalAdditionExpressionNode,
+            TemporalTruncateExpressionNode,
+            TemporalOffsetExpressionNode,
+            TemporalSnapshotExpressionNode,
+            NullExpressionNode,
+            NullConstantExpressionNode,
+            NullConditionalExpressionNode,
+            NullLogicalExpressionNode,
+            TypeExpressionNode,
+            NameAliasExpressionNode,
+            NamePrefixExpressionNode,
+            NameSuffixExpressionNode,
+            NameExpressionNode,
+            IterableExpressionNode,
+            NativeExpressionNode,
+        )
+        from ..expression_nodes.conditional_expression_nodes import ConditionalExpressionNode
+
+        # Boolean nodes
+        if isinstance(node, (
+            BooleanComparisonExpressionNode,
+            BooleanIterableExpressionNode,
+            BooleanCollectionExpressionNode,
+            BooleanUnaryExpressionNode,
+            BooleanConstantExpressionNode,
+            BooleanIsCloseExpressionNode,
+            BooleanBetweenExpressionNode
+        )):
+            from .boolean_visitor import BooleanExpressionVisitor
+            return BooleanExpressionVisitor(expression_system)
+
+        # Arithmetic nodes
+        elif isinstance(node, (ArithmeticExpressionNode, ArithmeticIterableExpressionNode)):
+            from .arithmetic_visitor import ArithmeticExpressionVisitor
+            return ArithmeticExpressionVisitor(expression_system)
+
+        # Core nodes (col, lit)
+        elif isinstance(node, (ColumnExpressionNode, LiteralExpressionNode)):
+            from .core_visitor import CoreExpressionVisitor
+            return CoreExpressionVisitor(expression_system)
+
+        # String nodes
+        elif isinstance(node, (
+            StringExpressionNode,
+            StringIterableExpressionNode,
+            StringSuffixExpressionNode,
+            StringPrefixExpressionNode,
+            StringSubstringExpressionNode,
+            StringSearchExpressionNode,
+            StringPatternExpressionNode,
+            StringReplaceExpressionNode,
+            StringPatternReplaceExpressionNode,
+            StringSplitExpressionNode
+        )):
+            from .string_visitor import StringExpressionVisitor
+            return StringExpressionVisitor(expression_system)
+
+        # Temporal nodes
+        elif isinstance(node, (
+            TemporalExtractExpressionNode,
+            TemporalDiffExpressionNode,
+            TemporalAdditionExpressionNode,
+            TemporalTruncateExpressionNode,
+            TemporalOffsetExpressionNode,
+            TemporalSnapshotExpressionNode
+        )):
+            from .temporal_visitor import TemporalExpressionVisitor
+            return TemporalExpressionVisitor(expression_system)
+
+        # Null nodes
+        elif isinstance(node, (
+            NullExpressionNode,
+            NullConstantExpressionNode,
+            NullConditionalExpressionNode,
+            NullLogicalExpressionNode
+        )):
+            from .null_visitor import NullExpressionVisitor
+            return NullExpressionVisitor(expression_system)
+
+        # Type nodes
+        elif isinstance(node, TypeExpressionNode):
+            from .type_visitor import TypeExpressionVisitor
+            return TypeExpressionVisitor(expression_system)
+
+        # Name nodes
+        elif isinstance(node, (
+            NameAliasExpressionNode,
+            NamePrefixExpressionNode,
+            NameSuffixExpressionNode,
+            NameExpressionNode
+        )):
+            from .name_visitor import NameExpressionVisitor
+            return NameExpressionVisitor(expression_system)
+
+        # Iterable nodes
+        elif isinstance(node, IterableExpressionNode):
+            from .iterable_visitor import IterableExpressionVisitor
+            return IterableExpressionVisitor(expression_system)
+
+        # Native nodes
+        elif isinstance(node, NativeExpressionNode):
+            from .native_visitor import NativeExpressionVisitor
+            return NativeExpressionVisitor(expression_system)
+
+        # Conditional nodes
+        elif isinstance(node, ConditionalExpressionNode):
+            from .conditional_visitor import ConditionalExpressionVisitor
+            return ConditionalExpressionVisitor(expression_system)
+
+        else:
+            raise ValueError(
+                f"No visitor registered for node type {type(node).__name__}. "
+                f"Node: {node}"
+            )
 
     @classmethod
     def _identify_backend(cls, dataframe: Any) -> CONST_VISITOR_BACKENDS:
@@ -216,7 +381,7 @@ def _auto_register_narwhals():
     """Automatically register Narwhals visitors and ExpressionSystem if available."""
     # Register ExpressionSystem first
     try:
-        from ...backends.narwhals.expression_system import NarwhalsExpressionSystem
+        from ...backends.expression_systems.narwhals import NarwhalsExpressionSystem
         ExpressionVisitorFactory.register_expression_system(
             CONST_VISITOR_BACKENDS.NARWHALS,
             NarwhalsExpressionSystem
@@ -255,7 +420,7 @@ def _auto_register_polars():
     """Automatically register Polars ExpressionSystem if available."""
     # Register ExpressionSystem
     try:
-        from ...backends.polars.expression_system import PolarsExpressionSystem
+        from ...backends.expression_systems.polars import PolarsExpressionSystem
         ExpressionVisitorFactory.register_expression_system(
             CONST_VISITOR_BACKENDS.POLARS,
             PolarsExpressionSystem
@@ -270,7 +435,7 @@ def _auto_register_ibis():
     """Automatically register Ibis ExpressionSystem if available."""
     # Register ExpressionSystem
     try:
-        from ...backends.ibis.expression_system import IbisExpressionSystem
+        from ...backends.expression_systems.ibis import IbisExpressionSystem
         ExpressionVisitorFactory.register_expression_system(
             CONST_VISITOR_BACKENDS.IBIS,
             IbisExpressionSystem
@@ -278,6 +443,22 @@ def _auto_register_ibis():
     except ImportError:
         # ExpressionSystem not available, skip registration
         pass
+
+
+# Decorator for registering ExpressionSystems
+def register_expression_system(backend: CONST_VISITOR_BACKENDS):
+    """
+    Decorator for registering ExpressionSystem classes.
+
+    Usage:
+        @register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
+        class PolarsExpressionSystem(ExpressionSystem):
+            ...
+    """
+    def decorator(cls: Type[ExpressionSystem]) -> Type[ExpressionSystem]:
+        ExpressionVisitorFactory.register_expression_system(backend, cls)
+        return cls
+    return decorator
 
 
 # Run auto-registration on module import

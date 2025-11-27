@@ -1,15 +1,11 @@
+from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, Dict, Any, Literal
-from abc import ABC, abstractmethod
+
+from typing import Callable, TYPE_CHECKING, Dict
 from enum import Enum
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
 
-from ..expression_parameters import ExpressionParameter
-from ..expression_system.base import ExpressionSystem
 from .expression_visitor import ExpressionVisitor
-
-from ..expression_nodes import SupportedCoreExpressionNodeTypes
 
 from ..protocols import ENUM_CORE_OPERATORS, CoreVisitorProtocol
 
@@ -17,6 +13,7 @@ from ...types import SupportedExpressions
 
 
 if TYPE_CHECKING:
+    from ..expression_nodes import SupportedCoreExpressionNodeTypes
     from ..expression_nodes import (
     ColumnExpressionNode,
     LiteralExpressionNode,

@@ -1,18 +1,16 @@
+from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, Dict, Any, Literal
-from abc import ABC, abstractmethod
+from typing import Callable, TYPE_CHECKING, Dict
 from enum import Enum
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
-
+from ..expression_nodes import TypeExpressionNode
+from ..expression_parameters import ExpressionParameter
+from .expression_visitor import ExpressionVisitor
+from ...types import SupportedExpressions
+from ..protocols import ENUM_TYPE_OPERATORS, TypeVisitorProtocol
 
 if TYPE_CHECKING:
-    from ..expression_nodes import TypeExpressionNode, SupportedTypeExpressionNodeTypes
-    from ..expression_parameters import ExpressionParameter
-    from ..expression_system.base import ExpressionSystem
-    from .expression_visitor import ExpressionVisitor
-    from ...types import SupportedExpressions
-    from ..protocols import ENUM_TYPE_OPERATORS, TypeVisitorProtocol
+    from ..expression_nodes import SupportedTypeExpressionNodeTypes
 
 
 class TypeExpressionVisitor(ExpressionVisitor,
@@ -45,6 +43,6 @@ class TypeExpressionVisitor(ExpressionVisitor,
 
     def cast(self, node: TypeExpressionNode) -> SupportedExpressions:
         """Create a literal value expression."""
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
 
         return self.backend.cast(operand_expr, node.type)

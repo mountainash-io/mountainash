@@ -1,45 +1,32 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collection
-from enum import Enum
-
+from typing import Any, Callable, TYPE_CHECKING
+from pydantic import BaseModel, Field, ConfigDict
 # from ibis.expr.types import s  # Removed - not used and causes import error
 
-from ...constants import CONST_LOGIC_TYPES
 
 if TYPE_CHECKING:
-    from ..expression_visitors.expression_visitor import ExpressionVisitor
+    from ..expression_visitors import SupportedExpressionVisitors
     from ...types import SupportedExpressions
 
 
-class ExpressionNode(ABC):
+class ExpressionNode(BaseModel, ABC):
 
-    #TODO: Should I make expression nodes pydantic classes??
 
-    # @property
-    # @abstractmethod
-    # def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-    #     pass
+    model_config = ConfigDict(
+        use_enum_values=False,  # CRITICAL: Keep Enum identity, don't convert to values
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Callable if needed
+    )
+    # operator: Enum = Field()
 
-    @property
-    @abstractmethod
-    def logic_type(self) -> CONST_LOGIC_TYPES:
-        pass
+    operator: Any = Field()
 
 
     @abstractmethod
-    def accept(self, visitor: ExpressionVisitor) -> SupportedExpressions:
+    def accept(self, visitor: SupportedExpressionVisitors) -> SupportedExpressions:
         pass
 
     @abstractmethod
     def eval(self) -> Callable:
         pass
-
-
-    @property
-    def operator(self) -> Enum:
-        return self._operator
-
-    @operator.setter
-    def operator(self, operator: Enum):
-        self._operator = operator

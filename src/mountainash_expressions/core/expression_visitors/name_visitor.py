@@ -1,15 +1,13 @@
+from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, Dict, Any, Literal
-from abc import ABC, abstractmethod
+
+from typing import Callable, TYPE_CHECKING, Dict
 from enum import Enum
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
 
 from ..expression_parameters import ExpressionParameter
-from ..expression_system.base import ExpressionSystem
 from .expression_visitor import ExpressionVisitor
 
-from ..expression_nodes import SupportedCoreExpressionNodeTypes
 
 from ..protocols import ENUM_NAME_OPERATORS, NameVisitorProtocol
 
@@ -61,25 +59,25 @@ class NameExpressionVisitor(ExpressionVisitor,
 
     def alias(self, node: NameAliasExpressionNode) -> SupportedExpressions:
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.alias(operand_expr, node.alias)
 
     def prefix(self, node: NamePrefixExpressionNode) -> SupportedExpressions:
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.prefix(operand_expr, node.prefix)
 
     def suffix(self, node: NameSuffixExpressionNode) -> SupportedExpressions:
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.suffix(operand_expr, node.suffix)
 
     def to_upper(self, node: NameExpressionNode) -> SupportedExpressions:
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.to_upper(operand_expr)
 
     def to_lower(self, node: NameExpressionNode) -> SupportedExpressions:
 
-        operand_expr =  ExpressionParameter(node.operand).to_native_expression()
+        operand_expr =  ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
         return self.backend.to_lower(operand_expr)

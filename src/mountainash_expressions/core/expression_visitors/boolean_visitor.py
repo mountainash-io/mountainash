@@ -1,11 +1,8 @@
 from __future__ import annotations
-from abc import abstractmethod
-from typing import Any, List, Callable, Dict, TYPE_CHECKING
+from typing import Callable, Dict, TYPE_CHECKING
 from enum import Enum
 
 # from pandas.core.arrays.datetimelike import isin
-
-from ...constants import CONST_LOGIC_TYPES
 
 from .expression_visitor import ExpressionVisitor
 from ..expression_parameters import ExpressionParameter
@@ -13,10 +10,12 @@ from functools import reduce
 from ...types import SupportedExpressions
 
 
-from ..expression_nodes import ExpressionNode
-from ..expression_nodes import BooleanIterableExpressionNode, BooleanComparisonExpressionNode, BooleanCollectionExpressionNode, BooleanUnaryExpressionNode, BooleanConstantExpressionNode, SupportedBooleanExpressionNodeTypes, BooleanIsCloseExpressionNode,BooleanBetweenExpressionNode
+from ..expression_nodes import BooleanIterableExpressionNode, BooleanComparisonExpressionNode, BooleanCollectionExpressionNode, BooleanUnaryExpressionNode, BooleanConstantExpressionNode, BooleanIsCloseExpressionNode, BooleanBetweenExpressionNode
 
 from ..protocols import BooleanVisitorProtocol, ENUM_BOOLEAN_OPERATORS
+
+if TYPE_CHECKING:
+    from ..expression_nodes import SupportedBooleanExpressionNodeTypes
 
 
 
@@ -24,11 +23,12 @@ from ..protocols import BooleanVisitorProtocol, ENUM_BOOLEAN_OPERATORS
 
 class BooleanExpressionVisitor(ExpressionVisitor,
                               BooleanVisitorProtocol):
+    """
+    Visitor for boolean expression nodes.
 
-    @property
-    def logic_type(self) -> CONST_LOGIC_TYPES:
-        return CONST_LOGIC_TYPES.BOOLEAN
-
+    Handles boolean comparisons, logical operations, and boolean constants.
+    Works with any backend through the injected ExpressionSystem.
+    """
 
     # ===============
     # Operations Maps
@@ -92,7 +92,7 @@ class BooleanExpressionVisitor(ExpressionVisitor,
         if not isinstance(node, BooleanIterableExpressionNode):
             raise TypeError(f"Expected BooleanIterableExpressionNode, got {type(node)}")
 
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         # Chain with backend and_ operator using reduce
         return reduce(lambda x, y: self.backend.and_(x, y), expr_list)
@@ -108,7 +108,7 @@ class BooleanExpressionVisitor(ExpressionVisitor,
         #     raise ValueError(f"OR requires at least 2 operands, got {len(node.operands)}")
 
         # Process all operands
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         # Chain with backend or_ operator using reduce
         return reduce(lambda x, y: self.backend.or_(x, y), expr_list)
@@ -125,7 +125,7 @@ class BooleanExpressionVisitor(ExpressionVisitor,
         #     raise ValueError(f"XOR_EXCLUSIVE requires at least 2 operands, got {len(node.operands)}")
 
         # Process all operands
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         # Convert to integers and sum
         # Note: We need a cast method for this
@@ -148,7 +148,7 @@ class BooleanExpressionVisitor(ExpressionVisitor,
         #     raise ValueError(f"XOR_PARITY requires at least 2 operands, got {len(node.operands)}")
 
         # Process all operands
-        expr_list = [ ExpressionParameter(operand).to_native_expression() for operand in node.operands ]
+        expr_list = [ ExpressionParameter(operand, expression_system=self.backend).to_native_expression() for operand in node.operands ]
 
         # Convert to integers and sum
         int_exprs = [self.backend.cast(expr, int) for expr in expr_list]
@@ -169,7 +169,7 @@ class BooleanExpressionVisitor(ExpressionVisitor,
 
     def is_true(self, node: BooleanUnaryExpressionNode) -> SupportedExpressions:
         """Check if expression evaluates to TRUE."""
-        operand_expr = ExpressionParameter(node.operand).to_native_expression()
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
 
         true_lit = self.backend.lit(True)
         return self.backend.eq(operand_expr, true_lit)
@@ -177,15 +177,15 @@ class BooleanExpressionVisitor(ExpressionVisitor,
     def is_false(self, node: BooleanUnaryExpressionNode) -> SupportedExpressions:
         """Check if expression evaluates to FALSE."""
 
-        operand_expr = ExpressionParameter(node.operand).to_native_expression()
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
 
         false_lit = self.backend.lit(False)
         return self.backend.eq(operand_expr, false_lit)
 
-    def negate(self, node: BooleanUnaryExpressionNode) -> SupportedExpressions:
+    def not_(self, node: BooleanUnaryExpressionNode) -> SupportedExpressions:
         """Logical NOT operation."""
 
-        operand_expr = ExpressionParameter(node.operand).to_native_expression()
+        operand_expr = ExpressionParameter(node.operand, expression_system=self.backend).to_native_expression()
 
         return self.backend.not_(operand_expr)
 
@@ -199,53 +199,53 @@ class BooleanExpressionVisitor(ExpressionVisitor,
     def eq(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
         """Boolean equality: NULLs treated as False."""
 
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
 
         return self.backend.eq(left_expr, right_expr)
 
     def ne(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
         """Boolean inequality: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         return self.backend.ne(left_expr, right_expr)
 
     def gt(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
         """Boolean greater-than: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         return self.backend.gt(left_expr, right_expr)
 
     def lt(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
         """Boolean less-than: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         return self.backend.lt(left_expr, right_expr)
 
     def ge(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
         """Boolean greater-than-or-equal: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         return self.backend.ge(left_expr, right_expr)
 
     def le(self, node: BooleanComparisonExpressionNode) -> SupportedExpressions:
         """Boolean less-than-or-equal: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         return self.backend.le(left_expr, right_expr)
 
 
     def is_close(self, node: BooleanIsCloseExpressionNode) -> SupportedExpressions:
         """Boolean less-than-or-equal: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         precision = node.precision
         return self.backend.is_close(left_expr, right_expr, precision)
 
     def between(self, node: BooleanBetweenExpressionNode) -> SupportedExpressions:
         """Boolean less-than-or-equal: NULLs treated as False."""
-        left_expr =  ExpressionParameter(node.left).to_native_expression()
-        right_expr = ExpressionParameter(node.right).to_native_expression()
+        left_expr =  ExpressionParameter(node.left, expression_system=self.backend).to_native_expression()
+        right_expr = ExpressionParameter(node.right, expression_system=self.backend).to_native_expression()
         closed = node.closed
 
         return self.backend.between(left_expr, right_expr, closed)
@@ -256,7 +256,7 @@ class BooleanExpressionVisitor(ExpressionVisitor,
 
     def is_in(self, node: BooleanCollectionExpressionNode) -> SupportedExpressions:
         """Boolean membership test: NULLs treated as False."""
-        element_expr = ExpressionParameter(node.element).to_native_expression()
+        element_expr = ExpressionParameter(node.element, expression_system=self.backend).to_native_expression()
 
         # Ensure collection is a list
         if isinstance(node.container, (list, tuple, set)):

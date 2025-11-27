@@ -3,16 +3,16 @@
 # from .cast import CastVisitorProtocol, CastOperatorProtocol, CastExpressionProtocol, CastBuilderProtocol
 # from .name import NameVisitorProtocol, NameOperatorProtocol, NameExpressionProtocol, NameBuilderProtocol
 
-from .arithmetic import ArithmeticVisitorProtocol, ArithmeticExpressionProtocol, ArithmeticBuilderProtocol, ENUM_ARITHMETIC_OPERATORS
-from .boolean import BooleanVisitorProtocol, BooleanExpressionProtocol, BooleanBuilderProtocol, ENUM_BOOLEAN_OPERATORS
-from .core import CoreVisitorProtocol, CoreExpressionProtocol, CoreBuilderProtocol, ENUM_CORE_OPERATORS
-from .iterable import IterableVisitorProtocol, IterableExpressionProtocol, IterableBuilderProtocol, ENUM_ITERABLE_OPERATORS
-from .name import NameVisitorProtocol, NameExpressionProtocol, NameBuilderProtocol, ENUM_NAME_OPERATORS
-from .null import NullVisitorProtocol, NullExpressionProtocol, NullBuilderProtocol, ENUM_NULL_OPERATORS
-from .string import StringVisitorProtocol, StringExpressionProtocol, StringBuilderProtocol, ENUM_STRING_OPERATORS
-from .temporal import TemporalVisitorProtocol, TemporalExpressionProtocol, TemporalBuilderProtocol, ENUM_TEMPORAL_OPERATORS
-from .type import TypeVisitorProtocol, TypeExpressionProtocol, TypeBuilderProtocol, ENUM_TYPE_OPERATORS
-from .native import NativeVisitorProtocol, NativeExpressionProtocol, ENUM_NATIVE_OPERATORS
+from .arithmetic_protocols import ArithmeticVisitorProtocol, ArithmeticExpressionProtocol, ArithmeticBuilderProtocol, ENUM_ARITHMETIC_OPERATORS
+from .boolean_protocols import BooleanVisitorProtocol, BooleanExpressionProtocol, BooleanBuilderProtocol, ENUM_BOOLEAN_OPERATORS
+from .core_protocols import CoreVisitorProtocol, CoreExpressionProtocol, CoreBuilderProtocol, ENUM_CORE_OPERATORS
+from .iterable_protocols import IterableVisitorProtocol, IterableExpressionProtocol, IterableBuilderProtocol, ENUM_ITERABLE_OPERATORS
+from .name_protocols import NameVisitorProtocol, NameExpressionProtocol, NameBuilderProtocol, ENUM_NAME_OPERATORS
+from .null_protocols import NullVisitorProtocol, NullExpressionProtocol, NullBuilderProtocol, ENUM_NULL_OPERATORS
+from .string_protocols import StringVisitorProtocol, StringExpressionProtocol, StringBuilderProtocol, ENUM_STRING_OPERATORS
+from .temporal_protocols import TemporalVisitorProtocol, TemporalExpressionProtocol, TemporalBuilderProtocol, ENUM_TEMPORAL_OPERATORS
+from .type_protocols import TypeVisitorProtocol, TypeExpressionProtocol, TypeBuilderProtocol, ENUM_TYPE_OPERATORS
+from .native_protocols import NativeVisitorProtocol, NativeExpressionProtocol, NativeBuilderProtocol, ENUM_NATIVE_OPERATORS
 
 
 __all__ = [
@@ -54,6 +54,7 @@ __all__ = [
 
 "NativeVisitorProtocol",
 "NativeExpressionProtocol",
+"NativeBuilderProtocol",
 
 
 # Enums

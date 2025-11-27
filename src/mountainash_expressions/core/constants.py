@@ -1,5 +1,5 @@
 from typing import Optional
-from enum import Enum, StrEnum, IntEnum, auto
+from enum import Enum, IntEnum, auto
 
 class CONST_VISITOR_BACKENDS(Enum):
     """
@@ -22,18 +22,18 @@ class CONST_VISITOR_BACKENDS(Enum):
     # XARRAY = "xarray"
     # PYSPARK = "pyspark"
 
-# class CONST_LOGIC_TYPES(Enum):
-#     """
-#     Enumeration for different logic systems.
+class CONST_LOGIC_TYPES(Enum):
+    """
+    Enumeration for different logic systems.
 
-#     Attributes:
-#         - BOOLEAN (str): Boolean (binary) logic system.
-#         - TERNARY (str): Ternary (three-valued) logic system.
-#         - FUZZY (str): Fuzzy logic system.
-#     """
-#     BOOLEAN =   "boolean"
-#     TERNARY =   "ternary"
-#     FUZZY =     "fuzzy"
+    Attributes:
+        - BOOLEAN (str): Boolean (binary) logic system.
+        - TERNARY (str): Ternary (three-valued) logic system.
+        - FUZZY (str): Fuzzy logic system.
+    """
+    BOOLEAN =   "boolean"
+    TERNARY =   "ternary"
+    FUZZY =     "fuzzy"
 
 class CONST_EXPRESSION_NODE_TYPES(Enum):
     """

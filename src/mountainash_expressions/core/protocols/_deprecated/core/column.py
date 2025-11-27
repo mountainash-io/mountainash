@@ -1,16 +1,13 @@
 
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, Dict, Any
-from abc import ABC, abstractmethod
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING
+from typing import Protocol
 from enum import Enum, auto
 
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS, CONST_EXPRESSION_SOURCE_OPERATORS
 from ....types import SupportedExpressions
 
 if TYPE_CHECKING:
-    from ...expression_nodes import ExpressionNode, ColumnExpressionNode
-    from ...expression_parameters import ExpressionParameter
+    from ...expression_nodes import ColumnExpressionNode
     from ....types import SupportedExpressions
     from ...expression_builders.base_expression_builder import ExpressionBuilder
 

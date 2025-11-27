@@ -5,43 +5,41 @@ ExpressionSystem implementations must follow. It separates backend
 primitives from logic dispatch.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, List, TYPE_CHECKING
+from __future__ import annotations
+
+from abc import abstractmethod
+from typing import Any, TYPE_CHECKING
+
+# Import protocols used for class inheritance (must be at runtime)
+from ..protocols import (
+    CoreExpressionProtocol,
+    BooleanExpressionProtocol,
+    ArithmeticExpressionProtocol,
+    NullExpressionProtocol,
+    StringExpressionProtocol,
+    TemporalExpressionProtocol,
+    TypeExpressionProtocol,
+    NameExpressionProtocol,
+    IterableExpressionProtocol,
+    NativeExpressionProtocol,
+)
 
 if TYPE_CHECKING:
     from ..constants import CONST_VISITOR_BACKENDS
-    from ..protocols.core.column import ColumnExpressionProtocol
-    from ..protocols.core.literal import LiteralExpressionProtocol
-
-    from ..protocols.boolean.boolean_iterable import BooleanIterableExpressionProtocol, ENUM_BOOLEAN_ITERABLE_OPERATORS
-    from ..protocols.boolean.boolean_comparison import BooleanComparisonExpressionProtocol, ENUM_BOOLEAN_COMPARISON_OPERATORS
-    from ..protocols.boolean.boolean_collection import BooleanCollectionExpressionProtocol, ENUM_BOOLEAN_COLLECTION_OPERATORS
-    from ..protocols.boolean.boolean_constant import BooleanConstantExpressionProtocol, ENUM_BOOLEAN_CONSTANT_OPERATORS
-    from ..protocols.boolean.boolean_unary import BooleanUnaryExpressionProtocol, ENUM_BOOLEAN_UNARY_OPERATORS
-
-    from ..protocols.math.arithmetic import ArithmeticExpressionProtocol, ENUM_ARITHMETIC_OPERATORS
-    from ..protocols.math.arithmetic_iterable import ArithmeticIterableExpressionProtocol, ENUM_ARITHMETIC_ITERABLE_OPERATORS
-
-    from ..protocols.null.null import NullExpressionProtocol
-    from ..protocols.null.null_constant import NullConstantExpressionProtocol
-    from ..protocols.null.null_logical import NullLogicalExpressionProtocol
 
 
 
-class ExpressionSystem(ColumnExpressionProtocol,
-                        LiteralExpressionProtocol,
-
-                        BooleanIterableExpressionProtocol,
-                        BooleanComparisonExpressionProtocol,
-                        BooleanCollectionExpressionProtocol,
-                        BooleanConstantExpressionProtocol,
-                        BooleanUnaryExpressionProtocol,
-
-                        ArithmeticExpressionProtocol,
-                        ArithmeticIterableExpressionProtocol,
-                        NullExpressionProtocol,
-                        NullConstantExpressionProtocol,
-                        NullLogicalExpressionProtocol
+class ExpressionSystem(
+    CoreExpressionProtocol,
+    BooleanExpressionProtocol,
+    ArithmeticExpressionProtocol,
+    NullExpressionProtocol,
+    StringExpressionProtocol,
+    TemporalExpressionProtocol,
+    TypeExpressionProtocol,
+    NameExpressionProtocol,
+    IterableExpressionProtocol,
+    NativeExpressionProtocol,
 ):
     """
     Abstract base class for backend-specific expression systems.

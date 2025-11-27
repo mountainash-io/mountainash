@@ -1,17 +1,15 @@
 from __future__ import annotations
-from abc import abstractmethod
-from enum import Enum
-from typing import Any, List, Callable, Optional, TYPE_CHECKING, Union
-from typing_extensions import TypeAlias
+from typing import Any, Callable, TYPE_CHECKING, Iterable
+from pydantic import Field
 
 from .base_expression_node import ExpressionNode
-# UnaryExpressionNode, LogicalExpressionNode, ComparisonExpressionNode, ConditionalIfElseExpressionNode, CollectionExpressionNode
 from ...constants import CONST_LOGIC_TYPES
 
+from ..protocols import ENUM_BOOLEAN_OPERATORS
 if TYPE_CHECKING:
-    from ..expression_visitors import ExpressionVisitor, ExpressionVisitorFactory
+    from ..expression_visitors import ExpressionVisitorFactory
     from ..expression_visitors.boolean_visitor import BooleanExpressionVisitor
-    from ..protocols import ENUM_BOOLEAN_OPERATORS
+
     from ...types import SupportedExpressions
 
 
@@ -20,20 +18,24 @@ if TYPE_CHECKING:
 
 class BooleanExpressionNode(ExpressionNode):
 
-    @property
-    def logic_type(self) -> CONST_LOGIC_TYPES:
-        return CONST_LOGIC_TYPES.BOOLEAN
+    operator: ENUM_BOOLEAN_OPERATORS = Field()
+
+    logic_type: CONST_LOGIC_TYPES = Field(default=CONST_LOGIC_TYPES.BOOLEAN)
 
 
-    @abstractmethod
-    def accept(self, visitor: ExpressionVisitor) -> SupportedExpressions:
-        pass
+    def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
+        return visitor.visit_expression_node(self)
 
-    @abstractmethod
-    def eval(self) -> SupportedExpressions:
-        pass
+    def eval(self) -> Callable:
 
-    def eval_is_true(self, backend) -> Callable:
+        def eval_expr(backend: Any) -> SupportedExpressions:
+            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
+            return visitor.visit_expression_node(self)
+
+        return eval_expr
+
+
+    def eval_is_true(self) -> Callable:
         """Convert ternary result to boolean TRUE check."""
 
         def eval_expr(backend: Any) -> SupportedExpressions:
@@ -56,101 +58,88 @@ class BooleanExpressionNode(ExpressionNode):
 
 class BooleanUnaryExpressionNode(BooleanExpressionNode):
 
-    def __init__(self, operator: Enum, operand: Any):
-        self.operator = operator
-        self.operand = operand
+    operand: Any = Field()
 
-    def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
-        return visitor.visit_expression_node(self)
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS, operand: Any):
+        super().__init__(
+            operator=operator,
+            operand=operand
+        )
 
-    def eval(self) -> Callable:
-
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
-
-        return eval_expr
 
 
 class BooleanIterableExpressionNode(BooleanExpressionNode):
 
-    def __init__(self, operator: Enum, *operands: Any):
-        self.operator = operator
-        self.operands = operands
+    operands: Iterable[Any] = Field()
 
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS, *operands: Any):
+        super().__init__(
+            operator=operator,
+            operands=operands
+        )
 
-    def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
-        return visitor.visit_expression_node(self)
-
-    def eval(self) -> Callable:
-
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
-
-        return eval_expr
 
 
 class BooleanComparisonExpressionNode(BooleanExpressionNode):
 
-    def __init__(self, operator: Enum, left: Any, right: Any, closed: Optional[str] = None, precision: Optional[float] = None):
+    left: Any = Field()
+    right: Any = Field()
 
-        self.operator = operator
-        self.left = left
-        self.right = right
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS, left: Any, right: Any):
+        super().__init__(
+            operator=operator,
+            left=left,
+            right=right
+        )
 
-        #Parameters for between and is_close
-        self.closed = closed
-        self.precision = precision
 
 
-    def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
-        return visitor.visit_expression_node(self)
 
-    def eval(self) -> Callable:
+class BooleanBetweenExpressionNode(BooleanExpressionNode):
+    left: Any = Field()
+    right: Any = Field()
+    closed: Any = Field()
 
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS, left: Any, right: Any, closed: Any):
+        super().__init__(operator=operator,
+            left = left,
+            right = right,
+            closed = closed
 
-        return eval_expr
+        )
+
+
+class BooleanIsCloseExpressionNode(BooleanExpressionNode):
+    left: Any = Field()
+    right: Any = Field()
+    precision: Any = Field()
+
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS, left: Any, right: Any, precision: Any):
+        super().__init__(operator=operator,
+            left = left,
+            right = right,
+            precision = precision
+        )
+
 
 
 class BooleanCollectionExpressionNode(BooleanExpressionNode):
 
-    def __init__(self, operator: Enum, element: Any, container: Any ):
-        self.operator = operator
-        self.element = element
-        self.container = container
+    operand: Any = Field()
+    element: Any = Field()
+    container: Any = Field()
 
-    def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
-        return visitor.visit_expression_node(self)
-
-    def eval(self) -> Callable:
-
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
-
-        return eval_expr
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS, operand: Any, element: Any, container: Any):
+        super().__init__(operator=operator,
+            operand = operand,
+            element = element,
+            container = container
+        )
 
 
 class BooleanConstantExpressionNode(BooleanExpressionNode):
-
-    def __init__(self, operator: Enum, element: Any, container: Any ):
-        self.operator = operator
-
-    def accept(self, visitor: BooleanExpressionVisitor) -> SupportedExpressions:
-        return visitor.visit_expression_node(self)
-
-
-    def eval(self) -> Callable:
-
-        def eval_expr(backend: Any) -> SupportedExpressions:
-            visitor: BooleanExpressionVisitor = ExpressionVisitorFactory.get_visitor_for_backend(backend, self.logic_type)
-            return visitor.visit_expression_node(self)
-
-        return eval_expr
+    def __init__(self, operator: ENUM_BOOLEAN_OPERATORS):
+        super().__init__(operator=operator)
 
 
 
@@ -169,4 +158,4 @@ class BooleanConstantExpressionNode(BooleanExpressionNode):
 #         return eval_expr
 
 
-SupportedBooleanExpressionNodeTypes: TypeAlias = Union[BooleanComparisonExpressionNode, BooleanCollectionExpressionNode, BooleanConstantExpressionNode, BooleanIterableExpressionNode, BooleanUnaryExpressionNode]
+# SupportedBooleanExpressionNodeTypes: TypeAlias = Union[BooleanComparisonExpressionNode, BooleanCollectionExpressionNode, BooleanConstantExpressionNode, BooleanIterableExpressionNode, BooleanUnaryExpressionNode]

@@ -1,12 +1,10 @@
+from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, Dict, Any, Literal
-from abc import ABC, abstractmethod
+
+from typing import Callable, TYPE_CHECKING, Dict
 from enum import Enum
-from ...constants import CONST_LOGIC_TYPES, CONST_VISITOR_BACKENDS
 
 
-from ..expression_parameters import ExpressionParameter
-from ..expression_system.base import ExpressionSystem
 from .expression_visitor import ExpressionVisitor
 
 from ..protocols import ENUM_NATIVE_OPERATORS, NativeVisitorProtocol

@@ -7,9 +7,8 @@ while maintaining full type safety. Inspired by narwhals' typing architecture.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
+from typing import TYPE_CHECKING, Union, Any
 from typing_extensions import TypeAlias, TypeGuard
-from collections.abc import Sequence, Mapping, Callable
 
 if TYPE_CHECKING:
     import ibis.expr.types as ir

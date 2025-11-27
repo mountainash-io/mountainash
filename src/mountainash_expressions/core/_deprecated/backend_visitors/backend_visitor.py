@@ -4,7 +4,6 @@ from typing import Any
 from abc import ABC, abstractmethod
 from ..constants import CONST_VISITOR_BACKENDS
 
-from ...core.expression_visitors.common_mixins import CastExpressionVisitor, LiteralExpressionVisitor, SourceExpressionVisitor #, NativeBackendExpressionVisitor
 
 class BackendVisitor(ABC):
 

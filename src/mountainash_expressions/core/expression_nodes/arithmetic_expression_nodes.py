@@ -1,16 +1,13 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collection, Literal, Union
-from enum import Enum
-from typing_extensions import TypeAlias
+from typing import Any, Callable, TYPE_CHECKING, Iterable
 # from ibis.expr.types import s  # Removed - not used and causes import error
-
-from ...constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
-
+from pydantic import Field
 from .base_expression_node import ExpressionNode
 
+
+
+from ..protocols import ENUM_ARITHMETIC_OPERATORS
 if TYPE_CHECKING:
-    from ..expression_visitors import ExpressionVisitor
     from ..expression_visitors import ArithmeticExpressionVisitor
     from ...types import SupportedExpressions
 
@@ -23,13 +20,8 @@ class BaseArithmeticExpressionNode(ExpressionNode):
     The logic_type determines how NULL values are handled during arithmetic operations.
     """
 
-    @property
-    @final
-    def expression_type(self) -> CONST_EXPRESSION_NODE_TYPES:
-        return CONST_EXPRESSION_NODE_TYPES.ARITHMETIC
+    operator: ENUM_ARITHMETIC_OPERATORS = Field()
 
-    def __init__(self):
-        ...
 
     def accept(self, visitor: ArithmeticExpressionVisitor) -> SupportedExpressions:
         return visitor.visit_expression_node(self)
@@ -42,7 +34,7 @@ class BaseArithmeticExpressionNode(ExpressionNode):
         return eval_expr
 
 
-class ArithmeticExpressionNode(ExpressionNode):
+class ArithmeticExpressionNode(BaseArithmeticExpressionNode):
     """
     Node representing arithmetic ordered operations (SUBTRACT, DIVIDE, etc.).
 
@@ -50,13 +42,24 @@ class ArithmeticExpressionNode(ExpressionNode):
     The logic_type determines how NULL values are handled during arithmetic operations.
     """
 
-    def __init__(self, operator: Enum, left: Any, right: Any):
-        self.operator = operator
-        self.left = left
-        self.right = right
+    left : Any = Field()
+    right : Any = Field()
+
+    def __init__(self, operator: ENUM_ARITHMETIC_OPERATORS, left: Any, right: Any):
+        super().__init__(
+            operator=operator,
+            left=left,
+            right=right
+        )
 
 
-class ArithmeticIterableExpressionNode(ExpressionNode):
+    # def __init__(self, operator: Enum, left: Any, right: Any):
+    #     self.operator = operator
+    #     self.left = left
+    #     self.right = right
+
+
+class ArithmeticIterableExpressionNode(BaseArithmeticExpressionNode):
     """
     Node representing arithmetic iterable operations (ADD,  MULTIPLY,).
 
@@ -64,10 +67,20 @@ class ArithmeticIterableExpressionNode(ExpressionNode):
     The logic_type determines how NULL values are handled during arithmetic operations.
     """
 
-    def __init__(self, operator: Enum, *operands: Any):
-        self.operator = operator
-        self.operands = operands
+    # TODO: Can an *iterable parameter be passed to pydantic?
+
+    operands: Iterable[Any] = Field()
+
+    def __init__(self, operator: ENUM_ARITHMETIC_OPERATORS, *operands: Any):
+        super().__init__(
+            operator=operator,
+            operands=operands
+        )
+
+    # def __init__(self, operator: Enum, *operands: Any):
+    #     self.operator = operator
+    #     self.operands = operands
 
 
 
-SupportedArithmeticExpressionNodeTypes: TypeAlias = Union[ArithmeticExpressionNode, ArithmeticIterableExpressionNode]
+# SupportedArithmeticExpressionNodeTypes: TypeAlias = Union[ArithmeticExpressionNode, ArithmeticIterableExpressionNode]

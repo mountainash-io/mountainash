@@ -1,10 +1,10 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, List, Callable, Optional, final, TYPE_CHECKING, Collection
+from typing import Any, Callable, final, TYPE_CHECKING
 from enum import Enum
 # from ibis.expr.types import s  # Removed - not used and causes import error
 
-from ..constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
+from ...constants import CONST_EXPRESSION_NODE_TYPES, CONST_LOGIC_TYPES
 
 if TYPE_CHECKING:
     from ..expression_visitors.expression_visitor import ExpressionVisitor

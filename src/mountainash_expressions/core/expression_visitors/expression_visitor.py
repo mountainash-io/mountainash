@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 from typing import Callable, TYPE_CHECKING, Dict, Any
 from abc import ABC, abstractmethod
@@ -13,17 +14,13 @@ if TYPE_CHECKING:
 
 
 class ExpressionVisitor(ABC):
+    """
+    Base class for expression visitors.
 
-    @property
-    @abstractmethod
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
-        pass
-
-    @property
-    @abstractmethod
-    def logic_type(self) -> CONST_LOGIC_TYPES:
-        pass
-
+    Visitors are backend-agnostic and work with any backend through
+    the injected ExpressionSystem. Backend type can be determined via
+    self.backend.backend_type if needed.
+    """
 
     def __init__(self, expression_system: ExpressionSystem):
         """
