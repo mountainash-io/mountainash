@@ -328,10 +328,10 @@ from mountainash_expressions.core.protocols import (
     CoreVisitorProtocol,
     CoreExpressionProtocol,
     CoreBuilderProtocol,
-    # Iterable
-    IterableVisitorProtocol,
-    IterableExpressionProtocol,
-    IterableBuilderProtocol,
+    # Horizontal
+    HorizontalVisitorProtocol,
+    HorizontalExpressionProtocol,
+    HorizontalBuilderProtocol,
     # Name
     NameVisitorProtocol,
     NameExpressionProtocol,
@@ -366,7 +366,7 @@ from mountainash_expressions.core.expression_visitors import (
     ArithmeticExpressionVisitor,
     BooleanExpressionVisitor,
     CoreExpressionVisitor,
-    IterableExpressionVisitor,
+    HorizontalExpressionVisitor,
     NameExpressionVisitor,
     NullExpressionVisitor,
     StringExpressionVisitor,
@@ -381,9 +381,8 @@ from mountainash_expressions.core.expression_visitors import (
 
 from mountainash_expressions.core.namespaces import (
     ArithmeticNamespace,
-    BooleanComparisonNamespace,
-    BooleanLogicalNamespace,
-    IterableNamespace,
+    BooleanNamespace,
+    HorizontalNamespace,
     NameNamespace,
     NullNamespace,
     StringNamespace,
@@ -404,7 +403,7 @@ from mountainash_expressions.backends.expression_systems.polars.null import Pola
 from mountainash_expressions.backends.expression_systems.polars.string import PolarsStringExpressionSystem
 from mountainash_expressions.backends.expression_systems.polars.temporal import PolarsTemporalExpressionSystem
 from mountainash_expressions.backends.expression_systems.polars.type import PolarsTypeExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.iterable import PolarsIterableExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.horizontal import PolarsHorizontalExpressionSystem
 from mountainash_expressions.backends.expression_systems.polars.name import PolarsNameExpressionSystem
 from mountainash_expressions.backends.expression_systems.polars.native import PolarsNativeExpressionSystem
 
@@ -416,7 +415,7 @@ from mountainash_expressions.backends.expression_systems.ibis.null import IbisNu
 from mountainash_expressions.backends.expression_systems.ibis.string import IbisStringExpressionSystem
 from mountainash_expressions.backends.expression_systems.ibis.temporal import IbisTemporalExpressionSystem
 from mountainash_expressions.backends.expression_systems.ibis.type import IbisTypeExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.iterable import IbisIterableExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.horizontal import IbisHorizontalExpressionSystem
 from mountainash_expressions.backends.expression_systems.ibis.name import IbisNameExpressionSystem
 from mountainash_expressions.backends.expression_systems.ibis.native import IbisNativeExpressionSystem
 
@@ -428,7 +427,7 @@ from mountainash_expressions.backends.expression_systems.narwhals.null import Na
 from mountainash_expressions.backends.expression_systems.narwhals.string import NarwhalsStringExpressionSystem
 from mountainash_expressions.backends.expression_systems.narwhals.temporal import NarwhalsTemporalExpressionSystem
 from mountainash_expressions.backends.expression_systems.narwhals.type import NarwhalsTypeExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.iterable import NarwhalsIterableExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.horizontal import NarwhalsHorizontalExpressionSystem
 from mountainash_expressions.backends.expression_systems.narwhals.name import NarwhalsNameExpressionSystem
 from mountainash_expressions.backends.expression_systems.narwhals.native import NarwhalsNativeExpressionSystem
 
@@ -448,7 +447,7 @@ class TestVisitorProtocolAlignment:
         (ArithmeticVisitorProtocol, ArithmeticExpressionVisitor),
         (BooleanVisitorProtocol, BooleanExpressionVisitor),
         (CoreVisitorProtocol, CoreExpressionVisitor),
-        (IterableVisitorProtocol, IterableExpressionVisitor),
+        (HorizontalVisitorProtocol, HorizontalExpressionVisitor),
         (NameVisitorProtocol, NameExpressionVisitor),
         (NullVisitorProtocol, NullExpressionVisitor),
         (StringVisitorProtocol, StringExpressionVisitor),
@@ -457,13 +456,14 @@ class TestVisitorProtocolAlignment:
         (NativeVisitorProtocol, NativeExpressionVisitor),
     ])
     def test_visitor_alignment(self, protocol, implementation):
-        """Each visitor implementation should align with its protocol."""
+        """Each visitor implementation should align with its protocol (method presence and signatures)."""
         result = check_alignment(
             protocol,
             implementation,
             exclude_from_protocol=self.VISITOR_INFRASTRUCTURE,
             exclude_from_impl=self.VISITOR_INFRASTRUCTURE | {'_get_expr_op'},
             include_inherited=True,
+            check_signatures=True,
         )
 
         if not result.is_aligned:
@@ -480,7 +480,7 @@ class TestExpressionProtocolAlignment:
         (ArithmeticExpressionProtocol, PolarsArithmeticExpressionSystem),
         (BooleanExpressionProtocol, PolarsBooleanExpressionSystem),
         (CoreExpressionProtocol, PolarsCoreExpressionSystem),
-        (IterableExpressionProtocol, PolarsIterableExpressionSystem),
+        (HorizontalExpressionProtocol, PolarsHorizontalExpressionSystem),
         (NameExpressionProtocol, PolarsNameExpressionSystem),
         (NullExpressionProtocol, PolarsNullExpressionSystem),
         (StringExpressionProtocol, PolarsStringExpressionSystem),
@@ -489,7 +489,7 @@ class TestExpressionProtocolAlignment:
         (NativeExpressionProtocol, PolarsNativeExpressionSystem),
     ])
     def test_polars_backend_alignment(self, protocol, implementation):
-        """Polars backend implementations should align with protocols."""
+        """Polars backend implementations should align with protocols (method presence and signatures)."""
         # Don't include_inherited because backend classes are composed
         # Each backend class only defines methods for its own protocol
         result = check_alignment(
@@ -498,6 +498,7 @@ class TestExpressionProtocolAlignment:
             exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
             exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
             include_inherited=False,  # Only check methods defined on this specific class
+            check_signatures=True,
         )
 
         if not result.is_aligned:
@@ -507,7 +508,7 @@ class TestExpressionProtocolAlignment:
         (ArithmeticExpressionProtocol, IbisArithmeticExpressionSystem),
         (BooleanExpressionProtocol, IbisBooleanExpressionSystem),
         (CoreExpressionProtocol, IbisCoreExpressionSystem),
-        (IterableExpressionProtocol, IbisIterableExpressionSystem),
+        (HorizontalExpressionProtocol, IbisHorizontalExpressionSystem),
         (NameExpressionProtocol, IbisNameExpressionSystem),
         (NullExpressionProtocol, IbisNullExpressionSystem),
         (StringExpressionProtocol, IbisStringExpressionSystem),
@@ -516,13 +517,14 @@ class TestExpressionProtocolAlignment:
         (NativeExpressionProtocol, IbisNativeExpressionSystem),
     ])
     def test_ibis_backend_alignment(self, protocol, implementation):
-        """Ibis backend implementations should align with protocols."""
+        """Ibis backend implementations should align with protocols (method presence and signatures)."""
         result = check_alignment(
             protocol,
             implementation,
             exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
             exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
             include_inherited=False,
+            check_signatures=True,
         )
 
         if not result.is_aligned:
@@ -532,7 +534,7 @@ class TestExpressionProtocolAlignment:
         (ArithmeticExpressionProtocol, NarwhalsArithmeticExpressionSystem),
         (BooleanExpressionProtocol, NarwhalsBooleanExpressionSystem),
         (CoreExpressionProtocol, NarwhalsCoreExpressionSystem),
-        (IterableExpressionProtocol, NarwhalsIterableExpressionSystem),
+        (HorizontalExpressionProtocol, NarwhalsHorizontalExpressionSystem),
         (NameExpressionProtocol, NarwhalsNameExpressionSystem),
         (NullExpressionProtocol, NarwhalsNullExpressionSystem),
         (StringExpressionProtocol, NarwhalsStringExpressionSystem),
@@ -541,13 +543,14 @@ class TestExpressionProtocolAlignment:
         (NativeExpressionProtocol, NarwhalsNativeExpressionSystem),
     ])
     def test_narwhals_backend_alignment(self, protocol, implementation):
-        """Narwhals backend implementations should align with protocols."""
+        """Narwhals backend implementations should align with protocols (method presence and signatures)."""
         result = check_alignment(
             protocol,
             implementation,
             exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
             exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
             include_inherited=False,
+            check_signatures=True,
         )
 
         if not result.is_aligned:
@@ -568,7 +571,8 @@ class TestBuilderProtocolAlignment:
             '__floordiv__', '__rfloordiv__', '__mod__', '__rmod__',
             '__pow__', '__rpow__', '__neg__',
         }),
-        (IterableBuilderProtocol, IterableNamespace, set()),
+        (BooleanBuilderProtocol, BooleanNamespace, set()),
+        (HorizontalBuilderProtocol, HorizontalNamespace, set()),
         (NameBuilderProtocol, NameNamespace, set()),
         (NullBuilderProtocol, NullNamespace, set()),
         (StringBuilderProtocol, StringNamespace, set()),
@@ -577,13 +581,14 @@ class TestBuilderProtocolAlignment:
         (NativeBuilderProtocol, NativeNamespace, set()),
     ])
     def test_namespace_alignment(self, protocol, implementation, exclude_impl):
-        """Namespace implementations should align with builder protocols."""
+        """Namespace implementations should align with builder protocols (method presence and signatures)."""
         result = check_alignment(
             protocol,
             implementation,
             exclude_from_protocol=self.NAMESPACE_INFRASTRUCTURE | exclude_impl,
             exclude_from_impl=self.NAMESPACE_INFRASTRUCTURE,
             include_inherited=True,
+            check_signatures=True,
         )
 
         if not result.is_aligned:
@@ -608,7 +613,7 @@ class TestGenerateAlignmentReport:
             (ArithmeticVisitorProtocol, ArithmeticExpressionVisitor),
             (BooleanVisitorProtocol, BooleanExpressionVisitor),
             (CoreVisitorProtocol, CoreExpressionVisitor),
-            (IterableVisitorProtocol, IterableExpressionVisitor),
+            (HorizontalVisitorProtocol, HorizontalExpressionVisitor),
             (NameVisitorProtocol, NameExpressionVisitor),
             (NullVisitorProtocol, NullExpressionVisitor),
             (StringVisitorProtocol, StringExpressionVisitor),
@@ -621,7 +626,7 @@ class TestGenerateAlignmentReport:
             (ArithmeticExpressionProtocol, PolarsArithmeticExpressionSystem),
             (BooleanExpressionProtocol, PolarsBooleanExpressionSystem),
             (CoreExpressionProtocol, PolarsCoreExpressionSystem),
-            (IterableExpressionProtocol, PolarsIterableExpressionSystem),
+            (HorizontalExpressionProtocol, PolarsHorizontalExpressionSystem),
             (NameExpressionProtocol, PolarsNameExpressionSystem),
             (NullExpressionProtocol, PolarsNullExpressionSystem),
             (StringExpressionProtocol, PolarsStringExpressionSystem),
@@ -634,7 +639,7 @@ class TestGenerateAlignmentReport:
             (ArithmeticExpressionProtocol, IbisArithmeticExpressionSystem),
             (BooleanExpressionProtocol, IbisBooleanExpressionSystem),
             (CoreExpressionProtocol, IbisCoreExpressionSystem),
-            (IterableExpressionProtocol, IbisIterableExpressionSystem),
+            (HorizontalExpressionProtocol, IbisHorizontalExpressionSystem),
             (NameExpressionProtocol, IbisNameExpressionSystem),
             (NullExpressionProtocol, IbisNullExpressionSystem),
             (StringExpressionProtocol, IbisStringExpressionSystem),
@@ -647,7 +652,7 @@ class TestGenerateAlignmentReport:
             (ArithmeticExpressionProtocol, NarwhalsArithmeticExpressionSystem),
             (BooleanExpressionProtocol, NarwhalsBooleanExpressionSystem),
             (CoreExpressionProtocol, NarwhalsCoreExpressionSystem),
-            (IterableExpressionProtocol, NarwhalsIterableExpressionSystem),
+            (HorizontalExpressionProtocol, NarwhalsHorizontalExpressionSystem),
             (NameExpressionProtocol, NarwhalsNameExpressionSystem),
             (NullExpressionProtocol, NarwhalsNullExpressionSystem),
             (StringExpressionProtocol, NarwhalsStringExpressionSystem),
@@ -658,7 +663,7 @@ class TestGenerateAlignmentReport:
 
         namespace_pairs = [
             (ArithmeticBuilderProtocol, ArithmeticNamespace),
-            (IterableBuilderProtocol, IterableNamespace),
+            (HorizontalBuilderProtocol, HorizontalNamespace),
             (NameBuilderProtocol, NameNamespace),
             (NullBuilderProtocol, NullNamespace),
             (StringBuilderProtocol, StringNamespace),

@@ -13,7 +13,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 import pytest
 from datetime import datetime, timedelta
 import mountainash_expressions as ma
-from mountainash_expressions.api.temporal_helpers import (
+from mountainash_expressions.core.utils.temporal import (
     parse_time_expression,
     to_timedelta,
     to_offset_string,

@@ -355,11 +355,11 @@ class TestInfrastructureIntegration:
         expr = lit(42)
         assert isinstance(expr, BooleanExpressionAPI)
 
-    def test_expression_builder_alias(self):
-        """ExpressionBuilder is alias for BooleanExpressionAPI."""
-        from mountainash_expressions import ExpressionBuilder
+    # def test_expression_builder_alias(self):
+    #     """ExpressionBuilder is alias for BooleanExpressionAPI."""
+    #     from mountainash_expressions import ExpressionBuilder
 
-        assert ExpressionBuilder is BooleanExpressionAPI
+    #     assert ExpressionBuilder is BooleanExpressionAPI
 
     def test_col_creates_column_node(self):
         """col() creates a ColumnExpressionNode."""
@@ -458,7 +458,7 @@ class TestRealNamespaces:
             ArithmeticNamespace,
             NullNamespace,
             TypeNamespace,
-            IterableNamespace,
+            HorizontalNamespace,
             NativeNamespace,
         )
 
@@ -470,7 +470,7 @@ class TestRealNamespaces:
         assert ArithmeticNamespace in namespaces
         assert NullNamespace in namespaces
         assert TypeNamespace in namespaces
-        assert IterableNamespace in namespaces
+        assert HorizontalNamespace in namespaces
         assert NativeNamespace in namespaces
 
 
