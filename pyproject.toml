@@ -5,10 +5,11 @@ build-backend = "hatchling.build"
 [project]
 dependencies = [
     # Core framework dependencies (always required)
-    "ibis-framework[pandas,sqlite,duckdb] == 10.4.0",
+    # Using local ibis with Polars calendar interval fix
+    "ibis-framework[pandas,sqlite,duckdb]" # @ file:///home/nathanielramm/git/ibis",
     "numpy>=1.23.2,<3",
     "pandas>=2.2.0",  # Primary DataFrame library - always required
-    "polars==1.16.0",  # Required for IbisDataFrame default backend
+    "polars>=1.35.1",  # Required for IbisDataFrame default backend
     "pyarrow==17.0.0", "pyarrow-hotfix>=0.4,<1",
 
     # Core utilities (always required)
@@ -46,11 +47,11 @@ xarray = ["xarray==2024.11.0"]
 pyspark = ["pyspark>=3.5.0"]
 
 # Database backends (via ibis)
-mssql = ["pyodbc==5.2.0", "ibis-framework[mssql] == 10.4.0"]
-snowflake = ["snowflake-connector-python==3.12.3", "ibis-framework[snowflake] == 10.4.0"]
-postgres = ["psycopg2-binary==2.9.9", "ibis-framework[postgres] == 10.4.0"]
-bigquery = ["ibis-framework[bigquery] == 10.4.0"]
-trino = ["ibis-framework[trino] == 10.4.0"]
+mssql = ["pyodbc==5.2.0", "ibis-framework[mssql]>=11.0.0"]
+snowflake = ["snowflake-connector-python==3.12.3", "ibis-framework[snowflake]>=11.0.0"]
+postgres = ["psycopg2-binary==2.9.9", "ibis-framework[postgres]>=11.0.0"]
+bigquery = ["ibis-framework[bigquery]>=11.0.0"]
+trino = ["ibis-framework[trino]>=11.0.0"]
 
 # Convenience groups
 dataframes = ["xarray"]

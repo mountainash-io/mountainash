@@ -4,279 +4,399 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**mountainash-expressions** is a Python package that provides a sophisticated cross-backend DataFrame expression system. The package currently implements **Boolean logic** (TRUE/FALSE) with automatic backend detection across Polars, Narwhals, Ibis (Polars/DuckDB/SQLite), and Pandas. **Ternary logic** (TRUE/FALSE/UNKNOWN) is architecturally designed but not yet implemented.
+**mountainash-expressions** is a Python package that provides a sophisticated cross-backend DataFrame expression system. The package implements a **three-layer protocol architecture** with automatic backend detection across Polars, Narwhals, Ibis (Polars/DuckDB/SQLite), and Pandas.
 
 The package is designed as a foundation for cross-backend DataFrame filtering, mutations, and operations that need consistent expression evaluation regardless of the underlying DataFrame implementation.
 
 ## Current Architecture Status
 
-**IMPORTANT**: The package uses an **ExpressionSystem pattern** with a **Universal Visitor** approach. Boolean logic is fully implemented and tested across 6 backends. Ternary logic architecture is designed but awaiting implementation.
+**IMPORTANT**: The package uses a **Protocol-Driven Visitor Pattern** with a **three-layer protocol architecture**. All major operation categories are fully implemented and tested across multiple backends.
 
-**Migration Status:**
+**Implementation Status:**
 - ✅ Boolean logic: Fully implemented and tested
-- ✅ ExpressionSystem pattern: Complete
-- ✅ Universal visitor with mixins: Complete
-- ✅ Cross-backend testing: 703 tests passing
+- ✅ Arithmetic operations: Fully implemented
+- ✅ String operations: Fully implemented
+- ✅ Temporal operations: Fully implemented
+- ✅ Horizontal operations (coalesce, greatest, least): Fully implemented
+- ✅ Three-layer protocol architecture: Complete
+- ✅ Standalone category visitors: Complete (~1,862 lines)
+- ✅ AST nodes: Complete (~1,241 lines)
+- ✅ Protocol definitions: Complete (~1,081 lines)
+- ✅ Namespace-based API: Complete (~2,832 lines)
+- ✅ Backend implementations: Complete for Polars (1,423 lines), Ibis (984 lines), Narwhals (991 lines)
+- ✅ Cross-backend testing: 7,500+ lines of tests
 - ⚠️ Ternary logic: Designed but not implemented
 - ⚠️ Pandas backend: Detection exists, limited testing
 
-## Actual Package Structure
+## Package Structure
 
 ```
 src/mountainash_expressions/
 ├── __init__.py                          # Main package exports
 ├── __version__.py                       # Package version
 ├── constants.py                         # Legacy redirect to core.constants
-│
-├── api/                                 # PUBLIC API (User-facing)
-│   ├── __init__.py                     # Exports: col(), lit(), filter(), etc.
-│   ├── expression_builder.py          # Fluent API builder (700+ lines)
-│   └── temporal_helpers.py             # Natural language time expressions
+├── runtime_imports.py                   # Runtime import utilities
+├── types.py                             # Type aliases
 │
 ├── core/                                # CORE ARCHITECTURE
 │   ├── constants.py                    # Enums: backends, logic types, operators
 │   │
-│   ├── expression_nodes/               # AST Node Definitions
-│   │   ├── __init__.py
-│   │   ├── expression_nodes.py        # Base classes: ExpressionNode, etc.
-│   │   └── boolean_expression_nodes.py # Boolean-specific node types
+│   ├── expression_api/                 # EXPRESSION API FACADES
+│   │   ├── __init__.py                # Exports: BaseExpressionAPI, BooleanExpressionAPI
+│   │   ├── base.py                    # BaseExpressionAPI - abstract base with compile()
+│   │   ├── boolean.py                 # BooleanExpressionAPI - main user-facing class
+│   │   └── descriptor.py              # NamespaceDescriptor for .str, .dt, .name accessors
 │   │
-│   ├── expression_visitors/            # VISITOR PATTERN (Mixin-based)
-│   │   ├── __init__.py
-│   │   ├── expression_visitor.py      # Abstract base visitor
-│   │   ├── universal_boolean_visitor.py # ⭐ MAIN VISITOR (776 lines)
-│   │   ├── visitor_factory.py         # Auto-registration & backend detection
-│   │   │
-│   │   ├── arithmetic_mixins/         # +, -, *, /, %, **
-│   │   ├── boolean_mixins/            # AND, OR, NOT, ==, !=, <, >, <=, >=
-│   │   ├── common_mixins/             # col, lit, cast, native
-│   │   ├── conditional_mixins/        # if-else, when-then, coalesce
-│   │   ├── pattern_mixins/            # Regex, glob, pattern matching
-│   │   ├── string_mixins/             # String operations
-│   │   └── temporal_mixins/           # DateTime operations
+│   ├── namespaces/                     # NAMESPACE-BASED API (~2,832 lines)
+│   │   ├── __init__.py                # Export all namespaces
+│   │   ├── base.py                    # BaseNamespace abstract class
+│   │   ├── entrypoints.py             # col(), lit(), coalesce(), greatest(), least(), when(), native()
+│   │   ├── boolean.py                 # Comparison & logical operations (~389 lines)
+│   │   ├── arithmetic.py              # Math operations (~308 lines)
+│   │   ├── string.py                  # String operations (~449 lines)
+│   │   ├── datetime.py                # Temporal operations (~705 lines)
+│   │   ├── name.py                    # Alias/prefix/suffix (~142 lines)
+│   │   ├── null.py                    # Null handling (~113 lines)
+│   │   ├── horizontal.py              # Horizontal ops (~101 lines)
+│   │   ├── type.py                    # Type casting (~45 lines)
+│   │   ├── conditional.py             # When/then/otherwise (~112 lines)
+│   │   └── native.py                  # Native expression passthrough (~51 lines)
 │   │
-│   ├── expression_system/              # BACKEND ABSTRACTION INTERFACE
-│   │   ├── __init__.py
-│   │   └── base.py                    # Abstract ExpressionSystem class
+│   ├── protocols/                      # PROTOCOL DEFINITIONS (~1,081 lines)
+│   │   ├── __init__.py                # Export all protocols
+│   │   ├── arithmetic_protocols.py    # 3 protocols + ENUM_ARITHMETIC_OPERATORS
+│   │   ├── boolean_protocols.py       # 3 protocols + ENUM_BOOLEAN_OPERATORS (~153 lines)
+│   │   ├── core_protocols.py          # 3 protocols + ENUM_CORE_OPERATORS
+│   │   ├── horizontal_protocols.py    # 3 protocols + ENUM_HORIZONTAL_OPERATORS
+│   │   ├── name_protocols.py          # 3 protocols + ENUM_NAME_OPERATORS
+│   │   ├── native_protocols.py        # 3 protocols + ENUM_NATIVE_OPERATORS
+│   │   ├── null_protocols.py          # 3 protocols + ENUM_NULL_OPERATORS
+│   │   ├── string_protocols.py        # 3 protocols + ENUM_STRING_OPERATORS (~171 lines)
+│   │   ├── temporal_protocols.py      # 3 protocols + ENUM_TEMPORAL_OPERATORS (~210 lines)
+│   │   ├── type_protocols.py          # 3 protocols + ENUM_TYPE_OPERATORS
+│   │   └── conditional_protocols.py   # Conditional protocols
 │   │
-│   ├── backend_visitors/               # Legacy BackendVisitor protocol
-│   │   ├── __init__.py
-│   │   └── backend_visitor.py
+│   ├── expression_nodes/              # AST NODES (~1,241 lines)
+│   │   ├── __init__.py                # Export all nodes (~160 lines)
+│   │   ├── base_expression_node.py   # Base node class
+│   │   ├── types.py                  # Type aliases (~111 lines)
+│   │   ├── arithmetic_expression_nodes.py
+│   │   ├── boolean_expression_nodes.py    # (~156 lines)
+│   │   ├── conditional_expression_nodes.py
+│   │   ├── core_expression_nodes.py       # ColumnExpressionNode, LiteralExpressionNode
+│   │   ├── horizontal_expression_nodes.py # Coalesce, greatest, least
+│   │   ├── name_expression_nodes.py
+│   │   ├── native_expression_nodes.py
+│   │   ├── null_expression_nodes.py
+│   │   ├── string_expression_nodes.py     # (~172 lines)
+│   │   ├── temporal_expression_nodes.py
+│   │   └── type_expression_nodes.py
 │   │
-│   └── expression_parameters/          # Parameter handling
+│   ├── expression_visitors/          # STANDALONE VISITORS (~1,862 lines)
+│   │   ├── __init__.py
+│   │   ├── expression_visitor.py    # Abstract base (~43 lines)
+│   │   ├── visitor_factory.py       # Backend detection & dispatch (~499 lines)
+│   │   ├── types.py                 # Type aliases
+│   │   ├── arithmetic_visitor.py    # (~130 lines)
+│   │   ├── boolean_visitor.py       # (~286 lines)
+│   │   ├── conditional_visitor.py   # (~62 lines)
+│   │   ├── core_visitor.py          # col(), lit() (~58 lines)
+│   │   ├── horizontal_visitor.py    # (~77 lines)
+│   │   ├── name_visitor.py          # (~83 lines)
+│   │   ├── native_visitor.py        # (~51 lines)
+│   │   ├── null_visitor.py          # (~83 lines)
+│   │   ├── string_visitor.py        # (~163 lines)
+│   │   ├── temporal_visitor.py      # (~228 lines)
+│   │   └── type_visitor.py          # (~48 lines)
+│   │
+│   ├── expression_system/            # BACKEND ABSTRACTION INTERFACE
+│   │   ├── __init__.py
+│   │   └── base.py                  # ExpressionSystem protocol composition
+│   │
+│   ├── expression_parameters/        # PARAMETER RESOLUTION
+│   │   ├── __init__.py
+│   │   └── expression_parameter.py  # ExpressionParameter abstraction
+│   │
+│   └── utils/
 │       ├── __init__.py
-│       └── expression_parameter.py
+│       └── temporal.py              # Temporal parsing utilities
 │
-├── backends/                            # BACKEND IMPLEMENTATIONS
-│   ├── polars/
-│   │   └── expression_system/
-│   │       └── polars_expression_system.py      # Returns pl.Expr (663 lines)
-│   │
-│   ├── narwhals/
-│   │   └── expression_system/
-│   │       └── narwhals_expression_system.py    # Returns nw.Expr (734 lines)
-│   │
-│   └── ibis/
-│       └── expression_system/
-│           └── ibis_expression_system.py        # Returns ir.Expr (800+ lines)
-│
-└── _deprecated/                         # OLD CODE (being phased out)
-    ├── _boolean_expression_visitor.py   # Old visitor (11KB)
-    └── _backup/                         # Previous iterations
+└── backends/                          # BACKEND IMPLEMENTATIONS
+    ├── __init__.py
+    └── expression_systems/
+        ├── polars/                   # Polars backend (~1,423 lines total)
+        │   ├── __init__.py          # PolarsExpressionSystem composition (~61 lines)
+        │   ├── base.py              # PolarsBaseExpressionSystem (~34 lines)
+        │   ├── arithmetic.py        # (~123 lines)
+        │   ├── boolean.py           # (~315 lines)
+        │   ├── conditional.py       # (~32 lines)
+        │   ├── core.py              # col(), lit() (~47 lines)
+        │   ├── horizontal.py        # (~57 lines)
+        │   ├── name.py              # (~74 lines)
+        │   ├── native.py            # (~33 lines)
+        │   ├── null.py              # (~78 lines)
+        │   ├── string.py            # (~215 lines)
+        │   ├── temporal.py          # (~321 lines)
+        │   └── type.py              # (~33 lines)
+        │
+        ├── ibis/                     # Ibis backend (~984 lines total)
+        │   ├── __init__.py          # IbisExpressionSystem composition (~50 lines)
+        │   ├── base.py              # (~37 lines)
+        │   ├── arithmetic.py        # (~36 lines)
+        │   ├── boolean.py           # (~111 lines)
+        │   ├── conditional.py       # (~32 lines)
+        │   ├── core.py              # (~20 lines)
+        │   ├── horizontal.py        # (~62 lines)
+        │   ├── name.py              # (~116 lines)
+        │   ├── native.py            # (~33 lines)
+        │   ├── null.py              # (~31 lines)
+        │   ├── string.py            # (~91 lines)
+        │   ├── temporal.py          # (~352 lines)
+        │   └── type.py              # (~13 lines)
+        │
+        └── narwhals/                 # Narwhals backend (~991 lines total)
+            ├── __init__.py          # NarwhalsExpressionSystem composition (~50 lines)
+            ├── base.py              # (~37 lines)
+            ├── arithmetic.py        # (~66 lines)
+            ├── boolean.py           # (~160 lines)
+            ├── conditional.py       # (~32 lines)
+            ├── core.py              # (~45 lines)
+            ├── horizontal.py        # (~59 lines)
+            ├── name.py              # (~86 lines)
+            ├── native.py            # (~33 lines)
+            ├── null.py              # (~31 lines)
+            ├── string.py            # (~123 lines)
+            ├── temporal.py          # (~254 lines)
+            └── type.py              # (~15 lines)
 ```
 
 ## Test Structure
 
 ```
 tests/
-├── conftest.py                          # ⭐ 500+ lines of fixtures
+├── conftest.py                          # ~606 lines of fixtures
 ├── fixtures/
-│   └── backend_helpers.py              # Cross-backend utilities
+│   └── backend_helpers.py              # Cross-backend utilities (~329 lines)
 │
-├── cross_backend/                       # ⭐ MAIN TEST SUITE
-│   ├── test_arithmetic.py              # +, -, *, /, %, **
-│   ├── test_boolean.py                 # AND, OR, NOT, comparisons
-│   ├── test_conditional.py             # if-else, when-then, coalesce
-│   ├── test_expression_builder_api.py  # Fluent API tests
-│   ├── test_pattern.py                 # Regex, glob, pattern matching
-│   ├── test_string.py                  # String operations
-│   ├── test_temporal_advanced.py       # Complex datetime ops
-│   └── test_temporal_natural.py        # Natural language time (refactored)
+├── cross_backend/                       # MAIN TEST SUITE
+│   ├── test_arithmetic.py              # (~637 lines)
+│   ├── test_boolean.py                 # (~605 lines)
+│   ├── test_conditional.py             # (~408 lines)
+│   ├── test_expression_builder_api.py  # Fluent API tests (~775 lines)
+│   ├── test_native.py                  # Native expression tests (~509 lines)
+│   ├── test_pattern.py                 # Regex, pattern matching (~577 lines)
+│   ├── test_string.py                  # String operations (~748 lines)
+│   ├── test_temporal_advanced.py       # Complex datetime ops (~591 lines)
+│   └── test_temporal_natural.py        # Natural language time (~411 lines)
 │
-├── unit/                                # Unit tests
-├── integration/                         # Integration tests
-├── backends/                            # Backend-specific tests
-└── _deprecated/                         # Old tests (moved here)
+├── unit/
+│   ├── test_namespace_infrastructure.py # (~582 lines)
+│   └── test_protocol_alignment.py      # Protocol-implementation alignment (~711 lines)
+├── integration/
+└── backends/
 ```
 
-## Core Architecture: ExpressionSystem Pattern
+**Total Test Lines: ~7,521**
+
+## Core Architecture: Three-Layer Protocol Design
+
+### The Three Protocol Layers
+
+**IMPORTANT**: Every operation category defines **THREE** protocol interfaces:
+
+1. **VisitorProtocol** - Defines visitor methods that traverse AST nodes
+2. **ExpressionProtocol** - Defines backend primitive operations
+3. **BuilderProtocol** - Defines fluent user-facing API methods (implemented by Namespaces)
+
+### Protocol Categories
+
+| Category | Protocols | Enum | Operations |
+|----------|-----------|------|------------|
+| **Core** | CoreVisitor, CoreExpression, CoreBuilder | ENUM_CORE_OPERATORS | col, lit |
+| **Boolean** | BooleanVisitor, BooleanExpression, BooleanBuilder | ENUM_BOOLEAN_OPERATORS | eq, ne, gt, lt, ge, le, and_, or_, not_, is_in, etc. |
+| **Arithmetic** | ArithmeticVisitor, ArithmeticExpression, ArithmeticBuilder | ENUM_ARITHMETIC_OPERATORS | add, subtract, multiply, divide, modulo, power, floor_divide |
+| **String** | StringVisitor, StringExpression, StringBuilder | ENUM_STRING_OPERATORS | upper, lower, trim, contains, startswith, etc. |
+| **Temporal** | TemporalVisitor, TemporalExpression, TemporalBuilder | ENUM_TEMPORAL_OPERATORS | year, month, day, add_days, diff_hours, etc. |
+| **Horizontal** | HorizontalVisitor, HorizontalExpression, HorizontalBuilder | ENUM_HORIZONTAL_OPERATORS | coalesce, greatest, least |
+| **Null** | NullVisitor, NullExpression, NullBuilder | ENUM_NULL_OPERATORS | is_null, is_not_null, fill_null |
+| **Type** | TypeVisitor, TypeExpression, TypeBuilder | ENUM_TYPE_OPERATORS | cast |
+| **Name** | NameVisitor, NameExpression, NameBuilder | ENUM_NAME_OPERATORS | alias, prefix, suffix |
+| **Native** | NativeVisitor, NativeExpression, NativeBuilder | ENUM_NATIVE_OPERATORS | native (passthrough) |
+| **Conditional** | - | - | when/then/otherwise |
 
 ### The Architecture Flow
 
 ```python
 # 1. User builds expression (backend-agnostic AST)
-User API (col(), lit(), etc.)
+User API: ma.col("age").gt(30)
     ↓
-ExpressionBuilder (fluent interface)
+BooleanExpressionAPI (fluent interface) - dispatches to Namespaces
     ↓
-ExpressionNode (AST: BooleanComparisonNode, etc.)
+BooleanNamespace.gt() - creates ExpressionNode
+    ↓
+BooleanComparisonExpressionNode (AST node)
 
 # 2. Compile to backend-native expression
-ExpressionNode.accept(visitor)
+BooleanExpressionAPI.compile(df)
     ↓
-UniversalBooleanExpressionVisitor (injected with ExpressionSystem)
+ExpressionVisitorFactory.get_visitor_for_node() - selects visitor
     ↓
-ExpressionSystem.col() / .eq() / .and_() / etc.
+BooleanExpressionVisitor.visit_expression_node() - dispatches by operator
+    ↓
+ExpressionParameter.to_native_expression() - resolves operands
+    ↓
+Backend (e.g., PolarsExpressionSystem.gt()) - implements ExpressionProtocol
     ↓
 Backend-native expression (pl.Expr | nw.Expr | ir.Expr)
 
 # 3. Execute on DataFrame
-DataFrame.filter(backend_expr) → Filtered DataFrame
+df.filter(backend_expr) → Filtered DataFrame
 ```
 
 ### Key Components
 
-#### 1. ExpressionSystem (Abstract Interface)
+#### 1. BooleanExpressionAPI (Main User Interface)
 
-Located: `core/expression_system/base.py`
+Located: `core/expression_api/boolean.py`
 
-The ExpressionSystem defines the interface all backends must implement:
+The main user-facing class that provides fluent expression building:
 
 ```python
-class ExpressionSystem(ABC):
-    """Abstract interface for backend-specific expression generation."""
+class BooleanExpressionAPI(BaseExpressionAPI):
+    """Expression API with standard two-valued boolean logic."""
 
-    @abstractmethod
-    def col(self, name: str) -> BackendExpr:
-        """Column reference"""
+    # Flat namespaces - methods accessed directly
+    _FLAT_NAMESPACES = (
+        BooleanComparisonNamespace,
+        BooleanLogicalNamespace,
+        ArithmeticNamespace,
+        NullNamespace,
+        TypeNamespace,
+        HorizontalNamespace,
+        NativeNamespace,
+    )
 
-    @abstractmethod
-    def lit(self, value: Any) -> BackendExpr:
-        """Literal value"""
+    # Explicit namespace descriptors - accessed via .str, .dt, .name
+    str = NamespaceDescriptor(StringNamespace)
+    dt = NamespaceDescriptor(DateTimeNamespace)
+    name = NamespaceDescriptor(NameNamespace)
 
-    @abstractmethod
-    def eq(self, left: BackendExpr, right: BackendExpr) -> BackendExpr:
-        """Equality comparison"""
-
-    # ... many more methods for all operations
+    # Python operator overloading
+    def __gt__(self, other): return self.gt(other)
+    def __and__(self, other): return self.and_(other)
+    def __add__(self, other): return self.add(other)
+    # ... etc.
 ```
 
-#### 2. Backend ExpressionSystems
+#### 2. Namespace-Based API
 
-Each backend implements the ExpressionSystem interface:
+Located: `core/namespaces/`
 
-- **PolarsExpressionSystem** (`backends/polars/`) → Returns `pl.Expr`
-- **NarwhalsExpressionSystem** (`backends/narwhals/`) → Returns `nw.Expr`
-- **IbisExpressionSystem** (`backends/ibis/`) → Returns `ir.Expr`
+Operations are organized into namespaces that implement BuilderProtocols:
 
-Example:
 ```python
-class PolarsExpressionSystem(ExpressionSystem):
-    def col(self, name: str) -> pl.Expr:
-        return pl.col(name)
+# core/namespaces/boolean.py
+class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
+    """Boolean operations namespace."""
 
-    def eq(self, left: pl.Expr, right: pl.Expr) -> pl.Expr:
-        return left == right
+    def eq(self, other) -> BaseExpressionAPI:
+        """Equal to (==)."""
+        other_node = self._to_node_or_value(other)
+        node = BooleanComparisonExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.EQ,
+            self._node,
+            other_node,
+        )
+        return self._build(node)
+
+    def and_(self, *others) -> BaseExpressionAPI:
+        """Logical AND operation."""
+        operands = [self._node] + [self._to_node_or_value(o) for o in others]
+        node = BooleanIterableExpressionNode(
+            ENUM_BOOLEAN_OPERATORS.AND,
+            *operands,
+        )
+        return self._build(node)
 ```
 
-#### 3. Universal Visitor
+#### 3. Entry Point Functions
 
-`UniversalBooleanExpressionVisitor` (`core/expression_visitors/universal_boolean_visitor.py`)
+Located: `core/namespaces/entrypoints.py`
 
-The visitor:
-- Works with **any** ExpressionSystem through dependency injection
-- Composed of **7 mixin categories** for different operation types
-- Returns backend-native expressions directly (not Callables)
-- Single implementation handles all backends
-
-Mixin composition:
 ```python
-class UniversalBooleanExpressionVisitor(
-    # Common operations
-    CastExpressionVisitor,
-    LiteralExpressionVisitor,
-    SourceExpressionVisitor,
+def col(name: str) -> BaseExpressionAPI:
+    """Create a column reference expression."""
+    node = ColumnExpressionNode(operator=ENUM_CORE_OPERATORS.COL, column=name)
+    return BooleanExpressionAPI(node)
 
-    # Boolean logic
-    BooleanCollectionExpressionVisitor,
-    BooleanComparisonExpressionVisitor,
-    BooleanConstantExpressionVisitor,
-    BooleanOperatorsExpressionVisitor,
-    BooleanUnaryExpressionVisitor,
+def lit(value: Any) -> BaseExpressionAPI:
+    """Create a literal value expression."""
+    node = LiteralExpressionNode(operator=ENUM_CORE_OPERATORS.LIT, value=value)
+    return BooleanExpressionAPI(node)
 
-    # Other operations
-    ArithmeticOperatorsExpressionVisitor,
-    StringOperatorsExpressionVisitor,
-    PatternOperatorsExpressionVisitor,
-    ConditionalOperatorsExpressionVisitor,
-    TemporalOperatorsExpressionVisitor,
-):
-    def __init__(self, backend: ExpressionSystem):
-        self.backend = backend  # Injected ExpressionSystem
-```
+def coalesce(*exprs) -> BaseExpressionAPI:
+    """Return the first non-null value from multiple expressions."""
+    ...
 
-Each mixin uses `self.backend` to generate expressions:
-```python
-# Example from boolean_mixins/
-def visit_comparison_expression(self, node):
-    left = self._process_operand(node.left)
-    right = self._process_operand(node.right)
-    return self.backend.eq(left, right)  # Uses injected backend
+def when(condition) -> WhenBuilder:
+    """Start a conditional when-then-otherwise expression."""
+    ...
+
+def native(expr: Any) -> BaseExpressionAPI:
+    """Wrap a backend-native expression in the abstract expression API."""
+    ...
 ```
 
 #### 4. Visitor Factory
 
-`ExpressionVisitorFactory` (`core/expression_visitors/visitor_factory.py`)
+Located: `core/expression_visitors/visitor_factory.py`
 
-Responsibilities:
-- Auto-detects backend from DataFrame type
-- Auto-registers ExpressionSystems on import
-- Creates visitor with appropriate ExpressionSystem
+Auto-detects backend and dispatches to appropriate visitor:
 
 ```python
-# Backend detection priority:
-# 1. Narwhals (must check first - wraps other backends)
-# 2. Ibis
-# 3. Polars
-# 4. Pandas (detection exists, limited testing)
+class ExpressionVisitorFactory:
+    _expression_systems_registry: Dict[CONST_VISITOR_BACKENDS, Type[ExpressionSystem]] = {}
 
-visitor = ExpressionVisitorFactory.get_visitor_for_backend(
-    df,
-    CONST_LOGIC_TYPES.BOOLEAN,
-    use_universal=True
-)
+    @classmethod
+    def get_visitor_for_node(cls, node, expression_system, logic_type):
+        """Get appropriate visitor for a specific node type."""
+        if isinstance(node, (BooleanComparisonExpressionNode, ...)):
+            return BooleanExpressionVisitor(expression_system)
+        elif isinstance(node, (ArithmeticExpressionNode, ...)):
+            return ArithmeticExpressionVisitor(expression_system)
+        # ... etc.
+
+    @classmethod
+    def _identify_backend(cls, dataframe_or_backend):
+        """Identify the backend from a DataFrame/Table object."""
+        # Priority: 1. Narwhals, 2. Ibis, 3. Polars, 4. Pandas
+        ...
 ```
 
-### Key Design Decisions
+#### 5. Backend ExpressionSystems
 
-✅ **Eager compilation** - Compile once, reuse many times
-✅ **Reusable expressions** - Same backend expression works on multiple DataFrames
-✅ **Inspectable** - Can examine backend expression before execution
-✅ **Dependency injection** - Visitor doesn't know which backend it's using
-❌ **NOT lazy** - No nested Callables (old approach removed)
+Located: `backends/expression_systems/*/`
 
-**Before (Legacy - REMOVED):**
+Each backend composes protocol implementations:
+
 ```python
-# Visitor methods returned Callables (lambdas)
-def _B_eq(self, left, right) -> Callable:
-    return lambda table: left.accept(self)(table) == right.accept(self)(table)
-
-# Compilation and execution conflated
-result = node.eval()(df)  # Compiles + executes every time
-```
-
-**After (Current):**
-```python
-# Visitor methods return backend expressions directly
-def visit_comparison_expression(self, node) -> pl.Expr | nw.Expr | ir.Expr:
-    left_expr = self._process_operand(node.left)
-    right_expr = self._process_operand(node.right)
-    return self.backend.eq(left_expr, right_expr)
-
-# Compilation separate from execution
-backend_expr = node.accept(visitor)  # Compile once
-result1 = df1.filter(backend_expr)   # Reuse
-result2 = df2.filter(backend_expr)   # Reuse
+# backends/expression_systems/polars/__init__.py
+@register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
+class PolarsExpressionSystem(
+    PolarsCoreExpressionSystem,
+    PolarsBooleanExpressionSystem,
+    PolarsArithmeticExpressionSystem,
+    PolarsStringExpressionSystem,
+    PolarsTemporalExpressionSystem,
+    PolarsTypeExpressionSystem,
+    PolarsNullExpressionSystem,
+    PolarsHorizontalExpressionSystem,
+    PolarsNameExpressionSystem,
+    PolarsNativeExpressionSystem,
+    PolarsConditionalExpressionSystem,
+):
+    """Complete Polars backend ExpressionSystem."""
+    pass
 ```
 
 ## Public API (User-Facing)
@@ -294,168 +414,169 @@ backend_expr = expr.compile(df)
 
 # Use with DataFrame
 result = df.filter(backend_expr)
-
-# Or use helper functions (compile + execute)
-result = ma.filter(df, ma.col("age").gt(30))
 ```
 
 ### Core Functions
 
-**Column & Literal:**
-- `col(name)` - Column reference
-- `lit(value)` - Literal value
+```python
+# Column & Literal
+col(name)           # Column reference
+lit(value)          # Literal value
 
-**Helper Functions:**
-- `filter(df, expr)` - Filter DataFrame
-- `select(df, *exprs)` - Select columns
-- `with_columns(df, **exprs)` - Add/modify columns
+# Horizontal operations
+coalesce(*exprs)    # First non-null value
+greatest(*exprs)    # Maximum value (element-wise)
+least(*exprs)       # Minimum value (element-wise)
 
-**Logic Combinators:**
-- `and_(*exprs)` - Logical AND
-- `or_(*exprs)` - Logical OR
-- `not_(expr)` - Logical NOT
+# Conditional
+when(cond).then(val).otherwise(alt)  # If-then-else
 
-**Conditional:**
-- `when(cond).then(val).otherwise(alt)` - If-then-else
-- `coalesce(*values)` - First non-null value
+# Native expression passthrough
+native(backend_expr)  # Wrap backend-specific expression
+```
 
-**Temporal Helpers (Natural Language):**
-- `within_last(col, "10 minutes")` - Like journalctl
-- `older_than(col, "7 days")` - Like find -mtime
-- `time_ago("2 hours")` - Absolute time calculation
-- `between_last(col, "1 hour", "3 hours")` - Time range
+### BooleanExpressionAPI Methods
 
-### ExpressionBuilder Methods
+**Flat Operations (accessed directly):**
 
-The fluent interface (`api/expression_builder.py`) provides:
+```python
+# Comparison
+.eq(other)          # Equal (==)
+.ne(other)          # Not equal (!=)
+.gt(other)          # Greater than (>)
+.lt(other)          # Less than (<)
+.ge(other)          # Greater than or equal (>=)
+.le(other)          # Less than or equal (<=)
+.is_close(other, precision)  # Approximately equal
+.between(lower, upper)       # Value in range
 
-**Comparison:**
-- `.eq(other)` / `.ne(other)` - Equality/inequality
-- `.lt(other)` / `.le(other)` - Less than/less or equal
-- `.gt(other)` / `.ge(other)` - Greater than/greater or equal
+# Logical
+.and_(*others)      # Logical AND
+.or_(*others)       # Logical OR
+.xor_(*others)      # Logical XOR
+.not_()             # Logical NOT
+.is_in(values)      # In collection
+.is_not_in(values)  # Not in collection
+.always_true()      # Constant TRUE
+.always_false()     # Constant FALSE
 
-**Arithmetic:**
-- `.add(other)` / `.sub(other)` - Addition/subtraction
-- `.mul(other)` / `.div(other)` - Multiplication/division
-- `.mod(other)` / `.pow(other)` - Modulo/exponentiation
+# Arithmetic
+.add(other)         # Addition (+)
+.subtract(other)    # Subtraction (-)
+.multiply(other)    # Multiplication (*)
+.divide(other)      # Division (/)
+.modulo(other)      # Modulo (%)
+.power(other)       # Exponentiation (**)
+.floor_divide(other) # Floor division (//)
 
-**Logic:**
-- `.and_(other)` / `.or_(other)` - Logical AND/OR
-- `.not_()` - Logical NOT
-- `.is_in(values)` / `.is_not_in(values)` - Membership
+# Null handling
+.is_null()          # Check if null
+.is_not_null()      # Check if not null
+.fill_null(value)   # Replace nulls
 
-**String:**
-- `.contains(pattern)` / `.startswith(prefix)` / `.endswith(suffix)`
-- `.lower()` / `.upper()` / `.strip()`
-- `.len()` / `.slice(start, end)`
+# Type
+.cast(dtype)        # Type conversion
+```
 
-**Temporal:**
-- `.year()` / `.month()` / `.day()` - Extract components
-- `.hour()` / `.minute()` / `.second()` - Time components
-- `.date()` / `.time()` - Date/time extraction
+**Explicit Namespaces (accessed via accessor):**
 
-**Conditional:**
-- `.when(cond).then(val).otherwise(alt)` - Conditional expression
-- `.coalesce(other)` - First non-null
+```python
+# String operations (.str)
+.str.upper()        # To uppercase
+.str.lower()        # To lowercase
+.str.trim()         # Strip whitespace
+.str.contains(pattern)
+.str.starts_with(prefix)
+.str.ends_with(suffix)
+.str.replace(old, new)
+.str.slice(start, end)
+.str.len()          # String length
 
-**Casting:**
-- `.cast(dtype)` - Type conversion
+# Date/time operations (.dt)
+.dt.year()          # Extract year
+.dt.month()         # Extract month
+.dt.day()           # Extract day
+.dt.hour()          # Extract hour
+.dt.minute()        # Extract minute
+.dt.second()        # Extract second
+.dt.weekday()       # Day of week
+.dt.add_days(n)     # Add days
+.dt.add_hours(n)    # Add hours
+.dt.diff_days(other)   # Difference in days
+.dt.diff_hours(other)  # Difference in hours
+.dt.truncate(unit)     # Truncate to unit
+
+# Name operations (.name)
+.name.alias(new_name)  # Rename column
+.name.prefix(prefix)   # Add prefix
+.name.suffix(suffix)   # Add suffix
+```
+
+**Python Operator Overloading:**
+
+```python
+# Comparison
+col("a") > col("b")   # .gt()
+col("a") >= col("b")  # .ge()
+col("a") < col("b")   # .lt()
+col("a") <= col("b")  # .le()
+col("a") == col("b")  # .eq()
+col("a") != col("b")  # .ne()
+
+# Logical
+col("a") & col("b")   # .and_()
+col("a") | col("b")   # .or_()
+col("a") ^ col("b")   # .xor_()
+~col("a")             # .not_()
+
+# Arithmetic
+col("a") + col("b")   # .add()
+col("a") - col("b")   # .subtract()
+col("a") * col("b")   # .multiply()
+col("a") / col("b")   # .divide()
+col("a") // col("b")  # .floor_divide()
+col("a") % col("b")   # .modulo()
+col("a") ** col("b")  # .power()
+-col("a")             # .multiply(-1)
+```
 
 ## Backend Support
 
-### Fully Working (3 backends)
+### Fully Implemented (3 backends)
 
 1. **Polars** ✅
    - Native type: `pl.Expr`
-   - Implementation: `backends/polars/expression_system/polars_expression_system.py` (663 lines)
+   - Implementation: ~1,423 lines
+   - All protocol categories implemented
    - Test success: 100%
-   - Status: Production ready
 
 2. **Narwhals** ✅
    - Native type: `nw.Expr`
-   - Implementation: `backends/narwhals/expression_system/narwhals_expression_system.py` (734 lines)
-   - Test success: 100%
-   - Status: Production ready
+   - Implementation: ~991 lines
+   - All protocol categories implemented
    - Note: Auto-rejects Narwhals-wrapped Ibis (incompatible)
 
-3. **Ibis-Polars** ✅
-   - Native type: `ir.Expr` (Polars backend)
-   - Implementation: `backends/ibis/expression_system/ibis_expression_system.py` (800+ lines)
-   - Test success: 100%
-   - Status: Production ready
+3. **Ibis** ✅
+   - Native type: `ir.Expr`
+   - Implementation: ~984 lines
+   - Supports multiple backends: Polars, DuckDB, SQLite
+   - Test success varies by backend
 
-### Partial Support (2 backends)
+### Backend-Specific Notes
 
-4. **Ibis-DuckDB** ⚠️
-   - Native type: `ir.Expr` (DuckDB backend)
-   - Test success: Most tests pass
-   - Known issues:
-     - Modulo semantics differ from Python (remainder vs modulo)
-     - Recent DuckDB dependency issues (resolved in latest versions)
-   - Status: Usable with caveats
+**Ibis-DuckDB** ⚠️
+- Most tests pass
+- Modulo semantics differ from Python (remainder vs modulo)
 
-5. **Ibis-SQLite** ⚠️
-   - Native type: `ir.Expr` (SQLite backend)
-   - Test success: Limited (14% for temporal, arithmetic issues)
-   - Known issues:
-     - Integer division instead of float division (20/3 = 6, not 6.666...)
-     - Modulo semantics differ
-     - Temporal operations limited
-   - Status: Limited use
+**Ibis-SQLite** ⚠️
+- Integer division instead of float division (20/3 = 6, not 6.666...)
+- Modulo semantics differ
+- Limited temporal operations
 
-### Detection Only (1 backend)
-
-6. **Pandas** 📋
-   - Detection: Implemented in visitor factory
-   - Testing: Limited
-   - Status: Needs implementation work
-
-### Not Implemented
-
-- **PyArrow** - Commented out in backend detection
-
-## Logic Systems
-
-### Boolean Logic (IMPLEMENTED) ✅
-
-**Status:** Fully implemented and tested
-
-**Values:** TRUE, FALSE
-
-**Components:**
-- Visitor: `UniversalBooleanExpressionVisitor` (776 lines)
-- Nodes: `BooleanExpressionNode`, `BooleanComparisonExpressionNode`, etc.
-- Operations: All comparison, logical, arithmetic, string, pattern, temporal, conditional
-
-**Test Coverage:**
-- 703 tests passing
-- 6 backends
-- Cross-backend parametrized tests
-
-### Ternary Logic (DESIGNED, NOT IMPLEMENTED) ⚠️
-
-**Status:** Architecture designed, awaiting implementation
-
-**Intended Values:**
-- TRUE = -1
-- FALSE = 1
-- UNKNOWN = 0
-
-**Purpose:** NULL-safe three-valued logic
-
-**What Exists:**
-- Constants defined: `CONST_TERNARY_LOGIC_VALUES` in `core/constants.py`
-- Legacy node definitions in deprecated code
-- Mentioned 82 times in codebase
-
-**What's Missing:**
-- No `UniversalTernaryExpressionVisitor`
-- No ternary mixins
-- No ternary ExpressionSystem methods
-- No test suite
-
-**References:**
-- "The Silent Ternary Problem" documented in `docs/`
+**Pandas** 📋
+- Detection implemented in visitor factory
+- Limited testing
+- Needs implementation work
 
 ## Dependencies
 
@@ -475,28 +596,13 @@ numpy = ">=1.23.2,<3"
 **IMPORTANT:** Using **local Ibis fork** with Polars calendar interval fix
 
 ```toml
-# Development dependency
-ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "sqlite", "duckdb"], develop = true }
-```
-
-The local fork includes fixes for Polars backend calendar interval handling.
-
-### Mountain Ash Ecosystem
-
-Local development dependencies:
-
-```toml
-mountainash-constants = { path = "../mountainash-constants", develop = true }
-mountainash-settings = { path = "../mountainash-settings", develop = true }
-mountainash-utils-files = { path = "../mountainash-utils-files", develop = true }
-mountainash-utils-os = { path = "../mountainash-utils-os", develop = true }
+ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "sqlite", "duckdb"] }
 ```
 
 ## Development Commands
 
-### Essential Daily Commands
+### Testing
 
-**Testing:**
 ```bash
 # Full test suite with coverage
 hatch run test:test
@@ -505,58 +611,32 @@ hatch run test:test
 hatch run test:test-quick
 
 # Specific test file
-hatch run test:test-target tests/cross_backend/test_temporal_natural.py
+hatch run test:test-target tests/cross_backend/test_boolean.py
 
 # Specific test function
 hatch run test:test-target tests/cross_backend/test_boolean.py::test_and_operation
+
+# Without coverage (fastest)
+hatch run test:test-target-quick <path>
 ```
 
-**Linting:**
+### Linting & Type Checking
+
 ```bash
 hatch run ruff:check      # Check for issues
 hatch run ruff:fix        # Auto-fix issues
-```
-
-**Type Checking:**
-```bash
 hatch run mypy:check      # Type safety validation
 ```
 
-**Build:**
+### Building
+
 ```bash
 hatch build               # Build distribution
 ```
 
-### Test Categories
-
-```bash
-hatch run test:test-unit           # Unit tests only
-hatch run test:test-integration    # Integration tests only
-hatch run test:test-performance    # Performance benchmarks
-hatch run test:test-changed        # Only changed files
-hatch run test:test-changed-quick  # Changed files (no coverage)
-```
-
-### Targeted Testing
-
-```bash
-# With coverage
-hatch run test:test-target <path>
-
-# Without coverage (fastest)
-hatch run test:test-target-quick <path>
-
-# Performance only
-hatch run test:test-perf
-```
-
 ## Known Issues & Backend Inconsistencies
 
-Full documentation: `docs/BACKEND_INCONSISTENCIES.md`
-
-### 1. SQLite Integer Division ⚠️
-
-**Issue:** SQLite performs integer division instead of float division
+### 1. SQLite Integer Division
 
 ```python
 # Expected (Python, Polars, Pandas)
@@ -566,13 +646,7 @@ Full documentation: `docs/BACKEND_INCONSISTENCIES.md`
 20 / 3 = 6
 ```
 
-**Impact:** Breaks cross-backend compatibility for division operations
-
-**Status:** Marked with `pytest.xfail` in tests
-
-### 2. Modulo Semantics ⚠️
-
-**Issue:** Different modulo behavior across backends
+### 2. Modulo Semantics
 
 ```python
 # Python/Polars/Pandas (modulo - sign of divisor)
@@ -582,113 +656,78 @@ Full documentation: `docs/BACKEND_INCONSISTENCIES.md`
 -7 % 3 = -1
 ```
 
-**Impact:** Negative number modulo operations inconsistent
-
-### 3. Ibis Reverse Operator Bug ⚠️
-
-**Issue:** Literal-first operations fail in Ibis <= 11.0.0
-
-```python
-# Fails in older Ibis
-literal(5) + ibis._['col']  # InputTypeError
-
-# Workaround: Column reference first
-ibis._['col'] + literal(5)  # Works
-```
-
-**Impact:** Operation order matters with Ibis
-
-**Status:** Fixed in newer Ibis versions
-
-### 4. Temporal Limitations
-
-**Issue:** Backend-specific temporal support varies
+### 3. Temporal Limitations
 
 - SQLite: Very limited datetime filtering
-- Some backends lack full temporal operation support
-
-## Test Results
-
-### Latest Test Run
-
-```
-703 tests passing ✅
-6 skipped
-4 xfailed (expected failures for known issues)
-110 xpassed (DuckDB tests now passing after dependency fix)
-```
-
-### Success Rates by Backend
-
-| Backend | Status | Success Rate |
-|---------|--------|--------------|
-| Polars | ✅ | 100% |
-| Narwhals | ✅ | 100% |
-| Ibis-Polars | ✅ | 100% |
-| Ibis-DuckDB | ⚠️ | ~95% (modulo issues) |
-| Ibis-SQLite | ⚠️ | 14% temporal, arithmetic issues |
-| Pandas | 📋 | Limited testing |
+- Backend-specific temporal support varies
 
 ## Common Development Tasks
 
-### Adding a New Backend
+### Adding a New Operation
 
-1. **Create ExpressionSystem implementation:**
-   ```bash
-   mkdir -p src/mountainash_expressions/backends/<backend_name>/expression_system
+1. **Add to protocol enum:**
+   ```python
+   # core/protocols/boolean_protocols.py
+   class ENUM_BOOLEAN_OPERATORS(Enum):
+       NEW_OP = auto()
    ```
 
-2. **Implement the interface:**
+2. **Add to VisitorProtocol:**
    ```python
-   # <backend_name>_expression_system.py
-   from mountainash_expressions.core.expression_system import ExpressionSystem
-
-   class MyBackendExpressionSystem(ExpressionSystem):
-       def col(self, name: str) -> MyBackendExpr:
-           return my_backend.col(name)
-
-       def eq(self, left, right) -> MyBackendExpr:
-           return left == right
-
-       # ... implement all abstract methods
+   class BooleanVisitorProtocol(Protocol):
+       def new_op(self, node: BooleanSomeNode) -> SupportedExpressions: ...
    ```
 
-3. **Register in visitor factory:**
+3. **Add to ExpressionProtocol:**
    ```python
-   # The @register_expression_system decorator auto-registers
-   @register_expression_system(CONST_VISITOR_BACKENDS.MY_BACKEND)
-   class MyBackendExpressionSystem(ExpressionSystem):
+   class BooleanExpressionProtocol(Protocol):
+       def new_op(self, left, right) -> SupportedExpressions: ...
+   ```
+
+4. **Add to BuilderProtocol:**
+   ```python
+   class BooleanBuilderProtocol(Protocol):
+       def new_op(self, other) -> BaseNamespace: ...
+   ```
+
+5. **Create expression node (if needed):**
+   ```python
+   # core/expression_nodes/boolean_expression_nodes.py
+   class BooleanNewOpNode(BooleanExpressionNode):
        ...
    ```
 
-4. **Add backend detection:**
+6. **Implement in namespace:**
    ```python
-   # In visitor_factory.py _identify_backend()
-   if isinstance(dataframe, MyBackendDataFrame):
-       return CONST_VISITOR_BACKENDS.MY_BACKEND
+   # core/namespaces/boolean.py
+   def new_op(self, other) -> BaseExpressionAPI:
+       node = BooleanNewOpNode(ENUM_BOOLEAN_OPERATORS.NEW_OP, ...)
+       return self._build(node)
    ```
 
-5. **Add tests:**
+7. **Implement in visitor:**
    ```python
-   # In tests/conftest.py
-   @pytest.fixture
-   def my_backend_df():
-       return create_my_backend_df(...)
-
-   # Add to cross_backend test parametrization
+   # core/expression_visitors/boolean_visitor.py
+   def new_op(self, node: BooleanNewOpNode) -> SupportedExpressions:
+       left_expr = ExpressionParameter(node.left, ...).to_native_expression()
+       right_expr = ExpressionParameter(node.right, ...).to_native_expression()
+       return self.backend.new_op(left_expr, right_expr)
    ```
 
-### Running Backend-Specific Tests
+8. **Implement in all backends:**
+   ```python
+   # backends/expression_systems/polars/boolean.py
+   def new_op(self, left: pl.Expr, right: pl.Expr) -> pl.Expr:
+       return left.some_polars_method(right)
+   ```
 
-```bash
-# All backends
-hatch run test:test tests/cross_backend/
-
-# Specific backend (via pytest -k filter)
-hatch run test:test tests/cross_backend/ -k polars
-hatch run test:test tests/cross_backend/ -k ibis
-hatch run test:test tests/cross_backend/ -k narwhals
-```
+9. **Add tests:**
+   ```python
+   # tests/cross_backend/test_boolean.py
+   @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+   def test_new_op(backend_name, ...):
+       ...
+   ```
 
 ### Debugging Expression Compilation
 
@@ -698,141 +737,102 @@ import mountainash_expressions as ma
 # Build expression
 expr = ma.col("age").gt(30)
 
-# Get the AST node
-node = expr._node
-print(f"Node type: {type(node)}")
-print(f"Node: {node}")
-
-# Manually create visitor
-from mountainash_expressions.core.expression_visitors import ExpressionVisitorFactory
-from mountainash_expressions.core.constants import CONST_LOGIC_TYPES
-
-visitor = ExpressionVisitorFactory.get_visitor_for_backend(
-    df,
-    CONST_LOGIC_TYPES.BOOLEAN,
-    use_universal=True
-)
+# Inspect the AST node
+print(f"Node type: {type(expr._node)}")
+print(f"Node: {expr._node}")
+print(f"Operator: {expr._node.operator}")
 
 # Compile and inspect
-backend_expr = node.accept(visitor)
+backend_expr = expr.compile(df)
 print(f"Backend expression: {backend_expr}")
 print(f"Backend type: {type(backend_expr)}")
 ```
 
-## Architecture Principles
+## Line Count Summary
 
-### 1. Dependency Injection
+| Component | Lines | Status |
+|-----------|-------|--------|
+| **Protocols** | ~1,081 | ✅ Complete |
+| **Expression Nodes** | ~1,241 | ✅ Complete |
+| **Visitors** | ~1,862 | ✅ Complete |
+| **Namespaces** | ~2,832 | ✅ Complete |
+| **Backend: Polars** | ~1,423 | ✅ Complete |
+| **Backend: Ibis** | ~984 | ✅ Complete |
+| **Backend: Narwhals** | ~991 | ✅ Complete |
+| **Tests** | ~7,521 | ✅ Comprehensive |
+| **TOTAL** | ~18,000+ | ✅ Production ready |
 
-The visitor doesn't know which backend it's using - the ExpressionSystem is injected at runtime. This enables:
-- Single visitor implementation for all backends
-- Easy testing (mock ExpressionSystem)
-- Clear separation of concerns
+## Quick Reference
 
-### 2. Mixin-Based Composition
+### Import Paths
 
-The visitor is composed of focused mixins, each handling one operation category:
-- Easy to extend (add new mixin)
-- Easy to maintain (small, focused files)
-- Easy to test (test each mixin independently)
+```python
+# Public API (recommended)
+import mountainash_expressions as ma
+from mountainash_expressions import col, lit, coalesce, greatest, least, when, native
 
-### 3. Backend Isolation
+# Expression API classes
+from mountainash_expressions import BooleanExpressionAPI, BaseExpressionAPI
 
-Each backend implementation is self-contained:
-- No cross-backend dependencies
-- Backend-specific optimizations possible
-- Easy to add/remove backends
+# Constants
+from mountainash_expressions import CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES
 
-### 4. Eager Compilation
+# Advanced: Visitor factory
+from mountainash_expressions.core.expression_visitors import ExpressionVisitorFactory
 
-Expressions compile once and reuse:
-- Better performance (no repeated compilation)
-- Inspectable results (examine before execution)
-- Easier debugging (see what was generated)
+# Advanced: Protocols (for type hints)
+from mountainash_expressions.core.protocols import (
+    BooleanVisitorProtocol,
+    BooleanExpressionProtocol,
+    BooleanBuilderProtocol,
+)
 
-### 5. Type Safety
+# Advanced: Nodes (for AST manipulation)
+from mountainash_expressions.core.expression_nodes import (
+    ExpressionNode,
+    BooleanComparisonExpressionNode,
+)
+```
 
-Using protocols and type annotations throughout:
-- Better IDE support
-- Catch errors at type-check time
-- Clear interfaces
+### Common Patterns
 
-## Migration & Legacy Code
+```python
+import mountainash_expressions as ma
 
-### Deprecated Code Locations
+# Simple filter
+result = df.filter(ma.col("age").gt(30).compile(df))
 
-1. **`src/mountainash_expressions/_deprecated/`**
-   - Old visitor implementation (11,866 bytes)
-   - Backup directories
+# Complex filter
+expr = (
+    ma.col("age").gt(30)
+    .and_(ma.col("score").ge(85))
+    .or_(ma.col("premium").eq(True))
+)
+result = df.filter(expr.compile(df))
 
-2. **`tests/_deprecated/`**
-   - Old test files
-   - Moved from project root
+# String operations
+expr = ma.col("name").str.lower().str.contains("john")
 
-3. **Temporary files**
-   - 5 `.tmp` files in `boolean_mixins/`
-   - 16 total backup/tmp files across project
+# Date operations
+expr = ma.col("created").dt.year().eq(2024)
 
-### What Changed in the Refactoring
+# Conditional
+expr = ma.when(ma.col("age").lt(18)).then(ma.lit("minor")).otherwise(ma.lit("adult"))
 
-**Old Approach (Removed):**
-- Visitor methods returned Callables (lambdas)
-- Nested lambda hell
-- Compilation + execution conflated
-- One visitor per backend
-- Many small fragmented files
+# Coalesce
+expr = ma.coalesce(ma.col("phone_mobile"), ma.col("phone_home"), ma.lit("N/A"))
 
-**New Approach (Current):**
-- Visitor methods return backend expressions
-- Direct expression generation
-- Compilation separate from execution
-- One universal visitor for all backends
-- ExpressionSystem interface for backends
-- Mixin-based composition
-
-### Cleanup TODO
-
-- [ ] Remove 5 `.tmp` files from boolean_mixins
-- [ ] Clean up 16 backup files
-- [ ] Archive `_deprecated/` directories
-- [ ] Remove unused imports
-
-## Documentation References
-
-### Internal Documentation
-
-- `docs/BACKEND_INCONSISTENCIES.md` - Backend behavior differences
-- `TEST_REFACTORING_COMPLETE.md` - Test refactoring details
-- `TEST_REFACTORING_SUMMARY.md` - Test migration summary
-- `docs/ExpressionSystemRefactoring/` - Architecture docs
-- "The Silent Ternary Problem" - Ternary logic challenges
-
-### Key Source Files
-
-- `api/expression_builder.py:1` - Public API entry point
-- `core/expression_visitors/universal_boolean_visitor.py:1` - Main visitor
-- `core/expression_visitors/visitor_factory.py:1` - Backend detection
-- `core/expression_system/base.py:1` - ExpressionSystem interface
-- `backends/polars/expression_system/polars_expression_system.py:1` - Example backend
+# Arithmetic
+expr = ma.col("price") * ma.col("quantity") + ma.col("tax")
+```
 
 ## Future Work
 
-### Planned Features
+### Planned
 
-1. **Ternary Logic Implementation**
-   - Create `UniversalTernaryExpressionVisitor`
-   - Implement ternary mixins
-   - Add NULL-safe operations
-   - Create ternary test suite
-
-2. **Pandas Backend Completion**
-   - Comprehensive testing
-   - Performance optimization
-   - Full operation coverage
-
-3. **PyArrow Backend**
-   - Implementation
-   - Integration
-   - Testing
+- **Ternary Logic**: NULL-safe three-valued logic (designed, not implemented)
+- **Pandas Backend**: Full implementation and testing
+- **PyArrow Backend**: Implementation
 
 ### Potential Enhancements
 
@@ -841,84 +841,3 @@ Using protocols and type annotations throughout:
 - User-defined functions
 - Expression optimization
 - Query planning
-
-## Quick Reference
-
-### Import Paths (Actual, Working)
-
-```python
-# Public API (recommended)
-import mountainash_expressions as ma
-from mountainash_expressions import col, lit, filter, when, coalesce
-
-# ExpressionBuilder (if needed directly)
-from mountainash_expressions.api import ExpressionBuilder
-
-# Visitor factory (advanced usage)
-from mountainash_expressions.core.expression_visitors import ExpressionVisitorFactory
-
-# Constants
-from mountainash_expressions.core.constants import (
-    CONST_LOGIC_TYPES,
-    CONST_VISITOR_BACKENDS,
-    CONST_COMPARISON_OPERATORS,
-)
-
-# ExpressionSystem (for backend implementation)
-from mountainash_expressions.core.expression_system import ExpressionSystem
-
-# Nodes (for AST manipulation)
-from mountainash_expressions.core.expression_nodes import (
-    ExpressionNode,
-    BooleanComparisonExpressionNode,
-    # ... other nodes
-)
-```
-
-### Common Patterns
-
-**Filter DataFrame:**
-```python
-import mountainash_expressions as ma
-filtered = ma.filter(df, ma.col("age").gt(30))
-```
-
-**Complex Expression:**
-```python
-expr = (
-    ma.col("age").gt(30)
-    .and_(ma.col("score").ge(85))
-    .or_(ma.col("premium").eq(True))
-)
-result = ma.filter(df, expr)
-```
-
-**Conditional Column:**
-```python
-new_df = ma.with_columns(
-    df,
-    category=ma.when(ma.col("age").lt(18))
-        .then(ma.lit("minor"))
-        .when(ma.col("age").lt(65))
-        .then(ma.lit("adult"))
-        .otherwise(ma.lit("senior"))
-)
-```
-
-**Natural Language Temporal:**
-```python
-recent = ma.filter(df, ma.within_last(ma.col("timestamp"), "24 hours"))
-old = ma.filter(df, ma.older_than(ma.col("created"), "7 days"))
-```
-
-## Support & Contributing
-
-For issues, questions, or contributions related to this package, refer to the Mountain Ash project documentation and guidelines.
-
-**Key Points:**
-- Always run tests before committing: `hatch run test:test`
-- Always run linter: `hatch run ruff:check`
-- Always run type checker: `hatch run mypy:check`
-- Follow the ExpressionSystem pattern for new backends
-- Use mixin composition for new operation categories
-- Write cross-backend parametrized tests
