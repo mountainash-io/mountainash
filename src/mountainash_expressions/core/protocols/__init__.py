@@ -13,6 +13,7 @@ from .string_protocols import StringVisitorProtocol, StringExpressionProtocol, S
 from .temporal_protocols import TemporalVisitorProtocol, TemporalExpressionProtocol, TemporalBuilderProtocol, ENUM_TEMPORAL_OPERATORS
 from .type_protocols import TypeVisitorProtocol, TypeExpressionProtocol, TypeBuilderProtocol, ENUM_TYPE_OPERATORS
 from .native_protocols import NativeVisitorProtocol, NativeExpressionProtocol, NativeBuilderProtocol, ENUM_NATIVE_OPERATORS
+from .ternary_protocols import TernaryVisitorProtocol, TernaryExpressionProtocol, TernaryBuilderProtocol, ENUM_TERNARY_OPERATORS
 
 
 __all__ = [
@@ -67,6 +68,11 @@ __all__ = [
 "ENUM_STRING_OPERATORS",
 "ENUM_TEMPORAL_OPERATORS",
 "ENUM_TYPE_OPERATORS",
-"ENUM_NATIVE_OPERATORS"
+"ENUM_NATIVE_OPERATORS",
+
+"TernaryVisitorProtocol",
+"TernaryExpressionProtocol",
+"TernaryBuilderProtocol",
+"ENUM_TERNARY_OPERATORS",
 
 ]

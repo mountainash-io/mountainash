@@ -15,6 +15,7 @@ from ..namespaces import (
     TypeNamespace,
     HorizontalNamespace,
     NativeNamespace,
+    TernaryNamespace,
 )
 # Import explicit namespaces
 from ..namespaces import (
@@ -63,7 +64,10 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     """
 
     # Flat namespaces - methods dispatched via __getattr__
+    # TernaryNamespace first so ternary-specific methods (is_true, is_false, etc.)
+    # are found before the abstract protocol methods in BooleanNamespace
     _FLAT_NAMESPACES: ClassVar[tuple[type[BaseNamespace], ...]] = (
+        TernaryNamespace,
         BooleanComparisonNamespace,
         BooleanLogicalNamespace,
         ArithmeticNamespace,

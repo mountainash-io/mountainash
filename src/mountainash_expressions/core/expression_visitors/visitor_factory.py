@@ -114,6 +114,13 @@ class ExpressionVisitorFactory:
             NameExpressionNode,
             HorizontalExpressionNode,
             NativeExpressionNode,
+            # Ternary nodes
+            TernaryComparisonExpressionNode,
+            TernaryIterableExpressionNode,
+            TernaryUnaryExpressionNode,
+            TernaryConstantExpressionNode,
+            TernaryCollectionExpressionNode,
+            TernaryColumnExpressionNode,
         )
         from ..expression_nodes.conditional_expression_nodes import ConditionalExpressionNode
 
@@ -202,6 +209,18 @@ class ExpressionVisitorFactory:
         elif isinstance(node, ConditionalExpressionNode):
             from .conditional_visitor import ConditionalExpressionVisitor
             return ConditionalExpressionVisitor(expression_system)
+
+        # Ternary nodes
+        elif isinstance(node, (
+            TernaryComparisonExpressionNode,
+            TernaryIterableExpressionNode,
+            TernaryUnaryExpressionNode,
+            TernaryConstantExpressionNode,
+            TernaryCollectionExpressionNode,
+            TernaryColumnExpressionNode,
+        )):
+            from .ternary_visitor import TernaryExpressionVisitor
+            return TernaryExpressionVisitor(expression_system)
 
         else:
             raise ValueError(

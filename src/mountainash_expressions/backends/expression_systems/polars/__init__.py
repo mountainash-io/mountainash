@@ -20,6 +20,7 @@ from .horizontal import PolarsHorizontalExpressionSystem
 from .name import PolarsNameExpressionSystem
 from .native import PolarsNativeExpressionSystem
 from .conditional import PolarsConditionalExpressionSystem
+from .ternary import PolarsTernaryExpressionSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
@@ -35,6 +36,7 @@ class PolarsExpressionSystem(
     PolarsNameExpressionSystem,
     PolarsNativeExpressionSystem,
     PolarsConditionalExpressionSystem,
+    PolarsTernaryExpressionSystem,
 ):
     """
     Complete Polars backend ExpressionSystem.

@@ -62,6 +62,11 @@ from .core.namespaces.entrypoints import (
     least,
     when,
     native,
+    # Ternary entry points
+    t_col,
+    always_true,
+    always_false,
+    always_unknown,
 )
 
 # ========================================
@@ -92,6 +97,12 @@ __all__ = [
     "greatest",
     "least",
     "when",
+
+    # Ternary functions
+    "t_col",
+    "always_true",
+    "always_false",
+    "always_unknown",
 
     # Constants
     "CONST_VISITOR_BACKENDS",

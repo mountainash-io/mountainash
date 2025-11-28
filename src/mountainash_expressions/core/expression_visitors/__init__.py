@@ -17,6 +17,7 @@ from .horizontal_visitor import HorizontalExpressionVisitor
 from .temporal_visitor import TemporalExpressionVisitor
 from .type_visitor import TypeExpressionVisitor
 from .name_visitor import NameExpressionVisitor
+from .ternary_visitor import TernaryExpressionVisitor
 
 if TYPE_CHECKING:
     from .types import SupportedExpressionVisitors
@@ -37,6 +38,7 @@ __all__ = [
     "TemporalExpressionVisitor",
     "TypeExpressionVisitor",
     "NameExpressionVisitor",
+    "TernaryExpressionVisitor",
 
     "SupportedExpressionVisitors"
 ]

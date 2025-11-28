@@ -19,6 +19,7 @@ from .type import TypeNamespace
 from .horizontal import HorizontalNamespace
 from .native import NativeNamespace
 from .conditional import ConditionalNamespace, WhenBuilder, WhenThenBuilder
+from .ternary import TernaryNamespace
 
 # Explicit namespaces (accessed via descriptors: .str, .dt, .name)
 from .string import StringNamespace
@@ -26,7 +27,10 @@ from .datetime import DateTimeNamespace
 from .name import NameNamespace
 
 # Entry point functions
-from .entrypoints import col, lit, coalesce, greatest, least, when, native
+from .entrypoints import (
+    col, lit, coalesce, greatest, least, when, native,
+    t_col, always_true, always_false, always_unknown,
+)
 
 __all__ = [
     # Base
@@ -41,6 +45,7 @@ __all__ = [
     "HorizontalNamespace",
     "NativeNamespace",
     "ConditionalNamespace",
+    "TernaryNamespace",
     # Explicit namespaces
     "StringNamespace",
     "DateTimeNamespace",
@@ -56,4 +61,9 @@ __all__ = [
     "least",
     "when",
     "native",
+    # Ternary entry points
+    "t_col",
+    "always_true",
+    "always_false",
+    "always_unknown",
 ]

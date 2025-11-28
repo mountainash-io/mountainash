@@ -364,6 +364,86 @@ Ternary Logic Constants
 """
 
 
+class ENUM_TERNARY_OPERATORS(Enum):
+    """
+    Enumeration for ternary logic operators.
+
+    Ternary logic uses three values: TRUE (1), FALSE (-1), UNKNOWN (0).
+    All comparison operations return these integer values, enabling
+    NULL-aware comparisons and three-valued logic.
+
+    Prefixed with T_ to distinguish from boolean operators.
+    """
+    # Column reference (with sentinel config for UNKNOWN detection)
+    T_COL = auto()
+
+    # Comparisons (return -1/0/1)
+    T_EQ = auto()
+    T_NE = auto()
+    T_GT = auto()
+    T_LT = auto()
+    T_GE = auto()
+    T_LE = auto()
+    T_IS_IN = auto()
+    T_IS_NOT_IN = auto()
+
+    # Logical operations (use min/max semantics)
+    T_AND = auto()
+    T_OR = auto()
+    T_NOT = auto()
+    T_XOR = auto()           # Exclusive: exactly one TRUE
+    T_XOR_PARITY = auto()    # Parity: odd number of TRUEs
+
+    # Constants
+    ALWAYS_TRUE = auto()
+    ALWAYS_FALSE = auto()
+    ALWAYS_UNKNOWN = auto()
+
+    # Conversions (ternary → boolean)
+    IS_TRUE = auto()         # 1 → True, else → False
+    IS_FALSE = auto()        # -1 → True, else → False
+    IS_UNKNOWN = auto()      # 0 → True, else → False
+    IS_KNOWN = auto()        # 1 or -1 → True, 0 → False
+    MAYBE_TRUE = auto()      # 1 or 0 → True, -1 → False
+    MAYBE_FALSE = auto()     # -1 or 0 → True, 1 → False
+
+    # Boolean → Ternary conversion
+    TO_TERNARY = auto()      # True → 1, False → -1
+
+
+# Ternary operators that produce boolean output (terminal conversion)
+TERNARY_TERMINAL_OPERATORS = frozenset({
+    ENUM_TERNARY_OPERATORS.IS_TRUE,
+    ENUM_TERNARY_OPERATORS.IS_FALSE,
+    ENUM_TERNARY_OPERATORS.IS_UNKNOWN,
+    ENUM_TERNARY_OPERATORS.IS_KNOWN,
+    ENUM_TERNARY_OPERATORS.MAYBE_TRUE,
+    ENUM_TERNARY_OPERATORS.MAYBE_FALSE,
+})
+
+# Ternary operators that produce ternary (-1/0/1) output (non-terminal)
+TERNARY_NON_TERMINAL_OPERATORS = frozenset({
+    ENUM_TERNARY_OPERATORS.T_COL,
+    ENUM_TERNARY_OPERATORS.T_EQ,
+    ENUM_TERNARY_OPERATORS.T_NE,
+    ENUM_TERNARY_OPERATORS.T_GT,
+    ENUM_TERNARY_OPERATORS.T_LT,
+    ENUM_TERNARY_OPERATORS.T_GE,
+    ENUM_TERNARY_OPERATORS.T_LE,
+    ENUM_TERNARY_OPERATORS.T_IS_IN,
+    ENUM_TERNARY_OPERATORS.T_IS_NOT_IN,
+    ENUM_TERNARY_OPERATORS.T_AND,
+    ENUM_TERNARY_OPERATORS.T_OR,
+    ENUM_TERNARY_OPERATORS.T_NOT,
+    ENUM_TERNARY_OPERATORS.T_XOR,
+    ENUM_TERNARY_OPERATORS.T_XOR_PARITY,
+    ENUM_TERNARY_OPERATORS.ALWAYS_TRUE,
+    ENUM_TERNARY_OPERATORS.ALWAYS_FALSE,
+    ENUM_TERNARY_OPERATORS.ALWAYS_UNKNOWN,
+    ENUM_TERNARY_OPERATORS.TO_TERNARY,
+})
+
+
 class CONST_TERNARY_LOGIC_VALUES(IntEnum):
     """Ternary logic constants optimized for mathematical vectorization.
     """

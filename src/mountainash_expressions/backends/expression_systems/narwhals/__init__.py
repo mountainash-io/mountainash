@@ -15,6 +15,7 @@ from .horizontal import NarwhalsHorizontalExpressionSystem
 from .name import NarwhalsNameExpressionSystem
 from .native import NarwhalsNativeExpressionSystem
 from .conditional import NarwhalsConditionalExpressionSystem
+from .ternary import NarwhalsTernaryExpressionSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.NARWHALS)
@@ -30,6 +31,7 @@ class NarwhalsExpressionSystem(
     NarwhalsNameExpressionSystem,
     NarwhalsNativeExpressionSystem,
     NarwhalsConditionalExpressionSystem,
+    NarwhalsTernaryExpressionSystem,
 ):
     """
     Complete Narwhals backend ExpressionSystem.

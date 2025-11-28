@@ -15,6 +15,7 @@ from .horizontal import IbisHorizontalExpressionSystem
 from .name import IbisNameExpressionSystem
 from .native import IbisNativeExpressionSystem
 from .conditional import IbisConditionalExpressionSystem
+from .ternary import IbisTernaryExpressionSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.IBIS)
@@ -30,6 +31,7 @@ class IbisExpressionSystem(
     IbisNameExpressionSystem,
     IbisNativeExpressionSystem,
     IbisConditionalExpressionSystem,
+    IbisTernaryExpressionSystem,
 ):
     """
     Complete Ibis backend ExpressionSystem.

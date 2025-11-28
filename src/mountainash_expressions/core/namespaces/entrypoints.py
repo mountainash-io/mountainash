@@ -16,8 +16,13 @@ from __future__ import annotations
 from typing import Any, Union, TYPE_CHECKING
 
 from ..protocols import ENUM_CORE_OPERATORS, ENUM_HORIZONTAL_OPERATORS, ENUM_NATIVE_OPERATORS
+from ..protocols.ternary_protocols import ENUM_TERNARY_OPERATORS
 from ..expression_nodes import ColumnExpressionNode, LiteralExpressionNode, NativeExpressionNode
 from ..expression_nodes.horizontal_expression_nodes import HorizontalExpressionNode
+from ..expression_nodes.ternary_expression_nodes import (
+    TernaryColumnExpressionNode,
+    TernaryConstantExpressionNode,
+)
 from .conditional import WhenBuilder
 
 if TYPE_CHECKING:
@@ -252,6 +257,99 @@ def native(expr: Any) -> BaseExpressionAPI:
 
 
 # ============================================================================
+# Ternary Entry Points
+# ============================================================================
+
+def t_col(name: str, unknown: set[Any] | None = None) -> BaseExpressionAPI:
+    """
+    Create a ternary-aware column reference with optional sentinel values.
+
+    Unlike regular col(), t_col() tracks which values should be treated
+    as UNKNOWN in ternary comparisons.
+
+    Args:
+        name: Column name
+        unknown: Set of values to treat as UNKNOWN (default: {None})
+
+    Returns:
+        BooleanExpressionAPI for chaining ternary operations
+
+    Example:
+        >>> # Default: NULL is UNKNOWN
+        >>> expr = t_col("score").t_gt(50)
+
+        >>> # Custom sentinel: -99999 means "not evaluated"
+        >>> expr = t_col("legacy_score", unknown={-99999, None}).t_gt(50)
+
+        >>> # Multiple sentinels
+        >>> expr = t_col("status", unknown={"NA", "<MISSING>", None}).t_eq("active")
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    node = TernaryColumnExpressionNode(
+        operator=ENUM_TERNARY_OPERATORS.T_COL,
+        column=name,
+        unknown_values=unknown,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def always_true() -> BaseExpressionAPI:
+    """
+    Create a constant TRUE (1) ternary expression.
+
+    Returns:
+        BooleanExpressionAPI with constant TRUE node
+
+    Example:
+        >>> expr = always_true()  # Returns 1 for all rows
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    node = TernaryConstantExpressionNode(
+        ENUM_TERNARY_OPERATORS.ALWAYS_TRUE,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def always_false() -> BaseExpressionAPI:
+    """
+    Create a constant FALSE (-1) ternary expression.
+
+    Returns:
+        BooleanExpressionAPI with constant FALSE node
+
+    Example:
+        >>> expr = always_false()  # Returns -1 for all rows
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    node = TernaryConstantExpressionNode(
+        ENUM_TERNARY_OPERATORS.ALWAYS_FALSE,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def always_unknown() -> BaseExpressionAPI:
+    """
+    Create a constant UNKNOWN (0) ternary expression.
+
+    Returns:
+        BooleanExpressionAPI with constant UNKNOWN node
+
+    Example:
+        >>> expr = always_unknown()  # Returns 0 for all rows
+        >>> expr = when(condition).then(value).otherwise(always_unknown())
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    node = TernaryConstantExpressionNode(
+        ENUM_TERNARY_OPERATORS.ALWAYS_UNKNOWN,
+    )
+    return BooleanExpressionAPI(node)
+
+
+# ============================================================================
 # Exports
 # ============================================================================
 
@@ -267,4 +365,9 @@ __all__ = [
     "when",
     # Native
     "native",
+    # Ternary
+    "t_col",
+    "always_true",
+    "always_false",
+    "always_unknown",
 ]

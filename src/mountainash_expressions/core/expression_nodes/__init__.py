@@ -76,6 +76,17 @@ from .temporal_expression_nodes import (
 
 )
 
+from .ternary_expression_nodes import (
+    TernaryExpressionNode,
+    TernaryColumnExpressionNode,
+    TernaryComparisonExpressionNode,
+    TernaryIterableExpressionNode,
+    TernaryUnaryExpressionNode,
+    TernaryConstantExpressionNode,
+    TernaryCollectionExpressionNode,
+    SupportedTernaryExpressionNodeTypes,
+)
+
 if TYPE_CHECKING:
     from .types import (
         SupportedArithmeticExpressionNodeTypes,
@@ -156,5 +167,15 @@ __all__ = [
     "TemporalSnapshotExpressionNode",
 
     "TypeExpressionNode",
+
+    # Ternary nodes
+    "TernaryExpressionNode",
+    "TernaryColumnExpressionNode",
+    "TernaryComparisonExpressionNode",
+    "TernaryIterableExpressionNode",
+    "TernaryUnaryExpressionNode",
+    "TernaryConstantExpressionNode",
+    "TernaryCollectionExpressionNode",
+    "SupportedTernaryExpressionNodeTypes",
 
 ]

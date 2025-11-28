@@ -15,6 +15,11 @@ from ..expression_nodes import (
     BooleanIterableExpressionNode,
     BooleanUnaryExpressionNode,
 )
+from ..expression_nodes.ternary_expression_nodes import (
+    TernaryExpressionNode,
+    TernaryUnaryExpressionNode,
+)
+from ..constants import TERNARY_NON_TERMINAL_OPERATORS, ENUM_TERNARY_OPERATORS
 
 if TYPE_CHECKING:
     from ..expression_api.base import BaseExpressionAPI
@@ -51,6 +56,54 @@ class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
         is_true: Check if TRUE (for ternary logic)
         is_false: Check if FALSE (for ternary logic)
     """
+
+    # ========================================
+    # Ternary → Boolean Coercion
+    # ========================================
+
+    def _coerce_if_needed(
+        self,
+        node_or_value: Union[ExpressionNode, Any],
+    ) -> Union[ExpressionNode, Any]:
+        """
+        Auto-coerce non-terminal ternary expressions to boolean.
+
+        When a ternary expression (e.g., t_gt result) is used as an operand
+        in a boolean operation (e.g., and_()), automatically wrap it with
+        is_true() to convert the -1/0/1 sentinel values to boolean.
+
+        This enables natural chaining like:
+            ma.col("score").t_gt(70).and_(ma.col("active").eq(True))
+
+        Args:
+            node_or_value: The node or value to potentially coerce.
+
+        Returns:
+            The original input or a TernaryUnaryExpressionNode(IS_TRUE, ...).
+        """
+        # Check if this is a non-terminal ternary node
+        if isinstance(node_or_value, TernaryExpressionNode):
+            if node_or_value.operator in TERNARY_NON_TERMINAL_OPERATORS:
+                # Auto-wrap with is_true() to convert to boolean
+                return TernaryUnaryExpressionNode(
+                    ENUM_TERNARY_OPERATORS.IS_TRUE,
+                    node_or_value,
+                )
+
+        return node_or_value
+
+    def _get_self_operand(self) -> ExpressionNode:
+        """
+        Get self._node for use as operand, with ternary coercion if needed.
+
+        When the current node is a non-terminal ternary expression (e.g., t_gt
+        result), it needs to be coerced to boolean before use in boolean
+        operations like and_(), or_(), etc.
+
+        Returns:
+            The self node, potentially wrapped with is_true() if ternary.
+        """
+        return self._coerce_if_needed(self._node)
 
     # ========================================
     # Comparison Operations
@@ -276,7 +329,8 @@ class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with AND node.
         """
-        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        # Use _get_self_operand() to auto-coerce ternary self._node to boolean
+        operands = [self._get_self_operand()] + [self._to_node_or_value(other) for other in others]
         node = BooleanIterableExpressionNode(
             ENUM_BOOLEAN_OPERATORS.AND,
             *operands,
@@ -296,7 +350,8 @@ class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with OR node.
         """
-        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        # Use _get_self_operand() to auto-coerce ternary self._node to boolean
+        operands = [self._get_self_operand()] + [self._to_node_or_value(other) for other in others]
         node = BooleanIterableExpressionNode(
             ENUM_BOOLEAN_OPERATORS.OR,
             *operands,
@@ -316,7 +371,8 @@ class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with XOR node.
         """
-        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        # Use _get_self_operand() to auto-coerce ternary self._node to boolean
+        operands = [self._get_self_operand()] + [self._to_node_or_value(other) for other in others]
         node = BooleanIterableExpressionNode(
             ENUM_BOOLEAN_OPERATORS.XOR,
             *operands,
@@ -338,7 +394,8 @@ class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with XOR_PARITY node.
         """
-        operands = [self._node] + [self._to_node_or_value(other) for other in others]
+        # Use _get_self_operand() to auto-coerce ternary self._node to boolean
+        operands = [self._get_self_operand()] + [self._to_node_or_value(other) for other in others]
         node = BooleanIterableExpressionNode(
             ENUM_BOOLEAN_OPERATORS.XOR_PARITY,
             *operands,
@@ -356,34 +413,9 @@ class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with NOT node.
         """
+        # Use _get_self_operand() to auto-coerce ternary self._node to boolean
         node = BooleanUnaryExpressionNode(
             ENUM_BOOLEAN_OPERATORS.NOT,
-            self._node,
-        )
-        return self._build(node)
-
-    def is_true(self) -> BaseExpressionAPI:
-        """
-        Check if expression evaluates to TRUE (for ternary logic).
-
-        Returns:
-            New ExpressionAPI with IS_TRUE node.
-        """
-        node = BooleanUnaryExpressionNode(
-            ENUM_BOOLEAN_OPERATORS.IS_TRUE,
-            self._node,
-        )
-        return self._build(node)
-
-    def is_false(self) -> BaseExpressionAPI:
-        """
-        Check if expression evaluates to FALSE (for ternary logic).
-
-        Returns:
-            New ExpressionAPI with IS_FALSE node.
-        """
-        node = BooleanUnaryExpressionNode(
-            ENUM_BOOLEAN_OPERATORS.IS_FALSE,
-            self._node,
+            self._get_self_operand(),
         )
         return self._build(node)
