@@ -682,15 +682,9 @@ class TestStringEdgeCases:
 
         actual = select_and_extract(df, backend_expr, "replaced", backend_name)
 
-        # Note: str_replace may only replace first occurrence depending on backend
-        # This tests the actual behavior
-        expected_first_only = ["hello hello", "exam test test", "world"]
-        expected_all = ["hello hello", "exam exam exam", "world"]
-
-        # Accept either behavior (backends differ)
-        assert actual == expected_first_only or actual == expected_all, (
-            f"[{backend_name}] Expected {expected_first_only} or {expected_all}, got {actual}"
-        )
+        # str.replace should replace ALL occurrences (consistent with Python str.replace)
+        expected = ["hello hello", "exam exam exam", "world"]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_case_sensitivity_contains(self, backend_name, backend_factory, get_column_values):
         """Test case sensitivity in contains operation."""
