@@ -15,21 +15,9 @@ if TYPE_CHECKING:
 
 class ENUM_TYPE_OPERATORS(Enum):
     """
-    Enumeration for expression logical unary operators.
+    Enumeration for type casting operators.
     """
     CAST = auto()
-
-    IS_NUMERIC = auto()
-    IS_INT = auto()
-    IS_FLOAT = auto()
-    IS_STRING = auto()
-    IS_BOOL = auto()
-    IS_ARRAY = auto()
-
-    GET_TYPE = auto()
-    IS_LARGER_TYPE = auto()
-    IS_SMALLER_TYPE = auto()
-    IS_EQUAL_TYPE = auto()
 
 
 class TypeVisitorProtocol(Protocol):
