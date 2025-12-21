@@ -3,7 +3,7 @@
 Currently supported:
 - Polars
 - Narwhals (cross-backend compatibility layer)
-- Ibis
+- Ibis (multiple database backends: DuckDB, SQLite, Postgres, etc.)
 
 Planned:
 - Pandas

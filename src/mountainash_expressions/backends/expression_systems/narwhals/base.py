@@ -1,37 +1,37 @@
-"""Narwhals backend implementation of ExpressionSystem."""
+"""Narwhals backend base class.
+
+Provides the base ExpressionSystem class for the Narwhals backend.
+"""
+
+from __future__ import annotations
 
 from typing import Any
+
 import narwhals as nw
 
-from ....core.expression_system import ExpressionSystem
-from ....core.constants import CONST_VISITOR_BACKENDS
+from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash_expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
-class NarwhalsBaseExpressionSystem(ExpressionSystem):
-    """
-    Narwhals-specific implementation of ExpressionSystem.
+class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
+    """Base class for Narwhals expression system components.
 
-    This class encapsulates all Narwhals-specific operations,
-    allowing visitors to build expressions without direct knowledge
-    of the Narwhals API.
+    Provides common functionality and backend identification for all
+    Narwhals protocol implementations.
     """
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
-        """Return Narwhals backend type."""
+        """Return the Narwhals backend type identifier."""
         return CONST_VISITOR_BACKENDS.NARWHALS
 
     def is_native_expression(self, expr: Any) -> bool:
-        """
-        Check if an expression is a native Narwhals expression.
+        """Check if the expression is a native Narwhals expression.
 
         Args:
-            expr: Expression to check
+            expr: Any expression object to check.
 
         Returns:
-            True if expr is a nw.Expr, False otherwise
-
-        Note:
-            ISSUE: Missing from deprecated backend - added to match ExpressionSystem requirement.
+            True if expr is a nw.Expr instance.
         """
         return isinstance(expr, nw.Expr)

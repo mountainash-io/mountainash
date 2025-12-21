@@ -1,52 +1,78 @@
-"""Narwhals backend ExpressionSystem implementation."""
+"""Narwhals backend expression system.
 
-from ....core.expression_visitors.visitor_factory import register_expression_system
-from ....core.constants import CONST_VISITOR_BACKENDS
+This module composes all Narwhals protocol implementations into a single
+NarwhalsExpressionSystem class that can be registered with the visitor factory.
+"""
 
-from .base import NarwhalsBaseExpressionSystem
-from .core import NarwhalsCoreExpressionSystem
-from .boolean import NarwhalsBooleanExpressionSystem
-from .arithmetic import NarwhalsArithmeticExpressionSystem
-from .string import NarwhalsStringExpressionSystem
-from .temporal import NarwhalsTemporalExpressionSystem
-from .type import NarwhalsTypeExpressionSystem
-from .null import NarwhalsNullExpressionSystem
-from .horizontal import NarwhalsHorizontalExpressionSystem
-from .name import NarwhalsNameExpressionSystem
-from .native import NarwhalsNativeExpressionSystem
-from .conditional import NarwhalsConditionalExpressionSystem
-from .ternary import NarwhalsTernaryExpressionSystem
+from __future__ import annotations
+
+from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
+
+# Foundation protocols
+from .field_reference import NarwhalsFieldReferenceSystem
+from .literal import NarwhalsLiteralSystem
+from .cast import NarwhalsCastSystem
+from .conditional import NarwhalsConditionalSystem
+
+# Scalar protocols
+from .scalar_comparison import NarwhalsScalarComparisonSystem
+from .scalar_boolean import NarwhalsScalarBooleanSystem
+from .scalar_arithmetic import NarwhalsScalarArithmeticSystem
+from .scalar_string import NarwhalsScalarStringSystem
+from .scalar_datetime import NarwhalsScalarDatetimeSystem
+from .scalar_rounding import NarwhalsScalarRoundingSystem
+from .scalar_logarithmic import NarwhalsScalarLogarithmicSystem
+from .scalar_set import NarwhalsScalarSetSystem
+from .scalar_aggregate import NarwhalsScalarAggregateSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.NARWHALS)
 class NarwhalsExpressionSystem(
-    NarwhalsCoreExpressionSystem,
-    NarwhalsBooleanExpressionSystem,
-    NarwhalsArithmeticExpressionSystem,
-    NarwhalsStringExpressionSystem,
-    NarwhalsTemporalExpressionSystem,
-    NarwhalsTypeExpressionSystem,
-    NarwhalsNullExpressionSystem,
-    NarwhalsHorizontalExpressionSystem,
-    NarwhalsNameExpressionSystem,
-    NarwhalsNativeExpressionSystem,
-    NarwhalsConditionalExpressionSystem,
-    NarwhalsTernaryExpressionSystem,
+    # Foundation protocols
+    NarwhalsFieldReferenceSystem,
+    NarwhalsLiteralSystem,
+    NarwhalsCastSystem,
+    NarwhalsConditionalSystem,
+    # Scalar protocols
+    NarwhalsScalarComparisonSystem,
+    NarwhalsScalarBooleanSystem,
+    NarwhalsScalarArithmeticSystem,
+    NarwhalsScalarStringSystem,
+    NarwhalsScalarDatetimeSystem,
+    NarwhalsScalarRoundingSystem,
+    NarwhalsScalarLogarithmicSystem,
+    NarwhalsScalarSetSystem,
+    NarwhalsScalarAggregateSystem,
 ):
-    """
-    Complete Narwhals backend ExpressionSystem.
+    """Complete Narwhals backend expression system.
 
-    Composes all protocol implementations for use with Narwhals DataFrames.
-    All operations return nw.Expr objects.
+    Composes all protocol implementations via multiple inheritance.
+    Registered with the visitor factory for automatic backend detection.
 
-    Includes:
-    - Core, Boolean, Arithmetic, String, Temporal, Type, Null operations
-    - Horizontal: coalesce(), greatest(), least()
-    - Name: alias(), prefix(), suffix(), to_upper(), to_lower()
-    - Native: native() (passthrough for backend-native expressions)
+    Note: Narwhals is a compatibility layer that works across multiple
+    DataFrame backends (Polars, Pandas, etc.). Some operations may have
+    limited functionality compared to native Polars implementations.
     """
 
     pass
 
 
-__all__ = ["NarwhalsExpressionSystem"]
+__all__ = [
+    "NarwhalsExpressionSystem",
+    # Foundation protocols
+    "NarwhalsFieldReferenceSystem",
+    "NarwhalsLiteralSystem",
+    "NarwhalsCastSystem",
+    "NarwhalsConditionalSystem",
+    # Scalar protocols
+    "NarwhalsScalarComparisonSystem",
+    "NarwhalsScalarBooleanSystem",
+    "NarwhalsScalarArithmeticSystem",
+    "NarwhalsScalarStringSystem",
+    "NarwhalsScalarDatetimeSystem",
+    "NarwhalsScalarRoundingSystem",
+    "NarwhalsScalarLogarithmicSystem",
+    "NarwhalsScalarSetSystem",
+    "NarwhalsScalarAggregateSystem",
+]

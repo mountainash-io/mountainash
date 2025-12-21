@@ -1,52 +1,78 @@
-"""Ibis backend ExpressionSystem implementation."""
+"""Ibis backend expression system.
 
-from ....core.expression_visitors.visitor_factory import register_expression_system
-from ....core.constants import CONST_VISITOR_BACKENDS
+This module composes all Ibis protocol implementations into a single
+IbisExpressionSystem class that can be registered with the visitor factory.
+"""
 
-from .base import IbisBaseExpressionSystem
-from .core import IbisCoreExpressionSystem
-from .boolean import IbisBooleanExpressionSystem
-from .arithmetic import IbisArithmeticExpressionSystem
-from .string import IbisStringExpressionSystem
-from .temporal import IbisTemporalExpressionSystem
-from .type import IbisTypeExpressionSystem
-from .null import IbisNullExpressionSystem
-from .horizontal import IbisHorizontalExpressionSystem
-from .name import IbisNameExpressionSystem
-from .native import IbisNativeExpressionSystem
-from .conditional import IbisConditionalExpressionSystem
-from .ternary import IbisTernaryExpressionSystem
+from __future__ import annotations
+
+from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
+
+# Foundation protocols
+from .field_reference import IbisFieldReferenceSystem
+from .literal import IbisLiteralSystem
+from .cast import IbisCastSystem
+from .conditional import IbisConditionalSystem
+
+# Scalar protocols
+from .scalar_comparison import IbisScalarComparisonSystem
+from .scalar_boolean import IbisScalarBooleanSystem
+from .scalar_arithmetic import IbisScalarArithmeticSystem
+from .scalar_string import IbisScalarStringSystem
+from .scalar_datetime import IbisScalarDatetimeSystem
+from .scalar_rounding import IbisScalarRoundingSystem
+from .scalar_logarithmic import IbisScalarLogarithmicSystem
+from .scalar_set import IbisScalarSetSystem
+from .scalar_aggregate import IbisScalarAggregateSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.IBIS)
 class IbisExpressionSystem(
-    IbisCoreExpressionSystem,
-    IbisBooleanExpressionSystem,
-    IbisArithmeticExpressionSystem,
-    IbisStringExpressionSystem,
-    IbisTemporalExpressionSystem,
-    IbisTypeExpressionSystem,
-    IbisNullExpressionSystem,
-    IbisHorizontalExpressionSystem,
-    IbisNameExpressionSystem,
-    IbisNativeExpressionSystem,
-    IbisConditionalExpressionSystem,
-    IbisTernaryExpressionSystem,
+    # Foundation protocols
+    IbisFieldReferenceSystem,
+    IbisLiteralSystem,
+    IbisCastSystem,
+    IbisConditionalSystem,
+    # Scalar protocols
+    IbisScalarComparisonSystem,
+    IbisScalarBooleanSystem,
+    IbisScalarArithmeticSystem,
+    IbisScalarStringSystem,
+    IbisScalarDatetimeSystem,
+    IbisScalarRoundingSystem,
+    IbisScalarLogarithmicSystem,
+    IbisScalarSetSystem,
+    IbisScalarAggregateSystem,
 ):
-    """
-    Complete Ibis backend ExpressionSystem.
+    """Complete Ibis backend expression system.
 
-    Composes all protocol implementations for use with Ibis expressions.
-    All operations return ibis.expr.types.Expr objects.
+    Composes all protocol implementations via multiple inheritance.
+    Registered with the visitor factory for automatic backend detection.
 
-    Includes:
-    - Core, Boolean, Arithmetic, String, Temporal, Type, Null operations
-    - Horizontal: coalesce(), greatest(), least()
-    - Name: alias(), prefix(), suffix(), to_upper(), to_lower()
-    - Native: native() (passthrough for backend-native expressions)
+    Ibis supports multiple backends (DuckDB, SQLite, Polars, Postgres, etc.)
+    through a unified interface. Some operations may behave differently
+    depending on the underlying database engine.
     """
 
     pass
 
 
-__all__ = ["IbisExpressionSystem"]
+__all__ = [
+    "IbisExpressionSystem",
+    # Foundation protocols
+    "IbisFieldReferenceSystem",
+    "IbisLiteralSystem",
+    "IbisCastSystem",
+    "IbisConditionalSystem",
+    # Scalar protocols
+    "IbisScalarComparisonSystem",
+    "IbisScalarBooleanSystem",
+    "IbisScalarArithmeticSystem",
+    "IbisScalarStringSystem",
+    "IbisScalarDatetimeSystem",
+    "IbisScalarRoundingSystem",
+    "IbisScalarLogarithmicSystem",
+    "IbisScalarSetSystem",
+    "IbisScalarAggregateSystem",
+]

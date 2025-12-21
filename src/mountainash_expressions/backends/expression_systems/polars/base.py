@@ -1,34 +1,37 @@
-"""Polars backend implementation of ExpressionSystem."""
+"""Polars backend base class.
+
+Provides the base ExpressionSystem class for the Polars backend.
+"""
+
+from __future__ import annotations
 
 from typing import Any
+
 import polars as pl
 
-from ....core.expression_system import ExpressionSystem
-from ....core.constants import CONST_VISITOR_BACKENDS
+from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash_expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
-class PolarsBaseExpressionSystem(ExpressionSystem):
-    """
-    Polars-specific implementation of ExpressionSystem.
+class PolarsBaseExpressionSystem(BaseExpressionSystem):
+    """Base class for Polars expression system components.
 
-    This class encapsulates all Polars-specific operations,
-    allowing visitors to build expressions without direct knowledge
-    of the Polars API.
+    Provides common functionality and backend identification for all
+    Polars protocol implementations.
     """
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
-        """Return Polars backend type."""
+        """Return the Polars backend type identifier."""
         return CONST_VISITOR_BACKENDS.POLARS
 
     def is_native_expression(self, expr: Any) -> bool:
-        """
-        Check if an expression is a native Polars expression.
+        """Check if the expression is a native Polars expression.
 
         Args:
-            expr: Expression to check
+            expr: Any expression object to check.
 
         Returns:
-            True if expr is a pl.Expr, False otherwise
+            True if expr is a pl.Expr instance.
         """
         return isinstance(expr, pl.Expr)

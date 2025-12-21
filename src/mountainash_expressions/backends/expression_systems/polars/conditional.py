@@ -1,32 +1,40 @@
-"""Polars conditional operations implementation."""
+"""Polars ConditionalExpressionProtocol implementation.
 
-from typing import Any
+Implements if-then-else conditional operations for the Polars backend.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import polars as pl
 
 from .base import PolarsBaseExpressionSystem
-from ....core.protocols.conditional_protocols import ConditionalExpressionProtocol
+
+if TYPE_CHECKING:
+    from mountainash_expressions.core.expression_protocols.substrait.prtcl_conditional import (
+        ConditionalExpressionProtocol,
+    )
 
 
-class PolarsConditionalExpressionSystem(PolarsBaseExpressionSystem, ConditionalExpressionProtocol):
-    """Polars implementation of conditional operations."""
+class PolarsConditionalSystem(PolarsBaseExpressionSystem):
+    """Polars implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(
         self,
-        condition: Any,
-        consequence: Any,
-        alternative: Any,
+        condition: pl.Expr,
+        if_true: pl.Expr,
+        if_false: pl.Expr,
+        /,
     ) -> pl.Expr:
-        """
-        Create a conditional if-then-else expression.
-
-        Uses Polars' when().then().otherwise() pattern.
+        """Create a conditional if-then-else expression.
 
         Args:
-            condition: Boolean expression for the condition
-            consequence: Value if condition is true
-            alternative: Value if condition is false
+            condition: The boolean condition expression.
+            if_true: Expression to use when condition is true.
+            if_false: Expression to use when condition is false.
 
         Returns:
-            pl.Expr representing the conditional
+            A Polars expression implementing the conditional logic.
         """
-        return pl.when(condition).then(consequence).otherwise(alternative)
+        return pl.when(condition).then(if_true).otherwise(if_false)

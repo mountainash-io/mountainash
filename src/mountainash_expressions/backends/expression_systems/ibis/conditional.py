@@ -1,32 +1,44 @@
-"""Ibis conditional operations implementation."""
+"""Ibis ConditionalExpressionProtocol implementation.
 
-from typing import Any
+Implements if-then-else conditional operations for the Ibis backend.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import ibis
+import ibis.expr.types as ir
 
 from .base import IbisBaseExpressionSystem
-from ....core.protocols.conditional_protocols import ConditionalExpressionProtocol
+
+if TYPE_CHECKING:
+    from mountainash_expressions.core.expression_protocols.substrait.prtcl_conditional import (
+        ConditionalExpressionProtocol,
+    )
+
+# Type alias for expression type
+SupportedExpressions = ir.Column | ir.Scalar
 
 
-class IbisConditionalExpressionSystem(IbisBaseExpressionSystem, ConditionalExpressionProtocol):
-    """Ibis implementation of conditional operations."""
+class IbisConditionalSystem(IbisBaseExpressionSystem):
+    """Ibis implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(
         self,
-        condition: Any,
-        consequence: Any,
-        alternative: Any,
-    ) -> Any:
-        """
-        Create a conditional if-then-else expression.
-
-        Uses Ibis' ifelse() method on the condition.
+        condition: SupportedExpressions,
+        if_true: SupportedExpressions,
+        if_false: SupportedExpressions,
+        /,
+    ) -> SupportedExpressions:
+        """Create a conditional if-then-else expression.
 
         Args:
-            condition: Boolean expression for the condition
-            consequence: Value if condition is true
-            alternative: Value if condition is false
+            condition: The boolean condition expression.
+            if_true: Expression to use when condition is true.
+            if_false: Expression to use when condition is false.
 
         Returns:
-            Ibis expression representing the conditional
+            An Ibis expression implementing the conditional logic.
         """
-        return ibis.ifelse(condition, consequence, alternative)
+        return ibis.ifelse(condition, if_true, if_false)
