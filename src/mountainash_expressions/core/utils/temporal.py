@@ -147,6 +147,56 @@ def to_offset_string(expr: str) -> str:
     return f"{amount}{code}"
 
 
+def parse_combined_duration(duration: str) -> list[str]:
+    """
+    Parse combined duration string into Polars-compatible components.
+
+    This is used by backends to split combined duration strings like "1d2h"
+    into individual components that Polars/Narwhals can process sequentially.
+
+    Args:
+        duration: Combined duration string like "1d2h", "-3mo", "2h30m"
+
+    Returns:
+        List of single-unit offset strings: ["1d", "2h"] or ["-3mo"]
+
+    Raises:
+        ValueError: If the duration cannot be parsed.
+
+    Examples:
+        >>> parse_combined_duration("1d2h30m")
+        ['1d', '2h', '30m']
+        >>> parse_combined_duration("-2w3d")
+        ['-2w', '-3d']
+        >>> parse_combined_duration("3mo")
+        ['3mo']
+    """
+    # Handle negative durations (sign applies to all components)
+    is_negative = duration.startswith('-')
+    if is_negative:
+        duration = duration[1:]
+
+    # Match number + unit pairs
+    # Order matters: 'mo' must come before 'm' to avoid partial match
+    pattern = r'(\d+)(mo|y|w|d|h|m|s)'
+    components = []
+
+    for match in re.finditer(pattern, duration, re.IGNORECASE):
+        amount = int(match.group(1))
+        unit = match.group(2).lower()
+        if is_negative:
+            amount = -amount
+        components.append(f"{amount}{unit}")
+
+    if not components:
+        raise ValueError(
+            f"Cannot parse duration: '{duration}'. "
+            f"Expected format like '1d2h', '3mo', '2w'"
+        )
+
+    return components
+
+
 def time_ago(duration: str) -> datetime:
     """
     Calculate absolute datetime for "X time ago".
@@ -278,6 +328,7 @@ __all__ = [
     "parse_time_expression",
     "to_timedelta",
     "to_offset_string",
+    "parse_combined_duration",
     "time_ago",
     "since",
     # Expression builders

@@ -59,7 +59,7 @@ else:
 PolarsExpr: TypeAlias = pl.Expr
 
 # Ibis types
-IbisExpr: TypeAlias = ir.Expr
+IbisExpr: TypeAlias = Union[ir.Expr, ir.Column, ir.Scalar]
 
 # Narwhals types
 NarwhalsExpr: TypeAlias = nw.Expr
