@@ -1,0 +1,109 @@
+"""Polars ScalarBooleanExpressionProtocol implementation.
+
+Implements boolean logical operations for the Polars backend.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import polars as pl
+
+from ..base import PolarsBaseExpressionSystem
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
+
+if TYPE_CHECKING:
+    from mountainash_expressions.types import PolarsExpr
+
+
+# Type alias for expression type
+
+class PolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
+    """Polars implementation of ScalarBooleanExpressionProtocol.
+
+    Implements 5 boolean methods using Kleene (three-valued) logic:
+    - and_: Boolean AND (returns false if any false, null if any null and no false)
+    - or_: Boolean OR (returns true if any true, null if any null and no true)
+    - not_: Boolean NOT (negation)
+    - xor: Boolean XOR (exclusive or)
+    - and_not: Boolean AND of first value with negation of second
+    """
+
+    def and_(self, *args: PolarsExpr) -> PolarsExpr:
+        """Boolean AND using Kleene logic.
+
+        Behavior with nulls:
+        - true and null = null
+        - false and null = false
+        - null and null = null
+
+        For 0 inputs: returns true
+        For 1 input: returns that input
+        """
+        if len(args) == 0:
+            return pl.lit(True)
+        if len(args) == 1:
+            return args[0]
+
+        result = args[0]
+        for arg in args[1:]:
+            result = result & arg
+        return result
+
+    def or_(self, *args: PolarsExpr) -> PolarsExpr:
+        """Boolean OR using Kleene logic.
+
+        Behavior with nulls:
+        - true or null = true
+        - false or null = null
+        - null or null = null
+
+        For 0 inputs: returns false
+        For 1 input: returns that input
+        """
+        if len(args) == 0:
+            return pl.lit(False)
+        if len(args) == 1:
+            return args[0]
+
+        result = args[0]
+        for arg in args[1:]:
+            result = result | arg
+        return result
+
+    def not_(self, a: PolarsExpr, /) -> PolarsExpr:
+        """Boolean NOT.
+
+        Returns null if input is null.
+        """
+        return ~a
+
+    def xor(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:
+        """Boolean XOR using Kleene logic.
+
+        Returns null if either input is null.
+        """
+        return a ^ b
+
+    def and_not(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:
+        """Boolean AND of first value with negation of second.
+
+        Equivalent to: a AND (NOT b)
+
+        Behavior with nulls:
+        - true and not null = null
+        - false and not null = false
+        - null and not true = false
+        - null and not false = null
+        """
+        return a & (~b)
+
+    def xor_parity(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:
+        """XOR parity check (odd number of TRUE values).
+
+        Returns TRUE if an odd number of operands are TRUE.
+        For two operands, this is equivalent to XOR.
+
+        Returns null if either input is null.
+        """
+        return a ^ b

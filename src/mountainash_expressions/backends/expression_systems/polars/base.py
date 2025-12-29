@@ -35,3 +35,33 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
             True if expr is a pl.Expr instance.
         """
         return isinstance(expr, pl.Expr)
+
+    def _extract_literal_value(self, expr: Any) -> Any:
+        """Extract the literal value from a Polars literal expression.
+
+        Some operations (like string slice/substring) work better with raw
+        Python values than Expr objects. This helper extracts the underlying
+        value from pl.lit() expressions.
+
+        Args:
+            expr: A Polars expression or literal value.
+
+        Returns:
+            The underlying Python value if it's a literal expression,
+            otherwise returns the expr unchanged.
+        """
+        # If it's already a raw Python value, return as-is
+        if isinstance(expr, (str, int, float, bool, type(None))):
+            return expr
+
+        # If it's a Polars Expr, try to extract the literal value
+        if isinstance(expr, pl.Expr):
+            try:
+                # Create a tiny DataFrame to evaluate the literal
+                result = pl.select(expr).item()
+                return result
+            except Exception:
+                pass
+
+        # If extraction fails, return the original expr
+        return expr

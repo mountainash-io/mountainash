@@ -10,21 +10,26 @@ from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
 
 # Foundation protocols
-from .field_reference import NarwhalsFieldReferenceSystem
-from .literal import NarwhalsLiteralSystem
-from .cast import NarwhalsCastSystem
-from .conditional import NarwhalsConditionalSystem
+from .substrait.field_reference import NarwhalsFieldReferenceSystem
+from .substrait.literal import NarwhalsLiteralSystem
+from .substrait.cast import NarwhalsCastSystem
+from .substrait.conditional import NarwhalsConditionalSystem
 
 # Scalar protocols
-from .scalar_comparison import NarwhalsScalarComparisonSystem
-from .scalar_boolean import NarwhalsScalarBooleanSystem
-from .scalar_arithmetic import NarwhalsScalarArithmeticSystem
-from .scalar_string import NarwhalsScalarStringSystem
-from .scalar_datetime import NarwhalsScalarDatetimeSystem
-from .scalar_rounding import NarwhalsScalarRoundingSystem
-from .scalar_logarithmic import NarwhalsScalarLogarithmicSystem
-from .scalar_set import NarwhalsScalarSetSystem
-from .scalar_aggregate import NarwhalsScalarAggregateSystem
+from .substrait.scalar_comparison import NarwhalsScalarComparisonSystem
+from .substrait.scalar_boolean import NarwhalsScalarBooleanSystem
+from .substrait.scalar_arithmetic import NarwhalsScalarArithmeticSystem
+from .substrait.scalar_string import NarwhalsScalarStringSystem
+from .substrait.scalar_datetime import NarwhalsScalarDatetimeSystem
+from .substrait.scalar_rounding import NarwhalsScalarRoundingSystem
+from .substrait.scalar_logarithmic import NarwhalsScalarLogarithmicSystem
+from .substrait.scalar_set import NarwhalsScalarSetSystem
+from .substrait.scalar_aggregate import NarwhalsScalarAggregateSystem
+
+# Mountainash extension protocols
+from .mountainash_extensions.ext_ternary import NarwhalsTernarySystem
+from .mountainash_extensions.ext_null import NarwhalsNullExtensionSystem
+from .mountainash_extensions.ext_name import NarwhalsNameExtensionSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.NARWHALS)
@@ -44,6 +49,10 @@ class NarwhalsExpressionSystem(
     NarwhalsScalarLogarithmicSystem,
     NarwhalsScalarSetSystem,
     NarwhalsScalarAggregateSystem,
+    # Mountainash extension protocols
+    NarwhalsTernarySystem,
+    NarwhalsNullExtensionSystem,
+    NarwhalsNameExtensionSystem,
 ):
     """Complete Narwhals backend expression system.
 
@@ -75,4 +84,8 @@ __all__ = [
     "NarwhalsScalarLogarithmicSystem",
     "NarwhalsScalarSetSystem",
     "NarwhalsScalarAggregateSystem",
+    # Mountainash extension protocols
+    "NarwhalsTernarySystem",
+    "NarwhalsNullExtensionSystem",
+    "NarwhalsNameExtensionSystem",
 ]

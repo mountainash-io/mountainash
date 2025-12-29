@@ -10,21 +10,26 @@ from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
 
 # Foundation protocols
-from .field_reference import IbisFieldReferenceSystem
-from .literal import IbisLiteralSystem
-from .cast import IbisCastSystem
-from .conditional import IbisConditionalSystem
+from substrait.field_reference import IbisFieldReferenceSystem
+from substrait.literal import IbisLiteralSystem
+from substrait.cast import IbisCastSystem
+from substrait.conditional import IbisConditionalSystem
 
 # Scalar protocols
-from .scalar_comparison import IbisScalarComparisonSystem
-from .scalar_boolean import IbisScalarBooleanSystem
-from .scalar_arithmetic import IbisScalarArithmeticSystem
-from .scalar_string import IbisScalarStringSystem
-from .scalar_datetime import IbisScalarDatetimeSystem
-from .scalar_rounding import IbisScalarRoundingSystem
-from .scalar_logarithmic import IbisScalarLogarithmicSystem
-from .scalar_set import IbisScalarSetSystem
-from .scalar_aggregate import IbisScalarAggregateSystem
+from .substrait.scalar_comparison import IbisScalarComparisonSystem
+from .substrait.scalar_boolean import IbisScalarBooleanSystem
+from .substrait.scalar_arithmetic import IbisScalarArithmeticSystem
+from .substrait.scalar_string import IbisScalarStringSystem
+from .substrait.scalar_datetime import IbisScalarDatetimeSystem
+from .substrait.scalar_rounding import IbisScalarRoundingSystem
+from .substrait.scalar_logarithmic import IbisScalarLogarithmicSystem
+from .substrait.scalar_set import IbisScalarSetSystem
+from .substrait.scalar_aggregate import IbisScalarAggregateSystem
+
+# Mountainash extension protocols
+from mountainash_extensions.ext_ternary import IbisTernarySystem
+from mountainash_extensions.ext_null import IbisNullExtensionSystem
+from mountainash_extensions.ext_name import IbisNameExtensionSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.IBIS)
@@ -44,6 +49,10 @@ class IbisExpressionSystem(
     IbisScalarLogarithmicSystem,
     IbisScalarSetSystem,
     IbisScalarAggregateSystem,
+    # Mountainash extension protocols
+    IbisTernarySystem,
+    IbisNullExtensionSystem,
+    IbisNameExtensionSystem,
 ):
     """Complete Ibis backend expression system.
 
@@ -75,4 +84,8 @@ __all__ = [
     "IbisScalarLogarithmicSystem",
     "IbisScalarSetSystem",
     "IbisScalarAggregateSystem",
+    # Mountainash extension protocols
+    "IbisTernarySystem",
+    "IbisNullExtensionSystem",
+    "IbisNameExtensionSystem",
 ]

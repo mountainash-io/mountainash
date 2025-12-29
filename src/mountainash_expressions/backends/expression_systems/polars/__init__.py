@@ -10,21 +10,26 @@ from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
 
 # Foundation protocols
-from .field_reference import PolarsFieldReferenceSystem
-from .literal import PolarsLiteralSystem
-from .cast import PolarsCastSystem
-from .conditional import PolarsConditionalSystem
+from .substrait.field_reference import PolarsFieldReferenceSystem
+from .substrait.literal import PolarsLiteralSystem
+from .substrait.cast import PolarsCastSystem
+from .substrait.conditional import PolarsConditionalSystem
 
 # Scalar protocols
-from .scalar_comparison import PolarsScalarComparisonSystem
-from .scalar_boolean import PolarsScalarBooleanSystem
-from .scalar_arithmetic import PolarsScalarArithmeticSystem
-from .scalar_string import PolarsScalarStringSystem
-from .scalar_datetime import PolarsScalarDatetimeSystem
-from .scalar_rounding import PolarsScalarRoundingSystem
-from .scalar_logarithmic import PolarsScalarLogarithmicSystem
-from .scalar_set import PolarsScalarSetSystem
-from .scalar_aggregate import PolarsScalarAggregateSystem
+from substrait.scalar_comparison import PolarsScalarComparisonSystem
+from substrait.scalar_boolean import PolarsScalarBooleanSystem
+from substrait.scalar_arithmetic import PolarsScalarArithmeticSystem
+from substrait.scalar_string import PolarsScalarStringSystem
+from substrait.scalar_datetime import PolarsScalarDatetimeSystem
+from substrait.scalar_rounding import PolarsScalarRoundingSystem
+from substrait.scalar_logarithmic import PolarsScalarLogarithmicSystem
+from substrait.scalar_set import PolarsScalarSetSystem
+from substrait.scalar_aggregate import PolarsScalarAggregateSystem
+
+# Mountainash extension protocols
+from .mountainash_extensions.ext_ternary import PolarsTernarySystem
+from .mountainash_extensions.ext_null import PolarsNullExtensionSystem
+from .mountainash_extensions.ext_name import PolarsNameExtensionSystem
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
@@ -44,6 +49,10 @@ class PolarsExpressionSystem(
     PolarsScalarLogarithmicSystem,
     PolarsScalarSetSystem,
     PolarsScalarAggregateSystem,
+    # Mountainash extension protocols
+    PolarsTernarySystem,
+    PolarsNullExtensionSystem,
+    PolarsNameExtensionSystem,
 ):
     """Complete Polars backend expression system.
 
@@ -71,4 +80,8 @@ __all__ = [
     "PolarsScalarLogarithmicSystem",
     "PolarsScalarSetSystem",
     "PolarsScalarAggregateSystem",
+    # Mountainash extension protocols
+    "PolarsTernarySystem",
+    "PolarsNullExtensionSystem",
+    "PolarsNameExtensionSystem",
 ]
