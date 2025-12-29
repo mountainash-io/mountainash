@@ -7,8 +7,8 @@ from abc import ABC
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Self, Union
 
 if TYPE_CHECKING:
-    from ..expression_nodes.base_expression_node import ExpressionNode
-    from ..namespaces.base import BaseNamespace
+    from ..expression_nodes import ExpressionNode
+    from .api_namespaces.ns_base import BaseExpressionNamespace
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class BaseExpressionAPI(ABC):
     """
 
     # Subclasses override to define flat namespace composition
-    _FLAT_NAMESPACES: ClassVar[tuple[type[BaseNamespace], ...]] = ()
+    _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionNamespace], ...]] = ()
 
     __slots__ = ("_node",)
 
@@ -104,20 +104,26 @@ class BaseExpressionAPI(ABC):
 
         Handles:
         - BaseExpressionAPI instances: extracts ._node
-        - ExpressionNode instances: returns as-is
+        - ExpressionNode instances: returns as-is (legacy)
+        - ExpressionNode instances: returns as-is (new)
         - Other values: returns as-is (visitor will handle them)
 
         Args:
             other: The value to convert.
 
         Returns:
-            An ExpressionNode or raw value representing the input.
+            An ExpressionNode, ExpressionNode, or raw value representing the input.
         """
         if isinstance(other, BaseExpressionAPI):
             return other._node
 
+        # Check for new Substrait nodes first
+        from ..expression_nodes import ExpressionNode
+        if isinstance(other, ExpressionNode):
+            return other
+
         # Import here to avoid circular dependency
-        from ..expression_nodes.base_expression_node import ExpressionNode
+        from ..expression_nodes import ExpressionNode
 
         if isinstance(other, ExpressionNode):
             return other
@@ -172,31 +178,31 @@ class BaseExpressionAPI(ABC):
             >>> # Raw sentinels: for testing/debugging
             >>> backend_expr = expr.compile(df, booleanizer=None)
         """
-        from ..expression_visitors import ExpressionVisitorFactory
-        from ..expression_nodes.base_expression_node import ExpressionNode
+        from ..expression_system.expsys_base import identify_backend, get_expression_system
 
         # Auto-booleanize non-terminal ternary expressions
         node_to_compile = self._maybe_booleanize(booleanizer)
 
         # Detect backend and get ExpressionSystem
-        backend_type = ExpressionVisitorFactory._identify_backend(dataframe)
-        expression_system_class = ExpressionVisitorFactory._expression_systems_registry[backend_type]
+        backend_type = identify_backend(dataframe)
+        expression_system_class = get_expression_system(backend_type)
         expression_system = expression_system_class()
 
-        # Get appropriate visitor for the top-level node
+        # Check if this is an ExpressionNode
+        from ..expression_nodes import ExpressionNode
         if isinstance(node_to_compile, ExpressionNode):
-            visitor = ExpressionVisitorFactory.get_visitor_for_node(
-                node_to_compile,
-                expression_system,
-            )
-            return node_to_compile.accept(visitor)
-        else:
-            # Handle raw values
-            from ..expression_parameters import ExpressionParameter
-            return ExpressionParameter(
-                node_to_compile,
-                expression_system=expression_system
-            ).to_native_expression()
+            # Use unified visitor for all expression nodes
+            from ..unified_visitor import UnifiedExpressionVisitor
+            visitor = UnifiedExpressionVisitor(expression_system)
+            return visitor.visit(node_to_compile)
+
+        # Handle raw values (should not normally reach here)
+        # Wrap in a literal and compile
+        from ..expression_nodes import LiteralNode
+        lit_node = LiteralNode(value=node_to_compile)
+        from ..unified_visitor import UnifiedExpressionVisitor
+        visitor = UnifiedExpressionVisitor(expression_system)
+        return visitor.visit(lit_node)
 
     def _maybe_booleanize(
         self,
@@ -215,14 +221,25 @@ class BaseExpressionAPI(ABC):
         Returns:
             The node to compile (possibly wrapped with a booleanizer).
         """
-        from ..expression_nodes.ternary_expression_nodes import TernaryExpressionNode
+        from ..expression_nodes import ScalarFunctionNode
+        from ..expression_system.function_keys.enums import (
+            MOUNTAINASH_TERNARY,
+            MOUNTAINASH_TERNARY_TERMINAL,
+            MOUNTAINASH_TERNARY_NON_TERMINAL,
+        )
 
-        # If not a ternary node, return as-is
-        if not isinstance(self._node, TernaryExpressionNode):
+        # Check if this is a ScalarFunctionNode with a ternary function
+        if not isinstance(self._node, ScalarFunctionNode):
             return self._node
 
+        function_key = self._node.function_key
+
         # If already terminal (booleanized), return as-is
-        if self._node.is_terminal:
+        if function_key in MOUNTAINASH_TERNARY_TERMINAL:
+            return self._node
+
+        # If not a ternary function at all, return as-is
+        if function_key not in MOUNTAINASH_TERNARY_NON_TERMINAL:
             return self._node
 
         # If booleanizer is None, return raw (user explicitly wants sentinels)

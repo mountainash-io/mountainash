@@ -1,0 +1,77 @@
+"""Cast operations APIBuilder.
+
+Substrait-aligned implementation using CastNode.
+Implements CastBuilderProtocol for type casting operations.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal, Union
+
+from ..api_builder_base import BaseExpressionAPIBuilder
+
+from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_STRING
+from mountainash_expressions.core.expression_nodes import CastNode, ExpressionNode
+from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitCastAPIBuilderProtocol
+
+
+if TYPE_CHECKING:
+    from ...api_base import BaseExpressionAPI
+
+
+class SubstraitCastAPIBuilder(BaseExpressionAPIBuilder, SubstraitCastAPIBuilderProtocol):
+    """
+    Cast operations APIBuilder (Substrait-aligned).
+
+    Provides type casting operations.
+
+    Methods:
+        cast: Cast to a target data type
+    """
+
+    def cast(
+        self,
+        dtype: Union[str, type, Any],
+        *,
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> BaseExpressionAPI:
+        """
+        Cast to the specified data type.
+
+        Substrait: cast
+
+        Args:
+            dtype: The target data type. Can be:
+                - A string type name (e.g., "i32", "i64", "f64", "string", "date")
+                - A Python type (e.g., int, float, str)
+                - A backend-specific type
+            failure_behavior: How to handle cast failures:
+                - "throw": Raise an error on invalid conversion (default)
+                - "null": Return NULL on invalid conversion
+
+        Returns:
+            New ExpressionAPI with cast node.
+
+        Examples:
+            >>> col("price").cast("f64")  # Cast to float64
+            >>> col("count").cast(int)    # Cast to integer
+            >>> col("date_str").cast("date", failure_behavior="null")  # Safe cast
+        """
+        # Normalize dtype to string representation
+        if isinstance(dtype, type):
+            type_map = {
+                int: "i64",
+                float: "f64",
+                str: "string",
+                bool: "bool",
+            }
+            target_type = type_map.get(dtype, str(dtype))
+        else:
+            target_type = str(dtype)
+
+        node = CastNode(
+            input=self._node,
+            target_type=target_type,
+            failure_behavior=failure_behavior,
+        )
+        return self._build(node)

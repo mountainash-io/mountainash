@@ -1,4 +1,4 @@
-"""Boolean operations namespace.
+"""Boolean operations APIBuilder.
 
 Substrait-aligned implementation using ScalarFunctionNode.
 Implements ScalarBooleanBuilderProtocol for logical operations.
@@ -8,23 +8,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Union
 
-from ..ns_base import BaseExpressionNamespace
-from ....expression_nodes import ScalarFunctionNode, LiteralNode, SingularOrListNode
-from ....expression_nodes.enums import (
-    SUBSTRAIT_COMPARISON,
-    SUBSTRAIT_BOOLEAN,
-    MOUNTAINASH_COMPARISON,
-)
-from ....expression_protocols.substrait import ScalarBooleanBuilderProtocol
+from ..api_builder_base import BaseExpressionAPIBuilder
+
+from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_BOOLEAN
+from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode,  LiteralNode, SingularOrListNode
+from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarBooleanAPIBuilderProtocol
+
 
 if TYPE_CHECKING:
+    from mountainash_expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
     from ...api_base import BaseExpressionAPI
     from ....expression_nodes import ExpressionNode
 
 
-class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
+class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBooleanAPIBuilderProtocol):
     """
-    Boolean operations namespace (Substrait-aligned).
+    Boolean operations APIBuilder (Substrait-aligned).
 
     Provides comparison operators that produce boolean results,
     and logical operators that combine boolean values.
@@ -49,7 +48,41 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
         xor_: Logical XOR (exclusive or)
         xor_parity: XOR parity (odd number of TRUE)
         not_: Logical NOT
+
+    Auto-Coercion:
+        When ternary expressions (t_gt, t_and, etc.) are used with boolean
+        operations (and_, or_, not_), they are automatically converted to
+        boolean via is_true().
     """
+
+    # ========================================
+    # Ternary → Boolean Coercion Hook
+    # ========================================
+
+    def _coerce_if_needed(
+        self,
+        node: "ExpressionNode",
+    ) -> "ExpressionNode":
+        """
+        Coerce ternary expressions to boolean via is_true().
+
+        This hook is called automatically by _to_substrait_node() for all
+        arguments passed to boolean operations. Non-terminal ternary nodes
+        (which produce -1/0/1 values) are wrapped with is_true() to convert
+        to boolean True/False for use with boolean logical operators.
+
+        Args:
+            node: The expression node to potentially coerce.
+
+        Returns:
+            The original node, or a wrapped is_true() node for ternary expressions.
+        """
+        if isinstance(node, ScalarFunctionNode) and node.is_ternary_non_terminal:
+            return ScalarFunctionNode(
+                function_key=MOUNTAINASH_TERNARY.IS_TRUE,
+                arguments=[node],
+            )
+        return node
 
     # ========================================
     # Comparison Operations
@@ -57,8 +90,8 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
 
     def eq(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Equal to (==).
 
@@ -70,76 +103,76 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.EQ,
+            function_key=KEY_SCALAR_COMPARISON.EQUAL,
             arguments=[self._node, other_node],
         )
         return self._build(node)
 
     def ne(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """Not equal to (!=)."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.NE,
+            function_key=KEY_SCALAR_COMPARISON.NOT_EQUAL,
             arguments=[self._node, other_node],
         )
         return self._build(node)
 
     def gt(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """Greater than (>)."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.GT,
+            function_key=KEY_SCALAR_COMPARISON.GT,
             arguments=[self._node, other_node],
         )
         return self._build(node)
 
     def lt(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """Less than (<)."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.LT,
+            function_key=KEY_SCALAR_COMPARISON.LT,
             arguments=[self._node, other_node],
         )
         return self._build(node)
 
     def ge(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """Greater than or equal (>=)."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.GE,
+            function_key=KEY_SCALAR_COMPARISON.GTE,
             arguments=[self._node, other_node],
         )
         return self._build(node)
 
     def le(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """Less than or equal (<=)."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.LE,
+            function_key=KEY_SCALAR_COMPARISON.LTE,
             arguments=[self._node, other_node],
         )
         return self._build(node)
 
     def is_close(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
         precision: float = 1e-5,
-    ) -> "BaseExpressionAPI":
+    ) -> BaseExpressionAPI:
         """
         Check if values are approximately equal within precision.
 
@@ -160,10 +193,10 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
 
     def between(
         self,
-        lower: Union["BaseExpressionAPI", "ExpressionNode", Any],
-        upper: Union["BaseExpressionAPI", "ExpressionNode", Any],
+        lower: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        upper: Union[BaseExpressionAPI, "ExpressionNode", Any],
         closed: str = "both",
-    ) -> "BaseExpressionAPI":
+    ) -> BaseExpressionAPI:
         """
         Check if value is between bounds.
 
@@ -178,7 +211,7 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
         lower_node = self._to_substrait_node(lower)
         upper_node = self._to_substrait_node(upper)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_COMPARISON.BETWEEN,
+            function_key=KEY_SCALAR_COMPARISON.BETWEEN,
             arguments=[self._node, lower_node, upper_node],
             options={"closed": closed},
         )
@@ -190,8 +223,8 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
 
     def is_in(
         self,
-        values: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        values: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Check if value is in a collection.
 
@@ -216,8 +249,8 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
 
     def is_not_in(
         self,
-        values: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        values: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Check if value is not in a collection.
 
@@ -235,12 +268,12 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
     # Boolean Constants
     # ========================================
 
-    def always_true(self) -> "BaseExpressionAPI":
+    def always_true(self) -> BaseExpressionAPI:
         """Return a constant TRUE value."""
         node = LiteralNode(value=True)
         return self._build(node)
 
-    def always_false(self) -> "BaseExpressionAPI":
+    def always_false(self) -> BaseExpressionAPI:
         """Return a constant FALSE value."""
         node = LiteralNode(value=False)
         return self._build(node)
@@ -251,10 +284,12 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
 
     def and_(
         self,
-        *others: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Logical AND operation.
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Args:
             *others: Other expressions to AND with this one.
@@ -263,26 +298,31 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
             New ExpressionAPI with AND node.
         """
         if not others:
-            return self._build(self._node)
+            return self._build(self._coerce_if_needed(self._node))
 
         # Build pairwise AND chain: ((a AND b) AND c) AND d ...
-        operands = [self._node] + [self._to_substrait_node(o) for o in others]
+        # _to_substrait_node() automatically applies coercion via hook
+        operands = [self._coerce_if_needed(self._node)] + [
+            self._to_substrait_node(o) for o in others
+        ]
 
         # Chain: reduce((a, b) -> ScalarFunctionNode("and", [a, b]), operands)
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=SUBSTRAIT_BOOLEAN.AND,
+                function_key=KEY_SCALAR_BOOLEAN.AND,
                 arguments=[result, operand],
             )
         return self._build(result)
 
     def or_(
         self,
-        *others: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Logical OR operation.
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Args:
             *others: Other expressions to OR with this one.
@@ -291,26 +331,31 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
             New ExpressionAPI with OR node.
         """
         if not others:
-            return self._build(self._node)
+            return self._build(self._coerce_if_needed(self._node))
 
-        operands = [self._node] + [self._to_substrait_node(o) for o in others]
+        # _to_substrait_node() automatically applies coercion via hook
+        operands = [self._coerce_if_needed(self._node)] + [
+            self._to_substrait_node(o) for o in others
+        ]
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=SUBSTRAIT_BOOLEAN.OR,
+                function_key=KEY_SCALAR_BOOLEAN.OR,
                 arguments=[result, operand],
             )
         return self._build(result)
 
     def and_not(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Logical AND NOT operation.
 
         Returns (self AND NOT other) using Kleene logic.
         Equivalent to self.and_(other.not_()) but more efficient.
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Substrait: and_not
 
@@ -320,19 +365,22 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with AND_NOT node.
         """
+        # _to_substrait_node() automatically applies coercion via hook
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_BOOLEAN.AND_NOT,
-            arguments=[self._node, other_node],
+            function_key=KEY_SCALAR_BOOLEAN.AND_NOT,
+            arguments=[self._coerce_if_needed(self._node), other_node],
         )
         return self._build(node)
 
     def xor(
         self,
-        other: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Logical XOR operation (exclusive or).
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Substrait: xor
 
@@ -342,19 +390,22 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
         Returns:
             New ExpressionAPI with XOR node.
         """
+        # _to_substrait_node() automatically applies coercion via hook
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_BOOLEAN.XOR,
-            arguments=[self._node, other_node],
+            function_key=KEY_SCALAR_BOOLEAN.XOR,
+            arguments=[self._coerce_if_needed(self._node), other_node],
         )
         return self._build(node)
 
     def xor_(
         self,
-        *others: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         Variadic logical XOR operation (exclusive or).
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Args:
             *others: Other expressions to XOR with this one.
@@ -363,25 +414,30 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
             New ExpressionAPI with XOR node.
         """
         if not others:
-            return self._build(self._node)
+            return self._build(self._coerce_if_needed(self._node))
 
-        operands = [self._node] + [self._to_substrait_node(o) for o in others]
+        # _to_substrait_node() automatically applies coercion via hook
+        operands = [self._coerce_if_needed(self._node)] + [
+            self._to_substrait_node(o) for o in others
+        ]
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=SUBSTRAIT_BOOLEAN.XOR,
+                function_key=KEY_SCALAR_BOOLEAN.XOR,
                 arguments=[result, operand],
             )
         return self._build(result)
 
     def xor_parity(
         self,
-        *others: Union["BaseExpressionAPI", "ExpressionNode", Any],
-    ) -> "BaseExpressionAPI":
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
         """
         XOR parity check (odd number of TRUE values).
 
         Returns TRUE if an odd number of operands are TRUE.
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Args:
             *others: Other expressions to check parity with.
@@ -390,9 +446,12 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
             New ExpressionAPI with XOR_PARITY node.
         """
         if not others:
-            return self._build(self._node)
+            return self._build(self._coerce_if_needed(self._node))
 
-        operands = [self._node] + [self._to_substrait_node(o) for o in others]
+        # _to_substrait_node() automatically applies coercion via hook
+        operands = [self._coerce_if_needed(self._node)] + [
+            self._to_substrait_node(o) for o in others
+        ]
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
@@ -405,15 +464,21 @@ class BooleanNamespace(BaseExpressionNamespace, ScalarBooleanBuilderProtocol):
     # Unary Operators
     # ========================================
 
-    def not_(self) -> "BaseExpressionAPI":
+    def not_(self) -> BaseExpressionAPI:
         """
         Logical NOT operation.
+
+        Automatically coerces ternary expressions to boolean via is_true().
 
         Returns:
             New ExpressionAPI with NOT node.
         """
         node = ScalarFunctionNode(
-            function_key=SUBSTRAIT_BOOLEAN.NOT,
-            arguments=[self._node],
+            function_key=KEY_SCALAR_BOOLEAN.NOT,
+            arguments=[self._coerce_if_needed(self._node)],
         )
         return self._build(node)
+
+
+# Alias for consistency with other scalar APIBuilders
+ScalarBooleanAPIBuilder = BooleanAPIBuilder

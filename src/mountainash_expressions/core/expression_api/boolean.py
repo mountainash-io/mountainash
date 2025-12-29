@@ -1,35 +1,51 @@
-"""Boolean logic expression API facade."""
+"""Boolean logic expression API facade.
+
+Substrait-aligned implementation using new namespace architecture.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from .base import BaseExpressionAPI
+from .api_base import BaseExpressionAPI
 
-# Import flat namespaces
-from ..namespaces import (
-    BooleanComparisonNamespace,
-    BooleanLogicalNamespace,
-    ArithmeticNamespace,
-    NullNamespace,
-    TypeNamespace,
-    HorizontalNamespace,
-    NativeNamespace,
+# Import flat namespaces from new Substrait-aligned core
+from .api_namespaces.core import (
+    # Ternary FIRST for is_true/is_false/is_unknown/is_known priority
     TernaryNamespace,
+    # Boolean operations (eq, ne, gt, lt, ge, le, and_, or_, not_, xor_, is_in, etc.)
+    ScalarBooleanNamespace,
+    # Comparison operations (is_null, is_not_null, coalesce, greatest, least)
+    ScalarComparisonNamespace,
+    # Arithmetic operations (add, subtract, multiply, divide, etc.)
+    ScalarArithmeticNamespace,
+    # Rounding operations (ceil, floor, round)
+    ScalarRoundingNamespace,
+    # Logarithmic operations (log, sqrt, abs, exp)
+    ScalarLogarithmicNamespace,
+    # Cast operations (cast)
+    CastNamespace,
+    # Null handling (fill_null, null_if)
+    NullNamespace,
+    # Native expression passthrough (as_native)
+    NativeNamespace,
 )
-# Import explicit namespaces
-from ..namespaces import (
+
+# Import explicit namespaces (accessed via .str, .dt, .name)
+from .api_namespaces.core import (
     StringNamespace,
     DateTimeNamespace,
     NameNamespace,
 )
-from ..namespaces.base import BaseNamespace
+
+# Import base namespace type for type hints
+from .api_namespaces.ns_base import BaseExpressionNamespace
 
 # Import descriptor for explicit namespaces
 from .descriptor import NamespaceDescriptor
 
 if TYPE_CHECKING:
-    from ..expression_nodes.base_expression_node import ExpressionNode
+    from ..expression_nodes import ExpressionNode
 
 
 class BooleanExpressionAPI(BaseExpressionAPI):
@@ -43,14 +59,16 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     Uses namespace-based composition for clean, organized method access.
 
     Flat namespaces (methods accessed directly):
+    - Ternary: t_eq, t_ne, t_gt, t_lt, t_and, t_or, is_true, is_false, etc.
     - Comparison: eq, ne, gt, lt, ge, le, is_close, between
-    - Logical: and_, or_, xor_, not_, is_true, is_false
-    - Collection: is_in, is_not_in, always_true, always_false
-    - Arithmetic: add, sub, mul, div, mod, pow, etc.
-    - Null: is_null, is_not_null, fill_null, etc.
+    - Logical: and_, or_, xor_, not_, is_in, is_not_in, always_true, always_false
+    - Null checks: is_null, is_not_null, coalesce, greatest, least
+    - Arithmetic: add, subtract, multiply, divide, modulo, power, etc.
+    - Rounding: ceil, floor, round
+    - Math: log, sqrt, abs, exp (via ScalarLogarithmicNamespace)
     - Type: cast
-    - Horizontal: coalesce, greatest, least
-    - Native: native
+    - Null handling: fill_null, null_if
+    - Native: as_native
 
     Explicit namespaces (methods accessed via accessor):
     - .str: String operations (upper, lower, contains, etc.)
@@ -65,16 +83,17 @@ class BooleanExpressionAPI(BaseExpressionAPI):
 
     # Flat namespaces - methods dispatched via __getattr__
     # TernaryNamespace first so ternary-specific methods (is_true, is_false, etc.)
-    # are found before the abstract protocol methods in BooleanNamespace
-    _FLAT_NAMESPACES: ClassVar[tuple[type[BaseNamespace], ...]] = (
-        TernaryNamespace,
-        BooleanComparisonNamespace,
-        BooleanLogicalNamespace,
-        ArithmeticNamespace,
-        NullNamespace,
-        TypeNamespace,
-        HorizontalNamespace,
-        NativeNamespace,
+    # take priority when there are conflicts with ScalarComparisonNamespace
+    _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionNamespace], ...]] = (
+        TernaryNamespace,           # t_*, is_true, is_false, is_unknown, is_known, etc.
+        ScalarBooleanNamespace,     # eq, ne, gt, lt, ge, le, and_, or_, not_, xor_, is_in
+        ScalarComparisonNamespace,  # is_null, is_not_null, coalesce, greatest, least
+        ScalarArithmeticNamespace,  # add, subtract, multiply, divide, modulo, power
+        ScalarRoundingNamespace,    # ceil, floor, round
+        ScalarLogarithmicNamespace, # log, sqrt, abs, exp
+        CastNamespace,              # cast
+        NullNamespace,              # fill_null, null_if
+        NativeNamespace,            # as_native
     )
 
     # Explicit namespace descriptors - accessed via .str, .dt, .name
@@ -197,4 +216,4 @@ class BooleanExpressionAPI(BaseExpressionAPI):
 
     def __neg__(self) -> BooleanExpressionAPI:
         """Python unary - operator."""
-        return self.multiply(-1)
+        return self.negate()
