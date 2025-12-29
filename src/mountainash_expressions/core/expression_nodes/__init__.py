@@ -1,181 +1,52 @@
-"""Expression node classes for building expression trees."""
+"""Substrait-aligned expression nodes.
 
-from typing import TYPE_CHECKING
+This module provides the 6 core node types that align with Substrait's
+expression model:
 
-from .base_expression_node import ExpressionNode
+1. LiteralNode - Constant values
+2. FieldReferenceNode - Column references
+3. ScalarFunctionNode - Function calls (most operations)
+4. IfThenNode - Conditional expressions (when/then/otherwise)
+5. CastNode - Type conversions
+6. SingularOrListNode - Membership tests (IN operator)
 
-from .arithmetic_expression_nodes import (
-    ArithmeticExpressionNode,
-    ArithmeticIterableExpressionNode,
+These nodes replace the previous categorical node system (40+ classes)
+with a minimal set that maps directly to Substrait's expression types.
 
-)
+Function identifiers are defined as ENUMs in the function_keys.enums module
+for compile-time safety and IDE autocomplete.
+"""
 
-from .boolean_expression_nodes import (
-    BooleanExpressionNode,
-    BooleanUnaryExpressionNode,
-    BooleanComparisonExpressionNode,
-    BooleanCollectionExpressionNode,
-    BooleanIterableExpressionNode,
-    BooleanConstantExpressionNode,
-    BooleanIsCloseExpressionNode,
-    BooleanBetweenExpressionNode
-    # SupportedBooleanExpressionNodeTypes
-)
+from .substrait.exn_base import ExpressionNode
+from .substrait.exn_literal import LiteralNode
+from .substrait.exn_field_reference import FieldReferenceNode
+from .substrait.exn_scalar_function import ScalarFunctionNode
+from .substrait.exn_ifthen import IfThenNode
+from .substrait.exn_cast import CastNode
+from .substrait.exn_singular_or_list import SingularOrListNode
 
-from .core_expression_nodes import (
-    ColumnExpressionNode,
-    LiteralExpressionNode
-)
+# Extension URIs (kept here for backwards compatibility)
+from .enums import SubstraitExtension
 
-from .name_expression_nodes import (
-    NameAliasExpressionNode,
-    NamePrefixExpressionNode,
-    NameSuffixExpressionNode,
-    NameExpressionNode,
-)
-
-from .native_expression_nodes import NativeExpressionNode
-
-from .horizontal_expression_nodes import HorizontalExpressionNode
-
-from .null_expression_nodes import (
-    NullExpressionNode,
-    NullConstantExpressionNode,
-    NullConditionalExpressionNode,
-    NullLogicalExpressionNode
-)
-
-from .type_expression_nodes import TypeExpressionNode
-
-from .string_expression_nodes import (
-    # New consolidated classes
-    StringExpressionNode,
-    StringPatternNode,
-    StringReplaceNode,
-    StringSliceNode,
-    StringConcatNode,
-    # Backwards compatibility aliases (deprecated)
-    StringIterableExpressionNode,
-    StringSuffixExpressionNode,
-    StringPrefixExpressionNode,
-    StringSubstringExpressionNode,
-    StringSearchExpressionNode,
-    StringPatternExpressionNode,
-    StringReplaceExpressionNode,
-    StringPatternReplaceExpressionNode,
-    StringSplitExpressionNode,
-)
-
-from .temporal_expression_nodes import (
-    TemporalExtractExpressionNode,
-    TemporalDiffExpressionNode,
-    TemporalAdditionExpressionNode,
-    TemporalTruncateExpressionNode,
-    TemporalOffsetExpressionNode,
-    TemporalSnapshotExpressionNode
-
-)
-
-from .ternary_expression_nodes import (
-    TernaryExpressionNode,
-    TernaryColumnExpressionNode,
-    TernaryComparisonExpressionNode,
-    TernaryIterableExpressionNode,
-    TernaryUnaryExpressionNode,
-    TernaryConstantExpressionNode,
-    TernaryCollectionExpressionNode,
-    SupportedTernaryExpressionNodeTypes,
-)
-
-if TYPE_CHECKING:
-    from .types import (
-        SupportedArithmeticExpressionNodeTypes,
-        SupportedCoreExpressionNodeTypes,
-        SupportedBooleanExpressionNodeTypes,
-        SupportedNullExpressionNodeTypes,
-        SupportedTemporalExpressionNodeTypes,
-        SupportedStringExpressionNodeTypes,
-        SupportedHorizontalExpressionNodeTypes,
-        SupportedNameExpressionNodeTypes,
-        SupportedNativeExpressionNodeTypes,
-        SupportedTypeExpressionNodeTypes
-
-    )
-
+# Function keys are now in expression_system.function_keys.enums
+# Import from the canonical location:
+#   from mountainash_expressions.core.expression_system.function_keys.enums import (
+#       KEY_SCALAR_COMPARISON,
+#       KEY_SCALAR_BOOLEAN,
+#       # etc.
+#   )
 
 
 __all__ = [
-    # Base nodes
+    # Base class
     "ExpressionNode",
-    "ColumnExpressionNode",
-    "LiteralExpressionNode",
-
-    "ArithmeticExpressionNode",
-    "ArithmeticIterableExpressionNode",
-
-    "ColumnExpressionNode",
-    "LiteralExpressionNode",
-
-    "NativeExpressionNode",
-
-    "HorizontalExpressionNode",
-
-    "NameAliasExpressionNode",
-    "NamePrefixExpressionNode",
-    "NameSuffixExpressionNode",
-    "NameExpressionNode",
-
-    "NullExpressionNode",
-    "NullConstantExpressionNode",
-    "NullConditionalExpressionNode",
-    "NullLogicalExpressionNode",
-
-
-    "BooleanExpressionNode",
-    "BooleanUnaryExpressionNode",
-    "BooleanComparisonExpressionNode",
-    "BooleanCollectionExpressionNode",
-    "BooleanIterableExpressionNode",
-    "BooleanConstantExpressionNode",
-    "BooleanIsCloseExpressionNode",
-    "BooleanBetweenExpressionNode",
-
-
-    # New consolidated string nodes
-    "StringExpressionNode",
-    "StringPatternNode",
-    "StringReplaceNode",
-    "StringSliceNode",
-    "StringConcatNode",
-    # Backwards compatibility aliases (deprecated)
-    "StringIterableExpressionNode",
-    "StringSuffixExpressionNode",
-    "StringPrefixExpressionNode",
-    "StringSubstringExpressionNode",
-    "StringSearchExpressionNode",
-    "StringPatternExpressionNode",
-    "StringReplaceExpressionNode",
-    "StringPatternReplaceExpressionNode",
-    "StringSplitExpressionNode",
-
-
-    "TemporalExtractExpressionNode",
-    "TemporalDiffExpressionNode",
-    "TemporalAdditionExpressionNode",
-    "TemporalTruncateExpressionNode",
-    "TemporalOffsetExpressionNode",
-    "TemporalSnapshotExpressionNode",
-
-    "TypeExpressionNode",
-
-    # Ternary nodes
-    "TernaryExpressionNode",
-    "TernaryColumnExpressionNode",
-    "TernaryComparisonExpressionNode",
-    "TernaryIterableExpressionNode",
-    "TernaryUnaryExpressionNode",
-    "TernaryConstantExpressionNode",
-    "TernaryCollectionExpressionNode",
-    "SupportedTernaryExpressionNodeTypes",
-
+    # Node types
+    "CastNode",
+    "FieldReferenceNode",
+    "IfThenNode",
+    "LiteralNode",
+    "ScalarFunctionNode",
+    "SingularOrListNode",
+    # Extension URIs
+    "SubstraitExtension",
 ]
