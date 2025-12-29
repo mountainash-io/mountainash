@@ -10,16 +10,11 @@ from __future__ import annotations
 
 from typing import Any, Protocol, Union, TYPE_CHECKING
 
-# Placeholder - use your actual type
-SupportedExpressions = Any
-
 if TYPE_CHECKING:
-    from ...expression_nodes import ExpressionNode
-    from ...expression_api.api_namespaces import BaseExpressionNamespace as BaseNamespace
+    from mountainash_expressions.types import SupportedExpressions
 
 
-
-class ScalarBooleanExpressionProtocol(Protocol):
+class SubstraitScalarBooleanExpressionSystemProtocol(Protocol):
     """Protocol for boolean operations.
 
     Auto-generated from Substrait boolean extension.
@@ -134,46 +129,3 @@ When a null is input, a null is output.
     #     URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_boolean.yaml
     #     """
     #     ...
-
-
-class ScalarBooleanBuilderProtocol(Protocol):
-    """Builder protocol for boolean operations.
-
-    Defines user-facing fluent API methods that create expression nodes.
-    These methods accept flexible inputs and return BaseNamespace for chaining.
-    """
-
-    def or_(self, *others: Union["BaseNamespace", "ExpressionNode", Any]) -> "BaseNamespace":
-        """Boolean OR using Kleene logic.
-
-        Substrait: or
-        """
-        ...
-
-    def and_(self, *others: Union["BaseNamespace", "ExpressionNode", Any]) -> "BaseNamespace":
-        """Boolean AND using Kleene logic.
-
-        Substrait: and
-        """
-        ...
-
-    def and_not(self, other: Union["BaseNamespace", "ExpressionNode", Any]) -> "BaseNamespace":
-        """Boolean AND of this value and the negation of other.
-
-        Substrait: and_not
-        """
-        ...
-
-    def xor(self, other: Union["BaseNamespace", "ExpressionNode", Any]) -> "BaseNamespace":
-        """Boolean XOR using Kleene logic.
-
-        Substrait: xor
-        """
-        ...
-
-    def not_(self) -> "BaseNamespace":
-        """Boolean NOT.
-
-        Substrait: not
-        """
-        ...

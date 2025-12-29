@@ -10,15 +10,11 @@ from __future__ import annotations
 
 from typing import Any, Protocol, Union, TYPE_CHECKING
 
-# Placeholder - use your actual type
-SupportedExpressions = Any
-
 if TYPE_CHECKING:
-    from ...expression_nodes import ExpressionNode
-    from ...expression_api.api_namespaces import BaseExpressionNamespace as BaseNamespace
+    from mountainash_expressions.types import SupportedExpressions
 
 
-class ScalarLogarithmicExpressionProtocol(Protocol):
+class SubstraitScalarLogarithmicExpressionSystemProtocol(Protocol):
     """Protocol for logarithmic operations.
 
     Auto-generated from Substrait logarithmic extension.
@@ -66,42 +62,3 @@ logb(x, b) => log_{b} (x)
 #         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_logarithmic.yaml
 #         """
 #         ...
-
-
-class ScalarLogarithmicBuilderProtocol(Protocol):
-    """Builder protocol for logarithmic operations.
-
-    Defines user-facing fluent API methods that create expression nodes.
-    These methods accept flexible inputs and return BaseNamespace for chaining.
-    """
-
-    def ln(self) -> "BaseNamespace":
-        """Natural logarithm (base e).
-
-        Substrait: ln
-        """
-        ...
-
-    def log10(self) -> "BaseNamespace":
-        """Logarithm base 10.
-
-        Substrait: log10
-        """
-        ...
-
-    def log2(self) -> "BaseNamespace":
-        """Logarithm base 2.
-
-        Substrait: log2
-        """
-        ...
-
-    def log(
-        self,
-        base: Union["BaseNamespace", "ExpressionNode", Any, float],
-    ) -> "BaseNamespace":
-        """Logarithm with custom base.
-
-        Substrait: logb
-        """
-        ...

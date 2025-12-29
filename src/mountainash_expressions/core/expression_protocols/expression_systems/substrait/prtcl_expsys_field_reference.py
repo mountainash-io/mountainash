@@ -8,14 +8,15 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TYPE_CHECKING
 
-# Placeholder - use your actual type
-SupportedExpressions = Any
+if TYPE_CHECKING:
+    from mountainash_expressions.types import SupportedExpressions
 
 
 
-class FieldReferenceExpressionProtocol(Protocol):
+
+class SubstraitFieldReferenceExpressionSystemProtocol(Protocol):
     """Protocol for rounding operations.
 
     Auto-generated from Substrait rounding extension.

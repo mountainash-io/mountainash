@@ -8,20 +8,21 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TYPE_CHECKING
 
-# Placeholder - use your actual type
-SupportedExpressions = Any
+if TYPE_CHECKING:
+    from mountainash_expressions.core.expression_api import BaseExpressionAPI
+    from mountainash_expressions.core.expression_nodes import ExpressionNode
 
 
 
-class LiteralExpressionProtocol(Protocol):
+class SubstraitLiteralAPIBuilderProtocol(Protocol):
     """Protocol for rounding operations.
 
     Auto-generated from Substrait rounding extension.
     """
 
-    def lit(self, x: Any, /) -> SupportedExpressions:
+    def lit(self) -> BaseExpressionAPI:
         """Literal Value.
 
         Substrait: lit

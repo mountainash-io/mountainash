@@ -10,34 +10,16 @@ from __future__ import annotations
 
 from typing import Any, Protocol, Union, TYPE_CHECKING
 
-# Placeholder - use your actual type
-SupportedExpressions = Any
+from mountainash_expressions.types import SupportedExpressions
+
 
 if TYPE_CHECKING:
-    from ...expression_nodes import ExpressionNode
-    from ...expression_api.api_namespaces import BaseExpressionNamespace as BaseNamespace
+    from mountainash_expressions.core.expression_api import BaseExpressionAPI
+    from mountainash_expressions.core.expression_nodes import ExpressionNode
 
 
-class ConditionalExpressionProtocol(Protocol):
-    """Protocol for conditional operations.
 
-    Auto-generated from Substrait conditional extension.
-    """
-
-    def if_then_else(
-        self,
-        condition: SupportedExpressions,
-        if_true: SupportedExpressions,
-        if_false: SupportedExpressions, /
-    ) -> SupportedExpressions:
-        """Create a conditional if-then-else expression.
-
-        Substrait: if_then
-        """
-        ...
-
-
-class ConditionalBuilderProtocol(Protocol):
+class SubstraitConditionalAPIBuilderProtocol(Protocol):
     """Builder protocol for conditional operations.
 
     Defines user-facing fluent API methods that create expression nodes.
@@ -46,8 +28,8 @@ class ConditionalBuilderProtocol(Protocol):
 
     def when(
         self,
-        condition: Union["BaseNamespace", "ExpressionNode", Any],
-    ) -> "WhenBuilderProtocol":
+        condition: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> "SubstraitWhenAPIBuilderProtocol":
         """Start a conditional expression with a condition.
 
         Substrait: if_then
@@ -55,13 +37,13 @@ class ConditionalBuilderProtocol(Protocol):
         ...
 
 
-class WhenBuilderProtocol(Protocol):
+class SubstraitWhenAPIBuilderProtocol(Protocol):
     """Protocol for the 'then' step of conditional building."""
 
     def then(
         self,
-        value: Union["BaseNamespace", "ExpressionNode", Any],
-    ) -> "ThenBuilderProtocol":
+        value: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> "SubstraitThenAPIBuilderProtocol":
         """Specify the value when condition is true.
 
         Substrait: if_then
@@ -69,13 +51,13 @@ class WhenBuilderProtocol(Protocol):
         ...
 
 
-class ThenBuilderProtocol(Protocol):
+class SubstraitThenAPIBuilderProtocol(Protocol):
     """Protocol for completing or continuing conditional building."""
 
     def when(
         self,
-        condition: Union["BaseNamespace", "ExpressionNode", Any],
-    ) -> "WhenBuilderProtocol":
+        condition: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> "SubstraitWhenAPIBuilderProtocol":
         """Add another condition (elif).
 
         Substrait: if_then
@@ -84,8 +66,8 @@ class ThenBuilderProtocol(Protocol):
 
     def otherwise(
         self,
-        value: Union["BaseNamespace", "ExpressionNode", Any],
-    ) -> "BaseNamespace":
+        value: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
         """Specify the default value (else).
 
         Substrait: if_then

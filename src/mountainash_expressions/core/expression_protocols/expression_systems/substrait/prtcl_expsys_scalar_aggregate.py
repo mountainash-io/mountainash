@@ -10,14 +10,13 @@ from __future__ import annotations
 
 from typing import Any, Protocol, TYPE_CHECKING
 
-# Placeholder - use your actual type
-SupportedExpressions = Any
+from mountainash_expressions.types import SupportedExpressions
+
 
 if TYPE_CHECKING:
-    from ...expression_api.api_namespaces import BaseExpressionNamespace as BaseNamespace
+    from mountainash_expressions.types import SupportedExpressions
 
-
-class ScalarAggregateExpressionProtocol(Protocol):
+class SubstraitScalarAggregateExpressionSystemProtocol(Protocol):
     """Protocol for aggregate_generic operations.
 
     Auto-generated from Substrait aggregate_generic extension.
@@ -31,41 +30,11 @@ class ScalarAggregateExpressionProtocol(Protocol):
         """
         ...
 
-    def count_all(self, overflow: Any = None) -> SupportedExpressions:
-        """Count a set of records (not field referenced)
-
-        Substrait: count
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_aggregate_generic.yaml
-        """
-        ...
-
     def any_value(self, x: SupportedExpressions, /, ignore_nulls: Any = None) -> SupportedExpressions:
         """Selects an arbitrary value from a group of values.
 If the input is empty, the function returns null.
 
         Substrait: any_value
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_aggregate_generic.yaml
-        """
-        ...
-
-
-class ScalarAggregateBuilderProtocol(Protocol):
-    """Builder protocol for aggregate operations.
-
-    Defines user-facing fluent API methods that create expression nodes.
-    Note: Aggregate functions typically operate on grouped data.
-    """
-
-    def count(self) -> "BaseNamespace":
-        """Count non-null values.
-
-        Substrait: count
-        """
-        ...
-
-    def any_value(self, ignore_nulls: bool = True) -> "BaseNamespace":
-        """Select an arbitrary value from the group.
-
-        Substrait: any_value
         """
         ...
