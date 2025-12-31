@@ -1,23 +1,25 @@
-"""Polars ScalarArithmeticExpressionProtocol implementation.
+"""Narwhals ScalarArithmeticExpressionProtocol implementation.
 
-Implements arithmetic operations for the Polars backend.
+Implements arithmetic operations for the Narwhals backend.
 """
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import narwhals as nw
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import NarwhalsBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarArithmeticExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import NarwhalsExpr
 
 
-class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol):
-    """Polars implementation of ScalarArithmeticExpressionProtocol.
+
+class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol):
+    """Narwhals implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:
     - add: Addition
@@ -31,17 +33,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def add(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add two values.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Sum of x and y.
@@ -50,17 +52,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def subtract(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Subtract y from x.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Difference x - y.
@@ -69,17 +71,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def multiply(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Multiply two values.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Product of x and y.
@@ -88,13 +90,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def divide(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         overflow: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Divide x by y.
 
         For integer division, results are truncated toward zero.
@@ -102,9 +104,9 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Dividend.
             y: Divisor.
-            overflow: Overflow handling (ignored in Polars).
-            on_domain_error: Domain error handling (ignored in Polars).
-            on_division_by_zero: Division by zero handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
+            on_domain_error: Domain error handling (ignored in Narwhals).
+            on_division_by_zero: Division by zero handling (ignored in Narwhals).
 
         Returns:
             Quotient x / y.
@@ -113,21 +115,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def modulus(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         division_type: Any = None,
         overflow: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate the remainder when dividing x by y.
 
         Args:
             x: Dividend.
             y: Divisor.
-            division_type: TRUNCATE or FLOOR (Polars uses TRUNCATE by default).
-            overflow: Overflow handling (ignored in Polars).
-            on_domain_error: Domain error handling (ignored in Polars).
+            division_type: TRUNCATE or FLOOR (Narwhals uses backend default).
+            overflow: Overflow handling (ignored in Narwhals).
+            on_domain_error: Domain error handling (ignored in Narwhals).
 
         Returns:
             Remainder of x / y.
@@ -136,34 +138,34 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def power(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Raise x to the power of y.
 
         Args:
             x: Base.
             y: Exponent.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             x raised to the power y.
         """
-        return x.pow(y)
+        return x ** y
 
     def negate(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Negate a value.
 
         Args:
             x: Value to negate.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Negated value (-x).
@@ -176,53 +178,55 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def sqrt(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Square root of the value."""
-        return x.sqrt()
+        raise NotImplementedError(
+            "sqrt() is not supported by the Narwhals backend."
+        )
 
     def exp(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """The mathematical constant e raised to the power of x."""
-        return x.exp()
+        raise NotImplementedError(
+            "exp() is not supported by the Narwhals backend."
+        )
 
     def abs(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate the absolute value."""
         return x.abs()
 
     def sign(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Return the sign of the value (-1, 0, or 1)."""
-        return x.sign()
+        raise NotImplementedError(
+            "sign() is not supported by the Narwhals backend."
+        )
 
     def factorial(
         self,
-        n: PolarsExpr,
+        n: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
-        """Return the factorial of a given integer input.
-
-        Note: Polars does not have native factorial support.
-        """
+    ) -> NarwhalsExpr:
+        """Return the factorial of a given integer input."""
         raise NotImplementedError(
-            "factorial() is not supported by the Polars backend. "
-            "Consider using a UDF or pre-computing factorial values."
+            "factorial() is not supported by the Narwhals backend."
         )
 
     # =========================================================================
@@ -231,57 +235,69 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def sin(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the sine of a value in radians."""
-        return x.sin()
+        raise NotImplementedError(
+            "sin() is not supported by the Narwhals backend."
+        )
 
     def cos(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the cosine of a value in radians."""
-        return x.cos()
+        raise NotImplementedError(
+            "cos() is not supported by the Narwhals backend."
+        )
 
     def tan(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the tangent of a value in radians."""
-        return x.tan()
+        raise NotImplementedError(
+            "tan() is not supported by the Narwhals backend."
+        )
 
     def sinh(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the hyperbolic sine of a value."""
-        return x.sinh()
+        raise NotImplementedError(
+            "sinh() is not supported by the Narwhals backend."
+        )
 
     def cosh(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the hyperbolic cosine of a value."""
-        return x.cosh()
+        raise NotImplementedError(
+            "cosh() is not supported by the Narwhals backend."
+        )
 
     def tanh(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the hyperbolic tangent of a value."""
-        return x.tanh()
+        raise NotImplementedError(
+            "tanh() is not supported by the Narwhals backend."
+        )
 
     # =========================================================================
     # Inverse Trigonometric Functions
@@ -289,72 +305,86 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def asin(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the arcsine of a value in radians."""
-        return x.arcsin()
+        raise NotImplementedError(
+            "asin() is not supported by the Narwhals backend."
+        )
 
     def acos(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the arccosine of a value in radians."""
-        return x.arccos()
+        raise NotImplementedError(
+            "acos() is not supported by the Narwhals backend."
+        )
 
     def atan(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the arctangent of a value in radians."""
-        return x.arctan()
+        raise NotImplementedError(
+            "atan() is not supported by the Narwhals backend."
+        )
 
     def asinh(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the hyperbolic arcsine of a value."""
-        return x.arcsinh()
+        raise NotImplementedError(
+            "asinh() is not supported by the Narwhals backend."
+        )
 
     def acosh(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the hyperbolic arccosine of a value."""
-        return x.arccosh()
+        raise NotImplementedError(
+            "acosh() is not supported by the Narwhals backend."
+        )
 
     def atanh(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the hyperbolic arctangent of a value."""
-        return x.arctanh()
+        raise NotImplementedError(
+            "atanh() is not supported by the Narwhals backend."
+        )
 
     def atan2(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Get the arctangent of y/x, using the signs to determine the quadrant."""
-        return pl.arctan2(x, y)
+        raise NotImplementedError(
+            "atan2() is not supported by the Narwhals backend."
+        )
 
     # =========================================================================
     # Angular Conversions
@@ -362,21 +392,25 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def radians(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Convert angle from degrees to radians."""
-        return x.radians()
+        raise NotImplementedError(
+            "radians() is not supported by the Narwhals backend."
+        )
 
     def degrees(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Convert angle from radians to degrees."""
-        return x.degrees()
+        raise NotImplementedError(
+            "degrees() is not supported by the Narwhals backend."
+        )
 
     # =========================================================================
     # Bitwise Operations
@@ -384,73 +418,76 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def bitwise_not(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Return the bitwise NOT of an integer."""
         raise NotImplementedError(
-            "bitwise_not() is not directly supported by the Polars backend. "
-            "Consider using XOR with -1 or a custom implementation."
+            "bitwise_not() is not supported by the Narwhals backend."
         )
 
     def bitwise_and(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Return the bitwise AND of two integers."""
-        return x & y
+        raise NotImplementedError(
+            "bitwise_and() is not supported by the Narwhals backend."
+        )
 
     def bitwise_or(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Return the bitwise OR of two integers."""
-        return x | y
+        raise NotImplementedError(
+            "bitwise_or() is not supported by the Narwhals backend."
+        )
 
     def bitwise_xor(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Return the bitwise XOR of two integers."""
-        return x ^ y
+        raise NotImplementedError(
+            "bitwise_xor() is not supported by the Narwhals backend."
+        )
 
     def shift_left(
         self,
-        base: PolarsExpr,
-        shift: PolarsExpr,
+        base: NarwhalsExpr,
+        shift: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Bitwise shift left."""
         raise NotImplementedError(
-            "shift_left() is not directly supported by the Polars backend. "
-            "Consider using multiplication by powers of 2."
+            "shift_left() is not supported by the Narwhals backend."
         )
 
     def shift_right(
         self,
-        base: PolarsExpr,
-        shift: PolarsExpr,
+        base: NarwhalsExpr,
+        shift: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Bitwise signed shift right."""
         raise NotImplementedError(
-            "shift_right() is not directly supported by the Polars backend. "
-            "Consider using floor division by powers of 2."
+            "shift_right() is not supported by the Narwhals backend."
         )
 
     def shift_right_unsigned(
         self,
-        base: PolarsExpr,
-        shift: PolarsExpr,
+        base: NarwhalsExpr,
+        shift: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Bitwise unsigned shift right."""
         raise NotImplementedError(
-            "shift_right_unsigned() is not directly supported by the Polars backend."
+            "shift_right_unsigned() is not supported by the Narwhals backend."
         )

@@ -1,22 +1,25 @@
-"""Polars ScalarLogarithmicExpressionProtocol implementation.
+"""Narwhals ScalarLogarithmicExpressionProtocol implementation.
 
-Implements logarithmic operations for the Polars backend.
+Implements logarithmic operations for the Narwhals backend.
 """
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import narwhals as nw
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import NarwhalsBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarLogarithmicExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import NarwhalsExpr
 
-class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol):
-    """Polars implementation of ScalarLogarithmicExpressionProtocol.
+
+
+class SubstraitNarwhalsScalarLogarithmicExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol):
+    """Narwhals implementation of ScalarLogarithmicExpressionProtocol.
 
     Implements 4 logarithmic methods:
     - ln: Natural logarithm (base e)
@@ -27,12 +30,12 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
 
     def ln(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Natural logarithm (base e).
 
         Args:
@@ -48,12 +51,12 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
 
     def log10(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Logarithm base 10.
 
         Args:
@@ -65,16 +68,17 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
         Returns:
             Log base 10 of x.
         """
-        return x.log(10)
+        # Use change of base formula: log10(x) = ln(x) / ln(10)
+        return x.log() / nw.lit(2.302585092994046)  # ln(10)
 
     def log2(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Logarithm base 2.
 
         Args:
@@ -86,17 +90,18 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
         Returns:
             Log base 2 of x.
         """
-        return x.log(2)
+        # Use change of base formula: log2(x) = ln(x) / ln(2)
+        return x.log() / nw.lit(0.6931471805599453)  # ln(2)
 
     def logb(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
-        base: PolarsExpr,
+        base: NarwhalsExpr,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Logarithm with arbitrary base.
 
         logb(x, b) = log_b(x)
@@ -111,21 +116,21 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
         Returns:
             Log base `base` of x.
         """
-        # Polars log() accepts a base parameter
-        # For expression base, we need to use change of base formula
+        # Change of base formula: log_b(x) = ln(x) / ln(b)
         if isinstance(base, (int, float)):
-            return x.log(base)
-        # Change of base: log_b(x) = ln(x) / ln(b)
+            import math
+            return x.log() / nw.lit(math.log(base))
+        # For expression base
         return x.log() / base.log()
 
     def log1p(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Natural logarithm of (1 + x).
 
         log1p(x) = ln(1 + x)
@@ -141,4 +146,5 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
         Returns:
             Natural log of (1 + x).
         """
-        return x.log1p()
+        # Narwhals doesn't have log1p, compute directly
+        return (x + nw.lit(1)).log()

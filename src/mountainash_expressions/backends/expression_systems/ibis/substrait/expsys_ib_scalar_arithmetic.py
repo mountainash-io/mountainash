@@ -1,23 +1,24 @@
-"""Polars ScalarArithmeticExpressionProtocol implementation.
+"""Ibis ScalarArithmeticExpressionProtocol implementation.
 
-Implements arithmetic operations for the Polars backend.
+Implements arithmetic operations for the Ibis backend.
 """
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import ibis
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import IbisBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarArithmeticExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol):
-    """Polars implementation of ScalarArithmeticExpressionProtocol.
+class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol):
+    """Ibis implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:
     - add: Addition
@@ -31,17 +32,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def add(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add two values.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Sum of x and y.
@@ -50,17 +51,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def subtract(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Subtract y from x.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Difference x - y.
@@ -69,17 +70,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def multiply(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Multiply two values.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Product of x and y.
@@ -88,13 +89,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def divide(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         overflow: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Divide x by y.
 
         For integer division, results are truncated toward zero.
@@ -102,9 +103,9 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Dividend.
             y: Divisor.
-            overflow: Overflow handling (ignored in Polars).
-            on_domain_error: Domain error handling (ignored in Polars).
-            on_division_by_zero: Division by zero handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
+            on_domain_error: Domain error handling (ignored in Ibis).
+            on_division_by_zero: Division by zero handling (ignored in Ibis).
 
         Returns:
             Quotient x / y.
@@ -113,21 +114,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def modulus(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         division_type: Any = None,
         overflow: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate the remainder when dividing x by y.
 
         Args:
             x: Dividend.
             y: Divisor.
-            division_type: TRUNCATE or FLOOR (Polars uses TRUNCATE by default).
-            overflow: Overflow handling (ignored in Polars).
-            on_domain_error: Domain error handling (ignored in Polars).
+            division_type: TRUNCATE or FLOOR (Ibis uses backend default).
+            overflow: Overflow handling (ignored in Ibis).
+            on_domain_error: Domain error handling (ignored in Ibis).
 
         Returns:
             Remainder of x / y.
@@ -136,17 +137,17 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def power(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Raise x to the power of y.
 
         Args:
             x: Base.
             y: Exponent.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             x raised to the power y.
@@ -155,15 +156,15 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def negate(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Negate a value.
 
         Args:
             x: Value to negate.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Negated value (-x).
@@ -176,53 +177,49 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def sqrt(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Square root of the value."""
         return x.sqrt()
 
     def exp(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """The mathematical constant e raised to the power of x."""
         return x.exp()
 
     def abs(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate the absolute value."""
         return x.abs()
 
     def sign(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Return the sign of the value (-1, 0, or 1)."""
         return x.sign()
 
     def factorial(
         self,
-        n: PolarsExpr,
+        n: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
-        """Return the factorial of a given integer input.
-
-        Note: Polars does not have native factorial support.
-        """
+    ) -> IbisExpr:
+        """Return the factorial of a given integer input."""
         raise NotImplementedError(
-            "factorial() is not supported by the Polars backend. "
-            "Consider using a UDF or pre-computing factorial values."
+            "factorial() is not supported by the Ibis backend."
         )
 
     # =========================================================================
@@ -231,57 +228,63 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def sin(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the sine of a value in radians."""
         return x.sin()
 
     def cos(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the cosine of a value in radians."""
         return x.cos()
 
     def tan(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the tangent of a value in radians."""
         return x.tan()
 
     def sinh(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the hyperbolic sine of a value."""
-        return x.sinh()
+        raise NotImplementedError(
+            "sinh() is not directly supported by the Ibis backend."
+        )
 
     def cosh(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the hyperbolic cosine of a value."""
-        return x.cosh()
+        raise NotImplementedError(
+            "cosh() is not directly supported by the Ibis backend."
+        )
 
     def tanh(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the hyperbolic tangent of a value."""
-        return x.tanh()
+        raise NotImplementedError(
+            "tanh() is not directly supported by the Ibis backend."
+        )
 
     # =========================================================================
     # Inverse Trigonometric Functions
@@ -289,72 +292,78 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def asin(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the arcsine of a value in radians."""
-        return x.arcsin()
+        return x.asin()
 
     def acos(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the arccosine of a value in radians."""
-        return x.arccos()
+        return x.acos()
 
     def atan(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the arctangent of a value in radians."""
-        return x.arctan()
+        return x.atan()
 
     def asinh(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the hyperbolic arcsine of a value."""
-        return x.arcsinh()
+        raise NotImplementedError(
+            "asinh() is not directly supported by the Ibis backend."
+        )
 
     def acosh(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the hyperbolic arccosine of a value."""
-        return x.arccosh()
+        raise NotImplementedError(
+            "acosh() is not directly supported by the Ibis backend."
+        )
 
     def atanh(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the hyperbolic arctangent of a value."""
-        return x.arctanh()
+        raise NotImplementedError(
+            "atanh() is not directly supported by the Ibis backend."
+        )
 
     def atan2(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Get the arctangent of y/x, using the signs to determine the quadrant."""
-        return pl.arctan2(x, y)
+        return x.atan2(y)
 
     # =========================================================================
     # Angular Conversions
@@ -362,19 +371,19 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def radians(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Convert angle from degrees to radians."""
         return x.radians()
 
     def degrees(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Convert angle from radians to degrees."""
         return x.degrees()
 
@@ -384,73 +393,68 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
     def bitwise_not(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Return the bitwise NOT of an integer."""
-        raise NotImplementedError(
-            "bitwise_not() is not directly supported by the Polars backend. "
-            "Consider using XOR with -1 or a custom implementation."
-        )
+        return ~x
 
     def bitwise_and(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Return the bitwise AND of two integers."""
         return x & y
 
     def bitwise_or(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Return the bitwise OR of two integers."""
         return x | y
 
     def bitwise_xor(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Return the bitwise XOR of two integers."""
         return x ^ y
 
     def shift_left(
         self,
-        base: PolarsExpr,
-        shift: PolarsExpr,
+        base: IbisExpr,
+        shift: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Bitwise shift left."""
         raise NotImplementedError(
-            "shift_left() is not directly supported by the Polars backend. "
-            "Consider using multiplication by powers of 2."
+            "shift_left() is not directly supported by the Ibis backend."
         )
 
     def shift_right(
         self,
-        base: PolarsExpr,
-        shift: PolarsExpr,
+        base: IbisExpr,
+        shift: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Bitwise signed shift right."""
         raise NotImplementedError(
-            "shift_right() is not directly supported by the Polars backend. "
-            "Consider using floor division by powers of 2."
+            "shift_right() is not directly supported by the Ibis backend."
         )
 
     def shift_right_unsigned(
         self,
-        base: PolarsExpr,
-        shift: PolarsExpr,
+        base: IbisExpr,
+        shift: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Bitwise unsigned shift right."""
         raise NotImplementedError(
-            "shift_right_unsigned() is not directly supported by the Polars backend."
+            "shift_right_unsigned() is not directly supported by the Ibis backend."
         )

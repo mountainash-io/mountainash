@@ -1,23 +1,25 @@
-"""Polars ScalarComparisonExpressionProtocol implementation.
+"""Narwhals ScalarComparisonExpressionProtocol implementation.
 
-Implements comparison operations for the Polars backend.
+Implements comparison operations for the Narwhals backend.
 """
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import narwhals as nw
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import NarwhalsBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarComparisonExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import NarwhalsExpr
 
 
-class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol):
-    """Polars implementation of ScalarComparisonExpressionProtocol.
+
+class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol):
+    """Narwhals implementation of ScalarComparisonExpressionProtocol.
 
     Implements 23 comparison methods organized into categories:
     - Equality: equal, not_equal
@@ -31,75 +33,75 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
     # Equality Operations
     # =========================================================================
 
-    def equal(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def equal(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether two values are equal.
 
         Returns null if either x or y is null.
         """
-        return x.eq(y)
+        return x == y
 
-    def not_equal(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def not_equal(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether two values are not equal.
 
         Returns null if either x or y is null.
         """
-        return x.ne(y)
+        return x != y
 
-    def is_not_distinct_from(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def is_not_distinct_from(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether two values are equal, treating NULL as comparable.
 
         is_not_distinct_from(null, null) == True
         This differs from equal() where null values do not compare.
         """
-        return x.eq(y).fill_null(x.is_null() & y.is_null())
+        return (x == y).fill_null(x.is_null() & y.is_null())
 
-    def is_distinct_from(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def is_distinct_from(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether two values are not equal, treating NULL as comparable.
 
         is_distinct_from(null, null) == False
         This differs from not_equal() where null values do not compare.
         """
-        return x.ne(y).fill_null(~(x.is_null() & y.is_null()))
+        return (x != y).fill_null(~(x.is_null() & y.is_null()))
 
     # =========================================================================
     # Ordering Operations
     # =========================================================================
 
-    def lt(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def lt(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Less than comparison.
 
         Returns null if either x or y is null.
         """
-        return x.lt(y)
+        return x < y
 
-    def gt(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def gt(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Greater than comparison.
 
         Returns null if either x or y is null.
         """
-        return x.gt(y)
+        return x > y
 
-    def lte(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def lte(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Less than or equal comparison.
 
         Returns null if either x or y is null.
         """
-        return x.le(y)
+        return x <= y
 
-    def gte(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def gte(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Greater than or equal comparison.
 
         Returns null if either x or y is null.
         """
-        return x.ge(y)
+        return x >= y
 
     def between(
         self,
-        x: PolarsExpr,
-        low: PolarsExpr,
-        high: PolarsExpr,
+        x: NarwhalsExpr,
+        low: NarwhalsExpr,
+        high: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Whether x is between low and high (inclusive).
 
         Returns null if any of x, low, or high is null.
@@ -110,67 +112,68 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
     # Boolean Check Operations
     # =========================================================================
 
-    def is_true(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_true(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is true.
 
         Returns false for null values.
         """
-        return x.eq(True)
+        return x == nw.lit(True)
 
-    def is_not_true(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_not_true(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is not true.
 
         Returns true for null and false values.
         """
-        return x.ne(True) | x.is_null()
+        return (x != nw.lit(True)) | x.is_null()
 
-    def is_false(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_false(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is false.
 
         Returns false for null values.
         """
-        return x.eq(False)
+        return x == nw.lit(False)
 
-    def is_not_false(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_not_false(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is not false.
 
         Returns true for null and true values.
         """
-        return x.ne(False) | x.is_null()
+        return (x != nw.lit(False)) | x.is_null()
 
     # =========================================================================
     # Null/NaN Check Operations
     # =========================================================================
 
-    def is_null(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_null(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is null.
 
         NaN is not considered null.
         """
         return x.is_null()
 
-    def is_not_null(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_not_null(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is not null.
 
         NaN is not considered null.
         """
-        return x.is_not_null()
+        return ~x.is_null()
 
-    def is_nan(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_nan(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is NaN.
 
         Returns null if x is null.
         """
         return x.is_nan()
 
-    def is_finite(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_finite(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is finite (not infinite and not NaN).
 
         Returns null if x is null.
         """
-        return x.is_finite()
+        # Narwhals doesn't have is_finite, simulate with is_nan and is_infinite
+        return ~x.is_nan() & ~x.is_infinite()
 
-    def is_infinite(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_infinite(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is infinite.
 
         Returns null if x is null.
@@ -181,46 +184,46 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
     # Null Handling Operations
     # =========================================================================
 
-    def nullif(self, x: PolarsExpr, /, y: PolarsExpr) -> PolarsExpr:
+    def nullif(self, x: NarwhalsExpr, /, y: NarwhalsExpr) -> NarwhalsExpr:
         """Return null if x equals y, otherwise return x.
 
         Equivalent to SQL NULLIF(x, y).
         """
-        return pl.when(x.eq(y)).then(pl.lit(None)).otherwise(x)
+        return nw.when(x == y).then(nw.lit(None)).otherwise(x)
 
-    def coalesce(self, *args: PolarsExpr) -> PolarsExpr:
+    def coalesce(self, *args: NarwhalsExpr) -> NarwhalsExpr:
         """Return the first non-null argument.
 
         If all arguments are null, return null.
         """
-        return pl.coalesce(*args)
+        return nw.coalesce(*args)
 
-    def least(self, *args: PolarsExpr) -> PolarsExpr:
+    def least(self, *args: NarwhalsExpr) -> NarwhalsExpr:
         """Return the smallest value.
 
         Returns null if any argument is null.
         """
-        return pl.min_horizontal(*args)
+        return nw.min_horizontal(*args)
 
-    def least_skip_null(self, *args: PolarsExpr) -> PolarsExpr:
+    def least_skip_null(self, *args: NarwhalsExpr) -> NarwhalsExpr:
         """Return the smallest value, ignoring nulls.
 
         Returns null only if all arguments are null.
         """
-        # Polars min_horizontal already skips nulls by default
-        return pl.min_horizontal(*args)
+        # Narwhals min_horizontal typically skips nulls
+        return nw.min_horizontal(*args)
 
-    def greatest(self, *args: PolarsExpr) -> PolarsExpr:
+    def greatest(self, *args: NarwhalsExpr) -> NarwhalsExpr:
         """Return the largest value.
 
         Returns null if any argument is null.
         """
-        return pl.max_horizontal(*args)
+        return nw.max_horizontal(*args)
 
-    def greatest_skip_null(self, *args: PolarsExpr) -> PolarsExpr:
+    def greatest_skip_null(self, *args: NarwhalsExpr) -> NarwhalsExpr:
         """Return the largest value, ignoring nulls.
 
         Returns null only if all arguments are null.
         """
-        # Polars max_horizontal already skips nulls by default
-        return pl.max_horizontal(*args)
+        # Narwhals max_horizontal typically skips nulls
+        return nw.max_horizontal(*args)
