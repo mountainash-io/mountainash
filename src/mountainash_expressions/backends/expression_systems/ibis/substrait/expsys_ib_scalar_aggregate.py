@@ -1,24 +1,23 @@
-"""Polars ScalarAggregateExpressionProtocol implementation.
+"""Ibis ScalarAggregateExpressionProtocol implementation.
 
-Implements aggregation operations for the Polars backend.
+Implements aggregation operations for the Ibis backend.
 """
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import ibis
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import IbisBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarAggregateExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import IbisExpr
 
-# Type alias for expression type
-
-class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
-    """Polars implementation of ScalarAggregateExpressionProtocol.
+class SubstraitIbisScalarAggregateExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
+    """Ibis implementation of ScalarAggregateExpressionProtocol.
 
     Implements aggregation methods:
     - count: Count values in a set
@@ -28,17 +27,17 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def count(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Count a set of values.
 
         Counts non-null values.
 
         Args:
             x: Expression to count.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Count expression.
@@ -48,25 +47,25 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
     def count_all(
         self,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Count a set of records (not field referenced).
 
         Counts all rows including nulls.
 
         Args:
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Count expression.
         """
-        return pl.count()
+        return ibis.literal(1).count()
 
     def any_value(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         ignore_nulls: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Select an arbitrary value from a group of values.
 
         Returns the first value in the group.
@@ -80,14 +79,14 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
             First value in group.
         """
         if ignore_nulls:
-            return x.drop_nulls().first()
+            return x.first()
         return x.first()
 
     # =========================================================================
     # Additional Aggregate Methods (Common Extensions)
     # =========================================================================
 
-    def sum(self, x: PolarsExpr, /) -> PolarsExpr:
+    def sum(self, x: IbisExpr, /) -> IbisExpr:
         """Sum values.
 
         Args:
@@ -98,7 +97,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.sum()
 
-    def mean(self, x: PolarsExpr, /) -> PolarsExpr:
+    def mean(self, x: IbisExpr, /) -> IbisExpr:
         """Calculate mean of values.
 
         Args:
@@ -109,7 +108,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.mean()
 
-    def min(self, x: PolarsExpr, /) -> PolarsExpr:
+    def min(self, x: IbisExpr, /) -> IbisExpr:
         """Get minimum value.
 
         Args:
@@ -120,7 +119,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.min()
 
-    def max(self, x: PolarsExpr, /) -> PolarsExpr:
+    def max(self, x: IbisExpr, /) -> IbisExpr:
         """Get maximum value.
 
         Args:
@@ -131,7 +130,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.max()
 
-    def std(self, x: PolarsExpr, /) -> PolarsExpr:
+    def std(self, x: IbisExpr, /) -> IbisExpr:
         """Calculate standard deviation.
 
         Args:
@@ -142,7 +141,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.std()
 
-    def var(self, x: PolarsExpr, /) -> PolarsExpr:
+    def var(self, x: IbisExpr, /) -> IbisExpr:
         """Calculate variance.
 
         Args:
@@ -153,7 +152,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.var()
 
-    def median(self, x: PolarsExpr, /) -> PolarsExpr:
+    def median(self, x: IbisExpr, /) -> IbisExpr:
         """Calculate median.
 
         Args:
@@ -164,7 +163,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.median()
 
-    def first(self, x: PolarsExpr, /) -> PolarsExpr:
+    def first(self, x: IbisExpr, /) -> IbisExpr:
         """Get first value.
 
         Args:
@@ -175,7 +174,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.first()
 
-    def last(self, x: PolarsExpr, /) -> PolarsExpr:
+    def last(self, x: IbisExpr, /) -> IbisExpr:
         """Get last value.
 
         Args:
@@ -186,7 +185,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.last()
 
-    def n_unique(self, x: PolarsExpr, /) -> PolarsExpr:
+    def n_unique(self, x: IbisExpr, /) -> IbisExpr:
         """Count unique values.
 
         Args:
@@ -195,7 +194,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Unique count expression.
         """
-        return x.n_unique()
+        return x.nunique()
 
     # =========================================================================
     # Substrait Aggregate Arithmetic Methods
@@ -203,15 +202,15 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def avg(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Average a set of values.
 
         Args:
             x: Expression to average.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Average expression.
@@ -220,45 +219,50 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def sum0(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Sum a set of values. Returns zero for empty set.
 
         Args:
             x: Expression to sum.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Sum expression (0 for empty).
         """
-        return x.sum().fill_null(0)
+        return x.sum().fill_null(ibis.literal(0))
 
     def product(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Product of a set of values. Returns 1 for empty input.
 
         Args:
             x: Expression to multiply.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Ibis).
 
         Returns:
             Product expression.
+
+        Note:
+            Ibis doesn't have a direct product aggregate.
+            Falls back to exp(sum(log(x))) which works for positive values.
         """
-        return x.product()
+        # Using exp(sum(log(x))) for product - works for positive values
+        return x.log().sum().exp()
 
     def std_dev(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         distribution: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate standard deviation.
 
         Args:
@@ -269,16 +273,17 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Standard deviation expression.
         """
-        ddof = 0 if distribution == "POPULATION" else 1
-        return x.std(ddof=ddof)
+        if distribution == "POPULATION":
+            return x.std(how="pop")
+        return x.std(how="sample")
 
     def variance(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         rounding: Any = None,
         distribution: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate variance.
 
         Args:
@@ -289,16 +294,17 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Variance expression.
         """
-        ddof = 0 if distribution == "POPULATION" else 1
-        return x.var(ddof=ddof)
+        if distribution == "POPULATION":
+            return x.var(how="pop")
+        return x.var(how="sample")
 
     def corr(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate Pearson correlation coefficient.
 
         Args:
@@ -308,16 +314,10 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Correlation coefficient.
-
-        Note:
-            Polars corr requires struct context. May not work in all cases.
         """
-        # Polars doesn't have a direct column-to-column corr in expression API
-        raise NotImplementedError(
-            "corr() requires struct context in Polars. Use DataFrame.corr() instead."
-        )
+        return x.corr(y)
 
-    def mode(self, x: PolarsExpr, /) -> PolarsExpr:
+    def mode(self, x: IbisExpr, /) -> IbisExpr:
         """Calculate mode (most frequent value).
 
         Args:
@@ -326,15 +326,15 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Mode expression.
         """
-        return x.mode().first()
+        return x.mode()
 
     def quantile(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         q: float = 0.5,
-        interpolation: str = "nearest",
-    ) -> PolarsExpr:
+        interpolation: str = "linear",
+    ) -> IbisExpr:
         """Calculate quantile.
 
         Args:
@@ -345,13 +345,13 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Quantile expression.
         """
-        return x.quantile(q, interpolation=interpolation)
+        return x.quantile(q)
 
     # =========================================================================
     # Substrait Aggregate Boolean Methods
     # =========================================================================
 
-    def bool_and(self, x: PolarsExpr, /) -> PolarsExpr:
+    def bool_and(self, x: IbisExpr, /) -> IbisExpr:
         """Aggregate AND - true if all values are true.
 
         Returns false if any value is false.
@@ -365,7 +365,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.all()
 
-    def bool_or(self, x: PolarsExpr, /) -> PolarsExpr:
+    def bool_or(self, x: IbisExpr, /) -> IbisExpr:
         """Aggregate OR - true if any value is true.
 
         Returns true if any value is true.
@@ -385,10 +385,10 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def string_agg(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         separator: str = ",",
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Concatenate strings with a separator.
 
         Args:
@@ -398,4 +398,4 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Concatenated string expression.
         """
-        return x.str.join(separator)
+        return x.group_concat(sep=separator)

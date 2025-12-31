@@ -9,59 +9,71 @@ from __future__ import annotations
 from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
 
-# Foundation protocols
-from .substrait.field_reference import NarwhalsFieldReferenceSystem
-from .substrait.literal import NarwhalsLiteralSystem
-from .substrait.cast import NarwhalsCastSystem
-from .substrait.conditional import NarwhalsConditionalSystem
 
-# Scalar protocols
-from .substrait.scalar_comparison import NarwhalsScalarComparisonSystem
-from .substrait.scalar_boolean import NarwhalsScalarBooleanSystem
-from .substrait.scalar_arithmetic import NarwhalsScalarArithmeticSystem
-from .substrait.scalar_string import NarwhalsScalarStringSystem
-from .substrait.scalar_datetime import NarwhalsScalarDatetimeSystem
-from .substrait.scalar_rounding import NarwhalsScalarRoundingSystem
-from .substrait.scalar_logarithmic import NarwhalsScalarLogarithmicSystem
-from .substrait.scalar_set import NarwhalsScalarSetSystem
-from .substrait.scalar_aggregate import NarwhalsScalarAggregateSystem
+from .substrait.expsys_nw_cast import SubstraitNarwhalsCastExpressionSystem
+from .substrait.expsys_nw_conditional import SubstraitNarwhalsConditionalExpressionSystem
+from .substrait.expsys_nw_field_reference import SubstraitNarwhalsFieldReferenceExpressionSystem
+from .substrait.expsys_nw_literal import SubstraitNarwhalsLiteralExpressionSystem
 
-# Mountainash extension protocols
-from .mountainash_extensions.ext_ternary import NarwhalsTernarySystem
-from .mountainash_extensions.ext_null import NarwhalsNullExtensionSystem
-from .mountainash_extensions.ext_name import NarwhalsNameExtensionSystem
+from .substrait.expsys_nw_scalar_aggregate import SubstraitNarwhalsScalarAggregateExpressionSystem
+from .substrait.expsys_nw_scalar_arithmetic import SubstraitNarwhalsScalarArithmeticExpressionSystem
+from .substrait.expsys_nw_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem
+from .substrait.expsys_nw_scalar_comparison import SubstraitNarwhalsScalarComparisonExpressionSystem
+from .substrait.expsys_nw_scalar_datetime import SubstraitNarwhalsScalarDatetimeExpressionSystem
+from .substrait.expsys_nw_scalar_logarithmic import SubstraitNarwhalsScalarLogarithmicExpressionSystem
+from .substrait.expsys_nw_scalar_rounding import SubstraitNarwhalsScalarRoundingExpressionSystem
+from .substrait.expsys_nw_scalar_set import SubstraitNarwhalsScalarSetExpressionSystem
+from .substrait.expsys_nw_scalar_string import SubstraitNarwhalsScalarStringExpressionSystem
+
+# Window protocols
+from .substrait.expsys_nw_window_arithmetic import SubstraitNarwhalsWindowArithmeticExpressionSystem
+
+# Geometry protocols
+from .substrait.expsys_nw_scalar_geometry import SubstraitNarwhalsScalarGeometryExpressionSystem
+
+# Narwhals Mountainash Extensions
+from .extensions_mountainash.expsys_nw_ext_ma_name import MountainAshNarwhalsNameExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNullExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
+
+
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.NARWHALS)
 class NarwhalsExpressionSystem(
     # Foundation protocols
-    NarwhalsFieldReferenceSystem,
-    NarwhalsLiteralSystem,
-    NarwhalsCastSystem,
-    NarwhalsConditionalSystem,
+    SubstraitNarwhalsCastExpressionSystem,
+    SubstraitNarwhalsConditionalExpressionSystem,
+    SubstraitNarwhalsFieldReferenceExpressionSystem,
+    SubstraitNarwhalsLiteralExpressionSystem,
     # Scalar protocols
-    NarwhalsScalarComparisonSystem,
-    NarwhalsScalarBooleanSystem,
-    NarwhalsScalarArithmeticSystem,
-    NarwhalsScalarStringSystem,
-    NarwhalsScalarDatetimeSystem,
-    NarwhalsScalarRoundingSystem,
-    NarwhalsScalarLogarithmicSystem,
-    NarwhalsScalarSetSystem,
-    NarwhalsScalarAggregateSystem,
+    SubstraitNarwhalsScalarAggregateExpressionSystem,
+    SubstraitNarwhalsScalarArithmeticExpressionSystem,
+    SubstraitNarwhalsScalarBooleanExpressionSystem,
+    SubstraitNarwhalsScalarComparisonExpressionSystem,
+    SubstraitNarwhalsScalarDatetimeExpressionSystem,
+    SubstraitNarwhalsScalarLogarithmicExpressionSystem,
+    SubstraitNarwhalsScalarRoundingExpressionSystem,
+    SubstraitNarwhalsScalarSetExpressionSystem,
+    SubstraitNarwhalsScalarStringExpressionSystem,
+    # Window protocols
+    SubstraitNarwhalsWindowArithmeticExpressionSystem,
+    # Geometry protocols
+    SubstraitNarwhalsScalarGeometryExpressionSystem,
     # Mountainash extension protocols
-    NarwhalsTernarySystem,
-    NarwhalsNullExtensionSystem,
-    NarwhalsNameExtensionSystem,
+    MountainAshNarwhalsNameExpressionSystem,
+    MountainAshNarwhalsNullExpressionSystem,
+    MountainAshNarwhalsScalarArithmeticExpressionSystem,
+    MountainAshNarwhalsScalarDatetimeExpressionSystem,
+    MountainAshNarwhalsScalarTernaryExpressionSystem
+
 ):
     """Complete Narwhals backend expression system.
 
     Composes all protocol implementations via multiple inheritance.
     Registered with the visitor factory for automatic backend detection.
-
-    Note: Narwhals is a compatibility layer that works across multiple
-    DataFrame backends (Polars, Pandas, etc.). Some operations may have
-    limited functionality compared to native Polars implementations.
     """
 
     pass
@@ -70,22 +82,28 @@ class NarwhalsExpressionSystem(
 __all__ = [
     "NarwhalsExpressionSystem",
     # Foundation protocols
-    "NarwhalsFieldReferenceSystem",
-    "NarwhalsLiteralSystem",
-    "NarwhalsCastSystem",
-    "NarwhalsConditionalSystem",
+    "SubstraitNarwhalsCastExpressionSystem",
+    "SubstraitNarwhalsConditionalExpressionSystem",
+    "SubstraitNarwhalsFieldReferenceExpressionSystem",
+    "SubstraitNarwhalsLiteralExpressionSystem",
     # Scalar protocols
-    "NarwhalsScalarComparisonSystem",
-    "NarwhalsScalarBooleanSystem",
-    "NarwhalsScalarArithmeticSystem",
-    "NarwhalsScalarStringSystem",
-    "NarwhalsScalarDatetimeSystem",
-    "NarwhalsScalarRoundingSystem",
-    "NarwhalsScalarLogarithmicSystem",
-    "NarwhalsScalarSetSystem",
-    "NarwhalsScalarAggregateSystem",
+    "SubstraitNarwhalsScalarAggregateExpressionSystem",
+    "SubstraitNarwhalsScalarArithmeticExpressionSystem",
+    "SubstraitNarwhalsScalarBooleanExpressionSystem",
+    "SubstraitNarwhalsScalarComparisonExpressionSystem",
+    "SubstraitNarwhalsScalarDatetimeExpressionSystem",
+    "SubstraitNarwhalsScalarLogarithmicExpressionSystem",
+    "SubstraitNarwhalsScalarRoundingExpressionSystem",
+    "SubstraitNarwhalsScalarSetExpressionSystem",
+    "SubstraitNarwhalsScalarStringExpressionSystem",
+    # Window protocols
+    "SubstraitNarwhalsWindowArithmeticExpressionSystem",
+    # Geometry protocols
+    "SubstraitNarwhalsScalarGeometryExpressionSystem",
     # Mountainash extension protocols
-    "NarwhalsTernarySystem",
-    "NarwhalsNullExtensionSystem",
-    "NarwhalsNameExtensionSystem",
+    "MountainAshNarwhalsNameExpressionSystem",
+    "MountainAshNarwhalsNullExpressionSystem",
+    "MountainAshNarwhalsScalarArithmeticExpressionSystem",
+    "MountainAshNarwhalsScalarDatetimeExpressionSystem",
+    "MountainAshNarwhalsScalarTernaryExpressionSystem"
 ]

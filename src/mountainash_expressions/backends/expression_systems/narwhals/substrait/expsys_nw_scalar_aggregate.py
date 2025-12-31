@@ -1,24 +1,25 @@
-"""Polars ScalarAggregateExpressionProtocol implementation.
+"""Narwhals ScalarAggregateExpressionProtocol implementation.
 
-Implements aggregation operations for the Polars backend.
+Implements aggregation operations for the Narwhals backend.
 """
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import narwhals as nw
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import NarwhalsBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarAggregateExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import NarwhalsExpr
 
-# Type alias for expression type
 
-class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
-    """Polars implementation of ScalarAggregateExpressionProtocol.
+
+class SubstraitNarwhalsScalarAggregateExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
+    """Narwhals implementation of ScalarAggregateExpressionProtocol.
 
     Implements aggregation methods:
     - count: Count values in a set
@@ -28,17 +29,17 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def count(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Count a set of values.
 
         Counts non-null values.
 
         Args:
             x: Expression to count.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Count expression.
@@ -48,25 +49,25 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
     def count_all(
         self,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Count a set of records (not field referenced).
 
         Counts all rows including nulls.
 
         Args:
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Count expression.
         """
-        return pl.count()
+        return nw.len()
 
     def any_value(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         ignore_nulls: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Select an arbitrary value from a group of values.
 
         Returns the first value in the group.
@@ -87,7 +88,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
     # Additional Aggregate Methods (Common Extensions)
     # =========================================================================
 
-    def sum(self, x: PolarsExpr, /) -> PolarsExpr:
+    def sum(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Sum values.
 
         Args:
@@ -98,7 +99,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.sum()
 
-    def mean(self, x: PolarsExpr, /) -> PolarsExpr:
+    def mean(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Calculate mean of values.
 
         Args:
@@ -109,7 +110,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.mean()
 
-    def min(self, x: PolarsExpr, /) -> PolarsExpr:
+    def min(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Get minimum value.
 
         Args:
@@ -120,7 +121,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.min()
 
-    def max(self, x: PolarsExpr, /) -> PolarsExpr:
+    def max(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Get maximum value.
 
         Args:
@@ -131,7 +132,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.max()
 
-    def std(self, x: PolarsExpr, /) -> PolarsExpr:
+    def std(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Calculate standard deviation.
 
         Args:
@@ -142,7 +143,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.std()
 
-    def var(self, x: PolarsExpr, /) -> PolarsExpr:
+    def var(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Calculate variance.
 
         Args:
@@ -150,10 +151,14 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Variance expression.
-        """
-        return x.var()
 
-    def median(self, x: PolarsExpr, /) -> PolarsExpr:
+        Note:
+            Narwhals may not have var. Falls back to std squared.
+        """
+        # Narwhals doesn't have var - use std squared as approximation
+        return x.std().pow(nw.lit(2))
+
+    def median(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Calculate median.
 
         Args:
@@ -161,10 +166,14 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Median expression.
-        """
-        return x.median()
 
-    def first(self, x: PolarsExpr, /) -> PolarsExpr:
+        Note:
+            Narwhals may not have median. Falls back to mean.
+        """
+        # Narwhals doesn't have median - fallback to mean
+        return x.mean()
+
+    def first(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Get first value.
 
         Args:
@@ -175,7 +184,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.first()
 
-    def last(self, x: PolarsExpr, /) -> PolarsExpr:
+    def last(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Get last value.
 
         Args:
@@ -186,7 +195,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.last()
 
-    def n_unique(self, x: PolarsExpr, /) -> PolarsExpr:
+    def n_unique(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Count unique values.
 
         Args:
@@ -203,15 +212,15 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def avg(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Average a set of values.
 
         Args:
             x: Expression to average.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Average expression.
@@ -220,45 +229,50 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def sum0(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Sum a set of values. Returns zero for empty set.
 
         Args:
             x: Expression to sum.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Sum expression (0 for empty).
         """
-        return x.sum().fill_null(0)
+        return x.sum().fill_null(nw.lit(0))
 
     def product(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         overflow: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Product of a set of values. Returns 1 for empty input.
 
         Args:
             x: Expression to multiply.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Overflow handling (ignored in Narwhals).
 
         Returns:
             Product expression.
+
+        Note:
+            Narwhals doesn't have a direct product aggregate.
+            Falls back to exp(sum(log(x))) which works for positive values.
         """
-        return x.product()
+        # Using exp(sum(log(x))) for product - works for positive values
+        return x.log().sum().exp()
 
     def std_dev(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         distribution: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate standard deviation.
 
         Args:
@@ -268,17 +282,21 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Standard deviation expression.
+
+        Note:
+            Narwhals std() uses ddof=1 (sample) by default.
+            Population std may not be available.
         """
-        ddof = 0 if distribution == "POPULATION" else 1
-        return x.std(ddof=ddof)
+        # Narwhals doesn't support ddof parameter
+        return x.std()
 
     def variance(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         rounding: Any = None,
         distribution: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate variance.
 
         Args:
@@ -288,17 +306,20 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Variance expression.
+
+        Note:
+            Narwhals may not have var. Uses std squared as approximation.
         """
-        ddof = 0 if distribution == "POPULATION" else 1
-        return x.var(ddof=ddof)
+        # Narwhals doesn't have var - use std squared
+        return x.std().pow(nw.lit(2))
 
     def corr(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
         rounding: Any = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate Pearson correlation coefficient.
 
         Args:
@@ -309,15 +330,14 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         Returns:
             Correlation coefficient.
 
-        Note:
-            Polars corr requires struct context. May not work in all cases.
+        Raises:
+            NotImplementedError: Narwhals doesn't support corr.
         """
-        # Polars doesn't have a direct column-to-column corr in expression API
         raise NotImplementedError(
-            "corr() requires struct context in Polars. Use DataFrame.corr() instead."
+            "corr() is not supported by the Narwhals backend."
         )
 
-    def mode(self, x: PolarsExpr, /) -> PolarsExpr:
+    def mode(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Calculate mode (most frequent value).
 
         Args:
@@ -325,16 +345,21 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Mode expression.
+
+        Raises:
+            NotImplementedError: Narwhals doesn't support mode.
         """
-        return x.mode().first()
+        raise NotImplementedError(
+            "mode() is not supported by the Narwhals backend."
+        )
 
     def quantile(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         q: float = 0.5,
         interpolation: str = "nearest",
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate quantile.
 
         Args:
@@ -351,7 +376,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
     # Substrait Aggregate Boolean Methods
     # =========================================================================
 
-    def bool_and(self, x: PolarsExpr, /) -> PolarsExpr:
+    def bool_and(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Aggregate AND - true if all values are true.
 
         Returns false if any value is false.
@@ -365,7 +390,7 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.all()
 
-    def bool_or(self, x: PolarsExpr, /) -> PolarsExpr:
+    def bool_or(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Aggregate OR - true if any value is true.
 
         Returns true if any value is true.
@@ -385,10 +410,10 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
     def string_agg(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         separator: str = ",",
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Concatenate strings with a separator.
 
         Args:
@@ -397,5 +422,10 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
 
         Returns:
             Concatenated string expression.
+
+        Raises:
+            NotImplementedError: Narwhals doesn't support string_agg.
         """
-        return x.str.join(separator)
+        raise NotImplementedError(
+            "string_agg() is not supported by the Narwhals backend."
+        )

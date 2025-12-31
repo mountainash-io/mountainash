@@ -9,50 +9,66 @@ from __future__ import annotations
 from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
 
-# Foundation protocols
-from .substrait.field_reference import PolarsFieldReferenceSystem
-from .substrait.literal import PolarsLiteralSystem
-from .substrait.cast import PolarsCastSystem
-from .substrait.conditional import PolarsConditionalSystem
 
-# Scalar protocols
-from substrait.scalar_comparison import PolarsScalarComparisonSystem
-from substrait.scalar_boolean import PolarsScalarBooleanSystem
-from substrait.scalar_arithmetic import PolarsScalarArithmeticSystem
-from substrait.scalar_string import PolarsScalarStringSystem
-from substrait.scalar_datetime import PolarsScalarDatetimeSystem
-from substrait.scalar_rounding import PolarsScalarRoundingSystem
-from substrait.scalar_logarithmic import PolarsScalarLogarithmicSystem
-from substrait.scalar_set import PolarsScalarSetSystem
-from substrait.scalar_aggregate import PolarsScalarAggregateSystem
+from .substrait.expsys_pl_cast import SubstraitPolarsCastExpressionSystem
+from .substrait.expsys_pl_conditional import SubstraitPolarsConditionalExpressionSystem
+from .substrait.expsys_pl_field_reference import SubstraitPolarsFieldReferenceExpressionSystem
+from .substrait.expsys_pl_literal import SubstraitPolarsLiteralExpressionSystem
 
-# Mountainash extension protocols
-from .mountainash_extensions.ext_ternary import PolarsTernarySystem
-from .mountainash_extensions.ext_null import PolarsNullExtensionSystem
-from .mountainash_extensions.ext_name import PolarsNameExtensionSystem
+from .substrait.expsys_pl_scalar_aggregate import SubstraitPolarsScalarAggregateExpressionSystem
+from .substrait.expsys_pl_scalar_arithmetic import SubstraitPolarsScalarArithmeticExpressionSystem
+from .substrait.expsys_pl_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem
+from .substrait.expsys_pl_scalar_comparison import SubstraitPolarsScalarComparisonExpressionSystem
+from .substrait.expsys_pl_scalar_datetime import SubstraitPolarsScalarDatetimeExpressionSystem
+from .substrait.expsys_pl_scalar_logarithmic import SubstraitPolarsScalarLogarithmicExpressionSystem
+from .substrait.expsys_pl_scalar_rounding import SubstraitPolarsScalarRoundingExpressionSystem
+from .substrait.expsys_pl_scalar_set import SubstraitPolarsScalarSetExpressionSystem
+from .substrait.expsys_pl_scalar_string import SubstraitPolarsScalarStringExpressionSystem
+
+# Window protocols
+from .substrait.expsys_pl_window_arithmetic import SubstraitPolarsWindowArithmeticExpressionSystem
+
+# Geometry protocols
+from .substrait.expsys_pl_scalar_geometry import SubstraitPolarsScalarGeometryExpressionSystem
+
+# Polars Mountainash Extensions
+from .extensions_mountainash.expsys_pl_ext_ma_name import MountainAshPolarsNameExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_null import MountainAshPolarsNullExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
+
+
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
 class PolarsExpressionSystem(
     # Foundation protocols
-    PolarsFieldReferenceSystem,
-    PolarsLiteralSystem,
-    PolarsCastSystem,
-    PolarsConditionalSystem,
+    SubstraitPolarsCastExpressionSystem,
+    SubstraitPolarsConditionalExpressionSystem,
+    SubstraitPolarsFieldReferenceExpressionSystem,
+    SubstraitPolarsLiteralExpressionSystem,
     # Scalar protocols
-    PolarsScalarComparisonSystem,
-    PolarsScalarBooleanSystem,
-    PolarsScalarArithmeticSystem,
-    PolarsScalarStringSystem,
-    PolarsScalarDatetimeSystem,
-    PolarsScalarRoundingSystem,
-    PolarsScalarLogarithmicSystem,
-    PolarsScalarSetSystem,
-    PolarsScalarAggregateSystem,
+    SubstraitPolarsScalarAggregateExpressionSystem,
+    SubstraitPolarsScalarArithmeticExpressionSystem,
+    SubstraitPolarsScalarBooleanExpressionSystem,
+    SubstraitPolarsScalarComparisonExpressionSystem,
+    SubstraitPolarsScalarDatetimeExpressionSystem,
+    SubstraitPolarsScalarLogarithmicExpressionSystem,
+    SubstraitPolarsScalarRoundingExpressionSystem,
+    SubstraitPolarsScalarSetExpressionSystem,
+    SubstraitPolarsScalarStringExpressionSystem,
+    # Window protocols
+    SubstraitPolarsWindowArithmeticExpressionSystem,
+    # Geometry protocols
+    SubstraitPolarsScalarGeometryExpressionSystem,
     # Mountainash extension protocols
-    PolarsTernarySystem,
-    PolarsNullExtensionSystem,
-    PolarsNameExtensionSystem,
+    MountainAshPolarsNameExpressionSystem,
+    MountainAshPolarsNullExpressionSystem,
+    MountainAshPolarsScalarArithmeticExpressionSystem,
+    MountainAshPolarsScalarDatetimeExpressionSystem,
+    MountainAshPolarsScalarTernaryExpressionSystem
+
 ):
     """Complete Polars backend expression system.
 
@@ -66,22 +82,28 @@ class PolarsExpressionSystem(
 __all__ = [
     "PolarsExpressionSystem",
     # Foundation protocols
-    "PolarsFieldReferenceSystem",
-    "PolarsLiteralSystem",
-    "PolarsCastSystem",
-    "PolarsConditionalSystem",
+    "SubstraitPolarsCastExpressionSystem",
+    "SubstraitPolarsConditionalExpressionSystem",
+    "SubstraitPolarsFieldReferenceExpressionSystem",
+    "SubstraitPolarsLiteralExpressionSystem",
     # Scalar protocols
-    "PolarsScalarComparisonSystem",
-    "PolarsScalarBooleanSystem",
-    "PolarsScalarArithmeticSystem",
-    "PolarsScalarStringSystem",
-    "PolarsScalarDatetimeSystem",
-    "PolarsScalarRoundingSystem",
-    "PolarsScalarLogarithmicSystem",
-    "PolarsScalarSetSystem",
-    "PolarsScalarAggregateSystem",
+    "SubstraitPolarsScalarAggregateExpressionSystem",
+    "SubstraitPolarsScalarArithmeticExpressionSystem",
+    "SubstraitPolarsScalarBooleanExpressionSystem",
+    "SubstraitPolarsScalarComparisonExpressionSystem",
+    "SubstraitPolarsScalarDatetimeExpressionSystem",
+    "SubstraitPolarsScalarLogarithmicExpressionSystem",
+    "SubstraitPolarsScalarRoundingExpressionSystem",
+    "SubstraitPolarsScalarSetExpressionSystem",
+    "SubstraitPolarsScalarStringExpressionSystem",
+    # Window protocols
+    "SubstraitPolarsWindowArithmeticExpressionSystem",
+    # Geometry protocols
+    "SubstraitPolarsScalarGeometryExpressionSystem",
     # Mountainash extension protocols
-    "PolarsTernarySystem",
-    "PolarsNullExtensionSystem",
-    "PolarsNameExtensionSystem",
+    "MountainAshPolarsNameExpressionSystem",
+    "MountainAshPolarsNullExpressionSystem",
+    "MountainAshPolarsScalarArithmeticExpressionSystem",
+    "MountainAshPolarsScalarDatetimeExpressionSystem",
+    "MountainAshPolarsScalarTernaryExpressionSystem"
 ]

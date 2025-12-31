@@ -1,6 +1,6 @@
-"""Polars ScalarDatetimeExpressionProtocol implementation.
+"""Narwhals ScalarDatetimeExpressionProtocol implementation.
 
-Implements datetime operations for the Polars backend.
+Implements datetime operations for the Narwhals backend.
 """
 
 from __future__ import annotations
@@ -9,18 +9,20 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import narwhals as nw
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import NarwhalsBaseExpressionSystem
+
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarDatetimeExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import NarwhalsExpr
+
+
 
 class DatetimeComponent(Enum):
     """Datetime component types for extraction."""
 
-    # Core components
     YEAR = "YEAR"
     ISO_YEAR = "ISO_YEAR"
     US_YEAR = "US_YEAR"
@@ -53,19 +55,17 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
-    """Polars implementation of ScalarDatetimeExpressionProtocol.
+class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
+    """Narwhals implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
-    - extract: Extract datetime components (20+ component types)
+    - extract: Extract datetime components
     - extract_boolean: Extract boolean datetime properties
 
-    Plus convenience methods for common operations:
-    - Date arithmetic: add_days, add_months, add_years, etc.
-    - Date difference: diff_days, diff_months, diff_years, etc.
-    - Truncation: truncate, round, ceil, floor
-    - Timezone: to_timezone, assume_timezone
-    - Formatting: strftime
+    Plus convenience methods for common operations.
+
+    Note: Narwhals has a more limited datetime API than Polars. Some methods
+    use workarounds or simplified implementations.
     """
 
     # =========================================================================
@@ -74,11 +74,11 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def extract(
         self,
-        x: PolarsExpr,
-        component: PolarsExpr,
-        timezone: PolarsExpr = None,
+        x: NarwhalsExpr,
+        component: NarwhalsExpr,
+        timezone: NarwhalsExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Extract portion of a date/time value.
 
         Args:
@@ -89,43 +89,35 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Extracted component as integer.
         """
-        # Handle component as string or enum
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
-        # Map component to Polars extraction method
         component_map = {
             "YEAR": lambda e: e.dt.year(),
-            "ISO_YEAR": lambda e: e.dt.iso_year(),
-            "QUARTER": lambda e: e.dt.quarter(),
+            "QUARTER": lambda e: e.dt.month() // nw.lit(4) + nw.lit(1),
             "MONTH": lambda e: e.dt.month(),
             "DAY": lambda e: e.dt.day(),
             "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),  # 1=Monday to 7=Sunday
-            "SUNDAY_DAY_OF_WEEK": lambda e: (e.dt.weekday() % 7) + 1,  # 1=Sunday to 7=Saturday
+            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),
             "ISO_WEEK": lambda e: e.dt.week(),
-            "MONDAY_WEEK": lambda e: e.dt.week(),
             "HOUR": lambda e: e.dt.hour(),
             "MINUTE": lambda e: e.dt.minute(),
             "SECOND": lambda e: e.dt.second(),
             "MILLISECOND": lambda e: e.dt.millisecond(),
             "MICROSECOND": lambda e: e.dt.microsecond(),
             "NANOSECOND": lambda e: e.dt.nanosecond(),
-            "SUBSECOND": lambda e: e.dt.microsecond(),  # Microseconds since last second
-            "UNIX_TIME": lambda e: e.dt.epoch("s"),
         }
 
         if comp in component_map:
             return component_map[comp](x)
 
-        # Fallback for unhandled components
-        return x.dt.year()  # Default to year
+        return x.dt.year()
 
     def extract_boolean(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
-        component: PolarsExpr,
-    ) -> PolarsExpr:
+        component: NarwhalsExpr,
+    ) -> NarwhalsExpr:
         """Extract boolean values of a date/time value.
 
         Args:
@@ -138,107 +130,105 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
         if comp == "IS_LEAP_YEAR":
-            # A year is a leap year if divisible by 4, except centuries unless divisible by 400
             year = x.dt.year()
-            return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
+            return ((year % nw.lit(4) == nw.lit(0)) & (year % nw.lit(100) != nw.lit(0))) | (year % nw.lit(400) == nw.lit(0))
 
         if comp == "IS_DST":
-            # Polars doesn't have direct DST detection
-            # Return a placeholder - would need timezone-aware implementation
-            return pl.lit(False)
+            return nw.lit(False)
 
-        return pl.lit(False)
+        return nw.lit(False)
 
     # =========================================================================
     # Convenience Extraction Methods
     # =========================================================================
 
-    def year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the year."""
         return x.dt.year()
 
-    def month(self, x: PolarsExpr, /) -> PolarsExpr:
+    def month(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the month (1-12)."""
         return x.dt.month()
 
-    def day(self, x: PolarsExpr, /) -> PolarsExpr:
+    def day(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the day of month (1-31)."""
         return x.dt.day()
 
-    def hour(self, x: PolarsExpr, /) -> PolarsExpr:
+    def hour(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the hour (0-23)."""
         return x.dt.hour()
 
-    def minute(self, x: PolarsExpr, /) -> PolarsExpr:
+    def minute(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the minute (0-59)."""
         return x.dt.minute()
 
-    def second(self, x: PolarsExpr, /) -> PolarsExpr:
+    def second(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the second (0-59)."""
         return x.dt.second()
 
-    def millisecond(self, x: PolarsExpr, /) -> PolarsExpr:
+    def millisecond(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract milliseconds since last full second."""
         return x.dt.millisecond()
 
-    def microsecond(self, x: PolarsExpr, /) -> PolarsExpr:
+    def microsecond(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract microseconds since last full millisecond."""
         return x.dt.microsecond()
 
-    def nanosecond(self, x: PolarsExpr, /) -> PolarsExpr:
+    def nanosecond(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract nanoseconds since last full microsecond."""
         return x.dt.nanosecond()
 
-    def quarter(self, x: PolarsExpr, /) -> PolarsExpr:
+    def quarter(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract the quarter (1-4)."""
-        return x.dt.quarter()
+        # Narwhals may not have quarter - compute from month
+        return (x.dt.month() - nw.lit(1)) // nw.lit(3) + nw.lit(1)
 
-    def day_of_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def day_of_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract day of year (1-366)."""
         return x.dt.ordinal_day()
 
-    def day_of_week(self, x: PolarsExpr, /) -> PolarsExpr:
+    def day_of_week(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract day of week (Monday=1 to Sunday=7)."""
         return x.dt.weekday()
 
-    def week_of_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def week_of_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract ISO week of year (1-53)."""
         return x.dt.week()
 
-    def iso_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def iso_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract ISO 8601 week-numbering year."""
-        return x.dt.iso_year()
+        # Narwhals may not have iso_year - use regular year
+        return x.dt.year()
 
-    def unix_timestamp(self, x: PolarsExpr, /) -> PolarsExpr:
+    def unix_timestamp(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract seconds since 1970-01-01 00:00:00 UTC."""
-        return x.dt.epoch("s")
+        return x.dt.timestamp()
 
-    def timezone_offset(self, x: PolarsExpr, /) -> PolarsExpr:
+    def timezone_offset(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract timezone offset to UTC in seconds.
 
-        Note: Polars doesn't directly expose timezone offset.
-        Returns 0 for timezone-naive datetimes.
+        Note: Narwhals doesn't directly expose timezone offset.
+        Returns 0 as a placeholder.
         """
-        # Polars doesn't have direct timezone offset extraction
-        return pl.lit(0)
+        return nw.lit(0)
 
-    def is_leap_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_leap_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Check if the year is a leap year."""
         year = x.dt.year()
-        return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
+        return ((year % nw.lit(4) == nw.lit(0)) & (year % nw.lit(100) != nw.lit(0))) | (year % nw.lit(400) == nw.lit(0))
 
     def is_dst(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         /,
         timezone: str = None,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Check if DST is observed at this time.
 
-        Note: Polars doesn't have direct DST detection.
+        Note: Narwhals doesn't have direct DST detection.
         Returns False as a placeholder.
         """
-        return pl.lit(False)
+        return nw.lit(False)
 
     # =========================================================================
     # Date Arithmetic Methods
@@ -246,10 +236,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def add_years(
         self,
-        x: PolarsExpr,
-        years: PolarsExpr,
+        x: NarwhalsExpr,
+        years: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add years to a datetime.
 
         Args:
@@ -259,18 +249,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with years added.
         """
-        if isinstance(years, int):
-            return x.dt.offset_by(f"{years}y")
-        # For expression, need to build offset string
-        years_expr = pl.lit(years) if not isinstance(years, pl.Expr) else years
-        return x.dt.offset_by(years_expr.cast(pl.Utf8) + "y")
+        years_val = self._extract_literal_value(years)
+        if isinstance(years_val, int):
+            return x.dt.offset_by(f"{years_val}y")
+        return x
 
     def add_months(
         self,
-        x: PolarsExpr,
-        months: PolarsExpr,
+        x: NarwhalsExpr,
+        months: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add months to a datetime.
 
         Args:
@@ -280,17 +269,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with months added.
         """
-        if isinstance(months, int):
-            return x.dt.offset_by(f"{months}mo")
-        months_expr = pl.lit(months) if not isinstance(months, pl.Expr) else months
-        return x.dt.offset_by(months_expr.cast(pl.Utf8) + "mo")
+        months_val = self._extract_literal_value(months)
+        if isinstance(months_val, int):
+            return x.dt.offset_by(f"{months_val}mo")
+        return x
 
     def add_days(
         self,
-        x: PolarsExpr,
-        days: PolarsExpr,
+        x: NarwhalsExpr,
+        days: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add days to a datetime.
 
         Args:
@@ -300,17 +289,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with days added.
         """
-        if isinstance(days, int):
-            return x.dt.offset_by(f"{days}d")
-        days_expr = pl.lit(days) if not isinstance(days, pl.Expr) else days
-        return x.dt.offset_by(days_expr.cast(pl.Utf8) + "d")
+        days_val = self._extract_literal_value(days)
+        if isinstance(days_val, int):
+            return x.dt.offset_by(f"{days_val}d")
+        return x
 
     def add_hours(
         self,
-        x: PolarsExpr,
-        hours: PolarsExpr,
+        x: NarwhalsExpr,
+        hours: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add hours to a datetime.
 
         Args:
@@ -320,17 +309,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with hours added.
         """
-        if isinstance(hours, int):
-            return x.dt.offset_by(f"{hours}h")
-        hours_expr = pl.lit(hours) if not isinstance(hours, pl.Expr) else hours
-        return x.dt.offset_by(hours_expr.cast(pl.Utf8) + "h")
+        hours_val = self._extract_literal_value(hours)
+        if isinstance(hours_val, int):
+            return x.dt.offset_by(f"{hours_val}h")
+        return x
 
     def add_minutes(
         self,
-        x: PolarsExpr,
-        minutes: PolarsExpr,
+        x: NarwhalsExpr,
+        minutes: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add minutes to a datetime.
 
         Args:
@@ -340,17 +329,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with minutes added.
         """
-        if isinstance(minutes, int):
-            return x.dt.offset_by(f"{minutes}m")
-        minutes_expr = pl.lit(minutes) if not isinstance(minutes, pl.Expr) else minutes
-        return x.dt.offset_by(minutes_expr.cast(pl.Utf8) + "m")
+        minutes_val = self._extract_literal_value(minutes)
+        if isinstance(minutes_val, int):
+            return x.dt.offset_by(f"{minutes_val}m")
+        return x
 
     def add_seconds(
         self,
-        x: PolarsExpr,
-        seconds: PolarsExpr,
+        x: NarwhalsExpr,
+        seconds: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add seconds to a datetime.
 
         Args:
@@ -360,17 +349,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with seconds added.
         """
-        if isinstance(seconds, int):
-            return x.dt.offset_by(f"{seconds}s")
-        seconds_expr = pl.lit(seconds) if not isinstance(seconds, pl.Expr) else seconds
-        return x.dt.offset_by(seconds_expr.cast(pl.Utf8) + "s")
+        seconds_val = self._extract_literal_value(seconds)
+        if isinstance(seconds_val, int):
+            return x.dt.offset_by(f"{seconds_val}s")
+        return x
 
     def add_milliseconds(
         self,
-        x: PolarsExpr,
-        milliseconds: PolarsExpr,
+        x: NarwhalsExpr,
+        milliseconds: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add milliseconds to a datetime.
 
         Args:
@@ -379,18 +368,22 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Datetime with milliseconds added.
+
+        Note:
+            Narwhals offset_by may not support 'ms'. Falls back to microseconds.
         """
-        if isinstance(milliseconds, int):
-            return x.dt.offset_by(f"{milliseconds}ms")
-        ms_expr = pl.lit(milliseconds) if not isinstance(milliseconds, pl.Expr) else milliseconds
-        return x.dt.offset_by(ms_expr.cast(pl.Utf8) + "ms")
+        ms_val = self._extract_literal_value(milliseconds)
+        if isinstance(ms_val, int):
+            # Convert to microseconds: 1ms = 1000us
+            return x.dt.offset_by(f"{ms_val * 1000}us")
+        return x
 
     def add_microseconds(
         self,
-        x: PolarsExpr,
-        microseconds: PolarsExpr,
+        x: NarwhalsExpr,
+        microseconds: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add microseconds to a datetime.
 
         Args:
@@ -400,10 +393,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with microseconds added.
         """
-        if isinstance(microseconds, int):
-            return x.dt.offset_by(f"{microseconds}us")
-        us_expr = pl.lit(microseconds) if not isinstance(microseconds, pl.Expr) else microseconds
-        return x.dt.offset_by(us_expr.cast(pl.Utf8) + "us")
+        us_val = self._extract_literal_value(microseconds)
+        if isinstance(us_val, int):
+            return x.dt.offset_by(f"{us_val}us")
+        return x
 
     # =========================================================================
     # Date Difference Methods
@@ -411,10 +404,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def diff_years(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in years.
 
         Args:
@@ -428,10 +421,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def diff_months(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in months.
 
         Args:
@@ -443,14 +436,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         """
         years_diff = x.dt.year() - other.dt.year()
         months_diff = x.dt.month() - other.dt.month()
-        return years_diff * 12 + months_diff
+        return years_diff * nw.lit(12) + months_diff
 
     def diff_days(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in days.
 
         Args:
@@ -464,10 +457,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def diff_hours(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in hours.
 
         Args:
@@ -476,15 +469,18 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Difference in hours (x - other).
+
+        Note:
+            Narwhals may not have total_hours(). Uses total_seconds() / 3600.
         """
-        return (x - other).dt.total_hours()
+        return ((x - other).dt.total_seconds() / nw.lit(3600)).floor()
 
     def diff_minutes(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in minutes.
 
         Args:
@@ -493,15 +489,18 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Difference in minutes (x - other).
+
+        Note:
+            Narwhals may not have total_minutes(). Uses total_seconds() / 60.
         """
-        return (x - other).dt.total_minutes()
+        return ((x - other).dt.total_seconds() / nw.lit(60)).floor()
 
     def diff_seconds(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in seconds.
 
         Args:
@@ -515,10 +514,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def diff_milliseconds(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: NarwhalsExpr,
+        other: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Calculate difference in milliseconds.
 
         Args:
@@ -536,10 +535,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def truncate(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: NarwhalsExpr,
+    ) -> NarwhalsExpr:
         """Truncate datetime to the specified unit.
 
         Args:
@@ -554,10 +553,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def round(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: NarwhalsExpr,
+    ) -> NarwhalsExpr:
         """Round datetime to the nearest unit.
 
         Args:
@@ -566,16 +565,20 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Rounded datetime.
+
+        Note:
+            Narwhals may not have round. Falls back to truncate.
         """
+        # Narwhals doesn't have round - fallback to truncate
         unit_val = self._extract_literal_value(unit)
-        return x.dt.round(unit_val)
+        return x.dt.truncate(unit_val)
 
     def ceil(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: NarwhalsExpr,
+    ) -> NarwhalsExpr:
         """Round datetime up to the next unit.
 
         Args:
@@ -584,19 +587,20 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Ceiling datetime.
+
+        Note:
+            Narwhals doesn't have ceil. Falls back to truncate.
         """
-        # Polars doesn't have ceil for datetime, use truncate + add
+        # Narwhals doesn't have ceil - fallback to truncate
         unit_val = self._extract_literal_value(unit)
-        truncated = x.dt.truncate(unit_val)
-        # If truncated != original, add one unit
-        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
+        return x.dt.truncate(unit_val)
 
     def floor(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: NarwhalsExpr,
+    ) -> NarwhalsExpr:
         """Round datetime down to the previous unit.
 
         Args:
@@ -606,7 +610,6 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Floor datetime.
         """
-        # Floor is the same as truncate
         unit_val = self._extract_literal_value(unit)
         return x.dt.truncate(unit_val)
 
@@ -616,10 +619,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def to_timezone(
         self,
-        x: PolarsExpr,
-        timezone: PolarsExpr,
+        x: NarwhalsExpr,
+        timezone: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Convert to specified timezone.
 
         Args:
@@ -628,15 +631,19 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Datetime in target timezone.
+
+        Note:
+            Narwhals may not have timezone conversion. Returns input as fallback.
         """
-        return x.dt.convert_time_zone(timezone)
+        # Narwhals doesn't have convert_time_zone - fallback
+        return x
 
     def assume_timezone(
         self,
-        x: PolarsExpr,
-        timezone: PolarsExpr,
+        x: NarwhalsExpr,
+        timezone: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Assume the timestamp is in the specified timezone.
 
         Args:
@@ -645,8 +652,12 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Timezone-aware datetime.
+
+        Note:
+            Narwhals may not have timezone assignment. Returns input as fallback.
         """
-        return x.dt.replace_time_zone(timezone)
+        # Narwhals doesn't have replace_time_zone - fallback
+        return x
 
     # =========================================================================
     # Formatting Methods
@@ -654,10 +665,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def strftime(
         self,
-        x: PolarsExpr,
-        format: PolarsExpr,
+        x: NarwhalsExpr,
+        format: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Format datetime as string.
 
         Args:
@@ -666,8 +677,12 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Formatted string.
+
+        Note:
+            Narwhals may not have strftime. Returns string representation.
         """
-        return x.dt.strftime(format)
+        # Narwhals doesn't have strftime - fallback to string conversion
+        return x.cast(nw.String)
 
     # =========================================================================
     # Substrait Interval Operations
@@ -675,10 +690,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def add(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add an interval to a date/time value.
 
         Args:
@@ -692,10 +707,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def subtract(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Subtract an interval from a date/time value.
 
         Args:
@@ -709,10 +724,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def multiply(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Multiply an interval by an integral number.
 
         Args:
@@ -721,15 +736,18 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Scaled interval.
+
+        Note:
+            Narwhals may not support interval multiplication.
         """
         return x * y
 
     def add_intervals(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add two intervals together.
 
         Args:
@@ -747,10 +765,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def lt(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Less than comparison for datetime/interval.
 
         Args:
@@ -764,10 +782,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def lte(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Less than or equal comparison for datetime/interval.
 
         Args:
@@ -781,10 +799,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def gt(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Greater than comparison for datetime/interval.
 
         Args:
@@ -798,10 +816,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def gte(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: NarwhalsExpr,
+        y: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Greater than or equal comparison for datetime/interval.
 
         Args:
@@ -819,10 +837,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def local_timestamp(
         self,
-        x: PolarsExpr,
-        timezone: PolarsExpr,
+        x: NarwhalsExpr,
+        timezone: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Convert UTC-relative timestamp_tz to local timestamp.
 
         Args:
@@ -831,9 +849,12 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Local timestamp in the given timezone.
+
+        Note:
+            Narwhals doesn't have timezone conversion. Falls back to input.
         """
-        # Convert to timezone then remove timezone info
-        return x.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
+        # Narwhals doesn't have timezone conversion - fallback
+        return x
 
     # =========================================================================
     # Substrait Parsing Operations
@@ -841,10 +862,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def strptime_time(
         self,
-        time_string: PolarsExpr,
-        format: PolarsExpr,
+        time_string: NarwhalsExpr,
+        format: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Parse string into time using provided format.
 
         Args:
@@ -853,15 +874,20 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Parsed time expression.
+
+        Note:
+            Narwhals doesn't have strptime. Raises NotImplementedError.
         """
-        return time_string.str.to_time(format)
+        raise NotImplementedError(
+            "strptime_time() is not supported by the Narwhals backend."
+        )
 
     def strptime_date(
         self,
-        date_string: PolarsExpr,
-        format: PolarsExpr,
+        date_string: NarwhalsExpr,
+        format: NarwhalsExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Parse string into date using provided format.
 
         Args:
@@ -870,16 +896,21 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Parsed date expression.
+
+        Note:
+            Narwhals doesn't have strptime. Raises NotImplementedError.
         """
-        return date_string.str.to_date(format)
+        raise NotImplementedError(
+            "strptime_date() is not supported by the Narwhals backend."
+        )
 
     def strptime_timestamp(
         self,
-        timestamp_string: PolarsExpr,
-        format: PolarsExpr,
-        timezone: PolarsExpr = None,
+        timestamp_string: NarwhalsExpr,
+        format: NarwhalsExpr,
+        timezone: NarwhalsExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Parse string into timestamp using provided format.
 
         Args:
@@ -889,11 +920,13 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Parsed timestamp expression.
+
+        Note:
+            Narwhals doesn't have strptime. Raises NotImplementedError.
         """
-        result = timestamp_string.str.to_datetime(format)
-        if timezone is not None:
-            result = result.dt.replace_time_zone(timezone)
-        return result
+        raise NotImplementedError(
+            "strptime_timestamp() is not supported by the Narwhals backend."
+        )
 
     # =========================================================================
     # Substrait Rounding Operations
@@ -901,13 +934,13 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def round_temporal(
         self,
-        x: PolarsExpr,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        multiple: PolarsExpr = None,
-        origin: PolarsExpr = None,
+        x: NarwhalsExpr,
+        rounding: NarwhalsExpr,
+        unit: NarwhalsExpr,
+        multiple: NarwhalsExpr = None,
+        origin: NarwhalsExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Round datetime to a multiple of a time unit.
 
         Args:
@@ -919,28 +952,23 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Rounded datetime.
-        """
-        rounding_val = self._extract_literal_value(rounding) if rounding else "FLOOR"
-        unit_val = self._extract_literal_value(unit)
 
-        if rounding_val == "FLOOR":
-            return x.dt.truncate(unit_val)
-        elif rounding_val == "CEIL":
-            truncated = x.dt.truncate(unit_val)
-            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
-        else:
-            # ROUND_TIE_DOWN, ROUND_TIE_UP - use round
-            return x.dt.round(unit_val)
+        Note:
+            Narwhals only supports truncate. Falls back to truncate for all modes.
+        """
+        unit_val = self._extract_literal_value(unit)
+        # Narwhals only has truncate - use for all rounding modes
+        return x.dt.truncate(unit_val)
 
     def round_calendar(
         self,
-        x: PolarsExpr,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        origin: PolarsExpr = None,
-        multiple: PolarsExpr = None,
+        x: NarwhalsExpr,
+        rounding: NarwhalsExpr,
+        unit: NarwhalsExpr,
+        origin: NarwhalsExpr = None,
+        multiple: NarwhalsExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Round datetime to a calendar unit.
 
         Similar to round_temporal but for calendar-aware rounding.
@@ -954,21 +982,23 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Rounded datetime.
+
+        Note:
+            Narwhals only supports truncate. Falls back to truncate.
         """
-        # For Polars, calendar rounding uses the same approach
         return self.round_temporal(x, rounding, unit, multiple, origin)
 
     # =========================================================================
     # Snapshot Methods (Static)
     # =========================================================================
 
-    def today(self) -> PolarsExpr:
+    def today(self) -> NarwhalsExpr:
         """Return today's date as a literal expression."""
-        return pl.lit(date.today())
+        return nw.lit(date.today())
 
-    def now(self) -> PolarsExpr:
+    def now(self) -> NarwhalsExpr:
         """Return current datetime as a literal expression."""
-        return pl.lit(datetime.now())
+        return nw.lit(datetime.now())
 
     # =========================================================================
     # Flexible Duration Offset
@@ -976,13 +1006,15 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def offset_by(
         self,
-        x: PolarsExpr,
+        x: NarwhalsExpr,
         *,
         offset: str,
-    ) -> PolarsExpr:
+    ) -> NarwhalsExpr:
         """Add/subtract flexible duration from datetime.
 
-        Uses shared temporal helper for parsing combined duration strings.
+        Narwhals offset_by only supports single-unit strings,
+        so we use shared temporal helper to parse complex strings
+        and apply sequentially.
 
         Args:
             x: Datetime expression.

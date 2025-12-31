@@ -9,59 +9,71 @@ from __future__ import annotations
 from mountainash_expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash_expressions.core.expression_system.expsys_base import register_expression_system
 
-# Foundation protocols
-from substrait.field_reference import IbisFieldReferenceSystem
-from substrait.literal import IbisLiteralSystem
-from substrait.cast import IbisCastSystem
-from substrait.conditional import IbisConditionalSystem
 
-# Scalar protocols
-from .substrait.scalar_comparison import IbisScalarComparisonSystem
-from .substrait.scalar_boolean import IbisScalarBooleanSystem
-from .substrait.scalar_arithmetic import IbisScalarArithmeticSystem
-from .substrait.scalar_string import IbisScalarStringSystem
-from .substrait.scalar_datetime import IbisScalarDatetimeSystem
-from .substrait.scalar_rounding import IbisScalarRoundingSystem
-from .substrait.scalar_logarithmic import IbisScalarLogarithmicSystem
-from .substrait.scalar_set import IbisScalarSetSystem
-from .substrait.scalar_aggregate import IbisScalarAggregateSystem
+from .substrait.expsys_ib_cast import SubstraitIbisCastExpressionSystem
+from .substrait.expsys_ib_conditional import SubstraitIbisConditionalExpressionSystem
+from .substrait.expsys_ib_field_reference import SubstraitIbisFieldReferenceExpressionSystem
+from .substrait.expsys_ib_literal import SubstraitIbisLiteralExpressionSystem
 
-# Mountainash extension protocols
-from mountainash_extensions.ext_ternary import IbisTernarySystem
-from mountainash_extensions.ext_null import IbisNullExtensionSystem
-from mountainash_extensions.ext_name import IbisNameExtensionSystem
+from .substrait.expsys_ib_scalar_aggregate import SubstraitIbisScalarAggregateExpressionSystem
+from .substrait.expsys_ib_scalar_arithmetic import SubstraitIbisScalarArithmeticExpressionSystem
+from .substrait.expsys_ib_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem
+from .substrait.expsys_ib_scalar_comparison import SubstraitIbisScalarComparisonExpressionSystem
+from .substrait.expsys_ib_scalar_datetime import SubstraitIbisScalarDatetimeExpressionSystem
+from .substrait.expsys_ib_scalar_logarithmic import SubstraitIbisScalarLogarithmicExpressionSystem
+from .substrait.expsys_ib_scalar_rounding import SubstraitIbisScalarRoundingExpressionSystem
+from .substrait.expsys_ib_scalar_set import SubstraitIbisScalarSetExpressionSystem
+from .substrait.expsys_ib_scalar_string import SubstraitIbisScalarStringExpressionSystem
+
+# Window protocols
+from .substrait.expsys_ib_window_arithmetic import SubstraitIbisWindowArithmeticExpressionSystem
+
+# Geometry protocols
+from .substrait.expsys_ib_scalar_geometry import SubstraitIbisScalarGeometryExpressionSystem
+
+# Ibis Mountainash Extensions
+from .extensions_mountainash.expsys_ib_ext_ma_name import MountainAshIbisNameExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_null import MountainAshIbisNullExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
+
+
 
 
 @register_expression_system(CONST_VISITOR_BACKENDS.IBIS)
 class IbisExpressionSystem(
     # Foundation protocols
-    IbisFieldReferenceSystem,
-    IbisLiteralSystem,
-    IbisCastSystem,
-    IbisConditionalSystem,
+    SubstraitIbisCastExpressionSystem,
+    SubstraitIbisConditionalExpressionSystem,
+    SubstraitIbisFieldReferenceExpressionSystem,
+    SubstraitIbisLiteralExpressionSystem,
     # Scalar protocols
-    IbisScalarComparisonSystem,
-    IbisScalarBooleanSystem,
-    IbisScalarArithmeticSystem,
-    IbisScalarStringSystem,
-    IbisScalarDatetimeSystem,
-    IbisScalarRoundingSystem,
-    IbisScalarLogarithmicSystem,
-    IbisScalarSetSystem,
-    IbisScalarAggregateSystem,
+    SubstraitIbisScalarAggregateExpressionSystem,
+    SubstraitIbisScalarArithmeticExpressionSystem,
+    SubstraitIbisScalarBooleanExpressionSystem,
+    SubstraitIbisScalarComparisonExpressionSystem,
+    SubstraitIbisScalarDatetimeExpressionSystem,
+    SubstraitIbisScalarLogarithmicExpressionSystem,
+    SubstraitIbisScalarRoundingExpressionSystem,
+    SubstraitIbisScalarSetExpressionSystem,
+    SubstraitIbisScalarStringExpressionSystem,
+    # Window protocols
+    SubstraitIbisWindowArithmeticExpressionSystem,
+    # Geometry protocols
+    SubstraitIbisScalarGeometryExpressionSystem,
     # Mountainash extension protocols
-    IbisTernarySystem,
-    IbisNullExtensionSystem,
-    IbisNameExtensionSystem,
+    MountainAshIbisNameExpressionSystem,
+    MountainAshIbisNullExpressionSystem,
+    MountainAshIbisScalarArithmeticExpressionSystem,
+    MountainAshIbisScalarDatetimeExpressionSystem,
+    MountainAshIbisScalarTernaryExpressionSystem
+
 ):
     """Complete Ibis backend expression system.
 
     Composes all protocol implementations via multiple inheritance.
     Registered with the visitor factory for automatic backend detection.
-
-    Ibis supports multiple backends (DuckDB, SQLite, Polars, Postgres, etc.)
-    through a unified interface. Some operations may behave differently
-    depending on the underlying database engine.
     """
 
     pass
@@ -70,22 +82,28 @@ class IbisExpressionSystem(
 __all__ = [
     "IbisExpressionSystem",
     # Foundation protocols
-    "IbisFieldReferenceSystem",
-    "IbisLiteralSystem",
-    "IbisCastSystem",
-    "IbisConditionalSystem",
+    "SubstraitIbisCastExpressionSystem",
+    "SubstraitIbisConditionalExpressionSystem",
+    "SubstraitIbisFieldReferenceExpressionSystem",
+    "SubstraitIbisLiteralExpressionSystem",
     # Scalar protocols
-    "IbisScalarComparisonSystem",
-    "IbisScalarBooleanSystem",
-    "IbisScalarArithmeticSystem",
-    "IbisScalarStringSystem",
-    "IbisScalarDatetimeSystem",
-    "IbisScalarRoundingSystem",
-    "IbisScalarLogarithmicSystem",
-    "IbisScalarSetSystem",
-    "IbisScalarAggregateSystem",
+    "SubstraitIbisScalarAggregateExpressionSystem",
+    "SubstraitIbisScalarArithmeticExpressionSystem",
+    "SubstraitIbisScalarBooleanExpressionSystem",
+    "SubstraitIbisScalarComparisonExpressionSystem",
+    "SubstraitIbisScalarDatetimeExpressionSystem",
+    "SubstraitIbisScalarLogarithmicExpressionSystem",
+    "SubstraitIbisScalarRoundingExpressionSystem",
+    "SubstraitIbisScalarSetExpressionSystem",
+    "SubstraitIbisScalarStringExpressionSystem",
+    # Window protocols
+    "SubstraitIbisWindowArithmeticExpressionSystem",
+    # Geometry protocols
+    "SubstraitIbisScalarGeometryExpressionSystem",
     # Mountainash extension protocols
-    "IbisTernarySystem",
-    "IbisNullExtensionSystem",
-    "IbisNameExtensionSystem",
+    "MountainAshIbisNameExpressionSystem",
+    "MountainAshIbisNullExpressionSystem",
+    "MountainAshIbisScalarArithmeticExpressionSystem",
+    "MountainAshIbisScalarDatetimeExpressionSystem",
+    "MountainAshIbisScalarTernaryExpressionSystem"
 ]

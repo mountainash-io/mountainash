@@ -19,48 +19,23 @@ from .prtcl_expsys_field_reference import SubstraitFieldReferenceExpressionSyste
 from .prtcl_expsys_literal import SubstraitLiteralExpressionSystemProtocol
 
 # Scalar protocols - comparison and boolean
-from .prtcl_expsys_scalar_comparison import (
-    SubstraitScalarComparisonExpressionSystemProtocol,
-    # ScalarComparisonBuilderProtocol,
-)
-from .prtcl_expsys_scalar_boolean import (
-    SubstraitScalarBooleanExpressionSystemProtocol,
-    # ScalarBooleanBuilderProtocol,
-)
 
 # Scalar protocols - arithmetic and math
-from .prtcl_expsys_scalar_arithmetic import (
-    SubstraitScalarArithmeticExpressionSystemProtocol,
-    # ScalarArithmeticBuilderProtocol,
-)
-from .prtcl_expsys_scalar_rounding import (
-    SubstraitScalarRoundingExpressionSystemProtocol,
-    # ScalarRoundingBuilderProtocol,
-)
-from .prtcl_expsys_scalar_logarithmic import (
-    SubstraitScalarLogarithmicExpressionSystemProtocol,
-    # ScalarLogarithmicBuilderProtocol,
-)
+from .prtcl_expsys_scalar_aggregate import SubstraitScalarAggregateExpressionSystemProtocol
+from .prtcl_expsys_scalar_arithmetic import  SubstraitScalarArithmeticExpressionSystemProtocol
+from .prtcl_expsys_scalar_boolean import  SubstraitScalarBooleanExpressionSystemProtocol
+from .prtcl_expsys_scalar_comparison import SubstraitScalarComparisonExpressionSystemProtocol
+from .prtcl_expsys_scalar_datetime import  SubstraitScalarDatetimeExpressionSystemProtocol
+from .prtcl_expsys_scalar_logarithmic import SubstraitScalarLogarithmicExpressionSystemProtocol
+from .prtcl_expsys_scalar_rounding import  SubstraitScalarRoundingExpressionSystemProtocol
+from .prtcl_expsys_scalar_set import SubstraitScalarSetExpressionSystemProtocol
+from .prtcl_expsys_scalar_string import  SubstraitScalarStringExpressionSystemProtocol
 
-# Scalar protocols - string and datetime
-from .prtcl_expsys_scalar_string import (
-    SubstraitScalarStringExpressionSystemProtocol,
-    # ScalarStringBuilderProtocol,
-)
-from .prtcl_expsys_scalar_datetime import (
-    SubstraitScalarDatetimeExpressionSystemProtocol,
-    # ScalarDatetimeBuilderProtocol,
-)
+# Window protocols
+from .prtcl_expsys_window_arithmetic import SubstraitWindowArithmeticExpressionSystemProtocol
 
-# Scalar protocols - set and aggregate
-from .prtcl_expsys_scalar_set import (
-    SubstraitScalarSetExpressionSystemProtocol,
-    # ScalarSetBuilderProtocol,
-)
-from .prtcl_expsys_scalar_aggregate import (
-    SubstraitScalarAggregateExpressionSystemProtocol,
-    # ScalarAggregateBuilderProtocol,
-)
+# Geometry protocols
+from .prtcl_expsys_scalar_geometry import SubstraitScalarGeometryExpressionSystemProtocol
 
 __all__ = [
     # Foundation - Expression Protocols
@@ -78,4 +53,8 @@ __all__ = [
     "SubstraitScalarDatetimeExpressionSystemProtocol",
     "SubstraitScalarSetExpressionSystemProtocol",
     "SubstraitScalarAggregateExpressionSystemProtocol",
+    # Window protocols
+    "SubstraitWindowArithmeticExpressionSystemProtocol",
+    # Geometry protocols
+    "SubstraitScalarGeometryExpressionSystemProtocol",
 ]

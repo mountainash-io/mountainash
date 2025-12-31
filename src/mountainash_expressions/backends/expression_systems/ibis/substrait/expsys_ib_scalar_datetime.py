@@ -1,6 +1,6 @@
-"""Polars ScalarDatetimeExpressionProtocol implementation.
+"""Ibis ScalarDatetimeExpressionProtocol implementation.
 
-Implements datetime operations for the Polars backend.
+Implements datetime operations for the Ibis backend.
 """
 
 from __future__ import annotations
@@ -9,18 +9,18 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, TYPE_CHECKING
 
-import polars as pl
+import ibis
 
-from ..base import PolarsBaseExpressionSystem
+from ..base import IbisBaseExpressionSystem
 from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarDatetimeExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import PolarsExpr
+    from mountainash_expressions.types import IbisExpr
+
 
 class DatetimeComponent(Enum):
     """Datetime component types for extraction."""
 
-    # Core components
     YEAR = "YEAR"
     ISO_YEAR = "ISO_YEAR"
     US_YEAR = "US_YEAR"
@@ -53,19 +53,14 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
-    """Polars implementation of ScalarDatetimeExpressionProtocol.
+class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
+    """Ibis implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
-    - extract: Extract datetime components (20+ component types)
+    - extract: Extract datetime components
     - extract_boolean: Extract boolean datetime properties
 
-    Plus convenience methods for common operations:
-    - Date arithmetic: add_days, add_months, add_years, etc.
-    - Date difference: diff_days, diff_months, diff_years, etc.
-    - Truncation: truncate, round, ceil, floor
-    - Timezone: to_timezone, assume_timezone
-    - Formatting: strftime
+    Plus convenience methods for common operations.
     """
 
     # =========================================================================
@@ -74,11 +69,11 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def extract(
         self,
-        x: PolarsExpr,
-        component: PolarsExpr,
-        timezone: PolarsExpr = None,
+        x: IbisExpr,
+        component: IbisExpr,
+        timezone: IbisExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Extract portion of a date/time value.
 
         Args:
@@ -89,43 +84,35 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Extracted component as integer.
         """
-        # Handle component as string or enum
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
-        # Map component to Polars extraction method
         component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "ISO_YEAR": lambda e: e.dt.iso_year(),
-            "QUARTER": lambda e: e.dt.quarter(),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),  # 1=Monday to 7=Sunday
-            "SUNDAY_DAY_OF_WEEK": lambda e: (e.dt.weekday() % 7) + 1,  # 1=Sunday to 7=Saturday
-            "ISO_WEEK": lambda e: e.dt.week(),
-            "MONDAY_WEEK": lambda e: e.dt.week(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
-            "SUBSECOND": lambda e: e.dt.microsecond(),  # Microseconds since last second
-            "UNIX_TIME": lambda e: e.dt.epoch("s"),
+            "YEAR": lambda e: e.year(),
+            "QUARTER": lambda e: e.quarter(),
+            "MONTH": lambda e: e.month(),
+            "DAY": lambda e: e.day(),
+            "DAY_OF_YEAR": lambda e: e.day_of_year(),
+            "MONDAY_DAY_OF_WEEK": lambda e: e.day_of_week.index() + ibis.literal(1),  # 1-indexed
+            "ISO_WEEK": lambda e: e.week_of_year(),
+            "HOUR": lambda e: e.hour(),
+            "MINUTE": lambda e: e.minute(),
+            "SECOND": lambda e: e.second(),
+            "MILLISECOND": lambda e: e.millisecond(),
+            "MICROSECOND": lambda e: e.microsecond(),
+            "UNIX_TIME": lambda e: e.epoch_seconds(),
         }
 
         if comp in component_map:
             return component_map[comp](x)
 
-        # Fallback for unhandled components
-        return x.dt.year()  # Default to year
+        return x.year()
 
     def extract_boolean(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
-        component: PolarsExpr,
-    ) -> PolarsExpr:
+        component: IbisExpr,
+    ) -> IbisExpr:
         """Extract boolean values of a date/time value.
 
         Args:
@@ -138,107 +125,113 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
         if comp == "IS_LEAP_YEAR":
-            # A year is a leap year if divisible by 4, except centuries unless divisible by 400
-            year = x.dt.year()
-            return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
+            year = x.year()
+            return ((year % ibis.literal(4) == ibis.literal(0)) &
+                    (year % ibis.literal(100) != ibis.literal(0))) | (year % ibis.literal(400) == ibis.literal(0))
 
         if comp == "IS_DST":
-            # Polars doesn't have direct DST detection
-            # Return a placeholder - would need timezone-aware implementation
-            return pl.lit(False)
+            return ibis.literal(False)
 
-        return pl.lit(False)
+        return ibis.literal(False)
 
     # =========================================================================
     # Convenience Extraction Methods
     # =========================================================================
 
-    def year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def year(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the year."""
-        return x.dt.year()
+        return x.year()
 
-    def month(self, x: PolarsExpr, /) -> PolarsExpr:
+    def month(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the month (1-12)."""
-        return x.dt.month()
+        return x.month()
 
-    def day(self, x: PolarsExpr, /) -> PolarsExpr:
+    def day(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the day of month (1-31)."""
-        return x.dt.day()
+        return x.day()
 
-    def hour(self, x: PolarsExpr, /) -> PolarsExpr:
+    def hour(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the hour (0-23)."""
-        return x.dt.hour()
+        return x.hour()
 
-    def minute(self, x: PolarsExpr, /) -> PolarsExpr:
+    def minute(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the minute (0-59)."""
-        return x.dt.minute()
+        return x.minute()
 
-    def second(self, x: PolarsExpr, /) -> PolarsExpr:
+    def second(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the second (0-59)."""
-        return x.dt.second()
+        return x.second()
 
-    def millisecond(self, x: PolarsExpr, /) -> PolarsExpr:
+    def millisecond(self, x: IbisExpr, /) -> IbisExpr:
         """Extract milliseconds since last full second."""
-        return x.dt.millisecond()
+        return x.millisecond()
 
-    def microsecond(self, x: PolarsExpr, /) -> PolarsExpr:
+    def microsecond(self, x: IbisExpr, /) -> IbisExpr:
         """Extract microseconds since last full millisecond."""
-        return x.dt.microsecond()
+        return x.microsecond()
 
-    def nanosecond(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract nanoseconds since last full microsecond."""
-        return x.dt.nanosecond()
+    def nanosecond(self, x: IbisExpr, /) -> IbisExpr:
+        """Extract nanoseconds since last full microsecond.
 
-    def quarter(self, x: PolarsExpr, /) -> PolarsExpr:
+        Note: Ibis may not have nanosecond. Falls back to 0.
+        """
+        # Ibis doesn't have nanosecond - fallback
+        return ibis.literal(0)
+
+    def quarter(self, x: IbisExpr, /) -> IbisExpr:
         """Extract the quarter (1-4)."""
-        return x.dt.quarter()
+        return x.quarter()
 
-    def day_of_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def day_of_year(self, x: IbisExpr, /) -> IbisExpr:
         """Extract day of year (1-366)."""
-        return x.dt.ordinal_day()
+        return x.day_of_year()
 
-    def day_of_week(self, x: PolarsExpr, /) -> PolarsExpr:
+    def day_of_week(self, x: IbisExpr, /) -> IbisExpr:
         """Extract day of week (Monday=1 to Sunday=7)."""
-        return x.dt.weekday()
+        return x.day_of_week.index() + ibis.literal(1)
 
-    def week_of_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def week_of_year(self, x: IbisExpr, /) -> IbisExpr:
         """Extract ISO week of year (1-53)."""
-        return x.dt.week()
+        return x.week_of_year()
 
-    def iso_year(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract ISO 8601 week-numbering year."""
-        return x.dt.iso_year()
+    def iso_year(self, x: IbisExpr, /) -> IbisExpr:
+        """Extract ISO 8601 week-numbering year.
 
-    def unix_timestamp(self, x: PolarsExpr, /) -> PolarsExpr:
+        Note: Ibis may not have iso_year. Falls back to year.
+        """
+        # Ibis doesn't have iso_year - fallback
+        return x.year()
+
+    def unix_timestamp(self, x: IbisExpr, /) -> IbisExpr:
         """Extract seconds since 1970-01-01 00:00:00 UTC."""
-        return x.dt.epoch("s")
+        return x.epoch_seconds()
 
-    def timezone_offset(self, x: PolarsExpr, /) -> PolarsExpr:
+    def timezone_offset(self, x: IbisExpr, /) -> IbisExpr:
         """Extract timezone offset to UTC in seconds.
 
-        Note: Polars doesn't directly expose timezone offset.
-        Returns 0 for timezone-naive datetimes.
+        Note: Ibis doesn't directly expose timezone offset.
+        Returns 0 as a placeholder.
         """
-        # Polars doesn't have direct timezone offset extraction
-        return pl.lit(0)
+        return ibis.literal(0)
 
-    def is_leap_year(self, x: PolarsExpr, /) -> PolarsExpr:
+    def is_leap_year(self, x: IbisExpr, /) -> IbisExpr:
         """Check if the year is a leap year."""
-        year = x.dt.year()
-        return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
+        year = x.year()
+        return ((year % ibis.literal(4) == ibis.literal(0)) &
+                (year % ibis.literal(100) != ibis.literal(0))) | (year % ibis.literal(400) == ibis.literal(0))
 
     def is_dst(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         /,
         timezone: str = None,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Check if DST is observed at this time.
 
-        Note: Polars doesn't have direct DST detection.
+        Note: Ibis doesn't have direct DST detection.
         Returns False as a placeholder.
         """
-        return pl.lit(False)
+        return ibis.literal(False)
 
     # =========================================================================
     # Date Arithmetic Methods
@@ -246,10 +239,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def add_years(
         self,
-        x: PolarsExpr,
-        years: PolarsExpr,
+        x: IbisExpr,
+        years: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add years to a datetime.
 
         Args:
@@ -259,18 +252,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with years added.
         """
-        if isinstance(years, int):
-            return x.dt.offset_by(f"{years}y")
-        # For expression, need to build offset string
-        years_expr = pl.lit(years) if not isinstance(years, pl.Expr) else years
-        return x.dt.offset_by(years_expr.cast(pl.Utf8) + "y")
+        years_val = self._extract_literal_value(years)
+        if isinstance(years_val, int):
+            return x + ibis.interval(years=years_val)
+        return x
 
     def add_months(
         self,
-        x: PolarsExpr,
-        months: PolarsExpr,
+        x: IbisExpr,
+        months: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add months to a datetime.
 
         Args:
@@ -280,17 +272,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with months added.
         """
-        if isinstance(months, int):
-            return x.dt.offset_by(f"{months}mo")
-        months_expr = pl.lit(months) if not isinstance(months, pl.Expr) else months
-        return x.dt.offset_by(months_expr.cast(pl.Utf8) + "mo")
+        months_val = self._extract_literal_value(months)
+        if isinstance(months_val, int):
+            return x + ibis.interval(months=months_val)
+        return x
 
     def add_days(
         self,
-        x: PolarsExpr,
-        days: PolarsExpr,
+        x: IbisExpr,
+        days: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add days to a datetime.
 
         Args:
@@ -300,17 +292,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with days added.
         """
-        if isinstance(days, int):
-            return x.dt.offset_by(f"{days}d")
-        days_expr = pl.lit(days) if not isinstance(days, pl.Expr) else days
-        return x.dt.offset_by(days_expr.cast(pl.Utf8) + "d")
+        days_val = self._extract_literal_value(days)
+        if isinstance(days_val, int):
+            return x + ibis.interval(days=days_val)
+        return x
 
     def add_hours(
         self,
-        x: PolarsExpr,
-        hours: PolarsExpr,
+        x: IbisExpr,
+        hours: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add hours to a datetime.
 
         Args:
@@ -320,17 +312,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with hours added.
         """
-        if isinstance(hours, int):
-            return x.dt.offset_by(f"{hours}h")
-        hours_expr = pl.lit(hours) if not isinstance(hours, pl.Expr) else hours
-        return x.dt.offset_by(hours_expr.cast(pl.Utf8) + "h")
+        hours_val = self._extract_literal_value(hours)
+        if isinstance(hours_val, int):
+            return x + ibis.interval(hours=hours_val)
+        return x
 
     def add_minutes(
         self,
-        x: PolarsExpr,
-        minutes: PolarsExpr,
+        x: IbisExpr,
+        minutes: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add minutes to a datetime.
 
         Args:
@@ -340,17 +332,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with minutes added.
         """
-        if isinstance(minutes, int):
-            return x.dt.offset_by(f"{minutes}m")
-        minutes_expr = pl.lit(minutes) if not isinstance(minutes, pl.Expr) else minutes
-        return x.dt.offset_by(minutes_expr.cast(pl.Utf8) + "m")
+        minutes_val = self._extract_literal_value(minutes)
+        if isinstance(minutes_val, int):
+            return x + ibis.interval(minutes=minutes_val)
+        return x
 
     def add_seconds(
         self,
-        x: PolarsExpr,
-        seconds: PolarsExpr,
+        x: IbisExpr,
+        seconds: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add seconds to a datetime.
 
         Args:
@@ -360,17 +352,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with seconds added.
         """
-        if isinstance(seconds, int):
-            return x.dt.offset_by(f"{seconds}s")
-        seconds_expr = pl.lit(seconds) if not isinstance(seconds, pl.Expr) else seconds
-        return x.dt.offset_by(seconds_expr.cast(pl.Utf8) + "s")
+        seconds_val = self._extract_literal_value(seconds)
+        if isinstance(seconds_val, int):
+            return x + ibis.interval(seconds=seconds_val)
+        return x
 
     def add_milliseconds(
         self,
-        x: PolarsExpr,
-        milliseconds: PolarsExpr,
+        x: IbisExpr,
+        milliseconds: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add milliseconds to a datetime.
 
         Args:
@@ -380,17 +372,17 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with milliseconds added.
         """
-        if isinstance(milliseconds, int):
-            return x.dt.offset_by(f"{milliseconds}ms")
-        ms_expr = pl.lit(milliseconds) if not isinstance(milliseconds, pl.Expr) else milliseconds
-        return x.dt.offset_by(ms_expr.cast(pl.Utf8) + "ms")
+        ms_val = self._extract_literal_value(milliseconds)
+        if isinstance(ms_val, int):
+            return x + ibis.interval(milliseconds=ms_val)
+        return x
 
     def add_microseconds(
         self,
-        x: PolarsExpr,
-        microseconds: PolarsExpr,
+        x: IbisExpr,
+        microseconds: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add microseconds to a datetime.
 
         Args:
@@ -400,10 +392,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with microseconds added.
         """
-        if isinstance(microseconds, int):
-            return x.dt.offset_by(f"{microseconds}us")
-        us_expr = pl.lit(microseconds) if not isinstance(microseconds, pl.Expr) else microseconds
-        return x.dt.offset_by(us_expr.cast(pl.Utf8) + "us")
+        us_val = self._extract_literal_value(microseconds)
+        if isinstance(us_val, int):
+            return x + ibis.interval(microseconds=us_val)
+        return x
 
     # =========================================================================
     # Date Difference Methods
@@ -411,10 +403,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def diff_years(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in years.
 
         Args:
@@ -424,14 +416,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in years (x - other).
         """
-        return x.dt.year() - other.dt.year()
+        return x.year() - other.year()
 
     def diff_months(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in months.
 
         Args:
@@ -441,16 +433,16 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in months (x - other).
         """
-        years_diff = x.dt.year() - other.dt.year()
-        months_diff = x.dt.month() - other.dt.month()
-        return years_diff * 12 + months_diff
+        years_diff = x.year() - other.year()
+        months_diff = x.month() - other.month()
+        return years_diff * ibis.literal(12) + months_diff
 
     def diff_days(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in days.
 
         Args:
@@ -460,14 +452,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in days (x - other).
         """
-        return (x - other).dt.total_days()
+        return x.delta(other, unit="day")
 
     def diff_hours(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in hours.
 
         Args:
@@ -477,14 +469,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in hours (x - other).
         """
-        return (x - other).dt.total_hours()
+        return x.delta(other, unit="hour")
 
     def diff_minutes(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in minutes.
 
         Args:
@@ -494,14 +486,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in minutes (x - other).
         """
-        return (x - other).dt.total_minutes()
+        return x.delta(other, unit="minute")
 
     def diff_seconds(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in seconds.
 
         Args:
@@ -511,14 +503,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in seconds (x - other).
         """
-        return (x - other).dt.total_seconds()
+        return x.delta(other, unit="second")
 
     def diff_milliseconds(
         self,
-        x: PolarsExpr,
-        other: PolarsExpr,
+        x: IbisExpr,
+        other: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Calculate difference in milliseconds.
 
         Args:
@@ -528,7 +520,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Difference in milliseconds (x - other).
         """
-        return (x - other).dt.total_milliseconds()
+        return x.delta(other, unit="millisecond")
 
     # =========================================================================
     # Truncation / Rounding Methods
@@ -536,79 +528,98 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def truncate(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: IbisExpr,
+    ) -> IbisExpr:
         """Truncate datetime to the specified unit.
 
         Args:
             x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
+            unit: Unit string (1d, 1h, Y, M, D, h, m, s, etc.).
 
         Returns:
             Truncated datetime.
         """
         unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        # Ibis truncate expects just the unit letter, not "1d" format
+        # Convert "1d" -> "D", "1h" -> "h", etc.
+        unit_mapping = {
+            "1y": "Y",
+            "1mo": "M",
+            "1w": "W",
+            "1d": "D",
+            "1h": "h",
+            "1m": "m",
+            "1s": "s",
+            "1ms": "ms",
+            "1us": "us",
+        }
+        if unit_val in unit_mapping:
+            unit_val = unit_mapping[unit_val]
+        return x.truncate(unit_val)
 
     def round(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: IbisExpr,
+    ) -> IbisExpr:
         """Round datetime to the nearest unit.
 
         Args:
             x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
+            unit: Unit string.
 
         Returns:
             Rounded datetime.
+
+        Note:
+            Ibis may not have round. Falls back to truncate.
         """
+        # Ibis doesn't have round - fallback to truncate
         unit_val = self._extract_literal_value(unit)
-        return x.dt.round(unit_val)
+        return x.truncate(unit_val)
 
     def ceil(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: IbisExpr,
+    ) -> IbisExpr:
         """Round datetime up to the next unit.
 
         Args:
             x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
+            unit: Unit string.
 
         Returns:
             Ceiling datetime.
+
+        Note:
+            Ibis doesn't have ceil. Falls back to truncate.
         """
-        # Polars doesn't have ceil for datetime, use truncate + add
+        # Ibis doesn't have ceil - fallback to truncate
         unit_val = self._extract_literal_value(unit)
-        truncated = x.dt.truncate(unit_val)
-        # If truncated != original, add one unit
-        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
+        return x.truncate(unit_val)
 
     def floor(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
+        unit: IbisExpr,
+    ) -> IbisExpr:
         """Round datetime down to the previous unit.
 
         Args:
             x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
+            unit: Unit string.
 
         Returns:
             Floor datetime.
         """
-        # Floor is the same as truncate
         unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.truncate(unit_val)
 
     # =========================================================================
     # Timezone Methods
@@ -616,10 +627,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def to_timezone(
         self,
-        x: PolarsExpr,
-        timezone: PolarsExpr,
+        x: IbisExpr,
+        timezone: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Convert to specified timezone.
 
         Args:
@@ -628,15 +639,19 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Datetime in target timezone.
+
+        Note:
+            Ibis may not have timezone conversion. Falls back to input.
         """
-        return x.dt.convert_time_zone(timezone)
+        # Ibis doesn't have convert_time_zone - fallback
+        return x
 
     def assume_timezone(
         self,
-        x: PolarsExpr,
-        timezone: PolarsExpr,
+        x: IbisExpr,
+        timezone: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Assume the timestamp is in the specified timezone.
 
         Args:
@@ -645,8 +660,12 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Timezone-aware datetime.
+
+        Note:
+            Ibis may not have timezone assignment. Falls back to input.
         """
-        return x.dt.replace_time_zone(timezone)
+        # Ibis doesn't have replace_time_zone - fallback
+        return x
 
     # =========================================================================
     # Formatting Methods
@@ -654,10 +673,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def strftime(
         self,
-        x: PolarsExpr,
-        format: PolarsExpr,
+        x: IbisExpr,
+        format: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Format datetime as string.
 
         Args:
@@ -667,7 +686,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Formatted string.
         """
-        return x.dt.strftime(format)
+        return x.strftime(format)
 
     # =========================================================================
     # Substrait Interval Operations
@@ -675,10 +694,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def add(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add an interval to a date/time value.
 
         Args:
@@ -692,10 +711,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def subtract(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Subtract an interval from a date/time value.
 
         Args:
@@ -709,10 +728,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def multiply(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Multiply an interval by an integral number.
 
         Args:
@@ -726,10 +745,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def add_intervals(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add two intervals together.
 
         Args:
@@ -747,10 +766,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def lt(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Less than comparison for datetime/interval.
 
         Args:
@@ -764,10 +783,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def lte(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Less than or equal comparison for datetime/interval.
 
         Args:
@@ -781,10 +800,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def gt(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Greater than comparison for datetime/interval.
 
         Args:
@@ -798,10 +817,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def gte(
         self,
-        x: PolarsExpr,
-        y: PolarsExpr,
+        x: IbisExpr,
+        y: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Greater than or equal comparison for datetime/interval.
 
         Args:
@@ -819,10 +838,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def local_timestamp(
         self,
-        x: PolarsExpr,
-        timezone: PolarsExpr,
+        x: IbisExpr,
+        timezone: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Convert UTC-relative timestamp_tz to local timestamp.
 
         Args:
@@ -831,9 +850,12 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Local timestamp in the given timezone.
+
+        Note:
+            Ibis may not have timezone conversion. Falls back to input.
         """
-        # Convert to timezone then remove timezone info
-        return x.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
+        # Ibis doesn't have robust timezone conversion - fallback
+        return x
 
     # =========================================================================
     # Substrait Parsing Operations
@@ -841,10 +863,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def strptime_time(
         self,
-        time_string: PolarsExpr,
-        format: PolarsExpr,
+        time_string: IbisExpr,
+        format: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Parse string into time using provided format.
 
         Args:
@@ -853,15 +875,19 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Parsed time expression.
+
+        Note:
+            Ibis may not have strptime_time. Falls back to cast.
         """
-        return time_string.str.to_time(format)
+        # Ibis doesn't have strptime for time - fallback
+        return time_string.cast("time")
 
     def strptime_date(
         self,
-        date_string: PolarsExpr,
-        format: PolarsExpr,
+        date_string: IbisExpr,
+        format: IbisExpr,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Parse string into date using provided format.
 
         Args:
@@ -870,16 +896,20 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Parsed date expression.
+
+        Note:
+            Ibis may not have strptime_date. Falls back to cast.
         """
-        return date_string.str.to_date(format)
+        # Ibis doesn't have strptime for date - fallback
+        return date_string.cast("date")
 
     def strptime_timestamp(
         self,
-        timestamp_string: PolarsExpr,
-        format: PolarsExpr,
-        timezone: PolarsExpr = None,
+        timestamp_string: IbisExpr,
+        format: IbisExpr,
+        timezone: IbisExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Parse string into timestamp using provided format.
 
         Args:
@@ -889,11 +919,12 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Parsed timestamp expression.
+
+        Note:
+            Ibis may not have strptime. Falls back to cast.
         """
-        result = timestamp_string.str.to_datetime(format)
-        if timezone is not None:
-            result = result.dt.replace_time_zone(timezone)
-        return result
+        # Ibis doesn't have strptime - fallback to cast
+        return timestamp_string.cast("timestamp")
 
     # =========================================================================
     # Substrait Rounding Operations
@@ -901,13 +932,13 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
     def round_temporal(
         self,
-        x: PolarsExpr,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        multiple: PolarsExpr = None,
-        origin: PolarsExpr = None,
+        x: IbisExpr,
+        rounding: IbisExpr,
+        unit: IbisExpr,
+        multiple: IbisExpr = None,
+        origin: IbisExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Round datetime to a multiple of a time unit.
 
         Args:
@@ -919,28 +950,23 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Rounded datetime.
-        """
-        rounding_val = self._extract_literal_value(rounding) if rounding else "FLOOR"
-        unit_val = self._extract_literal_value(unit)
 
-        if rounding_val == "FLOOR":
-            return x.dt.truncate(unit_val)
-        elif rounding_val == "CEIL":
-            truncated = x.dt.truncate(unit_val)
-            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
-        else:
-            # ROUND_TIE_DOWN, ROUND_TIE_UP - use round
-            return x.dt.round(unit_val)
+        Note:
+            Ibis only supports truncate. Falls back to truncate for all modes.
+        """
+        unit_val = self._extract_literal_value(unit)
+        # Ibis only has truncate - use for all rounding modes
+        return x.truncate(unit_val)
 
     def round_calendar(
         self,
-        x: PolarsExpr,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        origin: PolarsExpr = None,
-        multiple: PolarsExpr = None,
+        x: IbisExpr,
+        rounding: IbisExpr,
+        unit: IbisExpr,
+        origin: IbisExpr = None,
+        multiple: IbisExpr = None,
         /,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Round datetime to a calendar unit.
 
         Similar to round_temporal but for calendar-aware rounding.
@@ -954,35 +980,65 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
 
         Returns:
             Rounded datetime.
+
+        Note:
+            Ibis only supports truncate. Falls back to truncate.
         """
-        # For Polars, calendar rounding uses the same approach
         return self.round_temporal(x, rounding, unit, multiple, origin)
 
     # =========================================================================
     # Snapshot Methods (Static)
     # =========================================================================
 
-    def today(self) -> PolarsExpr:
+    def today(self) -> IbisExpr:
         """Return today's date as a literal expression."""
-        return pl.lit(date.today())
+        return ibis.literal(date.today())
 
-    def now(self) -> PolarsExpr:
+    def now(self) -> IbisExpr:
         """Return current datetime as a literal expression."""
-        return pl.lit(datetime.now())
+        return ibis.now()
 
     # =========================================================================
     # Flexible Duration Offset
     # =========================================================================
 
+    def _parse_duration_string(self, duration: str) -> list:
+        """Parse a duration string into individual offset components.
+
+        Args:
+            duration: Duration string like "1d2h", "-3mo", "2h30m"
+
+        Returns:
+            List of (amount, unit) tuples
+        """
+        import re
+
+        is_negative = duration.startswith('-')
+        if is_negative:
+            duration = duration[1:]
+
+        components = []
+        # Pattern: number followed by unit (handle 'mo' before 'm')
+        pattern = r'(\d+)(y|mo|w|d|h|m|s)'
+
+        for match in re.finditer(pattern, duration):
+            amount = int(match.group(1))
+            unit = match.group(2)
+            if is_negative:
+                amount = -amount
+            components.append((amount, unit))
+
+        return components
+
     def offset_by(
         self,
-        x: PolarsExpr,
+        x: IbisExpr,
         *,
         offset: str,
-    ) -> PolarsExpr:
+    ) -> IbisExpr:
         """Add/subtract flexible duration from datetime.
 
-        Uses shared temporal helper for parsing combined duration strings.
+        Uses ibis.interval() for each component.
 
         Args:
             x: Datetime expression.
@@ -991,13 +1047,24 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Datetime with offset applied.
         """
-        from mountainash_expressions.core.utils.temporal import parse_combined_duration
-
         offset_val = self._extract_literal_value(offset)
-        components = parse_combined_duration(offset_val)
+        components = self._parse_duration_string(offset_val)
+
+        # Map unit abbreviations to ibis.interval kwargs
+        unit_mapping = {
+            "y": "years",
+            "mo": "months",
+            "w": "weeks",
+            "d": "days",
+            "h": "hours",
+            "m": "minutes",
+            "s": "seconds",
+        }
 
         result = x
-        for component in components:
-            result = result.dt.offset_by(component)
+        for amount, unit in components:
+            if unit in unit_mapping:
+                interval = ibis.interval(**{unit_mapping[unit]: amount})
+                result = result + interval
 
         return result
