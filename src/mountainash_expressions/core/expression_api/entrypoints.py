@@ -20,11 +20,11 @@ from ..expression_nodes import (
     LiteralNode,
     ScalarFunctionNode,
 )
-from ..expression_system.function_keys.enums import KEY_SCALAR_COMPARISON
-from .api_namespaces.core import WhenBuilder
+from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
+from .api_builders.substrait.api_bldr_conditional import SubstraitWhenAPIBuilder
 
 if TYPE_CHECKING:
-    from ..expression_api.base import BaseExpressionAPI
+    from .api_base import BaseExpressionAPI
     from ..expression_nodes import ExpressionNode
 
 
@@ -124,7 +124,7 @@ def coalesce(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
 
     operands = [_to_substrait_node(e) for e in exprs]
     node = ScalarFunctionNode(
-        function_key=KEY_SCALAR_COMPARISON.COALESCE,
+        function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE,
         arguments=operands,
     )
     return BooleanExpressionAPI(node)
@@ -154,7 +154,7 @@ def greatest(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
 
     operands = [_to_substrait_node(e) for e in exprs]
     node = ScalarFunctionNode(
-        function_key=KEY_SCALAR_COMPARISON.GREATEST,
+        function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GREATEST,
         arguments=operands,
     )
     return BooleanExpressionAPI(node)
@@ -184,7 +184,7 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
 
     operands = [_to_substrait_node(e) for e in exprs]
     node = ScalarFunctionNode(
-        function_key=KEY_SCALAR_COMPARISON.LEAST,
+        function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LEAST,
         arguments=operands,
     )
     return BooleanExpressionAPI(node)
@@ -194,7 +194,7 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
 # Conditional Entry Points
 # ============================================================================
 
-def when(condition: Union[BaseExpressionAPI, ExpressionNode, Any]) -> WhenBuilder:
+def when(condition: Union[BaseExpressionAPI, ExpressionNode, Any]) -> SubstraitWhenAPIBuilder:
     """
     Start a conditional when-then-otherwise expression.
 
@@ -211,7 +211,7 @@ def when(condition: Union[BaseExpressionAPI, ExpressionNode, Any]) -> WhenBuilde
     from ..expression_api import BooleanExpressionAPI
 
     condition_node = _to_substrait_node(condition)
-    return WhenBuilder(
+    return SubstraitWhenAPIBuilder(
         condition=condition_node,
         prior_conditions=[],
         expression_api_class=BooleanExpressionAPI,
@@ -310,11 +310,11 @@ def always_true() -> BaseExpressionAPI:
         >>> expr = always_true()  # Returns 1 for all rows
     """
     from ..expression_api import BooleanExpressionAPI
-    from ..expression_system.function_keys.enums import MOUNTAINASH_TERNARY
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 
     # Use ScalarFunctionNode so it flows through auto-booleanization
     node = ScalarFunctionNode(
-        function_key=MOUNTAINASH_TERNARY.ALWAYS_TRUE,
+        function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE,
         arguments=[],
     )
     return BooleanExpressionAPI(node)
@@ -331,11 +331,11 @@ def always_false() -> BaseExpressionAPI:
         >>> expr = always_false()  # Returns -1 for all rows
     """
     from ..expression_api import BooleanExpressionAPI
-    from ..expression_system.function_keys.enums import MOUNTAINASH_TERNARY
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 
     # Use ScalarFunctionNode so it flows through auto-booleanization
     node = ScalarFunctionNode(
-        function_key=MOUNTAINASH_TERNARY.ALWAYS_FALSE,
+        function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE,
         arguments=[],
     )
     return BooleanExpressionAPI(node)
@@ -353,11 +353,11 @@ def always_unknown() -> BaseExpressionAPI:
         >>> expr = when(condition).then(value).otherwise(always_unknown())
     """
     from ..expression_api import BooleanExpressionAPI
-    from ..expression_system.function_keys.enums import MOUNTAINASH_TERNARY
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 
     # Use ScalarFunctionNode so it flows through auto-booleanization
     node = ScalarFunctionNode(
-        function_key=MOUNTAINASH_TERNARY.ALWAYS_UNKNOWN,
+        function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_UNKNOWN,
         arguments=[],
     )
     return BooleanExpressionAPI(node)

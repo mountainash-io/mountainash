@@ -9,37 +9,32 @@ from typing import TYPE_CHECKING, ClassVar
 
 from .api_base import BaseExpressionAPI
 
+
+
+
 # Import flat namespaces from new Substrait-aligned core
-from .api_namespaces.core import (
-    # Ternary FIRST for is_true/is_false/is_unknown/is_known priority
-    TernaryNamespace,
-    # Boolean operations (eq, ne, gt, lt, ge, le, and_, or_, not_, xor_, is_in, etc.)
-    ScalarBooleanNamespace,
-    # Comparison operations (is_null, is_not_null, coalesce, greatest, least)
-    ScalarComparisonNamespace,
-    # Arithmetic operations (add, subtract, multiply, divide, etc.)
-    ScalarArithmeticNamespace,
-    # Rounding operations (ceil, floor, round)
-    ScalarRoundingNamespace,
-    # Logarithmic operations (log, sqrt, abs, exp)
-    ScalarLogarithmicNamespace,
-    # Cast operations (cast)
-    CastNamespace,
-    # Null handling (fill_null, null_if)
-    NullNamespace,
-    # Native expression passthrough (as_native)
-    NativeNamespace,
+from .api_builders.substrait import (
+    SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder,
+
+    SubstraitCastAPIBuilder,
+    SubstraitFieldReferenceAPIBuilder,
+    SubstraitLiteralAPIBuilder,
+    # SubstraitScalarAggregateAPIBuilder,
+    SubstraitScalarArithmeticAPIBuilder,
+    SubstraitScalarBooleanAPIBuilder,
+    SubstraitScalarComparisonAPIBuilder,
+    SubstraitScalarLogarithmicAPIBuilder,
+    SubstraitScalarRoundingAPIBuilder,
+    SubstraitScalarSetAPIBuilder,
+
+    SubstraitScalarDatetimeAPIBuilder,
+    SubstraitScalarStringAPIBuilder,
 )
 
-# Import explicit namespaces (accessed via .str, .dt, .name)
-from .api_namespaces.core import (
-    StringNamespace,
-    DateTimeNamespace,
-    NameNamespace,
-)
+
 
 # Import base namespace type for type hints
-from .api_namespaces.ns_base import BaseExpressionNamespace
+from .api_builders.api_builder_base import BaseExpressionAPIBuilder
 
 # Import descriptor for explicit namespaces
 from .descriptor import NamespaceDescriptor
@@ -84,22 +79,24 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     # Flat namespaces - methods dispatched via __getattr__
     # TernaryNamespace first so ternary-specific methods (is_true, is_false, etc.)
     # take priority when there are conflicts with ScalarComparisonNamespace
-    _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionNamespace], ...]] = (
-        TernaryNamespace,           # t_*, is_true, is_false, is_unknown, is_known, etc.
-        ScalarBooleanNamespace,     # eq, ne, gt, lt, ge, le, and_, or_, not_, xor_, is_in
-        ScalarComparisonNamespace,  # is_null, is_not_null, coalesce, greatest, least
-        ScalarArithmeticNamespace,  # add, subtract, multiply, divide, modulo, power
-        ScalarRoundingNamespace,    # ceil, floor, round
-        ScalarLogarithmicNamespace, # log, sqrt, abs, exp
-        CastNamespace,              # cast
-        NullNamespace,              # fill_null, null_if
-        NativeNamespace,            # as_native
+    _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionAPIBuilder], ...]] = (
+        SubstraitCastAPIBuilder,
+        SubstraitFieldReferenceAPIBuilder,
+        SubstraitLiteralAPIBuilder,
+        # SubstraitScalarAggregateAPIBuilder,
+        SubstraitScalarArithmeticAPIBuilder,
+        SubstraitScalarBooleanAPIBuilder,
+        SubstraitScalarComparisonAPIBuilder,
+        SubstraitScalarLogarithmicAPIBuilder,
+        SubstraitScalarRoundingAPIBuilder,
+        SubstraitScalarSetAPIBuilder,
+
     )
 
     # Explicit namespace descriptors - accessed via .str, .dt, .name
-    str = NamespaceDescriptor(StringNamespace)
-    dt = NamespaceDescriptor(DateTimeNamespace)
-    name = NamespaceDescriptor(NameNamespace)
+    str = NamespaceDescriptor(SubstraitScalarStringAPIBuilder)
+    dt = NamespaceDescriptor(SubstraitScalarDatetimeAPIBuilder)
+    # name = NamespaceDescriptor(NameNamespace)
 
     @classmethod
     def create(cls, node: ExpressionNode) -> BooleanExpressionAPI:

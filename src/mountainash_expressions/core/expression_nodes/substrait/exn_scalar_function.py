@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any, Dict, List, Union
 
 from .exn_base import ExpressionNode
-from ..expression_system.function_keys.enums import (
+from ...expression_system.function_keys.enums import (
     MOUNTAINASH_TERNARY_NON_TERMINAL,
     MOUNTAINASH_TERNARY_ALL,
 )
