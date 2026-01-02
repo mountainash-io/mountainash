@@ -30,7 +30,7 @@ T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN  # 0
 T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE    # -1
 
 
-class PolarsMAExtTernaryExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol):
+class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol):
     """Polars implementation of TernaryExpressionProtocol.
 
     Implements three-valued logic operations for the Polars backend.

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 
-class PolarsMAExtNullExtensionSystem(PolarsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
+class MountainAshPolarsNullExpressionSystem(PolarsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
     """Polars implementation of MountainashNullExpressionProtocol.
 
     Implements null handling extension methods:
@@ -30,7 +30,7 @@ class PolarsMAExtNullExtensionSystem(PolarsBaseExpressionSystem, MountainAshNull
     def fill_null(
         self,
         input: PolarsExpr,
-        replacement: PolarsExpr,
+        replacement: Any,
         /,
     ) -> PolarsExpr:
         """Replace NULL values with the specified replacement value.
@@ -43,20 +43,3 @@ class PolarsMAExtNullExtensionSystem(PolarsBaseExpressionSystem, MountainAshNull
             Expression with NULLs replaced by the replacement value.
         """
         return input.fill_null(replacement)
-
-    def null_if(
-        self,
-        input: PolarsExpr,
-        value: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Replace values equal to the specified value with NULL.
-
-        Args:
-            input: Expression to check.
-            value: Value that should become NULL.
-
-        Returns:
-            Expression with matching values replaced by NULL.
-        """
-        return pl.when(input == value).then(pl.lit(None)).otherwise(input)

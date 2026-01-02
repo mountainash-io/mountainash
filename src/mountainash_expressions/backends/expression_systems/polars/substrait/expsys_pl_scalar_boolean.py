@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 # Type alias for expression type
 
-class PolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
+class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
     """Polars implementation of ScalarBooleanExpressionProtocol.
 
     Implements 5 boolean methods using Kleene (three-valued) logic:
@@ -40,7 +40,7 @@ class PolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitS
         For 0 inputs: returns true
         For 1 input: returns that input
         """
-        if len(args) == 0:
+        if len(v) == 0:
             return pl.lit(True)
         if len(args) == 1:
             return args[0]
@@ -97,13 +97,3 @@ class PolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitS
         - null and not false = null
         """
         return a & (~b)
-
-    def xor_parity(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:
-        """XOR parity check (odd number of TRUE values).
-
-        Returns TRUE if an odd number of operands are TRUE.
-        For two operands, this is equivalent to XOR.
-
-        Returns null if either input is null.
-        """
-        return a ^ b

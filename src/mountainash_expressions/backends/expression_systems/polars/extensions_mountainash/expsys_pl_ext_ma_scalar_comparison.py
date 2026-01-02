@@ -45,22 +45,6 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
         """
         return x.ne(y)
 
-    def is_not_distinct_from(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
-        """Whether two values are equal, treating NULL as comparable.
-
-        is_not_distinct_from(null, null) == True
-        This differs from equal() where null values do not compare.
-        """
-        return x.eq(y).fill_null(x.is_null() & y.is_null())
-
-    def is_distinct_from(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
-        """Whether two values are not equal, treating NULL as comparable.
-
-        is_distinct_from(null, null) == False
-        This differs from not_equal() where null values do not compare.
-        """
-        return x.ne(y).fill_null(~(x.is_null() & y.is_null()))
-
     # =========================================================================
     # Ordering Operations
     # =========================================================================
@@ -96,9 +80,9 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
     def between(
         self,
         x: PolarsExpr,
-        /,
         low: PolarsExpr,
         high: PolarsExpr,
+        /,
     ) -> PolarsExpr:
         """Whether x is between low and high (inclusive).
 
@@ -181,7 +165,7 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
     # Null Handling Operations
     # =========================================================================
 
-    def nullif(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+    def nullif(self, x: PolarsExpr, /, y: PolarsExpr) -> PolarsExpr:
         """Return null if x equals y, otherwise return x.
 
         Equivalent to SQL NULLIF(x, y).

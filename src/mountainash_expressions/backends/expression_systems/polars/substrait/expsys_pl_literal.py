@@ -10,16 +10,16 @@ from typing import Any, TYPE_CHECKING
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
-from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitLiteralExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import PolarsExpr
 
 
-class PolarsLiteralExpressionSystem(PolarsBaseExpressionSystem, LiteralExpressionProtocol):
+class SubstraitPolarsLiteralExpressionSystem(PolarsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol):
     """Polars implementation of LiteralExpressionProtocol."""
 
-    def lit(self, x: Any) -> PolarsExpr:
+    def lit(self, x: Any, /) -> PolarsExpr:
         """Create a literal value expression.
 
         Args:

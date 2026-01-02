@@ -1,6 +1,6 @@
-"""Polars ScalarAggregateExpressionProtocol implementation.
+"""Polars aggregate protocol implementations.
 
-Implements aggregation operations for the Polars backend.
+Implements aggregation operations for the Polars backend using split protocols.
 """
 
 from __future__ import annotations
@@ -10,82 +10,25 @@ from typing import Any, TYPE_CHECKING
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
-from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarAggregateExpressionSystemProtocol
+
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitAggregateArithmeticExpressionSystemProtocol,
+    SubstraitAggregateBooleanExpressionSystemProtocol,
+    SubstraitAggregateGenericExpressionSystemProtocol,
+    SubstraitAggregateStringExpressionSystemProtocol,
+)
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import PolarsExpr
 
-# Type alias for expression type
+class SubstraitPolarsAggregateArithmeticExpressionSystem(
+    PolarsBaseExpressionSystem,
+    SubstraitAggregateArithmeticExpressionSystemProtocol
+):
+    """Polars implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 
-class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
-    """Polars implementation of ScalarAggregateExpressionProtocol.
-
-    Implements aggregation methods:
-    - count: Count values in a set
-    - count_all: Count all records
-    - any_value: Select arbitrary value from group
+    Implements arithmetic aggregation methods.
     """
-
-    def count(
-        self,
-        x: PolarsExpr,
-        /,
-        overflow: Any = None,
-    ) -> PolarsExpr:
-        """Count a set of values.
-
-        Counts non-null values.
-
-        Args:
-            x: Expression to count.
-            overflow: Overflow handling (ignored in Polars).
-
-        Returns:
-            Count expression.
-        """
-        return x.count()
-
-    def count_all(
-        self,
-        overflow: Any = None,
-    ) -> PolarsExpr:
-        """Count a set of records (not field referenced).
-
-        Counts all rows including nulls.
-
-        Args:
-            overflow: Overflow handling (ignored in Polars).
-
-        Returns:
-            Count expression.
-        """
-        return pl.count()
-
-    def any_value(
-        self,
-        x: PolarsExpr,
-        /,
-        ignore_nulls: Any = None,
-    ) -> PolarsExpr:
-        """Select an arbitrary value from a group of values.
-
-        Returns the first value in the group.
-        If input is empty, returns null.
-
-        Args:
-            x: Expression to select from.
-            ignore_nulls: Whether to ignore null values.
-
-        Returns:
-            First value in group.
-        """
-        if ignore_nulls:
-            return x.drop_nulls().first()
-        return x.first()
-
-    # =========================================================================
-    # Additional Aggregate Methods (Common Extensions)
-    # =========================================================================
 
     def sum(self, x: PolarsExpr, /) -> PolarsExpr:
         """Sum values.
@@ -347,6 +290,16 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
         """
         return x.quantile(q, interpolation=interpolation)
 
+
+class SubstraitPolarsAggregateBooleanExpressionSystem(
+    PolarsBaseExpressionSystem,
+    SubstraitAggregateBooleanExpressionSystemProtocol
+):
+    """Polars implementation of SubstraitAggregateBooleanExpressionSystemProtocol.
+
+    Implements boolean aggregation methods.
+    """
+
     # =========================================================================
     # Substrait Aggregate Boolean Methods
     # =========================================================================
@@ -378,6 +331,83 @@ class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem,
             Aggregated boolean expression.
         """
         return x.any()
+
+
+class SubstraitPolarsAggregateGenericExpressionSystem(
+    PolarsBaseExpressionSystem,
+    SubstraitAggregateGenericExpressionSystemProtocol
+):
+    """Polars implementation of SubstraitAggregateGenericExpressionSystemProtocol.
+
+    Implements generic aggregation methods.
+    """
+
+    def count(
+        self,
+        x: PolarsExpr,
+        /,
+        overflow: Any = None,
+    ) -> PolarsExpr:
+        """Count a set of values.
+
+        Counts non-null values.
+
+        Args:
+            x: Expression to count.
+            overflow: Overflow handling (ignored in Polars).
+
+        Returns:
+            Count expression.
+        """
+        return x.count()
+
+    def count_all(
+        self,
+        overflow: Any = None,
+    ) -> PolarsExpr:
+        """Count a set of records (not field referenced).
+
+        Counts all rows including nulls.
+
+        Args:
+            overflow: Overflow handling (ignored in Polars).
+
+        Returns:
+            Count expression.
+        """
+        return pl.count()
+
+    def any_value(
+        self,
+        x: PolarsExpr,
+        /,
+        ignore_nulls: Any = None,
+    ) -> PolarsExpr:
+        """Select an arbitrary value from a group of values.
+
+        Returns the first value in the group.
+        If input is empty, returns null.
+
+        Args:
+            x: Expression to select from.
+            ignore_nulls: Whether to ignore null values.
+
+        Returns:
+            First value in group.
+        """
+        if ignore_nulls:
+            return x.drop_nulls().first()
+        return x.first()
+
+
+class SubstraitPolarsAggregateStringExpressionSystem(
+    PolarsBaseExpressionSystem,
+    SubstraitAggregateStringExpressionSystemProtocol
+):
+    """Polars implementation of SubstraitAggregateStringExpressionSystemProtocol.
+
+    Implements string aggregation methods.
+    """
 
     # =========================================================================
     # Substrait Aggregate String Methods

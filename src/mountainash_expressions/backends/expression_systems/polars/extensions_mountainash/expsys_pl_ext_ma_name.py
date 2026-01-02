@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class PolarsMAExtNameExtensionSystem(PolarsBaseExpressionSystem, MountainAshNameExpressionSystemProtocol):
+class MountainAshPolarsNameExpressionSystem(PolarsBaseExpressionSystem, MountainAshNameExpressionSystemProtocol):
     """Polars implementation of MountainashNameExpressionProtocol."""
 
     def alias(self, input: PolarsExpr, /, name: str) -> PolarsExpr:

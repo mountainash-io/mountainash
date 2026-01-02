@@ -118,39 +118,39 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
     # Value Access Functions
     # =========================================================================
 
-    def first_value(self, expression: PolarsExpr, /) -> PolarsExpr:
+    def first_value(self, x: PolarsExpr, /) -> PolarsExpr:
         """Returns the first value in the window.
 
         Args:
-            expression: Expression to get first value from.
+            expression: x to get first value from.
 
         Returns:
             First value expression.
         """
-        return expression.first()
+        return x.first()
 
-    def last_value(self, expression: PolarsExpr, /) -> PolarsExpr:
+    def last_value(self, x: PolarsExpr, /) -> PolarsExpr:
         """Returns the last value in the window.
 
         Args:
-            expression: Expression to get last value from.
+            x: Expression to get last value from.
 
         Returns:
             Last value expression.
         """
-        return expression.last()
+        return x.last()
 
     def nth_value(
         self,
-        expression: PolarsExpr,
-        window_offset: PolarsExpr,
+        x: PolarsExpr,
         /,
+        window_offset: PolarsExpr,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
         """Returns a value from the nth row based on the window_offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             window_offset: Position in window (1-indexed).
             on_domain_error: Error handling mode.
 
@@ -160,13 +160,13 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         # Convert to 0-indexed and get value
         # For literal offset, use gather
         if isinstance(window_offset, int):
-            return expression.gather(window_offset - 1)
+            return x.gather(window_offset - 1)
         # For expression offset, more complex handling needed
-        return expression.gather(window_offset - 1)
+        return x.gather(window_offset - 1)
 
     def lead(
         self,
-        expression: PolarsExpr,
+        x: PolarsExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
@@ -174,7 +174,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         """Return a value from a following row based on physical offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             row_offset: Number of rows to look ahead (default 1).
             default: Default value if offset is out of range.
 
@@ -182,12 +182,12 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
             Value from following row.
         """
         if default is not None:
-            return expression.shift(-row_offset).fill_null(default)
-        return expression.shift(-row_offset)
+            return x.shift(-row_offset).fill_null(default)
+        return x.shift(-row_offset)
 
     def lag(
         self,
-        expression: PolarsExpr,
+        x: PolarsExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
@@ -195,7 +195,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         """Return a value from a previous row based on physical offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             row_offset: Number of rows to look back (default 1).
             default: Default value if offset is out of range.
 
@@ -203,5 +203,5 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
             Value from previous row.
         """
         if default is not None:
-            return expression.shift(row_offset).fill_null(default)
-        return expression.shift(row_offset)
+            return x.shift(row_offset).fill_null(default)
+        return x.shift(row_offset)

@@ -6,7 +6,6 @@ Implements set membership operations for the Polars backend.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Optional, Any
 
 import polars as pl
 
@@ -30,7 +29,7 @@ class SubstraitPolarsScalarSetExpressionSystem(PolarsBaseExpressionSystem, Subst
         self,
         needle: PolarsExpr,
         /,
-        *haystack: PolarsExpr
+        *haystack: PolarsExpr,
     ) -> PolarsExpr:
         """Return the 0-indexed position of needle in haystack, or -1 if not found.
 
@@ -55,3 +54,48 @@ class SubstraitPolarsScalarSetExpressionSystem(PolarsBaseExpressionSystem, Subst
             result = pl.when(needle == value).then(pl.lit(idx)).otherwise(result)
 
         return result
+
+    def is_in(
+        self,
+        needle: PolarsExpr,
+        /,
+        *haystack: PolarsExpr,
+    ) -> PolarsExpr:
+        """Check if needle is in haystack.
+
+        Args:
+            needle: Value to search for.
+            *haystack: Values to search in.
+
+        Returns:
+            Boolean expression.
+        """
+        if not haystack:
+            return pl.lit(False)
+
+        # Use Polars is_in for simple cases
+        if all(isinstance(v, (int, float, str, bool, type(None))) for v in haystack):
+            return needle.is_in(list(haystack))
+
+        # For expression haystack, use OR chain
+        result = pl.lit(False)
+        for value in haystack:
+            result = result | (needle == value)
+        return result
+
+    def is_not_in(
+        self,
+        needle: PolarsExpr,
+        /,
+        *haystack: PolarsExpr,
+    ) -> PolarsExpr:
+        """Check if needle is not in haystack.
+
+        Args:
+            needle: Value to search for.
+            *haystack: Values to search in.
+
+        Returns:
+            Boolean expression.
+        """
+        return ~self.is_in(needle, *haystack)

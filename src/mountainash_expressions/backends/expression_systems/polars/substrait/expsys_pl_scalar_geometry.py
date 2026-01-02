@@ -195,7 +195,7 @@ class SubstraitPolarsScalarGeometryExpressionSystem(PolarsBaseExpressionSystem, 
     # Geometry Transformations
     # =========================================================================
 
-    def buffer(self, geom: PolarsExpr, buffer_radius: PolarsExpr, /) -> PolarsExpr:
+    def buffer(self, geom: PolarsExpr, /, buffer_radius: PolarsExpr) -> PolarsExpr:
         """Compute an expanded version of the input geometry.
 
         Raises:

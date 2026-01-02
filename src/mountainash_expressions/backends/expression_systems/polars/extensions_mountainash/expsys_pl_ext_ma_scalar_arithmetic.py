@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from mountainash_expressions.types import PolarsExpr
 
 
-class PolarsMAExtScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
+class MountainAshPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
     """Polars implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 1 arithmetic methods:

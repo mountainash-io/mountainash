@@ -15,7 +15,12 @@ from .substrait.expsys_pl_conditional import SubstraitPolarsConditionalExpressio
 from .substrait.expsys_pl_field_reference import SubstraitPolarsFieldReferenceExpressionSystem
 from .substrait.expsys_pl_literal import SubstraitPolarsLiteralExpressionSystem
 
-from .substrait.expsys_pl_scalar_aggregate import SubstraitPolarsScalarAggregateExpressionSystem
+from .substrait.expsys_pl_aggregate_arithmetic import SubstraitPolarsAggregateArithmeticExpressionSystem
+from .substrait.expsys_pl_aggregate_boolean import SubstraitPolarsAggregateBooleanExpressionSystem
+from .substrait.expsys_pl_aggregate_generic import SubstraitPolarsAggregateGenericExpressionSystem
+from .substrait.expsys_pl_aggregate_string import SubstraitPolarsAggregateStringExpressionSystem
+
+
 from .substrait.expsys_pl_scalar_arithmetic import SubstraitPolarsScalarArithmeticExpressionSystem
 from .substrait.expsys_pl_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem
 from .substrait.expsys_pl_scalar_comparison import SubstraitPolarsScalarComparisonExpressionSystem
@@ -49,7 +54,10 @@ class PolarsExpressionSystem(
     SubstraitPolarsFieldReferenceExpressionSystem,
     SubstraitPolarsLiteralExpressionSystem,
     # Scalar protocols
-    SubstraitPolarsScalarAggregateExpressionSystem,
+    SubstraitPolarsAggregateArithmeticExpressionSystem,
+    SubstraitPolarsAggregateBooleanExpressionSystem,
+    SubstraitPolarsAggregateGenericExpressionSystem,
+    SubstraitPolarsAggregateStringExpressionSystem,
     SubstraitPolarsScalarArithmeticExpressionSystem,
     SubstraitPolarsScalarBooleanExpressionSystem,
     SubstraitPolarsScalarComparisonExpressionSystem,
@@ -87,7 +95,10 @@ __all__ = [
     "SubstraitPolarsFieldReferenceExpressionSystem",
     "SubstraitPolarsLiteralExpressionSystem",
     # Scalar protocols
-    "SubstraitPolarsScalarAggregateExpressionSystem",
+    "SubstraitPolarsAggregateArithmeticExpressionSystem",
+    "SubstraitPolarsAggregateBooleanExpressionSystem",
+    "SubstraitPolarsAggregateGenericExpressionSystem",
+    "SubstraitPolarsAggregateStringExpressionSystem",
     "SubstraitPolarsScalarArithmeticExpressionSystem",
     "SubstraitPolarsScalarBooleanExpressionSystem",
     "SubstraitPolarsScalarComparisonExpressionSystem",

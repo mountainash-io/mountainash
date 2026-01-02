@@ -1,0 +1,89 @@
+"""Polars aggregate protocol implementations.
+
+Implements aggregation operations for the Polars backend using split protocols.
+"""
+
+from __future__ import annotations
+
+from typing import Any, TYPE_CHECKING
+
+import polars as pl
+
+from ..base import PolarsBaseExpressionSystem
+
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitAggregateArithmeticExpressionSystemProtocol,
+    SubstraitAggregateBooleanExpressionSystemProtocol,
+    SubstraitAggregateGenericExpressionSystemProtocol,
+    SubstraitAggregateStringExpressionSystemProtocol,
+)
+
+if TYPE_CHECKING:
+    from mountainash_expressions.types import PolarsExpr
+
+
+class SubstraitPolarsAggregateGenericExpressionSystem(
+    PolarsBaseExpressionSystem,
+    SubstraitAggregateGenericExpressionSystemProtocol
+):
+    """Polars implementation of SubstraitAggregateGenericExpressionSystemProtocol.
+
+    Implements generic aggregation methods.
+    """
+
+    def count(
+        self,
+        x: PolarsExpr,
+        /,
+        overflow: Any = None,
+    ) -> PolarsExpr:
+        """Count a set of values.
+
+        Counts non-null values.
+
+        Args:
+            x: Expression to count.
+            overflow: Overflow handling (ignored in Polars).
+
+        Returns:
+            Count expression.
+        """
+        return x.count()
+
+    # def count_all(
+    #     self,
+    #     overflow: Any = None,
+    # ) -> PolarsExpr:
+    #     """Count a set of records (not field referenced).
+
+    #     Counts all rows including nulls.
+
+    #     Args:
+    #         overflow: Overflow handling (ignored in Polars).
+
+    #     Returns:
+    #         Count expression.
+    #     """
+    #     return pl.count()
+
+    def any_value(
+        self,
+        x: PolarsExpr,
+        /,
+        ignore_nulls: Any = None,
+    ) -> PolarsExpr:
+        """Select an arbitrary value from a group of values.
+
+        Returns the first value in the group.
+        If input is empty, returns null.
+
+        Args:
+            x: Expression to select from.
+            ignore_nulls: Whether to ignore null values.
+
+        Returns:
+            First value in group.
+        """
+        if ignore_nulls:
+            return x.drop_nulls().first()
+        return x.first()

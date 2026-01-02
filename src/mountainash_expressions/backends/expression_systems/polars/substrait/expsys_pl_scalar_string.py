@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash_expressions.types import PolarsExpr
 
 
-class PolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol):
+class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol):
     """Polars implementation of ScalarStringExpressionProtocol.
 
     Implements 37 string methods across categories:
@@ -891,26 +891,3 @@ class PolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, SubstraitSc
             List of strings.
         """
         return input.str.split(pattern)
-
-    def string_agg(
-        self,
-        input: PolarsExpr,
-        /,
-        separator: PolarsExpr,
-    ) -> PolarsExpr:
-        """Concatenate a column of string values with a separator.
-
-        This is an aggregate function.
-
-        Args:
-            input: String expression.
-            separator: Separator string.
-
-        Returns:
-            Aggregated string.
-        """
-        # This is typically used in aggregation context
-        # For expression-level, we might need to handle differently
-        if isinstance(separator, str):
-            return input.str.concat(separator)
-        return input.str.concat("")
