@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ....types import SupportedExpressions
+    from mountainash_expressions.types import SupportedExpressions
 
 
 class MountainAshNameExpressionSystemProtocol(Protocol):
@@ -24,10 +24,10 @@ class MountainAshNameExpressionSystemProtocol(Protocol):
 
     def alias(
         self,
-        input: "SupportedExpressions",
+        input: SupportedExpressions,
         /,
         name: str,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Rename the expression/column.
 
         Args:
@@ -41,10 +41,10 @@ class MountainAshNameExpressionSystemProtocol(Protocol):
 
     def prefix(
         self,
-        input: "SupportedExpressions",
+        input: SupportedExpressions,
         /,
         prefix: str,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add a prefix to the column name.
 
         Args:
@@ -58,10 +58,10 @@ class MountainAshNameExpressionSystemProtocol(Protocol):
 
     def suffix(
         self,
-        input: "SupportedExpressions",
+        input: SupportedExpressions,
         /,
         suffix: str,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add a suffix to the column name.
 
         Args:
@@ -75,9 +75,9 @@ class MountainAshNameExpressionSystemProtocol(Protocol):
 
     def name_to_upper(
         self,
-        input: "SupportedExpressions",
+        input: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Convert column name to uppercase.
 
         Args:
@@ -90,9 +90,9 @@ class MountainAshNameExpressionSystemProtocol(Protocol):
 
     def name_to_lower(
         self,
-        input: "SupportedExpressions",
+        input: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Convert column name to lowercase.
 
         Args:

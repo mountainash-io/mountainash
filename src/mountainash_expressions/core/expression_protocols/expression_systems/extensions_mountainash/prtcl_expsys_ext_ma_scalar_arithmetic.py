@@ -25,10 +25,10 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 
     def floor_divide(
         self,
-        x: "SupportedExpressions",
-        y: "SupportedExpressions",
+        x: SupportedExpressions,
+        y: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Floor division: x // y.
 
         Divides x by y and returns the floor of the result.

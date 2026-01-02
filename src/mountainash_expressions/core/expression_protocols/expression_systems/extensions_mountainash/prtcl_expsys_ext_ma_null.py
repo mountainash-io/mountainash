@@ -25,10 +25,10 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
 
     def fill_null(
         self,
-        input: "SupportedExpressions",
-        replacement: "SupportedExpressions",
+        input: SupportedExpressions,
+        replacement: Any,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Replace NULL values with the specified replacement value.
 
         Args:
@@ -37,25 +37,5 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
 
         Returns:
             Expression with NULLs replaced by the replacement value.
-        """
-        ...
-
-    def null_if(
-        self,
-        input: "SupportedExpressions",
-        value: "SupportedExpressions",
-        /,
-    ) -> "SupportedExpressions":
-        """Replace values equal to the specified value with NULL.
-
-        This is the inverse of fill_null - useful for cleaning sentinel
-        values that represent missing data (e.g., -999, "N/A").
-
-        Args:
-            input: Expression to check.
-            value: Value that should become NULL.
-
-        Returns:
-            Expression with matching values replaced by NULL.
         """
         ...

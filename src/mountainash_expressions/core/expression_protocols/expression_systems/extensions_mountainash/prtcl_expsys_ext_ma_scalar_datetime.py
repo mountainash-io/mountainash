@@ -38,73 +38,73 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def year(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the year component."""
         ...
 
     def month(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the month component (1-12)."""
         ...
 
     def day(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the day of month component (1-31)."""
         ...
 
     def hour(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the hour component (0-23)."""
         ...
 
     def minute(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the minute component (0-59)."""
         ...
 
     def second(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the second component (0-59)."""
         ...
 
     def millisecond(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract milliseconds since last full second."""
         ...
 
     def microsecond(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract microseconds since last full millisecond."""
         ...
 
     def nanosecond(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract nanoseconds since last full microsecond."""
         ...
 
@@ -114,41 +114,41 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def quarter(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract the quarter (1-4)."""
         ...
 
     def day_of_year(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract day of year (1-366)."""
         ...
 
     def day_of_week(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract day of week (Monday=1 to Sunday=7)."""
         ...
 
     def week_of_year(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract ISO week of year (1-53)."""
         ...
 
     def iso_year(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract ISO 8601 week-numbering year."""
         ...
 
@@ -158,17 +158,17 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def unix_timestamp(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract seconds since 1970-01-01 00:00:00 UTC."""
         ...
 
     def timezone_offset(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Extract timezone offset to UTC in seconds."""
         ...
 
@@ -178,18 +178,18 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def is_leap_year(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Check if the year is a leap year."""
         ...
 
     def is_dst(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         /,
         timezone: Optional[str] = None,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Check if DST is observed at this time."""
         ...
 
@@ -199,73 +199,73 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def add_years(
         self,
-        x: "SupportedExpressions",
-        years: "SupportedExpressions",
+        x: SupportedExpressions,
+        years: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add years to a datetime."""
         ...
 
     def add_months(
         self,
-        x: "SupportedExpressions",
-        months: "SupportedExpressions",
+        x: SupportedExpressions,
+        months: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add months to a datetime."""
         ...
 
     def add_days(
         self,
-        x: "SupportedExpressions",
-        days: "SupportedExpressions",
+        x: SupportedExpressions,
+        days: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add days to a datetime."""
         ...
 
     def add_hours(
         self,
-        x: "SupportedExpressions",
-        hours: "SupportedExpressions",
+        x: SupportedExpressions,
+        hours: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add hours to a datetime."""
         ...
 
     def add_minutes(
         self,
-        x: "SupportedExpressions",
-        minutes: "SupportedExpressions",
+        x: SupportedExpressions,
+        minutes: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add minutes to a datetime."""
         ...
 
     def add_seconds(
         self,
-        x: "SupportedExpressions",
-        seconds: "SupportedExpressions",
+        x: SupportedExpressions,
+        seconds: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add seconds to a datetime."""
         ...
 
     def add_milliseconds(
         self,
-        x: "SupportedExpressions",
-        milliseconds: "SupportedExpressions",
+        x: SupportedExpressions,
+        milliseconds: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add milliseconds to a datetime."""
         ...
 
     def add_microseconds(
         self,
-        x: "SupportedExpressions",
-        microseconds: "SupportedExpressions",
+        x: SupportedExpressions,
+        microseconds: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add microseconds to a datetime."""
         ...
 
@@ -275,64 +275,64 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def diff_years(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in years (x - other)."""
         ...
 
     def diff_months(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in months (x - other)."""
         ...
 
     def diff_days(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in days (x - other)."""
         ...
 
     def diff_hours(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in hours (x - other)."""
         ...
 
     def diff_minutes(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in minutes (x - other)."""
         ...
 
     def diff_seconds(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in seconds (x - other)."""
         ...
 
     def diff_milliseconds(
         self,
-        x: "SupportedExpressions",
-        other: "SupportedExpressions",
+        x: SupportedExpressions,
+        other: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Calculate difference in milliseconds (x - other)."""
         ...
 
@@ -342,37 +342,37 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def truncate(
         self,
-        x: "SupportedExpressions",
-        unit: "SupportedExpressions",
+        x: SupportedExpressions,
+        unit: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Truncate datetime to the specified unit (floor)."""
         ...
 
     def round(
         self,
-        x: "SupportedExpressions",
-        unit: "SupportedExpressions",
+        x: SupportedExpressions,
+        unit: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Round datetime to the nearest unit."""
         ...
 
     def ceil(
         self,
-        x: "SupportedExpressions",
-        unit: "SupportedExpressions",
+        x: SupportedExpressions,
+        unit: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Round datetime up to the next unit."""
         ...
 
     def floor(
         self,
-        x: "SupportedExpressions",
-        unit: "SupportedExpressions",
+        x: SupportedExpressions,
+        unit: SupportedExpressions,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Round datetime down to the previous unit."""
         ...
 
@@ -382,10 +382,10 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def offset_by(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         *,
         offset: str,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Add/subtract flexible duration from datetime.
 
         Supports combined duration formats (e.g., "1d2h", "-3mo").
@@ -405,10 +405,10 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def within_last(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         duration: str,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Filter for timestamps within the last duration.
 
         Like journalctl --since, returns records from (now - duration) to now.
@@ -424,10 +424,10 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def older_than(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         duration: str,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Filter for timestamps older than duration.
 
         Like find -mtime, returns records before (now - duration).
@@ -443,10 +443,10 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def newer_than(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         duration: str,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Filter for timestamps newer than X ago.
 
         Alias for within_last() for semantic clarity.
@@ -462,10 +462,10 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def within_next(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         duration: str,
         /,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Filter for timestamps within the next duration (future).
 
         Returns records from now to (now + duration).
@@ -481,11 +481,11 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
 
     def between_last(
         self,
-        x: "SupportedExpressions",
+        x: SupportedExpressions,
         older_duration: str,
         /,
         newer_duration: Optional[str] = None,
-    ) -> "SupportedExpressions":
+    ) -> SupportedExpressions:
         """Filter for timestamps between two past time points.
 
         Args:
@@ -506,10 +506,10 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
     # Snapshot
     # =========================================================================
 
-    def today(self) -> "SupportedExpressions":
+    def today(self) -> SupportedExpressions:
         """Return today's date as a literal expression."""
         ...
 
-    def now(self) -> "SupportedExpressions":
+    def now(self) -> SupportedExpressions:
         """Return current datetime as a literal expression."""
         ...

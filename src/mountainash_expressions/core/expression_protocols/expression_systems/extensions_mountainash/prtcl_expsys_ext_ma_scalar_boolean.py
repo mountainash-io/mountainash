@@ -24,10 +24,8 @@ class MountainAshScalarBooleanExpressionSystemProtocol(Protocol):
 
     def xor_parity(
         self,
-        a: "SupportedExpressions",
-        b: "SupportedExpressions",
-        /,
-    ) -> "SupportedExpressions":
+        *args: SupportedExpressions
+    ) -> SupportedExpressions:
         """XOR parity check (odd number of TRUE values).
 
         Returns TRUE if an odd number of operands are TRUE.
@@ -36,8 +34,7 @@ class MountainAshScalarBooleanExpressionSystemProtocol(Protocol):
         Returns null if either input is null.
 
         Args:
-            a: First boolean expression.
-            b: Second boolean expression.
+            a: boolean expressions.
 
         Returns:
             Boolean result of parity check.

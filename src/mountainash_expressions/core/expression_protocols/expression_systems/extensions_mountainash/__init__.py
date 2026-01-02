@@ -13,7 +13,7 @@ beyond the Substrait specification. These extensions include:
 Extension URIs are stored in /extensions/ directory at repository root.
 """
 
-from .prtcl_expsys_ext_ma_scalar_aggregate import  MountainAshScalarAggregateExpressionSystemProtocol
+# from .prtcl_expsys_ext_ma_scalar_aggregate import  MountainAshScalarAggregateExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_boolean import   MountainAshScalarBooleanExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_datetime import MountainAshScalarDatetimeExpressionSystemProtocol
@@ -23,7 +23,7 @@ from .prtcl_expsys_ext_ma_name import MountainAshNameExpressionSystemProtocol
 
 __all__ = [
     # Ternary
-    "MountainAshScalarAggregateExpressionSystemProtocol",
+    # "MountainAshScalarAggregateExpressionSystemProtocol",
     "MountainAshScalarArithmeticExpressionSystemProtocol",
     "MountainAshScalarBooleanExpressionSystemProtocol",
     "MountainAshScalarDatetimeExpressionSystemProtocol",
