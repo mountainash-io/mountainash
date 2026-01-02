@@ -50,7 +50,7 @@ class MountainashExtension:
 
 
 
-class KEY_CONDITIONAL(Enum):
+class FKEY_SUBSTRAIT_CONDITIONAL(Enum):
     """Substrait comparison functions.
 
     See: https://substrait.io/extensions/functions_comparison/
@@ -63,7 +63,7 @@ class KEY_CONDITIONAL(Enum):
     IF_THEN_ELSE = auto()
 
 
-class KEY_FIELD_REFERENCE(Enum):
+class FKEY_SUBSTRAIT_FIELD_REFERENCE(Enum):
     """Substrait comparison functions.
 
     See: https://substrait.io/extensions/functions_comparison/
@@ -76,7 +76,7 @@ class KEY_FIELD_REFERENCE(Enum):
     COL = auto()
 
 
-class KEY_CAST(Enum):
+class FKEY_SUBSTRAIT_CAST(Enum):
     """Substrait comparison functions.
 
     See: https://substrait.io/extensions/functions_comparison/
@@ -89,7 +89,7 @@ class KEY_CAST(Enum):
     CAST = auto()
 
 
-class KEY_LITERAL(Enum):
+class FKEY_SUBSTRAIT_LITERAL(Enum):
     """Substrait comparison functions.
 
     See: https://substrait.io/extensions/functions_comparison/
@@ -106,17 +106,39 @@ class KEY_LITERAL(Enum):
 # Comparison Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_AGGREGATE(Enum):
-    """Substrait comparison functions.
+class FKEY_SUBSTRAIT_SCALAR_AGGREGATE(Enum):
+    """Substrait aggregate functions.
 
-    See: https://substrait.io/extensions/functions_comparison/
+    See: https://substrait.io/extensions/functions_aggregate/
 
     Note: Values match internal function names (registry keys), not Substrait names.
     The FunctionDef stores the Substrait name separately for serialization.
     """
 
-    # Binary comparisons (values match registry names)
+    # Generic aggregate functions
     COUNT = auto()
+    ANY_VALUE = auto()
+
+    # Arithmetic aggregate functions
+    SUM = auto()
+    AVG = auto()
+    MIN = auto()
+    MAX = auto()
+    STD_DEV = auto()
+    VARIANCE = auto()
+    CORR = auto()
+    MODE = auto()
+    MEDIAN = auto()
+    QUANTILE = auto()
+    PRODUCT = auto()
+    SUM0 = auto()
+
+    # Boolean aggregate functions
+    BOOL_AND = auto()
+    BOOL_OR = auto()
+
+    # String aggregate functions
+    STRING_AGG = auto()
 
 
 
@@ -125,7 +147,7 @@ class KEY_SCALAR_AGGREGATE(Enum):
 # Arithmetic Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_ARITHMETIC(Enum):
+class FKEY_SUBSTRAIT_SCALAR_ARITHMETIC(Enum):
     """Substrait arithmetic functions.
 
     See: https://substrait.io/extensions/functions_arithmetic/
@@ -151,7 +173,7 @@ class KEY_SCALAR_ARITHMETIC(Enum):
 # Comparison Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_COMPARISON(Enum):
+class FKEY_SUBSTRAIT_SCALAR_COMPARISON(Enum):
     """Substrait comparison functions.
 
     See: https://substrait.io/extensions/functions_comparison/
@@ -196,7 +218,7 @@ class KEY_SCALAR_COMPARISON(Enum):
 # Boolean Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_BOOLEAN(Enum):
+class FKEY_SUBSTRAIT_SCALAR_BOOLEAN(Enum):
     """Substrait boolean functions.
 
     See: https://substrait.io/extensions/functions_boolean/
@@ -219,7 +241,7 @@ class KEY_SCALAR_BOOLEAN(Enum):
 # String Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_STRING(Enum):
+class FKEY_SUBSTRAIT_SCALAR_STRING(Enum):
     """Substrait string functions.
 
     See: https://substrait.io/extensions/functions_string/
@@ -263,7 +285,7 @@ class KEY_SCALAR_STRING(Enum):
 # Datetime Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_LOGARITHMIC(Enum):
+class FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC(Enum):
     """Substrait datetime functions.
 
     See: https://substrait.io/extensions/functions_datetime/
@@ -281,7 +303,7 @@ class KEY_SCALAR_LOGARITHMIC(Enum):
 # Datetime Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_SET(Enum):
+class FKEY_SUBSTRAIT_SCALAR_SET(Enum):
     """Substrait datetime functions.
 
     See: https://substrait.io/extensions/functions_datetime/
@@ -297,7 +319,7 @@ class KEY_SCALAR_SET(Enum):
 # Datetime Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_ROUNDING(Enum):
+class FKEY_SUBSTRAIT_SCALAR_ROUNDING(Enum):
     """Substrait datetime functions.
 
     See: https://substrait.io/extensions/functions_datetime/
@@ -314,7 +336,7 @@ class KEY_SCALAR_ROUNDING(Enum):
 # Datetime Functions (Substrait-aligned)
 # =============================================================================
 
-class KEY_SCALAR_DATETIME(Enum):
+class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     """Substrait datetime functions.
 
     See: https://substrait.io/extensions/functions_datetime/
@@ -329,7 +351,7 @@ class KEY_SCALAR_DATETIME(Enum):
 
 
 
-class MOUNTAINASH_DATETIME(Enum):
+class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     """Mountainash datetime functions.
 
     Note: Values match internal function names (registry keys).
@@ -405,20 +427,20 @@ class MOUNTAINASH_DATETIME(Enum):
 # Mountainash Custom Extensions
 # =============================================================================
 
-class MOUNTAINASH_ARITHMETIC(Enum):
+class FKEY_MOUNTAINASH_SCALAR_ARITHMETIC(Enum):
     """Mountainash arithmetic extensions not in Substrait."""
 
     FLOOR_DIVIDE = "floor_divide"
 
 
-class MOUNTAINASH_COMPARISON(Enum):
+class FKEY_MOUNTAINASH_SCALAR_COMPARISON(Enum):
     """Mountainash comparison extensions not in Substrait."""
 
     IS_CLOSE = "is_close"
     XOR_PARITY = "xor_parity"
 
 
-class MOUNTAINASH_NULL(Enum):
+class FKEY_MOUNTAINASH_NULL(Enum):
     """Mountainash null handling functions.
 
     Note: IS_NULL and IS_NOT_NULL are in SUBSTRAIT_COMPARISON.
@@ -430,7 +452,7 @@ class MOUNTAINASH_NULL(Enum):
     ALWAYS_NULL = "always_null"
 
 
-class MOUNTAINASH_NAME(Enum):
+class FKEY_MOUNTAINASH_NAME(Enum):
     """Mountainash column naming operations."""
 
     ALIAS = "alias"
@@ -440,7 +462,7 @@ class MOUNTAINASH_NAME(Enum):
     NAME_TO_LOWER = "name_to_lower"
 
 
-class MOUNTAINASH_TERNARY(Enum):
+class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
     """Mountainash ternary logic operations.
 
     Ternary logic uses three values:
@@ -492,33 +514,33 @@ class MOUNTAINASH_TERNARY(Enum):
 
 # Terminal ternary functions (return boolean, safe to use directly in filters)
 MOUNTAINASH_TERNARY_TERMINAL = frozenset({
-    MOUNTAINASH_TERNARY.IS_TRUE,
-    MOUNTAINASH_TERNARY.IS_FALSE,
-    MOUNTAINASH_TERNARY.IS_UNKNOWN,
-    MOUNTAINASH_TERNARY.IS_KNOWN,
-    MOUNTAINASH_TERNARY.MAYBE_TRUE,
-    MOUNTAINASH_TERNARY.MAYBE_FALSE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE,
 })
 
 # Non-terminal ternary functions (return -1/0/1, need booleanization for filters)
 MOUNTAINASH_TERNARY_NON_TERMINAL = frozenset({
-    MOUNTAINASH_TERNARY.T_EQ,
-    MOUNTAINASH_TERNARY.T_NE,
-    MOUNTAINASH_TERNARY.T_GT,
-    MOUNTAINASH_TERNARY.T_LT,
-    MOUNTAINASH_TERNARY.T_GE,
-    MOUNTAINASH_TERNARY.T_LE,
-    MOUNTAINASH_TERNARY.T_IS_IN,
-    MOUNTAINASH_TERNARY.T_IS_NOT_IN,
-    MOUNTAINASH_TERNARY.T_AND,
-    MOUNTAINASH_TERNARY.T_OR,
-    MOUNTAINASH_TERNARY.T_NOT,
-    MOUNTAINASH_TERNARY.T_XOR,
-    MOUNTAINASH_TERNARY.T_XOR_PARITY,
-    MOUNTAINASH_TERNARY.TO_TERNARY,
-    MOUNTAINASH_TERNARY.ALWAYS_TRUE,
-    MOUNTAINASH_TERNARY.ALWAYS_FALSE,
-    MOUNTAINASH_TERNARY.ALWAYS_UNKNOWN,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_EQ,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GT,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LT,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_AND,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_OR,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NOT,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR_PARITY,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.TO_TERNARY,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_UNKNOWN,
 })
 
 # All ternary functions (terminal + non-terminal)
@@ -530,19 +552,19 @@ MOUNTAINASH_TERNARY_ALL = MOUNTAINASH_TERNARY_TERMINAL | MOUNTAINASH_TERNARY_NON
 # =============================================================================
 
 SubstraitFunction = Union[
-    KEY_SCALAR_COMPARISON,
-    KEY_SCALAR_BOOLEAN,
-    KEY_SCALAR_ARITHMETIC,
-    KEY_SCALAR_STRING,
-    KEY_SCALAR_DATETIME,
+    FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+    FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
 ]
 
 MountainashFunction = Union[
-    MOUNTAINASH_ARITHMETIC,
-    MOUNTAINASH_COMPARISON,
-    MOUNTAINASH_NULL,
-    MOUNTAINASH_NAME,
-    MOUNTAINASH_TERNARY,
+    FKEY_MOUNTAINASH_NULL,
+    FKEY_MOUNTAINASH_NAME,
+    FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
+    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY,
 ]
 
 # All function enums
@@ -558,27 +580,27 @@ __all__ = [
     "SubstraitExtension",
     "MountainashExtension",
     # Core function keys
-    "KEY_CONDITIONAL",
-    "KEY_FIELD_REFERENCE",
-    "KEY_CAST",
-    "KEY_LITERAL",
+    "FKEY_SUBSTRAIT_CONDITIONAL",
+    "FKEY_SUBSTRAIT_FIELD_REFERENCE",
+    "FKEY_SUBSTRAIT_CAST",
+    "FKEY_SUBSTRAIT_LITERAL",
     # Substrait scalar function keys
-    "KEY_SCALAR_AGGREGATE",
-    "KEY_SCALAR_ARITHMETIC",
-    "KEY_SCALAR_BOOLEAN",
-    "KEY_SCALAR_COMPARISON",
-    "KEY_SCALAR_DATETIME",
-    "KEY_SCALAR_LOGARITHMIC",
-    "KEY_SCALAR_ROUNDING",
-    "KEY_SCALAR_SET",
-    "KEY_SCALAR_STRING",
+    "FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
+    "FKEY_SUBSTRAIT_SCALAR_ARITHMETIC",
+    "FKEY_SUBSTRAIT_SCALAR_BOOLEAN",
+    "FKEY_SUBSTRAIT_SCALAR_COMPARISON",
+    "FKEY_SUBSTRAIT_SCALAR_DATETIME",
+    "FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC",
+    "FKEY_SUBSTRAIT_SCALAR_ROUNDING",
+    "FKEY_SUBSTRAIT_SCALAR_SET",
+    "FKEY_SUBSTRAIT_SCALAR_STRING",
     # Mountainash extensions
-    "MOUNTAINASH_ARITHMETIC",
-    "MOUNTAINASH_COMPARISON",
-    "MOUNTAINASH_DATETIME",
-    "MOUNTAINASH_NULL",
-    "MOUNTAINASH_NAME",
-    "MOUNTAINASH_TERNARY",
+    "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
+    "FKEY_MOUNTAINASH_SCALAR_COMPARISON",
+    "FKEY_MOUNTAINASH_SCALAR_DATETIME",
+    "FKEY_MOUNTAINASH_NULL",
+    "FKEY_MOUNTAINASH_NAME",
+    "FKEY_MOUNTAINASH_SCALAR_TERNARY",
     # Ternary function categories (single source of truth)
     "MOUNTAINASH_TERNARY_TERMINAL",
     "MOUNTAINASH_TERNARY_NON_TERMINAL",

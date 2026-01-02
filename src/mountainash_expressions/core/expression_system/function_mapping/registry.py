@@ -17,21 +17,21 @@ from typing import Dict, Optional, List, Callable, Any, Type
 import inspect
 
 
-class SubstraitExtension(str, Enum):
-    """Standard Substrait extension URIs.
+# class SubstraitExtension(str, Enum):
+#     """Standard Substrait extension URIs.
 
-    These URIs identify the source of function definitions.
-    Standard functions come from the official Substrait extensions.
-    Mountainash-specific functions use a custom extension.
-    """
+#     These URIs identify the source of function definitions.
+#     Standard functions come from the official Substrait extensions.
+#     Mountainash-specific functions use a custom extension.
+#     """
 
-    COMPARISON = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_comparison.yaml"
-    BOOLEAN = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml"
-    ARITHMETIC = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_arithmetic.yaml"
-    STRING = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_string.yaml"
-    DATETIME = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_datetime.yaml"
-    # Mountainash extensions for non-standard operations
-    MOUNTAINASH = "https://mountainash.io/extensions/functions.yaml"
+#     COMPARISON = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_comparison.yaml"
+#     BOOLEAN = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml"
+#     ARITHMETIC = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_arithmetic.yaml"
+#     STRING = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_string.yaml"
+#     DATETIME = "https://github.com/substrait-io/substrait/blob/main/extensions/functions_datetime.yaml"
+#     # Mountainash extensions for non-standard operations
+#     MOUNTAINASH = "https://mountainash.io/extensions/functions.yaml"
 
 
 @dataclass(frozen=True)
