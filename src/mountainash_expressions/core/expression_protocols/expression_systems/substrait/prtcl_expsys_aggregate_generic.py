@@ -16,7 +16,7 @@ from mountainash_expressions.types import SupportedExpressions
 if TYPE_CHECKING:
     from mountainash_expressions.types import SupportedExpressions
 
-class SubstraitScalarAggregateExpressionSystemProtocol(Protocol):
+class SubstraitAggregateGenericExpressionSystemProtocol(Protocol):
     """Protocol for aggregate_generic operations.
 
     Auto-generated from Substrait aggregate_generic extension.

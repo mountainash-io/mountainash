@@ -8,20 +8,23 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union, TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import SupportedExpressions
 
 
 
+
 class SubstraitScalarDatetimeExpressionSystemProtocol(Protocol):
-    """Protocol for datetime operations.
+    """Protocol for scalar datetime operations.
 
     Auto-generated from Substrait datetime extension.
+    Function type: scalar
     """
 
-    def extract(self, x: SupportedExpressions, component: SupportedExpressions, timezone: SupportedExpressions, /) -> SupportedExpressions:
+    def extract(self, x: SupportedExpressions, /, component: SupportedExpressions, timezone: str) -> SupportedExpressions:
         """Extract portion of a date/time value. * YEAR Return the year. * ISO_YEAR Return the ISO 8601 week-numbering year. First week of an ISO year has the majority (4 or more) of
   its days in January.
 * US_YEAR Return the US epidemiological year. First week of US epidemiological year has the majority (4 or more)
@@ -51,7 +54,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def extract_boolean(self, x: SupportedExpressions, /, component: SupportedExpressions,) -> SupportedExpressions:
+    def extract_boolean(self, x: SupportedExpressions, /, component: SupportedExpressions) -> SupportedExpressions:
         """Extract boolean values of a date/time value. * IS_LEAP_YEAR Return true if year of the given value is a leap year and false otherwise. * IS_DST Return true if DST (Daylight Savings Time) is observed at the given value
   in the given timezone.
 
@@ -62,154 +65,142 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-#     def add(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """Add an interval to a date/time type.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
+    def add(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """Add an interval to a date/time type.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: add
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: add
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def multiply(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """Multiply an interval by an integral number.
+    def subtract(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """Subtract an interval from a date/time type.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: multiply
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: subtract
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def add_intervals(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """Add two intervals together.
+    def multiply(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """Multiply an interval by an integral number.
 
-#         Substrait: add_intervals
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: multiply
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def subtract(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """Subtract an interval from a date/time type.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
+    def add_intervals(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """Add two intervals together.
 
-#         Substrait: subtract
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: add_intervals
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def lte(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """less than or equal to
 
-#         Substrait: lte
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+    def lt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """less than
 
-#     def lt(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """less than
+        Substrait: lt
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#         Substrait: lt
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+    def lte(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """less than or equal to
 
-#     def gte(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """greater than or equal to
+        Substrait: lte
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#         Substrait: gte
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+    def gt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """greater than
 
-#     def gt(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
-#         """greater than
+        Substrait: gt
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#         Substrait: gt
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
 
-#     def assume_timezone(self, x: SupportedExpressions, timezone: SupportedExpressions) -> SupportedExpressions:
-#         """Convert local timestamp to UTC-relative timestamp_tz using given local time's timezone.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
+    def gte(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """greater than or equal to
 
-#         Substrait: assume_timezone
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: gte
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def local_timestamp(self, x: SupportedExpressions, timezone: SupportedExpressions) -> SupportedExpressions:
-#         """Convert UTC-relative timestamp_tz to local timestamp using given local time's timezone.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: local_timestamp
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
 
-#     def strptime_time(self, time_string: SupportedExpressions, format: SupportedExpressions) -> SupportedExpressions:
-#         """Parse string into time using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
+    def assume_timezone(self, x: SupportedExpressions, /, timezone: str) -> SupportedExpressions:
+        """Convert local timestamp to UTC-relative timestamp_tz using given local time's timezone.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: strptime_time
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: assume_timezone
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def strptime_date(self, date_string: SupportedExpressions, format: SupportedExpressions) -> SupportedExpressions:
-#         """Parse string into date using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
+    def local_timestamp(self, x: SupportedExpressions, /, timezone: str) -> SupportedExpressions:
+        """Convert UTC-relative timestamp_tz to local timestamp using given local time's timezone.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: strptime_date
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: local_timestamp
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def strptime_timestamp(self, timestamp_string: SupportedExpressions, format: SupportedExpressions, timezone: SupportedExpressions) -> SupportedExpressions:
-#         """Parse string into timestamp using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference. If timezone is present in timestamp and provided as parameter an error is thrown.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is supplied as parameter and present in the parsed string the parsed timezone is used. If parameter supplied timezone is invalid an error is thrown.
+    def strptime_time(self, x: SupportedExpressions, /, format: str) -> SupportedExpressions:
+        """Parse string into time using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
 
-#         Substrait: strptime_timestamp
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: strptime_time
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def strftime(self, x: SupportedExpressions, format: SupportedExpressions) -> SupportedExpressions:
-#         """Convert timestamp/date/time to string using provided format, see https://man7.org/linux/man-pages/man3/strftime.3.html for reference.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
+    def strptime_date(self, x: SupportedExpressions, /, format: str) -> SupportedExpressions:
+        """Parse string into date using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
 
-#         Substrait: strftime
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: strptime_date
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def round_temporal(self, x: SupportedExpressions, rounding: SupportedExpressions, unit: SupportedExpressions, multiple: SupportedExpressions, origin: SupportedExpressions) -> SupportedExpressions:
-#         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
+    def strptime_timestamp(self, x: SupportedExpressions, /, format: str, timezone: str) -> SupportedExpressions:
+        """Parse string into timestamp using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference. If timezone is present in timestamp and provided as parameter an error is thrown.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is supplied as parameter and present in the parsed string the parsed timezone is used. If parameter supplied timezone is invalid an error is thrown.
 
-#         Substrait: round_temporal
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: strptime_timestamp
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def round_calendar(self, x: SupportedExpressions, rounding: SupportedExpressions, unit: SupportedExpressions, origin: SupportedExpressions, multiple: SupportedExpressions) -> SupportedExpressions:
-#         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
-# Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
+    def strftime(self, x: SupportedExpressions, /, format: str) -> SupportedExpressions:
+        """Convert timestamp/date/time to string using provided format, see https://man7.org/linux/man-pages/man3/strftime.3.html for reference.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: round_calendar
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: strftime
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def min(self, x: SupportedExpressions) -> SupportedExpressions:
-#         """Min a set of values.
+    def round_temporal(self, x: SupportedExpressions, /, rounding: SupportedExpressions, unit: SupportedExpressions, multiple: SupportedExpressions, origin: SupportedExpressions) -> SupportedExpressions:
+        """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: min
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: round_temporal
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
 
-#     def max(self, x: SupportedExpressions) -> SupportedExpressions:
-#         """Max a set of values.
+    def round_calendar(self, x: SupportedExpressions, /, rounding: SupportedExpressions, unit: SupportedExpressions, origin: SupportedExpressions, multiple: SupportedExpressions) -> SupportedExpressions:
+        """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
+Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
-#         Substrait: max
-#         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-#         """
-#         ...
+        Substrait: round_calendar
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...

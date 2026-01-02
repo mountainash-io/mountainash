@@ -19,13 +19,18 @@ from .prtcl_expsys_field_reference import SubstraitFieldReferenceExpressionSyste
 from .prtcl_expsys_literal import SubstraitLiteralExpressionSystemProtocol
 
 # Scalar protocols - comparison and boolean
+from .prtcl_expsys_aggregate_arithmetic import SubstraitAggregateArithmeticExpressionSystemProtocol
+from .prtcl_expsys_aggregate_boolean import    SubstraitAggregateBooleanExpressionSystemProtocol
+from .prtcl_expsys_aggregate_generic import    SubstraitAggregateGenericExpressionSystemProtocol
+from .prtcl_expsys_aggregate_string import     SubstraitAggregateStringExpressionSystemProtocol
+
 
 # Scalar protocols - arithmetic and math
-from .prtcl_expsys_scalar_aggregate import SubstraitScalarAggregateExpressionSystemProtocol
-from .prtcl_expsys_scalar_arithmetic import  SubstraitScalarArithmeticExpressionSystemProtocol
+from .prtcl_expsys_scalar_arithmetic import SubstraitScalarArithmeticExpressionSystemProtocol
 from .prtcl_expsys_scalar_boolean import  SubstraitScalarBooleanExpressionSystemProtocol
 from .prtcl_expsys_scalar_comparison import SubstraitScalarComparisonExpressionSystemProtocol
 from .prtcl_expsys_scalar_datetime import  SubstraitScalarDatetimeExpressionSystemProtocol
+from .prtcl_expsys_scalar_geometry import  SubstraitScalarGeometryExpressionSystemProtocol
 from .prtcl_expsys_scalar_logarithmic import SubstraitScalarLogarithmicExpressionSystemProtocol
 from .prtcl_expsys_scalar_rounding import  SubstraitScalarRoundingExpressionSystemProtocol
 from .prtcl_expsys_scalar_set import SubstraitScalarSetExpressionSystemProtocol
@@ -44,15 +49,21 @@ __all__ = [
     "SubstraitFieldReferenceExpressionSystemProtocol",
     "SubstraitLiteralExpressionSystemProtocol",
 
-    "SubstraitScalarComparisonExpressionSystemProtocol",
-    "SubstraitScalarBooleanExpressionSystemProtocol",
+    "SubstraitAggregateArithmeticExpressionSystemProtocol",
+    "SubstraitAggregateBooleanExpressionSystemProtocol",
+    "SubstraitAggregateGenericExpressionSystemProtocol",
+    "SubstraitAggregateStringExpressionSystemProtocol",
+
+
     "SubstraitScalarArithmeticExpressionSystemProtocol",
-    "SubstraitScalarRoundingExpressionSystemProtocol",
-    "SubstraitScalarLogarithmicExpressionSystemProtocol",
-    "SubstraitScalarStringExpressionSystemProtocol",
+    "SubstraitScalarBooleanExpressionSystemProtocol",
+    "SubstraitScalarComparisonExpressionSystemProtocol",
     "SubstraitScalarDatetimeExpressionSystemProtocol",
+    "SubstraitScalarGeometryExpressionSystemProtocol",
+    "SubstraitScalarLogarithmicExpressionSystemProtocol",
+    "SubstraitScalarRoundingExpressionSystemProtocol",
+    "SubstraitScalarStringExpressionSystemProtocol",
     "SubstraitScalarSetExpressionSystemProtocol",
-    "SubstraitScalarAggregateExpressionSystemProtocol",
     # Window protocols
     "SubstraitWindowArithmeticExpressionSystemProtocol",
     # Geometry protocols
