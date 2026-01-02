@@ -11,15 +11,13 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ScalarRoundingExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarRoundingExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
-class NarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, ScalarRoundingExpressionProtocol):
+
+class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol):
     """Narwhals implementation of ScalarRoundingExpressionProtocol.
 
     Implements 3 rounding methods:
@@ -57,7 +55,7 @@ class NarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, Scala
         self,
         x: NarwhalsExpr,
         /,
-        s: NarwhalsExpr,
+        s: int,
         rounding: Any = None,
     ) -> NarwhalsExpr:
         """Round to s decimal places.

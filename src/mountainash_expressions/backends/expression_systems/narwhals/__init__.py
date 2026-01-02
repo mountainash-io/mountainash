@@ -15,7 +15,12 @@ from .substrait.expsys_nw_conditional import SubstraitNarwhalsConditionalExpress
 from .substrait.expsys_nw_field_reference import SubstraitNarwhalsFieldReferenceExpressionSystem
 from .substrait.expsys_nw_literal import SubstraitNarwhalsLiteralExpressionSystem
 
-from .substrait.expsys_nw_scalar_aggregate import SubstraitNarwhalsScalarAggregateExpressionSystem
+from .substrait.expsys_nw_aggregate_arithmetic import SubstraitNarwhalsAggregateArithmeticExpressionSystem
+from .substrait.expsys_nw_aggregate_boolean import    SubstraitNarwhalsAggregateBooleanExpressionSystem
+from .substrait.expsys_nw_aggregate_generic import    SubstraitNarwhalsAggregateGenericExpressionSystem
+from .substrait.expsys_nw_aggregate_string import     SubstraitNarwhalsAggregateStringExpressionSystem
+
+
 from .substrait.expsys_nw_scalar_arithmetic import SubstraitNarwhalsScalarArithmeticExpressionSystem
 from .substrait.expsys_nw_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem
 from .substrait.expsys_nw_scalar_comparison import SubstraitNarwhalsScalarComparisonExpressionSystem
@@ -49,7 +54,10 @@ class NarwhalsExpressionSystem(
     SubstraitNarwhalsFieldReferenceExpressionSystem,
     SubstraitNarwhalsLiteralExpressionSystem,
     # Scalar protocols
-    SubstraitNarwhalsScalarAggregateExpressionSystem,
+    SubstraitNarwhalsAggregateArithmeticExpressionSystem,
+    SubstraitNarwhalsAggregateBooleanExpressionSystem,
+    SubstraitNarwhalsAggregateGenericExpressionSystem,
+    SubstraitNarwhalsAggregateStringExpressionSystem,
     SubstraitNarwhalsScalarArithmeticExpressionSystem,
     SubstraitNarwhalsScalarBooleanExpressionSystem,
     SubstraitNarwhalsScalarComparisonExpressionSystem,
@@ -87,7 +95,10 @@ __all__ = [
     "SubstraitNarwhalsFieldReferenceExpressionSystem",
     "SubstraitNarwhalsLiteralExpressionSystem",
     # Scalar protocols
-    "SubstraitNarwhalsScalarAggregateExpressionSystem",
+    "SubstraitNarwhalsAggregateArithmeticExpressionSystem",
+    "SubstraitNarwhalsAggregateBooleanExpressionSystem",
+    "SubstraitNarwhalsAggregateGenericExpressionSystem",
+    "SubstraitNarwhalsAggregateStringExpressionSystem",
     "SubstraitNarwhalsScalarArithmeticExpressionSystem",
     "SubstraitNarwhalsScalarBooleanExpressionSystem",
     "SubstraitNarwhalsScalarComparisonExpressionSystem",

@@ -11,20 +11,18 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        LiteralExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitLiteralExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
 
 
-class NarwhalsLiteralExpressionSystem(NarwhalsBaseExpressionSystem, LiteralExpressionProtocol):
+
+class SubstraitNarwhalsLiteralExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol):
     """Narwhals implementation of LiteralExpressionProtocol."""
 
-    def lit(self, x: Any) -> NarwhalsExpr:
+    def lit(self, x: Any, /) -> NarwhalsExpr:
         """Create a literal value expression.
 
         Args:

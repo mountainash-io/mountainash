@@ -155,22 +155,22 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """
         return x ** y
 
-    def negate(
-        self,
-        x: NarwhalsExpr,
-        /,
-        overflow: Any = None,
-    ) -> NarwhalsExpr:
-        """Negate a value.
+    # def negate(
+    #     self,
+    #     x: NarwhalsExpr,
+    #     /,
+    #     overflow: Any = None,
+    # ) -> NarwhalsExpr:
+    #     """Negate a value.
 
-        Args:
-            x: Value to negate.
-            overflow: Overflow handling (ignored in Narwhals).
+    #     Args:
+    #         x: Value to negate.
+    #         overflow: Overflow handling (ignored in Narwhals).
 
-        Returns:
-            Negated value (-x).
-        """
-        return -x
+    #     Returns:
+    #         Negated value (-x).
+    #     """
+    #     return -x
 
     # =========================================================================
     # Math Functions

@@ -11,10 +11,7 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        CastExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
@@ -59,7 +56,7 @@ _NARWHALS_DTYPE_MAP = {
 }
 
 
-class NarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, CastExpressionProtocol):
+class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol):
     """Narwhals implementation of CastExpressionProtocol."""
 
     def cast(self, x: NarwhalsExpr, /, dtype: Any) -> NarwhalsExpr:

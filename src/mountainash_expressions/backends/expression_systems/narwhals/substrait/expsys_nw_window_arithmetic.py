@@ -106,39 +106,39 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     # Value Access Functions
     # =========================================================================
 
-    def first_value(self, expression: NarwhalsExpr, /) -> NarwhalsExpr:
+    def first_value(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Returns the first value in the window.
 
         Args:
-            expression: Expression to get first value from.
+            x: Expression to get first value from.
 
         Returns:
             First value expression.
         """
-        return expression.first()
+        return x.first()
 
-    def last_value(self, expression: NarwhalsExpr, /) -> NarwhalsExpr:
+    def last_value(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Returns the last value in the window.
 
         Args:
-            expression: Expression to get last value from.
+            x: Expression to get last value from.
 
         Returns:
             Last value expression.
         """
-        return expression.last()
+        return x.last()
 
     def nth_value(
         self,
-        expression: NarwhalsExpr,
-        window_offset: NarwhalsExpr,
+        x: NarwhalsExpr,
         /,
+        window_offset: NarwhalsExpr,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
         """Returns a value from the nth row based on the window_offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             window_offset: Position in window (1-indexed).
             on_domain_error: Error handling mode.
 
@@ -151,7 +151,7 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
 
     def lead(
         self,
-        expression: NarwhalsExpr,
+        x: NarwhalsExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
@@ -159,7 +159,7 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """Return a value from a following row based on physical offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             row_offset: Number of rows to look ahead (default 1).
             default: Default value if offset is out of range.
 
@@ -167,12 +167,12 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             Value from following row.
         """
         if default is not None:
-            return expression.shift(-row_offset).fill_null(nw.lit(default))
-        return expression.shift(-row_offset)
+            return x.shift(-row_offset).fill_null(nw.lit(default))
+        return x.shift(-row_offset)
 
     def lag(
         self,
-        expression: NarwhalsExpr,
+        x: NarwhalsExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
@@ -180,7 +180,7 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """Return a value from a previous row based on physical offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             row_offset: Number of rows to look back (default 1).
             default: Default value if offset is out of range.
 
@@ -188,5 +188,5 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             Value from previous row.
         """
         if default is not None:
-            return expression.shift(row_offset).fill_null(nw.lit(default))
-        return expression.shift(row_offset)
+            return x.shift(row_offset).fill_null(nw.lit(default))
+        return x.shift(row_offset)

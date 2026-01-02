@@ -11,15 +11,13 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ScalarBooleanExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
-class NarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, ScalarBooleanExpressionProtocol):
+
+class SubstraitNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
     """Narwhals implementation of ScalarBooleanExpressionProtocol.
 
     Implements 5 boolean methods using Kleene (three-valued) logic:
@@ -101,14 +99,3 @@ class NarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, Scalar
         - null and not false = null
         """
         return a & (~b)
-
-    def xor_parity(self, a: NarwhalsExpr, b: NarwhalsExpr, /) -> NarwhalsExpr:
-        """XOR parity check (odd number of TRUE values).
-
-        Returns TRUE if an odd number of operands are TRUE.
-        For two operands, this is equivalent to XOR.
-
-        Note: Narwhals doesn't support the ^ operator directly,
-        so we use the logical equivalence: (a | b) & ~(a & b)
-        """
-        return (a | b) & ~(a & b)

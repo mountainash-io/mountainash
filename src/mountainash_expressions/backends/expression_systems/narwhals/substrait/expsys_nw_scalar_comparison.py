@@ -98,9 +98,9 @@ class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSy
     def between(
         self,
         x: NarwhalsExpr,
+        /,
         low: NarwhalsExpr,
         high: NarwhalsExpr,
-        /,
     ) -> NarwhalsExpr:
         """Whether x is between low and high (inclusive).
 
@@ -184,7 +184,7 @@ class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSy
     # Null Handling Operations
     # =========================================================================
 
-    def nullif(self, x: NarwhalsExpr, /, y: NarwhalsExpr) -> NarwhalsExpr:
+    def nullif(self, x: NarwhalsExpr, y: NarwhalsExpr, /) -> NarwhalsExpr:
         """Return null if x equals y, otherwise return x.
 
         Equivalent to SQL NULLIF(x, y).

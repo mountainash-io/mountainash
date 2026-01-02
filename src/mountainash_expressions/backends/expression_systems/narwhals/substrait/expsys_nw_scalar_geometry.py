@@ -180,7 +180,7 @@ class SubstraitNarwhalsScalarGeometryExpressionSystem(NarwhalsBaseExpressionSyst
     # Geometry Transformations
     # =========================================================================
 
-    def buffer(self, geom: NarwhalsExpr, buffer_radius: NarwhalsExpr, /) -> NarwhalsExpr:
+    def buffer(self, geom: NarwhalsExpr, /, buffer_radius: NarwhalsExpr) -> NarwhalsExpr:
         """Compute an expanded version of the input geometry.
 
         Raises:

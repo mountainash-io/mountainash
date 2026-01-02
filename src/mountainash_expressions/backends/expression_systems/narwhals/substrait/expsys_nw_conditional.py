@@ -11,16 +11,13 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ConditionalExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitConditionalExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
 
-class NarwhalsConditionalExpressionSystem(NarwhalsBaseExpressionSystem, ConditionalExpressionProtocol):
+class SubstraitNarwhalsConditionalExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol):
     """Narwhals implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(

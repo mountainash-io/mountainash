@@ -12,16 +12,14 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ScalarStringExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import NarwhalsExpr
+    from mountainash_expressions.types import NarwhalsExpr
 
 
-class NarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, ScalarStringExpressionProtocol):
+
+class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol):
     """Narwhals implementation of ScalarStringExpressionProtocol.
 
     Implements string methods across categories:
@@ -424,8 +422,8 @@ class NarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, ScalarS
     def starts_with(
         self,
         input: NarwhalsExpr,
-        substring: NarwhalsExpr,
         /,
+        substring: NarwhalsExpr,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Whether input string starts with the substring.
@@ -696,8 +694,8 @@ class NarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, ScalarS
     def regexp_match_substring(
         self,
         input: NarwhalsExpr,
-        pattern: NarwhalsExpr,
         /,
+        pattern: NarwhalsExpr,
         position: NarwhalsExpr = None,
         occurrence: NarwhalsExpr = None,
         group: NarwhalsExpr = None,
@@ -901,27 +899,4 @@ class NarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, ScalarS
             Narwhals doesn't have regex split. Returns input as fallback.
         """
         # Narwhals doesn't have regex split - fallback
-        return input
-
-    def string_agg(
-        self,
-        input: NarwhalsExpr,
-        /,
-        separator: NarwhalsExpr,
-    ) -> NarwhalsExpr:
-        """Concatenate a column of string values with a separator.
-
-        This is an aggregate function.
-
-        Args:
-            input: String expression.
-            separator: Separator string.
-
-        Returns:
-            Aggregated string.
-
-        Note:
-            Narwhals may not have str.concat. Returns input as fallback.
-        """
-        # Narwhals doesn't have str.concat aggregate - fallback
         return input

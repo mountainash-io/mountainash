@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
 
-class NarwhalsMAExtNameExpressionSystem(NarwhalsBaseExpressionSystem, MountainashNameExpressionProtocol):
+class MountainAshNarwhalsNameExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshNameExpressionSystemProtocol):
     """Narwhals implementation of MountainashNameExpressionProtocol."""
 
     def alias(self, input: NarwhalsExpr, /, name: str) -> NarwhalsExpr:

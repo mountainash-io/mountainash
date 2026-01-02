@@ -11,17 +11,14 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ConditionalExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitFieldReferenceExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
 
 
-class NarwhalsFieldReferenceExpressionSystem(NarwhalsBaseExpressionSystem, ConditionalExpressionProtocol):
+class SubstraitNarwhalsFieldReferenceExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol):
     """Narwhals implementation of FieldReferenceExpressionProtocol."""
 
     def col(self, x: str) -> NarwhalsExpr:

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
 
-class NarwhalsMAExtNullExpressionSystem(NarwhalsBaseExpressionSystem, MountainashNullExpressionProtocol):
+class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
     """Narwhals implementation of MountainashNullExpressionProtocol.
 
     Implements null handling extension methods:
@@ -29,7 +29,7 @@ class NarwhalsMAExtNullExpressionSystem(NarwhalsBaseExpressionSystem, Mountainas
     def fill_null(
         self,
         input: NarwhalsExpr,
-        replacement: NarwhalsExpr,
+        replacement: Any,
         /,
     ) -> NarwhalsExpr:
         """Replace NULL values with the specified replacement value.
@@ -45,20 +45,3 @@ class NarwhalsMAExtNullExpressionSystem(NarwhalsBaseExpressionSystem, Mountainas
         # Extract literal value if possible
         fill_value = self._extract_literal_value(replacement)
         return input.fill_null(fill_value)
-
-    def null_if(
-        self,
-        input: NarwhalsExpr,
-        value: NarwhalsExpr,
-        /,
-    ) -> NarwhalsExpr:
-        """Replace values equal to the specified value with NULL.
-
-        Args:
-            input: Expression to check.
-            value: Value that should become NULL.
-
-        Returns:
-            Expression with matching values replaced by NULL.
-        """
-        return nw.when(input == value).then(nw.lit(None)).otherwise(input)

@@ -1,6 +1,6 @@
-"""Narwhals ScalarAggregateExpressionProtocol implementation.
+"""Narwhals aggregate protocol implementations.
 
-Implements aggregation operations for the Narwhals backend.
+Implements aggregation operations for the Narwhals backend using split protocols.
 """
 
 from __future__ import annotations
@@ -11,82 +11,24 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
-from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarAggregateExpressionSystemProtocol
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitAggregateArithmeticExpressionSystemProtocol,
+    SubstraitAggregateBooleanExpressionSystemProtocol,
+    SubstraitAggregateGenericExpressionSystemProtocol,
+    SubstraitAggregateStringExpressionSystemProtocol,
+)
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
+class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
+    NarwhalsBaseExpressionSystem,
+    SubstraitAggregateArithmeticExpressionSystemProtocol
+):
+    """Narwhals implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 
-
-class SubstraitNarwhalsScalarAggregateExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
-    """Narwhals implementation of ScalarAggregateExpressionProtocol.
-
-    Implements aggregation methods:
-    - count: Count values in a set
-    - count_all: Count all records
-    - any_value: Select arbitrary value from group
+    Implements arithmetic aggregation methods.
     """
-
-    def count(
-        self,
-        x: NarwhalsExpr,
-        /,
-        overflow: Any = None,
-    ) -> NarwhalsExpr:
-        """Count a set of values.
-
-        Counts non-null values.
-
-        Args:
-            x: Expression to count.
-            overflow: Overflow handling (ignored in Narwhals).
-
-        Returns:
-            Count expression.
-        """
-        return x.count()
-
-    def count_all(
-        self,
-        overflow: Any = None,
-    ) -> NarwhalsExpr:
-        """Count a set of records (not field referenced).
-
-        Counts all rows including nulls.
-
-        Args:
-            overflow: Overflow handling (ignored in Narwhals).
-
-        Returns:
-            Count expression.
-        """
-        return nw.len()
-
-    def any_value(
-        self,
-        x: NarwhalsExpr,
-        /,
-        ignore_nulls: Any = None,
-    ) -> NarwhalsExpr:
-        """Select an arbitrary value from a group of values.
-
-        Returns the first value in the group.
-        If input is empty, returns null.
-
-        Args:
-            x: Expression to select from.
-            ignore_nulls: Whether to ignore null values.
-
-        Returns:
-            First value in group.
-        """
-        if ignore_nulls:
-            return x.drop_nulls().first()
-        return x.first()
-
-    # =========================================================================
-    # Additional Aggregate Methods (Common Extensions)
-    # =========================================================================
 
     def sum(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Sum values.
@@ -372,6 +314,16 @@ class SubstraitNarwhalsScalarAggregateExpressionSystem(NarwhalsBaseExpressionSys
         """
         return x.quantile(q, interpolation=interpolation)
 
+
+class SubstraitNarwhalsAggregateBooleanExpressionSystem(
+    NarwhalsBaseExpressionSystem,
+    SubstraitAggregateBooleanExpressionSystemProtocol
+):
+    """Narwhals implementation of SubstraitAggregateBooleanExpressionSystemProtocol.
+
+    Implements boolean aggregation methods.
+    """
+
     # =========================================================================
     # Substrait Aggregate Boolean Methods
     # =========================================================================
@@ -403,6 +355,83 @@ class SubstraitNarwhalsScalarAggregateExpressionSystem(NarwhalsBaseExpressionSys
             Aggregated boolean expression.
         """
         return x.any()
+
+
+class SubstraitNarwhalsAggregateGenericExpressionSystem(
+    NarwhalsBaseExpressionSystem,
+    SubstraitAggregateGenericExpressionSystemProtocol
+):
+    """Narwhals implementation of SubstraitAggregateGenericExpressionSystemProtocol.
+
+    Implements generic aggregation methods.
+    """
+
+    def count(
+        self,
+        x: NarwhalsExpr,
+        /,
+        overflow: Any = None,
+    ) -> NarwhalsExpr:
+        """Count a set of values.
+
+        Counts non-null values.
+
+        Args:
+            x: Expression to count.
+            overflow: Overflow handling (ignored in Narwhals).
+
+        Returns:
+            Count expression.
+        """
+        return x.count()
+
+    def count_all(
+        self,
+        overflow: Any = None,
+    ) -> NarwhalsExpr:
+        """Count a set of records (not field referenced).
+
+        Counts all rows including nulls.
+
+        Args:
+            overflow: Overflow handling (ignored in Narwhals).
+
+        Returns:
+            Count expression.
+        """
+        return nw.len()
+
+    def any_value(
+        self,
+        x: NarwhalsExpr,
+        /,
+        ignore_nulls: Any = None,
+    ) -> NarwhalsExpr:
+        """Select an arbitrary value from a group of values.
+
+        Returns the first value in the group.
+        If input is empty, returns null.
+
+        Args:
+            x: Expression to select from.
+            ignore_nulls: Whether to ignore null values.
+
+        Returns:
+            First value in group.
+        """
+        if ignore_nulls:
+            return x.drop_nulls().first()
+        return x.first()
+
+
+class SubstraitNarwhalsAggregateStringExpressionSystem(
+    NarwhalsBaseExpressionSystem,
+    SubstraitAggregateStringExpressionSystemProtocol
+):
+    """Narwhals implementation of SubstraitAggregateStringExpressionSystemProtocol.
+
+    Implements string aggregation methods.
+    """
 
     # =========================================================================
     # Substrait Aggregate String Methods

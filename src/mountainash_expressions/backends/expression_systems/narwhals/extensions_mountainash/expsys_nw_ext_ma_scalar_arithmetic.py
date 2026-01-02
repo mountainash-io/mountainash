@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mountainash_expressions.types import NarwhalsExpr
 
 
-class NarwhalsMAExtScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem):
+class MountainAshNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
     """Narwhals implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:
