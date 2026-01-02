@@ -10,17 +10,13 @@ from typing import TYPE_CHECKING
 import ibis
 
 from ..base import IbisBaseExpressionSystem
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitConditionalExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ConditionalExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisConditionalExpressionSystem(IbisBaseExpressionSystem, ConditionalExpressionProtocol):
+class SubstraitIbisConditionalExpressionSystem(IbisBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol):
     """Ibis implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(

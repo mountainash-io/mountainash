@@ -8,20 +8,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ibis
-from ibis import _
 
 from ..base import IbisBaseExpressionSystem
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitFieldReferenceExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        FieldReferenceExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisFieldReferenceExpressionSystem(IbisBaseExpressionSystem, FieldReferenceExpressionProtocol):
+class SubstraitIbisFieldReferenceExpressionSystem(IbisBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol):
     """Ibis implementation of FieldReferenceExpressionProtocol."""
 
     def col(self, x: str) -> IbisExpr:
@@ -34,4 +29,4 @@ class IbisFieldReferenceExpressionSystem(IbisBaseExpressionSystem, FieldReferenc
             An Ibis expression referencing the named column.
         """
         # Use the deferred expression pattern
-        return _[x]
+        return ibis._[x]

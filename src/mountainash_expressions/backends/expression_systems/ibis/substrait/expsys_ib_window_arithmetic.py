@@ -95,50 +95,50 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Value Access Functions
     # =========================================================================
 
-    def first_value(self, expression: IbisExpr, /) -> IbisExpr:
+    def first_value(self, x: IbisExpr, /) -> IbisExpr:
         """Returns the first value in the window.
 
         Args:
-            expression: Expression to get first value from.
+            x: Expression to get first value from.
 
         Returns:
             First value expression.
         """
-        return expression.first()
+        return x.first()
 
-    def last_value(self, expression: IbisExpr, /) -> IbisExpr:
+    def last_value(self, x: IbisExpr, /) -> IbisExpr:
         """Returns the last value in the window.
 
         Args:
-            expression: Expression to get last value from.
+            x: Expression to get last value from.
 
         Returns:
             Last value expression.
         """
-        return expression.last()
+        return x.last()
 
     def nth_value(
         self,
-        expression: IbisExpr,
-        window_offset: IbisExpr,
+        x: IbisExpr,
         /,
+        window_offset: IbisExpr,
         on_domain_error: Any = None,
     ) -> IbisExpr:
         """Returns a value from the nth row based on the window_offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             window_offset: Position in window (1-indexed).
             on_domain_error: Error handling mode.
 
         Returns:
             Value at specified position, or null if out of range.
         """
-        return expression.nth(window_offset - 1)
+        return x.nth(window_offset - 1)
 
     def lead(
         self,
-        expression: IbisExpr,
+        x: IbisExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
@@ -146,7 +146,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """Return a value from a following row based on physical offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             row_offset: Number of rows to look ahead (default 1).
             default: Default value if offset is out of range.
 
@@ -154,12 +154,12 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             Value from following row.
         """
         if default is not None:
-            return expression.lead(row_offset, default=default)
-        return expression.lead(row_offset)
+            return x.lead(row_offset, default=default)
+        return x.lead(row_offset)
 
     def lag(
         self,
-        expression: IbisExpr,
+        x: IbisExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
@@ -167,7 +167,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """Return a value from a previous row based on physical offset.
 
         Args:
-            expression: Expression to evaluate.
+            x: Expression to evaluate.
             row_offset: Number of rows to look back (default 1).
             default: Default value if offset is out of range.
 
@@ -175,5 +175,5 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             Value from previous row.
         """
         if default is not None:
-            return expression.lag(row_offset, default=default)
-        return expression.lag(row_offset)
+            return x.lag(row_offset, default=default)
+        return x.lag(row_offset)

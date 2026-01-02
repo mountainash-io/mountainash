@@ -1,6 +1,6 @@
-"""Ibis ScalarAggregateExpressionProtocol implementation.
+"""Ibis aggregate protocol implementations.
 
-Implements aggregation operations for the Ibis backend.
+Implements aggregation operations for the Ibis backend using split protocols.
 """
 
 from __future__ import annotations
@@ -11,80 +11,24 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
-from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarAggregateExpressionSystemProtocol
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitAggregateArithmeticExpressionSystemProtocol,
+    SubstraitAggregateBooleanExpressionSystemProtocol,
+    SubstraitAggregateGenericExpressionSystemProtocol,
+    SubstraitAggregateStringExpressionSystemProtocol,
+)
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import IbisExpr
 
-class SubstraitIbisScalarAggregateExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
-    """Ibis implementation of ScalarAggregateExpressionProtocol.
+class SubstraitIbisAggregateArithmeticExpressionSystem(
+    IbisBaseExpressionSystem,
+    SubstraitAggregateArithmeticExpressionSystemProtocol
+):
+    """Ibis implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 
-    Implements aggregation methods:
-    - count: Count values in a set
-    - count_all: Count all records
-    - any_value: Select arbitrary value from group
+    Implements arithmetic aggregation methods.
     """
-
-    def count(
-        self,
-        x: IbisExpr,
-        /,
-        overflow: Any = None,
-    ) -> IbisExpr:
-        """Count a set of values.
-
-        Counts non-null values.
-
-        Args:
-            x: Expression to count.
-            overflow: Overflow handling (ignored in Ibis).
-
-        Returns:
-            Count expression.
-        """
-        return x.count()
-
-    def count_all(
-        self,
-        overflow: Any = None,
-    ) -> IbisExpr:
-        """Count a set of records (not field referenced).
-
-        Counts all rows including nulls.
-
-        Args:
-            overflow: Overflow handling (ignored in Ibis).
-
-        Returns:
-            Count expression.
-        """
-        return ibis.literal(1).count()
-
-    def any_value(
-        self,
-        x: IbisExpr,
-        /,
-        ignore_nulls: Any = None,
-    ) -> IbisExpr:
-        """Select an arbitrary value from a group of values.
-
-        Returns the first value in the group.
-        If input is empty, returns null.
-
-        Args:
-            x: Expression to select from.
-            ignore_nulls: Whether to ignore null values.
-
-        Returns:
-            First value in group.
-        """
-        if ignore_nulls:
-            return x.first()
-        return x.first()
-
-    # =========================================================================
-    # Additional Aggregate Methods (Common Extensions)
-    # =========================================================================
 
     def sum(self, x: IbisExpr, /) -> IbisExpr:
         """Sum values.
@@ -347,6 +291,16 @@ class SubstraitIbisScalarAggregateExpressionSystem(IbisBaseExpressionSystem, Sub
         """
         return x.quantile(q)
 
+
+class SubstraitIbisAggregateBooleanExpressionSystem(
+    IbisBaseExpressionSystem,
+    SubstraitAggregateBooleanExpressionSystemProtocol
+):
+    """Ibis implementation of SubstraitAggregateBooleanExpressionSystemProtocol.
+
+    Implements boolean aggregation methods.
+    """
+
     # =========================================================================
     # Substrait Aggregate Boolean Methods
     # =========================================================================
@@ -378,6 +332,83 @@ class SubstraitIbisScalarAggregateExpressionSystem(IbisBaseExpressionSystem, Sub
             Aggregated boolean expression.
         """
         return x.any()
+
+
+class SubstraitIbisAggregateGenericExpressionSystem(
+    IbisBaseExpressionSystem,
+    SubstraitAggregateGenericExpressionSystemProtocol
+):
+    """Ibis implementation of SubstraitAggregateGenericExpressionSystemProtocol.
+
+    Implements generic aggregation methods.
+    """
+
+    def count(
+        self,
+        x: IbisExpr,
+        /,
+        overflow: Any = None,
+    ) -> IbisExpr:
+        """Count a set of values.
+
+        Counts non-null values.
+
+        Args:
+            x: Expression to count.
+            overflow: Overflow handling (ignored in Ibis).
+
+        Returns:
+            Count expression.
+        """
+        return x.count()
+
+    def count_all(
+        self,
+        overflow: Any = None,
+    ) -> IbisExpr:
+        """Count a set of records (not field referenced).
+
+        Counts all rows including nulls.
+
+        Args:
+            overflow: Overflow handling (ignored in Ibis).
+
+        Returns:
+            Count expression.
+        """
+        return ibis.literal(1).count()
+
+    def any_value(
+        self,
+        x: IbisExpr,
+        /,
+        ignore_nulls: Any = None,
+    ) -> IbisExpr:
+        """Select an arbitrary value from a group of values.
+
+        Returns the first value in the group.
+        If input is empty, returns null.
+
+        Args:
+            x: Expression to select from.
+            ignore_nulls: Whether to ignore null values.
+
+        Returns:
+            First value in group.
+        """
+        if ignore_nulls:
+            return x.first()
+        return x.first()
+
+
+class SubstraitIbisAggregateStringExpressionSystem(
+    IbisBaseExpressionSystem,
+    SubstraitAggregateStringExpressionSystemProtocol
+):
+    """Ibis implementation of SubstraitAggregateStringExpressionSystemProtocol.
+
+    Implements string aggregation methods.
+    """
 
     # =========================================================================
     # Substrait Aggregate String Methods

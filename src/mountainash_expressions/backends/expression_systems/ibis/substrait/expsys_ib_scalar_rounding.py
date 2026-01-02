@@ -11,16 +11,13 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarRoundingExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ScalarRoundingExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, ScalarRoundingExpressionProtocol):
+class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol):
     """Ibis implementation of ScalarRoundingExpressionProtocol.
 
     Implements 3 rounding methods:
@@ -55,7 +52,7 @@ class IbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, ScalarRoundin
         self,
         x: IbisExpr,
         /,
-        s: IbisExpr,
+        s: int,
         rounding: Any = None,
     ) -> IbisExpr:
         """Round to s decimal places.

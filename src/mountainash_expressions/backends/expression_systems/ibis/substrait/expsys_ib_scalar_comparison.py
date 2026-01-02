@@ -97,9 +97,9 @@ class SubstraitIbisScalarComparisonExpressionSystem(IbisBaseExpressionSystem, Su
     def between(
         self,
         x: IbisExpr,
+        /,
         low: IbisExpr,
         high: IbisExpr,
-        /,
     ) -> IbisExpr:
         """Whether x is between low and high (inclusive).
 
@@ -182,7 +182,7 @@ class SubstraitIbisScalarComparisonExpressionSystem(IbisBaseExpressionSystem, Su
     # Null Handling Operations
     # =========================================================================
 
-    def nullif(self, x: IbisExpr, /, y: IbisExpr) -> IbisExpr:
+    def nullif(self, x: IbisExpr, y: IbisExpr, /) -> IbisExpr:
         """Return null if x equals y, otherwise return x.
 
         Equivalent to SQL NULLIF(x, y).

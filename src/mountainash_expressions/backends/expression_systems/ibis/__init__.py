@@ -15,7 +15,12 @@ from .substrait.expsys_ib_conditional import SubstraitIbisConditionalExpressionS
 from .substrait.expsys_ib_field_reference import SubstraitIbisFieldReferenceExpressionSystem
 from .substrait.expsys_ib_literal import SubstraitIbisLiteralExpressionSystem
 
-from .substrait.expsys_ib_scalar_aggregate import SubstraitIbisScalarAggregateExpressionSystem
+from .substrait.expsys_ib_aggregate_arithmetic import SubstraitIbisAggregateArithmeticExpressionSystem
+from .substrait.expsys_ib_aggregate_boolean import    SubstraitIbisAggregateBooleanExpressionSystem
+from .substrait.expsys_ib_aggregate_generic import    SubstraitIbisAggregateGenericExpressionSystem
+from .substrait.expsys_ib_aggregate_string import     SubstraitIbisAggregateStringExpressionSystem
+
+
 from .substrait.expsys_ib_scalar_arithmetic import SubstraitIbisScalarArithmeticExpressionSystem
 from .substrait.expsys_ib_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem
 from .substrait.expsys_ib_scalar_comparison import SubstraitIbisScalarComparisonExpressionSystem
@@ -49,7 +54,10 @@ class IbisExpressionSystem(
     SubstraitIbisFieldReferenceExpressionSystem,
     SubstraitIbisLiteralExpressionSystem,
     # Scalar protocols
-    SubstraitIbisScalarAggregateExpressionSystem,
+    SubstraitIbisAggregateArithmeticExpressionSystem,
+    SubstraitIbisAggregateBooleanExpressionSystem,
+    SubstraitIbisAggregateGenericExpressionSystem,
+    SubstraitIbisAggregateStringExpressionSystem,
     SubstraitIbisScalarArithmeticExpressionSystem,
     SubstraitIbisScalarBooleanExpressionSystem,
     SubstraitIbisScalarComparisonExpressionSystem,
@@ -87,7 +95,10 @@ __all__ = [
     "SubstraitIbisFieldReferenceExpressionSystem",
     "SubstraitIbisLiteralExpressionSystem",
     # Scalar protocols
-    "SubstraitIbisScalarAggregateExpressionSystem",
+    "SubstraitIbisAggregateArithmeticExpressionSystem",
+    "SubstraitIbisAggregateBooleanExpressionSystem",
+    "SubstraitIbisAggregateGenericExpressionSystem",
+    "SubstraitIbisAggregateStringExpressionSystem",
     "SubstraitIbisScalarArithmeticExpressionSystem",
     "SubstraitIbisScalarBooleanExpressionSystem",
     "SubstraitIbisScalarComparisonExpressionSystem",

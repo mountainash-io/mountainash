@@ -154,22 +154,22 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return x.pow(y)
 
-    def negate(
-        self,
-        x: IbisExpr,
-        /,
-        overflow: Any = None,
-    ) -> IbisExpr:
-        """Negate a value.
+    # def negate(
+    #     self,
+    #     x: IbisExpr,
+    #     /,
+    #     overflow: Any = None,
+    # ) -> IbisExpr:
+    #     """Negate a value.
 
-        Args:
-            x: Value to negate.
-            overflow: Overflow handling (ignored in Ibis).
+    #     Args:
+    #         x: Value to negate.
+    #         overflow: Overflow handling (ignored in Ibis).
 
-        Returns:
-            Negated value (-x).
-        """
-        return -x
+    #     Returns:
+    #         Negated value (-x).
+    #     """
+    #     return -x
 
     # =========================================================================
     # Math Functions

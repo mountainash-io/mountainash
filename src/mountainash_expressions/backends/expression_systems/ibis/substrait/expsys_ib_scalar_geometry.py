@@ -196,7 +196,7 @@ class SubstraitIbisScalarGeometryExpressionSystem(IbisBaseExpressionSystem, Subs
     # Geometry Transformations
     # =========================================================================
 
-    def buffer(self, geom: IbisExpr, buffer_radius: IbisExpr, /) -> IbisExpr:
+    def buffer(self, geom: IbisExpr, /, buffer_radius: IbisExpr) -> IbisExpr:
         """Compute an expanded version of the input geometry.
 
         Raises:

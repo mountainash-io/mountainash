@@ -18,13 +18,11 @@ import ibis
 from ..base import IbisBaseExpressionSystem
 from mountainash_expressions.constants import CONST_TERNARY_LOGIC_VALUES
 
-if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.mountainash_extensions import (
-        TernaryExpressionProtocol,
-    )
+from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarTernaryExpressionSystemProtocol
 
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+if TYPE_CHECKING:
+    from mountainash_expressions.types import IbisExpr
+
 
 # Ternary constants
 T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE      # 1
@@ -32,7 +30,7 @@ T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN  # 0
 T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE    # -1
 
 
-class IbisMAExtTernaryExpressionSystem(IbisBaseExpressionSystem, TernaryExpressionProtocol):
+class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol):
     """Ibis implementation of TernaryExpressionProtocol.
 
     Implements three-valued logic operations for the Ibis backend.

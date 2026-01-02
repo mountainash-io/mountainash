@@ -9,11 +9,11 @@ Backends are registered with the ExpressionVisitorFactory via the
 """
 
 from .polars import PolarsExpressionSystem
-# from .narwhals import NarwhalsExpressionSystem
-# from .ibis import IbisExpressionSystem
+from .narwhals import NarwhalsExpressionSystem
+from .ibis import IbisExpressionSystem
 
 __all__ = [
     "PolarsExpressionSystem",
-    # "NarwhalsExpressionSystem",
-    # "IbisExpressionSystem",
+    "NarwhalsExpressionSystem",
+    "IbisExpressionSystem",
 ]

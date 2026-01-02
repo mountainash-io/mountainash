@@ -11,19 +11,16 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitLiteralExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        LiteralExpressionProtocol
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisLiteralExpressionSystem(IbisBaseExpressionSystem. LiteralExpressionProtocol):
+class SubstraitIbisLiteralExpressionSystem(IbisBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol):
     """Ibis implementation of LiteralExpressionProtocol."""
 
-    def lit(self, x: Any) -> IbisExpr:
+    def lit(self, x: Any, /) -> IbisExpr:
         """Create a literal value expression.
 
         Args:

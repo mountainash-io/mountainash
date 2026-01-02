@@ -11,16 +11,13 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarSetExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ScalarSetExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisScalarSetExpressionSystem(IbisBaseExpressionSystem, ScalarSetExpressionProtocol):
+class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol):
     """Ibis implementation of ScalarSetExpressionProtocol.
 
     Implements set membership operations:

@@ -12,16 +12,13 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import (
-        ScalarStringExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisScalarStringExpressionSystem(IbisBaseExpressionSystem, ScalarStringExpressionProtocol):
+class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol):
     """Ibis implementation of ScalarStringExpressionProtocol.
 
     Implements string methods across categories:
@@ -872,22 +869,3 @@ class IbisScalarStringExpressionSystem(IbisBaseExpressionSystem, ScalarStringExp
         """
         # Ibis doesn't have regex split - fallback
         return input
-
-    def string_agg(
-        self,
-        input: IbisExpr,
-        /,
-        separator: IbisExpr,
-    ) -> IbisExpr:
-        """Concatenate a column of string values with a separator.
-
-        This is an aggregate function.
-
-        Args:
-            input: String expression.
-            separator: Separator string.
-
-        Returns:
-            Aggregated string.
-        """
-        return input.group_concat(separator)

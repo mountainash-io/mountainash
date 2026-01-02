@@ -11,18 +11,14 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
-from mountainash_expressions.types import IbisExpr
+from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshNameExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.mountainash_extensions import (
-        MountainashNameExpressionProtocol,
-    )
-
-# Type alias for expression type
+    from mountainash_expressions.types import IbisExpr
 
 
 
-class IbisMAExtNameExpressionSystem(IbisBaseExpressionSystem, MountainashNameExpressionProtocol):
+class MountainAshIbisNameExpressionSystem(IbisBaseExpressionSystem, MountainAshNameExpressionSystemProtocol):
     """Ibis implementation of MountainashNameExpressionProtocol."""
 
     def alias(self, input: IbisExpr, /, name: str) -> IbisExpr:

@@ -11,16 +11,14 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarArithmeticExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.mountainash_extensions import (
-        ScalarArithmeticExpressionProtocol,
-    )
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 
-class IbisMAExtScalarArithmeticExpressionSystem(IbisBaseExpressionSystem):
+
+class MountainAshIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
     """Ibis implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:

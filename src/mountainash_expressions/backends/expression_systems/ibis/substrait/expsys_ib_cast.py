@@ -12,12 +12,10 @@ import ibis.expr.datatypes as dt
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
+
 if TYPE_CHECKING:
-    from mountainash_expressions.core.expression_protocols.substrait import CastExpressionProtocol
-
-
-# Type alias for expression type
-from mountainash_expressions.types import IbisExpr
+    from mountainash_expressions.types import IbisExpr
 
 # Mapping from string type names to Ibis dtypes
 _IBIS_DTYPE_MAP = {
@@ -54,7 +52,7 @@ _IBIS_DTYPE_MAP = {
 }
 
 
-class IbisCastExpressionSystem(IbisBaseExpressionSystem, CastExpressionProtocol):
+class SubstraitIbisCastExpressionSystem(IbisBaseExpressionSystem, SubstraitCastExpressionSystemProtocol):
     """Ibis implementation of CastExpressionProtocol."""
 
     def cast(self, x: IbisExpr, /, dtype: Any) -> IbisExpr:
