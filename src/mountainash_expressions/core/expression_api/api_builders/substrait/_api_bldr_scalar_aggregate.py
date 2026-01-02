@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ...api_base import BaseExpressionAPI
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_AGGREGATE
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_AGGREGATE
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarAggregateAPIBuilderProtocol
 
@@ -41,7 +41,7 @@ class SubstraitScalarAggregateAPIBuilder(BaseExpressionAPIBuilder, SubstraitScal
             New ExpressionAPI with count node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_AGGREGATE.COUNT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT,
             arguments=[self._node],
         )
         return self._build(node)
@@ -62,7 +62,7 @@ class SubstraitScalarAggregateAPIBuilder(BaseExpressionAPIBuilder, SubstraitScal
             New ExpressionAPI with any_value node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_AGGREGATE.ANY_VALUE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.ANY_VALUE,
             arguments=[self._node],
             options={"ignore_nulls": ignore_nulls},
         )

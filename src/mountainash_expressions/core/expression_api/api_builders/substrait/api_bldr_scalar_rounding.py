@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_ROUNDING
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ROUNDING
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarRoundingAPIBuilderProtocol
 
@@ -43,7 +43,7 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with ceil node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_ROUNDING.CEIL,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.CEIL,
             arguments=[self._node],
         )
         return self._build(node)
@@ -58,7 +58,7 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with floor node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_ROUNDING.FLOOR,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.FLOOR,
             arguments=[self._node],
         )
         return self._build(node)
@@ -80,13 +80,13 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         if decimals is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_ROUNDING.ROUND,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
                 arguments=[self._node],
             )
         else:
             decimals_node = self._to_substrait_node(decimals)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_ROUNDING.ROUND,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
                 arguments=[self._node, decimals_node],
             )
         return self._build(node)

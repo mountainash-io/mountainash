@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import MOUNTAINASH_TERNARY
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode, LiteralNode
-from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import SubstraitCastAPIBuilderProtocol
+from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarTernaryAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from ....expression_nodes import ExpressionNode
 
 
-class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarTernaryAPIBuilderProtocol):
     """
     Ternary logic operations APIBuilder.
 
@@ -81,7 +81,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         # Only coerce ScalarFunctionNodes that are not already ternary
         if isinstance(node, ScalarFunctionNode) and not node.is_ternary:
             return ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.TO_TERNARY,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.TO_TERNARY,
                 arguments=[node],
             )
         # Non-ScalarFunctionNode (LiteralNode, FieldReferenceNode) - no coercion
@@ -98,7 +98,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         """Ternary equal to. Returns -1/0/1."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_EQ,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_EQ,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -110,7 +110,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         """Ternary not equal to. Returns -1/0/1."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_NE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NE,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -122,7 +122,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         """Ternary greater than. Returns -1/0/1."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_GT,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GT,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -134,7 +134,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         """Ternary less than. Returns -1/0/1."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_LT,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LT,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -146,7 +146,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         """Ternary greater than or equal. Returns -1/0/1."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_GE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GE,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -158,7 +158,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         """Ternary less than or equal. Returns -1/0/1."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_LE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LE,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -178,9 +178,9 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
             options = [self._to_substrait_node(values)]
 
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_IS_IN,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
             arguments=[self._node, ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.LIST,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
                 arguments=options,
             )],
         )
@@ -197,9 +197,9 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
             options = [self._to_substrait_node(values)]
 
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_IS_NOT_IN,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
             arguments=[self._node, ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.LIST,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
                 arguments=options,
             )],
         )
@@ -232,7 +232,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.T_AND,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_AND,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -260,7 +260,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.T_OR,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_OR,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -274,7 +274,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         ¬T = F, ¬U = U, ¬F = T
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.T_NOT,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NOT,
             arguments=[self._coerce_if_needed(self._node)],
         )
         return self._build(node)
@@ -298,7 +298,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.T_XOR,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -322,7 +322,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.T_XOR_PARITY,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR_PARITY,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -334,7 +334,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def is_true(self) -> BaseExpressionAPI:
         """TRUE (1) → True, else → False."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.IS_TRUE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -342,7 +342,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def is_false(self) -> BaseExpressionAPI:
         """FALSE (-1) → True, else → False."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.IS_FALSE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -350,7 +350,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def is_unknown(self) -> BaseExpressionAPI:
         """UNKNOWN (0) → True, else → False."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.IS_UNKNOWN,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN,
             arguments=[self._node],
         )
         return self._build(node)
@@ -358,7 +358,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def is_known(self) -> BaseExpressionAPI:
         """TRUE or FALSE → True, UNKNOWN → False."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.IS_KNOWN,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN,
             arguments=[self._node],
         )
         return self._build(node)
@@ -366,7 +366,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def maybe_true(self) -> BaseExpressionAPI:
         """TRUE or UNKNOWN → True, FALSE → False."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.MAYBE_TRUE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -374,7 +374,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def maybe_false(self) -> BaseExpressionAPI:
         """FALSE or UNKNOWN → True, TRUE → False."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.MAYBE_FALSE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -386,7 +386,7 @@ class MountainAshTernaryAPIBuilder(BaseExpressionAPIBuilder):
     def to_ternary(self) -> BaseExpressionAPI:
         """Convert boolean expression to ternary (-1/0/1)."""
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_TERNARY.TO_TERNARY,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.TO_TERNARY,
             arguments=[self._node],
         )
         return self._build(node)

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_BOOLEAN
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_BOOLEAN
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode,  LiteralNode, SingularOrListNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarBooleanAPIBuilderProtocol
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from ....expression_nodes import ExpressionNode
 
 
-class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBooleanAPIBuilderProtocol):
+class SubstraitScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBooleanAPIBuilderProtocol):
     """
     Boolean operations APIBuilder (Substrait-aligned).
 
@@ -217,66 +217,6 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
         )
         return self._build(node)
 
-    # ========================================
-    # Collection Operations
-    # ========================================
-
-    def is_in(
-        self,
-        values: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Check if value is in a collection.
-
-        Args:
-            values: Collection to check membership in.
-
-        Returns:
-            New ExpressionAPI with is_in node.
-        """
-        # Convert values list to LiteralNodes if needed
-        if isinstance(values, (list, tuple, set)):
-            options = [LiteralNode(value=v) for v in values]
-        else:
-            # Single value or expression
-            options = [self._to_substrait_node(values)]
-
-        node = SingularOrListNode(
-            value=self._node,
-            options=options,
-        )
-        return self._build(node)
-
-    def is_not_in(
-        self,
-        values: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Check if value is not in a collection.
-
-        Args:
-            values: Collection to check membership in.
-
-        Returns:
-            New ExpressionAPI with is_not_in node.
-        """
-        # is_not_in is just NOT(is_in(...))
-        is_in_result = self.is_in(values)
-        return is_in_result.not_()
-
-    # ========================================
-    # Boolean Constants
-    # ========================================
-
-    def always_true(self) -> BaseExpressionAPI:
-        """Return a constant TRUE value."""
-        node = LiteralNode(value=True)
-        return self._build(node)
-
-    def always_false(self) -> BaseExpressionAPI:
-        """Return a constant FALSE value."""
-        node = LiteralNode(value=False)
-        return self._build(node)
 
     # ========================================
     # Logical Operators
@@ -310,7 +250,7 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=KEY_SCALAR_BOOLEAN.AND,
+                function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -340,7 +280,7 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=KEY_SCALAR_BOOLEAN.OR,
+                function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.OR,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -368,7 +308,7 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
         # _to_substrait_node() automatically applies coercion via hook
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_BOOLEAN.AND_NOT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND_NOT,
             arguments=[self._coerce_if_needed(self._node), other_node],
         )
         return self._build(node)
@@ -393,7 +333,7 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
         # _to_substrait_node() automatically applies coercion via hook
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_BOOLEAN.XOR,
+            function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.XOR,
             arguments=[self._coerce_if_needed(self._node), other_node],
         )
         return self._build(node)
@@ -423,7 +363,7 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=KEY_SCALAR_BOOLEAN.XOR,
+                function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.XOR,
                 arguments=[result, operand],
             )
         return self._build(result)
@@ -474,11 +414,7 @@ class SubstraitBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarBoolea
             New ExpressionAPI with NOT node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_BOOLEAN.NOT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.NOT,
             arguments=[self._coerce_if_needed(self._node)],
         )
         return self._build(node)
-
-
-# Alias for consistency with other scalar APIBuilders
-ScalarBooleanAPIBuilder = BooleanAPIBuilder

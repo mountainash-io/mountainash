@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import MOUNTAINASH_NULL
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NULL
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
-from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import SubstraitCastAPIBuilderProtocol
+from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNullAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from ....expression_nodes import ExpressionNode
 
 
-class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder, MountainAshNullAPIBuilderProtocol):
     """
     Null handling operations APIBuilder.
 
@@ -50,7 +50,7 @@ class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder):
         """
         value_node = self._to_substrait_node(value)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NULL.FILL_NULL,
+            function_key=FKEY_MOUNTAINASH_NULL.FILL_NULL,
             arguments=[self._node, value_node],
         )
         return self._build(node)
@@ -73,7 +73,7 @@ class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder):
         """
         value_node = self._to_substrait_node(value)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NULL.NULL_IF,
+            function_key=FKEY_MOUNTAINASH_NULL.NULL_IF,
             arguments=[self._node, value_node],
         )
         return self._build(node)

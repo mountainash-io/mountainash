@@ -34,25 +34,46 @@ class SubstraitScalarSetAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarSetA
         index_in: Get 0-indexed position in set (-1 if not found)
     """
 
-
-    def index_in(
+    def is_in(
         self,
         *values: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
         """
-        Return 0-indexed position in values, or -1 if not found.
+        Check if value is in the given set of values.
 
-        Substrait: index_in
+        Substrait: index_in (returns bool based on >= 0)
 
         Args:
-            *values: Values to search in.
+            *values: Values to check membership against.
 
         Returns:
-            New ExpressionAPI with index_in node.
+            New ExpressionAPI with is_in node.
         """
         value_nodes = [self._to_substrait_node(v) for v in values]
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_SET.INDEX_IN,
+            function_key=FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            arguments=[self._node] + value_nodes,
+        )
+        return self._build(node)
+
+    def is_not_in(
+        self,
+        *values: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """
+        Check if value is not in the given set of values.
+
+        Substrait: index_in (returns bool based on < 0)
+
+        Args:
+            *values: Values to check membership against.
+
+        Returns:
+            New ExpressionAPI with is_not_in node.
+        """
+        value_nodes = [self._to_substrait_node(v) for v in values]
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
             arguments=[self._node] + value_nodes,
         )
         return self._build(node)

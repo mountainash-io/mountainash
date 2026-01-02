@@ -15,7 +15,6 @@ from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, Li
 from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNativeAPIBuilderProtocol
 
 
-if TYPE_CHECKING:
 
 
 class MountainAshNativeAPIBuilder(BaseExpressionAPIBuilder, MountainAshNativeAPIBuilderProtocol):

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ...api_base import BaseExpressionAPI
 
-from mountainash_expressions.core.expression_system.function_keys.enums import MOUNTAINASH_NAME
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, LiteralNode
 from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNameAPIBuilderProtocol
 
@@ -46,7 +46,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> expr = col("user_id").name.alias("id")
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NAME.ALIAS,
+            function_key=FKEY_MOUNTAINASH_NAME.ALIAS,
             arguments=[self._node, LiteralNode(value=name)],
         )
         return self._build(node)
@@ -66,7 +66,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> # Column name becomes "raw_score"
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NAME.PREFIX,
+            function_key=FKEY_MOUNTAINASH_NAME.PREFIX,
             arguments=[self._node, LiteralNode(value=prefix)],
         )
         return self._build(node)
@@ -86,7 +86,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> # Column name becomes "score_normalized"
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NAME.SUFFIX,
+            function_key=FKEY_MOUNTAINASH_NAME.SUFFIX,
             arguments=[self._node, LiteralNode(value=suffix)],
         )
         return self._build(node)
@@ -103,7 +103,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> # Column name becomes "USER_ID"
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NAME.NAME_TO_UPPER,
+            function_key=FKEY_MOUNTAINASH_NAME.NAME_TO_UPPER,
             arguments=[self._node],
         )
         return self._build(node)
@@ -120,7 +120,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> # Column name becomes "user_id"
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_NAME.NAME_TO_LOWER,
+            function_key=FKEY_MOUNTAINASH_NAME.NAME_TO_LOWER,
             arguments=[self._node],
         )
         return self._build(node)

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_LOGARITHMIC
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarLogarithmicAPIBuilderProtocol
 
@@ -44,7 +44,7 @@ class SubstraitScalarLogarithmicAPIBuilder(BaseExpressionAPIBuilder, SubstraitSc
             New ExpressionAPI with ln node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_LOGARITHMIC.LOG,
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG,
             arguments=[self._node],
         )
         return self._build(node)
@@ -59,7 +59,7 @@ class SubstraitScalarLogarithmicAPIBuilder(BaseExpressionAPIBuilder, SubstraitSc
             New ExpressionAPI with log10 node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_LOGARITHMIC.LOG10,
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG10,
             arguments=[self._node],
         )
         return self._build(node)
@@ -74,7 +74,7 @@ class SubstraitScalarLogarithmicAPIBuilder(BaseExpressionAPIBuilder, SubstraitSc
             New ExpressionAPI with log2 node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_LOGARITHMIC.LOG2,
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG2,
             arguments=[self._node],
         )
         return self._build(node)
@@ -96,7 +96,7 @@ class SubstraitScalarLogarithmicAPIBuilder(BaseExpressionAPIBuilder, SubstraitSc
         """
         base_node = self._to_substrait_node(base)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_LOGARITHMIC.LOGB,
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB,
             arguments=[self._node, base_node],
         )
         return self._build(node)

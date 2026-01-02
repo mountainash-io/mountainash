@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ....expression_nodes import ScalarFunctionNode
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_DATETIME
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarDatetimeAPIBuilderProtocol
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ....expression_nodes import ExpressionNode
 
 
-class SubstraitDateTimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarDatetimeAPIBuilderProtocol):
+class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarDatetimeAPIBuilderProtocol):
     """
     DateTime operations APIBuilder (Substrait-aligned).
 

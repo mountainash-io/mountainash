@@ -1,52 +1,45 @@
-"""Core expression namespaces.
+"""Core expression APIBuilders.
 
-Substrait-aligned namespace implementations.
+Substrait-aligned APIBuilder implementations.
 """
 
-from .exns_field_reference import FieldReferenceNamespace
-from .exns_literal import LiteralNamespace
-from .exns_scalar_arithmetic import ScalarArithmeticNamespace
-from .exns_scalar_boolean import ScalarBooleanNamespace
-from .exns_scalar_comparison import ScalarComparisonNamespace
-from .exns_scalar_string import StringNamespace
-from .exns_scalar_datetime import DateTimeNamespace
-from .exns_scalar_set import ScalarSetNamespace
-from .exns_scalar_rounding import ScalarRoundingNamespace
-from .exns_scalar_logarithmic import ScalarLogarithmicNamespace
-from .exns_scalar_aggregate import ScalarAggregateNamespace
-from .exns_cast import CastNamespace
-from .exns_conditional import ConditionalNamespace, WhenBuilder, ThenBuilder
-from .exns_ternary import TernaryNamespace
-from .exns_null import NullNamespace
-from .exns_name import NameNamespace
-from .exns_native import NativeNamespace
+from .api_bldr_cast import SubstraitCastAPIBuilder
+from .api_bldr_conditional import SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder
+from .api_bldr_field_reference import SubstraitFieldReferenceAPIBuilder
+from .api_bldr_literal import SubstraitLiteralAPIBuilder
+# from .api_bldr_scalar_aggregate import SubstraitScalarAggregateAPIBuilder
+from .api_bldr_scalar_arithmetic import SubstraitScalarArithmeticAPIBuilder
+from .api_bldr_scalar_boolean import SubstraitScalarBooleanAPIBuilder
+from .api_bldr_scalar_comparison import SubstraitScalarComparisonAPIBuilder
+from .api_bldr_scalar_datetime import SubstraitScalarDatetimeAPIBuilder
+from .api_bldr_scalar_logarithmic import SubstraitScalarLogarithmicAPIBuilder
+from .api_bldr_scalar_rounding import SubstraitScalarRoundingAPIBuilder
+from .api_bldr_scalar_set import SubstraitScalarSetAPIBuilder
+from .api_bldr_scalar_string import SubstraitScalarStringAPIBuilder
+# from .api_bldr_ternary import TernaryAPIBuilder
+# from .api_bldr_null import NullAPIBuilder
+# from .api_bldr_name import NameAPIBuilder
+# from .api_bldr_native import NativeAPIBuilder
 
 __all__ = [
     # Core nodes
-    "FieldReferenceNamespace",
-    "LiteralNamespace",
+    "SubstraitCastAPIBuilder",
+    "SubstraitFieldReferenceAPIBuilder",
+    "SubstraitLiteralAPIBuilder",
+
+    "SubstraitConditionalAPIBuilder",
+    "SubstraitWhenAPIBuilder",
+    "SubstraitThenAPIBuilder",
+
+
     # Scalar operations
-    "ScalarArithmeticNamespace",
-    "ScalarBooleanNamespace",
-    "ScalarComparisonNamespace",
-    "StringNamespace",
-    "DateTimeNamespace",
-    "ScalarSetNamespace",
-    "ScalarRoundingNamespace",
-    "ScalarLogarithmicNamespace",
-    "ScalarAggregateNamespace",
-    # Type operations
-    "CastNamespace",
-    # Conditional operations
-    "ConditionalNamespace",
-    "WhenBuilder",
-    "ThenBuilder",
-    # Ternary operations
-    "TernaryNamespace",
-    # Null operations
-    "NullNamespace",
-    # Name operations
-    "NameNamespace",
-    # Native operations
-    "NativeNamespace",
+    # "SubstraitScalarAggregateAPIBuilder",
+    "SubstraitScalarArithmeticAPIBuilder",
+    "SubstraitScalarBooleanAPIBuilder",
+    "SubstraitScalarComparisonAPIBuilder",
+    "SubstraitScalarDatetimeAPIBuilder",
+    "SubstraitScalarLogarithmicAPIBuilder",
+    "SubstraitScalarRoundingAPIBuilder",
+    "SubstraitScalarSetAPIBuilder",
+    "SubstraitScalarStringAPIBuilder",
 ]

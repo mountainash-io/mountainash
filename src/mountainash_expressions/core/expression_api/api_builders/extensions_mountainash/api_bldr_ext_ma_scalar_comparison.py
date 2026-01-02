@@ -497,3 +497,28 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
             arguments=operands,
         )
         return self._build(node)
+
+
+
+    def is_close(
+        self,
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        precision: float = 1e-5,
+    ) -> BaseExpressionAPI:
+        """
+        Check if values are approximately equal within precision.
+
+        Args:
+            other: Value to compare with.
+            precision: Maximum allowed difference (default: 1e-5).
+
+        Returns:
+            New ExpressionAPI with is_close node.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=MOUNTAINASH_COMPARISON.IS_CLOSE,
+            arguments=[self._node, other_node],
+            options={"precision": precision},
+        )
+        return self._build(node)

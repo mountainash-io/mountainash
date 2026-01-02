@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_STRING
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_FIELD_REFERENCE
 from mountainash_expressions.core.expression_nodes import FieldReferenceNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitFieldReferenceAPIBuilderProtocol
 

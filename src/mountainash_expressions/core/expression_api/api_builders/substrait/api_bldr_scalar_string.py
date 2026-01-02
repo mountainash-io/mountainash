@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ...api_base import BaseExpressionAPI
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_STRING
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarStringAPIBuilderProtocol
 
@@ -85,7 +85,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with lower node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.LOWER,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
             arguments=[self._node],
         )
         return self._build(node)
@@ -100,7 +100,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with upper node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.UPPER,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
             arguments=[self._node],
         )
         return self._build(node)
@@ -115,7 +115,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with swapcase node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.SWAPCASE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -130,7 +130,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with capitalize node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.CAPITALIZE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -145,7 +145,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with title node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.TITLE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -160,7 +160,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with initcap node.
         """
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.INITCAP,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
             arguments=[self._node],
         )
         return self._build(node)
@@ -186,13 +186,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         if characters is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.LTRIM,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
                 arguments=[self._node],
             )
         else:
             char_node = self._to_substrait_node(characters)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.LTRIM,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
                 arguments=[self._node, char_node],
             )
         return self._build(node)
@@ -214,13 +214,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         if characters is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.RTRIM,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
                 arguments=[self._node],
             )
         else:
             char_node = self._to_substrait_node(characters)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.RTRIM,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
                 arguments=[self._node, char_node],
             )
         return self._build(node)
@@ -242,13 +242,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         if characters is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.TRIM,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM,
                 arguments=[self._node],
             )
         else:
             char_node = self._to_substrait_node(characters)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.TRIM,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM,
                 arguments=[self._node, char_node],
             )
         return self._build(node)
@@ -277,13 +277,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         length_node = self._to_substrait_node(length)
         if characters is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.LPAD,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
                 arguments=[self._node, length_node],
             )
         else:
             char_node = self._to_substrait_node(characters)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.LPAD,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
                 arguments=[self._node, length_node, char_node],
             )
         return self._build(node)
@@ -308,13 +308,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         length_node = self._to_substrait_node(length)
         if characters is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.RPAD,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
                 arguments=[self._node, length_node],
             )
         else:
             char_node = self._to_substrait_node(characters)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.RPAD,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
                 arguments=[self._node, length_node, char_node],
             )
         return self._build(node)
@@ -339,13 +339,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         length_node = self._to_substrait_node(length)
         if character is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.CENTER,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
                 arguments=[self._node, length_node],
             )
         else:
             char_node = self._to_substrait_node(character)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.CENTER,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
                 arguments=[self._node, length_node, char_node],
             )
         return self._build(node)
@@ -374,13 +374,13 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         start_node = self._to_substrait_node(start)
         if length is None:
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.SUBSTRING,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
                 arguments=[self._node, start_node],
             )
         else:
             length_node = self._to_substrait_node(length)
             node = ScalarFunctionNode(
-                function_key=KEY_SCALAR_STRING.SUBSTRING,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
                 arguments=[self._node, start_node, length_node],
             )
         return self._build(node)
@@ -402,7 +402,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         count_node = self._to_substrait_node(count)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.LEFT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
             arguments=[self._node, count_node],
         )
         return self._build(node)
@@ -424,7 +424,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         count_node = self._to_substrait_node(count)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.RIGHT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
             arguments=[self._node, count_node],
         )
         return self._build(node)
@@ -452,7 +452,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         length_node = self._to_substrait_node(length)
         replacement_node = self._to_substrait_node(replacement)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REPLACE_SLICE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE,
             arguments=[self._node, start_node, length_node, replacement_node],
         )
         return self._build(node)
@@ -480,7 +480,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         substring_node = self._to_substrait_node(substring)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.CONTAINS,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
             arguments=[self._node, substring_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
@@ -505,7 +505,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         prefix_node = self._to_substrait_node(prefix)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.STARTS_WITH,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
             arguments=[self._node, prefix_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
@@ -530,7 +530,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         suffix_node = self._to_substrait_node(suffix)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.ENDS_WITH,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
             arguments=[self._node, suffix_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
@@ -555,7 +555,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         substring_node = self._to_substrait_node(substring)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.STRPOS,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
             arguments=[self._node, substring_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
@@ -580,11 +580,180 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         substring_node = self._to_substrait_node(substring)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.COUNT_SUBSTRING,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
             arguments=[self._node, substring_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
         return self._build(node)
+
+
+    # ========================================
+    # Info
+    # ========================================
+
+    def char_length(self) -> BaseExpressionAPI:
+        """
+        Return number of characters.
+
+        Substrait: char_length
+
+        Returns:
+            New ExpressionAPI with char_length node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+
+    def bit_length(self) -> BaseExpressionAPI:
+        """
+        Return number of bits.
+
+        Substrait: bit_length
+
+        Returns:
+            New ExpressionAPI with bit_length node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.BIT_LENGTH,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def octet_length(self) -> BaseExpressionAPI:
+        """
+        Return number of bytes.
+
+        Substrait: octet_length
+
+        Returns:
+            New ExpressionAPI with octet_length node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.OCTET_LENGTH,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+
+    # ========================================
+    # Manipulation
+    # ========================================
+
+    def concat(
+        self,
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """
+        Concatenate strings.
+
+        Substrait: concat
+
+        Args:
+            *others: Strings to concatenate with this one.
+
+        Returns:
+            New ExpressionAPI with concat node.
+        """
+        operands = [self._node] + [self._to_substrait_node(o) for o in others]
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT,
+            arguments=operands,
+        )
+        return self._build(node)
+
+    def concat_ws(
+        self,
+        separator: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """
+        Concatenate strings with separator.
+
+        Substrait: concat_ws
+
+        Args:
+            separator: String to insert between values.
+            *others: Additional strings to concatenate.
+
+        Returns:
+            New ExpressionAPI with concat_ws node.
+        """
+        separator_node = self._to_substrait_node(separator)
+        operands = [self._node] + [self._to_substrait_node(o) for o in others]
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT_WS,
+            arguments=[separator_node] + operands,
+        )
+        return self._build(node)
+
+    def replace(
+        self,
+        old: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        new: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        case_sensitive: bool = True,
+    ) -> BaseExpressionAPI:
+        """
+        Replace all occurrences of substring.
+
+        Substrait: replace
+
+        Args:
+            old: Substring to find.
+            new: Replacement string.
+            case_sensitive: Case sensitivity (default: True).
+
+        Returns:
+            New ExpressionAPI with replace node.
+        """
+        old_node = self._to_substrait_node(old)
+        new_node = self._to_substrait_node(new)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            arguments=[self._node, old_node, new_node],
+            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+        )
+        return self._build(node)
+
+    def repeat(
+        self,
+        count: Union[BaseExpressionAPI, "ExpressionNode", Any, int],
+    ) -> BaseExpressionAPI:
+        """
+        Repeat string count times.
+
+        Substrait: repeat
+
+        Args:
+            count: Number of repetitions.
+
+        Returns:
+            New ExpressionAPI with repeat node.
+        """
+        count_node = self._to_substrait_node(count)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
+            arguments=[self._node, count_node],
+        )
+        return self._build(node)
+
+    def reverse(self) -> BaseExpressionAPI:
+        """
+        Reverse the string.
+
+        Substrait: reverse
+
+        Returns:
+            New ExpressionAPI with reverse node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REVERSE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
 
     # ========================================
     # Pattern Matching
@@ -609,7 +778,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.LIKE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
             arguments=[self._node, pattern_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
@@ -649,11 +818,61 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             args.append(self._to_substrait_node(group))
 
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REGEXP_MATCH_SUBSTRING,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_SUBSTRING,
             arguments=args,
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
         return self._build(node)
+
+
+
+    def regexp_match_substring_all(
+        self,
+        pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
+        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        group: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        *,
+        case_sensitive: bool = True,
+        multiline: bool = None,
+        dotall: bool = None,
+    ) -> BaseExpressionAPI:
+        """Extract all substrings that match the given regular expression pattern
+
+        Substrait: regexp_match_substring_all
+        """
+        ...
+
+    def regexp_strpos(
+        self,
+        pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
+        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        *,
+        case_sensitive: bool = True,
+        multiline: bool = None,
+        dotall: bool = None,
+    ) -> BaseExpressionAPI:
+        """"Return the position of an occurrence of the given regular expression pattern in a string.
+
+        Substrait: regexp_strpos
+        """
+        ...
+
+    def regexp_count_substring(
+        self,
+        pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
+        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        *,
+        case_sensitive: bool = True,
+        multiline: bool = None,
+        dotall: bool = None,
+    ) -> BaseExpressionAPI:
+        """"Return the number of non-overlapping occurrences of a regular expression pattern in an input string
+        Substrait: regexp_count_substring
+        """
+        ...
+
+
 
     def regexp_replace(
         self,
@@ -688,9 +907,58 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             args.append(self._to_substrait_node(occurrence))
 
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REGEXP_REPLACE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
             arguments=args,
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+        )
+        return self._build(node)
+
+
+    # ========================================
+    # Pattern Matching Aliases (User-Friendly)
+    # ========================================
+
+    def regex_replace(
+        self,
+        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        case_sensitive: bool = True,
+    ) -> BaseExpressionAPI:
+        """
+        Replace all occurrences matching regex pattern.
+
+        Alias for regexp_replace() with simpler interface.
+
+        Args:
+            pattern: Regular expression pattern.
+            replacement: Replacement string.
+            case_sensitive: Case sensitivity (default: True).
+
+        Returns:
+            New ExpressionAPI with replaced string.
+        """
+        return self.regexp_replace(pattern, replacement, case_sensitive=case_sensitive)
+
+
+    def string_split(
+        self,
+        separator: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """
+        Split string by separator.
+
+        Substrait: string_split
+
+        Args:
+            separator: Separator string.
+
+        Returns:
+            New ExpressionAPI with string_split node.
+        """
+        separator_node = self._to_substrait_node(separator)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRING_SPLIT,
+            arguments=[self._node, separator_node],
         )
         return self._build(node)
 
@@ -713,15 +981,27 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REGEXP_STRING_SPLIT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRING_SPLIT,
             arguments=[self._node, pattern_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
         return self._build(node)
 
-    # ========================================
-    # Pattern Matching Aliases (User-Friendly)
-    # ========================================
+
+
+
+    def length(self) -> BaseExpressionAPI:
+        """
+        Return number of characters.
+
+        Alias for char_length() for convenience.
+
+        Returns:
+            New ExpressionAPI with char_length node.
+        """
+        return self.char_length()
+
+
 
     def regex_match(
         self,
@@ -768,222 +1048,3 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         # Use contains with regex pattern - backends interpret patterns as regex
         return self.contains(pattern, case_sensitive=case_sensitive)
-
-    def regex_replace(
-        self,
-        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        case_sensitive: bool = True,
-    ) -> BaseExpressionAPI:
-        """
-        Replace all occurrences matching regex pattern.
-
-        Alias for regexp_replace() with simpler interface.
-
-        Args:
-            pattern: Regular expression pattern.
-            replacement: Replacement string.
-            case_sensitive: Case sensitivity (default: True).
-
-        Returns:
-            New ExpressionAPI with replaced string.
-        """
-        return self.regexp_replace(pattern, replacement, case_sensitive=case_sensitive)
-
-    # ========================================
-    # Manipulation
-    # ========================================
-
-    def concat(
-        self,
-        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Concatenate strings.
-
-        Substrait: concat
-
-        Args:
-            *others: Strings to concatenate with this one.
-
-        Returns:
-            New ExpressionAPI with concat node.
-        """
-        operands = [self._node] + [self._to_substrait_node(o) for o in others]
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.CONCAT,
-            arguments=operands,
-        )
-        return self._build(node)
-
-    def concat_ws(
-        self,
-        separator: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Concatenate strings with separator.
-
-        Substrait: concat_ws
-
-        Args:
-            separator: String to insert between values.
-            *others: Additional strings to concatenate.
-
-        Returns:
-            New ExpressionAPI with concat_ws node.
-        """
-        separator_node = self._to_substrait_node(separator)
-        operands = [self._node] + [self._to_substrait_node(o) for o in others]
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.CONCAT_WS,
-            arguments=[separator_node] + operands,
-        )
-        return self._build(node)
-
-    def replace(
-        self,
-        old: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        new: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        case_sensitive: bool = True,
-    ) -> BaseExpressionAPI:
-        """
-        Replace all occurrences of substring.
-
-        Substrait: replace
-
-        Args:
-            old: Substring to find.
-            new: Replacement string.
-            case_sensitive: Case sensitivity (default: True).
-
-        Returns:
-            New ExpressionAPI with replace node.
-        """
-        old_node = self._to_substrait_node(old)
-        new_node = self._to_substrait_node(new)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REPLACE,
-            arguments=[self._node, old_node, new_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
-        )
-        return self._build(node)
-
-    def repeat(
-        self,
-        count: Union[BaseExpressionAPI, "ExpressionNode", Any, int],
-    ) -> BaseExpressionAPI:
-        """
-        Repeat string count times.
-
-        Substrait: repeat
-
-        Args:
-            count: Number of repetitions.
-
-        Returns:
-            New ExpressionAPI with repeat node.
-        """
-        count_node = self._to_substrait_node(count)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REPEAT,
-            arguments=[self._node, count_node],
-        )
-        return self._build(node)
-
-    def reverse(self) -> BaseExpressionAPI:
-        """
-        Reverse the string.
-
-        Substrait: reverse
-
-        Returns:
-            New ExpressionAPI with reverse node.
-        """
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.REVERSE,
-            arguments=[self._node],
-        )
-        return self._build(node)
-
-    def string_split(
-        self,
-        separator: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Split string by separator.
-
-        Substrait: string_split
-
-        Args:
-            separator: Separator string.
-
-        Returns:
-            New ExpressionAPI with string_split node.
-        """
-        separator_node = self._to_substrait_node(separator)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.STRING_SPLIT,
-            arguments=[self._node, separator_node],
-        )
-        return self._build(node)
-
-    # ========================================
-    # Info
-    # ========================================
-
-    def char_length(self) -> BaseExpressionAPI:
-        """
-        Return number of characters.
-
-        Substrait: char_length
-
-        Returns:
-            New ExpressionAPI with char_length node.
-        """
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.CHAR_LENGTH,
-            arguments=[self._node],
-        )
-        return self._build(node)
-
-    def length(self) -> BaseExpressionAPI:
-        """
-        Return number of characters.
-
-        Alias for char_length() for convenience.
-
-        Returns:
-            New ExpressionAPI with char_length node.
-        """
-        return self.char_length()
-
-    def bit_length(self) -> BaseExpressionAPI:
-        """
-        Return number of bits.
-
-        Substrait: bit_length
-
-        Returns:
-            New ExpressionAPI with bit_length node.
-        """
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.BIT_LENGTH,
-            arguments=[self._node],
-        )
-        return self._build(node)
-
-    def octet_length(self) -> BaseExpressionAPI:
-        """
-        Return number of bytes.
-
-        Substrait: octet_length
-
-        Returns:
-            New ExpressionAPI with octet_length node.
-        """
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_STRING.OCTET_LENGTH,
-            arguments=[self._node],
-        )
-        return self._build(node)
