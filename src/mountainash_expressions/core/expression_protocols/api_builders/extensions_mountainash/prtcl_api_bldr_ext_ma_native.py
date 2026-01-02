@@ -17,14 +17,14 @@ from typing import Union, Any, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mountainash_expressions.core.expression_api import BaseExpressionAPI
+    from mountainash_expressions.types import SupportedExpressions
 
-
-class MountainAshNameAPIBuilderProtocol(Protocol):
+class MountainAshNativeAPIBuilderProtocol(Protocol):
     """Backend protocol for Mountainash name operations."""
 
-    def alias(
+    def native(
         self,
-        name: str,
+        expr: SupportedExpressions,
     ) -> BaseExpressionAPI:
         """Rename the expression/column.
 
@@ -34,61 +34,5 @@ class MountainAshNameAPIBuilderProtocol(Protocol):
 
         Returns:
             The expression with the new name.
-        """
-        ...
-
-    def prefix(
-        self,
-        prefix: str,
-    ) -> BaseExpressionAPI:
-        """Add a prefix to the column name.
-
-        Args:
-            input: The expression.
-            prefix: The prefix to add.
-
-        Returns:
-            The expression with prefixed name.
-        """
-        ...
-
-    def suffix(
-        self,
-        suffix: str,
-    ) -> BaseExpressionAPI:
-        """Add a suffix to the column name.
-
-        Args:
-            input: The expression.
-            suffix: The suffix to add.
-
-        Returns:
-            The expression with suffixed name.
-        """
-        ...
-
-    def name_to_upper(
-        self,
-    ) -> BaseExpressionAPI:
-        """Convert column name to uppercase.
-
-        Args:
-            input: The expression.
-
-        Returns:
-            The expression with uppercase name.
-        """
-        ...
-
-    def name_to_lower(
-        self,
-    ) -> BaseExpressionAPI:
-        """Convert column name to lowercase.
-
-        Args:
-            input: The expression.
-
-        Returns:
-            The expression with lowercase name.
         """
         ...
