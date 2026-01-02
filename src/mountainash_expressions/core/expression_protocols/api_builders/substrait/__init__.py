@@ -17,40 +17,16 @@ from .prtcl_api_bldr_conditional import (
 from .prtcl_api_bldr_field_reference import SubstraitFieldReferenceAPIBuilderProtocol
 from .prtcl_api_bldr_literal import SubstraitLiteralAPIBuilderProtocol
 
-# Scalar protocols - comparison and boolean
-from .prtcl_api_bldr_scalar_comparison import (
-    SubstraitScalarComparisonAPIBuilderProtocol,
-)
-from .prtcl_api_bldr_scalar_boolean import (
-    SubstraitScalarBooleanAPIBuilderProtocol,
-)
+# from .prtcl_api_bldr_scalar_aggregate import SubstraitScalarAggregateAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_arithmetic import SubstraitScalarArithmeticAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_boolean import SubstraitScalarBooleanAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_comparison import SubstraitScalarComparisonAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_datetime import SubstraitScalarDatetimeAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_logarithmic import SubstraitScalarLogarithmicAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_rounding import SubstraitScalarRoundingAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_set import SubstraitScalarSetAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_string import  SubstraitScalarStringAPIBuilderProtocol
 
-# Scalar protocols - arithmetic and math
-from .prtcl_api_bldr_scalar_arithmetic import (
-    SubstraitScalarArithmeticAPIBuilderProtocol,
-)
-from .prtcl_api_bldr_scalar_rounding import (
-    SubstraitScalarRoundingAPIBuilderProtocol,
-)
-from .prtcl_api_bldr_scalar_logarithmic import (
-    SubstraitScalarLogarithmicAPIBuilderProtocol,
-)
-
-# Scalar protocols - string and datetime
-from .prtcl_api_bldr_scalar_string import (
-    SubstraitScalarStringAPIBuilderProtocol,
-)
-from .prtcl_api_bldr_scalar_datetime import (
-    SubstraitScalarDatetimeAPIBuilderProtocol,
-)
-
-# Scalar protocols - set and aggregate
-from .prtcl_api_bldr_scalar_set import (
-    SubstraitScalarSetAPIBuilderProtocol,
-)
-from .prtcl_api_bldr_scalar_aggregate import (
-    SubstraitScalarAggregateAPIBuilderProtocol,
-)
 
 __all__ = [
     # Foundation - Expression Protocols
@@ -58,27 +34,17 @@ __all__ = [
     "SubstraitConditionalAPIBuilderProtocol",
     "SubstraitFieldReferenceAPIBuilderProtocol",
     "SubstraitLiteralAPIBuilderProtocol",
-    # Foundation - Builder Protocols
-    "SubstraitCastAPIBuilderProtocol",
-    "SubstraitConditionalAPIBuilderProtocol",
+
     "SubstraitWhenAPIBuilderProtocol",
     "SubstraitThenAPIBuilderProtocol",
-    # Scalar Comparison - Expression & Builder
-    "SubstraitScalarComparisonAPIBuilderProtocol",
-    # Scalar Boolean - Expression & Builder
-    "SubstraitScalarBooleanAPIBuilderProtocol",
-    # Scalar Arithmetic - Expression & Builder
+
+    # "SubstraitScalarAggregateAPIBuilderProtocol",
     "SubstraitScalarArithmeticAPIBuilderProtocol",
-    # Scalar Rounding - Expression & Builder
-    "SubstraitScalarRoundingAPIBuilderProtocol",
-    # Scalar Logarithmic - Expression & Builder
-    "SubstraitScalarLogarithmicAPIBuilderProtocol",
-    # Scalar String - Expression & Builder
-    "SubstraitScalarStringAPIBuilderProtocol",
-    # Scalar Datetime - Expression & Builder
+    "SubstraitScalarBooleanAPIBuilderProtocol",
+    "SubstraitScalarComparisonAPIBuilderProtocol",
     "SubstraitScalarDatetimeAPIBuilderProtocol",
-    # Scalar Set - Expression & Builder
+    "SubstraitScalarLogarithmicAPIBuilderProtocol",
+    "SubstraitScalarRoundingAPIBuilderProtocol",
     "SubstraitScalarSetAPIBuilderProtocol",
-    # Scalar Aggregate - Expression & Builder
-    "SubstraitScalarAggregateAPIBuilderProtocol",
+    "SubstraitScalarStringAPIBuilderProtocol",
 ]

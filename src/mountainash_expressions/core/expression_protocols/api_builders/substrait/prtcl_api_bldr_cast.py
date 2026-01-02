@@ -8,12 +8,17 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
-from mountainash_expressions.types import SupportedExpressions
+from enum import Enum
+from typing import Any, Protocol, Union, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from mountainash_expressions.core.expression_api import BaseExpressionAPI
     from mountainash_expressions.core.expression_nodes import ExpressionNode
+
+
+class CaseFailureBehaviour(Enum):
+    THROW = "throw"
+    NULL = "null"
 
 
 class SubstraitCastAPIBuilderProtocol(Protocol):
@@ -26,6 +31,8 @@ class SubstraitCastAPIBuilderProtocol(Protocol):
     def cast(
         self,
         dtype: Union[str, type, Any],
+        *,
+        failure_behavior: Optional[CaseFailureBehaviour] = CaseFailureBehaviour.THROW
     ) -> BaseExpressionAPI:
         """Cast to the specified data type.
 

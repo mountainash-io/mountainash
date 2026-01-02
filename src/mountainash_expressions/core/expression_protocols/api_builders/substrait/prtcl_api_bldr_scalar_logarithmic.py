@@ -9,7 +9,6 @@ Adjust type hints and signatures as needed for your implementation.
 from __future__ import annotations
 
 from typing import Any, Protocol, Union, TYPE_CHECKING
-from mountainash_expressions.types import SupportedExpressions
 
 
 if TYPE_CHECKING:

@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from typing import Any, Optional, Protocol, Union, TYPE_CHECKING
 
-from mountainash_expressions.types import SupportedExpressions
-
 
 if TYPE_CHECKING:
     from mountainash_expressions.core.expression_api import BaseExpressionAPI

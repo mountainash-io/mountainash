@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from typing import Any, Protocol, Union, TYPE_CHECKING
 
-from mountainash_expressions.types import SupportedExpressions
-
 
 if TYPE_CHECKING:
     from mountainash_expressions.core.expression_api import BaseExpressionAPI
@@ -26,25 +24,6 @@ class SubstraitScalarSetAPIBuilderProtocol(Protocol):
     These methods accept flexible inputs and return BaseExpressionAPI for chaining.
     """
 
-    def is_in(
-        self,
-        *values: Union[BaseExpressionAPI, ExpressionNode, Any],
-    ) -> BaseExpressionAPI:
-        """Check if value is in the given set of values.
-
-        Substrait: index_in (returns bool based on >= 0)
-        """
-        ...
-
-    def is_not_in(
-        self,
-        *values: Union[BaseExpressionAPI, ExpressionNode, Any],
-    ) -> BaseExpressionAPI:
-        """Check if value is not in the given set of values.
-
-        Substrait: index_in (returns bool based on < 0)
-        """
-        ...
 
     def index_in(
         self,
