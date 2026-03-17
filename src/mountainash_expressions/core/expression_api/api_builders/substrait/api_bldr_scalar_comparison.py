@@ -186,6 +186,8 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         self,
         low: Union[BaseExpressionAPI, "ExpressionNode", Any],
         high: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        closed: str = "both",
+
     ) -> BaseExpressionAPI:
         """
         Check if value is between low and high (inclusive).
@@ -195,6 +197,7 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         Args:
             low: Lower bound.
             high: Upper bound.
+            closed: Which bounds are inclusive ("left", "right", "both", "neither").
 
         Returns:
             New ExpressionAPI with between node.
@@ -204,6 +207,8 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.BETWEEN,
             arguments=[self._node, low_node, high_node],
+            options={"closed": closed},
+
         )
         return self._build(node)
 
@@ -473,6 +478,12 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
             arguments=operands,
         )
         return self._build(node)
+
+    # Short aliases for public API
+    eq = equal
+    ne = not_equal
+    ge = gte
+    le = lte
 
     def greatest_skip_null(
         self,

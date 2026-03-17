@@ -462,6 +462,13 @@ class FKEY_MOUNTAINASH_NAME(Enum):
     NAME_TO_LOWER = "name_to_lower"
 
 
+class FKEY_MOUNTAINASH_SCALAR_SET(Enum):
+    """Mountainash set operations extending Substrait index_in."""
+
+    IS_IN = "is_in"
+    IS_NOT_IN = "is_not_in"
+
+
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
     """Mountainash ternary logic operations.
 

@@ -7,9 +7,9 @@ This module now only contains Substrait extension URI constants for serializatio
 
 For function keys, use:
     from mountainash_expressions.core.expression_system.function_keys.enums import (
-        KEY_SCALAR_COMPARISON,
-        KEY_SCALAR_BOOLEAN,
-        KEY_SCALAR_ARITHMETIC,
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+        FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
         # etc.
     )
 """

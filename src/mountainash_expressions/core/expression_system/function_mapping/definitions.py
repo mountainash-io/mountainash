@@ -10,7 +10,6 @@ Each function maps:
 Functions are organized by category for clarity.
 """
 
-from mountainash_expressions.core.expression_protocols.substrait.prtcl_scalar_boolean import SubstraitScalarBooleanExpressionSystemProtocol
 from .registry import ExpressionFunctionRegistry as FunctionRegistry, ExpressionFunctionDef
 
 from ..function_keys.enums import (
@@ -39,6 +38,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -72,6 +72,7 @@ from mountainash_expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarArithmeticExpressionSystemProtocol,
     MountainAshScalarBooleanExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
+    MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
 )
 
@@ -282,10 +283,10 @@ def register_all_functions() -> None:
         # Boolean checks
         # Mountainash extensions
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_COMPARISON.XOR_PARITY,
+            function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.XOR_PARITY,
             substrait_uri=MountainashExtension.COMPARISON,
             substrait_name="xor_parity",
-            protocol_method=MountainashBooleanExpressionProtocol.xor_parity,
+            protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.xor_parity,
         ),
     ]
 
@@ -330,12 +331,13 @@ def register_all_functions() -> None:
             substrait_name="power",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.power,
         ),
-        ExpressionFunctionDef(
-            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
-            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
-            substrait_name="negate",
-            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.negate,
-        ),
+        # TODO: negate not yet in protocol - uncomment when added
+        # ExpressionFunctionDef(
+        #     function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+        #     substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+        #     substrait_name="negate",
+        #     protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.negate,
+        # ),
         # Mountainash extension
         # ExpressionFunctionDef(
         #     function_key="floor_divide",
@@ -467,6 +469,21 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_SET,
             substrait_name="index_in",
             protocol_method=SubstraitScalarSetExpressionSystemProtocol.index_in,
+        ),
+        # Mountainash set extensions
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            substrait_uri=MountainashExtension.COMPARISON,
+            substrait_name="is_in",
+            is_extension=True,
+            protocol_method=MountainAshScalarSetExpressionSystemProtocol.is_in,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
+            substrait_uri=MountainashExtension.COMPARISON,
+            substrait_name="is_not_in",
+            is_extension=True,
+            protocol_method=MountainAshScalarSetExpressionSystemProtocol.is_not_in,
         ),
     ]
 
@@ -1051,7 +1068,7 @@ def register_all_functions() -> None:
             substrait_uri=MountainashExtension.ARITHMETIC,
             substrait_name="floor_divide",
             is_extension=True,
-            protocol_method=MountainashArithmeticExpressionProtocol.floor_divide,
+            protocol_method=MountainAshScalarArithmeticExpressionSystemProtocol.floor_divide,
         ),
     ]
 
@@ -1395,30 +1412,29 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.floor,
         ),
         # Timezone
-        ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
-            substrait_uri=MountainashExtension.DATETIME,
-            substrait_name="to_timezone",
-            options=("timezone",),
-            is_extension=True,
-            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.to_timezone,
-        ),
+        # TODO: to_timezone not yet defined in any protocol
+        # ExpressionFunctionDef(
+        #     function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+        #     substrait_uri=MountainashExtension.DATETIME,
+        #     substrait_name="to_timezone",
+        #     options=("timezone",),
+        #     is_extension=True,
+        #     protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.to_timezone,
+        # ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
-            substrait_uri=MountainashExtension.DATETIME,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="assume_timezone",
             options=("timezone",),
-            is_extension=True,
-            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.assume_timezone,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.assume_timezone,
         ),
         # Formatting
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
-            substrait_uri=MountainashExtension.DATETIME,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strftime",
             options=("format",),
-            is_extension=True,
-            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.strftime,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strftime,
         ),
         # Flexible Duration Offset
         ExpressionFunctionDef(

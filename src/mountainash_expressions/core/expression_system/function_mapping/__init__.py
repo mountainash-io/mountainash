@@ -7,9 +7,9 @@ to Substrait metadata and backend methods.
 from .registry import (
     ExpressionFunctionRegistry as FunctionRegistry,
     ExpressionFunctionDef as FunctionDef,
-    SubstraitExtension,
 )
 from .definitions import register_all_functions
+from ..function_keys.enums import SubstraitExtension
 
 
 __all__ = [

@@ -39,3 +39,20 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
             Expression with NULLs replaced by the replacement value.
         """
         ...
+
+    def null_if(
+        self,
+        input: SupportedExpressions,
+        condition: Any,
+        /,
+    ) -> SupportedExpressions:
+        """Replace values matching a condition with NULL.
+
+        Args:
+            input: Expression to conditionally nullify.
+            condition: Value that, when matched, produces NULL.
+
+        Returns:
+            Expression with matching values replaced by NULL.
+        """
+        ...

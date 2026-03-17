@@ -7,10 +7,10 @@ This package now only exports SubstraitExtension URIs.
 
 For function keys, import from the canonical location:
     from mountainash_expressions.core.expression_system.function_keys.enums import (
-        KEY_SCALAR_COMPARISON,
-        KEY_SCALAR_BOOLEAN,
-        KEY_SCALAR_ARITHMETIC,
-        MOUNTAINASH_TERNARY,
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+        FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
         # etc.
     )
 """

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_BOOLEAN
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_BOOLEAN, FKEY_MOUNTAINASH_SCALAR_TERNARY
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode,  LiteralNode, SingularOrListNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarBooleanAPIBuilderProtocol
 
@@ -79,143 +79,11 @@ class SubstraitScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalar
         """
         if isinstance(node, ScalarFunctionNode) and node.is_ternary_non_terminal:
             return ScalarFunctionNode(
-                function_key=MOUNTAINASH_TERNARY.IS_TRUE,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
                 arguments=[node],
             )
         return node
 
-    # ========================================
-    # Comparison Operations
-    # ========================================
-
-    def eq(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Equal to (==).
-
-        Args:
-            other: Value or expression to compare with.
-
-        Returns:
-            New ExpressionAPI with comparison node.
-        """
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.EQUAL,
-            arguments=[self._node, other_node],
-        )
-        return self._build(node)
-
-    def ne(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """Not equal to (!=)."""
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.NOT_EQUAL,
-            arguments=[self._node, other_node],
-        )
-        return self._build(node)
-
-    def gt(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """Greater than (>)."""
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.GT,
-            arguments=[self._node, other_node],
-        )
-        return self._build(node)
-
-    def lt(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """Less than (<)."""
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.LT,
-            arguments=[self._node, other_node],
-        )
-        return self._build(node)
-
-    def ge(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """Greater than or equal (>=)."""
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.GTE,
-            arguments=[self._node, other_node],
-        )
-        return self._build(node)
-
-    def le(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """Less than or equal (<=)."""
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.LTE,
-            arguments=[self._node, other_node],
-        )
-        return self._build(node)
-
-    def is_close(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        precision: float = 1e-5,
-    ) -> BaseExpressionAPI:
-        """
-        Check if values are approximately equal within precision.
-
-        Args:
-            other: Value to compare with.
-            precision: Maximum allowed difference (default: 1e-5).
-
-        Returns:
-            New ExpressionAPI with is_close node.
-        """
-        other_node = self._to_substrait_node(other)
-        node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_COMPARISON.IS_CLOSE,
-            arguments=[self._node, other_node],
-            options={"precision": precision},
-        )
-        return self._build(node)
-
-    def between(
-        self,
-        lower: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        upper: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        closed: str = "both",
-    ) -> BaseExpressionAPI:
-        """
-        Check if value is between bounds.
-
-        Args:
-            lower: Lower bound.
-            upper: Upper bound.
-            closed: Which bounds are inclusive ("left", "right", "both", "neither").
-
-        Returns:
-            New ExpressionAPI with between node.
-        """
-        lower_node = self._to_substrait_node(lower)
-        upper_node = self._to_substrait_node(upper)
-        node = ScalarFunctionNode(
-            function_key=KEY_SCALAR_COMPARISON.BETWEEN,
-            arguments=[self._node, lower_node, upper_node],
-            options={"closed": closed},
-        )
-        return self._build(node)
 
 
     # ========================================
@@ -338,67 +206,8 @@ class SubstraitScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalar
         )
         return self._build(node)
 
-    def xor_(
-        self,
-        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        Variadic logical XOR operation (exclusive or).
-
-        Automatically coerces ternary expressions to boolean via is_true().
-
-        Args:
-            *others: Other expressions to XOR with this one.
-
-        Returns:
-            New ExpressionAPI with XOR node.
-        """
-        if not others:
-            return self._build(self._coerce_if_needed(self._node))
-
-        # _to_substrait_node() automatically applies coercion via hook
-        operands = [self._coerce_if_needed(self._node)] + [
-            self._to_substrait_node(o) for o in others
-        ]
-        result = operands[0]
-        for operand in operands[1:]:
-            result = ScalarFunctionNode(
-                function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.XOR,
-                arguments=[result, operand],
-            )
-        return self._build(result)
-
-    def xor_parity(
-        self,
-        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
-        XOR parity check (odd number of TRUE values).
-
-        Returns TRUE if an odd number of operands are TRUE.
-
-        Automatically coerces ternary expressions to boolean via is_true().
-
-        Args:
-            *others: Other expressions to check parity with.
-
-        Returns:
-            New ExpressionAPI with XOR_PARITY node.
-        """
-        if not others:
-            return self._build(self._coerce_if_needed(self._node))
-
-        # _to_substrait_node() automatically applies coercion via hook
-        operands = [self._coerce_if_needed(self._node)] + [
-            self._to_substrait_node(o) for o in others
-        ]
-        result = operands[0]
-        for operand in operands[1:]:
-            result = ScalarFunctionNode(
-                function_key=MOUNTAINASH_COMPARISON.XOR_PARITY,
-                arguments=[result, operand],
-            )
-        return self._build(result)
+    # Short alias for public API
+    xor_ = xor
 
     # ========================================
     # Unary Operators

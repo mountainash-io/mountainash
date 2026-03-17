@@ -8,167 +8,182 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The package is designed as a foundation for cross-backend DataFrame filtering, mutations, and operations that need consistent expression evaluation regardless of the underlying DataFrame implementation.
 
+## Principles Repository
+
+Design principles for this project are documented at:
+`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expresions/`
+
+Consult the principles when making architectural decisions, adding new operations, or resolving design tensions. The principles explain the *why* behind the patterns described in this file.
+
 ## Current Architecture Status
 
-**IMPORTANT**: The package uses a **Protocol-Driven Visitor Pattern** with a **three-layer protocol architecture**. All major operation categories are fully implemented and tested across multiple backends.
+**IMPORTANT**: The package uses a **Substrait-aligned architecture** with clear separation between Substrait-standard operations and Mountainash extensions. See [ADR-008](docs/adr/ADR-008-substrait-extension-alignment.md) for full details.
+
+**Architecture Principles:**
+- **Substrait-first**: Operations align with [Substrait specification](https://substrait.io/) where possible
+- **Extension separation**: Custom operations live in `extensions_mountainash/` directories
+- **Minimal AST**: Only 7 node types (ScalarFunctionNode handles most operations)
+- **Function registry**: ENUM-based function keys for type safety and IDE autocomplete
 
 **Implementation Status:**
-- ✅ Boolean logic: Fully implemented and tested
-- ✅ Arithmetic operations: Fully implemented
-- ✅ String operations: Fully implemented
-- ✅ Temporal operations: Fully implemented
-- ✅ Horizontal operations (coalesce, greatest, least): Fully implemented
-- ✅ Three-layer protocol architecture: Complete
-- ✅ Standalone category visitors: Complete (~1,862 lines)
-- ✅ AST nodes: Complete (~1,241 lines)
-- ✅ Protocol definitions: Complete (~1,081 lines)
-- ✅ Namespace-based API: Complete (~2,832 lines)
-- ✅ Backend implementations: Complete for Polars (1,423 lines), Ibis (984 lines), Narwhals (991 lines)
-- ✅ Cross-backend testing: 7,500+ lines of tests
-- ⚠️ Ternary logic: Designed but not implemented
+- ✅ Substrait categories: 13 implemented (comparison, boolean, arithmetic, string, datetime, etc.)
+- ✅ Mountainash extensions: 6 implemented (ternary, null, name, datetime convenience, etc.)
+- ✅ Backend implementations: Polars, Ibis, Narwhals complete
+- ✅ Cross-backend testing: 10,000+ lines of tests
 - ⚠️ Pandas backend: Detection exists, limited testing
 
 ## Package Structure
 
+The codebase follows a **Substrait-aligned architecture** with clear separation between standard and extension components.
+
 ```
 src/mountainash_expressions/
-├── __init__.py                          # Main package exports
-├── __version__.py                       # Package version
-├── constants.py                         # Legacy redirect to core.constants
-├── runtime_imports.py                   # Runtime import utilities
-├── types.py                             # Type aliases
+├── __init__.py                              # Main package exports
+├── __version__.py                           # Package version
+├── types.py                                 # Type aliases
 │
-├── core/                                # CORE ARCHITECTURE
-│   ├── constants.py                    # Enums: backends, logic types, operators
+├── core/                                    # CORE ARCHITECTURE
+│   ├── constants.py                        # Backend enums, logic types
 │   │
-│   ├── expression_api/                 # EXPRESSION API FACADES
-│   │   ├── __init__.py                # Exports: BaseExpressionAPI, BooleanExpressionAPI
-│   │   ├── base.py                    # BaseExpressionAPI - abstract base with compile()
-│   │   ├── boolean.py                 # BooleanExpressionAPI - main user-facing class
-│   │   └── descriptor.py              # NamespaceDescriptor for .str, .dt, .name accessors
+│   ├── expression_nodes/
+│   │   └── substrait/                      # MINIMAL 7-NODE AST
+│   │       ├── exn_base.py                 # Base ExpressionNode
+│   │       ├── exn_field_reference.py      # Column references
+│   │       ├── exn_literal.py              # Constants
+│   │       ├── exn_scalar_function.py      # Universal function node (most ops)
+│   │       ├── exn_cast.py                 # Type conversion
+│   │       ├── exn_ifthen.py               # Conditionals
+│   │       └── exn_singular_or_list.py     # IN/NOT IN
 │   │
-│   ├── namespaces/                     # NAMESPACE-BASED API (~2,832 lines)
-│   │   ├── __init__.py                # Export all namespaces
-│   │   ├── base.py                    # BaseNamespace abstract class
-│   │   ├── entrypoints.py             # col(), lit(), coalesce(), greatest(), least(), when(), native()
-│   │   ├── boolean.py                 # Comparison & logical operations (~389 lines)
-│   │   ├── arithmetic.py              # Math operations (~308 lines)
-│   │   ├── string.py                  # String operations (~449 lines)
-│   │   ├── datetime.py                # Temporal operations (~705 lines)
-│   │   ├── name.py                    # Alias/prefix/suffix (~142 lines)
-│   │   ├── null.py                    # Null handling (~113 lines)
-│   │   ├── horizontal.py              # Horizontal ops (~101 lines)
-│   │   ├── type.py                    # Type casting (~45 lines)
-│   │   ├── conditional.py             # When/then/otherwise (~112 lines)
-│   │   └── native.py                  # Native expression passthrough (~51 lines)
+│   ├── expression_system/
+│   │   ├── expsys_base.py                  # Base class & registration
+│   │   └── function_keys/
+│   │       └── enums.py                    # ALL FUNCTION KEYS (KEY_* & MOUNTAINASH_*)
 │   │
-│   ├── protocols/                      # PROTOCOL DEFINITIONS (~1,081 lines)
-│   │   ├── __init__.py                # Export all protocols
-│   │   ├── arithmetic_protocols.py    # 3 protocols + ENUM_ARITHMETIC_OPERATORS
-│   │   ├── boolean_protocols.py       # 3 protocols + ENUM_BOOLEAN_OPERATORS (~153 lines)
-│   │   ├── core_protocols.py          # 3 protocols + ENUM_CORE_OPERATORS
-│   │   ├── horizontal_protocols.py    # 3 protocols + ENUM_HORIZONTAL_OPERATORS
-│   │   ├── name_protocols.py          # 3 protocols + ENUM_NAME_OPERATORS
-│   │   ├── native_protocols.py        # 3 protocols + ENUM_NATIVE_OPERATORS
-│   │   ├── null_protocols.py          # 3 protocols + ENUM_NULL_OPERATORS
-│   │   ├── string_protocols.py        # 3 protocols + ENUM_STRING_OPERATORS (~171 lines)
-│   │   ├── temporal_protocols.py      # 3 protocols + ENUM_TEMPORAL_OPERATORS (~210 lines)
-│   │   ├── type_protocols.py          # 3 protocols + ENUM_TYPE_OPERATORS
-│   │   └── conditional_protocols.py   # Conditional protocols
+│   ├── expression_protocols/
+│   │   ├── api_builders/
+│   │   │   ├── substrait/                  # Builder protocol stubs
+│   │   │   │   └── prtcl_api_bldr_*.py
+│   │   │   └── extensions_mountainash/     # Extension builder protocols
+│   │   │       └── prtcl_api_bldr_ext_ma_*.py
+│   │   │
+│   │   └── expression_systems/
+│   │       ├── substrait/                  # ExpressionSystem protocols
+│   │       │   └── prtcl_expsys_*.py
+│   │       └── extensions_mountainash/     # Extension system protocols
+│   │           └── prtcl_expsys_ext_ma_*.py
 │   │
-│   ├── expression_nodes/              # AST NODES (~1,241 lines)
-│   │   ├── __init__.py                # Export all nodes (~160 lines)
-│   │   ├── base_expression_node.py   # Base node class
-│   │   ├── types.py                  # Type aliases (~111 lines)
-│   │   ├── arithmetic_expression_nodes.py
-│   │   ├── boolean_expression_nodes.py    # (~156 lines)
-│   │   ├── conditional_expression_nodes.py
-│   │   ├── core_expression_nodes.py       # ColumnExpressionNode, LiteralExpressionNode
-│   │   ├── horizontal_expression_nodes.py # Coalesce, greatest, least
-│   │   ├── name_expression_nodes.py
-│   │   ├── native_expression_nodes.py
-│   │   ├── null_expression_nodes.py
-│   │   ├── string_expression_nodes.py     # (~172 lines)
-│   │   ├── temporal_expression_nodes.py
-│   │   └── type_expression_nodes.py
-│   │
-│   ├── expression_visitors/          # STANDALONE VISITORS (~1,862 lines)
-│   │   ├── __init__.py
-│   │   ├── expression_visitor.py    # Abstract base (~43 lines)
-│   │   ├── visitor_factory.py       # Backend detection & dispatch (~499 lines)
-│   │   ├── types.py                 # Type aliases
-│   │   ├── arithmetic_visitor.py    # (~130 lines)
-│   │   ├── boolean_visitor.py       # (~286 lines)
-│   │   ├── conditional_visitor.py   # (~62 lines)
-│   │   ├── core_visitor.py          # col(), lit() (~58 lines)
-│   │   ├── horizontal_visitor.py    # (~77 lines)
-│   │   ├── name_visitor.py          # (~83 lines)
-│   │   ├── native_visitor.py        # (~51 lines)
-│   │   ├── null_visitor.py          # (~83 lines)
-│   │   ├── string_visitor.py        # (~163 lines)
-│   │   ├── temporal_visitor.py      # (~228 lines)
-│   │   └── type_visitor.py          # (~48 lines)
-│   │
-│   ├── expression_system/            # BACKEND ABSTRACTION INTERFACE
-│   │   ├── __init__.py
-│   │   └── base.py                  # ExpressionSystem protocol composition
-│   │
-│   ├── expression_parameters/        # PARAMETER RESOLUTION
-│   │   ├── __init__.py
-│   │   └── expression_parameter.py  # ExpressionParameter abstraction
+│   ├── expression_api/
+│   │   ├── api_base.py                     # BaseExpressionAPI with compile()
+│   │   ├── boolean.py                      # BooleanExpressionAPI (main user class)
+│   │   ├── descriptor.py                   # NamespaceDescriptor for .str, .dt, .name
+│   │   ├── entrypoints.py                  # col(), lit(), when(), coalesce(), etc.
+│   │   └── api_builders/
+│   │       ├── substrait/                  # API builder implementations
+│   │       │   └── api_bldr_*.py
+│   │       └── extensions_mountainash/     # Extension API builders
+│   │           └── api_bldr_ext_ma_*.py
 │   │
 │   └── utils/
-│       ├── __init__.py
-│       └── temporal.py              # Temporal parsing utilities
+│       └── temporal.py                     # Temporal parsing utilities
 │
-└── backends/                          # BACKEND IMPLEMENTATIONS
-    ├── __init__.py
+└── backends/                                # BACKEND IMPLEMENTATIONS
     └── expression_systems/
-        ├── polars/                   # Polars backend (~1,423 lines total)
-        │   ├── __init__.py          # PolarsExpressionSystem composition (~61 lines)
-        │   ├── base.py              # PolarsBaseExpressionSystem (~34 lines)
-        │   ├── arithmetic.py        # (~123 lines)
-        │   ├── boolean.py           # (~315 lines)
-        │   ├── conditional.py       # (~32 lines)
-        │   ├── core.py              # col(), lit() (~47 lines)
-        │   ├── horizontal.py        # (~57 lines)
-        │   ├── name.py              # (~74 lines)
-        │   ├── native.py            # (~33 lines)
-        │   ├── null.py              # (~78 lines)
-        │   ├── string.py            # (~215 lines)
-        │   ├── temporal.py          # (~321 lines)
-        │   └── type.py              # (~33 lines)
+        ├── base.py                         # Backend registration
         │
-        ├── ibis/                     # Ibis backend (~984 lines total)
-        │   ├── __init__.py          # IbisExpressionSystem composition (~50 lines)
-        │   ├── base.py              # (~37 lines)
-        │   ├── arithmetic.py        # (~36 lines)
-        │   ├── boolean.py           # (~111 lines)
-        │   ├── conditional.py       # (~32 lines)
-        │   ├── core.py              # (~20 lines)
-        │   ├── horizontal.py        # (~62 lines)
-        │   ├── name.py              # (~116 lines)
-        │   ├── native.py            # (~33 lines)
-        │   ├── null.py              # (~31 lines)
-        │   ├── string.py            # (~91 lines)
-        │   ├── temporal.py          # (~352 lines)
-        │   └── type.py              # (~13 lines)
+        ├── polars/
+        │   ├── __init__.py                 # PolarsExpressionSystem composition
+        │   ├── base.py                     # PolarsBaseExpressionSystem
+        │   ├── substrait/                  # Substrait implementations
+        │   │   ├── expsys_pl_scalar_comparison.py
+        │   │   ├── expsys_pl_scalar_boolean.py
+        │   │   ├── expsys_pl_scalar_arithmetic.py
+        │   │   ├── expsys_pl_scalar_string.py
+        │   │   ├── expsys_pl_scalar_datetime.py
+        │   │   └── ... (13 Substrait categories)
+        │   └── extensions_mountainash/     # Extension implementations
+        │       ├── expsys_pl_ext_ma_scalar_ternary.py
+        │       ├── expsys_pl_ext_ma_null.py
+        │       ├── expsys_pl_ext_ma_name.py
+        │       └── ... (6 extension categories)
         │
-        └── narwhals/                 # Narwhals backend (~991 lines total)
-            ├── __init__.py          # NarwhalsExpressionSystem composition (~50 lines)
-            ├── base.py              # (~37 lines)
-            ├── arithmetic.py        # (~66 lines)
-            ├── boolean.py           # (~160 lines)
-            ├── conditional.py       # (~32 lines)
-            ├── core.py              # (~45 lines)
-            ├── horizontal.py        # (~59 lines)
-            ├── name.py              # (~86 lines)
-            ├── native.py            # (~33 lines)
-            ├── null.py              # (~31 lines)
-            ├── string.py            # (~123 lines)
-            ├── temporal.py          # (~254 lines)
-            └── type.py              # (~15 lines)
+        ├── ibis/                           # Same structure as polars/
+        │   ├── substrait/
+        │   │   └── expsys_ib_*.py
+        │   └── extensions_mountainash/
+        │       └── expsys_ib_ext_ma_*.py
+        │
+        └── narwhals/                       # Same structure as polars/
+            ├── substrait/
+            │   └── expsys_nw_*.py
+            └── extensions_mountainash/
+                └── expsys_nw_ext_ma_*.py
 ```
+
+## Naming Conventions
+
+### File Prefixes
+
+| Prefix | Meaning | Example |
+|--------|---------|---------|
+| `exn_` | Expression Node | `exn_scalar_function.py` |
+| `prtcl_` | Protocol | `prtcl_expsys_scalar_comparison.py` |
+| `api_bldr_` | API Builder | `api_bldr_scalar_comparison.py` |
+| `expsys_` | Expression System (backend) | `expsys_pl_scalar_comparison.py` |
+| `ext_ma_` | Mountainash Extension | `expsys_pl_ext_ma_null.py` |
+
+### Backend Prefixes
+
+| Prefix | Backend |
+|--------|---------|
+| `pl_` | Polars |
+| `ib_` | Ibis |
+| `nw_` | Narwhals |
+
+### Function Key Enums
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Substrait | `KEY_<CATEGORY>` | `KEY_SCALAR_COMPARISON.EQUAL` |
+| Mountainash | `MOUNTAINASH_<CATEGORY>` | `MOUNTAINASH_TERNARY.T_EQ` |
+
+### Class Naming
+
+| Component | Substrait Pattern | Mountainash Pattern |
+|-----------|-------------------|---------------------|
+| Protocol | `Substrait<Category>ExpressionSystemProtocol` | `MountainAsh<Category>ExpressionSystemProtocol` |
+| Backend | `<Backend><Category>ExpressionSystem` | `<Backend><Category>ExtensionSystem` |
+
+## Implemented Categories
+
+### Substrait Categories (13)
+
+| Category | Function Key Enum | Operations |
+|----------|-------------------|------------|
+| `scalar_comparison` | `KEY_SCALAR_COMPARISON` | equal, lt, gt, lte, gte, between, is_null, coalesce, etc. |
+| `scalar_boolean` | `KEY_SCALAR_BOOLEAN` | and, or, not, xor |
+| `scalar_arithmetic` | `KEY_SCALAR_ARITHMETIC` | add, subtract, multiply, divide, modulo, power |
+| `scalar_string` | `KEY_SCALAR_STRING` | upper, lower, trim, contains, starts_with, etc. |
+| `scalar_datetime` | `KEY_SCALAR_DATETIME` | extract |
+| `scalar_rounding` | `KEY_SCALAR_ROUNDING` | round, ceil, floor |
+| `scalar_logarithmic` | `KEY_SCALAR_LOGARITHMIC` | log, log10, log2 |
+| `scalar_set` | `KEY_SCALAR_SET` | index_in |
+| `scalar_aggregate` | `KEY_SCALAR_AGGREGATE` | count |
+| `field_reference` | `KEY_FIELD_REFERENCE` | col |
+| `literal` | `KEY_LITERAL` | lit |
+| `cast` | `KEY_CAST` | cast |
+| `conditional` | `KEY_CONDITIONAL` | if_then_else |
+
+### Mountainash Extensions (6)
+
+| Category | Function Key Enum | Operations |
+|----------|-------------------|------------|
+| `ext_ma_scalar_ternary` | `MOUNTAINASH_TERNARY` | t_eq, t_ne, t_and, t_or, t_not, is_true, maybe_true, etc. |
+| `ext_ma_datetime` | `MOUNTAINASH_DATETIME` | year, month, day, add_days, diff_hours, etc. |
+| `ext_ma_null` | `MOUNTAINASH_NULL` | fill_null, null_if |
+| `ext_ma_name` | `MOUNTAINASH_NAME` | alias, prefix, suffix |
+| `ext_ma_scalar_arithmetic` | `MOUNTAINASH_ARITHMETIC` | floor_divide |
+| `ext_ma_scalar_boolean` | `MOUNTAINASH_COMPARISON` | xor_parity, is_close |
 
 ## Test Structure
 
@@ -187,7 +202,10 @@ tests/
 │   ├── test_pattern.py                 # Regex, pattern matching (~577 lines)
 │   ├── test_string.py                  # String operations (~748 lines)
 │   ├── test_temporal_advanced.py       # Complex datetime ops (~591 lines)
-│   └── test_temporal_natural.py        # Natural language time (~411 lines)
+│   ├── test_temporal_natural.py        # Natural language time (~411 lines)
+│   ├── test_ternary.py                 # Ternary logic operations (~800 lines)
+│   ├── test_ternary_auto_booleanize.py # Auto-booleanization (~1,600 lines)
+│   └── test_t_col.py                   # t_col() as configurable nullif (~1,100 lines)
 │
 ├── unit/
 │   ├── test_namespace_infrastructure.py # (~582 lines)
@@ -196,204 +214,116 @@ tests/
 └── backends/
 ```
 
-**Total Test Lines: ~7,521**
 
-## Core Architecture: Three-Layer Protocol Design
+**Total Test Lines: ~11,000+** (including 163 auto-booleanization tests and 116 t_col tests)
 
-### The Three Protocol Layers
+## Core Architecture: Substrait-Aligned Design
 
-**IMPORTANT**: Every operation category defines **THREE** protocol interfaces:
+### The Minimal AST (7 Node Types)
 
-1. **VisitorProtocol** - Defines visitor methods that traverse AST nodes
-2. **ExpressionProtocol** - Defines backend primitive operations
-3. **BuilderProtocol** - Defines fluent user-facing API methods (implemented by Namespaces)
+All expressions compile to one of these Substrait-aligned node types:
 
-### Protocol Categories
+```python
+ExpressionNode (base class)
+├── FieldReferenceNode(column)           # Column references: col("age")
+├── LiteralNode(value)                   # Constants: lit(30)
+├── ScalarFunctionNode(function, args)   # 90% of operations
+├── IfThenNode(condition, then, else)    # Conditionals: when().then().otherwise()
+├── CastNode(expression, target_type)    # Type conversions: .cast(int)
+└── SingularOrListNode(values)           # IN / NOT IN operations
+```
 
-| Category | Protocols | Enum | Operations |
-|----------|-----------|------|------------|
-| **Core** | CoreVisitor, CoreExpression, CoreBuilder | ENUM_CORE_OPERATORS | col, lit |
-| **Boolean** | BooleanVisitor, BooleanExpression, BooleanBuilder | ENUM_BOOLEAN_OPERATORS | eq, ne, gt, lt, ge, le, and_, or_, not_, is_in, etc. |
-| **Arithmetic** | ArithmeticVisitor, ArithmeticExpression, ArithmeticBuilder | ENUM_ARITHMETIC_OPERATORS | add, subtract, multiply, divide, modulo, power, floor_divide |
-| **String** | StringVisitor, StringExpression, StringBuilder | ENUM_STRING_OPERATORS | upper, lower, trim, contains, startswith, etc. |
-| **Temporal** | TemporalVisitor, TemporalExpression, TemporalBuilder | ENUM_TEMPORAL_OPERATORS | year, month, day, add_days, diff_hours, etc. |
-| **Horizontal** | HorizontalVisitor, HorizontalExpression, HorizontalBuilder | ENUM_HORIZONTAL_OPERATORS | coalesce, greatest, least |
-| **Null** | NullVisitor, NullExpression, NullBuilder | ENUM_NULL_OPERATORS | is_null, is_not_null, fill_null |
-| **Type** | TypeVisitor, TypeExpression, TypeBuilder | ENUM_TYPE_OPERATORS | cast |
-| **Name** | NameVisitor, NameExpression, NameBuilder | ENUM_NAME_OPERATORS | alias, prefix, suffix |
-| **Native** | NativeVisitor, NativeExpression, NativeBuilder | ENUM_NATIVE_OPERATORS | native (passthrough) |
-| **Conditional** | - | - | when/then/otherwise |
+**Key insight**: Most operations use `ScalarFunctionNode` with a function key ENUM, rather than category-specific node types.
 
 ### The Architecture Flow
 
 ```python
-# 1. User builds expression (backend-agnostic AST)
-User API: ma.col("age").gt(30)
+# 1. User builds expression (creates AST)
+ma.col("age").gt(30)
     ↓
-BooleanExpressionAPI (fluent interface) - dispatches to Namespaces
+API Builder: api_bldr_scalar_comparison.py
     ↓
-BooleanNamespace.gt() - creates ExpressionNode
-    ↓
-BooleanComparisonExpressionNode (AST node)
+Creates: ScalarFunctionNode(
+    function_key=KEY_SCALAR_COMPARISON.GT,
+    arguments=[FieldReferenceNode("age"), LiteralNode(30)]
+)
 
 # 2. Compile to backend-native expression
-BooleanExpressionAPI.compile(df)
+expr.compile(df)
     ↓
-ExpressionVisitorFactory.get_visitor_for_node() - selects visitor
+Backend detection → PolarsExpressionSystem
     ↓
-BooleanExpressionVisitor.visit_expression_node() - dispatches by operator
+Visitor dispatches based on function_key
     ↓
-ExpressionParameter.to_native_expression() - resolves operands
+PolarsScalarComparisonExpressionSystem.gt(left, right)
     ↓
-Backend (e.g., PolarsExpressionSystem.gt()) - implements ExpressionProtocol
-    ↓
-Backend-native expression (pl.Expr | nw.Expr | ir.Expr)
+Returns: pl.col("age").gt(30)
 
 # 3. Execute on DataFrame
 df.filter(backend_expr) → Filtered DataFrame
 ```
 
-### Key Components
+### Protocol Layer
 
-#### 1. BooleanExpressionAPI (Main User Interface)
-
-Located: `core/expression_api/boolean.py`
-
-The main user-facing class that provides fluent expression building:
+Each category has an ExpressionSystemProtocol that backends implement:
 
 ```python
-class BooleanExpressionAPI(BaseExpressionAPI):
-    """Expression API with standard two-valued boolean logic."""
+# core/expression_protocols/expression_systems/substrait/prtcl_expsys_scalar_comparison.py
+class SubstraitScalarComparisonExpressionSystemProtocol(Protocol):
+    """Protocol for comparison operations."""
 
-    # Flat namespaces - methods accessed directly
-    _FLAT_NAMESPACES = (
-        BooleanComparisonNamespace,
-        BooleanLogicalNamespace,
-        ArithmeticNamespace,
-        NullNamespace,
-        TypeNamespace,
-        HorizontalNamespace,
-        NativeNamespace,
-    )
+    def equal(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """Whether two values are equal."""
+        ...
 
-    # Explicit namespace descriptors - accessed via .str, .dt, .name
-    str = NamespaceDescriptor(StringNamespace)
-    dt = NamespaceDescriptor(DateTimeNamespace)
-    name = NamespaceDescriptor(NameNamespace)
+    def lt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+        """Less than comparison."""
+        ...
 
-    # Python operator overloading
-    def __gt__(self, other): return self.gt(other)
-    def __and__(self, other): return self.and_(other)
-    def __add__(self, other): return self.add(other)
-    # ... etc.
-```
-
-#### 2. Namespace-Based API
-
-Located: `core/namespaces/`
-
-Operations are organized into namespaces that implement BuilderProtocols:
-
-```python
-# core/namespaces/boolean.py
-class BooleanNamespace(BaseNamespace, BooleanBuilderProtocol):
-    """Boolean operations namespace."""
-
-    def eq(self, other) -> BaseExpressionAPI:
-        """Equal to (==)."""
-        other_node = self._to_node_or_value(other)
-        node = BooleanComparisonExpressionNode(
-            ENUM_BOOLEAN_OPERATORS.EQ,
-            self._node,
-            other_node,
-        )
-        return self._build(node)
-
-    def and_(self, *others) -> BaseExpressionAPI:
-        """Logical AND operation."""
-        operands = [self._node] + [self._to_node_or_value(o) for o in others]
-        node = BooleanIterableExpressionNode(
-            ENUM_BOOLEAN_OPERATORS.AND,
-            *operands,
-        )
-        return self._build(node)
-```
-
-#### 3. Entry Point Functions
-
-Located: `core/namespaces/entrypoints.py`
-
-```python
-def col(name: str) -> BaseExpressionAPI:
-    """Create a column reference expression."""
-    node = ColumnExpressionNode(operator=ENUM_CORE_OPERATORS.COL, column=name)
-    return BooleanExpressionAPI(node)
-
-def lit(value: Any) -> BaseExpressionAPI:
-    """Create a literal value expression."""
-    node = LiteralExpressionNode(operator=ENUM_CORE_OPERATORS.LIT, value=value)
-    return BooleanExpressionAPI(node)
-
-def coalesce(*exprs) -> BaseExpressionAPI:
-    """Return the first non-null value from multiple expressions."""
-    ...
-
-def when(condition) -> WhenBuilder:
-    """Start a conditional when-then-otherwise expression."""
-    ...
-
-def native(expr: Any) -> BaseExpressionAPI:
-    """Wrap a backend-native expression in the abstract expression API."""
-    ...
-```
-
-#### 4. Visitor Factory
-
-Located: `core/expression_visitors/visitor_factory.py`
-
-Auto-detects backend and dispatches to appropriate visitor:
-
-```python
-class ExpressionVisitorFactory:
-    _expression_systems_registry: Dict[CONST_VISITOR_BACKENDS, Type[ExpressionSystem]] = {}
-
-    @classmethod
-    def get_visitor_for_node(cls, node, expression_system, logic_type):
-        """Get appropriate visitor for a specific node type."""
-        if isinstance(node, (BooleanComparisonExpressionNode, ...)):
-            return BooleanExpressionVisitor(expression_system)
-        elif isinstance(node, (ArithmeticExpressionNode, ...)):
-            return ArithmeticExpressionVisitor(expression_system)
-        # ... etc.
-
-    @classmethod
-    def _identify_backend(cls, dataframe_or_backend):
-        """Identify the backend from a DataFrame/Table object."""
-        # Priority: 1. Narwhals, 2. Ibis, 3. Polars, 4. Pandas
+# Mountainash extension protocols
+# core/expression_protocols/expression_systems/extensions_mountainash/prtcl_expsys_ext_ma_null.py
+class MountainAshNullExpressionSystemProtocol(Protocol):
+    def fill_null(self, input: SupportedExpressions, replacement: SupportedExpressions, /) -> SupportedExpressions:
         ...
 ```
 
-#### 5. Backend ExpressionSystems
+### Backend Implementation Layer
 
-Located: `backends/expression_systems/*/`
+Each backend implements the protocols for its expression type:
 
-Each backend composes protocol implementations:
+```python
+# backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py
+class PolarsScalarComparisonExpressionSystem(
+    PolarsBaseExpressionSystem,
+    SubstraitScalarComparisonExpressionSystemProtocol
+):
+    def equal(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+        return x.eq(y)
+
+    def lt(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+        return x.lt(y)
+```
+
+### Backend Composition
+
+Each backend composes all protocol implementations:
 
 ```python
 # backends/expression_systems/polars/__init__.py
 @register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
 class PolarsExpressionSystem(
-    PolarsCoreExpressionSystem,
-    PolarsBooleanExpressionSystem,
-    PolarsArithmeticExpressionSystem,
-    PolarsStringExpressionSystem,
-    PolarsTemporalExpressionSystem,
-    PolarsTypeExpressionSystem,
-    PolarsNullExpressionSystem,
-    PolarsHorizontalExpressionSystem,
-    PolarsNameExpressionSystem,
-    PolarsNativeExpressionSystem,
-    PolarsConditionalExpressionSystem,
+    # Substrait categories
+    PolarsScalarComparisonExpressionSystem,
+    PolarsScalarBooleanExpressionSystem,
+    PolarsScalarArithmeticExpressionSystem,
+    PolarsScalarStringExpressionSystem,
+    PolarsScalarDatetimeExpressionSystem,
+    # ... 13 Substrait categories
+    # Mountainash extensions
+    PolarsTernaryExtensionSystem,
+    PolarsNullExtensionSystem,
+    PolarsNameExtensionSystem,
+    # ... 6 extension categories
 ):
     """Complete Polars backend ExpressionSystem."""
     pass
@@ -433,6 +363,150 @@ when(cond).then(val).otherwise(alt)  # If-then-else
 
 # Native expression passthrough
 native(backend_expr)  # Wrap backend-specific expression
+
+# Ternary column (configurable nullif)
+t_col(name, unknown={...})  # Column with custom UNKNOWN values
+```
+
+## Ternary Logic System
+
+### Overview
+
+Ternary logic provides three-valued logic semantics where:
+- **TRUE (1)**: Definitely true
+- **UNKNOWN (0)**: Cannot determine (NULL, missing, or custom sentinel)
+- **FALSE (-1)**: Definitely false
+
+Unlike boolean logic where NULL typically propagates as NULL, ternary logic uses explicit UNKNOWN (0) sentinel values, enabling powerful data validation scenarios.
+
+### Key Concepts
+
+**Why Ternary?**
+- Boolean: `True AND NULL = NULL` (ambiguous)
+- Ternary: `TRUE AND UNKNOWN = UNKNOWN (0)` (explicit sentinel value)
+
+Ternary logic enables filtering strategies like "exclude only definitely false" or "include anything that might be true."
+
+### t_col() - Configurable Nullif
+
+`t_col()` creates a ternary-aware column reference that treats custom values as UNKNOWN:
+
+```python
+import mountainash_expressions as ma
+
+# Standard column: only NULL is unknown
+expr = ma.col("score").t_gt(70)  # NULL → UNKNOWN
+
+# With custom sentinel: -99999 treated as UNKNOWN (like SQL NULLIF)
+expr = ma.t_col("score", unknown={-99999}).t_gt(70)
+
+# Multiple sentinels
+expr = ma.t_col("value", unknown={-999, -9999, ""}).t_eq("active")
+```
+
+**Use Cases:**
+- Legacy systems with numeric sentinels (-99999, 0, -1)
+- Empty string as missing
+- Special marker values ("N/A", "UNKNOWN")
+- Multi-system data with different null representations
+
+### Ternary Operations
+
+**Comparison (return -1/0/1):**
+```python
+.t_eq(other)        # Ternary equal
+.t_ne(other)        # Ternary not equal
+.t_gt(other)        # Ternary greater than
+.t_lt(other)        # Ternary less than
+.t_ge(other)        # Ternary greater or equal
+.t_le(other)        # Ternary less or equal
+.t_is_in(values)    # Ternary membership
+.t_is_not_in(values) # Ternary non-membership
+```
+
+**Logical (min/max semantics):**
+```python
+.t_and(*others)     # Minimum: T∧U=U, T∧F=F, U∧F=F
+.t_or(*others)      # Maximum: T∨U=T, T∨F=T, U∨F=U
+.t_not()            # Sign flip: ¬T=F, ¬U=U, ¬F=T
+.t_xor(*others)     # Exactly one TRUE
+.t_xor_parity(*others) # Odd number of TRUEs
+```
+
+**Constants:**
+```python
+ma.always_true()    # Constant 1
+ma.always_false()   # Constant -1
+ma.always_unknown() # Constant 0
+```
+
+### Auto-Booleanization
+
+Ternary expressions must be converted to boolean for DataFrame filtering. The `compile()` method accepts a `booleanizer` parameter:
+
+```python
+# Default: is_true() - only TRUE(1) passes filter
+expr.compile(df)                      # TRUE → True, else → False
+expr.compile(df, booleanizer="is_true")
+
+# maybe_true() - lenient, gives benefit of doubt
+expr.compile(df, booleanizer="maybe_true")  # TRUE or UNKNOWN → True
+
+# No booleanization - get raw -1/0/1 values
+expr.compile(df, booleanizer=None)
+
+# Custom callable
+expr.compile(df, booleanizer=lambda e: e.ge(0))  # UNKNOWN or TRUE
+```
+
+**Built-in Booleanizers:**
+| Booleanizer | TRUE(1) | UNKNOWN(0) | FALSE(-1) |
+|-------------|---------|------------|-----------|
+| `is_true` (default) | True | False | False |
+| `maybe_true` | True | True | False |
+| `is_false` | False | False | True |
+| `maybe_false` | False | True | True |
+| `is_unknown` | False | True | False |
+| `is_known` | True | False | True |
+
+### Bidirectional Coercion
+
+The namespace layer automatically coerces between boolean and ternary:
+
+```python
+# Boolean expression used in ternary operation → auto-wrapped with to_ternary()
+ma.col("active").eq(True).t_and(ma.col("score").t_gt(70))
+# Internally: to_ternary(eq(...)).t_and(t_gt(...))
+
+# Ternary expression used directly → auto-booleanized at compile
+result = df.filter(ma.col("value").t_gt(50).compile(df))
+# Internally: compile applies is_true() booleanizer
+```
+
+### Ternary Logic Examples
+
+```python
+import mountainash_expressions as ma
+
+# Basic ternary comparison
+expr = ma.col("score").t_gt(70)  # Returns -1/0/1
+
+# With custom sentinel value (like SQL NULLIF)
+expr = ma.t_col("score", unknown={-99999}).t_gt(70)
+
+# Ternary logic chain
+expr = (
+    ma.t_col("rating", unknown={0}).t_ge(4)
+    .t_and(ma.col("verified").t_eq(True))
+    .t_or(ma.col("premium").t_eq(True))
+)
+
+# Different booleanization strategies
+strict_filter = expr.compile(df, booleanizer="is_true")   # Only definitely good
+lenient_filter = expr.compile(df, booleanizer="maybe_true") # Include uncertain
+
+# Get raw ternary values for analysis
+ternary_values = expr.compile(df, booleanizer=None)
 ```
 
 ### BooleanExpressionAPI Methods
@@ -663,70 +737,87 @@ hatch build               # Build distribution
 
 ## Common Development Tasks
 
-### Adding a New Operation
+### Adding a New Substrait Operation
 
-1. **Add to protocol enum:**
+1. **Add to function key enum:**
    ```python
-   # core/protocols/boolean_protocols.py
-   class ENUM_BOOLEAN_OPERATORS(Enum):
-       NEW_OP = auto()
+   # core/expression_system/function_keys/enums.py
+   class FKEY_SUBSTRAIT_SCALAR_COMPARISON(Enum):
+       NEW_OP = auto()  # Add to appropriate category
    ```
 
-2. **Add to VisitorProtocol:**
+2. **Add to ExpressionSystem protocol:**
    ```python
-   class BooleanVisitorProtocol(Protocol):
-       def new_op(self, node: BooleanSomeNode) -> SupportedExpressions: ...
+   # core/expression_protocols/expression_systems/substrait/prtcl_expsys_scalar_comparison.py
+   class SubstraitScalarComparisonExpressionSystemProtocol(Protocol):
+       def new_op(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+           """Description of new operation."""
+           ...
    ```
 
-3. **Add to ExpressionProtocol:**
+3. **Implement in API builder:**
    ```python
-   class BooleanExpressionProtocol(Protocol):
-       def new_op(self, left, right) -> SupportedExpressions: ...
-   ```
-
-4. **Add to BuilderProtocol:**
-   ```python
-   class BooleanBuilderProtocol(Protocol):
-       def new_op(self, other) -> BaseNamespace: ...
-   ```
-
-5. **Create expression node (if needed):**
-   ```python
-   # core/expression_nodes/boolean_expression_nodes.py
-   class BooleanNewOpNode(BooleanExpressionNode):
-       ...
-   ```
-
-6. **Implement in namespace:**
-   ```python
-   # core/namespaces/boolean.py
+   # core/expression_api/api_builders/substrait/api_bldr_scalar_comparison.py
    def new_op(self, other) -> BaseExpressionAPI:
-       node = BooleanNewOpNode(ENUM_BOOLEAN_OPERATORS.NEW_OP, ...)
+       other_node = self._to_node_or_value(other)
+       node = ScalarFunctionNode(
+           function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.NEW_OP,
+           arguments=[self._node, other_node],
+       )
        return self._build(node)
    ```
 
-7. **Implement in visitor:**
+4. **Implement in all backends:**
    ```python
-   # core/expression_visitors/boolean_visitor.py
-   def new_op(self, node: BooleanNewOpNode) -> SupportedExpressions:
-       left_expr = ExpressionParameter(node.left, ...).to_native_expression()
-       right_expr = ExpressionParameter(node.right, ...).to_native_expression()
-       return self.backend.new_op(left_expr, right_expr)
+   # backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py
+   def new_op(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
+       return x.some_polars_method(y)
+
+   # backends/expression_systems/ibis/substrait/expsys_ib_scalar_comparison.py
+   def new_op(self, x: ir.Expr, y: ir.Expr, /) -> ir.Expr:
+       return x.some_ibis_method(y)
+
+   # backends/expression_systems/narwhals/substrait/expsys_nw_scalar_comparison.py
+   def new_op(self, x: nw.Expr, y: nw.Expr, /) -> nw.Expr:
+       return x.some_narwhals_method(y)
    ```
 
-8. **Implement in all backends:**
-   ```python
-   # backends/expression_systems/polars/boolean.py
-   def new_op(self, left: pl.Expr, right: pl.Expr) -> pl.Expr:
-       return left.some_polars_method(right)
-   ```
-
-9. **Add tests:**
+5. **Add tests:**
    ```python
    # tests/cross_backend/test_boolean.py
    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
    def test_new_op(backend_name, ...):
        ...
+   ```
+
+### Adding a Mountainash Extension
+
+For operations not in Substrait, use the extension pattern:
+
+1. **Add to extension enum:**
+   ```python
+   # core/expression_system/function_keys/enums.py
+   class FKEY_MOUNTAINASH_<CATEGORY>(Enum):
+       NEW_OP = "new_op"
+   ```
+
+2. **Create/update extension protocol:**
+   ```python
+   # core/expression_protocols/expression_systems/extensions_mountainash/prtcl_expsys_ext_ma_<category>.py
+   class MountainAsh<Category>ExpressionSystemProtocol(Protocol):
+       def new_op(self, x: SupportedExpressions, /) -> SupportedExpressions: ...
+   ```
+
+3. **Implement in API builder:**
+   ```python
+   # core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_<category>.py
+   ```
+
+4. **Implement in all backends:**
+   ```python
+   # backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_<category>.py
+   # backends/expression_systems/ibis/extensions_mountainash/expsys_ib_ext_ma_<category>.py
+   # backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_<category>.py
    ```
 
 ### Debugging Expression Compilation
@@ -748,19 +839,18 @@ print(f"Backend expression: {backend_expr}")
 print(f"Backend type: {type(backend_expr)}")
 ```
 
-## Line Count Summary
+## Architecture Summary
 
-| Component | Lines | Status |
-|-----------|-------|--------|
-| **Protocols** | ~1,081 | ✅ Complete |
-| **Expression Nodes** | ~1,241 | ✅ Complete |
-| **Visitors** | ~1,862 | ✅ Complete |
-| **Namespaces** | ~2,832 | ✅ Complete |
-| **Backend: Polars** | ~1,423 | ✅ Complete |
-| **Backend: Ibis** | ~984 | ✅ Complete |
-| **Backend: Narwhals** | ~991 | ✅ Complete |
-| **Tests** | ~7,521 | ✅ Comprehensive |
-| **TOTAL** | ~18,000+ | ✅ Production ready |
+| Layer | Location | Count |
+|-------|----------|-------|
+| **Expression Nodes** | `core/expression_nodes/substrait/` | 7 node types |
+| **Function Keys** | `core/expression_system/function_keys/enums.py` | 13 Substrait + 6 Extension ENUMs |
+| **Protocols** | `core/expression_protocols/` | ~20 protocol files |
+| **API Builders** | `core/expression_api/api_builders/` | ~20 builder files |
+| **Backend: Polars** | `backends/expression_systems/polars/` | 18 implementation files |
+| **Backend: Ibis** | `backends/expression_systems/ibis/` | 18 implementation files |
+| **Backend: Narwhals** | `backends/expression_systems/narwhals/` | 18 implementation files |
+| **Tests** | `tests/` | ~11,000+ lines |
 
 ## Quick Reference
 
@@ -769,7 +859,7 @@ print(f"Backend type: {type(backend_expr)}")
 ```python
 # Public API (recommended)
 import mountainash_expressions as ma
-from mountainash_expressions import col, lit, coalesce, greatest, least, when, native
+from mountainash_expressions import col, lit, coalesce, greatest, least, when, native, t_col
 
 # Expression API classes
 from mountainash_expressions import BooleanExpressionAPI, BaseExpressionAPI
@@ -777,20 +867,31 @@ from mountainash_expressions import BooleanExpressionAPI, BaseExpressionAPI
 # Constants
 from mountainash_expressions import CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES
 
-# Advanced: Visitor factory
-from mountainash_expressions.core.expression_visitors import ExpressionVisitorFactory
-
-# Advanced: Protocols (for type hints)
-from mountainash_expressions.core.protocols import (
-    BooleanVisitorProtocol,
-    BooleanExpressionProtocol,
-    BooleanBuilderProtocol,
+# Function key enums (for advanced usage)
+from mountainash_expressions.core.expression_system.function_keys.enums import (
+    KEY_SCALAR_COMPARISON,
+    KEY_SCALAR_BOOLEAN,
+    KEY_SCALAR_ARITHMETIC,
+    MOUNTAINASH_TERNARY,
+    MOUNTAINASH_NULL,
 )
 
-# Advanced: Nodes (for AST manipulation)
-from mountainash_expressions.core.expression_nodes import (
+# Protocols (for type hints / backend implementation)
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitScalarComparisonExpressionSystemProtocol,
+    SubstraitScalarBooleanExpressionSystemProtocol,
+)
+from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
+    MountainAshNullExpressionSystemProtocol,
+    MountainAshTernaryExpressionSystemProtocol,
+)
+
+# Nodes (for AST manipulation)
+from mountainash_expressions.core.expression_nodes.substrait import (
     ExpressionNode,
-    BooleanComparisonExpressionNode,
+    ScalarFunctionNode,
+    FieldReferenceNode,
+    LiteralNode,
 )
 ```
 
@@ -824,20 +925,47 @@ expr = ma.coalesce(ma.col("phone_mobile"), ma.col("phone_home"), ma.lit("N/A"))
 
 # Arithmetic
 expr = ma.col("price") * ma.col("quantity") + ma.col("tax")
+
+# Ternary logic - basic
+expr = ma.col("score").t_gt(70)  # Returns -1/0/1
+result = df.filter(expr.compile(df))  # Auto-booleanizes with is_true()
+
+# Ternary logic - with custom sentinel (like SQL NULLIF)
+expr = ma.t_col("score", unknown={-99999}).t_gt(70)
+
+# Ternary logic - lenient filtering (include uncertain)
+result = df.filter(expr.compile(df, booleanizer="maybe_true"))
+
+# Ternary logic - chained operations
+expr = (
+    ma.t_col("rating", unknown={0}).t_ge(4)
+    .t_and(ma.col("active").t_eq(True))
+)
 ```
 
 ## Future Work
 
-### Planned
-
-- **Ternary Logic**: NULL-safe three-valued logic (designed, not implemented)
-- **Pandas Backend**: Full implementation and testing
-- **PyArrow Backend**: Implementation
-
 ### Potential Enhancements
 
-- Window functions
-- Aggregation expressions
+- Substrait serialization (to/from Substrait protobuf)
+- Window functions (Substrait window extension)
+- Additional aggregation expressions
+- Unified visitor finalization
 - User-defined functions
 - Expression optimization
-- Query planning
+
+
+## References
+
+- [ADR-008: Substrait Extension Alignment](docs/adr/ADR-008-substrait-extension-alignment.md) - Full architecture documentation
+- [Substrait Specification](https://substrait.io/) - Open standard for data compute operations
+- [ADR-002: Substrait Builder Protocols](docs/adr/ADR-002-substrait-builder-protocols.md)
+- [ADR-007: Mountainash Extension System](docs/adr/ADR-007-mountainash-extension-system.md)
+
+## GitHub Operations
+
+This project uses [hiivmind-pulse-gh](https://github.com/hiivmind/hiivmind-pulse-gh) for GitHub automation.
+
+**Configuration Location**: `/home/nathanielramm/git/mountainash-io/mountainash/.hiivmind/github`
+
+Use the hiivmind-pulse-gh plugin for all GitHub operations (issues, PRs, milestones, project status) to benefit from automatic context enrichment.

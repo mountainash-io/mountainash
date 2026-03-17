@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ....expression_nodes import ScalarFunctionNode
 
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME, FKEY_MOUNTAINASH_SCALAR_DATETIME
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarDatetimeAPIBuilderProtocol
 
@@ -76,7 +76,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with year extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_YEAR,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_YEAR,
             arguments=[self._node],
         )
         return self._build(node)
@@ -91,7 +91,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with month extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_MONTH,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MONTH,
             arguments=[self._node],
         )
         return self._build(node)
@@ -106,7 +106,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with day extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_DAY,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_DAY,
             arguments=[self._node],
         )
         return self._build(node)
@@ -121,7 +121,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with hour extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_HOUR,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_HOUR,
             arguments=[self._node],
         )
         return self._build(node)
@@ -136,7 +136,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with minute extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_MINUTE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MINUTE,
             arguments=[self._node],
         )
         return self._build(node)
@@ -151,7 +151,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with second extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_SECOND,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_SECOND,
             arguments=[self._node],
         )
         return self._build(node)
@@ -166,7 +166,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with millisecond extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_MILLISECOND,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MILLISECOND,
             arguments=[self._node],
         )
         return self._build(node)
@@ -181,7 +181,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with microsecond extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_MICROSECOND,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MICROSECOND,
             arguments=[self._node],
         )
         return self._build(node)
@@ -196,7 +196,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with nanosecond extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_NANOSECOND,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_NANOSECOND,
             arguments=[self._node],
         )
         return self._build(node)
@@ -215,7 +215,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with quarter extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_QUARTER,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_QUARTER,
             arguments=[self._node],
         )
         return self._build(node)
@@ -230,7 +230,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with day of year extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_DAY_OF_YEAR,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_DAY_OF_YEAR,
             arguments=[self._node],
         )
         return self._build(node)
@@ -245,7 +245,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with day of week extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_WEEKDAY,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEKDAY,
             arguments=[self._node],
         )
         return self._build(node)
@@ -260,7 +260,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with week of year extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_WEEK,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
             arguments=[self._node],
         )
         return self._build(node)
@@ -275,7 +275,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with ISO year extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_ISO_YEAR,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_ISO_YEAR,
             arguments=[self._node],
         )
         return self._build(node)
@@ -294,7 +294,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with unix timestamp extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_UNIX_TIME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_UNIX_TIME,
             arguments=[self._node],
         )
         return self._build(node)
@@ -309,7 +309,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with timezone offset extraction node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.EXTRACT_TIMEZONE_OFFSET,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_TIMEZONE_OFFSET,
             arguments=[self._node],
         )
         return self._build(node)
@@ -328,7 +328,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with is_leap_year node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.IS_LEAP_YEAR,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_LEAP_YEAR,
             arguments=[self._node],
         )
         return self._build(node)
@@ -352,7 +352,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         if timezone is not None:
             options["timezone"] = timezone
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.IS_DST,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
             arguments=[self._node],
             options=options if options else None,
         )
@@ -379,7 +379,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         years_node = self._to_substrait_node(years)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_YEARS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
             arguments=[self._node, years_node],
         )
         return self._build(node)
@@ -401,7 +401,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         months_node = self._to_substrait_node(months)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_MONTHS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
             arguments=[self._node, months_node],
         )
         return self._build(node)
@@ -423,7 +423,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         days_node = self._to_substrait_node(days)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_DAYS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
             arguments=[self._node, days_node],
         )
         return self._build(node)
@@ -445,7 +445,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         hours_node = self._to_substrait_node(hours)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_HOURS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
             arguments=[self._node, hours_node],
         )
         return self._build(node)
@@ -467,7 +467,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         minutes_node = self._to_substrait_node(minutes)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_MINUTES,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
             arguments=[self._node, minutes_node],
         )
         return self._build(node)
@@ -489,7 +489,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         seconds_node = self._to_substrait_node(seconds)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_SECONDS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
             arguments=[self._node, seconds_node],
         )
         return self._build(node)
@@ -511,7 +511,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         milliseconds_node = self._to_substrait_node(milliseconds)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_MILLISECONDS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
             arguments=[self._node, milliseconds_node],
         )
         return self._build(node)
@@ -533,7 +533,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         microseconds_node = self._to_substrait_node(microseconds)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ADD_MICROSECONDS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
             arguments=[self._node, microseconds_node],
         )
         return self._build(node)
@@ -559,7 +559,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.DIFF_YEARS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_YEARS,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -581,7 +581,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.DIFF_MONTHS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MONTHS,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -603,7 +603,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.DIFF_DAYS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_DAYS,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -625,7 +625,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.DIFF_HOURS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_HOURS,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -647,7 +647,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.DIFF_MINUTES,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MINUTES,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -669,7 +669,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.DIFF_SECONDS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_SECONDS,
             arguments=[self._node, other_node],
         )
         return self._build(node)
@@ -694,7 +694,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with truncate node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.TRUNCATE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE,
             arguments=[self._node],
             options={"unit": unit},
         )
@@ -716,7 +716,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with round node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ROUND,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
             arguments=[self._node],
             options={"unit": unit},
         )
@@ -738,7 +738,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with ceil node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.CEIL,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
             arguments=[self._node],
             options={"unit": unit},
         )
@@ -760,7 +760,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with floor node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.FLOOR,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR,
             arguments=[self._node],
             options={"unit": unit},
         )
@@ -786,7 +786,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with to_timezone node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.TO_TIMEZONE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
             arguments=[self._node],
             options={"timezone": timezone},
         )
@@ -811,7 +811,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with assume_timezone node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.ASSUME_TIMEZONE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
             arguments=[self._node],
             options={"timezone": timezone},
         )
@@ -839,7 +839,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             New ExpressionAPI with strftime node.
         """
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.STRFTIME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
             arguments=[self._node],
             options={"format": format},
         )
@@ -875,7 +875,7 @@ class SubstraitScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
             offset = to_offset_string(offset)
 
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_DATETIME.OFFSET_BY,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY,
             arguments=[self._node],
             options={"offset": offset},
         )

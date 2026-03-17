@@ -25,7 +25,7 @@ from ..expression_nodes import (
     SingularOrListNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from ..expression_system.function_keys.enums import MOUNTAINASH_TERNARY
+from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
@@ -329,13 +329,23 @@ class UnifiedExpressionVisitor:
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
-        # Special handling for LIST function - extract raw values from LiteralNodes
+        # Special handling for functions that need raw values from LiteralNodes
         # instead of visiting them as expressions (which would convert them to
         # backend literals like pl.lit("A") instead of raw values like "A")
-        if node.function_key == MOUNTAINASH_TERNARY.LIST:
+        from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_SET
+        _raw_value_functions = {
+            FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
+        }
+        if node.function_key in _raw_value_functions:
             args = []
-            for arg in node.arguments:
-                if isinstance(arg, LiteralNode):
+            for i, arg in enumerate(node.arguments):
+                # For is_in/is_not_in: first arg (needle) should be visited,
+                # rest (haystack) should be raw values
+                if node.function_key in (FKEY_MOUNTAINASH_SCALAR_SET.IS_IN, FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN) and i == 0:
+                    args.append(self.visit(arg) if isinstance(arg, ExpressionNode) else arg)
+                elif isinstance(arg, LiteralNode):
                     args.append(arg.value)
                 elif isinstance(arg, ExpressionNode):
                     args.append(self.visit(arg))

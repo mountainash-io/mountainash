@@ -40,7 +40,7 @@ class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, S
         For 0 inputs: returns true
         For 1 input: returns that input
         """
-        if len(v) == 0:
+        if len(args) == 0:
             return pl.lit(True)
         if len(args) == 1:
             return args[0]

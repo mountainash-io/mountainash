@@ -31,6 +31,16 @@ from .api_builders.substrait import (
     SubstraitScalarStringAPIBuilder,
 )
 
+# Import Mountainash extension builders
+from .api_builders.extensions_mountainash import (
+    MountainAshNameAPIBuilder,
+    MountainAshNativeAPIBuilder,
+    MountainAshNullAPIBuilder,
+    MountainAshScalarArithmeticAPIBuilder,
+    MountainAshScalarBooleanAPIBuilder,
+    MountainAshScalarSetAPIBuilder,
+    MountainAshScalarTernaryAPIBuilder,
+)
 
 
 # Import base namespace type for type hints
@@ -80,6 +90,14 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     # TernaryNamespace first so ternary-specific methods (is_true, is_false, etc.)
     # take priority when there are conflicts with ScalarComparisonNamespace
     _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionAPIBuilder], ...]] = (
+        # Mountainash extensions first (ternary takes priority for is_true etc.)
+        MountainAshScalarTernaryAPIBuilder,
+        MountainAshNullAPIBuilder,
+        MountainAshScalarArithmeticAPIBuilder,
+        MountainAshScalarBooleanAPIBuilder,
+        MountainAshNativeAPIBuilder,
+        MountainAshScalarSetAPIBuilder,
+        # Substrait core
         SubstraitCastAPIBuilder,
         SubstraitFieldReferenceAPIBuilder,
         SubstraitLiteralAPIBuilder,
@@ -90,13 +108,12 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         SubstraitScalarLogarithmicAPIBuilder,
         SubstraitScalarRoundingAPIBuilder,
         SubstraitScalarSetAPIBuilder,
-
     )
 
     # Explicit namespace descriptors - accessed via .str, .dt, .name
     str = NamespaceDescriptor(SubstraitScalarStringAPIBuilder)
     dt = NamespaceDescriptor(SubstraitScalarDatetimeAPIBuilder)
-    # name = NamespaceDescriptor(NameNamespace)
+    name = NamespaceDescriptor(MountainAshNameAPIBuilder)
 
     @classmethod
     def create(cls, node: ExpressionNode) -> BooleanExpressionAPI:

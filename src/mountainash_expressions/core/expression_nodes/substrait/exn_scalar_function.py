@@ -35,10 +35,10 @@ class ScalarFunctionNode(ExpressionNode):
 
     Examples:
         >>> from mountainash_expressions.core.expression_system.function_keys.enums import (
-        ...     KEY_SCALAR_COMPARISON, KEY_SCALAR_STRING
+        ...     FKEY_SUBSTRAIT_SCALAR_COMPARISON, FKEY_SUBSTRAIT_SCALAR_STRING
         ... )
-        >>> ScalarFunctionNode(function=KEY_SCALAR_COMPARISON.EQUAL, arguments=[left, right])
-        >>> ScalarFunctionNode(function=KEY_SCALAR_STRING.UPPER, arguments=[col])
+        >>> ScalarFunctionNode(function=FKEY_SUBSTRAIT_SCALAR_COMPARISON.EQUAL, arguments=[left, right])
+        >>> ScalarFunctionNode(function=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER, arguments=[col])
     """
 
     # # Function identifier - Enum preferred, str for backward compatibility

@@ -790,7 +790,12 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         position: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
         occurrence: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
         group: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        case_sensitive: bool = True,
+        *,
+        case_sensitive: Optional[bool] = True,
+        multiline: Optional[bool] = False,
+        dotall: Optional[bool] = False,
+
+
     ) -> BaseExpressionAPI:
         """
         Extract substring matching regex pattern.
@@ -820,7 +825,12 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_SUBSTRING,
             arguments=args,
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+                     "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
+                     "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+
+
+            },
         )
         return self._build(node)
 
@@ -990,45 +1000,83 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
 
 
-    def length(self) -> BaseExpressionAPI:
-        """
-        Return number of characters.
+    # def length(self) -> BaseExpressionAPI:
+    #     """
+    #     Return number of characters.
 
-        Alias for char_length() for convenience.
+    #     Alias for char_length() for convenience.
 
-        Returns:
-            New ExpressionAPI with char_length node.
-        """
-        return self.char_length()
+    #     Returns:
+    #         New ExpressionAPI with char_length node.
+    #     """
+    #     return self.char_length()
 
 
+
+    # def regex_match(
+    #     self,
+    #     pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    #     case_sensitive: bool = True,
+    # ) -> BaseExpressionAPI:
+    #     """
+    #     Check if entire string matches regex pattern.
+
+    #     This anchors the pattern with ^ and $ to match the full string.
+    #     For partial matching, use regex_contains().
+
+    #     Args:
+    #         pattern: Regular expression pattern.
+    #         case_sensitive: Case sensitivity (default: True).
+
+    #     Returns:
+    #         New ExpressionAPI with boolean result.
+    #     """
+    #     # Anchor pattern to match entire string
+    #     if isinstance(pattern, str):
+    #         anchored_pattern = f"^{pattern}$"
+    #     else:
+    #         # If pattern is an expression, we can't easily anchor it
+    #         # Fall back to using the pattern as-is
+    #         anchored_pattern = pattern
+
+    #     return self.regex_contains(anchored_pattern, case_sensitive=case_sensitive)
+
+    # def regex_contains(
+    #     self,
+    #     pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    #     case_sensitive: bool = True,
+    # ) -> BaseExpressionAPI:
+    #     """
+    #     Check if string contains a match for regex pattern.
+
+    #     Args:
+    #         pattern: Regular expression pattern.
+    #         case_sensitive: Case sensitivity (default: True).
+
+    #     Returns:
+    #         New ExpressionAPI with boolean result.
+    #     """
+    #     # Use contains with regex pattern - backends interpret patterns as regex
+    #     return self.contains(pattern, case_sensitive=case_sensitive)
+
+    # ========================================
+    # Convenience Aliases
+    # ========================================
+
+    # Short aliases for public API
+    length = char_length
+    len = char_length
 
     def regex_match(
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
-        """
-        Check if entire string matches regex pattern.
-
-        This anchors the pattern with ^ and $ to match the full string.
-        For partial matching, use regex_contains().
-
-        Args:
-            pattern: Regular expression pattern.
-            case_sensitive: Case sensitivity (default: True).
-
-        Returns:
-            New ExpressionAPI with boolean result.
-        """
-        # Anchor pattern to match entire string
+        """Check if entire string matches regex pattern (anchored with ^ and $)."""
         if isinstance(pattern, str):
             anchored_pattern = f"^{pattern}$"
         else:
-            # If pattern is an expression, we can't easily anchor it
-            # Fall back to using the pattern as-is
             anchored_pattern = pattern
-
         return self.regex_contains(anchored_pattern, case_sensitive=case_sensitive)
 
     def regex_contains(
@@ -1036,15 +1084,23 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
-        """
-        Check if string contains a match for regex pattern.
+        """Check if string contains a match for regex pattern.
 
-        Args:
-            pattern: Regular expression pattern.
-            case_sensitive: Case sensitivity (default: True).
-
-        Returns:
-            New ExpressionAPI with boolean result.
+        Uses regexp_match_substring under the hood — a non-null result means the pattern matched.
         """
-        # Use contains with regex pattern - backends interpret patterns as regex
-        return self.contains(pattern, case_sensitive=case_sensitive)
+        # Delegate to contains with the pattern — backends handle regex in contains
+        pattern_node = self._to_substrait_node(pattern)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            arguments=[self._node, pattern_node],
+            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+        )
+        return self._build(node)
+
+    def slice(
+        self,
+        offset: Union[BaseExpressionAPI, "ExpressionNode", Any, int] = 0,
+        length: Union[BaseExpressionAPI, "ExpressionNode", Any, int, None] = None,
+    ) -> BaseExpressionAPI:
+        """Extract a substring. Alias for substring()."""
+        return self.substring(offset, length)

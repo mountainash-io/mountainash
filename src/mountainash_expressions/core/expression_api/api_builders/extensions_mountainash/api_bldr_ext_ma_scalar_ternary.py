@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Union
 from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode, LiteralNode
+from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode, LiteralNode, FieldReferenceNode
 from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarTernaryAPIBuilderProtocol
 
 
@@ -88,6 +88,21 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         return node
 
     # ========================================
+    # Sentinel Value Extraction
+    # ========================================
+
+    def _extract_unknown_options(self, left_node, right_node=None):
+        """Extract unknown_values from FieldReferenceNode operands into options dict."""
+        options = {}
+        left_unknown = getattr(left_node, "unknown_values", None)
+        if left_unknown:
+            options["left_unknown"] = frozenset(left_unknown)
+        right_unknown = getattr(right_node, "unknown_values", None) if right_node else None
+        if right_unknown:
+            options["right_unknown"] = frozenset(right_unknown)
+        return options
+
+    # ========================================
     # Ternary Comparisons
     # ========================================
 
@@ -100,6 +115,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_EQ,
             arguments=[self._node, other_node],
+            options=self._extract_unknown_options(self._node, other_node),
         )
         return self._build(node)
 
@@ -112,6 +128,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NE,
             arguments=[self._node, other_node],
+            options=self._extract_unknown_options(self._node, other_node),
         )
         return self._build(node)
 
@@ -124,6 +141,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GT,
             arguments=[self._node, other_node],
+            options=self._extract_unknown_options(self._node, other_node),
         )
         return self._build(node)
 
@@ -136,6 +154,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LT,
             arguments=[self._node, other_node],
+            options=self._extract_unknown_options(self._node, other_node),
         )
         return self._build(node)
 
@@ -148,6 +167,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GE,
             arguments=[self._node, other_node],
+            options=self._extract_unknown_options(self._node, other_node),
         )
         return self._build(node)
 
@@ -160,6 +180,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LE,
             arguments=[self._node, other_node],
+            options=self._extract_unknown_options(self._node, other_node),
         )
         return self._build(node)
 
@@ -173,16 +194,19 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     ) -> BaseExpressionAPI:
         """Ternary membership check. Returns -1/0/1."""
         if isinstance(values, (list, tuple, set)):
-            options = [LiteralNode(value=v) for v in values]
+            value_nodes = [LiteralNode(value=v) for v in values]
         else:
-            options = [self._to_substrait_node(values)]
+            value_nodes = [self._to_substrait_node(values)]
 
+        left_unknown = getattr(self._node, "unknown_values", None)
+        options = {"unknown_values": frozenset(left_unknown)} if left_unknown else {}
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
             arguments=[self._node, ScalarFunctionNode(
                 function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
-                arguments=options,
+                arguments=value_nodes,
             )],
+            options=options,
         )
         return self._build(node)
 
@@ -192,16 +216,19 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     ) -> BaseExpressionAPI:
         """Ternary non-membership check. Returns -1/0/1."""
         if isinstance(values, (list, tuple, set)):
-            options = [LiteralNode(value=v) for v in values]
+            value_nodes = [LiteralNode(value=v) for v in values]
         else:
-            options = [self._to_substrait_node(values)]
+            value_nodes = [self._to_substrait_node(values)]
 
+        left_unknown = getattr(self._node, "unknown_values", None)
+        options = {"unknown_values": frozenset(left_unknown)} if left_unknown else {}
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
             arguments=[self._node, ScalarFunctionNode(
                 function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
-                arguments=options,
+                arguments=value_nodes,
             )],
+            options=options,
         )
         return self._build(node)
 

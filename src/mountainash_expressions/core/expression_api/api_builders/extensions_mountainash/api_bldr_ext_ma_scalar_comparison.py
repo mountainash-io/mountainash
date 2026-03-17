@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON, FKEY_MOUNTAINASH_SCALAR_COMPARISON
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarComparisonAPIBuilderProtocol
 
@@ -517,7 +517,7 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
-            function_key=MOUNTAINASH_COMPARISON.IS_CLOSE,
+            function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.IS_CLOSE,
             arguments=[self._node, other_node],
             options={"precision": precision},
         )

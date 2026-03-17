@@ -13,8 +13,8 @@ from ....expression_nodes import ScalarFunctionNode, LiteralNode, SingularOrList
 from ....expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
-    # MOUNTAINASH_COMPARISON,
-    # MOUNTAINASH_TERNARY,
+    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
 # from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_BOOLEAN
@@ -85,7 +85,7 @@ class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     #     """
     #     if isinstance(node, ScalarFunctionNode) and node.is_ternary_non_terminal:
     #         return ScalarFunctionNode(
-    #             function_key=MOUNTAINASH_TERNARY.IS_TRUE,
+    #             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
     #             arguments=[node],
     #         )
     #     return node
@@ -136,7 +136,7 @@ class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=MOUNTAINASH_COMPARISON.XOR_PARITY,
+                function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.XOR_PARITY,
                 arguments=[result, operand],
             )
         return self._build(result)

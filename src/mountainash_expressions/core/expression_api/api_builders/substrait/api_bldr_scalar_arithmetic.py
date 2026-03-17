@@ -175,24 +175,6 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
         """
-        Alias for modulo() for Substrait protocol compatibility.
-
-        Substrait: modulus
-
-        Args:
-            other: Value or expression for modulo operation.
-
-        Returns:
-            New ExpressionAPI with modulo node.
-        """
-        return self.modulo(other)
-
-
-    def modulo(
-        self,
-        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    ) -> BaseExpressionAPI:
-        """
         Modulo: self % other.
 
         Args:
@@ -208,7 +190,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         )
         return self._build(node)
 
-    def rmodulo(
+    def rmodulus(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
@@ -271,6 +253,10 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
             arguments=[other_node, self._node],
         )
         return self._build(node)
+
+    # Short aliases for public API
+    modulo = modulus
+    rmodulo = rmodulus
 
     # # ========================================
     # # Unary Arithmetic Operations

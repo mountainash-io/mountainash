@@ -69,9 +69,11 @@ class SubstraitCastAPIBuilder(BaseExpressionAPIBuilder, SubstraitCastAPIBuilderP
         else:
             target_type = str(dtype)
 
+        # Convert enum to string value if needed
+        fb = failure_behavior.value if isinstance(failure_behavior, CaseFailureBehaviour) else failure_behavior
         node = CastNode(
             input=self._node,
             target_type=target_type,
-            failure_behavior=failure_behavior,
+            failure_behavior=fb,
         )
         return self._build(node)

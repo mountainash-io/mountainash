@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ...api_base import BaseExpressionAPI
 
-from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_STRING
+from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, LiteralNode
 from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNativeAPIBuilderProtocol
 

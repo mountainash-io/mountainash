@@ -20,6 +20,7 @@ from .prtcl_expsys_ext_ma_scalar_datetime import MountainAshScalarDatetimeExpres
 from .prtcl_expsys_ext_ma_scalar_ternary import MountainAshScalarTernaryExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_null import MountainAshNullExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_name import MountainAshNameExpressionSystemProtocol
+from .prtcl_expsys_ext_ma_scalar_set import SubstraitScalarSetExpressionSystemProtocol as MountainAshScalarSetExpressionSystemProtocol
 
 __all__ = [
     # Ternary
