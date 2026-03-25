@@ -66,30 +66,30 @@ class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     # Ternary → Boolean Coercion Hook
     # ========================================
 
-    # def _coerce_if_needed(
-    #     self,
-    #     node: "ExpressionNode",
-    # ) -> "ExpressionNode":
-    #     """
-    #     Coerce ternary expressions to boolean via is_true().
+    def _coerce_if_needed(
+        self,
+        node: "ExpressionNode",
+    ) -> "ExpressionNode":
+        """
+        Coerce ternary expressions to boolean via is_true().
 
-    #     This hook is called automatically by _to_substrait_node() for all
-    #     arguments passed to boolean operations. Non-terminal ternary nodes
-    #     (which produce -1/0/1 values) are wrapped with is_true() to convert
-    #     to boolean True/False for use with boolean logical operators.
+        This hook is called automatically by _to_substrait_node() for all
+        arguments passed to boolean operations. Non-terminal ternary nodes
+        (which produce -1/0/1 values) are wrapped with is_true() to convert
+        to boolean True/False for use with boolean logical operators.
 
-    #     Args:
-    #         node: The expression node to potentially coerce.
+        Args:
+            node: The expression node to potentially coerce.
 
-    #     Returns:
-    #         The original node, or a wrapped is_true() node for ternary expressions.
-    #     """
-    #     if isinstance(node, ScalarFunctionNode) and node.is_ternary_non_terminal:
-    #         return ScalarFunctionNode(
-    #             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
-    #             arguments=[node],
-    #         )
-    #     return node
+        Returns:
+            The original node, or a wrapped is_true() node for ternary expressions.
+        """
+        if isinstance(node, ScalarFunctionNode) and node.is_ternary_non_terminal:
+            return ScalarFunctionNode(
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
+                arguments=[node],
+            )
+        return node
 
     # ========================================
     # Boolean Constants
