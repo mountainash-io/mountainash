@@ -37,6 +37,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
+    FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
@@ -283,7 +284,7 @@ def register_all_functions() -> None:
         # Boolean checks
         # Mountainash extensions
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.XOR_PARITY,
+            function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.XOR_PARITY,
             substrait_uri=MountainashExtension.COMPARISON,
             substrait_name="xor_parity",
             protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.xor_parity,

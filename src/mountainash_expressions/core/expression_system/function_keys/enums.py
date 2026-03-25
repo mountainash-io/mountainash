@@ -437,6 +437,11 @@ class FKEY_MOUNTAINASH_SCALAR_COMPARISON(Enum):
     """Mountainash comparison extensions not in Substrait."""
 
     IS_CLOSE = "is_close"
+
+
+class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
+    """Mountainash boolean extensions not in Substrait."""
+
     XOR_PARITY = "xor_parity"
 
 

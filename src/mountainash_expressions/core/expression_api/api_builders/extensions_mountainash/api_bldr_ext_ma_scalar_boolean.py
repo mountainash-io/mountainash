@@ -14,6 +14,7 @@ from ....expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
+    FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -136,7 +137,7 @@ class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         result = operands[0]
         for operand in operands[1:]:
             result = ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.XOR_PARITY,
+                function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.XOR_PARITY,
                 arguments=[result, operand],
             )
         return self._build(result)
