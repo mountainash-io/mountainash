@@ -64,7 +64,7 @@ Not targeted (deferred to future work):
 Tests fluent `.str` method chaining:
 - `col("name").str.lower().str.contains("john")` — case-insensitive search
 - `col("name").str.replace("_", " ").str.upper()` — sequential transforms
-- `col("name").str.trim().str.char_length().gt(3)` — string to numeric to boolean
+- `col("name").str.trim().str.len().gt(3)` — string to numeric to boolean
 - `~col("status").str.contains("archived")` — negation of string match
 - `col("email").str.lower().str.ends_with("@gmail.com")` — real-world pattern
 - `col("name").str.trim().str.lower().str.contains("admin")` — 3-deep chain
@@ -83,11 +83,11 @@ Known xfails: ibis-sqlite (sub-day temporal), ibis-polars (TimestampDelta, calen
 #### 3. Cross-Namespace Composition (`test_compose_cross_namespace.py`)
 
 Tests combining different namespaces in one expression:
-- `col("name").str.char_length().gt(3).and_(col("score").ge(80))` — string + comparison
+- `col("name").str.len().gt(3).and_(col("score").ge(80))` — string + comparison
 - `col("name").str.upper().eq(lit("ADMIN")).or_(col("age").gt(30))` — string + boolean
 - `col("ts").dt.year().eq(2024).and_(col("status").str.lower().eq(lit("active")))` — datetime + string
 - `(col("price") * col("qty")).gt(1000).and_(col("name").str.contains("premium"))` — arithmetic + string
-- `col("value").fill_null(0).gt(col("threshold")).and_(col("label").str.char_length().gt(0))` — null + comparison + string
+- `col("value").fill_null(0).gt(col("threshold")).and_(col("label").str.len().gt(0))` — null + comparison + string
 - `col("price").multiply(lit(1.07)).round(2).gt(lit(100.0))` — arithmetic + rounding + comparison
 - `col("score").between(col("min_score"), col("max_score")).and_(col("active").eq(True))` — between + boolean
 
