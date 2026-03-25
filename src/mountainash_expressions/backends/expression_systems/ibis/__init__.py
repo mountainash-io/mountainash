@@ -42,6 +42,7 @@ from .extensions_mountainash.expsys_ib_ext_ma_null import MountainAshIbisNullExp
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_set import SubstraitIbisScalarSetExpressionSystem as MountainAshIbisScalarSetExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem as MountainAshIbisScalarBooleanExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
 
 
@@ -76,6 +77,7 @@ class IbisExpressionSystem(
     MountainAshIbisNullExpressionSystem,
     MountainAshIbisScalarArithmeticExpressionSystem,
     MountainAshIbisScalarDatetimeExpressionSystem,
+    MountainAshIbisScalarBooleanExpressionSystem,
     MountainAshIbisScalarSetExpressionSystem,
     MountainAshIbisScalarTernaryExpressionSystem,
 

@@ -42,6 +42,7 @@ from .extensions_mountainash.expsys_pl_ext_ma_null import MountainAshPolarsNullE
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_set import SubstraitPolarsScalarSetExpressionSystem as MountainAshPolarsScalarSetExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem as MountainAshPolarsScalarBooleanExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
 
 
@@ -76,6 +77,7 @@ class PolarsExpressionSystem(
     MountainAshPolarsNullExpressionSystem,
     MountainAshPolarsScalarArithmeticExpressionSystem,
     MountainAshPolarsScalarDatetimeExpressionSystem,
+    MountainAshPolarsScalarBooleanExpressionSystem,
     MountainAshPolarsScalarSetExpressionSystem,
     MountainAshPolarsScalarTernaryExpressionSystem,
 

@@ -42,6 +42,7 @@ from .extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNul
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_set import SubstraitNarwhalsScalarSetExpressionSystem as MountainAshNarwhalsScalarSetExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem as MountainAshNarwhalsScalarBooleanExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
 
 
@@ -76,6 +77,7 @@ class NarwhalsExpressionSystem(
     MountainAshNarwhalsNullExpressionSystem,
     MountainAshNarwhalsScalarArithmeticExpressionSystem,
     MountainAshNarwhalsScalarDatetimeExpressionSystem,
+    MountainAshNarwhalsScalarBooleanExpressionSystem,
     MountainAshNarwhalsScalarSetExpressionSystem,
     MountainAshNarwhalsScalarTernaryExpressionSystem,
 

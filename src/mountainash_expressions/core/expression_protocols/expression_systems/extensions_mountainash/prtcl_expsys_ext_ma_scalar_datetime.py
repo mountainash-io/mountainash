@@ -407,6 +407,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
         self,
         x: SupportedExpressions,
         component: SupportedExpressions,
+        timezone: SupportedExpressions = None,
         /,
     ) -> SupportedExpressions:
         """Extract a datetime component by name.
