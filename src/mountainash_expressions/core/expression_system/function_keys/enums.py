@@ -163,10 +163,10 @@ class FKEY_SUBSTRAIT_SCALAR_ARITHMETIC(Enum):
     POWER = auto()
     NEGATE = auto()
 
-    # ABS = auto()
-    # SIGN = auto()
-    # SQRT = auto()
-    # EXP = auto()
+    ABS = auto()
+    SIGN = auto()
+    SQRT = auto()
+    EXP = auto()
     # LN = auto()
 
 # =============================================================================

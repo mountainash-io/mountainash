@@ -338,6 +338,30 @@ def register_all_functions() -> None:
             substrait_name="negate",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.negate,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="abs",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.abs,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="sign",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sign,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="sqrt",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sqrt,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="exp",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.exp,
+        ),
         # Mountainash extension
         # ExpressionFunctionDef(
         #     function_key="floor_divide",

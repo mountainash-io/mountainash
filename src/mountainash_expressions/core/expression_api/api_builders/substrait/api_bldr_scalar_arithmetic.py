@@ -286,7 +286,11 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         Substrait: sqrt
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
     def exp(self, rounding: Any = None) -> BaseExpressionAPI:
         """The mathematical constant e, raised to the power of the value.
@@ -294,7 +298,11 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         Substrait: exp
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
     def abs(self, overflow: Any = None) -> BaseExpressionAPI:
         """Calculate the absolute value of the argument.
@@ -304,7 +312,11 @@ Integer values allow the specification of overflow behavior to handle the uneven
         Substrait: abs
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
     def sign(self) -> BaseExpressionAPI:
         """Return the signedness of the argument.
@@ -315,7 +327,11 @@ Floating point values return signedness with the same type as the input. Possibl
         Substrait: sign
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
     def factorial(self, overflow: Any = None) -> BaseExpressionAPI:
         """Return the factorial of a given integer input.
