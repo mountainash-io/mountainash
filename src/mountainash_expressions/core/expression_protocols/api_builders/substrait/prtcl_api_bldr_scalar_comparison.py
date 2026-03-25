@@ -22,6 +22,14 @@ class SubstraitScalarComparisonAPIBuilderProtocol(Protocol):
     These methods accept flexible inputs and return BaseExpressionAPI for chaining.
     """
 
+    def equal(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Equal comparison (==).
+
+        Substrait: equal
+        """
+        ...
+
+
     def not_equal(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
         """Not equal comparison (!=).
 
@@ -29,12 +37,6 @@ class SubstraitScalarComparisonAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def equal(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
-        """Equal comparison (==).
-
-        Substrait: equal
-        """
-        ...
 
     def lt(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
         """Less than comparison (<).
@@ -64,10 +66,28 @@ class SubstraitScalarComparisonAPIBuilderProtocol(Protocol):
         """
         ...
 
+    # Short aliases
+    def eq(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Alias for equal."""
+        ...
+
+    def ne(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Alias for not_equal."""
+        ...
+
+    def ge(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Alias for gte."""
+        ...
+
+    def le(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Alias for lte."""
+        ...
+
     def between(
         self,
         low: Union[BaseExpressionAPI, ExpressionNode, Any],
         high: Union[BaseExpressionAPI, ExpressionNode, Any],
+        closed: str
     ) -> BaseExpressionAPI:
         """Whether value is between low and high (inclusive).
 

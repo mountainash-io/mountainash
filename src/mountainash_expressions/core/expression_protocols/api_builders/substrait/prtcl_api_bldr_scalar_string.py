@@ -425,3 +425,29 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         Substrait: regexp_string_split
         """
         ...
+
+    # Convenience aliases
+
+    def len(self) -> BaseExpressionAPI:
+        """Alias for char_length. String length in characters."""
+        ...
+
+    def length(self) -> BaseExpressionAPI:
+        """Alias for char_length. String length in characters."""
+        ...
+
+    def regex_contains(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
+        """Test if pattern matches. Alias for regexp_match_substring (returns bool)."""
+        ...
+
+    def regex_match(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
+        """Alias for regexp_match_substring."""
+        ...
+
+    def regex_replace(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], replacement: Union[BaseExpressionAPI, ExpressionNode, Any], case_sensitive: bool = True) -> BaseExpressionAPI:
+        """Alias for regexp_replace."""
+        ...
+
+    def slice(self, offset: Union[BaseExpressionAPI, ExpressionNode, Any, int], length: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None) -> BaseExpressionAPI:
+        """Alias for substring."""
+        ...

@@ -36,6 +36,13 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
+    def rsubtract(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Subtract one value from another.
+
+        Substrait: subtract
+        """
+        ...
+
     def multiply(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
         """Multiply two values.
 
@@ -50,12 +57,35 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
+    def rdivide(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Divide x by y.
+
+        Substrait: divide
+        """
+        ...
+
+
 
     def modulus(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
         """Calculate the remainder when dividing by other.
 
         Substrait: modulus
         """
+        ...
+
+    def rmodulus(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Calculate the remainder when dividing by other.
+
+        Substrait: modulus
+        """
+        ...
+
+    def modulo(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for modulus. Modulo (remainder) operation."""
+        ...
+
+    def rmodulo(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for rmodulus. Reverse modulo for __rmod__."""
         ...
 
     def power(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
@@ -65,6 +95,13 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
+
+    def rpower(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Raise to the power of other.
+
+        Substrait: power
+        """
+        ...
 
 
 
