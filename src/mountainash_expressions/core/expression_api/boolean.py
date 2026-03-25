@@ -38,8 +38,10 @@ from .api_builders.extensions_mountainash import (
     MountainAshNullAPIBuilder,
     MountainAshScalarArithmeticAPIBuilder,
     MountainAshScalarBooleanAPIBuilder,
+    MountainAshScalarComparisonAPIBuilder,
     MountainAshScalarDatetimeAPIBuilder,
     MountainAshScalarSetAPIBuilder,
+    MountainAshScalarStringAPIBuilder,
     MountainAshScalarTernaryAPIBuilder,
 )
 
@@ -50,6 +52,15 @@ class DatetimeAPIBuilder(
     SubstraitScalarDatetimeAPIBuilder,      # 3 Substrait methods
 ):
     """Unified datetime builder for the .dt namespace."""
+    pass
+
+
+# Composed string builder exposing both Substrait and extension (Polars alias) methods
+class StringAPIBuilder(
+    MountainAshScalarStringAPIBuilder,      # Polars-compatible aliases
+    SubstraitScalarStringAPIBuilder,        # Standard Substrait string methods
+):
+    """Unified string builder for the .str namespace."""
     pass
 
 
@@ -105,6 +116,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         MountainAshNullAPIBuilder,
         MountainAshScalarArithmeticAPIBuilder,
         MountainAshScalarBooleanAPIBuilder,
+        MountainAshScalarComparisonAPIBuilder,
         MountainAshNativeAPIBuilder,
         MountainAshScalarSetAPIBuilder,
         # Substrait core
@@ -121,7 +133,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     )
 
     # Explicit namespace descriptors - accessed via .str, .dt, .name
-    str = NamespaceDescriptor(SubstraitScalarStringAPIBuilder)
+    str = NamespaceDescriptor(StringAPIBuilder)
     dt = NamespaceDescriptor(DatetimeAPIBuilder)
     name = NamespaceDescriptor(MountainAshNameAPIBuilder)
 

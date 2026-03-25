@@ -124,3 +124,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             arguments=[self._node],
         )
         return self._build(node)
+
+    # Polars-compatible aliases
+    to_lowercase = name_to_lower
+    to_uppercase = name_to_upper

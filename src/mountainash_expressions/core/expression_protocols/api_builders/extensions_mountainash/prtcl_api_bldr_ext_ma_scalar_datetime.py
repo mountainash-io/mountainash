@@ -489,3 +489,28 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def strftime(self, format: str) -> BaseExpressionAPI:
         """Format datetime as string using strftime format codes."""
         ...
+
+    # Polars-compatible aliases
+    def week(self, /) -> BaseExpressionAPI:
+        """Alias for week_of_year() — Polars compatibility."""
+        ...
+
+    def weekday(self, /) -> BaseExpressionAPI:
+        """Alias for day_of_week() — Polars compatibility."""
+        ...
+
+    def ordinal_day(self, /) -> BaseExpressionAPI:
+        """Alias for day_of_year() — Polars compatibility."""
+        ...
+
+    def convert_time_zone(self, timezone: str, /) -> BaseExpressionAPI:
+        """Alias for to_timezone() — Polars compatibility."""
+        ...
+
+    def replace_time_zone(self, timezone: str, /) -> BaseExpressionAPI:
+        """Alias for assume_timezone() — Polars compatibility."""
+        ...
+
+    def epoch(self, /) -> BaseExpressionAPI:
+        """Alias for unix_timestamp() — Polars compatibility."""
+        ...

@@ -1009,3 +1009,11 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         newer_threshold = time_ago(newer_duration) if newer_duration else datetime.now()
 
         return self._api.gt(older_threshold).and_(self._api.lt(newer_threshold))
+
+    # Polars-compatible aliases
+    week = week_of_year
+    weekday = day_of_week
+    ordinal_day = day_of_year
+    convert_time_zone = to_timezone
+    replace_time_zone = assume_timezone
+    epoch = unix_timestamp

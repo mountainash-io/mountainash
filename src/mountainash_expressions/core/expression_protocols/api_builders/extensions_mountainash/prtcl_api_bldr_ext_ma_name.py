@@ -92,3 +92,12 @@ class MountainAshNameAPIBuilderProtocol(Protocol):
             The expression with lowercase name.
         """
         ...
+
+    # Polars-compatible aliases
+    def to_lowercase(self, /) -> BaseExpressionAPI:
+        """Alias for name_to_lower() — Polars compatibility."""
+        ...
+
+    def to_uppercase(self, /) -> BaseExpressionAPI:
+        """Alias for name_to_upper() — Polars compatibility."""
+        ...

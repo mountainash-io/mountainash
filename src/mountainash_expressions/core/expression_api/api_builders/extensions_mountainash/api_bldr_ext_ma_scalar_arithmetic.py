@@ -78,3 +78,60 @@ class MountainAshScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, MountainAs
             arguments=[other_node, self._node],
         )
         return self._build(node)
+
+    # Polars-compatible aliases (direct AST construction)
+
+    def sub(self, other) -> BaseExpressionAPI:
+        """Alias for subtract() — Polars compatibility."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def mul(self, other) -> BaseExpressionAPI:
+        """Alias for multiply() — Polars compatibility."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def truediv(self, other) -> BaseExpressionAPI:
+        """Alias for divide() — Polars compatibility."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    floordiv = floor_divide
+
+    def mod(self, other) -> BaseExpressionAPI:
+        """Alias for modulus() — Polars compatibility."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def pow(self, other) -> BaseExpressionAPI:
+        """Alias for power() — Polars compatibility."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def neg(self) -> BaseExpressionAPI:
+        """Alias for negate() — Polars compatibility."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            arguments=[self._node],
+        )
+        return self._build(node)

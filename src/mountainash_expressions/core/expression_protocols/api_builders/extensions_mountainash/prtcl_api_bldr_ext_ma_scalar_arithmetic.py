@@ -50,6 +50,35 @@ class MountainAshScalarArithmeticAPIBuilderProtocol(Protocol):
         """Reverse floor division for __rfloordiv__."""
         ...
 
+    # Polars-compatible aliases
+    def sub(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for subtract() — Polars compatibility."""
+        ...
+
+    def mul(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for multiply() — Polars compatibility."""
+        ...
+
+    def truediv(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for divide() — Polars compatibility."""
+        ...
+
+    def floordiv(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for floor_divide() — Polars compatibility."""
+        ...
+
+    def mod(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for modulo() — Polars compatibility."""
+        ...
+
+    def pow(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for power() — Polars compatibility."""
+        ...
+
+    def neg(self, /) -> BaseExpressionAPI:
+        """Alias for negate() — Polars compatibility."""
+        ...
+
 
 #     def sqrt(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
 #         """Square root of the value
