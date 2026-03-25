@@ -103,7 +103,12 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
+    def negate(self) -> BaseExpressionAPI:
+        """Negate the value (-self).
 
+        Substrait: negate
+        """
+        ...
 
 
 

@@ -258,24 +258,24 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
     modulo = modulus
     rmodulo = rmodulus
 
-    # # ========================================
-    # # Unary Arithmetic Operations
-    # # ========================================
+    # ========================================
+    # Unary Arithmetic Operations
+    # ========================================
 
-    # def negate(self) -> BaseExpressionAPI:
-    #     """
-    #     Negation: -self.
+    def negate(self) -> BaseExpressionAPI:
+        """
+        Negation: -self.
 
-    #     Substrait: negate
+        Substrait: negate
 
-    #     Returns:
-    #         New ExpressionAPI with negation node.
-    #     """
-    #     node = ScalarFunctionNode(
-    #         function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
-    #         arguments=[self._node],
-    #     )
-    #     return self._build(node)
+        Returns:
+            New ExpressionAPI with negation node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
 
 

@@ -153,22 +153,22 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         """
         return x.pow(y)
 
-    # def negate(
-    #     self,
-    #     x: PolarsExpr,
-    #     /,
-    #     overflow: Any = None,
-    # ) -> PolarsExpr:
-    #     """Negate a value.
+    def negate(
+        self,
+        x: PolarsExpr,
+        /,
+        overflow: Any = None,
+    ) -> PolarsExpr:
+        """Negate a value.
 
-    #     Args:
-    #         x: Value to negate.
-    #         overflow: Overflow handling (ignored in Polars).
+        Args:
+            x: Value to negate.
+            overflow: Overflow handling (ignored in Polars).
 
-    #     Returns:
-    #         Negated value (-x).
-    #     """
-    #     return -x
+        Returns:
+            Negated value (-x).
+        """
+        return -x
 
     # =========================================================================
     # Math Functions

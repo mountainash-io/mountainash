@@ -332,13 +332,12 @@ def register_all_functions() -> None:
             substrait_name="power",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.power,
         ),
-        # TODO: negate not yet in protocol - uncomment when added
-        # ExpressionFunctionDef(
-        #     function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
-        #     substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
-        #     substrait_name="negate",
-        #     protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.negate,
-        # ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="negate",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.negate,
+        ),
         # Mountainash extension
         # ExpressionFunctionDef(
         #     function_key="floor_divide",

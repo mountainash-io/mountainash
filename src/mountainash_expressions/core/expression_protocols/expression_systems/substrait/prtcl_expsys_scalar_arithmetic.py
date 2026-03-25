@@ -58,13 +58,13 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    # def negate(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
-    #     """Negation of the value
+    def negate(self, x: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+        """Negation of the value
 
-    #     Substrait: negate
-    #     URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-    #     """
-    #     ...
+        Substrait: negate
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
+        """
+        ...
 
     def modulus(self, x: SupportedExpressions, y: SupportedExpressions, /, division_type: Any = None, overflow: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
         """Calculate the remainder (r) when dividing dividend (x) by divisor (y).
