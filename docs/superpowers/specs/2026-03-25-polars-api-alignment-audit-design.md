@@ -321,9 +321,9 @@
 
 ### Naming Aliases Needed (quick wins — no backend work)
 
-These are one-line class-level alias additions on existing working methods:
+These are one-line class-level alias additions on existing working methods. **Important:** All Polars-compatible aliases must be defined in the **Mountainash extension** API builders, not in the Substrait builders — these aliases are not part of the Substrait standard.
 
-**Arithmetic:**
+**Arithmetic** (in `api_bldr_ext_ma_scalar_arithmetic.py`):
 - `sub = subtract`
 - `mul = multiply`
 - `truediv = divide`
@@ -331,7 +331,7 @@ These are one-line class-level alias additions on existing working methods:
 - `mod = modulus`
 - `pow = power`
 
-**String:**
+**String** (in `api_bldr_ext_ma_scalar_string.py`):
 - `to_uppercase = upper`
 - `to_lowercase = lower`
 - `strip_chars = trim`
@@ -339,7 +339,7 @@ These are one-line class-level alias additions on existing working methods:
 - `strip_chars_end = rtrim`
 - `len_chars = char_length`
 
-**Datetime:**
+**Datetime** (in `api_bldr_ext_ma_scalar_datetime.py`):
 - `week = week_of_year`
 - `weekday = day_of_week`
 - `ordinal_day = day_of_year`
@@ -347,12 +347,12 @@ These are one-line class-level alias additions on existing working methods:
 - `replace_time_zone = assume_timezone`
 - `epoch = unix_timestamp`
 
-**Name:**
+**Name** (in `api_bldr_ext_ma_name.py`):
 - `to_lowercase = name_to_lower`
 - `to_uppercase = name_to_upper`
 
-### Comparison-only (no alias needed, already matching)
-- `is_between = between` — consider adding `is_between` alias for Polars parity
+**Comparison** (in `api_bldr_ext_ma_scalar_comparison.py`):
+- `is_between = between` — consider adding for Polars parity
 
 ---
 
