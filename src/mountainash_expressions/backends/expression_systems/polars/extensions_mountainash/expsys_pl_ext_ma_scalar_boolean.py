@@ -30,11 +30,12 @@ class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, S
     """
 
 
-    def xor_parity(self, *args: PolarsExpr) -> PolarsExpr:
+    def xor_parity(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:
         """XOR parity check (odd number of TRUE values).
 
         Returns TRUE if an odd number of operands are TRUE.
         For two operands, this is equivalent to XOR.
+        The API builder chains binary pairs for >2 operands.
 
         Returns null if either input is null.
         """
