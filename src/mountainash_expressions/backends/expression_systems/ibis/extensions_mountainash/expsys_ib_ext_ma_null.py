@@ -5,7 +5,7 @@ Implements null handling extensions for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import ibis
 
@@ -42,3 +42,15 @@ class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshN
             Expression with NULLs replaced by the replacement value.
         """
         return input.fill_null(replacement)
+
+    def null_if(
+        self,
+        input: IbisExpr,
+        condition: Any,
+        /,
+    ) -> IbisExpr:
+        """Replace values equal to condition with NULL.
+
+        SQL NULLIF(input, condition) semantics.
+        """
+        return input.nullif(condition)

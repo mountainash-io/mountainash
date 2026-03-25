@@ -5,7 +5,7 @@ Implements null handling extensions for the Narwhals backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import narwhals as nw
 
@@ -45,3 +45,16 @@ class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         # Extract literal value if possible
         fill_value = self._extract_literal_value(replacement)
         return input.fill_null(fill_value)
+
+    def null_if(
+        self,
+        input: NarwhalsExpr,
+        condition: Any,
+        /,
+    ) -> NarwhalsExpr:
+        """Replace values equal to condition with NULL.
+
+        SQL NULLIF(input, condition) semantics.
+        """
+        fill_value = self._extract_literal_value(condition)
+        return nw.when(input == fill_value).then(None).otherwise(input)

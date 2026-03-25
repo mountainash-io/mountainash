@@ -5,7 +5,7 @@ Implements null handling extensions for the Polars backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import polars as pl
 
@@ -43,3 +43,15 @@ class MountainAshPolarsNullExpressionSystem(PolarsBaseExpressionSystem, Mountain
             Expression with NULLs replaced by the replacement value.
         """
         return input.fill_null(replacement)
+
+    def null_if(
+        self,
+        input: PolarsExpr,
+        condition: Any,
+        /,
+    ) -> PolarsExpr:
+        """Replace values equal to condition with NULL.
+
+        SQL NULLIF(input, condition) semantics.
+        """
+        return pl.when(input.eq(condition)).then(None).otherwise(input)
