@@ -348,6 +348,8 @@ class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     EXTRACT = auto()
     EXTRACT_BOOLEAN = auto()
 
+    # Timezone
+    LOCAL_TIMESTAMP = auto()
 
 
 

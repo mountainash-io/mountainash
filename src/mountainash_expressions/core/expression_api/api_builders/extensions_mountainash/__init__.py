@@ -9,6 +9,7 @@ from .api_bldr_ext_ma_null import MountainAshNullAPIBuilder
 from .api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilder
 from .api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilder
 from .api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
+from .api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilder
 from .api_bldr_ext_ma_scalar_set import SubstraitScalarSetAPIBuilder as MountainAshScalarSetAPIBuilder
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "MountainAshNullAPIBuilder",
     "MountainAshScalarArithmeticAPIBuilder",
     "MountainAshScalarBooleanAPIBuilder",
+    "MountainAshScalarDatetimeAPIBuilder",
     "MountainAshScalarTernaryAPIBuilder",
 ]
