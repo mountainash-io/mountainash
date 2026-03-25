@@ -1,69 +1,19 @@
-"""Aggregate operations APIBuilder.
+"""Substrait aggregate operations APIBuilder.
 
-Substrait-aligned implementation using ScalarFunctionNode.
-Implements ScalarAggregateBuilderProtocol for aggregate operations.
+Stub class — aggregate operations are not yet wired into the flat namespace.
+Uncomment in BooleanExpressionAPI._FLAT_NAMESPACES when ready.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ...api_base import BaseExpressionAPI
-
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_AGGREGATE
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode
-from mountainash_expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarAggregateAPIBuilderProtocol
 
 
+class SubstraitScalarAggregateAPIBuilder(BaseExpressionAPIBuilder):
+    """Substrait aggregate operations.
 
-# if TYPE_CHECKING:
-
-
-class SubstraitScalarAggregateAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarAggregateAPIBuilderProtocol):
-    """
-    Aggregate operations APIBuilder (Substrait-aligned).
-
-    Provides aggregate operations that typically operate on grouped data.
-
-    Methods:
-        count: Count non-null values
-        any_value: Select an arbitrary value from the group
+    Stub — not yet active. Aggregate operations (count, any_value)
+    will be enabled when wired into BooleanExpressionAPI._FLAT_NAMESPACES.
     """
 
-    def count(self) -> BaseExpressionAPI:
-        """
-        Count non-null values.
-
-        Substrait: count
-
-        Returns:
-            New ExpressionAPI with count node.
-        """
-        node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT,
-            arguments=[self._node],
-        )
-        return self._build(node)
-
-    def any_value(
-        self,
-        ignore_nulls: bool = True,
-    ) -> BaseExpressionAPI:
-        """
-        Select an arbitrary value from the group.
-
-        Substrait: any_value
-
-        Args:
-            ignore_nulls: Whether to ignore null values (default: True).
-
-        Returns:
-            New ExpressionAPI with any_value node.
-        """
-        node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.ANY_VALUE,
-            arguments=[self._node],
-            options={"ignore_nulls": ignore_nulls},
-        )
-        return self._build(node)
+    pass
