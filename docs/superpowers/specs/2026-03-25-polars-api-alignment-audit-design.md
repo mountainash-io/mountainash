@@ -87,12 +87,12 @@
 | Polars Method | Our Method | Status | Naming Gap | Signature Gap |
 |---|---|---|---|---|
 | `add(other)` | `add(other)` | aligned | -- | -- |
-| `sub(other)` | `subtract(other)` | name-differs | Polars: `sub` | Add `sub` alias |
-| `mul(other)` | `multiply(other)` | name-differs | Polars: `mul` | Add `mul` alias |
-| `truediv(other)` | `divide(other)` | name-differs | Polars: `truediv` | Add `truediv` alias |
-| `floordiv(other)` | `floor_divide(other)` | name-differs | Polars: `floordiv` | Add `floordiv` alias |
-| `mod(other)` | `modulus(other)` / `modulo` alias | name-differs | Polars: `mod` | Add `mod` alias |
-| `pow(exponent)` | `power(other)` | name-differs | Polars: `pow` | Add `pow` alias |
+| `sub(other)` | `subtract(other)` | name-differs | Polars: `sub` | Alias in extension builder |
+| `mul(other)` | `multiply(other)` | name-differs | Polars: `mul` | Alias in extension builder |
+| `truediv(other)` | `divide(other)` | name-differs | Polars: `truediv` | Alias in extension builder |
+| `floordiv(other)` | `floor_divide(other)` | name-differs | Polars: `floordiv` | Alias in extension builder |
+| `mod(other)` | `modulus(other)` / `modulo` alias | name-differs | Polars: `mod` | Alias in extension builder |
+| `pow(exponent)` | `power(other)` | name-differs | Polars: `pow` | Alias in extension builder |
 | `neg()` | -- | aspirational | -- | Enum `NEGATE` exists, builder/backends commented out. `__neg__` calls `self.negate()` which is commented out — runtime bug. Uncomment and wire. |
 | `abs()` | `abs()` | aspirational | -- | Enum missing, needs backend alignment |
 | `sign()` | `sign()` | aspirational | -- | Enum missing, needs backend alignment |
@@ -150,12 +150,12 @@
 
 | Polars Method | Our Method | Status | Naming Gap | Signature Gap |
 |---|---|---|---|---|
-| `to_uppercase()` | `upper()` | name-differs | Substrait naming | Add `to_uppercase` alias |
-| `to_lowercase()` | `lower()` | name-differs | Substrait naming | Add `to_lowercase` alias |
+| `to_uppercase()` | `upper()` | name-differs | Substrait naming | Alias in extension builder |
+| `to_lowercase()` | `lower()` | name-differs | Substrait naming | Alias in extension builder |
 | `to_titlecase()` | `title()` | name-differs | Substrait naming | `title` aspirational (enum missing) |
-| `strip_chars(chars)` | `trim(characters)` | name-differs | Substrait naming | Add `strip_chars` alias |
-| `strip_chars_start(chars)` | `ltrim(characters)` | name-differs | Substrait naming | Add `strip_chars_start` alias |
-| `strip_chars_end(chars)` | `rtrim(characters)` | name-differs | Substrait naming | Add `strip_chars_end` alias |
+| `strip_chars(chars)` | `trim(characters)` | name-differs | Substrait naming | Alias in extension builder |
+| `strip_chars_start(chars)` | `ltrim(characters)` | name-differs | Substrait naming | Alias in extension builder |
+| `strip_chars_end(chars)` | `rtrim(characters)` | name-differs | Substrait naming | Alias in extension builder |
 | `strip_prefix(prefix)` | -- | missing | -- | Cross-backend feasible |
 | `strip_suffix(suffix)` | -- | missing | -- | Cross-backend feasible |
 | `pad_start(length, fill_char)` | `lpad(length, characters)` | name-differs | Substrait naming | `lpad` aspirational (enum missing) |
@@ -165,24 +165,24 @@
 | `contains_any(patterns)` | -- | out-of-scope | -- | Polars-specific Aho-Corasick |
 | `starts_with(prefix)` | `starts_with(prefix, case_sensitive)` | aligned | -- | We have extra `case_sensitive` param |
 | `ends_with(suffix)` | `ends_with(suffix, case_sensitive)` | aligned | -- | We have extra `case_sensitive` param |
-| `find(pattern)` | `strpos(substring, case_sensitive)` | name-differs | Substrait: `strpos` | `strpos` aspirational. Add `find` alias when implemented |
+| `find(pattern)` | `strpos(substring, case_sensitive)` | name-differs | Substrait: `strpos` | `strpos` aspirational. Alias `find` in extension builder when implemented |
 | `find_many(patterns)` | -- | out-of-scope | -- | Polars-specific Aho-Corasick |
 | `replace(pattern, value, literal, n)` | `replace(old, new, case_sensitive)` | aligned | -- | Polars has `n` (max replacements) and `literal` flag; ours has `case_sensitive` |
 | `replace_all(pattern, value, literal)` | -- | missing | -- | Polars separates replace/replace_all; ours replaces all by default |
 | `replace_many(patterns)` | -- | out-of-scope | -- | Polars-specific Aho-Corasick |
 | `slice(offset, length)` | `slice(offset, length)` / `substring(start, length)` | aligned | -- | -- |
-| `head(n)` | `left(count)` | name-differs | Substrait: `left` | `left` aspirational. Add `head` alias when implemented |
-| `tail(n)` | `right(count)` | name-differs | Substrait: `right` | `right` aspirational. Add `tail` alias when implemented |
-| `len_chars()` | `char_length()` / `length` / `len` | name-differs | Substrait naming | Add `len_chars` alias |
-| `len_bytes()` | `octet_length()` | name-differs | Substrait naming | `octet_length` aspirational. Add `len_bytes` alias when implemented |
+| `head(n)` | `left(count)` | name-differs | Substrait: `left` | `left` aspirational. Alias `head` in extension builder when implemented |
+| `tail(n)` | `right(count)` | name-differs | Substrait: `right` | `right` aspirational. Alias `tail` in extension builder when implemented |
+| `len_chars()` | `char_length()` / `length` / `len` | name-differs | Substrait naming | Alias in extension builder |
+| `len_bytes()` | `octet_length()` | name-differs | Substrait naming | `octet_length` aspirational. Alias `len_bytes` in extension builder when implemented |
 | `concat(delimiter)` | `concat(*others)` | aligned | -- | Different semantics: Polars vertical; ours horizontal |
 | `join(delimiter)` | -- | out-of-scope | -- | Polars vertical join |
-| `split(by)` | `string_split(separator)` | name-differs | Substrait naming | `string_split` aspirational. Add `split` alias when implemented |
+| `split(by)` | `string_split(separator)` | name-differs | Substrait naming | `string_split` aspirational. Alias `split` in extension builder when implemented |
 | `split_exact(by, n)` | -- | missing | -- | Low priority |
 | `splitn(by, n)` | -- | missing | -- | Low priority |
 | `reverse()` | `reverse()` | aspirational | -- | Enum missing, needs backend alignment |
 | `explode()` | -- | out-of-scope | -- | Structural operation |
-| `count_matches(pattern)` | `count_substring(substring, case_sensitive)` | name-differs | Substrait naming | `count_substring` aspirational. Add `count_matches` alias when implemented |
+| `count_matches(pattern)` | `count_substring(substring, case_sensitive)` | name-differs | Substrait naming | `count_substring` aspirational. Alias `count_matches` in extension builder when implemented |
 | `extract(pattern, group_index)` | `regexp_match_substring(pattern, ...)` | name-differs | Substrait naming | Ours has richer params |
 | `extract_all(pattern)` | `regexp_match_substring_all(...)` | name-differs | Substrait naming | Aspirational |
 | `extract_groups(pattern)` | -- | missing | -- | Low priority |
@@ -229,9 +229,9 @@
 | `microsecond()` | `microsecond()` | aligned | -- | -- |
 | `nanosecond()` | `nanosecond()` | aligned | -- | -- |
 | `quarter()` | `quarter()` | aligned | -- | -- |
-| `week()` | `week_of_year()` | name-differs | Polars: `week` | Add `week` alias |
-| `weekday()` | `day_of_week()` | name-differs | Polars: `weekday` | Add `weekday` alias |
-| `ordinal_day()` | `day_of_year()` | name-differs | Polars: `ordinal_day` | Add `ordinal_day` alias |
+| `week()` | `week_of_year()` | name-differs | Polars: `week` | Alias in extension builder |
+| `weekday()` | `day_of_week()` | name-differs | Polars: `weekday` | Alias in extension builder |
+| `ordinal_day()` | `day_of_year()` | name-differs | Polars: `ordinal_day` | Alias in extension builder |
 | `century()` | -- | missing | -- | Low priority |
 | `millennium()` | -- | missing | -- | Low priority |
 | **Component Access** | | | | |
@@ -252,15 +252,15 @@
 | `total_hours(*, fractional)` | -- | missing | -- | We use `diff_*()` instead |
 | `total_minutes` thru `total_nanoseconds` | -- | missing | -- | Different design philosophy |
 | **Timezone** | | | | |
-| `convert_time_zone(tz)` | `to_timezone(tz)` | name-differs | Polars: `convert_time_zone` | Add alias |
-| `replace_time_zone(tz, ambiguous, non_existent)` | `assume_timezone(tz)` | name-differs | Polars: `replace_time_zone` | Polars has richer error params |
+| `convert_time_zone(tz)` | `to_timezone(tz)` | name-differs | Polars: `convert_time_zone` | Alias in extension builder |
+| `replace_time_zone(tz, ambiguous, non_existent)` | `assume_timezone(tz)` | name-differs | Polars: `replace_time_zone` | Alias in extension builder. Polars has richer error params |
 | `base_utc_offset()` | -- | missing | -- | Low priority |
 | `dst_offset()` | -- | missing | -- | Low priority |
 | **Formatting** | | | | |
 | `strftime(format)` | `strftime(format)` | aligned | -- | -- |
 | `to_string(format)` | -- | missing | -- | Convenience over strftime |
 | **Epoch** | | | | |
-| `epoch(time_unit)` | `unix_timestamp()` | name-differs | Polars: `epoch` | Polars has `time_unit` param |
+| `epoch(time_unit)` | `unix_timestamp()` | name-differs | Polars: `epoch` | Alias in extension builder. Polars has `time_unit` param |
 | `timestamp(time_unit)` | -- | missing | -- | Similar to epoch |
 | **Calendar** | | | | |
 | `days_in_month()` | -- | missing | -- | Cross-backend feasible |
@@ -293,8 +293,8 @@
 | `suffix(suffix)` | `suffix(suffix)` | aligned | -- | -- |
 | `map(function)` | -- | missing | -- | UDF-based; hard to serialize cross-backend |
 | `replace(pattern, value)` | -- | missing | -- | Cross-backend feasible |
-| `to_lowercase()` | `name_to_lower()` | name-differs | Polars: `to_lowercase` | Add alias |
-| `to_uppercase()` | `name_to_upper()` | name-differs | Polars: `to_uppercase` | Add alias |
+| `to_lowercase()` | `name_to_lower()` | name-differs | Polars: `to_lowercase` | Alias in extension builder |
+| `to_uppercase()` | `name_to_upper()` | name-differs | Polars: `to_uppercase` | Alias in extension builder |
 | `prefix_fields(prefix)` | -- | out-of-scope | -- | Struct-specific |
 | `suffix_fields(suffix)` | -- | out-of-scope | -- | Struct-specific |
 | `map_fields(function)` | -- | out-of-scope | -- | Struct-specific |
