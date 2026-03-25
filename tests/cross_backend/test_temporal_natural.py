@@ -98,7 +98,11 @@ class TestWithinLastFilter:
         """Test filtering for 'last X minutes' like journalctl --since."""
 
         if backend_name == "ibis-sqlite":
-            pytest.xfail("Ibis SQLite will fail. To be investigated ")
+            pytest.xfail(
+                "SQLite has no native datetime type. Sub-day datetime comparisons "
+                "via Ibis produce incorrect results because values are compared as "
+                "strings rather than timestamps. All 4 rows pass the gt() filter."
+            )
 
         now = datetime.now()
         data = {
@@ -204,7 +208,11 @@ class TestBetweenLastFilter:
     ):
 
         if backend_name == "ibis-sqlite":
-            pytest.xfail("Ibis SQLite will fail. To be investigated ")
+            pytest.xfail(
+                "SQLite has no native datetime type. Sub-day datetime comparisons "
+                "via Ibis produce incorrect results (string vs timestamp comparison). "
+                "The between range filter returns 0 rows instead of 2."
+            )
 
         """Test filtering for 'between X and Y ago'."""
         now = datetime.now()
@@ -262,7 +270,11 @@ class TestRealWorldLogFiltering:
         get_column_values
     ):
         if backend_name == "ibis-sqlite":
-            pytest.xfail("Ibis SQLite will fail. To be investigated ")
+            pytest.xfail(
+                "SQLite has no native datetime type. Sub-day datetime comparisons "
+                "via Ibis produce incorrect results (string vs timestamp comparison). "
+                "The within_last filter passes too many rows (3 instead of 2)."
+            )
 
 
         """Test filtering errors from last X minutes (like journalctl)."""
@@ -314,9 +326,12 @@ class TestRealWorldLogFiltering:
         get_result_count,
         get_column_values
     ):
-
         if backend_name == "ibis-sqlite":
-            pytest.xfail("Ibis SQLite will fail. To be investigated ")
+            pytest.xfail(
+                "SQLite has no native datetime type. Sub-day datetime comparisons "
+                "via Ibis produce incorrect results (string vs timestamp comparison). "
+                "The older_than filter returns 0 rows instead of 1."
+            )
 
         """Test identifying old logs for cleanup (older than 1 hour)."""
         now = datetime.now()
