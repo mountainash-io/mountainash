@@ -34,13 +34,13 @@ class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder, MountainAshNullAPIBuil
 
     def fill_null(
         self,
-        value: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
         """
-        Replace null values with the specified value.
+        Replace null values with the specified replacement.
 
         Args:
-            value: Value to use in place of nulls.
+            replacement: Value to use in place of nulls.
 
         Returns:
             New ExpressionAPI with fill_null node.
@@ -48,7 +48,7 @@ class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder, MountainAshNullAPIBuil
         Example:
             >>> expr = col("phone").fill_null("N/A")
         """
-        value_node = self._to_substrait_node(value)
+        value_node = self._to_substrait_node(replacement)
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NULL.FILL_NULL,
             arguments=[self._node, value_node],

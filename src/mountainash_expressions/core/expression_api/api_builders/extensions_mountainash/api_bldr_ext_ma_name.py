@@ -28,8 +28,8 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         alias: Rename the column
         prefix: Add a prefix to the column name
         suffix: Add a suffix to the column name
-        to_upper: Convert column name to uppercase
-        to_lower: Convert column name to lowercase
+        name_to_upper: Convert column name to uppercase
+        name_to_lower: Convert column name to lowercase
     """
 
     def alias(self, name: str) -> BaseExpressionAPI:
@@ -91,7 +91,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(node)
 
-    def to_upper(self) -> BaseExpressionAPI:
+    def name_to_upper(self) -> BaseExpressionAPI:
         """
         Convert column name to uppercase.
 
@@ -99,7 +99,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             New ExpressionAPI with name_to_upper node.
 
         Example:
-            >>> expr = col("user_id").name.to_upper()
+            >>> expr = col("user_id").name.name_to_upper()
             >>> # Column name becomes "USER_ID"
         """
         node = ScalarFunctionNode(
@@ -108,7 +108,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(node)
 
-    def to_lower(self) -> BaseExpressionAPI:
+    def name_to_lower(self) -> BaseExpressionAPI:
         """
         Convert column name to lowercase.
 
@@ -116,7 +116,7 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             New ExpressionAPI with name_to_lower node.
 
         Example:
-            >>> expr = col("USER_ID").name.to_lower()
+            >>> expr = col("USER_ID").name.name_to_lower()
             >>> # Column name becomes "user_id"
         """
         node = ScalarFunctionNode(

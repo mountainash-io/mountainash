@@ -279,7 +279,7 @@ class TestSuffixOperation:
     "ibis-sqlite",
 ])
 class TestToUpperOperation:
-    """Test .name.to_upper() operation."""
+    """Test .name.name_to_upper() operation."""
 
     def test_to_upper_lowercase_name(self, backend_name, backend_factory):
         """Test converting lowercase column name to uppercase."""
@@ -288,7 +288,7 @@ class TestToUpperOperation:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("age").name.to_upper()
+        expr = ma.col("age").name.name_to_upper()
         backend_expr = expr.compile(df)
         result = select_expr(df, backend_expr, backend_name)
 
@@ -305,7 +305,7 @@ class TestToUpperOperation:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("firstName").name.to_upper()
+        expr = ma.col("firstName").name.name_to_upper()
         backend_expr = expr.compile(df)
         result = select_expr(df, backend_expr, backend_name)
 
@@ -319,7 +319,7 @@ class TestToUpperOperation:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("ID").name.to_upper()
+        expr = ma.col("ID").name.name_to_upper()
         backend_expr = expr.compile(df)
         result = select_expr(df, backend_expr, backend_name)
 
@@ -341,7 +341,7 @@ class TestToUpperOperation:
     "ibis-sqlite",
 ])
 class TestToLowerOperation:
-    """Test .name.to_lower() operation."""
+    """Test .name.name_to_lower() operation."""
 
     def test_to_lower_uppercase_name(self, backend_name, backend_factory):
         """Test converting uppercase column name to lowercase."""
@@ -350,7 +350,7 @@ class TestToLowerOperation:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("AGE").name.to_lower()
+        expr = ma.col("AGE").name.name_to_lower()
         backend_expr = expr.compile(df)
         result = select_expr(df, backend_expr, backend_name)
 
@@ -367,7 +367,7 @@ class TestToLowerOperation:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("FirstName").name.to_lower()
+        expr = ma.col("FirstName").name.name_to_lower()
         backend_expr = expr.compile(df)
         result = select_expr(df, backend_expr, backend_name)
 
@@ -381,7 +381,7 @@ class TestToLowerOperation:
         }
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.col("id").name.to_lower()
+        expr = ma.col("id").name.name_to_lower()
         backend_expr = expr.compile(df)
         result = select_expr(df, backend_expr, backend_name)
 
