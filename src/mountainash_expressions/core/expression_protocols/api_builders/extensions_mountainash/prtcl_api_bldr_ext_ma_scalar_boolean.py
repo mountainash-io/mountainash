@@ -22,6 +22,14 @@ class MountainAshScalarBooleanAPIBuilderProtocol(Protocol):
     functions to provide additional boolean operations.
     """
 
+    def always_true(self) -> BaseExpressionAPI:
+        """Boolean constant TRUE."""
+        ...
+
+    def always_false(self) -> BaseExpressionAPI:
+        """Boolean constant FALSE."""
+        ...
+
     def xor_parity(
         self,
         *others: Union[BaseExpressionAPI, ExpressionNode, Any],

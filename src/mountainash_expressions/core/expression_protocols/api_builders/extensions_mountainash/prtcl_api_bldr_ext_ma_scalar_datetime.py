@@ -469,3 +469,23 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def now(self) -> BaseExpressionAPI:
         """Return current datetime as a literal expression."""
         ...
+
+    # =========================================================================
+    # Timezone Operations
+    # =========================================================================
+
+    def to_timezone(self, timezone: str) -> BaseExpressionAPI:
+        """Convert to specified timezone."""
+        ...
+
+    def assume_timezone(self, timezone: str) -> BaseExpressionAPI:
+        """Assume the timestamp is in the specified timezone."""
+        ...
+
+    # =========================================================================
+    # Formatting
+    # =========================================================================
+
+    def strftime(self, format: str) -> BaseExpressionAPI:
+        """Format datetime as string using strftime format codes."""
+        ...

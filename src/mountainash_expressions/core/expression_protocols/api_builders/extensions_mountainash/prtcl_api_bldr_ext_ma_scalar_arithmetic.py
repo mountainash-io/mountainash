@@ -42,7 +42,13 @@ class MountainAshScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
-
+    def rfloor_divide(
+        self,
+        other: Union[BaseExpressionAPI, ExpressionNode, Any],
+        /,
+    ) -> BaseExpressionAPI:
+        """Reverse floor division for __rfloordiv__."""
+        ...
 
 
 #     def sqrt(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
