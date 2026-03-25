@@ -428,7 +428,7 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         """
         operands = [self._node] + [self._to_substrait_node(o) for o in others]
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LTEAST,
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LEAST,
             arguments=operands,
         )
         return self._build(node)
@@ -452,7 +452,7 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         """
         operands = [self._node] + [self._to_substrait_node(o) for o in others]
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LTEAST_SKIP_NULL,
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LEAST_SKIP_NULL,
             arguments=operands,
         )
         return self._build(node)
