@@ -400,106 +400,80 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
         ...
 
     # =========================================================================
-    # Natural Language Filtering
+    # Core Dispatch Methods (used by visitor)
     # =========================================================================
 
-    def within_last(
+    def extract(
         self,
         x: SupportedExpressions,
-        duration: str,
+        component: SupportedExpressions,
         /,
     ) -> SupportedExpressions:
-        """Filter for timestamps within the last duration.
+        """Extract a datetime component by name.
 
-        Like journalctl --since, returns records from (now - duration) to now.
+        Dispatches to backend-specific extraction (year, month, day, etc.).
 
         Args:
             x: Datetime expression.
-            duration: Natural language like "10 minutes", "2 hours", "1 day".
+            component: Component identifier.
 
         Returns:
-            Boolean expression for filtering.
+            Extracted component value.
         """
         ...
 
-    def older_than(
+    def extract_boolean(
         self,
         x: SupportedExpressions,
-        duration: str,
         /,
+        component: SupportedExpressions,
     ) -> SupportedExpressions:
-        """Filter for timestamps older than duration.
+        """Extract a boolean datetime property.
 
-        Like find -mtime, returns records before (now - duration).
+        Dispatches to backend-specific boolean extraction (is_leap_year, is_dst).
 
         Args:
             x: Datetime expression.
-            duration: Natural language like "7 days", "1 month", "30 minutes".
+            component: Boolean component identifier.
 
         Returns:
-            Boolean expression for filtering.
+            Boolean expression.
         """
         ...
 
-    def newer_than(
+    # =========================================================================
+    # Timezone Operations
+    # =========================================================================
+
+    def to_timezone(
         self,
         x: SupportedExpressions,
-        duration: str,
+        timezone: SupportedExpressions,
         /,
     ) -> SupportedExpressions:
-        """Filter for timestamps newer than X ago.
-
-        Alias for within_last() for semantic clarity.
-
-        Args:
-            x: Datetime expression.
-            duration: Natural language duration.
-
-        Returns:
-            Boolean expression for filtering.
-        """
+        """Convert to specified timezone."""
         ...
 
-    def within_next(
+    def assume_timezone(
         self,
         x: SupportedExpressions,
-        duration: str,
+        timezone: SupportedExpressions,
         /,
     ) -> SupportedExpressions:
-        """Filter for timestamps within the next duration (future).
-
-        Returns records from now to (now + duration).
-
-        Args:
-            x: Datetime expression.
-            duration: Natural language like "2 hours", "1 week".
-
-        Returns:
-            Boolean expression for filtering.
-        """
+        """Assume the timestamp is in the specified timezone."""
         ...
 
-    def between_last(
+    # =========================================================================
+    # Formatting
+    # =========================================================================
+
+    def strftime(
         self,
         x: SupportedExpressions,
-        older_duration: str,
+        format: SupportedExpressions,
         /,
-        newer_duration: Optional[str] = None,
     ) -> SupportedExpressions:
-        """Filter for timestamps between two past time points.
-
-        Args:
-            x: Datetime expression.
-            older_duration: Start of window (further back in time).
-            newer_duration: End of window (more recent), defaults to "now".
-
-        Returns:
-            Boolean expression for filtering.
-
-        Example:
-            between_last("8 hours", "2 hours")
-            # Returns: (now - 8h) < timestamp < (now - 2h)
-        """
+        """Format datetime as string."""
         ...
 
     # =========================================================================
