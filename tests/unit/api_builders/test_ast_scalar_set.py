@@ -27,7 +27,7 @@ class TestSetMethods:
         assert node.function_key == FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN
         assert len(node.arguments) == 4
 
-    @pytest.mark.xfail(reason="index_in shadowed by protocol stub in dispatch order — wiring bug")
+    @pytest.mark.xfail(reason="MSO: extension builder inherits SubstraitScalarSetAPIBuilderProtocol, shadowing real index_in with protocol stub")
     def test_index_in(self):
         expr = ma.col("x").index_in([1, 2, 3])
         node = expr._node
