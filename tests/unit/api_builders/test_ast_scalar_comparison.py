@@ -55,21 +55,21 @@ class TestUnaryStateChecks:
         assert len(node.arguments) == 1
         assert isinstance(node.arguments[0], FieldReferenceNode)
 
-    def test_is_true_resolves_to_ternary(self):
-        """is_true() resolves to the ternary booleanizer, not the Substrait comparison."""
+    @pytest.mark.xfail(reason="is_true shadowed by ternary booleanizer — needs t_ prefix or context-based dispatch")
+    def test_is_true(self):
+        """On a boolean expression, is_true() should use Substrait comparison, not ternary."""
         expr = ma.col("x").is_true()
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
-        # Ternary takes priority in _FLAT_NAMESPACES
-        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_TRUE
 
-    def test_is_false_resolves_to_ternary(self):
-        """is_false() resolves to the ternary booleanizer, not the Substrait comparison."""
+    @pytest.mark.xfail(reason="is_false shadowed by ternary booleanizer — needs t_ prefix or context-based dispatch")
+    def test_is_false(self):
+        """On a boolean expression, is_false() should use Substrait comparison, not ternary."""
         expr = ma.col("x").is_false()
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
-        # Ternary takes priority in _FLAT_NAMESPACES
-        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FALSE
 
 
 class TestNullHandling:
