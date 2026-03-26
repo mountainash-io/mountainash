@@ -169,6 +169,27 @@ class FKEY_SUBSTRAIT_SCALAR_ARITHMETIC(Enum):
     EXP = auto()
     # LN = auto()
 
+    # Trigonometric
+    SIN = auto()
+    COS = auto()
+    TAN = auto()
+    ASIN = auto()
+    ACOS = auto()
+    ATAN = auto()
+    ATAN2 = auto()
+
+    # Hyperbolic
+    SINH = auto()
+    COSH = auto()
+    TANH = auto()
+    ASINH = auto()
+    ACOSH = auto()
+    ATANH = auto()
+
+    # Angular conversion
+    RADIANS = auto()
+    DEGREES = auto()
+
 # =============================================================================
 # Comparison Functions (Substrait-aligned)
 # =============================================================================
@@ -252,20 +273,41 @@ class FKEY_SUBSTRAIT_SCALAR_STRING(Enum):
     # Case conversion
     UPPER = auto()
     LOWER = auto()
+    SWAPCASE = auto()
+    CAPITALIZE = auto()
+    TITLE = auto()
+    INITCAP = auto()
 
     # Trimming
     TRIM = auto()
     LTRIM = auto()
     RTRIM = auto()
 
+    # Padding
+    LPAD = auto()
+    RPAD = auto()
+    CENTER = auto()
+
     # Substring operations
     SUBSTRING = auto()
+    LEFT = auto()
+    RIGHT = auto()
     REPLACE = auto()
+    REPLACE_SLICE = auto()
     CONCAT = auto()
+    CONCAT_WS = auto()
     SPLIT = auto()
+    REPEAT = auto()
+    REVERSE = auto()
 
     # String info
     CHAR_LENGTH = auto()
+    BIT_LENGTH = auto()
+    OCTET_LENGTH = auto()
+
+    # Search
+    STRPOS = auto()
+    COUNT_SUBSTRING = auto()
 
     # Pattern matching
     CONTAINS = auto()
@@ -421,6 +463,15 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     TODAY = auto()
     NOW = auto()
 
+    # Component extraction
+    DATE = auto()
+    TIME = auto()
+
+    # Calendar helpers
+    MONTH_START = auto()
+    MONTH_END = auto()
+    DAYS_IN_MONTH = auto()
+
     # Legacy
     OFFSET_BY = auto()
 
@@ -439,6 +490,8 @@ class FKEY_MOUNTAINASH_SCALAR_COMPARISON(Enum):
     """Mountainash comparison extensions not in Substrait."""
 
     IS_CLOSE = "is_close"
+    EQ_MISSING = "eq_missing"
+    NE_MISSING = "ne_missing"
 
 
 class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
@@ -457,6 +510,7 @@ class FKEY_MOUNTAINASH_NULL(Enum):
     FILL_NULL = "fill_null"
     NULL_IF = "null_if"
     ALWAYS_NULL = "always_null"
+    FILL_NAN = "fill_nan"
 
 
 class FKEY_MOUNTAINASH_NAME(Enum):

@@ -55,3 +55,12 @@ class MountainAshPolarsNullExpressionSystem(PolarsBaseExpressionSystem, Mountain
         SQL NULLIF(input, condition) semantics.
         """
         return pl.when(input.eq(condition)).then(None).otherwise(input)
+
+    def fill_nan(
+        self,
+        input: PolarsExpr,
+        replacement: Any,
+        /,
+    ) -> PolarsExpr:
+        return input.fill_nan(replacement)
+

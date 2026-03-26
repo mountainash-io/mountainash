@@ -18,8 +18,10 @@ from .prtcl_api_bldr_ext_ma_native import MountainAshNativeAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_null import MountainAshNullAPIBuilderProtocol
 # from .prtcl_api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilderProtocol
-from .prtcl_api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_comparison import MountainAshScalarComparisonAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_string import MountainAshScalarStringAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilderProtocol
 
 __all__ = [
@@ -28,7 +30,9 @@ __all__ = [
     "MountainAshNullAPIBuilderProtocol",
     # "MountainAshScalarAggregateAPIBuilderProtocol",
     "MountainAshScalarArithmeticAPIBuilderProtocol",
-    "MountainAshScalarDatetimeAPIBuilderProtocol",
     "MountainAshScalarBooleanAPIBuilderProtocol",
+    "MountainAshScalarComparisonAPIBuilderProtocol",
+    "MountainAshScalarDatetimeAPIBuilderProtocol",
+    "MountainAshScalarStringAPIBuilderProtocol",
     "MountainAshScalarTernaryAPIBuilderProtocol",
 ]

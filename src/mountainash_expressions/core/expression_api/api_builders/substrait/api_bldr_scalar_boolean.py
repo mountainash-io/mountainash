@@ -206,9 +206,6 @@ class SubstraitScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalar
         )
         return self._build(node)
 
-    # Short alias for public API
-    xor_ = xor
-
     # ========================================
     # Unary Operators
     # ========================================

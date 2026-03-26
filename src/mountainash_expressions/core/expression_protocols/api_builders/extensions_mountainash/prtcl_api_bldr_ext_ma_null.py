@@ -6,6 +6,7 @@ URI: file://extensions/functions_null.yaml
 Extensions beyond Substrait standard:
 - fill_null: Replace NULL values with a specified default value
 - null_if: Replace values matching a condition with NULL
+- fill_nan: Replace NaN values with a specified value
 """
 
 from __future__ import annotations
@@ -58,3 +59,11 @@ class MountainAshNullAPIBuilderProtocol(Protocol):
             Expression with matching values replaced by NULL.
         """
         ...
+
+    def fill_nan(
+        self,
+        replacement: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """Replace NaN values with the specified replacement."""
+        ...
+

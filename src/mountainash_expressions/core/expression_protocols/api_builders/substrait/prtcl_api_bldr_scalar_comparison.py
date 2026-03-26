@@ -66,23 +66,6 @@ class SubstraitScalarComparisonAPIBuilderProtocol(Protocol):
         """
         ...
 
-    # Short aliases
-    def eq(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
-        """Alias for equal."""
-        ...
-
-    def ne(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
-        """Alias for not_equal."""
-        ...
-
-    def ge(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
-        """Alias for gte."""
-        ...
-
-    def le(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
-        """Alias for lte."""
-        ...
-
     def between(
         self,
         low: Union[BaseExpressionAPI, ExpressionNode, Any],

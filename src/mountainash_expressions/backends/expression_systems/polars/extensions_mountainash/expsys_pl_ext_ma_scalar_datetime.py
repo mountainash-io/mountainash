@@ -1252,3 +1252,26 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Datetime in target timezone.
         """
         return x.dt.convert_time_zone(timezone)
+
+    # =========================================================================
+    # Component Extraction
+    # =========================================================================
+
+    def date(self, input: PolarsExpr, /) -> PolarsExpr:
+        return input.dt.date()
+
+    def time(self, input: PolarsExpr, /) -> PolarsExpr:
+        return input.dt.time()
+
+    # =========================================================================
+    # Calendar Helpers
+    # =========================================================================
+
+    def month_start(self, input: PolarsExpr, /) -> PolarsExpr:
+        return input.dt.month_start()
+
+    def month_end(self, input: PolarsExpr, /) -> PolarsExpr:
+        return input.dt.month_end()
+
+    def days_in_month(self, input: PolarsExpr, /) -> PolarsExpr:
+        return input.dt.month_end().dt.day()

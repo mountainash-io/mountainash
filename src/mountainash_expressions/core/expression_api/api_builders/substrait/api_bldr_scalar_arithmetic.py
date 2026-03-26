@@ -254,10 +254,6 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         )
         return self._build(node)
 
-    # Short aliases for public API
-    modulo = modulus
-    rmodulo = rmodulus
-
     # ========================================
     # Unary Arithmetic Operations
     # ========================================
@@ -344,132 +340,126 @@ Negative inputs will raise an error.
         """
         ...
 
-    def sin(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the sine of a value in radians.
+    def sin(self) -> BaseExpressionAPI:
+        """Get the sine of a value in radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-        Substrait: sin
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
+    def cos(self) -> BaseExpressionAPI:
+        """Get the cosine of a value in radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-    def cos(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the cosine of a value in radians.
+    def tan(self) -> BaseExpressionAPI:
+        """Get the tangent of a value in radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-        Substrait: cos
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
+    def sinh(self) -> BaseExpressionAPI:
+        """Get the hyperbolic sine of a value."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
+    def cosh(self) -> BaseExpressionAPI:
+        """Get the hyperbolic cosine of a value."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
+    def tanh(self) -> BaseExpressionAPI:
+        """Get the hyperbolic tangent of a value."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-    def tan(self,  rounding: Any = None) -> BaseExpressionAPI:
-        """Get the tangent of a value in radians.
+    def asin(self) -> BaseExpressionAPI:
+        """Get the arcsine of a value in radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-        Substrait: tan
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
+    def acos(self) -> BaseExpressionAPI:
+        """Get the arccosine of a value in radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
+    def atan(self) -> BaseExpressionAPI:
+        """Get the arctangent of a value in radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-    def sinh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic sine of a value in radians.
+    def asinh(self) -> BaseExpressionAPI:
+        """Get the hyperbolic arcsine of a value."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-        Substrait: sinh
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
+    def acosh(self) -> BaseExpressionAPI:
+        """Get the hyperbolic arccosine of a value."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
+    def atanh(self) -> BaseExpressionAPI:
+        """Get the hyperbolic arctangent of a value."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-    def cosh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic cosine of a value in radians.
+    def atan2(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Get the arctangent of y/x (self/other) in radians."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
 
-        Substrait: cosh
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
+    def radians(self) -> BaseExpressionAPI:
+        """Convert angle from degrees to radians."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-
-    def tanh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic tangent of a value in radians.
-
-        Substrait: tanh
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def asin(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the arcsine of a value in radians.
-
-        Substrait: asin
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def acos(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the arccosine of a value in radians.
-
-        Substrait: acos
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def atan(self,rounding: Any = None) -> BaseExpressionAPI:
-        """Get the arctangent of a value in radians.
-
-        Substrait: atan
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def asinh(self,  rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic arcsine of a value in radians.
-
-        Substrait: asinh
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def acosh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic arccosine of a value in radians.
-
-        Substrait: acosh
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def atanh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic arctangent of a value in radians.
-
-        Substrait: atanh
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def atan2(self, other: Union[BaseExpressionAPI, ExpressionNode, Any],  rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the arctangent of values given as x/y pairs.
-
-        Substrait: atan2
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def radians(self,  rounding: Any = None) -> BaseExpressionAPI:
-        """Converts angle `x` in degrees to radians.
-
-
-        Substrait: radians
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
-
-    def degrees(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Converts angle `x` in radians to degrees.
-
-
-        Substrait: degrees
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
-        """
-        ...
+    def degrees(self) -> BaseExpressionAPI:
+        """Convert angle from radians to degrees."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
 
 

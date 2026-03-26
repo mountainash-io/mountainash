@@ -426,16 +426,6 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         """
         ...
 
-    # Convenience aliases
-
-    def len(self) -> BaseExpressionAPI:
-        """Alias for char_length. String length in characters."""
-        ...
-
-    def length(self) -> BaseExpressionAPI:
-        """Alias for char_length. String length in characters."""
-        ...
-
     def regex_contains(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
         """Test if pattern matches. Alias for regexp_match_substring (returns bool)."""
         ...

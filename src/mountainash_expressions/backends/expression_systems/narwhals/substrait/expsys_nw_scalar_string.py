@@ -314,21 +314,20 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Substring expression.
         """
-        # Extract literal values from Expr objects if needed
+        # Extract literal values; Narwhals str.slice requires int args (no expression support)
         start_val = self._extract_literal_value(start)
         length_val = self._extract_literal_value(length) if length is not None else None
 
-        # Handle integer offset
-        if isinstance(start_val, int):
-            if length_val is None:
-                return input.str.slice(start_val)
-            if isinstance(length_val, int):
-                return input.str.slice(start_val, length_val)
+        # Narwhals str.slice only accepts int, not expressions
+        if not isinstance(start_val, int):
+            start_val = 0
+        if length_val is not None and not isinstance(length_val, int):
+            # Cannot use expression-typed length in Narwhals
+            length_val = None
 
-        # For non-integer expressions, fallback to start of string
         if length_val is None:
-            return input.str.slice(0)
-        return input.str.slice(0, length_val if isinstance(length_val, int) else None)
+            return input.str.slice(start_val)
+        return input.str.slice(start_val, length_val)
 
     def left(
         self,

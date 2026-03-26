@@ -330,19 +330,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Substring expression.
         """
-        # Extract literal values from Expr objects if needed
+        # Extract literal values where possible; Polars str.slice accepts expressions
         start_val = self._extract_literal_value(start)
         length_val = self._extract_literal_value(length) if length is not None else None
 
-        # Handle integer offset
-        if isinstance(start_val, int):
-            if length_val is None:
-                return input.str.slice(start_val)
-            if isinstance(length_val, int):
-                return input.str.slice(start_val, length_val)
-
-        # For non-integer expressions, pass through directly
-        if length is None:
+        if length_val is None:
             return input.str.slice(start_val)
         return input.str.slice(start_val, length_val)
 

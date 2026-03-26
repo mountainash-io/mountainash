@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Optional
 from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode
+from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 
 
 if TYPE_CHECKING:
@@ -78,5 +78,82 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
             arguments=[self._node],
+        )
+        return self._build(node)
+
+    # Short aliases for Substrait string operations
+
+    def length(self) -> BaseExpressionAPI:
+        """Alias for char_length()."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def len(self) -> BaseExpressionAPI:
+        """Alias for char_length()."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    # Convenience methods (AST-level composition)
+
+    def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
+        """Remove prefix from string if present.
+
+        Args:
+            prefix: The prefix string to remove.
+        """
+        prefix_node = LiteralNode(value=prefix)
+        starts_cond = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+            arguments=[self._node, prefix_node],
+        )
+        start_node = LiteralNode(value=len(prefix))
+        stripped = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            arguments=[self._node, start_node],
+        )
+        node = IfThenNode(
+            conditions=[(starts_cond, stripped)],
+            else_clause=self._node,
+        )
+        return self._build(node)
+
+    def strip_suffix(self, suffix: str) -> BaseExpressionAPI:
+        """Remove suffix from string if present.
+
+        Args:
+            suffix: The suffix string to remove.
+        """
+        suffix_node = LiteralNode(value=suffix)
+        ends_cond = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+            arguments=[self._node, suffix_node],
+        )
+        # Use negative offset to slice from end: substring(0, char_length - suffix_len)
+        # Since char_length varies per row, we need to compute it dynamically.
+        # Use REPLACE to remove the suffix (replace last occurrence).
+        # Simpler: use substring with computed length.
+        str_len = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+            arguments=[self._node],
+        )
+        from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        new_len = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            arguments=[str_len, LiteralNode(value=len(suffix))],
+        )
+        start_node = LiteralNode(value=0)
+        stripped = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            arguments=[self._node, start_node, new_len],
+        )
+        node = IfThenNode(
+            conditions=[(ends_cond, stripped)],
+            else_clause=self._node,
         )
         return self._build(node)

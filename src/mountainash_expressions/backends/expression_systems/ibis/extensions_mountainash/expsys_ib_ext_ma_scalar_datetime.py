@@ -1277,3 +1277,29 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         """
         # Ibis doesn't have convert_time_zone - fallback
         return x
+
+    # =========================================================================
+    # Component Extraction
+    # =========================================================================
+
+    def date(self, input: IbisExpr, /) -> IbisExpr:
+        return input.date()
+
+    def time(self, input: IbisExpr, /) -> IbisExpr:
+        return input.time()
+
+    # =========================================================================
+    # Calendar Helpers
+    # =========================================================================
+
+    def month_start(self, input: IbisExpr, /) -> IbisExpr:
+        return input.truncate("M")
+
+    def month_end(self, input: IbisExpr, /) -> IbisExpr:
+        next_month = input.truncate("M") + ibis.interval(months=1)
+        return next_month - ibis.interval(days=1)
+
+    def days_in_month(self, input: IbisExpr, /) -> IbisExpr:
+        next_month = input.truncate("M") + ibis.interval(months=1)
+        end_of_month = next_month - ibis.interval(days=1)
+        return end_of_month.day()

@@ -54,3 +54,11 @@ class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshN
         SQL NULLIF(input, condition) semantics.
         """
         return input.nullif(condition)
+
+    def fill_nan(
+        self,
+        input: IbisExpr,
+        replacement: Any,
+        /,
+    ) -> IbisExpr:
+        return ibis.ifelse(input.isnan(), replacement, input)

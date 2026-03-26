@@ -357,15 +357,16 @@ name = NamespaceDescriptor(MountainAshNameAPIBuilder)  # Extensions only (alias,
 
 **Key architectural fact:** `BaseExpressionAPIBuilder` has only `_node` via `__slots__` — no `_api` attribute exists. All alias methods in extension builders must use **direct AST node construction** (same `ScalarFunctionNode` pattern as regular methods), not delegation.
 
-### Polars-Compatible Aliases
+### Aliases (All in Extension Builders)
 
-Polars-compatible naming aliases live in **extension builders** (not Substrait builders) because they are not part of the Substrait standard. Extension builders in `_FLAT_NAMESPACES` provide flat aliases (e.g., `sub`, `mul`, `neg`). Namespace extension builders provide namespace aliases (e.g., `to_uppercase`, `strip_chars`).
+**All** aliases — both short convenience names and Polars-compatible names — live in **extension builders** (not Substrait builders). Substrait builders contain only Substrait-canonical method names. This applies to short aliases (`eq`, `modulo`, `xor_`) just as much as Polars-compatible aliases (`sub`, `strip_chars`).
 
 | Namespace | Extension Builder | Aliases |
 |-----------|------------------|---------|
-| Flat | `api_bldr_ext_ma_scalar_arithmetic.py` | `sub`, `mul`, `truediv`, `floordiv`, `mod`, `pow`, `neg` |
-| Flat | `api_bldr_ext_ma_scalar_comparison.py` | `is_between` |
-| `.str` | `api_bldr_ext_ma_scalar_string.py` | `to_uppercase`, `to_lowercase`, `strip_chars`, `strip_chars_start`, `strip_chars_end`, `len_chars` |
+| Flat | `api_bldr_ext_ma_scalar_comparison.py` | `eq`, `ne`, `ge`, `le`, `is_between` |
+| Flat | `api_bldr_ext_ma_scalar_arithmetic.py` | `sub`, `mul`, `truediv`, `floordiv`, `mod`, `pow`, `neg`, `modulo`, `rmodulo` |
+| Flat | `api_bldr_ext_ma_scalar_boolean.py` | `xor_` |
+| `.str` | `api_bldr_ext_ma_scalar_string.py` | `to_uppercase`, `to_lowercase`, `strip_chars`, `strip_chars_start`, `strip_chars_end`, `len_chars`, `length`, `len` |
 | `.dt` | `api_bldr_ext_ma_scalar_datetime.py` | `week`, `weekday`, `ordinal_day`, `convert_time_zone`, `replace_time_zone`, `epoch` |
 | `.name` | `api_bldr_ext_ma_name.py` | `to_lowercase`, `to_uppercase` |
 
@@ -874,9 +875,9 @@ For operations not in Substrait, use the extension pattern:
    # backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_<category>.py
    ```
 
-### Adding a Polars-Compatible Alias
+### Adding an Alias
 
-Polars aliases go in **extension builders** (not Substrait builders). Since `BaseExpressionAPIBuilder` has no `_api` attribute, aliases use direct AST construction:
+**All** aliases go in **extension builders** (not Substrait builders). Since `BaseExpressionAPIBuilder` has no `_api` attribute, aliases use direct AST construction:
 
 ```python
 # In api_bldr_ext_ma_scalar_arithmetic.py (flat namespace)

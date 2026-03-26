@@ -54,10 +54,6 @@ class SubstraitScalarBooleanAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def xor_(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
-        """User-facing alias for xor (Python reserved word)."""
-        ...
-
     def and_not(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
         """Boolean AND of this value and the negation of other.
 

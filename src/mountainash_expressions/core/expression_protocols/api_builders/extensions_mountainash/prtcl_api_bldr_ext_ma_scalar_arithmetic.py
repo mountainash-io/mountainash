@@ -50,6 +50,15 @@ class MountainAshScalarArithmeticAPIBuilderProtocol(Protocol):
         """Reverse floor division for __rfloordiv__."""
         ...
 
+    # Short aliases
+    def modulo(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for modulus()."""
+        ...
+
+    def rmodulo(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+        """Alias for rmodulus(). Reverse modulo for __rmod__."""
+        ...
+
     # Polars-compatible aliases
     def sub(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
         """Alias for subtract() — Polars compatibility."""

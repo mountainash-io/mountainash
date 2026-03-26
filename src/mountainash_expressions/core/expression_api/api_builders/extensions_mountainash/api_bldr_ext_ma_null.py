@@ -77,3 +77,20 @@ class MountainAshNullAPIBuilder(BaseExpressionAPIBuilder, MountainAshNullAPIBuil
             arguments=[self._node, value_node],
         )
         return self._build(node)
+
+    def fill_nan(
+        self,
+        replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """Replace NaN values with the specified replacement.
+
+        Example:
+            >>> expr = col("score").fill_nan(0)
+        """
+        value_node = self._to_substrait_node(replacement)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_NULL.FILL_NAN,
+            arguments=[self._node, value_node],
+        )
+        return self._build(node)
+

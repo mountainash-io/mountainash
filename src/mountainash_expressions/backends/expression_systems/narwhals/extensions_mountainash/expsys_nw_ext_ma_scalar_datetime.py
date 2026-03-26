@@ -1281,3 +1281,26 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         """
         # Narwhals doesn't have convert_time_zone - fallback
         return x
+
+    # =========================================================================
+    # Component Extraction
+    # =========================================================================
+
+    def date(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
+        return input.dt.date()
+
+    def time(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
+        raise NotImplementedError("Narwhals does not support .dt.time()")
+
+    # =========================================================================
+    # Calendar Helpers
+    # =========================================================================
+
+    def month_start(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
+        raise NotImplementedError("Narwhals does not support month_start()")
+
+    def month_end(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
+        raise NotImplementedError("Narwhals does not support month_end()")
+
+    def days_in_month(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
+        raise NotImplementedError("Narwhals does not support days_in_month()")

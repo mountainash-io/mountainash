@@ -488,3 +488,31 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol):
     def now(self) -> SupportedExpressions:
         """Return current datetime as a literal expression."""
         ...
+
+    # =========================================================================
+    # Component Extraction
+    # =========================================================================
+
+    def date(self, input: SupportedExpressions, /) -> SupportedExpressions:
+        """Extract the date component from a datetime."""
+        ...
+
+    def time(self, input: SupportedExpressions, /) -> SupportedExpressions:
+        """Extract the time component from a datetime."""
+        ...
+
+    # =========================================================================
+    # Calendar Helpers
+    # =========================================================================
+
+    def month_start(self, input: SupportedExpressions, /) -> SupportedExpressions:
+        """Roll datetime to the first day of its month."""
+        ...
+
+    def month_end(self, input: SupportedExpressions, /) -> SupportedExpressions:
+        """Roll datetime to the last day of its month."""
+        ...
+
+    def days_in_month(self, input: SupportedExpressions, /) -> SupportedExpressions:
+        """Return the number of days in the month of the datetime."""
+        ...

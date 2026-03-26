@@ -1010,6 +1010,54 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
 
         return self._api.gt(older_threshold).and_(self._api.lt(newer_threshold))
 
+    # ========================================
+    # Component Extraction
+    # ========================================
+
+    def date(self) -> BaseExpressionAPI:
+        """Extract the date component from a datetime."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DATE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def time(self) -> BaseExpressionAPI:
+        """Extract the time component from a datetime."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TIME,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    # ========================================
+    # Calendar Helpers
+    # ========================================
+
+    def month_start(self) -> BaseExpressionAPI:
+        """Roll datetime to the first day of its month."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.MONTH_START,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def month_end(self) -> BaseExpressionAPI:
+        """Roll datetime to the last day of its month."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.MONTH_END,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def days_in_month(self) -> BaseExpressionAPI:
+        """Return the number of days in the month of the datetime."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DAYS_IN_MONTH,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
     # Polars-compatible aliases
     week = week_of_year
     weekday = day_of_week

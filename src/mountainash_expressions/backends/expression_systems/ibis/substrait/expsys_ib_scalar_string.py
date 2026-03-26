@@ -299,19 +299,13 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Substring expression.
         """
-        # Extract literal values from Expr objects if needed
+        # Extract literal values where possible; ibis.substr accepts expressions
         start_val = self._extract_literal_value(start)
         length_val = self._extract_literal_value(length) if length is not None else None
 
-        # Ibis uses 0-indexed substr
-        if isinstance(start_val, int):
-            if length_val is None:
-                return input.substr(start_val)
-            if isinstance(length_val, int):
-                return input.substr(start_val, length_val)
-
-        # For non-integer expressions, fallback to start of string
-        return input.substr(0)
+        if length_val is None:
+            return input.substr(start_val)
+        return input.substr(start_val, length_val)
 
     def left(
         self,

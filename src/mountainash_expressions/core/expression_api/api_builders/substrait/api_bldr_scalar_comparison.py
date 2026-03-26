@@ -479,12 +479,6 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         )
         return self._build(node)
 
-    # Short aliases for public API
-    eq = equal
-    ne = not_equal
-    ge = gte
-    le = lte
-
     def greatest_skip_null(
         self,
         *others: Union[BaseExpressionAPI, "ExpressionNode", Any],

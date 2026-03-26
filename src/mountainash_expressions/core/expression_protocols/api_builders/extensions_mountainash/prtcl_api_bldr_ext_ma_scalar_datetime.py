@@ -514,3 +514,25 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def epoch(self, /) -> BaseExpressionAPI:
         """Alias for unix_timestamp() — Polars compatibility."""
         ...
+
+    # Component extraction
+    def date(self) -> BaseExpressionAPI:
+        """Extract the date component from a datetime."""
+        ...
+
+    def time(self) -> BaseExpressionAPI:
+        """Extract the time component from a datetime."""
+        ...
+
+    # Calendar helpers
+    def month_start(self) -> BaseExpressionAPI:
+        """Roll datetime to the first day of its month."""
+        ...
+
+    def month_end(self) -> BaseExpressionAPI:
+        """Roll datetime to the last day of its month."""
+        ...
+
+    def days_in_month(self) -> BaseExpressionAPI:
+        """Return the number of days in the month of the datetime."""
+        ...

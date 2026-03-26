@@ -58,3 +58,13 @@ class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         """
         fill_value = self._extract_literal_value(condition)
         return nw.when(input == fill_value).then(None).otherwise(input)
+
+    def fill_nan(
+        self,
+        input: NarwhalsExpr,
+        replacement: Any,
+        /,
+    ) -> NarwhalsExpr:
+        fill_value = self._extract_literal_value(replacement)
+        return nw.when(input.is_nan()).then(fill_value).otherwise(input)
+

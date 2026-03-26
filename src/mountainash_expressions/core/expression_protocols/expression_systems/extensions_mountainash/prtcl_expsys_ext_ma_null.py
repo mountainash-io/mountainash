@@ -6,11 +6,12 @@ URI: file://extensions/functions_null.yaml
 Extensions beyond Substrait standard:
 - fill_null: Replace NULL values with a specified default value
 - null_if: Replace values matching a condition with NULL
+- fill_nan: Replace NaN values with a specified value
 """
 
 from __future__ import annotations
 
-from typing import Protocol, TYPE_CHECKING
+from typing import Any, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mountainash_expressions.types import SupportedExpressions
@@ -56,3 +57,13 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
             Expression with matching values replaced by NULL.
         """
         ...
+
+    def fill_nan(
+        self,
+        input: SupportedExpressions,
+        replacement: Any,
+        /,
+    ) -> SupportedExpressions:
+        """Replace NaN values with the specified replacement value."""
+        ...
+

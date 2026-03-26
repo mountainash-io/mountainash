@@ -63,6 +63,29 @@ class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     """
 
     # ========================================
+    # Short aliases for Substrait boolean operations
+    # ========================================
+
+    def xor_(
+        self,
+        *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """Alias for xor(). Trailing underscore avoids Python keyword conflict."""
+        if not others:
+            return self._build(self._coerce_if_needed(self._node))
+
+        operands = [self._coerce_if_needed(self._node)] + [
+            self._to_substrait_node(o) for o in others
+        ]
+        result = operands[0]
+        for operand in operands[1:]:
+            result = ScalarFunctionNode(
+                function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.XOR,
+                arguments=[result, operand],
+            )
+        return self._build(result)
+
+    # ========================================
     # Ternary → Boolean Coercion Hook
     # ========================================
 

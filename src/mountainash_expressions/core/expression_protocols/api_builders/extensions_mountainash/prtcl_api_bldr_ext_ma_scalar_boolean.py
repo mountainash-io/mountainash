@@ -30,6 +30,14 @@ class MountainAshScalarBooleanAPIBuilderProtocol(Protocol):
         """Boolean constant FALSE."""
         ...
 
+    # Short alias
+    def xor_(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """Alias for xor(). Trailing underscore avoids Python keyword conflict."""
+        ...
+
     def xor_parity(
         self,
         *others: Union[BaseExpressionAPI, ExpressionNode, Any],

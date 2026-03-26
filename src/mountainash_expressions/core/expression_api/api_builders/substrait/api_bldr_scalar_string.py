@@ -1059,14 +1059,6 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     #     # Use contains with regex pattern - backends interpret patterns as regex
     #     return self.contains(pattern, case_sensitive=case_sensitive)
 
-    # ========================================
-    # Convenience Aliases
-    # ========================================
-
-    # Short aliases for public API
-    length = char_length
-    len = char_length
-
     def regex_match(
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],

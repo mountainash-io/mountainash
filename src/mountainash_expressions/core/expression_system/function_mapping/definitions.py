@@ -362,14 +362,99 @@ def register_all_functions() -> None:
             substrait_name="exp",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.exp,
         ),
-        # Mountainash extension
-        # ExpressionFunctionDef(
-        #     function_key="floor_divide",
-        #     substrait_uri=SubstraitExtension.MOUNTAINASH,
-        #     substrait_name="floor_divide",
-        #     is_extension=True,
-        #     protocol_method=ArithmeticExpressionProtocol.floor_divide,
-        # ),
+        # Trigonometric
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="sin",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sin,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="cos",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.cos,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="tan",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.tan,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="asin",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.asin,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="acos",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.acos,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="atan",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.atan,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="atan2",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.atan2,
+        ),
+        # Hyperbolic
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="sinh",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sinh,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="cosh",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.cosh,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="tanh",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.tanh,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="asinh",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.asinh,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="acosh",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.acosh,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="atanh",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.atanh,
+        ),
+        # Angular conversion
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="radians",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.radians,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="degrees",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.degrees,
+        ),
     ]
 
     # ========================================
@@ -480,6 +565,114 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_replace",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_replace,
+        ),
+        # Case conversion (aspirational)
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="swapcase",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.swapcase,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="capitalize",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.capitalize,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="title",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.title,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="initcap",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.initcap,
+        ),
+        # Padding
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="lpad",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.lpad,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="rpad",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.rpad,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="center",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.center,
+        ),
+        # Extraction
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="left",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.left,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="right",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.right,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="replace_slice",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.replace_slice,
+        ),
+        # Search
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="strpos",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.strpos,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="count_substring",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.count_substring,
+        ),
+        # Length variants
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.BIT_LENGTH,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="bit_length",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.bit_length,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.OCTET_LENGTH,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="octet_length",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.octet_length,
+        ),
+        # Manipulation
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT_WS,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="concat_ws",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.concat_ws,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="repeat",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.repeat,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REVERSE,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="reverse",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.reverse,
         ),
     ]
 
@@ -1115,6 +1308,13 @@ def register_all_functions() -> None:
             is_extension=True,
             protocol_method=MountainAshNullExpressionSystemProtocol.null_if,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_NULL.FILL_NAN,
+            substrait_uri=MountainashExtension.NULL,
+            substrait_name="fill_nan",
+            is_extension=True,
+            protocol_method=MountainAshNullExpressionSystemProtocol.fill_nan,
+        ),
     ]
 
     # ========================================
@@ -1483,6 +1683,43 @@ def register_all_functions() -> None:
             substrait_name="now",
             is_extension=True,
             protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.now,
+        ),
+        # Component extraction
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DATE,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="date",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.date,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TIME,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="time",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.time,
+        ),
+        # Calendar helpers
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.MONTH_START,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="month_start",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.month_start,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.MONTH_END,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="month_end",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.month_end,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DAYS_IN_MONTH,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="days_in_month",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.days_in_month,
         ),
     ]
 

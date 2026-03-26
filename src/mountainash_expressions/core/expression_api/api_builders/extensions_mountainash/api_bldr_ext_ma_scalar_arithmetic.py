@@ -135,3 +135,23 @@ class MountainAshScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, MountainAs
             arguments=[self._node],
         )
         return self._build(node)
+
+    # Short aliases for Substrait arithmetic operations
+
+    def modulo(self, other) -> BaseExpressionAPI:
+        """Alias for modulus()."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def rmodulo(self, other) -> BaseExpressionAPI:
+        """Alias for rmodulus(). Reverse modulo for __rmod__."""
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            arguments=[other_node, self._node],
+        )
+        return self._build(node)
