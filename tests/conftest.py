@@ -429,6 +429,38 @@ def select_and_extract() -> Callable:
 
 
 @pytest.fixture
+def assert_parameter_sensitivity(select_and_extract) -> Callable:
+    """
+    Assert that different parameter values produce different results.
+
+    Proves an operation's parameter actually reaches the backend by showing
+    that two different parameter values produce two different outputs.
+
+    Usage:
+        assert_parameter_sensitivity(
+            df, lambda d: ma.col("val").round(d), 1, 2, backend_name
+        )
+    """
+    def _assert_parameter_sensitivity(
+        df: Any,
+        build_expr: Callable,
+        param_a: Any,
+        param_b: Any,
+        backend_name: str,
+    ) -> None:
+        expr_a = build_expr(param_a)
+        expr_b = build_expr(param_b)
+        result_a = select_and_extract(df, expr_a.compile(df), "result", backend_name)
+        result_b = select_and_extract(df, expr_b.compile(df), "result", backend_name)
+        assert result_a != result_b, (
+            f"[{backend_name}] param_a={param_a} and param_b={param_b} produced "
+            f"identical results {result_a} — parameter may be silently ignored"
+        )
+
+    return _assert_parameter_sensitivity
+
+
+@pytest.fixture
 def get_column_values() -> Callable:
     """
     Helper to extract column values as list from any backend.
