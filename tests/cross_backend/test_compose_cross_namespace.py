@@ -107,18 +107,22 @@ class TestComposeCrossNamespace:
 
     def test_arithmetic_rounding_comparison(self, backend_name, backend_factory, get_result_count):
         """Arithmetic + rounding + comparison: (price * 1.07).round(2) > 100."""
-        data = {"price": [90.0, 95.0, 100.0, 50.0]}
+        # Data chosen so round(2) and round(0) produce DIFFERENT filter counts.
+        # 93.5 * 1.07 = 100.045 → round(2) = 100.05 → yes (> 100)
+        #                        → round(0) = 100    → no  (not > 100)
+        # 95 * 1.07 = 101.65 → yes either way
+        # 100 * 1.07 = 107.00 → yes either way
+        # 50 * 1.07 = 53.50 → no either way
+        data = {"price": [93.5, 95.0, 100.0, 50.0]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("price").multiply(ma.lit(1.07)).round(2).gt(ma.lit(100.0))
         result = df.filter(expr.compile(df))
 
         count = get_result_count(result, backend_name)
-        # 90 * 1.07 = 96.30 -> no
-        # 95 * 1.07 = 101.65 -> yes
-        # 100 * 1.07 = 107.00 -> yes
-        # 50 * 1.07 = 53.50 -> no
-        assert count == 2, f"[{backend_name}] Expected 2, got {count}"
+        # With round(2): 100.05, 101.65, 107.00, 53.50 → 3 above 100
+        # With round(0): 100, 102, 107, 54 → 2 above 100 (100 is NOT > 100)
+        assert count == 3, f"[{backend_name}] Expected 3, got {count}"
 
     def test_range_check_and_boolean(self, backend_name, backend_factory, get_result_count):
         """Range check + boolean: score in [60, 90] AND active."""
