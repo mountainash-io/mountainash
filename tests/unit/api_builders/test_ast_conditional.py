@@ -78,3 +78,12 @@ class TestConditionalChain:
         assert isinstance(node, IfThenNode)
         assert isinstance(node.else_clause, FieldReferenceNode)
         assert node.else_clause.field == "default"
+
+
+class TestInstanceWhen:
+    @pytest.mark.xfail(reason="SubstraitConditionalAPIBuilder not in _FLAT_NAMESPACES — wiring bug")
+    def test_instance_when(self):
+        """col('x').when(...) should work like ma.when(...)."""
+        expr = ma.col("x").when(ma.col("x").gt(10)).then(ma.lit("y")).otherwise(ma.lit("n"))
+        node = expr._node
+        assert isinstance(node, IfThenNode)
