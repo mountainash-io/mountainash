@@ -243,13 +243,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Left-padded string.
         """
-        fill_char = " " if characters is None else characters
-        if isinstance(length, int) and isinstance(fill_char, str):
-            return input.str.pad_start(length, fill_char)
-        # For expression-based length/chars, use simpler approach
-        if isinstance(length, int):
-            return input.str.pad_start(length, " ")
-        return input.str.pad_start(10, " ")  # Fallback
+        length_val = self._extract_literal_value(length)
+        fill_char = " " if characters is None else self._extract_literal_value(characters)
+        if not isinstance(fill_char, str):
+            fill_char = " "
+        return input.str.pad_start(length_val, fill_char)
 
     def rpad(
         self,
@@ -268,12 +266,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Right-padded string.
         """
-        fill_char = " " if characters is None else characters
-        if isinstance(length, int) and isinstance(fill_char, str):
-            return input.str.pad_end(length, fill_char)
-        if isinstance(length, int):
-            return input.str.pad_end(length, " ")
-        return input.str.pad_end(10, " ")  # Fallback
+        length_val = self._extract_literal_value(length)
+        fill_char = " " if characters is None else self._extract_literal_value(characters)
+        if not isinstance(fill_char, str):
+            fill_char = " "
+        return input.str.pad_end(length_val, fill_char)
 
     def center(
         self,
@@ -344,18 +341,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         /,
         count: PolarsExpr,
     ) -> PolarsExpr:
-        """Extract count characters from the left.
-
-        Args:
-            input: String expression.
-            count: Number of characters.
-
-        Returns:
-            Left substring.
-        """
-        if isinstance(count, int):
-            return input.str.slice(0, count)
-        return input.str.head(count)
+        """Extract count characters from the left."""
+        count_val = self._extract_literal_value(count)
+        if isinstance(count_val, int):
+            return input.str.slice(0, count_val)
+        return input.str.slice(0, count_val)
 
     def right(
         self,
@@ -363,18 +353,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         /,
         count: PolarsExpr,
     ) -> PolarsExpr:
-        """Extract count characters from the right.
-
-        Args:
-            input: String expression.
-            count: Number of characters.
-
-        Returns:
-            Right substring.
-        """
-        if isinstance(count, int):
-            return input.str.slice(-count)
-        return input.str.tail(count)
+        """Extract count characters from the right."""
+        count_val = self._extract_literal_value(count)
+        if isinstance(count_val, int):
+            return input.str.slice(-count_val)
+        return input.str.slice(-count_val)
 
     def replace_slice(
         self,
@@ -639,9 +622,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Repeated string.
         """
-        if isinstance(count, int):
+        count_val = self._extract_literal_value(count)
+        if isinstance(count_val, int):
+            n = count_val
             return input.map_elements(
-                lambda s: s * count if s is not None else None,
+                lambda s: s * n if s is not None else None,
                 return_dtype=pl.String,
             )
         return input

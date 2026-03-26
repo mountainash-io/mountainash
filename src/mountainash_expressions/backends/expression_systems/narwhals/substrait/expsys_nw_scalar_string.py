@@ -335,18 +335,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
-        """Extract count characters from the left.
-
-        Args:
-            input: String expression.
-            count: Number of characters.
-
-        Returns:
-            Left substring.
-        """
-        if isinstance(count, int):
-            return input.str.slice(0, count)
-        return input.str.head(count)
+        """Extract count characters from the left."""
+        count_val = self._extract_literal_value(count)
+        if isinstance(count_val, int):
+            return input.str.slice(0, count_val)
+        return input.str.slice(0, count_val)
 
     def right(
         self,
@@ -354,18 +347,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
-        """Extract count characters from the right.
-
-        Args:
-            input: String expression.
-            count: Number of characters.
-
-        Returns:
-            Right substring.
-        """
-        if isinstance(count, int):
-            return input.str.slice(-count)
-        return input.str.tail(count)
+        """Extract count characters from the right."""
+        count_val = self._extract_literal_value(count)
+        if isinstance(count_val, int):
+            return input.str.slice(-count_val)
+        return input.str.slice(-count_val)
 
     def replace_slice(
         self,

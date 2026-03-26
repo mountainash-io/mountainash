@@ -220,12 +220,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Left-padded string.
         """
-        fill_char = " " if characters is None else characters
-        if isinstance(length, int) and isinstance(fill_char, str):
-            return input.lpad(length, fill_char)
-        if isinstance(length, int):
-            return input.lpad(length, " ")
-        return input
+        length_val = self._extract_literal_value(length)
+        fill_char = " " if characters is None else self._extract_literal_value(characters)
+        if not isinstance(fill_char, str):
+            fill_char = " "
+        return input.lpad(length_val, fill_char)
 
     def rpad(
         self,
@@ -244,12 +243,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Right-padded string.
         """
-        fill_char = " " if characters is None else characters
-        if isinstance(length, int) and isinstance(fill_char, str):
-            return input.rpad(length, fill_char)
-        if isinstance(length, int):
-            return input.rpad(length, " ")
-        return input
+        length_val = self._extract_literal_value(length)
+        fill_char = " " if characters is None else self._extract_literal_value(characters)
+        if not isinstance(fill_char, str):
+            fill_char = " "
+        return input.rpad(length_val, fill_char)
 
     def center(
         self,
@@ -313,18 +311,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         count: IbisExpr,
     ) -> IbisExpr:
-        """Extract count characters from the left.
-
-        Args:
-            input: String expression.
-            count: Number of characters.
-
-        Returns:
-            Left substring.
-        """
-        if isinstance(count, int):
-            return input.left(count)
-        return input
+        """Extract count characters from the left."""
+        count_val = self._extract_literal_value(count)
+        return input.left(count_val)
 
     def right(
         self,
@@ -332,18 +321,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         count: IbisExpr,
     ) -> IbisExpr:
-        """Extract count characters from the right.
-
-        Args:
-            input: String expression.
-            count: Number of characters.
-
-        Returns:
-            Right substring.
-        """
-        if isinstance(count, int):
-            return input.right(count)
-        return input
+        """Extract count characters from the right."""
+        count_val = self._extract_literal_value(count)
+        return input.right(count_val)
 
     def replace_slice(
         self,
@@ -624,9 +604,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Repeated string.
         """
-        if isinstance(count, int):
-            return input.repeat(count)
-        return input
+        count_val = self._extract_literal_value(count)
+        return input.repeat(count_val)
 
     def reverse(self, input: IbisExpr, /) -> IbisExpr:
         """Return the string in reverse order.

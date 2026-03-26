@@ -33,6 +33,15 @@ POLARS_ONLY = [
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="sqlite fallback")),
 ]
 
+POLARS_NARWHALS_IBIS = [
+    "polars",
+    "pandas",
+    "narwhals",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
+
 
 # =============================================================================
 # Case conversion
@@ -73,12 +82,35 @@ class TestSwapcase:
 
 
 # =============================================================================
-# Extraction (left/right work on Polars; ibis has options-passing issues)
+# Padding (lpad/rpad now use _extract_literal_value correctly)
 # =============================================================================
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", POLARS_IBIS)
+class TestPadding:
+    def test_lpad(self, backend_name, backend_factory, select_and_extract):
+        data = {"val": ["hi", "hey"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("val").str.lpad(5, " ")
+        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        assert actual == ["   hi", "  hey"], f"[{backend_name}] got {actual}"
+
+    def test_rpad(self, backend_name, backend_factory, select_and_extract):
+        data = {"val": ["hi", "hey"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("val").str.rpad(5, " ")
+        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        assert actual == ["hi   ", "hey  "], f"[{backend_name}] got {actual}"
+
+
+# =============================================================================
+# Extraction (left/right now use _extract_literal_value correctly)
+# =============================================================================
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", POLARS_NARWHALS_IBIS)
 class TestExtraction:
     def test_left(self, backend_name, backend_factory, select_and_extract):
         data = {"val": ["hello", "world"]}
@@ -119,8 +151,19 @@ class TestLengthVariants:
 
 
 # =============================================================================
-# Manipulation (reverse works across backends; repeat has options issues)
+# Manipulation
 # =============================================================================
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", POLARS_IBIS)
+class TestRepeat:
+    def test_repeat(self, backend_name, backend_factory, select_and_extract):
+        data = {"val": ["ab", "cd"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("val").str.repeat(3)
+        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        assert actual == ["ababab", "cdcdcd"], f"[{backend_name}] got {actual}"
 
 
 @pytest.mark.cross_backend
