@@ -7,11 +7,28 @@ These tests ensure bidirectional consistency between protocols and their impleme
 3. Method signatures (parameter names) must match between protocol and implementation
 
 This catches architectural drift where protocols and implementations diverge.
+
+Architecture Notes (Substrait-aligned):
+
+ExpressionSystem Protocols (Backend Layer):
+- Substrait: core/expression_protocols/expression_systems/substrait/
+- Extensions: core/expression_protocols/expression_systems/extensions_mountainash/
+- Backend implementations: backends/expression_systems/{polars,ibis,narwhals}/substrait/
+- Backend extensions: backends/expression_systems/{polars,ibis,narwhals}/extensions_mountainash/
+
+APIBuilder Protocols (User-Facing Layer):
+- Substrait: core/expression_protocols/api_builders/substrait/
+- Extensions: core/expression_protocols/api_builders/extensions_mountainash/
+- Implementations: core/expression_api/api_builders/substrait/
+- Extension implementations: core/expression_api/api_builders/extensions_mountainash/
 """
 
 import pytest
 import inspect
-from typing import Protocol, get_type_hints, Set, Dict, List, Tuple, Type
+import importlib
+import pkgutil
+from pathlib import Path
+from typing import Protocol, Set, List, Type
 from dataclasses import dataclass, field
 
 
@@ -62,12 +79,12 @@ class AlignmentResult:
             lines.append(f"ALIGNED: {len(self.aligned)} methods match")
         else:
             if self.protocol_only:
-                lines.append(f"\nMISSING IN IMPLEMENTATION ({len(self.protocol_only)}):")
+                lines.append(f"\nPROTOCOL METHOD MISSING FROM IMPLEMENTATION ({len(self.protocol_only)}):")
                 for method in sorted(self.protocol_only):
                     lines.append(f"  - {method}")
 
             if self.implementation_only:
-                lines.append(f"\nMISSING IN PROTOCOL ({len(self.implementation_only)}):")
+                lines.append(f"\nNON-PROTOCOL METHOD DEFINED IN IMPLEMENTATION({len(self.implementation_only)}):")
                 for method in sorted(self.implementation_only):
                     lines.append(f"  + {method}")
 
@@ -89,26 +106,10 @@ def get_protocol_methods(protocol_class: Type) -> Set[str]:
     methods = set()
 
     # Get only methods defined directly in this class's __dict__
-    # This excludes inherited methods from Protocol base
     for name in protocol_class.__dict__:
-        # Skip private methods (but keep operator dunders)
-        if name.startswith('_') and not name.startswith('__'):
+        # Skip private methods
+        if name.startswith('_'):
             continue
-
-        # Skip all dunders except explicit operator overloads we define
-        if name.startswith('__') and name.endswith('__'):
-            # These are operators we explicitly define in our protocols
-            operator_dunders = {
-                '__add__', '__radd__', '__sub__', '__rsub__',
-                '__mul__', '__rmul__', '__truediv__', '__rtruediv__',
-                '__floordiv__', '__rfloordiv__', '__mod__', '__rmod__',
-                '__pow__', '__rpow__', '__neg__', '__pos__',
-                '__and__', '__rand__', '__or__', '__ror__',
-                '__xor__', '__rxor__', '__invert__',
-                '__contains__', '__getitem__', '__setitem__',
-            }
-            if name not in operator_dunders:
-                continue
 
         value = protocol_class.__dict__[name]
 
@@ -148,23 +149,9 @@ def get_implementation_methods(impl_class: Type, include_inherited: bool = False
 
 def _is_public_method(name: str, value) -> bool:
     """Check if a name/value pair represents a public method."""
-    # Skip private methods (but keep operator dunders)
-    if name.startswith('_') and not name.startswith('__'):
+    # Skip private methods
+    if name.startswith('_'):
         return False
-
-    # Skip non-operator dunders
-    if name.startswith('__') and name.endswith('__'):
-        operator_dunders = {
-            '__add__', '__radd__', '__sub__', '__rsub__',
-            '__mul__', '__rmul__', '__truediv__', '__rtruediv__',
-            '__floordiv__', '__rfloordiv__', '__mod__', '__rmod__',
-            '__pow__', '__rpow__', '__neg__', '__pos__',
-            '__and__', '__rand__', '__or__', '__ror__',
-            '__xor__', '__rxor__', '__invert__',
-            '__contains__', '__getitem__', '__setitem__',
-        }
-        if name not in operator_dunders:
-            return False
 
     # Check if it's callable (method, staticmethod, classmethod) or property
     if callable(value):
@@ -178,19 +165,10 @@ def _is_public_method(name: str, value) -> bool:
 def get_method_params(cls: Type, method_name: str, include_inherited: bool = False) -> List[str]:
     """
     Get parameter names for a method, excluding 'self'.
-
-    Args:
-        cls: The class containing the method
-        method_name: Name of the method
-        include_inherited: Whether to search parent classes
-
-    Returns:
-        List of parameter names (excluding 'self')
     """
     method = None
 
     if include_inherited:
-        # Search MRO for the method
         for klass in cls.__mro__:
             if klass is object:
                 continue
@@ -203,22 +181,18 @@ def get_method_params(cls: Type, method_name: str, include_inherited: bool = Fal
     if method is None:
         return []
 
-    # Handle different method types
     if isinstance(method, (staticmethod, classmethod)):
         method = method.__func__
     elif isinstance(method, property):
-        # Properties don't have meaningful signatures for comparison
         return []
 
     try:
         sig = inspect.signature(method)
-        # Return all params except 'self'
         return [
             name for name in sig.parameters.keys()
             if name != 'self'
         ]
     except (ValueError, TypeError):
-        # Can't get signature (e.g., built-in methods)
         return []
 
 
@@ -228,29 +202,16 @@ def compare_signatures(
     method_names: Set[str],
     include_inherited: bool = False,
 ) -> List[SignatureMismatch]:
-    """
-    Compare method signatures between protocol and implementation.
-
-    Args:
-        protocol_class: The Protocol class
-        impl_class: The implementation class
-        method_names: Set of method names to compare
-        include_inherited: Whether to search parent classes for implementation
-
-    Returns:
-        List of SignatureMismatch for methods with different parameter names
-    """
+    """Compare method signatures between protocol and implementation."""
     mismatches = []
 
     for method_name in method_names:
         protocol_params = get_method_params(protocol_class, method_name, include_inherited=False)
         impl_params = get_method_params(impl_class, method_name, include_inherited=include_inherited)
 
-        # Skip if we couldn't get signatures (e.g., properties)
         if not protocol_params and not impl_params:
             continue
 
-        # Compare parameter names
         if protocol_params != impl_params:
             mismatches.append(SignatureMismatch(
                 method_name=method_name,
@@ -271,17 +232,6 @@ def check_alignment(
 ) -> AlignmentResult:
     """
     Check alignment between a protocol and its implementation.
-
-    Args:
-        protocol_class: The Protocol class
-        impl_class: The implementation class
-        exclude_from_protocol: Methods to ignore in the protocol
-        exclude_from_impl: Methods to ignore in the implementation
-        include_inherited: Whether to include inherited methods in implementation
-        check_signatures: Whether to also check parameter name alignment
-
-    Returns:
-        AlignmentResult with details of any misalignment
     """
     exclude_from_protocol = exclude_from_protocol or set()
     exclude_from_impl = exclude_from_impl or set()
@@ -291,7 +241,6 @@ def check_alignment(
 
     aligned_methods = protocol_methods & impl_methods
 
-    # Check signatures for aligned methods
     signature_mismatches = []
     if check_signatures and aligned_methods:
         signature_mismatches = compare_signatures(
@@ -312,212 +261,366 @@ def check_alignment(
 
 
 # =============================================================================
-# Protocol Imports
+# Substrait Protocol Imports
 # =============================================================================
 
-from mountainash_expressions.core.protocols import (
-    # Arithmetic
-    ArithmeticVisitorProtocol,
-    ArithmeticExpressionProtocol,
-    ArithmeticBuilderProtocol,
-    # Boolean
-    BooleanVisitorProtocol,
-    BooleanExpressionProtocol,
-    BooleanBuilderProtocol,
-    # Core
-    CoreVisitorProtocol,
-    CoreExpressionProtocol,
-    CoreBuilderProtocol,
-    # Horizontal
-    HorizontalVisitorProtocol,
-    HorizontalExpressionProtocol,
-    HorizontalBuilderProtocol,
-    # Name
-    NameVisitorProtocol,
-    NameExpressionProtocol,
-    NameBuilderProtocol,
-    # Null
-    NullVisitorProtocol,
-    NullExpressionProtocol,
-    NullBuilderProtocol,
-    # String
-    StringVisitorProtocol,
-    StringExpressionProtocol,
-    StringBuilderProtocol,
-    # Temporal
-    TemporalVisitorProtocol,
-    TemporalExpressionProtocol,
-    TemporalBuilderProtocol,
-    # Type
-    TypeVisitorProtocol,
-    TypeExpressionProtocol,
-    TypeBuilderProtocol,
-    # Native
-    NativeVisitorProtocol,
-    NativeExpressionProtocol,
-    NativeBuilderProtocol,
+from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitCastExpressionSystemProtocol,
+    SubstraitConditionalExpressionSystemProtocol,
+    SubstraitFieldReferenceExpressionSystemProtocol,
+    SubstraitLiteralExpressionSystemProtocol,
+    # SubstraitScalarAggregateExpressionSystemProtocol,
+    SubstraitScalarArithmeticExpressionSystemProtocol,
+    SubstraitScalarBooleanExpressionSystemProtocol,
+    SubstraitScalarComparisonExpressionSystemProtocol,
+    SubstraitScalarDatetimeExpressionSystemProtocol,
+    SubstraitScalarLogarithmicExpressionSystemProtocol,
+    SubstraitScalarRoundingExpressionSystemProtocol,
+    SubstraitScalarSetExpressionSystemProtocol,
+    SubstraitScalarStringExpressionSystemProtocol,
 )
 
 # =============================================================================
-# Visitor Implementation Imports
+# Mountainash Extension Protocol Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_visitors import (
-    ArithmeticExpressionVisitor,
-    BooleanExpressionVisitor,
-    CoreExpressionVisitor,
-    HorizontalExpressionVisitor,
-    NameExpressionVisitor,
-    NullExpressionVisitor,
-    StringExpressionVisitor,
-    TemporalExpressionVisitor,
-    TypeExpressionVisitor,
-    NativeExpressionVisitor,
+from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
+    MountainAshNullExpressionSystemProtocol,
+    MountainAshNameExpressionSystemProtocol,
+    MountainAshScalarArithmeticExpressionSystemProtocol,
+    MountainAshScalarBooleanExpressionSystemProtocol,
+    MountainAshScalarDatetimeExpressionSystemProtocol,
+    MountainAshScalarTernaryExpressionSystemProtocol,
+    # MountainAshScalarAggregateExpressionSystemProtocol,
 )
 
 # =============================================================================
-# Namespace Implementation Imports
+# Polars Backend Implementation Imports
 # =============================================================================
 
-from mountainash_expressions.core.namespaces import (
-    ArithmeticNamespace,
-    BooleanNamespace,
-    HorizontalNamespace,
-    NameNamespace,
-    NullNamespace,
-    StringNamespace,
-    DateTimeNamespace,
-    TypeNamespace,
-    NativeNamespace,
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_cast import SubstraitPolarsCastExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_conditional import SubstraitPolarsConditionalExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_field_reference import SubstraitPolarsFieldReferenceExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_literal import SubstraitPolarsLiteralExpressionSystem
+# from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_aggregate import SubstraitPolarsScalarAggregateExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_arithmetic import SubstraitPolarsScalarArithmeticExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_comparison import SubstraitPolarsScalarComparisonExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_datetime import SubstraitPolarsScalarDatetimeExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_logarithmic import SubstraitPolarsScalarLogarithmicExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_rounding import SubstraitPolarsScalarRoundingExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_set import SubstraitPolarsScalarSetExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_string import SubstraitPolarsScalarStringExpressionSystem
+
+# Polars Mountainash Extensions
+from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_null import MountainAshPolarsNullExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_name import MountainAshPolarsNameExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
+from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
+
+# =============================================================================
+# Ibis Backend Implementation Imports
+# =============================================================================
+
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_cast import SubstraitIbisCastExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_conditional import SubstraitIbisConditionalExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_field_reference import SubstraitIbisFieldReferenceExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_literal import SubstraitIbisLiteralExpressionSystem
+# from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_aggregate import SubstraitIbisScalarAggregateExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_arithmetic import SubstraitIbisScalarArithmeticExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_comparison import SubstraitIbisScalarComparisonExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_datetime import SubstraitIbisScalarDatetimeExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_logarithmic import SubstraitIbisScalarLogarithmicExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_rounding import SubstraitIbisScalarRoundingExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_set import SubstraitIbisScalarSetExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_string import SubstraitIbisScalarStringExpressionSystem
+
+# Ibis Mountainash Extensions
+from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_null import MountainAshIbisNullExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_name import MountainAshIbisNameExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
+
+# =============================================================================
+# Narwhals Backend Implementation Imports
+# =============================================================================
+
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_cast import SubstraitNarwhalsCastExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_conditional import SubstraitNarwhalsConditionalExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_field_reference import SubstraitNarwhalsFieldReferenceExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_literal import SubstraitNarwhalsLiteralExpressionSystem
+# from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_aggregate import SubstraitNarwhalsScalarAggregateExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_arithmetic import SubstraitNarwhalsScalarArithmeticExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_comparison import SubstraitNarwhalsScalarComparisonExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_datetime import SubstraitNarwhalsScalarDatetimeExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_logarithmic import SubstraitNarwhalsScalarLogarithmicExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_rounding import SubstraitNarwhalsScalarRoundingExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_set import SubstraitNarwhalsScalarSetExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_string import SubstraitNarwhalsScalarStringExpressionSystem
+
+# Narwhals Mountainash Extensions
+from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNullExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_name import MountainAshNarwhalsNameExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
+
+
+# =============================================================================
+# Substrait API Builder Protocol Imports
+# =============================================================================
+
+from mountainash_expressions.core.expression_protocols.api_builders.substrait import (
+    SubstraitCastAPIBuilderProtocol,
+    SubstraitConditionalAPIBuilderProtocol,
+    SubstraitFieldReferenceAPIBuilderProtocol,
+    SubstraitLiteralAPIBuilderProtocol,
+    # SubstraitScalarAggregateAPIBuilderProtocol,
+    SubstraitScalarArithmeticAPIBuilderProtocol,
+    SubstraitScalarBooleanAPIBuilderProtocol,
+    SubstraitScalarComparisonAPIBuilderProtocol,
+    SubstraitScalarDatetimeAPIBuilderProtocol,
+    SubstraitScalarLogarithmicAPIBuilderProtocol,
+    SubstraitScalarRoundingAPIBuilderProtocol,
+    SubstraitScalarSetAPIBuilderProtocol,
+    SubstraitScalarStringAPIBuilderProtocol,
 )
 
 # =============================================================================
-# Backend Implementation Imports
+# Mountainash API Builder Protocol Imports
 # =============================================================================
 
-# Polars
-from mountainash_expressions.backends.expression_systems.polars.arithmetic import PolarsArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.boolean import PolarsBooleanExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.core import PolarsCoreExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.null import PolarsNullExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.string import PolarsStringExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.temporal import PolarsTemporalExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.type import PolarsTypeExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.horizontal import PolarsHorizontalExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.name import PolarsNameExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.native import PolarsNativeExpressionSystem
+from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import (
+    MountainAshNameAPIBuilderProtocol,
+    MountainAshNullAPIBuilderProtocol,
+    # MountainAshScalarAggregateAPIBuilderProtocol,
+    MountainAshScalarArithmeticAPIBuilderProtocol,
+    MountainAshScalarDatetimeAPIBuilderProtocol,
+    MountainAshScalarBooleanAPIBuilderProtocol,
+    MountainAshScalarTernaryAPIBuilderProtocol,
+)
 
-# Ibis
-from mountainash_expressions.backends.expression_systems.ibis.arithmetic import IbisArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.boolean import IbisBooleanExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.core import IbisCoreExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.null import IbisNullExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.string import IbisStringExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.temporal import IbisTemporalExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.type import IbisTypeExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.horizontal import IbisHorizontalExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.name import IbisNameExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.native import IbisNativeExpressionSystem
+# =============================================================================
+# Substrait API Builder Implementation Imports
+# =============================================================================
 
-# Narwhals
-from mountainash_expressions.backends.expression_systems.narwhals.arithmetic import NarwhalsArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.boolean import NarwhalsBooleanExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.core import NarwhalsCoreExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.null import NarwhalsNullExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.string import NarwhalsStringExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.temporal import NarwhalsTemporalExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.type import NarwhalsTypeExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.horizontal import NarwhalsHorizontalExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.name import NarwhalsNameExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.native import NarwhalsNativeExpressionSystem
+from mountainash_expressions.core.expression_api.api_builders.substrait import (
+    SubstraitCastAPIBuilder,
+    SubstraitConditionalAPIBuilder,
+    SubstraitFieldReferenceAPIBuilder,
+    SubstraitLiteralAPIBuilder,
+    # SubstraitScalarAggregateAPIBuilder,
+    SubstraitScalarArithmeticAPIBuilder,
+    SubstraitScalarBooleanAPIBuilder,
+    SubstraitScalarComparisonAPIBuilder,
+    SubstraitScalarDatetimeAPIBuilder,
+    SubstraitScalarLogarithmicAPIBuilder,
+    SubstraitScalarRoundingAPIBuilder,
+    SubstraitScalarSetAPIBuilder,
+    SubstraitScalarStringAPIBuilder,
+)
+
+# =============================================================================
+# Mountainash API Builder Implementation Imports
+# =============================================================================
+
+from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_name import MountainAshNameAPIBuilder
+from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_null import MountainAshNullAPIBuilder
+# from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilder
+from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilder
+from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilder
+from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilder
+from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
+
+
+# =============================================================================
+# Substrait Protocol Alignment Definitions
+# =============================================================================
+
+SUBSTRAIT_PROTOCOLS = [
+    # Foundation
+    (SubstraitCastExpressionSystemProtocol, "cast"),
+    (SubstraitConditionalExpressionSystemProtocol, "conditional"),
+    (SubstraitFieldReferenceExpressionSystemProtocol, "field_reference"),
+    (SubstraitLiteralExpressionSystemProtocol, "literal"),
+    # Scalar
+    # (SubstraitScalarAggregateExpressionSystemProtocol, "scalar_aggregate"),
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "scalar_arithmetic"),
+    (SubstraitScalarBooleanExpressionSystemProtocol, "scalar_boolean"),
+    (SubstraitScalarComparisonExpressionSystemProtocol, "scalar_comparison"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "scalar_datetime"),
+    (SubstraitScalarLogarithmicExpressionSystemProtocol, "scalar_logarithmic"),
+    (SubstraitScalarRoundingExpressionSystemProtocol, "scalar_rounding"),
+    (SubstraitScalarSetExpressionSystemProtocol, "scalar_set"),
+    (SubstraitScalarStringExpressionSystemProtocol, "scalar_string"),
+]
+
+POLARS_SUBSTRAIT_IMPLEMENTATIONS = {
+    "cast": SubstraitPolarsCastExpressionSystem,
+    "conditional": SubstraitPolarsConditionalExpressionSystem,
+    "field_reference": SubstraitPolarsFieldReferenceExpressionSystem,
+    "literal": SubstraitPolarsLiteralExpressionSystem,
+    # "scalar_aggregate": SubstraitPolarsScalarAggregateExpressionSystem,
+    "scalar_arithmetic": SubstraitPolarsScalarArithmeticExpressionSystem,
+    "scalar_boolean": SubstraitPolarsScalarBooleanExpressionSystem,
+    "scalar_comparison": SubstraitPolarsScalarComparisonExpressionSystem,
+    "scalar_datetime": SubstraitPolarsScalarDatetimeExpressionSystem,
+    "scalar_logarithmic": SubstraitPolarsScalarLogarithmicExpressionSystem,
+    "scalar_rounding": SubstraitPolarsScalarRoundingExpressionSystem,
+    "scalar_set": SubstraitPolarsScalarSetExpressionSystem,
+    "scalar_string": SubstraitPolarsScalarStringExpressionSystem,
+}
+
+IBIS_SUBSTRAIT_IMPLEMENTATIONS = {
+    "cast": SubstraitIbisCastExpressionSystem,
+    "conditional": SubstraitIbisConditionalExpressionSystem,
+    "field_reference": SubstraitIbisFieldReferenceExpressionSystem,
+    "literal": SubstraitIbisLiteralExpressionSystem,
+    # "scalar_aggregate": SubstraitIbisScalarAggregateExpressionSystem,
+    "scalar_arithmetic": SubstraitIbisScalarArithmeticExpressionSystem,
+    "scalar_boolean": SubstraitIbisScalarBooleanExpressionSystem,
+    "scalar_comparison": SubstraitIbisScalarComparisonExpressionSystem,
+    "scalar_datetime": SubstraitIbisScalarDatetimeExpressionSystem,
+    "scalar_logarithmic": SubstraitIbisScalarLogarithmicExpressionSystem,
+    "scalar_rounding": SubstraitIbisScalarRoundingExpressionSystem,
+    "scalar_set": SubstraitIbisScalarSetExpressionSystem,
+    "scalar_string": SubstraitIbisScalarStringExpressionSystem,
+}
+
+NARWHALS_SUBSTRAIT_IMPLEMENTATIONS = {
+    "cast": SubstraitNarwhalsCastExpressionSystem,
+    "conditional": SubstraitNarwhalsConditionalExpressionSystem,
+    "field_reference": SubstraitNarwhalsFieldReferenceExpressionSystem,
+    "literal": SubstraitNarwhalsLiteralExpressionSystem,
+    # "scalar_aggregate": SubstraitNarwhalsScalarAggregateExpressionSystem,
+    "scalar_arithmetic": SubstraitNarwhalsScalarArithmeticExpressionSystem,
+    "scalar_boolean": SubstraitNarwhalsScalarBooleanExpressionSystem,
+    "scalar_comparison": SubstraitNarwhalsScalarComparisonExpressionSystem,
+    "scalar_datetime": SubstraitNarwhalsScalarDatetimeExpressionSystem,
+    "scalar_logarithmic": SubstraitNarwhalsScalarLogarithmicExpressionSystem,
+    "scalar_rounding": SubstraitNarwhalsScalarRoundingExpressionSystem,
+    "scalar_set": SubstraitNarwhalsScalarSetExpressionSystem,
+    "scalar_string": SubstraitNarwhalsScalarStringExpressionSystem,
+}
+
+# =============================================================================
+# Mountainash Extension Alignment Definitions
+# =============================================================================
+
+MOUNTAINASH_PROTOCOLS = [
+    (MountainAshNullExpressionSystemProtocol, "null"),
+    (MountainAshNameExpressionSystemProtocol, "name"),
+    (MountainAshScalarArithmeticExpressionSystemProtocol, "scalar_arithmetic"),
+    (MountainAshScalarBooleanExpressionSystemProtocol, "scalar_boolean"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "scalar_datetime"),
+    (MountainAshScalarTernaryExpressionSystemProtocol, "scalar_ternary"),
+    # (MountainAshScalarAggregateExpressionSystemProtocol, "scalar_aggregate"),
+]
+
+POLARS_MOUNTAINASH_IMPLEMENTATIONS = {
+    "null": MountainAshPolarsNullExpressionSystem,
+    "name": MountainAshPolarsNameExpressionSystem,
+    "scalar_arithmetic": MountainAshPolarsScalarArithmeticExpressionSystem,
+    "scalar_datetime": MountainAshPolarsScalarDatetimeExpressionSystem,
+    "scalar_ternary": MountainAshPolarsScalarTernaryExpressionSystem,
+}
+
+IBIS_MOUNTAINASH_IMPLEMENTATIONS = {
+    "null": MountainAshIbisNullExpressionSystem,
+    "name": MountainAshIbisNameExpressionSystem,
+    "scalar_arithmetic": MountainAshIbisScalarArithmeticExpressionSystem,
+    "scalar_datetime": MountainAshIbisScalarDatetimeExpressionSystem,
+    "scalar_ternary": MountainAshIbisScalarTernaryExpressionSystem,
+}
+
+NARWHALS_MOUNTAINASH_IMPLEMENTATIONS = {
+    "null": MountainAshNarwhalsNullExpressionSystem,
+    "name": MountainAshNarwhalsNameExpressionSystem,
+    "scalar_arithmetic": MountainAshNarwhalsScalarArithmeticExpressionSystem,
+    "scalar_datetime": MountainAshNarwhalsScalarDatetimeExpressionSystem,
+    "scalar_ternary": MountainAshNarwhalsScalarTernaryExpressionSystem,
+}
+
+# =============================================================================
+# API Builder Protocol Alignment Definitions
+# =============================================================================
+
+SUBSTRAIT_API_BUILDER_PROTOCOLS = [
+    # Foundation
+    (SubstraitCastAPIBuilderProtocol, "cast"),
+    (SubstraitConditionalAPIBuilderProtocol, "conditional"),
+    (SubstraitFieldReferenceAPIBuilderProtocol, "field_reference"),
+    (SubstraitLiteralAPIBuilderProtocol, "literal"),
+    # Scalar
+    # (SubstraitScalarAggregateAPIBuilderProtocol, "scalar_aggregate"),
+    (SubstraitScalarArithmeticAPIBuilderProtocol, "scalar_arithmetic"),
+    (SubstraitScalarBooleanAPIBuilderProtocol, "scalar_boolean"),
+    (SubstraitScalarComparisonAPIBuilderProtocol, "scalar_comparison"),
+    (SubstraitScalarDatetimeAPIBuilderProtocol, "scalar_datetime"),
+    (SubstraitScalarLogarithmicAPIBuilderProtocol, "scalar_logarithmic"),
+    (SubstraitScalarRoundingAPIBuilderProtocol, "scalar_rounding"),
+    (SubstraitScalarSetAPIBuilderProtocol, "scalar_set"),
+    (SubstraitScalarStringAPIBuilderProtocol, "scalar_string"),
+]
+
+SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS = {
+    "cast": SubstraitCastAPIBuilder,
+    "conditional": SubstraitConditionalAPIBuilder,
+    "field_reference": SubstraitFieldReferenceAPIBuilder,
+    "literal": SubstraitLiteralAPIBuilder,
+    # "scalar_aggregate": SubstraitScalarAggregateAPIBuilder,
+    "scalar_arithmetic": SubstraitScalarArithmeticAPIBuilder,
+    "scalar_boolean": SubstraitScalarBooleanAPIBuilder,
+    "scalar_comparison": SubstraitScalarComparisonAPIBuilder,
+    "scalar_datetime": SubstraitScalarDatetimeAPIBuilder,
+    "scalar_logarithmic": SubstraitScalarLogarithmicAPIBuilder,
+    "scalar_rounding": SubstraitScalarRoundingAPIBuilder,
+    "scalar_set": SubstraitScalarSetAPIBuilder,
+    "scalar_string": SubstraitScalarStringAPIBuilder,
+}
+
+MOUNTAINASH_API_BUILDER_PROTOCOLS = [
+    (MountainAshNameAPIBuilderProtocol, "name"),
+    (MountainAshNullAPIBuilderProtocol, "null"),
+    # (MountainAshScalarAggregateAPIBuilderProtocol, "scalar_aggregate"),
+    (MountainAshScalarArithmeticAPIBuilderProtocol, "scalar_arithmetic"),
+    (MountainAshScalarDatetimeAPIBuilderProtocol, "scalar_datetime"),
+    (MountainAshScalarBooleanAPIBuilderProtocol, "scalar_boolean"),
+    (MountainAshScalarTernaryAPIBuilderProtocol, "scalar_ternary"),
+]
+
+MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
+    "name": MountainAshNameAPIBuilder,
+    "null": MountainAshNullAPIBuilder,
+    # "scalar_aggregate": MountainAshScalarAggregateAPIBuilder,
+    "scalar_arithmetic": MountainAshScalarArithmeticAPIBuilder,
+    "scalar_datetime": MountainAshScalarDatetimeAPIBuilder,
+    "scalar_boolean": MountainAshScalarBooleanAPIBuilder,
+    "scalar_ternary": MountainAshScalarTernaryAPIBuilder,
+}
 
 
 # =============================================================================
 # Test Classes
 # =============================================================================
 
-class TestVisitorProtocolAlignment:
-    """Test that Visitor implementations align with VisitorProtocols."""
-
-    # Methods that are infrastructure, not operations
-    VISITOR_INFRASTRUCTURE = {#'visit_expression_node',
-        'backend', 'logic_type'}
-
-    @pytest.mark.parametrize("protocol,implementation", [
-        (ArithmeticVisitorProtocol, ArithmeticExpressionVisitor),
-        (BooleanVisitorProtocol, BooleanExpressionVisitor),
-        (CoreVisitorProtocol, CoreExpressionVisitor),
-        (HorizontalVisitorProtocol, HorizontalExpressionVisitor),
-        (NameVisitorProtocol, NameExpressionVisitor),
-        (NullVisitorProtocol, NullExpressionVisitor),
-        (StringVisitorProtocol, StringExpressionVisitor),
-        (TemporalVisitorProtocol, TemporalExpressionVisitor),
-        (TypeVisitorProtocol, TypeExpressionVisitor),
-        (NativeVisitorProtocol, NativeExpressionVisitor),
-    ])
-    def test_visitor_alignment(self, protocol, implementation):
-        """Each visitor implementation should align with its protocol (method presence and signatures)."""
-        result = check_alignment(
-            protocol,
-            implementation,
-            exclude_from_protocol=self.VISITOR_INFRASTRUCTURE,
-            exclude_from_impl=self.VISITOR_INFRASTRUCTURE | {'_get_expr_op'},
-            include_inherited=True,
-            check_signatures=True,
-        )
-
-        if not result.is_aligned:
-            pytest.fail(str(result))
-
-
-class TestExpressionProtocolAlignment:
-    """Test that Backend implementations align with ExpressionProtocols."""
+class TestSubstraitProtocolAlignment:
+    """Test that Substrait backend implementations align with their protocols."""
 
     # Methods that are infrastructure, not operations
     BACKEND_INFRASTRUCTURE = {'backend_type', 'is_native_expression'}
 
-    @pytest.mark.parametrize("protocol,implementation", [
-        (ArithmeticExpressionProtocol, PolarsArithmeticExpressionSystem),
-        (BooleanExpressionProtocol, PolarsBooleanExpressionSystem),
-        (CoreExpressionProtocol, PolarsCoreExpressionSystem),
-        (HorizontalExpressionProtocol, PolarsHorizontalExpressionSystem),
-        (NameExpressionProtocol, PolarsNameExpressionSystem),
-        (NullExpressionProtocol, PolarsNullExpressionSystem),
-        (StringExpressionProtocol, PolarsStringExpressionSystem),
-        (TemporalExpressionProtocol, PolarsTemporalExpressionSystem),
-        (TypeExpressionProtocol, PolarsTypeExpressionSystem),
-        (NativeExpressionProtocol, PolarsNativeExpressionSystem),
-    ])
-    def test_polars_backend_alignment(self, protocol, implementation):
-        """Polars backend implementations should align with protocols (method presence and signatures)."""
-        # Don't include_inherited because backend classes are composed
-        # Each backend class only defines methods for its own protocol
-        result = check_alignment(
-            protocol,
-            implementation,
-            exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
-            exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
-            include_inherited=False,  # Only check methods defined on this specific class
-            check_signatures=True,
-        )
+    @pytest.mark.parametrize("protocol,category", SUBSTRAIT_PROTOCOLS)
+    def test_polars_substrait_alignment(self, protocol, category):
+        """Polars Substrait implementations should align with protocols."""
+        if category not in POLARS_SUBSTRAIT_IMPLEMENTATIONS:
+            pytest.skip(f"Polars implementation for {category} not found")
 
-        if not result.is_aligned:
-            pytest.fail(str(result))
-
-    @pytest.mark.parametrize("protocol,implementation", [
-        (ArithmeticExpressionProtocol, IbisArithmeticExpressionSystem),
-        (BooleanExpressionProtocol, IbisBooleanExpressionSystem),
-        (CoreExpressionProtocol, IbisCoreExpressionSystem),
-        (HorizontalExpressionProtocol, IbisHorizontalExpressionSystem),
-        (NameExpressionProtocol, IbisNameExpressionSystem),
-        (NullExpressionProtocol, IbisNullExpressionSystem),
-        (StringExpressionProtocol, IbisStringExpressionSystem),
-        (TemporalExpressionProtocol, IbisTemporalExpressionSystem),
-        (TypeExpressionProtocol, IbisTypeExpressionSystem),
-        (NativeExpressionProtocol, IbisNativeExpressionSystem),
-    ])
-    def test_ibis_backend_alignment(self, protocol, implementation):
-        """Ibis backend implementations should align with protocols (method presence and signatures)."""
+        implementation = POLARS_SUBSTRAIT_IMPLEMENTATIONS[category]
         result = check_alignment(
             protocol,
             implementation,
@@ -530,20 +633,32 @@ class TestExpressionProtocolAlignment:
         if not result.is_aligned:
             pytest.fail(str(result))
 
-    @pytest.mark.parametrize("protocol,implementation", [
-        (ArithmeticExpressionProtocol, NarwhalsArithmeticExpressionSystem),
-        (BooleanExpressionProtocol, NarwhalsBooleanExpressionSystem),
-        (CoreExpressionProtocol, NarwhalsCoreExpressionSystem),
-        (HorizontalExpressionProtocol, NarwhalsHorizontalExpressionSystem),
-        (NameExpressionProtocol, NarwhalsNameExpressionSystem),
-        (NullExpressionProtocol, NarwhalsNullExpressionSystem),
-        (StringExpressionProtocol, NarwhalsStringExpressionSystem),
-        (TemporalExpressionProtocol, NarwhalsTemporalExpressionSystem),
-        (TypeExpressionProtocol, NarwhalsTypeExpressionSystem),
-        (NativeExpressionProtocol, NarwhalsNativeExpressionSystem),
-    ])
-    def test_narwhals_backend_alignment(self, protocol, implementation):
-        """Narwhals backend implementations should align with protocols (method presence and signatures)."""
+    @pytest.mark.parametrize("protocol,category", SUBSTRAIT_PROTOCOLS)
+    def test_ibis_substrait_alignment(self, protocol, category):
+        """Ibis Substrait implementations should align with protocols."""
+        if category not in IBIS_SUBSTRAIT_IMPLEMENTATIONS:
+            pytest.skip(f"Ibis implementation for {category} not found")
+
+        implementation = IBIS_SUBSTRAIT_IMPLEMENTATIONS[category]
+        result = check_alignment(
+            protocol,
+            implementation,
+            exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
+            exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
+            include_inherited=False,
+            check_signatures=True,
+        )
+
+        if not result.is_aligned:
+            pytest.fail(str(result))
+
+    @pytest.mark.parametrize("protocol,category", SUBSTRAIT_PROTOCOLS)
+    def test_narwhals_substrait_alignment(self, protocol, category):
+        """Narwhals Substrait implementations should align with protocols."""
+        if category not in NARWHALS_SUBSTRAIT_IMPLEMENTATIONS:
+            pytest.skip(f"Narwhals implementation for {category} not found")
+
+        implementation = NARWHALS_SUBSTRAIT_IMPLEMENTATIONS[category]
         result = check_alignment(
             protocol,
             implementation,
@@ -557,37 +672,113 @@ class TestExpressionProtocolAlignment:
             pytest.fail(str(result))
 
 
-class TestBuilderProtocolAlignment:
-    """Test that Namespace implementations align with BuilderProtocols."""
+class TestMountainashExtensionAlignment:
+    """Test that Mountainash extension implementations align with their protocols."""
 
-    # Infrastructure methods not part of the builder API
-    NAMESPACE_INFRASTRUCTURE = {'_api', '_node', '_build', '_to_node_or_value'}
+    BACKEND_INFRASTRUCTURE = {'backend_type', 'is_native_expression'}
 
-    @pytest.mark.parametrize("protocol,implementation,exclude_impl", [
-        # ArithmeticBuilderProtocol includes dunders which are on API, not namespace
-        (ArithmeticBuilderProtocol, ArithmeticNamespace, {
-            '__add__', '__radd__', '__sub__', '__rsub__',
-            '__mul__', '__rmul__', '__truediv__', '__rtruediv__',
-            '__floordiv__', '__rfloordiv__', '__mod__', '__rmod__',
-            '__pow__', '__rpow__', '__neg__',
-        }),
-        (BooleanBuilderProtocol, BooleanNamespace, set()),
-        (HorizontalBuilderProtocol, HorizontalNamespace, set()),
-        (NameBuilderProtocol, NameNamespace, set()),
-        (NullBuilderProtocol, NullNamespace, set()),
-        (StringBuilderProtocol, StringNamespace, set()),
-        (TemporalBuilderProtocol, DateTimeNamespace, set()),
-        (TypeBuilderProtocol, TypeNamespace, set()),
-        (NativeBuilderProtocol, NativeNamespace, set()),
-    ])
-    def test_namespace_alignment(self, protocol, implementation, exclude_impl):
-        """Namespace implementations should align with builder protocols (method presence and signatures)."""
+    @pytest.mark.parametrize("protocol,category", MOUNTAINASH_PROTOCOLS)
+    def test_polars_mountainash_alignment(self, protocol, category):
+        """Polars Mountainash implementations should align with protocols."""
+        if category not in POLARS_MOUNTAINASH_IMPLEMENTATIONS:
+            pytest.skip(f"Polars Mountainash implementation for {category} not found")
+
+        implementation = POLARS_MOUNTAINASH_IMPLEMENTATIONS[category]
         result = check_alignment(
             protocol,
             implementation,
-            exclude_from_protocol=self.NAMESPACE_INFRASTRUCTURE | exclude_impl,
-            exclude_from_impl=self.NAMESPACE_INFRASTRUCTURE,
-            include_inherited=True,
+            exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
+            exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
+            include_inherited=False,
+            check_signatures=True,
+        )
+
+        if not result.is_aligned:
+            pytest.fail(str(result))
+
+    @pytest.mark.parametrize("protocol,category", MOUNTAINASH_PROTOCOLS)
+    def test_ibis_mountainash_alignment(self, protocol, category):
+        """Ibis Mountainash implementations should align with protocols."""
+        if category not in IBIS_MOUNTAINASH_IMPLEMENTATIONS:
+            pytest.skip(f"Ibis Mountainash implementation for {category} not found")
+
+        implementation = IBIS_MOUNTAINASH_IMPLEMENTATIONS[category]
+        result = check_alignment(
+            protocol,
+            implementation,
+            exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
+            exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
+            include_inherited=False,
+            check_signatures=True,
+        )
+
+        if not result.is_aligned:
+            pytest.fail(str(result))
+
+    @pytest.mark.parametrize("protocol,category", MOUNTAINASH_PROTOCOLS)
+    def test_narwhals_mountainash_alignment(self, protocol, category):
+        """Narwhals Mountainash implementations should align with protocols."""
+        if category not in NARWHALS_MOUNTAINASH_IMPLEMENTATIONS:
+            pytest.skip(f"Narwhals Mountainash implementation for {category} not found")
+
+        implementation = NARWHALS_MOUNTAINASH_IMPLEMENTATIONS[category]
+        result = check_alignment(
+            protocol,
+            implementation,
+            exclude_from_protocol=self.BACKEND_INFRASTRUCTURE,
+            exclude_from_impl=self.BACKEND_INFRASTRUCTURE,
+            include_inherited=False,
+            check_signatures=True,
+        )
+
+        if not result.is_aligned:
+            pytest.fail(str(result))
+
+
+class TestSubstraitAPIBuilderAlignment:
+    """Test that Substrait API builder implementations align with their protocols."""
+
+    # Methods that are infrastructure, not operations
+    API_BUILDER_INFRASTRUCTURE = {'_api', '_node', '_build', '_to_node_or_value', '_resolve_to_node'}
+
+    @pytest.mark.parametrize("protocol,category", SUBSTRAIT_API_BUILDER_PROTOCOLS)
+    def test_substrait_api_builder_alignment(self, protocol, category):
+        """Substrait API builder implementations should align with protocols."""
+        if category not in SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS:
+            pytest.skip(f"Substrait API builder implementation for {category} not found")
+
+        implementation = SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS[category]
+        result = check_alignment(
+            protocol,
+            implementation,
+            exclude_from_protocol=self.API_BUILDER_INFRASTRUCTURE,
+            exclude_from_impl=self.API_BUILDER_INFRASTRUCTURE,
+            include_inherited=True,  # API builders inherit from base
+            check_signatures=True,
+        )
+
+        if not result.is_aligned:
+            pytest.fail(str(result))
+
+
+class TestMountainashAPIBuilderAlignment:
+    """Test that Mountainash API builder implementations align with their protocols."""
+
+    API_BUILDER_INFRASTRUCTURE = {'_api', '_node', '_build', '_to_node_or_value', '_resolve_to_node'}
+
+    @pytest.mark.parametrize("protocol,category", MOUNTAINASH_API_BUILDER_PROTOCOLS)
+    def test_mountainash_api_builder_alignment(self, protocol, category):
+        """Mountainash API builder implementations should align with protocols."""
+        if category not in MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS:
+            pytest.skip(f"Mountainash API builder implementation for {category} not found")
+
+        implementation = MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS[category]
+        result = check_alignment(
+            protocol,
+            implementation,
+            exclude_from_protocol=self.API_BUILDER_INFRASTRUCTURE,
+            exclude_from_impl=self.API_BUILDER_INFRASTRUCTURE,
+            include_inherited=True,  # API builders inherit from base
             check_signatures=True,
         )
 
@@ -609,103 +800,303 @@ class TestGenerateAlignmentReport:
         This test always passes but prints a detailed report.
         Run with: pytest -s tests/unit/test_protocol_alignment.py::TestGenerateAlignmentReport
         """
-        visitor_pairs = [
-            (ArithmeticVisitorProtocol, ArithmeticExpressionVisitor),
-            (BooleanVisitorProtocol, BooleanExpressionVisitor),
-            (CoreVisitorProtocol, CoreExpressionVisitor),
-            (HorizontalVisitorProtocol, HorizontalExpressionVisitor),
-            (NameVisitorProtocol, NameExpressionVisitor),
-            (NullVisitorProtocol, NullExpressionVisitor),
-            (StringVisitorProtocol, StringExpressionVisitor),
-            (TemporalVisitorProtocol, TemporalExpressionVisitor),
-            (TypeVisitorProtocol, TypeExpressionVisitor),
-            (NativeVisitorProtocol, NativeExpressionVisitor),
-        ]
-
-        polars_backend_pairs = [
-            (ArithmeticExpressionProtocol, PolarsArithmeticExpressionSystem),
-            (BooleanExpressionProtocol, PolarsBooleanExpressionSystem),
-            (CoreExpressionProtocol, PolarsCoreExpressionSystem),
-            (HorizontalExpressionProtocol, PolarsHorizontalExpressionSystem),
-            (NameExpressionProtocol, PolarsNameExpressionSystem),
-            (NullExpressionProtocol, PolarsNullExpressionSystem),
-            (StringExpressionProtocol, PolarsStringExpressionSystem),
-            (TemporalExpressionProtocol, PolarsTemporalExpressionSystem),
-            (TypeExpressionProtocol, PolarsTypeExpressionSystem),
-            (NativeExpressionProtocol, PolarsNativeExpressionSystem),
-        ]
-
-        ibis_backend_pairs = [
-            (ArithmeticExpressionProtocol, IbisArithmeticExpressionSystem),
-            (BooleanExpressionProtocol, IbisBooleanExpressionSystem),
-            (CoreExpressionProtocol, IbisCoreExpressionSystem),
-            (HorizontalExpressionProtocol, IbisHorizontalExpressionSystem),
-            (NameExpressionProtocol, IbisNameExpressionSystem),
-            (NullExpressionProtocol, IbisNullExpressionSystem),
-            (StringExpressionProtocol, IbisStringExpressionSystem),
-            (TemporalExpressionProtocol, IbisTemporalExpressionSystem),
-            (TypeExpressionProtocol, IbisTypeExpressionSystem),
-            (NativeExpressionProtocol, IbisNativeExpressionSystem),
-        ]
-
-        narwhals_backend_pairs = [
-            (ArithmeticExpressionProtocol, NarwhalsArithmeticExpressionSystem),
-            (BooleanExpressionProtocol, NarwhalsBooleanExpressionSystem),
-            (CoreExpressionProtocol, NarwhalsCoreExpressionSystem),
-            (HorizontalExpressionProtocol, NarwhalsHorizontalExpressionSystem),
-            (NameExpressionProtocol, NarwhalsNameExpressionSystem),
-            (NullExpressionProtocol, NarwhalsNullExpressionSystem),
-            (StringExpressionProtocol, NarwhalsStringExpressionSystem),
-            (TemporalExpressionProtocol, NarwhalsTemporalExpressionSystem),
-            (TypeExpressionProtocol, NarwhalsTypeExpressionSystem),
-            (NativeExpressionProtocol, NarwhalsNativeExpressionSystem),
-        ]
-
-        namespace_pairs = [
-            (ArithmeticBuilderProtocol, ArithmeticNamespace),
-            (HorizontalBuilderProtocol, HorizontalNamespace),
-            (NameBuilderProtocol, NameNamespace),
-            (NullBuilderProtocol, NullNamespace),
-            (StringBuilderProtocol, StringNamespace),
-            (TemporalBuilderProtocol, DateTimeNamespace),
-            (TypeBuilderProtocol, TypeNamespace),
-            (NativeBuilderProtocol, NativeNamespace),
-        ]
-
         print("\n" + "="*80)
-        print("PROTOCOL ALIGNMENT REPORT")
+        print("SUBSTRAIT-ALIGNED PROTOCOL ALIGNMENT REPORT")
         print("="*80)
 
-        print("\n--- VISITOR LAYER ---")
-        for protocol, impl in visitor_pairs:
-            result = check_alignment(protocol, impl, include_inherited=True)
-            if not result.is_aligned:
-                print(result)
+        print("\n--- SUBSTRAIT PROTOCOLS: POLARS ---")
+        for protocol, category in SUBSTRAIT_PROTOCOLS:
+            if category in POLARS_SUBSTRAIT_IMPLEMENTATIONS:
+                impl = POLARS_SUBSTRAIT_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=False)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
 
-        print("\n--- BACKEND LAYER: POLARS ---")
-        for protocol, impl in polars_backend_pairs:
-            result = check_alignment(protocol, impl, include_inherited=False)
-            if not result.is_aligned:
-                print(result)
+        print("\n--- SUBSTRAIT PROTOCOLS: IBIS ---")
+        for protocol, category in SUBSTRAIT_PROTOCOLS:
+            if category in IBIS_SUBSTRAIT_IMPLEMENTATIONS:
+                impl = IBIS_SUBSTRAIT_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=False)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
 
-        print("\n--- BACKEND LAYER: IBIS ---")
-        for protocol, impl in ibis_backend_pairs:
-            result = check_alignment(protocol, impl, include_inherited=False)
-            if not result.is_aligned:
-                print(result)
+        print("\n--- SUBSTRAIT PROTOCOLS: NARWHALS ---")
+        for protocol, category in SUBSTRAIT_PROTOCOLS:
+            if category in NARWHALS_SUBSTRAIT_IMPLEMENTATIONS:
+                impl = NARWHALS_SUBSTRAIT_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=False)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
 
-        print("\n--- BACKEND LAYER: NARWHALS ---")
-        for protocol, impl in narwhals_backend_pairs:
-            result = check_alignment(protocol, impl, include_inherited=False)
-            if not result.is_aligned:
-                print(result)
+        print("\n--- MOUNTAINASH EXTENSIONS: POLARS ---")
+        for protocol, category in MOUNTAINASH_PROTOCOLS:
+            if category in POLARS_MOUNTAINASH_IMPLEMENTATIONS:
+                impl = POLARS_MOUNTAINASH_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=False)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
 
-        print("\n--- NAMESPACE/BUILDER LAYER ---")
-        for protocol, impl in namespace_pairs:
-            result = check_alignment(protocol, impl, include_inherited=True)
-            if not result.is_aligned:
-                print(result)
+        print("\n--- MOUNTAINASH EXTENSIONS: IBIS ---")
+        for protocol, category in MOUNTAINASH_PROTOCOLS:
+            if category in IBIS_MOUNTAINASH_IMPLEMENTATIONS:
+                impl = IBIS_MOUNTAINASH_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=False)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
+
+        print("\n--- MOUNTAINASH EXTENSIONS: NARWHALS ---")
+        for protocol, category in MOUNTAINASH_PROTOCOLS:
+            if category in NARWHALS_MOUNTAINASH_IMPLEMENTATIONS:
+                impl = NARWHALS_MOUNTAINASH_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=False)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
+
+        print("\n--- SUBSTRAIT API BUILDERS ---")
+        for protocol, category in SUBSTRAIT_API_BUILDER_PROTOCOLS:
+            if category in SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS:
+                impl = SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=True)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
+
+        print("\n--- MOUNTAINASH API BUILDERS ---")
+        for protocol, category in MOUNTAINASH_API_BUILDER_PROTOCOLS:
+            if category in MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS:
+                impl = MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS[category]
+                result = check_alignment(protocol, impl, include_inherited=True)
+                if not result.is_aligned:
+                    print(result)
+                else:
+                    print(f"  ✓ {category}: {len(result.aligned)} methods aligned")
 
         print("\n" + "="*80)
         print("END REPORT")
         print("="*80)
+
+
+# =============================================================================
+# Inheritance Integrity Checks
+# =============================================================================
+
+def _collect_classes_from_package(package_path: str) -> List[tuple]:
+    """Collect all classes from a package directory with their module paths.
+
+    Returns list of (class, module_path_string) tuples.
+    """
+    results = []
+    pkg = importlib.import_module(package_path)
+    pkg_dir = Path(pkg.__file__).parent
+
+    for _, module_name, _ in pkgutil.iter_modules([str(pkg_dir)]):
+        if module_name.startswith("_"):
+            continue
+        full_module = f"{package_path}.{module_name}"
+        try:
+            mod = importlib.import_module(full_module)
+        except Exception:
+            continue
+        for attr_name in dir(mod):
+            attr = getattr(mod, attr_name)
+            if (
+                isinstance(attr, type)
+                and attr.__module__ == full_module
+                and not attr_name.startswith("_")
+            ):
+                results.append((attr, full_module))
+    return results
+
+
+class TestInheritanceIntegrity:
+    """Verify that classes inherit from the correct protocol layer.
+
+    These checks prevent copy-paste errors where an extension class
+    inherits from a Substrait protocol (or vice versa), and naming
+    errors where a class name doesn't match its directory location.
+    """
+
+    # -----------------------------------------------------------------
+    # Check 1: Classes in extensions_mountainash/ must not inherit
+    # from Substrait protocols
+    # -----------------------------------------------------------------
+
+    def _get_substrait_protocol_names(self) -> set:
+        """Get names of all Substrait protocol classes."""
+        names = set()
+        for protocol, _ in SUBSTRAIT_PROTOCOLS:
+            names.add(protocol.__name__)
+        for protocol, _ in SUBSTRAIT_API_BUILDER_PROTOCOLS:
+            names.add(protocol.__name__)
+        return names
+
+    @pytest.mark.xfail(reason="api_bldr_ext_ma_scalar_set.py has copy-paste error: inherits SubstraitScalarSetAPIBuilderProtocol")
+    def test_extension_api_builders_do_not_inherit_substrait_protocols(self):
+        """Classes in api_builders/extensions_mountainash/ must not inherit Substrait protocols."""
+        substrait_names = self._get_substrait_protocol_names()
+        violations = []
+
+        classes = _collect_classes_from_package(
+            "mountainash_expressions.core.expression_api.api_builders.extensions_mountainash"
+        )
+        for cls, module_path in classes:
+            for base in cls.__mro__[1:]:  # skip the class itself
+                if base.__name__ in substrait_names:
+                    violations.append(
+                        f"{cls.__name__} (in {module_path}) inherits "
+                        f"Substrait protocol {base.__name__}"
+                    )
+
+        if violations:
+            pytest.fail(
+                "Extension classes must not inherit Substrait protocols "
+                "(likely copy-paste error):\n  " + "\n  ".join(violations)
+            )
+
+    def test_extension_backend_impls_do_not_inherit_substrait_protocols(self):
+        """Classes in backends/.../extensions_mountainash/ must not inherit Substrait protocols."""
+        substrait_names = self._get_substrait_protocol_names()
+        violations = []
+
+        for backend in ("polars", "ibis", "narwhals"):
+            pkg = f"mountainash_expressions.backends.expression_systems.{backend}.extensions_mountainash"
+            try:
+                classes = _collect_classes_from_package(pkg)
+            except Exception:
+                continue
+            for cls, module_path in classes:
+                for base in cls.__mro__[1:]:
+                    if base.__name__ in substrait_names:
+                        violations.append(
+                            f"{cls.__name__} (in {module_path}) inherits "
+                            f"Substrait protocol {base.__name__}"
+                        )
+
+        if violations:
+            pytest.fail(
+                "Extension backend classes must not inherit Substrait protocols "
+                "(likely copy-paste error):\n  " + "\n  ".join(violations)
+            )
+
+    # -----------------------------------------------------------------
+    # Check 2: Class names must match their directory location
+    # -----------------------------------------------------------------
+
+    @pytest.mark.xfail(reason="api_bldr_ext_ma_scalar_set.py has copy-paste error: class named SubstraitScalarSetAPIBuilder")
+    def test_extension_classes_not_named_substrait(self):
+        """Classes in extensions_mountainash/ directories must not be named Substrait*."""
+        violations = []
+
+        # API builders
+        classes = _collect_classes_from_package(
+            "mountainash_expressions.core.expression_api.api_builders.extensions_mountainash"
+        )
+        for cls, module_path in classes:
+            if cls.__name__.startswith("Substrait"):
+                violations.append(f"{cls.__name__} (in {module_path})")
+
+        # Backend implementations
+        for backend in ("polars", "ibis", "narwhals"):
+            pkg = f"mountainash_expressions.backends.expression_systems.{backend}.extensions_mountainash"
+            try:
+                classes = _collect_classes_from_package(pkg)
+            except Exception:
+                continue
+            for cls, module_path in classes:
+                if cls.__name__.startswith("Substrait"):
+                    violations.append(f"{cls.__name__} (in {module_path})")
+
+        if violations:
+            pytest.fail(
+                "Classes in extensions_mountainash/ must not be named Substrait* "
+                "(likely copy-paste error):\n  " + "\n  ".join(violations)
+            )
+
+    def test_substrait_classes_not_named_mountainash(self):
+        """Classes in substrait/ directories must not be named MountainAsh*."""
+        violations = []
+
+        # API builders
+        classes = _collect_classes_from_package(
+            "mountainash_expressions.core.expression_api.api_builders.substrait"
+        )
+        for cls, module_path in classes:
+            if cls.__name__.startswith("MountainAsh"):
+                violations.append(f"{cls.__name__} (in {module_path})")
+
+        # Backend implementations
+        for backend in ("polars", "ibis", "narwhals"):
+            pkg = f"mountainash_expressions.backends.expression_systems.{backend}.substrait"
+            try:
+                classes = _collect_classes_from_package(pkg)
+            except Exception:
+                continue
+            for cls, module_path in classes:
+                if cls.__name__.startswith("MountainAsh"):
+                    violations.append(f"{cls.__name__} (in {module_path})")
+
+        if violations:
+            pytest.fail(
+                "Classes in substrait/ must not be named MountainAsh* "
+                "(likely copy-paste error):\n  " + "\n  ".join(violations)
+            )
+
+    # -----------------------------------------------------------------
+    # Check 3: No duplicate class names across sibling directories
+    # -----------------------------------------------------------------
+
+    @pytest.mark.xfail(reason="api_bldr_ext_ma_scalar_set.py has copy-paste error: class named SubstraitScalarSetAPIBuilder")
+    def test_no_duplicate_class_names_across_substrait_and_extension(self):
+        """A class name must not appear in both substrait/ and extensions_mountainash/."""
+        violations = []
+
+        # API builders
+        substrait_classes = _collect_classes_from_package(
+            "mountainash_expressions.core.expression_api.api_builders.substrait"
+        )
+        extension_classes = _collect_classes_from_package(
+            "mountainash_expressions.core.expression_api.api_builders.extensions_mountainash"
+        )
+        substrait_names = {cls.__name__ for cls, _ in substrait_classes}
+        for cls, module_path in extension_classes:
+            if cls.__name__ in substrait_names:
+                violations.append(
+                    f"API builder class '{cls.__name__}' exists in both "
+                    f"substrait/ and extensions_mountainash/ ({module_path})"
+                )
+
+        # Backend implementations
+        for backend in ("polars", "ibis", "narwhals"):
+            sub_pkg = f"mountainash_expressions.backends.expression_systems.{backend}.substrait"
+            ext_pkg = f"mountainash_expressions.backends.expression_systems.{backend}.extensions_mountainash"
+            try:
+                sub_classes = _collect_classes_from_package(sub_pkg)
+                ext_classes = _collect_classes_from_package(ext_pkg)
+            except Exception:
+                continue
+            sub_names = {cls.__name__ for cls, _ in sub_classes}
+            for cls, module_path in ext_classes:
+                if cls.__name__ in sub_names:
+                    violations.append(
+                        f"{backend} backend class '{cls.__name__}' exists in both "
+                        f"substrait/ and extensions_mountainash/ ({module_path})"
+                    )
+
+        if violations:
+            pytest.fail(
+                "Duplicate class names across substrait/ and extensions_mountainash/ "
+                "(likely copy-paste error):\n  " + "\n  ".join(violations)
+            )
