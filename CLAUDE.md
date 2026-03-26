@@ -29,8 +29,10 @@ Consult the principles when making architectural decisions, adding new operation
 - ✅ Substrait categories: 13 implemented (comparison, boolean, arithmetic, string, datetime, etc.)
 - ✅ Mountainash extensions: 6 implemented (ternary, null, name, datetime convenience, etc.)
 - ✅ Backend implementations: Polars, Ibis, Narwhals complete
-- ✅ Cross-backend testing: 10,000+ lines of tests
+- ✅ Cross-backend testing: 2300+ tests across 6 backends
+- ✅ Polars-compatible aliases: Extension builders provide Polars naming (sub, mul, strip_chars, etc.)
 - ⚠️ Pandas backend: Detection exists, limited testing
+- 📋 Polars API alignment audit: `docs/superpowers/specs/2026-03-25-polars-api-alignment-audit-design.md`
 
 ## Package Structure
 
@@ -162,7 +164,7 @@ src/mountainash_expressions/
 |----------|-------------------|------------|
 | `scalar_comparison` | `KEY_SCALAR_COMPARISON` | equal, lt, gt, lte, gte, between, is_null, coalesce, etc. |
 | `scalar_boolean` | `KEY_SCALAR_BOOLEAN` | and, or, not, xor |
-| `scalar_arithmetic` | `KEY_SCALAR_ARITHMETIC` | add, subtract, multiply, divide, modulo, power |
+| `scalar_arithmetic` | `KEY_SCALAR_ARITHMETIC` | add, subtract, multiply, divide, modulo, power, negate, abs, sign, sqrt, exp |
 | `scalar_string` | `KEY_SCALAR_STRING` | upper, lower, trim, contains, starts_with, etc. |
 | `scalar_datetime` | `KEY_SCALAR_DATETIME` | extract |
 | `scalar_rounding` | `KEY_SCALAR_ROUNDING` | round, ceil, floor |
@@ -182,7 +184,7 @@ src/mountainash_expressions/
 | `ext_ma_datetime` | `MOUNTAINASH_DATETIME` | year, month, day, add_days, diff_hours, etc. |
 | `ext_ma_null` | `MOUNTAINASH_NULL` | fill_null, null_if |
 | `ext_ma_name` | `MOUNTAINASH_NAME` | alias, prefix, suffix |
-| `ext_ma_scalar_arithmetic` | `MOUNTAINASH_ARITHMETIC` | floor_divide |
+| `ext_ma_scalar_arithmetic` | `MOUNTAINASH_ARITHMETIC` | floor_divide + Polars aliases (sub, mul, truediv, floordiv, mod, pow, neg) |
 | `ext_ma_scalar_boolean` | `MOUNTAINASH_COMPARISON` | xor_parity, is_close |
 
 ## Test Structure
@@ -328,6 +330,46 @@ class PolarsExpressionSystem(
     """Complete Polars backend ExpressionSystem."""
     pass
 ```
+
+### Namespace Composition
+
+Explicit namespaces (`.str`, `.dt`, `.name`) use composed builder classes that combine Substrait methods with Mountainash extension aliases:
+
+```python
+# Composed builders in boolean.py
+class StringAPIBuilder(
+    MountainAshScalarStringAPIBuilder,   # Polars aliases (to_uppercase, strip_chars, len_chars)
+    SubstraitScalarStringAPIBuilder,      # Substrait methods (upper, trim, char_length)
+):
+    pass
+
+class DatetimeAPIBuilder(
+    MountainAshScalarDatetimeAPIBuilder,  # Extensions + Polars aliases (week, weekday, ordinal_day)
+    SubstraitScalarDatetimeAPIBuilder,    # Substrait methods
+):
+    pass
+
+# Namespace descriptors
+str = NamespaceDescriptor(StringAPIBuilder)
+dt = NamespaceDescriptor(DatetimeAPIBuilder)
+name = NamespaceDescriptor(MountainAshNameAPIBuilder)  # Extensions only (alias, prefix, suffix + to_lowercase, to_uppercase)
+```
+
+**Key architectural fact:** `BaseExpressionAPIBuilder` has only `_node` via `__slots__` — no `_api` attribute exists. All alias methods in extension builders must use **direct AST node construction** (same `ScalarFunctionNode` pattern as regular methods), not delegation.
+
+### Polars-Compatible Aliases
+
+Polars-compatible naming aliases live in **extension builders** (not Substrait builders) because they are not part of the Substrait standard. Extension builders in `_FLAT_NAMESPACES` provide flat aliases (e.g., `sub`, `mul`, `neg`). Namespace extension builders provide namespace aliases (e.g., `to_uppercase`, `strip_chars`).
+
+| Namespace | Extension Builder | Aliases |
+|-----------|------------------|---------|
+| Flat | `api_bldr_ext_ma_scalar_arithmetic.py` | `sub`, `mul`, `truediv`, `floordiv`, `mod`, `pow`, `neg` |
+| Flat | `api_bldr_ext_ma_scalar_comparison.py` | `is_between` |
+| `.str` | `api_bldr_ext_ma_scalar_string.py` | `to_uppercase`, `to_lowercase`, `strip_chars`, `strip_chars_start`, `strip_chars_end`, `len_chars` |
+| `.dt` | `api_bldr_ext_ma_scalar_datetime.py` | `week`, `weekday`, `ordinal_day`, `convert_time_zone`, `replace_time_zone`, `epoch` |
+| `.name` | `api_bldr_ext_ma_name.py` | `to_lowercase`, `to_uppercase` |
+
+See `docs/superpowers/specs/2026-03-25-polars-api-alignment-audit-design.md` for the full comparison matrix and roadmap.
 
 ## Public API (User-Facing)
 
@@ -782,9 +824,21 @@ hatch build               # Build distribution
        return x.some_narwhals_method(y)
    ```
 
-5. **Add tests:**
+5. **Register in function mapping definitions:**
    ```python
-   # tests/cross_backend/test_boolean.py
+   # core/expression_system/function_mapping/definitions.py
+   ExpressionFunctionDef(
+       function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.NEW_OP,
+       substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
+       substrait_name="new_op",
+       protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.new_op,
+   ),
+   ```
+   **Without this step, AST dispatch fails silently.** The ENUM exists but the visitor cannot find the backend method.
+
+6. **Add tests:**
+   ```python
+   # tests/cross_backend/test_comparison.py
    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
    def test_new_op(backend_name, ...):
        ...
@@ -819,6 +873,31 @@ For operations not in Substrait, use the extension pattern:
    # backends/expression_systems/ibis/extensions_mountainash/expsys_ib_ext_ma_<category>.py
    # backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_<category>.py
    ```
+
+### Adding a Polars-Compatible Alias
+
+Polars aliases go in **extension builders** (not Substrait builders). Since `BaseExpressionAPIBuilder` has no `_api` attribute, aliases use direct AST construction:
+
+```python
+# In api_bldr_ext_ma_scalar_arithmetic.py (flat namespace)
+def sub(self, other) -> BaseExpressionAPI:
+    """Alias for subtract() — Polars compatibility."""
+    other_node = self._to_substrait_node(other)
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+        arguments=[self._node, other_node],
+    )
+    return self._build(node)
+```
+
+For namespace aliases where both methods are in the same class, use class-level assignments:
+```python
+# In api_bldr_ext_ma_scalar_datetime.py
+week = week_of_year          # Polars: .dt.week()
+weekday = day_of_week        # Polars: .dt.weekday()
+```
+
+For namespace aliases across composed builders (`.str`), the extension builder must be composed with the Substrait builder via a `StringAPIBuilder` class in `boolean.py`.
 
 ### Debugging Expression Compilation
 
