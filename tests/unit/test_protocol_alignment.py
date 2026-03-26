@@ -943,7 +943,6 @@ class TestInheritanceIntegrity:
             names.add(protocol.__name__)
         return names
 
-    @pytest.mark.xfail(reason="api_bldr_ext_ma_scalar_set.py has copy-paste error: inherits SubstraitScalarSetAPIBuilderProtocol")
     def test_extension_api_builders_do_not_inherit_substrait_protocols(self):
         """Classes in api_builders/extensions_mountainash/ must not inherit Substrait protocols."""
         substrait_names = self._get_substrait_protocol_names()
@@ -995,7 +994,6 @@ class TestInheritanceIntegrity:
     # Check 2: Class names must match their directory location
     # -----------------------------------------------------------------
 
-    @pytest.mark.xfail(reason="api_bldr_ext_ma_scalar_set.py has copy-paste error: class named SubstraitScalarSetAPIBuilder")
     def test_extension_classes_not_named_substrait(self):
         """Classes in extensions_mountainash/ directories must not be named Substrait*."""
         violations = []
@@ -1058,7 +1056,6 @@ class TestInheritanceIntegrity:
     # Check 3: No duplicate class names across sibling directories
     # -----------------------------------------------------------------
 
-    @pytest.mark.xfail(reason="api_bldr_ext_ma_scalar_set.py has copy-paste error: class named SubstraitScalarSetAPIBuilder")
     def test_no_duplicate_class_names_across_substrait_and_extension(self):
         """A class name must not appear in both substrait/ and extensions_mountainash/."""
         violations = []
