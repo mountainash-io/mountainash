@@ -261,11 +261,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with years added.
         """
-        if isinstance(years, int):
-            return x.dt.offset_by(f"{years}y")
-        # For expression, need to build offset string
-        years_expr = pl.lit(years) if not isinstance(years, pl.Expr) else years
-        return x.dt.offset_by(years_expr.cast(pl.Utf8) + "y")
+        years_val = self._extract_literal_value(years)
+        if isinstance(years_val, int):
+            return x.dt.offset_by(f"{years_val}y")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(years.cast(pl.Utf8) + "y")
 
     def add_months(
         self,
@@ -282,10 +282,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with months added.
         """
-        if isinstance(months, int):
-            return x.dt.offset_by(f"{months}mo")
-        months_expr = pl.lit(months) if not isinstance(months, pl.Expr) else months
-        return x.dt.offset_by(months_expr.cast(pl.Utf8) + "mo")
+        months_val = self._extract_literal_value(months)
+        if isinstance(months_val, int):
+            return x.dt.offset_by(f"{months_val}mo")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(months.cast(pl.Utf8) + "mo")
 
     def add_days(
         self,
@@ -302,10 +303,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with days added.
         """
-        if isinstance(days, int):
-            return x.dt.offset_by(f"{days}d")
-        days_expr = pl.lit(days) if not isinstance(days, pl.Expr) else days
-        return x.dt.offset_by(days_expr.cast(pl.Utf8) + "d")
+        days_val = self._extract_literal_value(days)
+        if isinstance(days_val, int):
+            return x.dt.offset_by(f"{days_val}d")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(days.cast(pl.Utf8) + "d")
 
     def add_hours(
         self,
@@ -322,10 +324,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with hours added.
         """
-        if isinstance(hours, int):
-            return x.dt.offset_by(f"{hours}h")
-        hours_expr = pl.lit(hours) if not isinstance(hours, pl.Expr) else hours
-        return x.dt.offset_by(hours_expr.cast(pl.Utf8) + "h")
+        hours_val = self._extract_literal_value(hours)
+        if isinstance(hours_val, int):
+            return x.dt.offset_by(f"{hours_val}h")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(hours.cast(pl.Utf8) + "h")
 
     def add_minutes(
         self,
@@ -342,10 +345,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with minutes added.
         """
-        if isinstance(minutes, int):
-            return x.dt.offset_by(f"{minutes}m")
-        minutes_expr = pl.lit(minutes) if not isinstance(minutes, pl.Expr) else minutes
-        return x.dt.offset_by(minutes_expr.cast(pl.Utf8) + "m")
+        minutes_val = self._extract_literal_value(minutes)
+        if isinstance(minutes_val, int):
+            return x.dt.offset_by(f"{minutes_val}m")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(minutes.cast(pl.Utf8) + "m")
 
     def add_seconds(
         self,
@@ -362,10 +366,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with seconds added.
         """
-        if isinstance(seconds, int):
-            return x.dt.offset_by(f"{seconds}s")
-        seconds_expr = pl.lit(seconds) if not isinstance(seconds, pl.Expr) else seconds
-        return x.dt.offset_by(seconds_expr.cast(pl.Utf8) + "s")
+        seconds_val = self._extract_literal_value(seconds)
+        if isinstance(seconds_val, int):
+            return x.dt.offset_by(f"{seconds_val}s")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(seconds.cast(pl.Utf8) + "s")
 
     def add_milliseconds(
         self,
@@ -382,10 +387,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with milliseconds added.
         """
-        if isinstance(milliseconds, int):
-            return x.dt.offset_by(f"{milliseconds}ms")
-        ms_expr = pl.lit(milliseconds) if not isinstance(milliseconds, pl.Expr) else milliseconds
-        return x.dt.offset_by(ms_expr.cast(pl.Utf8) + "ms")
+        ms_val = self._extract_literal_value(milliseconds)
+        if isinstance(ms_val, int):
+            return x.dt.offset_by(f"{ms_val}ms")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms")
 
     def add_microseconds(
         self,
@@ -402,10 +408,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with microseconds added.
         """
-        if isinstance(microseconds, int):
-            return x.dt.offset_by(f"{microseconds}us")
-        us_expr = pl.lit(microseconds) if not isinstance(microseconds, pl.Expr) else microseconds
-        return x.dt.offset_by(us_expr.cast(pl.Utf8) + "us")
+        us_val = self._extract_literal_value(microseconds)
+        if isinstance(us_val, int):
+            return x.dt.offset_by(f"{us_val}us")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(microseconds.cast(pl.Utf8) + "us")
 
     # =========================================================================
     # Date Difference Methods
@@ -881,11 +888,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with years added.
         """
-        if isinstance(years, int):
-            return x.dt.offset_by(f"{years}y")
-        # For expression, need to build offset string
-        years_expr = pl.lit(years) if not isinstance(years, pl.Expr) else years
-        return x.dt.offset_by(years_expr.cast(pl.Utf8) + "y")
+        years_val = self._extract_literal_value(years)
+        if isinstance(years_val, int):
+            return x.dt.offset_by(f"{years_val}y")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(years.cast(pl.Utf8) + "y")
 
     def add_months(
         self,
@@ -902,10 +909,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with months added.
         """
-        if isinstance(months, int):
-            return x.dt.offset_by(f"{months}mo")
-        months_expr = pl.lit(months) if not isinstance(months, pl.Expr) else months
-        return x.dt.offset_by(months_expr.cast(pl.Utf8) + "mo")
+        months_val = self._extract_literal_value(months)
+        if isinstance(months_val, int):
+            return x.dt.offset_by(f"{months_val}mo")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(months.cast(pl.Utf8) + "mo")
 
     def add_days(
         self,
@@ -922,10 +930,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with days added.
         """
-        if isinstance(days, int):
-            return x.dt.offset_by(f"{days}d")
-        days_expr = pl.lit(days) if not isinstance(days, pl.Expr) else days
-        return x.dt.offset_by(days_expr.cast(pl.Utf8) + "d")
+        days_val = self._extract_literal_value(days)
+        if isinstance(days_val, int):
+            return x.dt.offset_by(f"{days_val}d")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(days.cast(pl.Utf8) + "d")
 
     def add_hours(
         self,
@@ -942,10 +951,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with hours added.
         """
-        if isinstance(hours, int):
-            return x.dt.offset_by(f"{hours}h")
-        hours_expr = pl.lit(hours) if not isinstance(hours, pl.Expr) else hours
-        return x.dt.offset_by(hours_expr.cast(pl.Utf8) + "h")
+        hours_val = self._extract_literal_value(hours)
+        if isinstance(hours_val, int):
+            return x.dt.offset_by(f"{hours_val}h")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(hours.cast(pl.Utf8) + "h")
 
     def add_minutes(
         self,
@@ -962,10 +972,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with minutes added.
         """
-        if isinstance(minutes, int):
-            return x.dt.offset_by(f"{minutes}m")
-        minutes_expr = pl.lit(minutes) if not isinstance(minutes, pl.Expr) else minutes
-        return x.dt.offset_by(minutes_expr.cast(pl.Utf8) + "m")
+        minutes_val = self._extract_literal_value(minutes)
+        if isinstance(minutes_val, int):
+            return x.dt.offset_by(f"{minutes_val}m")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(minutes.cast(pl.Utf8) + "m")
 
     def add_seconds(
         self,
@@ -982,10 +993,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with seconds added.
         """
-        if isinstance(seconds, int):
-            return x.dt.offset_by(f"{seconds}s")
-        seconds_expr = pl.lit(seconds) if not isinstance(seconds, pl.Expr) else seconds
-        return x.dt.offset_by(seconds_expr.cast(pl.Utf8) + "s")
+        seconds_val = self._extract_literal_value(seconds)
+        if isinstance(seconds_val, int):
+            return x.dt.offset_by(f"{seconds_val}s")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(seconds.cast(pl.Utf8) + "s")
 
     def add_milliseconds(
         self,
@@ -1002,10 +1014,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with milliseconds added.
         """
-        if isinstance(milliseconds, int):
-            return x.dt.offset_by(f"{milliseconds}ms")
-        ms_expr = pl.lit(milliseconds) if not isinstance(milliseconds, pl.Expr) else milliseconds
-        return x.dt.offset_by(ms_expr.cast(pl.Utf8) + "ms")
+        ms_val = self._extract_literal_value(milliseconds)
+        if isinstance(ms_val, int):
+            return x.dt.offset_by(f"{ms_val}ms")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms")
 
     def add_microseconds(
         self,
@@ -1022,10 +1035,11 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with microseconds added.
         """
-        if isinstance(microseconds, int):
-            return x.dt.offset_by(f"{microseconds}us")
-        us_expr = pl.lit(microseconds) if not isinstance(microseconds, pl.Expr) else microseconds
-        return x.dt.offset_by(us_expr.cast(pl.Utf8) + "us")
+        us_val = self._extract_literal_value(microseconds)
+        if isinstance(us_val, int):
+            return x.dt.offset_by(f"{us_val}us")
+        # Fallback: expression-based offset
+        return x.dt.offset_by(microseconds.cast(pl.Utf8) + "us")
 
     # =========================================================================
     # Date Difference Methods

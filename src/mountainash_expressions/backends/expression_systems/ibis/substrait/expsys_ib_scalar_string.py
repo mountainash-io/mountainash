@@ -222,8 +222,6 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         length_val = self._extract_literal_value(length)
         fill_char = " " if characters is None else self._extract_literal_value(characters)
-        if not isinstance(fill_char, str):
-            fill_char = " "
         return input.lpad(length_val, fill_char)
 
     def rpad(
@@ -245,8 +243,6 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         length_val = self._extract_literal_value(length)
         fill_char = " " if characters is None else self._extract_literal_value(characters)
-        if not isinstance(fill_char, str):
-            fill_char = " "
         return input.rpad(length_val, fill_char)
 
     def center(
@@ -379,9 +375,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             if is_regex:
                 # Use re_search for regex patterns
                 return input.re_search(pattern)
-            else:
-                # Use literal contains for plain strings
-                return input.contains(pattern)
+        # Use literal contains for plain strings (or non-literal expressions)
         return input.contains(pattern)
 
     def starts_with(

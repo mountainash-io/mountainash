@@ -178,9 +178,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         """
         if characters is None:
             return input.str.strip_chars()
-        if isinstance(characters, str):
-            return input.str.strip_chars(characters)
-        return input.str.strip_chars()
+        chars_val = self._extract_literal_value(characters)
+        return input.str.strip_chars(chars_val)
 
     def ltrim(
         self,
@@ -318,12 +317,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         start_val = self._extract_literal_value(start)
         length_val = self._extract_literal_value(length) if length is not None else None
 
-        # Narwhals str.slice only accepts int, not expressions
-        if not isinstance(start_val, int):
-            start_val = 0
-        if length_val is not None and not isinstance(length_val, int):
-            # Cannot use expression-typed length in Narwhals
-            length_val = None
+        # Coerce to int (extraction may return float for numeric literals)
+        start_val = int(start_val) if start_val is not None else 0
+        if length_val is not None:
+            length_val = int(length_val)
 
         if length_val is None:
             return input.str.slice(start_val)
@@ -336,9 +333,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
         """Extract count characters from the left."""
-        count_val = self._extract_literal_value(count)
-        if isinstance(count_val, int):
-            return input.str.slice(0, count_val)
+        count_val = int(self._extract_literal_value(count))
         return input.str.slice(0, count_val)
 
     def right(
@@ -348,9 +343,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
         """Extract count characters from the right."""
-        count_val = self._extract_literal_value(count)
-        if isinstance(count_val, int):
-            return input.str.slice(-count_val)
+        count_val = int(self._extract_literal_value(count))
         return input.str.slice(-count_val)
 
     def replace_slice(

@@ -63,11 +63,5 @@ class SubstraitPolarsScalarRoundingExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Rounded value.
         """
-        # Polars round takes an integer, not an expression
-        # For now, we assume s is a literal integer value
-        # In practice, the visitor should resolve s to an integer
-        if isinstance(s, int):
-            return x.round(s)
-        # If s is an expression, we need to evaluate it
-        # This is a simplification - full implementation would handle expression s
-        return x.round(0)
+        s_val = self._extract_literal_value(s)
+        return x.round(int(s_val))

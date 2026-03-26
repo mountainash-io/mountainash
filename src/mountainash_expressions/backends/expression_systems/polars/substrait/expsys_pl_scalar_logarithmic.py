@@ -111,11 +111,10 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
         Returns:
             Log base `base` of x.
         """
-        # Polars log() accepts a base parameter
-        # For expression base, we need to use change of base formula
-        if isinstance(base, (int, float)):
-            return x.log(base)
-        # Change of base: log_b(x) = ln(x) / ln(b)
+        base_val = self._extract_literal_value(base)
+        if isinstance(base_val, (int, float)):
+            return x.log(base_val)
+        # Fallback: change of base formula for expression base
         return x.log() / base.log()
 
     def log1p(

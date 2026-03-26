@@ -68,8 +68,5 @@ class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSyst
         Returns:
             Rounded value.
         """
-        # Narwhals round takes an integer
-        if isinstance(s, int):
-            return x.round(s)
-        # For expression s, fallback to 0 decimal places
-        return x.round(0)
+        s_val = self._extract_literal_value(s)
+        return x.round(int(s_val))

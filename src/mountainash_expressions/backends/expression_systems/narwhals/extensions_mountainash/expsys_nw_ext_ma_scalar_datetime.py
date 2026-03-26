@@ -250,9 +250,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with years added.
         """
         years_val = self._extract_literal_value(years)
-        if isinstance(years_val, int):
-            return x.dt.offset_by(f"{years_val}y")
-        return x
+        return x.dt.offset_by(f"{int(years_val)}y")
 
     def add_months(
         self,
@@ -270,9 +268,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with months added.
         """
         months_val = self._extract_literal_value(months)
-        if isinstance(months_val, int):
-            return x.dt.offset_by(f"{months_val}mo")
-        return x
+        return x.dt.offset_by(f"{int(months_val)}mo")
 
     def add_days(
         self,
@@ -290,9 +286,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with days added.
         """
         days_val = self._extract_literal_value(days)
-        if isinstance(days_val, int):
-            return x.dt.offset_by(f"{days_val}d")
-        return x
+        return x.dt.offset_by(f"{int(days_val)}d")
 
     def add_hours(
         self,
@@ -310,9 +304,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with hours added.
         """
         hours_val = self._extract_literal_value(hours)
-        if isinstance(hours_val, int):
-            return x.dt.offset_by(f"{hours_val}h")
-        return x
+        return x.dt.offset_by(f"{int(hours_val)}h")
 
     def add_minutes(
         self,
@@ -330,9 +322,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with minutes added.
         """
         minutes_val = self._extract_literal_value(minutes)
-        if isinstance(minutes_val, int):
-            return x.dt.offset_by(f"{minutes_val}m")
-        return x
+        return x.dt.offset_by(f"{int(minutes_val)}m")
 
     def add_seconds(
         self,
@@ -350,9 +340,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with seconds added.
         """
         seconds_val = self._extract_literal_value(seconds)
-        if isinstance(seconds_val, int):
-            return x.dt.offset_by(f"{seconds_val}s")
-        return x
+        return x.dt.offset_by(f"{int(seconds_val)}s")
 
     def add_milliseconds(
         self,
@@ -373,10 +361,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Narwhals offset_by may not support 'ms'. Falls back to microseconds.
         """
         ms_val = self._extract_literal_value(milliseconds)
-        if isinstance(ms_val, int):
-            # Convert to microseconds: 1ms = 1000us
-            return x.dt.offset_by(f"{ms_val * 1000}us")
-        return x
+        # Convert to microseconds: 1ms = 1000us
+        return x.dt.offset_by(f"{int(ms_val) * 1000}us")
 
     def add_microseconds(
         self,
@@ -394,9 +380,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with microseconds added.
         """
         us_val = self._extract_literal_value(microseconds)
-        if isinstance(us_val, int):
-            return x.dt.offset_by(f"{us_val}us")
-        return x
+        return x.dt.offset_by(f"{int(us_val)}us")
 
     # =========================================================================
     # Date Difference Methods
@@ -894,9 +878,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with years added.
         """
         years_val = self._extract_literal_value(years)
-        if isinstance(years_val, int):
-            return x.dt.offset_by(f"{years_val}y")
-        return x
+        return x.dt.offset_by(f"{int(years_val)}y")
 
     def add_months(
         self,
@@ -914,9 +896,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with months added.
         """
         months_val = self._extract_literal_value(months)
-        if isinstance(months_val, int):
-            return x.dt.offset_by(f"{months_val}mo")
-        return x
+        return x.dt.offset_by(f"{int(months_val)}mo")
 
     def add_days(
         self,
@@ -934,9 +914,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with days added.
         """
         days_val = self._extract_literal_value(days)
-        if isinstance(days_val, int):
-            return x.dt.offset_by(f"{days_val}d")
-        return x
+        return x.dt.offset_by(f"{int(days_val)}d")
 
     def add_hours(
         self,
@@ -954,9 +932,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with hours added.
         """
         hours_val = self._extract_literal_value(hours)
-        if isinstance(hours_val, int):
-            return x.dt.offset_by(f"{hours_val}h")
-        return x
+        return x.dt.offset_by(f"{int(hours_val)}h")
 
     def add_minutes(
         self,
@@ -974,9 +950,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with minutes added.
         """
         minutes_val = self._extract_literal_value(minutes)
-        if isinstance(minutes_val, int):
-            return x.dt.offset_by(f"{minutes_val}m")
-        return x
+        return x.dt.offset_by(f"{int(minutes_val)}m")
 
     def add_seconds(
         self,
@@ -994,9 +968,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with seconds added.
         """
         seconds_val = self._extract_literal_value(seconds)
-        if isinstance(seconds_val, int):
-            return x.dt.offset_by(f"{seconds_val}s")
-        return x
+        return x.dt.offset_by(f"{int(seconds_val)}s")
 
     def add_milliseconds(
         self,
@@ -1017,10 +989,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Narwhals offset_by may not support 'ms'. Falls back to microseconds.
         """
         ms_val = self._extract_literal_value(milliseconds)
-        if isinstance(ms_val, int):
-            # Convert to microseconds: 1ms = 1000us
-            return x.dt.offset_by(f"{ms_val * 1000}us")
-        return x
+        # Convert to microseconds: 1ms = 1000us
+        return x.dt.offset_by(f"{int(ms_val) * 1000}us")
 
     def add_microseconds(
         self,
@@ -1038,9 +1008,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Datetime with microseconds added.
         """
         us_val = self._extract_literal_value(microseconds)
-        if isinstance(us_val, int):
-            return x.dt.offset_by(f"{us_val}us")
-        return x
+        return x.dt.offset_by(f"{int(us_val)}us")
 
     # =========================================================================
     # Date Difference Methods

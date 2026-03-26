@@ -179,10 +179,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars()
-        if isinstance(characters, str):
-            return input.str.strip_chars(characters)
-        # If characters is an expression, we need a different approach
-        return input.str.strip_chars()
+        chars_val = self._extract_literal_value(characters)
+        return input.str.strip_chars(chars_val)
 
     def ltrim(
         self,
@@ -201,9 +199,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars_start()
-        if isinstance(characters, str):
-            return input.str.strip_chars_start(characters)
-        return input.str.strip_chars_start()
+        chars_val = self._extract_literal_value(characters)
+        return input.str.strip_chars_start(chars_val)
 
     def rtrim(
         self,
@@ -222,9 +219,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars_end()
-        if isinstance(characters, str):
-            return input.str.strip_chars_end(characters)
-        return input.str.strip_chars_end()
+        chars_val = self._extract_literal_value(characters)
+        return input.str.strip_chars_end(chars_val)
 
     def lpad(
         self,
@@ -245,8 +241,6 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         length_val = self._extract_literal_value(length)
         fill_char = " " if characters is None else self._extract_literal_value(characters)
-        if not isinstance(fill_char, str):
-            fill_char = " "
         return input.str.pad_start(length_val, fill_char)
 
     def rpad(
@@ -268,8 +262,6 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         length_val = self._extract_literal_value(length)
         fill_char = " " if characters is None else self._extract_literal_value(characters)
-        if not isinstance(fill_char, str):
-            fill_char = " "
         return input.str.pad_end(length_val, fill_char)
 
     def center(
@@ -291,18 +283,14 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Centered string.
         """
-        fill_char = " " if character is None else character
-        if isinstance(length, int) and isinstance(fill_char, str):
-            return input.str.zfill(length)  # Polars doesn't have center
-        # Use map_elements for proper centering
-        if isinstance(length, int):
-            target_len = length
-            char = fill_char if isinstance(fill_char, str) else " "
-            return input.map_elements(
-                lambda s: s.center(target_len, char) if s is not None else None,
-                return_dtype=pl.String,
-            )
-        return input
+        fill_char_val = " " if character is None else self._extract_literal_value(character)
+        length_val = self._extract_literal_value(length)
+        target_len = int(length_val)
+        char = str(fill_char_val) if not isinstance(fill_char_val, str) else fill_char_val
+        return input.map_elements(
+            lambda s: s.center(target_len, char) if s is not None else None,
+            return_dtype=pl.String,
+        )
 
     # =========================================================================
     # Substring Operations
@@ -343,8 +331,6 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
     ) -> PolarsExpr:
         """Extract count characters from the left."""
         count_val = self._extract_literal_value(count)
-        if isinstance(count_val, int):
-            return input.str.slice(0, count_val)
         return input.str.slice(0, count_val)
 
     def right(
@@ -355,8 +341,6 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
     ) -> PolarsExpr:
         """Extract count characters from the right."""
         count_val = self._extract_literal_value(count)
-        if isinstance(count_val, int):
-            return input.str.slice(-count_val)
         return input.str.slice(-count_val)
 
     def replace_slice(
@@ -378,14 +362,16 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             String with replaced slice.
         """
-        # This requires UDF for complex cases
-        if isinstance(start, int) and isinstance(length, int) and isinstance(replacement, str):
-            offset = start - 1 if start > 0 else 0
-            return input.map_elements(
-                lambda s: (s[:offset] + replacement + s[offset + length :]) if s is not None else None,
-                return_dtype=pl.String,
-            )
-        return input  # Fallback
+        start_val = self._extract_literal_value(start)
+        length_val = self._extract_literal_value(length)
+        replacement_val = self._extract_literal_value(replacement)
+        offset = int(start_val) - 1 if int(start_val) > 0 else 0
+        repl = str(replacement_val)
+        len_val = int(length_val)
+        return input.map_elements(
+            lambda s: (s[:offset] + repl + s[offset + len_val :]) if s is not None else None,
+            return_dtype=pl.String,
+        )
 
     # =========================================================================
     # Search Operations
@@ -411,15 +397,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         # Extract literal value from Expr if needed
         pattern = self._extract_literal_value(substring)
 
-        if isinstance(pattern, str):
-            # Check if pattern looks like a regex (contains special chars)
-            # If so, use literal=False to interpret as regex
-            regex_chars = r".*+?^${}[]|()\\"
-            is_regex = any(c in pattern for c in regex_chars)
-            return input.str.contains(pattern, literal=not is_regex)
-
-        # Fallback for non-string patterns
-        return input.str.contains(pattern, literal=True)
+        regex_chars = r".*+?^${}[]|()\\"
+        is_regex = any(c in str(pattern) for c in regex_chars)
+        return input.str.contains(str(pattern), literal=not is_regex)
 
     def starts_with(
         self,
@@ -478,9 +458,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         # Polars find returns 0-indexed position, -1 if not found
         # Substrait expects 1-indexed, 0 if not found
-        if isinstance(substring, str):
-            return (input.str.find(substring, literal=True) + 1).fill_null(0)
-        return (input.str.find(substring, literal=True) + 1).fill_null(0)
+        sub_val = self._extract_literal_value(substring)
+        return (input.str.find(sub_val, literal=True) + 1).fill_null(0)
 
     def count_substring(
         self,
@@ -499,9 +478,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Count of occurrences.
         """
-        if isinstance(substring, str):
-            return input.str.count_matches(substring, literal=True)
-        return input.str.count_matches(substring, literal=True)
+        sub_val = self._extract_literal_value(substring)
+        return input.str.count_matches(sub_val, literal=True)
 
     # =========================================================================
     # Length Operations
@@ -623,13 +601,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             Repeated string.
         """
         count_val = self._extract_literal_value(count)
-        if isinstance(count_val, int):
-            n = count_val
-            return input.map_elements(
-                lambda s: s * n if s is not None else None,
-                return_dtype=pl.String,
-            )
-        return input
+        n = int(count_val)
+        return input.map_elements(
+            lambda s: s * n if s is not None else None,
+            return_dtype=pl.String,
+        )
 
     def reverse(self, input: PolarsExpr, /) -> PolarsExpr:
         """Return the string in reverse order.
@@ -666,17 +642,14 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         # Extract literal value from Expr if needed
         pattern = self._extract_literal_value(match)
 
-        if isinstance(pattern, str):
-            # Convert SQL LIKE pattern to regex
-            # Use placeholders to avoid conflicts during escaping
-            like_pattern = pattern.replace("%", "\x00PERCENT\x00").replace("_", "\x00UNDERSCORE\x00")
-            regex_pattern = re.escape(like_pattern)
-            regex_pattern = regex_pattern.replace("\x00PERCENT\x00", ".*").replace("\x00UNDERSCORE\x00", ".")
-            regex_pattern = f"^{regex_pattern}$"
-            return input.str.contains(regex_pattern, literal=False)
-
-        # Fallback for non-string patterns
-        return input.str.contains(pattern, literal=False)
+        pattern_str = str(pattern)
+        # Convert SQL LIKE pattern to regex
+        # Use placeholders to avoid conflicts during escaping
+        like_pattern = pattern_str.replace("%", "\x00PERCENT\x00").replace("_", "\x00UNDERSCORE\x00")
+        regex_pattern = re.escape(like_pattern)
+        regex_pattern = regex_pattern.replace("\x00PERCENT\x00", ".*").replace("\x00UNDERSCORE\x00", ".")
+        regex_pattern = f"^{regex_pattern}$"
+        return input.str.contains(regex_pattern, literal=False)
 
     def regexp_match_substring(
         self,

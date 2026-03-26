@@ -113,10 +113,10 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
         Returns:
             Log base `base` of x.
         """
-        # Ibis has log(x, base)
-        if isinstance(base, (int, float)):
-            return x.log(base)
-        # For expression base, use change of base formula
+        base_val = self._extract_literal_value(base)
+        if isinstance(base_val, (int, float)):
+            return x.log(base_val)
+        # Fallback: change of base formula for expression base
         return x.ln() / base.ln()
 
     def log1p(
