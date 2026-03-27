@@ -292,7 +292,105 @@ ma.t_col("legacy_score", unknown={-99999, -1}).t_gt(50)
 ma.t_col("status", unknown={"NA", "<MISSING>", None}).t_eq("active")
 ```
 
-### 5. Telemetry & Observability: Know What Happened
+### 5. t_col(): The Universal Nullif You've Always Wanted
+
+**The ClickHouse Insight:** ClickHouse documentation recommends using sentinel values instead of NULL for performance reasons. Many systems follow this pattern—legacy databases use `-99999` for missing values, analytics systems use empty strings, ETL pipelines use marker values.
+
+**The Problem:** These sentinel values break standard comparisons:
+
+```python
+# Legacy system uses -99999 for "not evaluated"
+df.filter(col("score") > 70)
+# WRONG: -99999 > 70 is False, treated as "definitely below threshold"
+# Should be: "we don't know, treat as UNKNOWN"
+```
+
+**The Solution: `t_col()` - configurable nullif:**
+
+```python
+import mountainash_expressions as ma
+
+# Treat -99999 as UNKNOWN (like SQL's NULLIF)
+expr = ma.t_col("score", unknown={-99999}).t_gt(70)
+
+# Now:
+# score=80    → TRUE (1)   - definitely above threshold
+# score=-99999 → UNKNOWN (0) - can't determine
+# score=60    → FALSE (-1)  - definitely below threshold
+# score=NULL  → UNKNOWN (0) - also can't determine
+
+# Multiple sentinels from merged systems
+expr = ma.t_col("value", unknown={-999, -9999, "", "N/A", None}).t_eq("active")
+```
+
+**Real-World Use Cases:**
+
+```python
+# Healthcare: Missing vitals coded as 0 or -1
+expr = ma.t_col("blood_pressure", unknown={0, -1}).t_gt(120)
+
+# Financial: Placeholder prices before market open
+expr = ma.t_col("price", unknown={0.0, -0.01}).t_ge(100)
+
+# Survey data: "Prefer not to answer" coded as 99
+expr = ma.t_col("age", unknown={99, 999}).t_between(25, 65)
+
+# Multi-system merge: Different null representations
+expr = ma.t_col("status", unknown={"", "NULL", "N/A", "<missing>", None}).t_eq("active")
+```
+
+### 6. Auto-Booleanization: Seamless Filter Integration
+
+Ternary expressions return -1/0/1, but DataFrames need boolean filters. We handle this automatically:
+
+```python
+# Build a ternary expression
+expr = ma.col("score").t_gt(70)
+
+# Compile with automatic booleanization (default: is_true)
+filter_expr = expr.compile(df)  # TRUE(1) → True, else → False
+result = df.filter(filter_expr)
+
+# Choose your booleanization strategy:
+expr.compile(df, booleanizer="is_true")     # Strict: only TRUE passes
+expr.compile(df, booleanizer="maybe_true")  # Lenient: TRUE or UNKNOWN passes
+expr.compile(df, booleanizer=None)          # Raw: get -1/0/1 for analysis
+
+# Custom booleanizer
+expr.compile(df, booleanizer=lambda e: e.ge(0))  # UNKNOWN or TRUE passes
+```
+
+**Filtering Strategies:**
+
+| Strategy | Use Case | TRUE | UNKNOWN | FALSE |
+|----------|----------|------|---------|-------|
+| `is_true` (default) | Strict filtering - only certain matches | ✅ | ❌ | ❌ |
+| `maybe_true` | Lenient - include uncertain | ✅ | ✅ | ❌ |
+| `is_false` | Find definite failures | ❌ | ❌ | ✅ |
+| `is_unknown` | Data quality - find uncertain | ❌ | ✅ | ❌ |
+| `is_known` | Find all evaluated records | ✅ | ❌ | ✅ |
+
+### 7. Bidirectional Coercion: Mix Boolean and Ternary Naturally
+
+The namespace layer automatically handles type coercion:
+
+```python
+# Boolean expression in ternary context → auto-wrapped with to_ternary()
+expr = ma.col("active").eq(True).t_and(ma.col("score").t_gt(70))
+# Internally: to_ternary(eq(True)).t_and(t_gt(70))
+
+# This enables natural chaining across logic types:
+expr = (
+    ma.col("is_premium").eq(True)           # Boolean
+    .t_and(ma.col("rating").t_ge(4))        # Mixed into ternary
+    .t_or(ma.col("legacy_vip").t_eq(True))  # Ternary continues
+)
+
+# At compile time, auto-booleanize for filtering
+result = df.filter(expr.compile(df))
+```
+
+### 8. Telemetry & Observability: Know What Happened
 
 Expressions are inspectable, so you can log exactly what was applied:
 
@@ -342,7 +440,7 @@ print(logged_df.applied_expressions)
 - Compliance logging (what rules were applied?)
 - Usage analytics (which columns are queried most?)
 
-### 6. Expression Composition: Build Complex Rules from Simple Parts
+### 9. Expression Composition: Build Complex Rules from Simple Parts
 
 Expressions are first-class objects that can be composed:
 
@@ -371,7 +469,7 @@ rule = ma.from_json(rule_library[rule_name])
 result = df.filter(rule.compile(df))
 ```
 
-### 7. Testing & Validation: Prove Correctness
+### 10. Testing & Validation: Prove Correctness
 
 Because expressions are abstract, you can test them systematically:
 
@@ -540,7 +638,66 @@ def process_customer_data(df, customer_id):
 # 4. Reconstruct the exact filtering logic (from_json)
 ```
 
-### Scenario 4: A/B Testing Filter Strategies
+### Scenario 4: Legacy Data with Sentinel Values (The ClickHouse Pattern)
+
+**Situation:** You're working with data from systems that use sentinel values instead of NULL—a pattern ClickHouse explicitly recommends for performance, and common in legacy databases, ETL pipelines, and merged data sources.
+
+**The Data Reality:**
+```python
+# System A uses -99999 for "not evaluated"
+# System B uses 0 for "missing"
+# System C uses empty string for "unknown"
+# All merged into one table
+
+df = pl.DataFrame({
+    "score_a": [85, -99999, 72, None],      # -99999 = not evaluated
+    "score_b": [0, 90, 65, 0],               # 0 = missing
+    "status": ["active", "", "pending", ""],  # "" = unknown
+})
+```
+
+**Traditional Approach:** Write complex CASE WHEN logic everywhere:
+```python
+# Nightmare: every filter needs sentinel handling
+df.filter(
+    pl.when(pl.col("score_a") != -99999)
+      .then(pl.col("score_a") > 70)
+      .otherwise(None)
+    & pl.when(pl.col("score_b") != 0)
+        .then(pl.col("score_b") > 70)
+        .otherwise(None)
+    # ... and so on
+)
+```
+
+**With mountainash-expressions:**
+```python
+import mountainash_expressions as ma
+
+# Define sentinel-aware columns ONCE
+score_a = ma.t_col("score_a", unknown={-99999})
+score_b = ma.t_col("score_b", unknown={0})
+status = ma.t_col("status", unknown={""})
+
+# Build clean, readable expressions
+high_performers = (
+    score_a.t_gt(70)
+    .t_and(score_b.t_gt(70))
+    .t_and(status.t_eq("active"))
+)
+
+# Filter strategies:
+# "Only include if ALL conditions are definitely TRUE"
+strict = df.filter(high_performers.compile(df, booleanizer="is_true"))
+
+# "Include if might be true (give benefit of doubt to unknowns)"
+lenient = df.filter(high_performers.compile(df, booleanizer="maybe_true"))
+
+# "Find records with uncertain data for review"
+needs_review = df.filter(high_performers.compile(df, booleanizer="is_unknown"))
+```
+
+### Scenario 5: A/B Testing Filter Strategies
 
 **Situation:** You want to test whether a stricter filter improves downstream model performance.
 
@@ -623,13 +780,14 @@ result = another_df.filter(loaded_expr.compile(another_df))
 - **Null handling** - is_null, is_not_null, fill_null
 - **Semantic normalization** - Consistent modulo, division behavior across backends
 - **Natural language temporal** - `within_last("24 hours")`, `older_than("7 days")`
-
-### Designed, Implementation Ready 🔄
-
-- **Ternary logic** - Full design in `docs/TERNARY_LOGIC_ARCHITECTURE.md`
-  - `t_eq()`, `t_and()`, `t_or()`, `t_not()`
-  - Booleanizers: `is_true()`, `maybe_true()`, `is_unknown()`
-  - Custom sentinel values per column
+- **Ternary logic** - Full three-valued logic with 1,400+ tests
+  - All ternary operators: `t_eq()`, `t_ne()`, `t_gt()`, `t_lt()`, `t_ge()`, `t_le()`
+  - Logical operations: `t_and()`, `t_or()`, `t_not()`, `t_xor()`, `t_xor_parity()`
+  - Collection operations: `t_is_in()`, `t_is_not_in()`
+  - Booleanizers: `is_true()`, `maybe_true()`, `is_false()`, `maybe_false()`, `is_unknown()`, `is_known()`
+  - **`t_col()` - configurable nullif** with custom sentinel values per column
+  - **Auto-booleanization** at compile time with `booleanizer` parameter
+  - **Bidirectional coercion** between boolean and ternary expressions
 
 ### Planned / Aspirational 📋
 
@@ -672,7 +830,9 @@ The AST-first architecture makes all these features straightforward to implement
 | Platform migrations | ✅ Now | Same expressions work on any backend |
 | Package development | ✅ Now | True DataFrame-agnostic expression building |
 | Cross-backend testing | ✅ Now | Parametrized test suite included |
-| NULL-aware logic | 🔄 Designed | Ternary logic with custom sentinels |
+| NULL-aware logic | ✅ Now | **Ternary logic** with `is_true()`, `maybe_true()`, etc. |
+| Sentinel value handling | ✅ Now | **`t_col()`** - configurable nullif for legacy data |
+| Auto-booleanization | ✅ Now | Seamless ternary→boolean at compile time |
 | Expression serialization | 📋 Planned | JSON/YAML representation |
 | Audit trail utilities | 📋 Planned | Fingerprinting, column extraction |
 | Extended pattern library | 📋 Planned | Business day calc, truncation, validation |
