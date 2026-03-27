@@ -2,10 +2,10 @@
 allow-direct-references = true
 
 [version]
-path = "src/mountainash_expressions/__version__.py"
+path = "src/mountainash/__version__.py"
 
 [build.targets.wheel]
-packages = ["src/mountainash_expressions"]
+packages = ["src/mountainash", "src/mountainash_expressions"]
 
 
 #================
@@ -300,4 +300,4 @@ radon-cc-detail = "radon cc ./src"
 installer = "uv"
 dependencies = ["mypy==1.10.1"]
 [envs.mypy.scripts]
-check = "mypy --install-types --non-interactive {args:src/mountainash_expressions tests}"
+check = "mypy --install-types --non-interactive {args:src/mountainash tests}"

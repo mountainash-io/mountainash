@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 dependencies = [
     # Core framework dependencies (always required)
     # Using local ibis with Polars calendar interval fix
-    "ibis-framework[pandas,sqlite,duckdb]" # @ file:///home/nathanielramm/git/ibis",
+    "ibis-framework[pandas,sqlite,duckdb]",
     "numpy>=1.23.2,<3",
     "pandas>=2.2.0",  # Primary DataFrame library - always required
     "polars>=1.35.1",  # Required for IbisDataFrame default backend
@@ -23,9 +23,9 @@ dependencies = [
 
 ]
 keywords = []
-name = "mountainash_expressions"
+name = "mountainash"
 dynamic = ["version"]
-description = 'Mountain Ash - DataFrames'
+description = 'Mountain Ash - Unified cross-backend DataFrame expression system'
 readme = "README.md"
 requires-python = ">=3.10"
 # license = "Proprietary"
@@ -69,15 +69,15 @@ Source = "https://github.com/mountainash-io/mountainash-expressions"
 # Tool: Coverage
 #================
 [tool.coverage.run]
-source_pkgs = ["mountainash_expressions", "tests"]
+source_pkgs = ["mountainash", "tests"]
 branch = true
 parallel = true
-omit = ["src/mountainash_expressions/__version__.py"]
+omit = ["src/mountainash/__version__.py", "src/mountainash/expressions/__version__.py"]
 
 [tool.coverage.paths]
 mountainash_data = [
-    "src/mountainash_expressions",
-    "*/mountainash-expressions/src/mountainash_expressions",
+    "src/mountainash",
+    "*/mountainash-expressions/src/mountainash",
 ]
 tests = ["tests", "*/mountainash-expressions/tests"]
 
