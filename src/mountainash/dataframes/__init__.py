@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from .__version__ import __version__
-
 # Keep only essential API exports that don't trigger heavy imports
 from .constants import CONST_DATAFRAME_FRAMEWORK, CONST_IBIS_INMEMORY_BACKEND, CONST_EXPRESSION_TYPE, CONST_JOIN_BACKEND_TYPE, CONST_DATAFRAME_BACKEND, CONST_DATAFRAME_TYPE
 from .core.typing import SupportedDataFrames, SupportedExpressions, SupportedPythonData, SupportedSeries
@@ -43,15 +41,11 @@ def __getattr__(name: str):
     if name == "DataFrameUtils":
         from .core.api.dataframe_utils import DataFrameUtils
         return DataFrameUtils
-    if name == "SchemaConfig":
-        from .schema_config import SchemaConfig
-        return SchemaConfig
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # Combine lazy loaded subpackages with essential exports
 __all__ = [
-    "__version__",
     # High-level API (lazy loaded for now)
     "DataFrameUtils",
     # New DataFrameSystem architecture (primary API)
@@ -80,8 +74,6 @@ __all__ = [
     "SupportedExpressions",
     "SupportedPythonData",
     "SupportedSeries",
-    # Schema (lazy loaded)
-    "SchemaConfig",
     # Constants
     "CONST_DATAFRAME_FRAMEWORK",
     "CONST_IBIS_INMEMORY_BACKEND",
