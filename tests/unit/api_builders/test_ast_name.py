@@ -1,8 +1,8 @@
 """AST construction tests for name operations API builders."""
 import pytest
 import mountainash_expressions as ma
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
 
 class TestNameMethods:
     def test_alias(self):

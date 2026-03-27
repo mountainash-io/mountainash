@@ -264,7 +264,7 @@ def check_alignment(
 # Substrait Protocol Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
     SubstraitCastExpressionSystemProtocol,
     SubstraitConditionalExpressionSystemProtocol,
     SubstraitFieldReferenceExpressionSystemProtocol,
@@ -284,7 +284,7 @@ from mountainash_expressions.core.expression_protocols.expression_systems.substr
 # Mountainash Extension Protocol Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
     MountainAshNullExpressionSystemProtocol,
     MountainAshNameExpressionSystemProtocol,
     MountainAshScalarArithmeticExpressionSystemProtocol,
@@ -298,88 +298,88 @@ from mountainash_expressions.core.expression_protocols.expression_systems.extens
 # Polars Backend Implementation Imports
 # =============================================================================
 
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_cast import SubstraitPolarsCastExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_conditional import SubstraitPolarsConditionalExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_field_reference import SubstraitPolarsFieldReferenceExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_literal import SubstraitPolarsLiteralExpressionSystem
-# from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_aggregate import SubstraitPolarsScalarAggregateExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_arithmetic import SubstraitPolarsScalarArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_comparison import SubstraitPolarsScalarComparisonExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_datetime import SubstraitPolarsScalarDatetimeExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_logarithmic import SubstraitPolarsScalarLogarithmicExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_rounding import SubstraitPolarsScalarRoundingExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_set import SubstraitPolarsScalarSetExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_string import SubstraitPolarsScalarStringExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_cast import SubstraitPolarsCastExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_conditional import SubstraitPolarsConditionalExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_field_reference import SubstraitPolarsFieldReferenceExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_literal import SubstraitPolarsLiteralExpressionSystem
+# from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_aggregate import SubstraitPolarsScalarAggregateExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_arithmetic import SubstraitPolarsScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_comparison import SubstraitPolarsScalarComparisonExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_datetime import SubstraitPolarsScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_logarithmic import SubstraitPolarsScalarLogarithmicExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_rounding import SubstraitPolarsScalarRoundingExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_set import SubstraitPolarsScalarSetExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.substrait.expsys_pl_scalar_string import SubstraitPolarsScalarStringExpressionSystem
 
 # Polars Mountainash Extensions
-from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_null import MountainAshPolarsNullExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_name import MountainAshPolarsNameExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
-from mountainash_expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_null import MountainAshPolarsNullExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_name import MountainAshPolarsNameExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
 
 # =============================================================================
 # Ibis Backend Implementation Imports
 # =============================================================================
 
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_cast import SubstraitIbisCastExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_conditional import SubstraitIbisConditionalExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_field_reference import SubstraitIbisFieldReferenceExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_literal import SubstraitIbisLiteralExpressionSystem
-# from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_aggregate import SubstraitIbisScalarAggregateExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_arithmetic import SubstraitIbisScalarArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_comparison import SubstraitIbisScalarComparisonExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_datetime import SubstraitIbisScalarDatetimeExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_logarithmic import SubstraitIbisScalarLogarithmicExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_rounding import SubstraitIbisScalarRoundingExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_set import SubstraitIbisScalarSetExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_string import SubstraitIbisScalarStringExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_cast import SubstraitIbisCastExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_conditional import SubstraitIbisConditionalExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_field_reference import SubstraitIbisFieldReferenceExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_literal import SubstraitIbisLiteralExpressionSystem
+# from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_aggregate import SubstraitIbisScalarAggregateExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_arithmetic import SubstraitIbisScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_comparison import SubstraitIbisScalarComparisonExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_datetime import SubstraitIbisScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_logarithmic import SubstraitIbisScalarLogarithmicExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_rounding import SubstraitIbisScalarRoundingExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_set import SubstraitIbisScalarSetExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_string import SubstraitIbisScalarStringExpressionSystem
 
 # Ibis Mountainash Extensions
-from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_null import MountainAshIbisNullExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_name import MountainAshIbisNameExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_null import MountainAshIbisNullExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_name import MountainAshIbisNameExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
 
 # =============================================================================
 # Narwhals Backend Implementation Imports
 # =============================================================================
 
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_cast import SubstraitNarwhalsCastExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_conditional import SubstraitNarwhalsConditionalExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_field_reference import SubstraitNarwhalsFieldReferenceExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_literal import SubstraitNarwhalsLiteralExpressionSystem
-# from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_aggregate import SubstraitNarwhalsScalarAggregateExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_arithmetic import SubstraitNarwhalsScalarArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_comparison import SubstraitNarwhalsScalarComparisonExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_datetime import SubstraitNarwhalsScalarDatetimeExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_logarithmic import SubstraitNarwhalsScalarLogarithmicExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_rounding import SubstraitNarwhalsScalarRoundingExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_set import SubstraitNarwhalsScalarSetExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_string import SubstraitNarwhalsScalarStringExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_cast import SubstraitNarwhalsCastExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_conditional import SubstraitNarwhalsConditionalExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_field_reference import SubstraitNarwhalsFieldReferenceExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_literal import SubstraitNarwhalsLiteralExpressionSystem
+# from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_aggregate import SubstraitNarwhalsScalarAggregateExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_arithmetic import SubstraitNarwhalsScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_comparison import SubstraitNarwhalsScalarComparisonExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_datetime import SubstraitNarwhalsScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_logarithmic import SubstraitNarwhalsScalarLogarithmicExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_rounding import SubstraitNarwhalsScalarRoundingExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_set import SubstraitNarwhalsScalarSetExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.substrait.expsys_nw_scalar_string import SubstraitNarwhalsScalarStringExpressionSystem
 
 # Narwhals Mountainash Extensions
-from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNullExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_name import MountainAshNarwhalsNameExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNullExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_name import MountainAshNarwhalsNameExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
 
 # Composed backend classes (for wiring audit)
-from mountainash_expressions.backends.expression_systems.polars import PolarsExpressionSystem
-from mountainash_expressions.backends.expression_systems.ibis import IbisExpressionSystem
-from mountainash_expressions.backends.expression_systems.narwhals import NarwhalsExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis import IbisExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals import NarwhalsExpressionSystem
 
 
 # =============================================================================
 # Substrait API Builder Protocol Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_protocols.api_builders.substrait import (
+from mountainash.expressions.core.expression_protocols.api_builders.substrait import (
     SubstraitCastAPIBuilderProtocol,
     SubstraitConditionalAPIBuilderProtocol,
     SubstraitFieldReferenceAPIBuilderProtocol,
@@ -399,7 +399,7 @@ from mountainash_expressions.core.expression_protocols.api_builders.substrait im
 # Mountainash API Builder Protocol Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_protocols.api_builders.extensions_mountainash import (
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import (
     MountainAshNameAPIBuilderProtocol,
     MountainAshNullAPIBuilderProtocol,
     # MountainAshScalarAggregateAPIBuilderProtocol,
@@ -413,7 +413,7 @@ from mountainash_expressions.core.expression_protocols.api_builders.extensions_m
 # Substrait API Builder Implementation Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_api.api_builders.substrait import (
+from mountainash.expressions.core.expression_api.api_builders.substrait import (
     SubstraitCastAPIBuilder,
     SubstraitConditionalAPIBuilder,
     SubstraitFieldReferenceAPIBuilder,
@@ -433,13 +433,13 @@ from mountainash_expressions.core.expression_api.api_builders.substrait import (
 # Mountainash API Builder Implementation Imports
 # =============================================================================
 
-from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_name import MountainAshNameAPIBuilder
-from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_null import MountainAshNullAPIBuilder
-# from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilder
-from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilder
-from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilder
-from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilder
-from mountainash_expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_name import MountainAshNameAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_null import MountainAshNullAPIBuilder
+# from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
 
 
 # =============================================================================
@@ -1014,7 +1014,7 @@ def _check_function_registry(protocol_cls: type, method_name: str) -> bool:
 
     Returns True if a matching registration exists, False otherwise.
     """
-    from mountainash_expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
+    from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
 
     # Ensure registry is initialized
     all_keys = ExpressionFunctionRegistry.list_all()
@@ -1049,7 +1049,7 @@ def _get_all_enum_classes() -> list:
     and FKEY_MOUNTAINASH_* enum classes.
     """
     from enum import Enum as StdEnum
-    import mountainash_expressions.core.expression_system.function_keys.enums as enums_module
+    import mountainash.expressions.core.expression_system.function_keys.enums as enums_module
 
     all_values = []
     for attr_name in dir(enums_module):
@@ -1322,7 +1322,7 @@ class TestWiringAudit:
 
     def test_no_orphan_enums(self):
         """Every registered ENUM should reference a protocol method."""
-        from mountainash_expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
+        from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
 
         all_keys = ExpressionFunctionRegistry.list_all()
         orphans = []
@@ -1362,7 +1362,7 @@ class TestWiringAuditHelpers:
     def test_get_all_enum_classes_finds_enums(self):
         """Should discover all FKEY_* enum classes."""
         enums = _get_all_enum_classes()
-        from mountainash_expressions.core.expression_system.function_keys.enums import (
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
             FKEY_MOUNTAINASH_SCALAR_TERNARY,
         )

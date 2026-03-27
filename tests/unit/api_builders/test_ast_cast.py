@@ -1,7 +1,7 @@
 """AST construction tests for cast API builder."""
 import pytest
 import mountainash_expressions as ma
-from mountainash_expressions.core.expression_nodes import CastNode, FieldReferenceNode
+from mountainash.expressions.core.expression_nodes import CastNode, FieldReferenceNode
 
 
 class TestCastMethod:

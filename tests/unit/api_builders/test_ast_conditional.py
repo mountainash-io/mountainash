@@ -1,7 +1,7 @@
 """AST construction tests for conditional API builders."""
 import pytest
 import mountainash_expressions as ma
-from mountainash_expressions.core.expression_nodes import IfThenNode, FieldReferenceNode, LiteralNode, ScalarFunctionNode
+from mountainash.expressions.core.expression_nodes import IfThenNode, FieldReferenceNode, LiteralNode, ScalarFunctionNode
 
 
 class TestConditionalChain:

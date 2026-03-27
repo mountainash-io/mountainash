@@ -1,8 +1,8 @@
 """AST construction tests for null handling API builders."""
 import pytest
 import mountainash_expressions as ma
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NULL
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NULL
 
 
 class TestNullMethods:

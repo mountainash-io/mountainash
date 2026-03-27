@@ -1,8 +1,8 @@
 """AST construction tests for set operations API builders."""
 import pytest
 import mountainash_expressions as ma
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
-from mountainash_expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_SET, FKEY_MOUNTAINASH_SCALAR_SET
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_SET, FKEY_MOUNTAINASH_SCALAR_SET
 
 class TestSetMethods:
     def test_is_in_list(self):

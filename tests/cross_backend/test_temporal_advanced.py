@@ -126,6 +126,14 @@ class TestTimeDifferences:
 
     def test_diff_hours(self, backend_name, backend_factory, select_and_extract):
         """Test calculating difference in hours between datetimes."""
+        if backend_name == "ibis-polars":
+            pytest.xfail(
+                "Ibis Polars backend doesn't support TimestampDelta operation."
+            )
+        if backend_name == "ibis-sqlite":
+            pytest.xfail(
+                "SQLite limitation: TimestampDelta operation not supported."
+            )
 
         data = {
             "start": [
@@ -153,6 +161,15 @@ class TestTimeDifferences:
 
     def test_diff_minutes(self, backend_name, backend_factory, select_and_extract):
         """Test calculating difference in minutes between datetimes."""
+        if backend_name == "ibis-polars":
+            pytest.xfail(
+                "Ibis Polars backend doesn't support TimestampDelta operation."
+            )
+        if backend_name == "ibis-sqlite":
+            pytest.xfail(
+                "SQLite limitation: TimestampDelta operation not supported."
+            )
+
         data = {
             "start": [
                 datetime(2024, 1, 1, 10, 0, 0),

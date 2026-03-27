@@ -1,7 +1,7 @@
 """AST construction tests for boolean API builders."""
 import mountainash_expressions as ma
-from mountainash_expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
-from mountainash_expressions.core.expression_system.function_keys.enums import (
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
+from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
