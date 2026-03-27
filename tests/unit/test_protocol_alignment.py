@@ -921,6 +921,35 @@ def _collect_classes_from_package(package_path: str) -> List[tuple]:
     return results
 
 
+def _check_function_registry(protocol_cls: type, method_name: str) -> bool:
+    """Check if a FunctionRegistry entry exists that references this protocol method.
+
+    Walks all registered ExpressionFunctionDef entries and checks if any
+    has a protocol_method whose __qualname__ matches the protocol class and method.
+
+    Returns True if a matching registration exists, False otherwise.
+    """
+    from mountainash_expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
+
+    # Ensure registry is initialized
+    all_keys = ExpressionFunctionRegistry.list_all()
+
+    for key in all_keys:
+        func_def = ExpressionFunctionRegistry.get(key)
+        if func_def.protocol_method is None:
+            continue
+        pm = func_def.protocol_method
+        # protocol_method is an unbound function reference like
+        # SubstraitScalarComparisonExpressionSystemProtocol.equal
+        # Its __qualname__ is "ClassName.method_name"
+        qualname = getattr(pm, "__qualname__", "")
+        if "." in qualname:
+            cls_part, method_part = qualname.rsplit(".", 1)
+            if cls_part == protocol_cls.__name__ and method_part == method_name:
+                return True
+    return False
+
+
 class TestInheritanceIntegrity:
     """Verify that classes inherit from the correct protocol layer.
 
@@ -1097,3 +1126,25 @@ class TestInheritanceIntegrity:
                 "Duplicate class names across substrait/ and extensions_mountainash/ "
                 "(likely copy-paste error):\n  " + "\n  ".join(violations)
             )
+
+
+# =============================================================================
+# Wiring Audit Helpers
+# =============================================================================
+
+class TestWiringAuditHelpers:
+    """Test the helper functions used by the wiring audit."""
+
+    def test_check_function_registry_finds_registered_method(self):
+        """A known registered method (e.g., equal) should be found."""
+        found = _check_function_registry(
+            SubstraitScalarComparisonExpressionSystemProtocol, "equal"
+        )
+        assert found is True
+
+    def test_check_function_registry_rejects_unregistered_method(self):
+        """A method not in the registry (e.g., is_not_distinct_from) should return False."""
+        found = _check_function_registry(
+            SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"
+        )
+        assert found is False
