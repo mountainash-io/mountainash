@@ -1303,7 +1303,7 @@ class TestWiringAudit:
             for (cls, method), reason in KNOWN_ASPIRATIONAL.items()
         ],
     )
-    @pytest.mark.xfail(reason="Aspirational — not yet fully wired")
+    @pytest.mark.xfail(strict=True, reason="Aspirational — not yet fully wired")
     def test_aspirational_method(self, protocol_cls, method_name, reason):
         """Aspirational methods: document and track wiring gaps."""
         missing = []
