@@ -36,6 +36,8 @@ else:
         ibis = types.ModuleType('ibis')
         ir = types.ModuleType('ibis.expr.types')
         ir.Expr = Any
+        ir.Column = Any
+        ir.Scalar = Any
 
     # Narwhals
     try:
