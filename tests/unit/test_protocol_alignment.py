@@ -605,6 +605,76 @@ MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
 
 
 # =============================================================================
+# Wiring Audit: Protocol Registry
+# =============================================================================
+
+# Maps each ExpressionSystem protocol to its category label.
+# This is the source of truth for the wiring audit.
+WIRING_PROTOCOL_REGISTRY = {
+    SubstraitScalarComparisonExpressionSystemProtocol: "substrait_scalar_comparison",
+    SubstraitScalarBooleanExpressionSystemProtocol: "substrait_scalar_boolean",
+    SubstraitScalarArithmeticExpressionSystemProtocol: "substrait_scalar_arithmetic",
+    SubstraitScalarStringExpressionSystemProtocol: "substrait_scalar_string",
+    SubstraitScalarDatetimeExpressionSystemProtocol: "substrait_scalar_datetime",
+    SubstraitScalarRoundingExpressionSystemProtocol: "substrait_scalar_rounding",
+    SubstraitScalarLogarithmicExpressionSystemProtocol: "substrait_scalar_logarithmic",
+    SubstraitScalarSetExpressionSystemProtocol: "substrait_scalar_set",
+    SubstraitCastExpressionSystemProtocol: "substrait_cast",
+    SubstraitConditionalExpressionSystemProtocol: "substrait_conditional",
+    SubstraitFieldReferenceExpressionSystemProtocol: "substrait_field_reference",
+    SubstraitLiteralExpressionSystemProtocol: "substrait_literal",
+    MountainAshScalarTernaryExpressionSystemProtocol: "mountainash_scalar_ternary",
+    MountainAshNullExpressionSystemProtocol: "mountainash_null",
+    MountainAshNameExpressionSystemProtocol: "mountainash_name",
+    MountainAshScalarDatetimeExpressionSystemProtocol: "mountainash_scalar_datetime",
+    MountainAshScalarArithmeticExpressionSystemProtocol: "mountainash_scalar_arithmetic",
+    MountainAshScalarBooleanExpressionSystemProtocol: "mountainash_scalar_boolean",
+}
+
+# Methods that exist in protocols but are intentionally not fully wired yet.
+# Each entry maps (protocol_cls, method_name) → reason string.
+# These are xfailed in the wiring audit, not hard failures.
+KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
+    # Substrait Scalar Arithmetic — bitwise operations
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_not"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_and"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_or"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_xor"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "shift_left"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "shift_right"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "shift_right_unsigned"): "Bitwise ops: no function mapping registered",
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): "No backend support yet",
+    # Substrait Scalar Comparison — distinct operations
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): "No ENUM, no function mapping, no API builder",
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): "No ENUM, no function mapping, no API builder",
+    # Substrait Scalar String — advanced regex
+    (SubstraitScalarStringExpressionSystemProtocol, "regexp_match_substring_all"): "No function mapping registered",
+    (SubstraitScalarStringExpressionSystemProtocol, "regexp_strpos"): "No function mapping registered",
+    (SubstraitScalarStringExpressionSystemProtocol, "regexp_count_substring"): "No function mapping registered",
+    # Substrait Scalar Datetime — most methods use Mountainash extension dispatch
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): "Datetime dispatch via Mountainash extensions",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): "Datetime dispatch via Mountainash extensions",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): "Datetime dispatch via Mountainash extensions",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "add_intervals"): "Datetime dispatch via Mountainash extensions",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): "Datetime comparisons handled by scalar_comparison",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): "Datetime comparisons handled by scalar_comparison",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): "Datetime comparisons handled by scalar_comparison",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): "Datetime comparisons handled by scalar_comparison",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): "No function mapping registered",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): "No function mapping registered",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_date"): "No function mapping registered",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_timestamp"): "No function mapping registered",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): "No function mapping registered",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): "No function mapping registered",
+    # Substrait Scalar Logarithmic
+    (SubstraitScalarLogarithmicExpressionSystemProtocol, "log1p"): "No ENUM, no function mapping",
+    # Mountainash Scalar Datetime — today/now
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "today"): "No ENUM or function mapping",
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "now"): "No ENUM or function mapping",
+}
+
+
+# =============================================================================
 # Test Classes
 # =============================================================================
 
@@ -950,6 +1020,25 @@ def _check_function_registry(protocol_cls: type, method_name: str) -> bool:
     return False
 
 
+def _get_all_enum_classes() -> list:
+    """Collect all FKEY_* enum values from function_keys/enums.py.
+
+    Returns a flat list of all enum members across all FKEY_SUBSTRAIT_*
+    and FKEY_MOUNTAINASH_* enum classes.
+    """
+    from enum import Enum as StdEnum
+    import mountainash_expressions.core.expression_system.function_keys.enums as enums_module
+
+    all_values = []
+    for attr_name in dir(enums_module):
+        if not attr_name.startswith("FKEY_"):
+            continue
+        attr = getattr(enums_module, attr_name)
+        if isinstance(attr, type) and issubclass(attr, StdEnum):
+            all_values.extend(attr)
+    return all_values
+
+
 class TestInheritanceIntegrity:
     """Verify that classes inherit from the correct protocol layer.
 
@@ -1148,3 +1237,36 @@ class TestWiringAuditHelpers:
             SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"
         )
         assert found is False
+
+    def test_get_all_enum_classes_finds_enums(self):
+        """Should discover all FKEY_* enum classes."""
+        enums = _get_all_enum_classes()
+        from mountainash_expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+            FKEY_MOUNTAINASH_SCALAR_TERNARY,
+        )
+        enum_types = {type(e) for e in enums}
+        assert FKEY_SUBSTRAIT_SCALAR_COMPARISON in enum_types
+        assert FKEY_MOUNTAINASH_SCALAR_TERNARY in enum_types
+        assert len(enums) > 50
+
+    def test_wiring_protocol_registry_complete(self):
+        """Registry should contain all 18 protocol classes."""
+        assert len(WIRING_PROTOCOL_REGISTRY) == 18
+
+    def test_known_aspirational_references_valid_protocols(self):
+        """Every protocol class in KNOWN_ASPIRATIONAL must be in WIRING_PROTOCOL_REGISTRY."""
+        for (protocol_cls, method_name), reason in KNOWN_ASPIRATIONAL.items():
+            assert protocol_cls in WIRING_PROTOCOL_REGISTRY, (
+                f"KNOWN_ASPIRATIONAL references {protocol_cls.__name__}.{method_name} "
+                f"but that protocol is not in WIRING_PROTOCOL_REGISTRY"
+            )
+
+    def test_known_aspirational_references_real_methods(self):
+        """Every method in KNOWN_ASPIRATIONAL must actually exist on the protocol."""
+        for (protocol_cls, method_name), reason in KNOWN_ASPIRATIONAL.items():
+            methods = get_protocol_methods(protocol_cls)
+            assert method_name in methods, (
+                f"KNOWN_ASPIRATIONAL references {protocol_cls.__name__}.{method_name} "
+                f"but that method does not exist on the protocol"
+            )
