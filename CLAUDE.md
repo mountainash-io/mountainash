@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**mountainash-expressions** is a Python package that provides a sophisticated cross-backend DataFrame expression system. The package implements a **three-layer protocol architecture** with automatic backend detection across Polars, Narwhals, Ibis (Polars/DuckDB/SQLite), and Pandas.
+**mountainash** is a unified Python package (formerly mountainash-expressions) that provides a sophisticated cross-backend DataFrame expression system. The package implements a **three-layer protocol architecture** with automatic backend detection across Polars, Narwhals, Ibis (Polars/DuckDB/SQLite), and Pandas.
 
-The package is designed as a foundation for cross-backend DataFrame filtering, mutations, and operations that need consistent expression evaluation regardless of the underlying DataFrame implementation.
+The package unifies what were previously separate packages under one namespace (`mountainash`), with the expression system as the first mature module. It is designed as a foundation for cross-backend DataFrame filtering, mutations, and operations that need consistent expression evaluation regardless of the underlying DataFrame implementation.
 
 ## Principles Repository
 
@@ -29,23 +29,66 @@ Consult the principles when making architectural decisions, adding new operation
 - ✅ Substrait categories: 13 implemented (comparison, boolean, arithmetic, string, datetime, etc.)
 - ✅ Mountainash extensions: 6 implemented (ternary, null, name, datetime convenience, etc.)
 - ✅ Backend implementations: Polars, Ibis, Narwhals complete
-- ✅ Cross-backend testing: 2300+ tests across 6 backends
+- ✅ Cross-backend testing: 2800+ tests across 6 backends
 - ✅ Polars-compatible aliases: Extension builders provide Polars naming (sub, mul, strip_chars, etc.)
 - ⚠️ Pandas backend: Detection exists, limited testing
 - 📋 Polars API alignment audit: `docs/superpowers/specs/2026-03-25-polars-api-alignment-audit-design.md`
+
+## Unified Package Architecture
+
+The `mountainash` package unifies 4 previously separate packages under one namespace:
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `mountainash.core` | Shared infrastructure (constants, types, enums) | Active |
+| `mountainash.expressions` | Column-level expression operations | Mature (current module) |
+| `mountainash.dataframes` | DataFrame-level operations | Planned (stub) |
+| `mountainash.schema` | Schema definitions and validation | Planned (stub) |
+| `mountainash.pydata` | PyData ecosystem integrations | Planned (stub) |
+
+**Key design decisions:**
+- **Shared core**: `mountainash.core` contains `constants.py` and `types.py` used across all modules
+- **Module isolation**: Each module (`expressions`, `dataframes`, etc.) is self-contained with its own `core/`, `backends/`, etc.
+- **Backwards compatibility**: A shim package at `src/mountainash_expressions/` uses an import hook to redirect all imports to `mountainash.expressions`. Existing code like `import mountainash_expressions as ma` continues to work unchanged.
+- **Single `__init__.py`**: The top-level `mountainash/__init__.py` re-exports the expressions public API, so `import mountainash as ma` works identically to the old `import mountainash_expressions as ma`.
 
 ## Package Structure
 
 The codebase follows a **Substrait-aligned architecture** with clear separation between standard and extension components.
 
 ```
-src/mountainash_expressions/
+src/mountainash/
+├── __init__.py                              # Top-level re-exports (col, lit, when, etc.)
+├── core/                                    # SHARED INFRASTRUCTURE
+│   ├── constants.py                        # Backend enums, logic types (shared across modules)
+│   └── types.py                            # Type aliases (shared across modules)
+│
+├── expressions/                             # EXPRESSION MODULE (mature)
+│   ├── __init__.py                         # Expression module exports
+│   ├── __version__.py                      # Package version
+│   ├── core/                               # Expression-specific core (see detailed tree below)
+│   └── backends/                           # Backend implementations
+│
+├── dataframes/                              # DATAFRAMES MODULE (planned)
+│   └── __init__.py                         # Stub
+├── schema/                                  # SCHEMA MODULE (planned)
+│   └── __init__.py                         # Stub
+└── pydata/                                  # PYDATA MODULE (planned)
+    └── __init__.py                         # Stub
+
+src/mountainash_expressions/                 # BACKWARDS-COMPAT SHIM
+    └── __init__.py                         # Import hook redirecting to mountainash.expressions
+```
+
+### Expression Module Detail (`src/mountainash/expressions/`)
+
+```
+src/mountainash/expressions/
 ├── __init__.py                              # Main package exports
 ├── __version__.py                           # Package version
-├── types.py                                 # Type aliases
 │
 ├── core/                                    # CORE ARCHITECTURE
-│   ├── constants.py                        # Backend enums, logic types
+│   ├── constants.py                        # Backend enums, logic types (re-exports from mountainash.core)
 │   │
 │   ├── expression_nodes/
 │   │   └── substrait/                      # MINIMAL 7-NODE AST
@@ -121,6 +164,8 @@ src/mountainash_expressions/
             └── extensions_mountainash/
                 └── expsys_nw_ext_ma_*.py
 ```
+
+**Note:** Internal paths changed from `mountainash_expressions.X` to `mountainash.expressions.X`. Old paths still work via the backwards-compat shim.
 
 ## Naming Conventions
 
@@ -377,7 +422,8 @@ See `docs/superpowers/specs/2026-03-25-polars-api-alignment-audit-design.md` for
 ### Main Entry Point
 
 ```python
-import mountainash_expressions as ma
+import mountainash as ma                    # New canonical import
+# import mountainash_expressions as ma      # Deprecated, still works via shim
 
 # Build expression (backend-agnostic AST)
 expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
@@ -784,14 +830,14 @@ hatch build               # Build distribution
 
 1. **Add to function key enum:**
    ```python
-   # core/expression_system/function_keys/enums.py
+   # mountainash/expressions/core/expression_system/function_keys/enums.py
    class FKEY_SUBSTRAIT_SCALAR_COMPARISON(Enum):
        NEW_OP = auto()  # Add to appropriate category
    ```
 
 2. **Add to ExpressionSystem protocol:**
    ```python
-   # core/expression_protocols/expression_systems/substrait/prtcl_expsys_scalar_comparison.py
+   # mountainash/expressions/core/expression_protocols/expression_systems/substrait/prtcl_expsys_scalar_comparison.py
    class SubstraitScalarComparisonExpressionSystemProtocol(Protocol):
        def new_op(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
            """Description of new operation."""
@@ -800,7 +846,7 @@ hatch build               # Build distribution
 
 3. **Implement in API builder:**
    ```python
-   # core/expression_api/api_builders/substrait/api_bldr_scalar_comparison.py
+   # mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_comparison.py
    def new_op(self, other) -> BaseExpressionAPI:
        other_node = self._to_node_or_value(other)
        node = ScalarFunctionNode(
@@ -812,22 +858,22 @@ hatch build               # Build distribution
 
 4. **Implement in all backends:**
    ```python
-   # backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py
+   # mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py
    def new_op(self, x: PolarsExpr, y: PolarsExpr, /) -> PolarsExpr:
        return x.some_polars_method(y)
 
-   # backends/expression_systems/ibis/substrait/expsys_ib_scalar_comparison.py
+   # mountainash/expressions/backends/expression_systems/ibis/substrait/expsys_ib_scalar_comparison.py
    def new_op(self, x: ir.Expr, y: ir.Expr, /) -> ir.Expr:
        return x.some_ibis_method(y)
 
-   # backends/expression_systems/narwhals/substrait/expsys_nw_scalar_comparison.py
+   # mountainash/expressions/backends/expression_systems/narwhals/substrait/expsys_nw_scalar_comparison.py
    def new_op(self, x: nw.Expr, y: nw.Expr, /) -> nw.Expr:
        return x.some_narwhals_method(y)
    ```
 
 5. **Register in function mapping definitions:**
    ```python
-   # core/expression_system/function_mapping/definitions.py
+   # mountainash/expressions/core/expression_system/function_mapping/definitions.py
    ExpressionFunctionDef(
        function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.NEW_OP,
        substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
@@ -851,28 +897,28 @@ For operations not in Substrait, use the extension pattern:
 
 1. **Add to extension enum:**
    ```python
-   # core/expression_system/function_keys/enums.py
+   # mountainash/expressions/core/expression_system/function_keys/enums.py
    class FKEY_MOUNTAINASH_<CATEGORY>(Enum):
        NEW_OP = "new_op"
    ```
 
 2. **Create/update extension protocol:**
    ```python
-   # core/expression_protocols/expression_systems/extensions_mountainash/prtcl_expsys_ext_ma_<category>.py
+   # mountainash/expressions/core/expression_protocols/expression_systems/extensions_mountainash/prtcl_expsys_ext_ma_<category>.py
    class MountainAsh<Category>ExpressionSystemProtocol(Protocol):
        def new_op(self, x: SupportedExpressions, /) -> SupportedExpressions: ...
    ```
 
 3. **Implement in API builder:**
    ```python
-   # core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_<category>.py
+   # mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_<category>.py
    ```
 
 4. **Implement in all backends:**
    ```python
-   # backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_<category>.py
-   # backends/expression_systems/ibis/extensions_mountainash/expsys_ib_ext_ma_<category>.py
-   # backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_<category>.py
+   # mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_<category>.py
+   # mountainash/expressions/backends/expression_systems/ibis/extensions_mountainash/expsys_ib_ext_ma_<category>.py
+   # mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_<category>.py
    ```
 
 ### Adding an Alias
@@ -921,8 +967,9 @@ print(f"Backend type: {type(backend_expr)}")
 
 ## Architecture Summary
 
-| Layer | Location | Count |
+| Layer | Location (under `src/mountainash/expressions/`) | Count |
 |-------|----------|-------|
+| **Shared Core** | `src/mountainash/core/` | constants.py, types.py |
 | **Expression Nodes** | `core/expression_nodes/substrait/` | 7 node types |
 | **Function Keys** | `core/expression_system/function_keys/enums.py` | 13 Substrait + 6 Extension ENUMs |
 | **Protocols** | `core/expression_protocols/` | ~20 protocol files |
@@ -930,6 +977,7 @@ print(f"Backend type: {type(backend_expr)}")
 | **Backend: Polars** | `backends/expression_systems/polars/` | 18 implementation files |
 | **Backend: Ibis** | `backends/expression_systems/ibis/` | 18 implementation files |
 | **Backend: Narwhals** | `backends/expression_systems/narwhals/` | 18 implementation files |
+| **Backwards-compat shim** | `src/mountainash_expressions/` | Import hook redirect |
 | **Tests** | `tests/` | ~11,000+ lines |
 
 ## Quick Reference
@@ -937,18 +985,20 @@ print(f"Backend type: {type(backend_expr)}")
 ### Import Paths
 
 ```python
-# Public API (recommended)
-import mountainash_expressions as ma
-from mountainash_expressions import col, lit, coalesce, greatest, least, when, native, t_col
+# Public API (recommended — both forms work identically)
+import mountainash as ma                    # New canonical import
+import mountainash_expressions as ma        # Deprecated, still works via shim
+from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
 
 # Expression API classes
-from mountainash_expressions import BooleanExpressionAPI, BaseExpressionAPI
+from mountainash import BooleanExpressionAPI, BaseExpressionAPI
 
-# Constants
-from mountainash_expressions import CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES
+# Constants (shared core)
+from mountainash import CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES
+from mountainash.core.constants import CONST_VISITOR_BACKENDS  # Direct shared core access
 
-# Function key enums (for advanced usage)
-from mountainash_expressions.core.expression_system.function_keys.enums import (
+# Function key enums (for advanced usage) — new paths preferred
+from mountainash.expressions.core.expression_system.function_keys.enums import (
     KEY_SCALAR_COMPARISON,
     KEY_SCALAR_BOOLEAN,
     KEY_SCALAR_ARITHMETIC,
@@ -957,22 +1007,26 @@ from mountainash_expressions.core.expression_system.function_keys.enums import (
 )
 
 # Protocols (for type hints / backend implementation)
-from mountainash_expressions.core.expression_protocols.expression_systems.substrait import (
+from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
     SubstraitScalarComparisonExpressionSystemProtocol,
     SubstraitScalarBooleanExpressionSystemProtocol,
 )
-from mountainash_expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
     MountainAshNullExpressionSystemProtocol,
     MountainAshTernaryExpressionSystemProtocol,
 )
 
 # Nodes (for AST manipulation)
-from mountainash_expressions.core.expression_nodes.substrait import (
+from mountainash.expressions.core.expression_nodes.substrait import (
     ExpressionNode,
     ScalarFunctionNode,
     FieldReferenceNode,
     LiteralNode,
 )
+
+# Old paths (deprecated, still work via backwards-compat shim)
+from mountainash_expressions.core.expression_system.function_keys.enums import KEY_SCALAR_COMPARISON
+from mountainash_expressions.core.expression_nodes.substrait import ScalarFunctionNode
 ```
 
 ### Common Patterns
