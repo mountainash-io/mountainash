@@ -369,6 +369,11 @@ from mountainash_expressions.backends.expression_systems.narwhals.extensions_mou
 from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
 from mountainash_expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
 
+# Composed backend classes (for wiring audit)
+from mountainash_expressions.backends.expression_systems.polars import PolarsExpressionSystem
+from mountainash_expressions.backends.expression_systems.ibis import IbisExpressionSystem
+from mountainash_expressions.backends.expression_systems.narwhals import NarwhalsExpressionSystem
+
 
 # =============================================================================
 # Substrait API Builder Protocol Imports
@@ -668,9 +673,15 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): "No function mapping registered",
     # Substrait Scalar Logarithmic
     (SubstraitScalarLogarithmicExpressionSystemProtocol, "log1p"): "No ENUM, no function mapping",
-    # Mountainash Scalar Datetime — today/now
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "today"): "No ENUM or function mapping",
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "now"): "No ENUM or function mapping",
+    # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode
+    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): "Special node type (FieldReferenceNode), not dispatched via function registry",
+    (SubstraitLiteralExpressionSystemProtocol, "lit"): "Special node type (LiteralNode), not dispatched via function registry",
+    # Mountainash Scalar Datetime — methods not yet in function registry
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "assume_timezone"): "No function mapping registered",
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): "No function mapping registered",
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): "No function mapping registered",
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): "No function mapping registered",
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): "No function mapping registered",
 }
 
 
@@ -997,6 +1008,10 @@ def _check_function_registry(protocol_cls: type, method_name: str) -> bool:
     Walks all registered ExpressionFunctionDef entries and checks if any
     has a protocol_method whose __qualname__ matches the protocol class and method.
 
+    Also handles aliased protocol classes (e.g., MountainAshScalarSetExpressionSystemProtocol
+    is an alias for SubstraitScalarSetExpressionSystemProtocol) by falling back to
+    identity comparison when qualname matching fails.
+
     Returns True if a matching registration exists, False otherwise.
     """
     from mountainash_expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
@@ -1004,19 +1019,26 @@ def _check_function_registry(protocol_cls: type, method_name: str) -> bool:
     # Ensure registry is initialized
     all_keys = ExpressionFunctionRegistry.list_all()
 
+    # Get the actual method object from the protocol class for identity comparison
+    target_method = getattr(protocol_cls, method_name, None)
+
     for key in all_keys:
         func_def = ExpressionFunctionRegistry.get(key)
         if func_def.protocol_method is None:
             continue
         pm = func_def.protocol_method
-        # protocol_method is an unbound function reference like
-        # SubstraitScalarComparisonExpressionSystemProtocol.equal
-        # Its __qualname__ is "ClassName.method_name"
+
+        # Primary check: qualname matching
         qualname = getattr(pm, "__qualname__", "")
         if "." in qualname:
             cls_part, method_part = qualname.rsplit(".", 1)
             if cls_part == protocol_cls.__name__ and method_part == method_name:
                 return True
+
+        # Fallback: identity comparison (handles aliased protocol classes)
+        if target_method is not None and pm is target_method:
+            return True
+
     return False
 
 
@@ -1215,6 +1237,105 @@ class TestInheritanceIntegrity:
                 "Duplicate class names across substrait/ and extensions_mountainash/ "
                 "(likely copy-paste error):\n  " + "\n  ".join(violations)
             )
+
+
+# =============================================================================
+# Wiring Audit
+# =============================================================================
+
+class TestWiringAudit:
+    """Validate every protocol method is wired through all architecture layers.
+
+    Starting point: ExpressionSystem protocol methods are the source of truth.
+    For each protocol method, checks:
+    1. Function Registry (ENUM + ExpressionFunctionDef binding)
+    2. Backend: Polars (method exists on composed PolarsExpressionSystem)
+    3. Backend: Ibis (method exists on composed IbisExpressionSystem)
+    4. Backend: Narwhals (method exists on composed NarwhalsExpressionSystem)
+
+    Known aspirational gaps (methods intentionally not yet wired) are
+    tested separately with xfail markers.
+    """
+
+    BACKENDS = {
+        "Polars": PolarsExpressionSystem,
+        "Ibis": IbisExpressionSystem,
+        "Narwhals": NarwhalsExpressionSystem,
+    }
+
+    @pytest.mark.parametrize(
+        "protocol_cls",
+        list(WIRING_PROTOCOL_REGISTRY.keys()),
+        ids=list(WIRING_PROTOCOL_REGISTRY.values()),
+    )
+    def test_all_protocol_methods_wired(self, protocol_cls):
+        """For each protocol, verify all non-aspirational methods are fully wired."""
+        methods = get_protocol_methods(protocol_cls)
+        gaps = []
+
+        for method_name in sorted(methods):
+            key = (protocol_cls, method_name)
+            if key in KNOWN_ASPIRATIONAL:
+                continue  # Handled by test_aspirational_methods
+
+            missing = []
+
+            # Check function registry
+            if not _check_function_registry(protocol_cls, method_name):
+                missing.append("FunctionRegistry")
+
+            # Check backends
+            for backend_name, backend_cls in self.BACKENDS.items():
+                if not hasattr(backend_cls, method_name):
+                    missing.append(backend_name)
+
+            if missing:
+                gaps.append(f"  {method_name}: missing [{', '.join(missing)}]")
+
+        assert not gaps, (
+            f"\n{protocol_cls.__name__} wiring gaps:\n" + "\n".join(gaps)
+        )
+
+    @pytest.mark.parametrize(
+        "protocol_cls,method_name,reason",
+        [
+            pytest.param(cls, method, reason, id=f"{cls.__name__}.{method}")
+            for (cls, method), reason in KNOWN_ASPIRATIONAL.items()
+        ],
+    )
+    @pytest.mark.xfail(reason="Aspirational — not yet fully wired")
+    def test_aspirational_method(self, protocol_cls, method_name, reason):
+        """Aspirational methods: document and track wiring gaps."""
+        missing = []
+
+        if not _check_function_registry(protocol_cls, method_name):
+            missing.append("FunctionRegistry")
+
+        for backend_name, backend_cls in self.BACKENDS.items():
+            if not hasattr(backend_cls, method_name):
+                missing.append(backend_name)
+
+        assert not missing, (
+            f"{protocol_cls.__name__}.{method_name} ({reason}):\n"
+            f"  missing [{', '.join(missing)}]"
+        )
+
+    def test_no_orphan_enums(self):
+        """Every registered ENUM should reference a protocol method."""
+        from mountainash_expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
+
+        all_keys = ExpressionFunctionRegistry.list_all()
+        orphans = []
+
+        for key in all_keys:
+            func_def = ExpressionFunctionRegistry.get(key)
+            if func_def.protocol_method is None:
+                orphans.append(f"  {key}: registered but protocol_method is None")
+
+        assert not orphans, (
+            f"\nOrphan ENUM values (no protocol method reference):\n"
+            + "\n".join(orphans)
+        )
 
 
 # =============================================================================
