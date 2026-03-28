@@ -10,7 +10,6 @@ Provides:
 from __future__ import annotations
 
 import logging
-import re
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type
 
 from .base import DataFrameSystem
@@ -61,65 +60,14 @@ class DataFrameSystemFactory:
 
     Features:
     - Automatic backend detection from DataFrame objects
-    - Three-tier detection: exact match → pattern match → fallback
+    - Substring-based module detection (robust against __module__ path variations)
+    - Narwhals fallback for unknown types
     - Singleton caching of system instances
     - Auto-registration via @register_dataframe_system decorator
     """
 
-    # =========================================================================
-    # Type Detection Maps
-    # =========================================================================
-
-    # Exact match map: (module, classname) → backend
-    TYPE_MAP: Dict[tuple[str, str], CONST_DATAFRAME_BACKEND] = {
-        # Polars
-        ("polars.dataframe.frame", "DataFrame"): CONST_DATAFRAME_BACKEND.POLARS,
-        ("polars.lazyframe.frame", "LazyFrame"): CONST_DATAFRAME_BACKEND.POLARS,
-        ("polars", "DataFrame"): CONST_DATAFRAME_BACKEND.POLARS,
-        ("polars", "LazyFrame"): CONST_DATAFRAME_BACKEND.POLARS,
-        # Narwhals
-        ("narwhals._pandas_like.dataframe", "DataFrame"): CONST_DATAFRAME_BACKEND.NARWHALS,
-        ("narwhals.dataframe", "DataFrame"): CONST_DATAFRAME_BACKEND.NARWHALS,
-        ("narwhals", "DataFrame"): CONST_DATAFRAME_BACKEND.NARWHALS,
-        ("narwhals._pandas_like.dataframe", "LazyFrame"): CONST_DATAFRAME_BACKEND.NARWHALS,
-        ("narwhals.dataframe", "LazyFrame"): CONST_DATAFRAME_BACKEND.NARWHALS,
-        ("narwhals", "LazyFrame"): CONST_DATAFRAME_BACKEND.NARWHALS,
-        # Ibis
-        ("ibis.expr.types.relations", "Table"): CONST_DATAFRAME_BACKEND.IBIS,
-        ("ibis.expr.types.joins", "Join"): CONST_DATAFRAME_BACKEND.IBIS,
-    }
-
-    # Pattern match map: regex → [(classname, backend), ...]
-    PATTERN_MAP: Dict[str, list[tuple[str, CONST_DATAFRAME_BACKEND]]] = {
-        # Polars patterns
-        r"^polars\..*": [
-            ("DataFrame", CONST_DATAFRAME_BACKEND.POLARS),
-            ("LazyFrame", CONST_DATAFRAME_BACKEND.POLARS),
-        ],
-        # Narwhals patterns (handles internal reorganizations)
-        r"^narwhals\..*": [
-            ("DataFrame", CONST_DATAFRAME_BACKEND.NARWHALS),
-            ("LazyFrame", CONST_DATAFRAME_BACKEND.NARWHALS),
-        ],
-        # Ibis patterns
-        r"^ibis\.backends\..*": [
-            ("Backend", CONST_DATAFRAME_BACKEND.IBIS),
-        ],
-        r"^ibis\.expr\..*": [
-            ("Table", CONST_DATAFRAME_BACKEND.IBIS),
-            ("Join", CONST_DATAFRAME_BACKEND.IBIS),
-        ],
-    }
-
-    # Narwhals-wrapped types: route pandas/pyarrow through Narwhals
-    NARWHALS_WRAPPED_PATTERNS: list[str] = [
-        r"^pandas\..*",
-        r"^pyarrow\..*",
-        r"^cudf\..*",
-    ]
-
-    # Runtime type registration (for pattern-matched types)
-    _runtime_type_map: Dict[tuple[str, str], CONST_DATAFRAME_BACKEND] = {}
+    # Cache: type identity → backend (populated on first detection)
+    _runtime_type_map: Dict[type, CONST_DATAFRAME_BACKEND] = {}
 
     # =========================================================================
     # Public API
@@ -169,71 +117,63 @@ class DataFrameSystemFactory:
         return cls._detect_backend(df)
 
     # =========================================================================
-    # Backend Detection (Three-Tier)
+    # Backend Detection
     # =========================================================================
 
     @classmethod
     def _detect_backend(cls, df: Any) -> CONST_DATAFRAME_BACKEND:
         """
-        Detect backend using three-tier approach:
-        1. Exact match in TYPE_MAP (fastest)
-        2. Pattern matching (handles library refactors)
-        3. Narwhals fallback for pandas/pyarrow
+        Detect backend using substring module checks and narwhals fallback.
 
-        Args:
-            df: DataFrame to detect backend for
+        Uses the same proven approach as expressions.identify_backend():
+        simple ``"library" in module`` checks that work regardless of how
+        a library sets ``__module__`` (e.g. ``"pandas"`` vs ``"pandas.core.frame"``).
 
-        Returns:
-            CONST_DATAFRAME_BACKEND enum value
+        Detection order matters — narwhals wraps other backends, so it must
+        be checked before polars/pandas. Ibis is checked before polars because
+        ibis module names are unambiguous.
 
-        Raises:
-            ValueError: If no backend detected
+        Results are cached by type identity for fast repeated lookups.
         """
         obj_type = type(df)
-        module = obj_type.__module__
-        name = obj_type.__name__
-        type_key = (module, name)
 
-        # Tier 1: Exact match (fast path)
-        all_types = {**cls.TYPE_MAP, **cls._runtime_type_map}
-        if type_key in all_types:
-            backend = all_types[type_key]
-            logger.debug(f"Exact match: {type_key} -> {backend.name}")
-            return backend
+        # Fast path: cached type
+        if obj_type in cls._runtime_type_map:
+            return cls._runtime_type_map[obj_type]
 
-        # Tier 2: Check for Narwhals-wrapped types (pandas, pyarrow, cudf)
-        for pattern in cls.NARWHALS_WRAPPED_PATTERNS:
-            if re.match(pattern, module):
-                backend = CONST_DATAFRAME_BACKEND.NARWHALS
-                logger.info(f"Narwhals-wrapped type: {type_key} -> {backend.name}")
-                cls._runtime_type_map[type_key] = backend
-                return backend
-
-        # Tier 3: Pattern matching
-        backend = cls._match_by_pattern(module, name)
-        if backend is not None:
-            logger.info(f"Pattern match: {type_key} -> {backend.name}")
-            cls._runtime_type_map[type_key] = backend
-            return backend
-
-        # Failed - log for monitoring
-        logger.warning(
-            f"Unmapped DataFrame type: {module}.{name}\n"
-            f"  MRO: {[c.__module__ + '.' + c.__name__ for c in obj_type.__mro__[:5]]}"
-        )
-        raise ValueError(f"No DataFrameSystem found for type: {module}.{name}")
+        backend = cls._identify_backend(df)
+        cls._runtime_type_map[obj_type] = backend
+        return backend
 
     @classmethod
-    def _match_by_pattern(
-        cls, module: str, name: str
-    ) -> Optional[CONST_DATAFRAME_BACKEND]:
-        """Match module and classname against pattern map."""
-        for pattern, mappings in cls.PATTERN_MAP.items():
-            if re.match(pattern, module):
-                for class_name, backend in mappings:
-                    if name == class_name:
-                        return backend
-        return None
+    def _identify_backend(cls, df: Any) -> CONST_DATAFRAME_BACKEND:
+        """Core detection logic — no caching, called once per type."""
+        module = type(df).__module__
+
+        # Narwhals detection FIRST — it wraps other backends
+        if "narwhals" in module or hasattr(df, "_compliant_frame"):
+            return CONST_DATAFRAME_BACKEND.NARWHALS
+
+        # Ibis detection — unambiguous module names
+        if "ibis" in module:
+            return CONST_DATAFRAME_BACKEND.IBIS
+
+        # Polars detection — check for polars-specific attribute to disambiguate
+        if "polars" in module:
+            return CONST_DATAFRAME_BACKEND.POLARS
+
+        # Narwhals fallback — try wrapping unknown types (handles pandas, pyarrow, cudf)
+        try:
+            import narwhals as nw
+            nw.from_native(df)
+            return CONST_DATAFRAME_BACKEND.NARWHALS
+        except (TypeError, ValueError, ImportError):
+            pass
+
+        raise ValueError(
+            f"No DataFrameSystem found for type: {module}.{type(df).__name__}. "
+            f"Tip: Ensure the DataFrame type is supported (polars, pandas, pyarrow, ibis, narwhals)."
+        )
 
     # =========================================================================
     # System Instantiation and Caching
@@ -307,20 +247,17 @@ class DataFrameSystemFactory:
         logger.debug("DataFrameSystem cache cleared")
 
     @classmethod
-    def register_type(
+    def register_type_object(
         cls,
-        module: str,
-        class_name: str,
+        obj_type: type,
         backend: CONST_DATAFRAME_BACKEND,
     ) -> None:
         """
-        Runtime registration of new types.
+        Runtime registration of a type for a specific backend.
 
         Args:
-            module: Module path
-            class_name: Class name
+            obj_type: The type class to register
             backend: Backend to route to
         """
-        type_key = (module, class_name)
-        cls._runtime_type_map[type_key] = backend
-        logger.info(f"Registered type: {module}.{class_name} -> {backend.name}")
+        cls._runtime_type_map[obj_type] = backend
+        logger.info(f"Registered type: {obj_type.__module__}.{obj_type.__name__} -> {backend.name}")
