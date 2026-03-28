@@ -95,10 +95,9 @@ class TestWindowBuilderMethods:
         node = api._node
         assert isinstance(node, WindowFunctionNode)
         assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.NTILE
-        assert len(node.arguments) == 2
-        assert isinstance(node.arguments[0], FieldReferenceNode)
-        assert isinstance(node.arguments[1], LiteralNode)
-        assert node.arguments[1].value == 4
+        assert len(node.arguments) == 1
+        assert isinstance(node.arguments[0], LiteralNode)
+        assert node.arguments[0].value == 4
         assert node.window_spec is None
 
     def test_lead_default_offset(self):

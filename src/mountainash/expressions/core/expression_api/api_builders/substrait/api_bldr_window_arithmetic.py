@@ -136,7 +136,7 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         """
         node = WindowFunctionNode(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTILE,
-            arguments=[self._node, LiteralNode(value=n)],
+            arguments=[LiteralNode(value=n)],
         )
         return self._build(node)
 

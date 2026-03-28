@@ -65,10 +65,6 @@ class TestWindowRankingFunctions:
             # Each team should have 3 distinct row numbers
             assert len(set(row_nums)) == 3
 
-    @pytest.mark.xfail(
-        reason="ntile visitor passes wrong arg count to Polars backend (3 vs 2)",
-        raises=TypeError,
-    )
     def test_ntile_over_partition(self, ranking_df):
         """ntile(2).over() compiles and produces bucket assignments."""
         expr = ma.col("score").ntile(2).over("team", order_by="score")

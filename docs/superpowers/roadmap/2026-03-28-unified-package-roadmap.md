@@ -64,27 +64,15 @@ Created `tests/integration/test_end_to_end_pipeline.py` with 12 tests covering:
 **Goal:** Eliminate duplication, establish `mountainash.core` as the single source of truth for shared patterns.
 **Dependencies:** Layer 1 (need working cross-module imports first)
 
-### 2.1 Extract factory base classes to core
+### 2.1 Extract factory base classes to core ✅ DONE
 
-**What:** `BaseStrategyFactory` and `DataFrameTypeFactoryMixin` are generic patterns used by dataframes, schema, and pydata. They currently live in the old dataframes factory module. Extract to `mountainash.core.factories`.
-
-**Creates:**
-- `mountainash/core/factories.py` — `BaseStrategyFactory[InputT, StrategyT]`, `DataFrameTypeFactoryMixin`
-
-**Consumers:** dataframes (CastDataFrameFactory, etc.), schema (CastSchemaFactory), pydata (PydataIngressFactory)
-
-**Estimated scope:** Medium (move + update all consumers + tests)
+`BaseStrategyFactory` and `DataFrameTypeFactoryMixin` already live in `mountainash.core.factories`. All consumers (schema `CastSchemaFactory`, pydata `PydataIngressFactory`, `DataFrameEgressFactory`) import from there. Completed as part of the Layer 2.3/2.4 unification work.
 
 ---
 
-### 2.2 Extract runtime imports to core
+### 2.2 Extract runtime imports to core ✅ DONE
 
-**What:** `import_polars()`, `import_pandas()`, `import_narwhals()`, `import_ibis()` — lazy import helpers used by dataframes, schema, and pydata backends. Currently in `mountainash.dataframes.runtime_imports` (old path) or scattered.
-
-**Creates:**
-- `mountainash/core/lazy_imports.py` — all lazy import helpers
-
-**Estimated scope:** Small
+`import_polars()`, `import_pandas()`, `import_narwhals()`, `import_ibis()`, etc. already live in `mountainash.core.lazy_imports`. All consumers (20+ call sites across schema and pydata) import from there. Completed as part of the Layer 2.3/2.4 unification work.
 
 ---
 
@@ -122,13 +110,9 @@ Pivot, unpivot, explode are implemented as ExtensionRelNode operations in `mount
 
 ---
 
-### 3.3 Window functions (expressions)
+### 3.3 Window functions (expressions) ✅ DONE
 
-**What:** Substrait defines window function extensions. The expression system has protocol stubs (`prtcl_expsys_window_arithmetic.py`) but no backend implementations.
-
-**Approach:** Implement window function support in expressions: `ma.col("x").over(partition_by="group")`.
-
-**Estimated scope:** Large
+Two-model design: Substrait `WindowFunctionNode` for 11 standard window functions (rank, row_number, lag, lead, etc.) + Polars-aligned `.over()` modifier (`OverNode`) that wraps any expression with window context. Both share `WindowSpec` value object and `apply_window` backend protocol. 60 tests passing (1 xfail: nth_value in Polars .over() context).
 
 ---
 
@@ -250,22 +234,22 @@ The `mountainash.relations` module was built from scratch with Substrait-aligned
 ```
 ✅ DONE                           REMAINING
 ─────────────────                 ─────────────────
-Layer 1.1 Schema wiring           Layer 2.1 Factory base → core
-Layer 1.2 Pydata wiring           Layer 2.2 Runtime imports → core
-Layer 1.3 End-to-end test         Layer 3.3 Window functions
-Layer 2.3 Constants               Layer 4.4 Schema/pydata alignment
-Layer 2.4 Types                   Layer 5.1-5.5 Testing + docs
-Layer 3.1 Table ops (relations)   Layer 6 Release
+Layer 1.1 Schema wiring           Layer 3.3 Window functions
+Layer 1.2 Pydata wiring           Layer 4.4 Schema/pydata alignment
+Layer 1.3 End-to-end test         Layer 5.1-5.5 Testing + docs
+Layer 2.1 Factory base → core     Layer 6 Release
+Layer 2.2 Runtime imports → core
+Layer 2.3 Constants
+Layer 2.4 Types
+Layer 3.1 Table ops (relations)
 Layer 3.2 Reshape (relations)
+Layer 3.3 Window functions
 Layer 4.1-4.3 (superseded)
 
 Dependency flow for remaining work:
-  2.1 + 2.2
-      │
-      ├── 3.3 Window functions
-      ├── 4.4 Schema/pydata alignment
-      ├── 5.1-5.5 Testing + docs
-      └── 6.1-6.3 Release
+  4.4 Schema/pydata alignment
+  5.1-5.5 Testing + docs
+  6.1-6.3 Release
 ```
 
 ## Recommended Execution Order (Updated)
@@ -280,9 +264,9 @@ Dependency flow for remaining work:
 | ~~6~~ | ~~Wire schema transforms~~ | 1.1 | ~~S~~ | ✅ Done (imports migrated to core.types) |
 | ~~7~~ | ~~Wire pydata ingress~~ | 1.2 | ~~S~~ | ✅ Done (imports migrated to core.types) |
 | ~~8~~ | ~~End-to-end pipeline test~~ | 1.3 | ~~S~~ | ✅ Done (12 integration tests) |
-| 9 | Extract factory base to core | 2.1 | M | Not started |
-| 10 | Extract runtime imports to core | 2.2 | S | Not started |
-| 11 | Window functions (.over()) | 3.3 | L | Not started |
+| ~~9~~ | ~~Extract factory base to core~~ | 2.1 | ~~M~~ | ✅ Done (already in core.factories) |
+| ~~10~~ | ~~Extract runtime imports to core~~ | 2.2 | ~~S~~ | ✅ Done (already in core.lazy_imports) |
+| ~~11~~ | ~~Window functions (.over())~~ | 3.3 | ~~L~~ | ✅ Done (60 tests, dual model) |
 | 12 | Schema/pydata alignment | 4.4 | M | Not started |
 | 13 | Comprehensive schema tests | 5.1 | M | Not started |
 | 14 | Comprehensive pydata tests | 5.2 | M | Not started |
