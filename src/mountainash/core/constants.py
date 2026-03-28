@@ -592,3 +592,12 @@ class SortField:
     column: str
     descending: bool = False
     nulls_last: bool = True
+
+
+class WindowBoundType(str, Enum):
+    """Frame bound types for window functions."""
+    CURRENT_ROW = "current_row"
+    PRECEDING = "preceding"
+    FOLLOWING = "following"
+    UNBOUNDED_PRECEDING = "unbounded_preceding"
+    UNBOUNDED_FOLLOWING = "unbounded_following"
