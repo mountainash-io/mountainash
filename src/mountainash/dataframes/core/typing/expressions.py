@@ -1,90 +1,30 @@
 """
 Expression type aliases and detection utilities.
 
-This module provides type definitions and runtime detection for expression types
-across all supported backends (Polars, Narwhals, Ibis, mountainash-expressions).
+Type aliases and basic guards are imported from mountainash.core.types.
+This module adds dataframes-specific guards: is_mountainash_expression(),
+is_native_expression(), is_supported_expression(), detect_expression_backend().
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Union
+from typing import Any
 from typing_extensions import TypeAlias, TypeGuard
 
-if TYPE_CHECKING:
-    import polars as pl
-    import narwhals as nw
-    import ibis.expr.types as ir
-else:
-    import types
-
-    # Polars
-    try:
-        import polars as pl
-    except ImportError:
-        pl = types.ModuleType("polars")
-        pl.Expr = Any
-
-    # Narwhals
-    try:
-        import narwhals as nw
-    except ImportError:
-        nw = types.ModuleType("narwhals")
-        nw.Expr = Any
-
-    # Ibis
-    try:
-        import ibis.expr.types as ir
-    except ImportError:
-        ir = types.ModuleType("ibis.expr.types")
-        ir.Expr = Any
+# Re-export type aliases and basic guards from core
+from mountainash.core.types import (
+    PolarsExpr,
+    NarwhalsExpr,
+    IbisExpr,
+    SupportedExpressions,
+    is_polars_expression,
+    is_narwhals_expression,
+)
 
 
 # ============================================================================
-# Type Aliases
+# Ibis Expression Detection (more detailed than core version)
 # ============================================================================
-
-PolarsExpr: TypeAlias = pl.Expr
-NarwhalsExpr: TypeAlias = nw.Expr
-IbisExpr: TypeAlias = ir.Expr
-
-# Union of all supported expression types
-SupportedExpressions: TypeAlias = Union[PolarsExpr, NarwhalsExpr, IbisExpr]
-
-
-# ============================================================================
-# Type Guards - Expression Detection
-# ============================================================================
-
-
-def is_polars_expression(obj: Any) -> TypeGuard[PolarsExpr]:
-    """
-    Check if object is a Polars Expr (lazy expression).
-
-    Args:
-        obj: Object to check
-
-    Returns:
-        True if object is a pl.Expr
-    """
-    obj_type = type(obj)
-    module = obj_type.__module__
-    return module.startswith("polars") and obj_type.__name__ == "Expr"
-
-
-def is_narwhals_expression(obj: Any) -> TypeGuard[NarwhalsExpr]:
-    """
-    Check if object is a Narwhals Expr (lazy expression).
-
-    Args:
-        obj: Object to check
-
-    Returns:
-        True if object is a nw.Expr
-    """
-    obj_type = type(obj)
-    module = obj_type.__module__
-    return module.startswith("narwhals") and obj_type.__name__ == "Expr"
-
 
 def is_ibis_expression(obj: Any) -> bool:
     """
@@ -92,12 +32,6 @@ def is_ibis_expression(obj: Any) -> bool:
 
     Ibis has multiple expression types (Column, Scalar, etc.) so we check
     for common patterns rather than exact class name.
-
-    Args:
-        obj: Object to check
-
-    Returns:
-        True if object is an Ibis expression
     """
     obj_type = type(obj)
     module = obj_type.__module__

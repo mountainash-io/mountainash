@@ -1,67 +1,23 @@
 """
 Series type aliases and detection utilities.
 
-This module provides type definitions and runtime detection for series/array types
-across all supported backends (Polars, Narwhals, pandas, PyArrow).
-
-Series are used as physical boolean masks for filtering and as data columns
-for mutate/with_columns operations.
+Type aliases are imported from mountainash.core.types.
+This module adds series-specific type guards and detection.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Union
-from typing_extensions import TypeAlias, TypeGuard
+from typing import Any
+from typing_extensions import TypeGuard
 
-if TYPE_CHECKING:
-    import polars as pl
-    import pandas as pd
-    import pyarrow as pa
-    import narwhals as nw
-else:
-    import types
-
-    # Polars
-    try:
-        import polars as pl
-    except ImportError:
-        pl = types.ModuleType("polars")
-        pl.Series = Any
-
-    # pandas
-    try:
-        import pandas as pd
-    except ImportError:
-        pd = types.ModuleType("pandas")
-        pd.Series = Any
-
-    # PyArrow
-    try:
-        import pyarrow as pa
-    except ImportError:
-        pa = types.ModuleType("pyarrow")
-        pa.Array = Any
-        pa.ChunkedArray = Any
-
-    # Narwhals
-    try:
-        import narwhals as nw
-    except ImportError:
-        nw = types.ModuleType("narwhals")
-        nw.Series = Any
-
-
-# ============================================================================
-# Type Aliases
-# ============================================================================
-
-PolarsSeries: TypeAlias = pl.Series
-PandasSeries: TypeAlias = pd.Series
-NarwhalsSeries: TypeAlias = nw.Series
-PyArrowArray: TypeAlias = pa.Array
-
-# Union of all supported series types
-SupportedSeries: TypeAlias = Union[PolarsSeries, PandasSeries, NarwhalsSeries, PyArrowArray]
+# Re-export type aliases from core
+from mountainash.core.types import (
+    PolarsSeries,
+    PandasSeries,
+    NarwhalsSeries,
+    PyArrowArray,
+    SupportedSeries,
+)
 
 
 # ============================================================================
