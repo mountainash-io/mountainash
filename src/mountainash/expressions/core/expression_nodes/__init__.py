@@ -25,6 +25,10 @@ from .substrait.exn_ifthen import IfThenNode
 from .substrait.exn_cast import CastNode
 from .substrait.exn_singular_or_list import SingularOrListNode
 
+from .substrait.exn_window_function import WindowFunctionNode
+from .substrait.exn_window_spec import WindowSpec, WindowBound
+from .mountainash_extensions.exn_ext_ma_over import OverNode
+
 # Extension URIs (kept here for backwards compatibility)
 from .enums import SubstraitExtension
 
@@ -47,6 +51,11 @@ __all__ = [
     "LiteralNode",
     "ScalarFunctionNode",
     "SingularOrListNode",
+    # Window nodes
+    "WindowFunctionNode",
+    "WindowSpec",
+    "WindowBound",
+    "OverNode",
     # Extension URIs
     "SubstraitExtension",
 ]

@@ -59,3 +59,86 @@ class TestWindowSpec:
         spec = WindowSpec(partition_by=["a"])
         with pytest.raises(Exception):
             spec.partition_by = ["b"]
+
+
+from mountainash.expressions.core.expression_nodes import (
+    WindowFunctionNode,
+    OverNode,
+    WindowSpec,
+    FieldReferenceNode,
+    ScalarFunctionNode,
+    LiteralNode,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    SUBSTRAIT_ARITHMETIC_WINDOW,
+)
+
+
+class TestWindowFunctionNode:
+    def test_rank_node(self):
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+            arguments=[],
+        )
+        assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.RANK
+        assert node.arguments == []
+        assert node.window_spec is None
+
+    def test_lag_node_with_args(self):
+        col_node = FieldReferenceNode(field="price")
+        offset_node = LiteralNode(value=1)
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+            arguments=[col_node, offset_node],
+        )
+        assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.LAG
+        assert len(node.arguments) == 2
+
+    def test_window_function_with_spec(self):
+        spec = WindowSpec(partition_by=["group"])
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
+            arguments=[],
+            window_spec=spec,
+        )
+        assert node.window_spec is not None
+        assert node.window_spec.partition_by == ["group"]
+
+    def test_immutable(self):
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+            arguments=[],
+        )
+        with pytest.raises(Exception):
+            node.arguments = [LiteralNode(value=1)]
+
+
+class TestOverNode:
+    def test_over_wraps_expression(self):
+        inner = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            arguments=[FieldReferenceNode(field="a"), LiteralNode(value=1)],
+        )
+        spec = WindowSpec(partition_by=["group"])
+        node = OverNode(expression=inner, window_spec=spec)
+        assert node.expression == inner
+        assert node.window_spec.partition_by == ["group"]
+
+    def test_over_accepts_visitor(self):
+        inner = FieldReferenceNode(field="x")
+        spec = WindowSpec(partition_by=["g"])
+        node = OverNode(expression=inner, window_spec=spec)
+
+        class MockVisitor:
+            def visit_over(self, n):
+                return "visited_over"
+
+        assert node.accept(MockVisitor()) == "visited_over"
+
+    def test_immutable(self):
+        inner = FieldReferenceNode(field="x")
+        spec = WindowSpec(partition_by=["g"])
+        node = OverNode(expression=inner, window_spec=spec)
+        with pytest.raises(Exception):
+            node.expression = FieldReferenceNode(field="y")

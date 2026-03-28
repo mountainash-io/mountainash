@@ -378,6 +378,28 @@ class FKEY_SUBSTRAIT_SCALAR_ROUNDING(Enum):
 # Datetime Functions (Substrait-aligned)
 # =============================================================================
 
+class SUBSTRAIT_ARITHMETIC_WINDOW(Enum):
+    """Substrait window functions from functions_arithmetic.yaml.
+
+    See: https://substrait.io/extensions/functions_arithmetic/
+
+    These are window-specific functions (rank, row_number, lag, etc.)
+    as distinct from scalar or aggregate functions.
+    """
+
+    ROW_NUMBER = auto()
+    RANK = auto()
+    DENSE_RANK = auto()
+    PERCENT_RANK = auto()
+    CUME_DIST = auto()
+    NTILE = auto()
+    FIRST_VALUE = auto()
+    LAST_VALUE = auto()
+    NTH_VALUE = auto()
+    LEAD = auto()
+    LAG = auto()
+
+
 class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     """Substrait datetime functions.
 
@@ -662,6 +684,7 @@ __all__ = [
     "FKEY_SUBSTRAIT_SCALAR_ROUNDING",
     "FKEY_SUBSTRAIT_SCALAR_SET",
     "FKEY_SUBSTRAIT_SCALAR_STRING",
+    "SUBSTRAIT_ARITHMETIC_WINDOW",
     # Mountainash extensions
     "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
     "FKEY_MOUNTAINASH_SCALAR_COMPARISON",
