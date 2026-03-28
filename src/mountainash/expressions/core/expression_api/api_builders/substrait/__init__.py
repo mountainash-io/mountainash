@@ -16,6 +16,7 @@ from .api_bldr_scalar_logarithmic import SubstraitScalarLogarithmicAPIBuilder
 from .api_bldr_scalar_rounding import SubstraitScalarRoundingAPIBuilder
 from .api_bldr_scalar_set import SubstraitScalarSetAPIBuilder
 from .api_bldr_scalar_string import SubstraitScalarStringAPIBuilder
+from .api_bldr_window_arithmetic import SubstraitWindowArithmeticAPIBuilder
 # from .api_bldr_ternary import TernaryAPIBuilder
 # from .api_bldr_null import NullAPIBuilder
 # from .api_bldr_name import NameAPIBuilder
@@ -42,4 +43,6 @@ __all__ = [
     "SubstraitScalarRoundingAPIBuilder",
     "SubstraitScalarSetAPIBuilder",
     "SubstraitScalarStringAPIBuilder",
+    # Window operations
+    "SubstraitWindowArithmeticAPIBuilder",
 ]

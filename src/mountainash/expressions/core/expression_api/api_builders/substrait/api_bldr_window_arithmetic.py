@@ -1,0 +1,240 @@
+"""Window arithmetic operations APIBuilder.
+
+Substrait-aligned implementation using WindowFunctionNode.
+Provides 11 window function methods that create WindowFunctionNode
+instances with window_spec=None (populated later by .over()).
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Optional, Union
+
+from ..api_builder_base import BaseExpressionAPIBuilder
+
+from mountainash.expressions.core.expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import WindowFunctionNode
+from mountainash.expressions.core.expression_nodes import LiteralNode
+
+if TYPE_CHECKING:
+    from ...api_base import BaseExpressionAPI
+
+
+class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
+    """
+    Window arithmetic operations APIBuilder (Substrait-aligned).
+
+    Provides window function methods that produce WindowFunctionNode instances.
+    The window_spec is left as None until .over() is called on the result.
+
+    Methods:
+        row_number: Row number within partition
+        rank: Rank with gaps
+        dense_rank: Rank without gaps
+        percent_rank: Relative rank (0..1)
+        cume_dist: Cumulative distribution (0..1)
+        ntile: N-tile bucket number
+        lead: Value at offset rows after current
+        lag: Value at offset rows before current
+        first_value: First value in window frame
+        last_value: Last value in window frame
+        nth_value: Nth value in window frame
+    """
+
+    # ========================================
+    # Ranking Functions (no arguments)
+    # ========================================
+
+    def row_number(self) -> BaseExpressionAPI:
+        """Row number within the partition (1-based).
+
+        Substrait: row_number
+        No arguments required.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
+            arguments=[],
+        )
+        return self._build(node)
+
+    def rank(self) -> BaseExpressionAPI:
+        """Rank with gaps within the partition.
+
+        Substrait: rank
+        No arguments required.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+            arguments=[],
+        )
+        return self._build(node)
+
+    def dense_rank(self) -> BaseExpressionAPI:
+        """Rank without gaps within the partition.
+
+        Substrait: dense_rank
+        No arguments required.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
+            arguments=[],
+        )
+        return self._build(node)
+
+    def percent_rank(self) -> BaseExpressionAPI:
+        """Relative rank within the partition (0..1).
+
+        Substrait: percent_rank
+        No arguments required.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK,
+            arguments=[],
+        )
+        return self._build(node)
+
+    def cume_dist(self) -> BaseExpressionAPI:
+        """Cumulative distribution within the partition (0..1).
+
+        Substrait: cume_dist
+        No arguments required.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST,
+            arguments=[],
+        )
+        return self._build(node)
+
+    # ========================================
+    # Offset Functions
+    # ========================================
+
+    def ntile(self, n: int) -> BaseExpressionAPI:
+        """Divide partition into n buckets and return bucket number.
+
+        Substrait: ntile
+
+        Args:
+            n: Number of buckets.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTILE,
+            arguments=[self._node, LiteralNode(value=n)],
+        )
+        return self._build(node)
+
+    def lead(
+        self,
+        offset: int = 1,
+        default: Optional[Union[BaseExpressionAPI, Any]] = None,
+    ) -> BaseExpressionAPI:
+        """Value at offset rows after current row.
+
+        Substrait: lead
+
+        Args:
+            offset: Number of rows ahead (default 1).
+            default: Default value if offset is out of bounds.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        arguments: list[Any] = [self._node, LiteralNode(value=offset)]
+        if default is not None:
+            arguments.append(self._to_substrait_node(default))
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LEAD,
+            arguments=arguments,
+        )
+        return self._build(node)
+
+    def lag(
+        self,
+        offset: int = 1,
+        default: Optional[Union[BaseExpressionAPI, Any]] = None,
+    ) -> BaseExpressionAPI:
+        """Value at offset rows before current row.
+
+        Substrait: lag
+
+        Args:
+            offset: Number of rows behind (default 1).
+            default: Default value if offset is out of bounds.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        arguments: list[Any] = [self._node, LiteralNode(value=offset)]
+        if default is not None:
+            arguments.append(self._to_substrait_node(default))
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+            arguments=arguments,
+        )
+        return self._build(node)
+
+    # ========================================
+    # Value Functions
+    # ========================================
+
+    def first_value(self) -> BaseExpressionAPI:
+        """First value in the window frame.
+
+        Substrait: first_value
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def last_value(self) -> BaseExpressionAPI:
+        """Last value in the window frame.
+
+        Substrait: last_value
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def nth_value(self, n: int) -> BaseExpressionAPI:
+        """Nth value in the window frame (1-based).
+
+        Substrait: nth_value
+
+        Args:
+            n: Position (1-based) of the value to return.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE,
+            arguments=[self._node, LiteralNode(value=n)],
+        )
+        return self._build(node)

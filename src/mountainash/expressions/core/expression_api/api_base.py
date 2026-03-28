@@ -295,5 +295,91 @@ class BaseExpressionAPI(ABC):
 
         return booleanizer_methods[booleanizer](self)
 
+    def over(
+        self,
+        *partition_by: str,
+        order_by: str | list[str] | None = None,
+        rows_between: tuple[int | None, int | None] | None = None,
+    ) -> BaseExpressionAPI:
+        """
+        Apply window context to the current expression.
+
+        If the inner node is a WindowFunctionNode with window_spec=None,
+        populates the window_spec directly. Otherwise, wraps the inner
+        node in an OverNode.
+
+        Args:
+            *partition_by: Column names to partition by.
+            order_by: Column name(s) to order by within each partition.
+            rows_between: Tuple of (lower, upper) frame bounds.
+                Use None for unbounded, 0 for current row, negative for preceding,
+                positive for following.
+
+        Returns:
+            New ExpressionAPI with window context applied.
+        """
+        # Lazy imports to avoid circular dependencies
+        from ..expression_nodes.substrait.exn_window_spec import WindowSpec, WindowBound
+        from ..expression_nodes.substrait.exn_window_function import WindowFunctionNode
+        from ..expression_nodes.mountainash_extensions.exn_ext_ma_over import OverNode
+        from ..expression_nodes import FieldReferenceNode
+        from mountainash.core.constants import SortField, WindowBoundType
+
+        # Convert partition_by strings to FieldReferenceNode
+        partition_nodes = [
+            FieldReferenceNode(field=col_name) for col_name in partition_by
+        ]
+
+        # Convert order_by to SortField list
+        sort_fields: list[SortField] = []
+        if order_by is not None:
+            if isinstance(order_by, str):
+                order_by = [order_by]
+            for col_name in order_by:
+                if col_name.startswith("-"):
+                    sort_fields.append(SortField(column=col_name[1:], descending=True))
+                else:
+                    sort_fields.append(SortField(column=col_name))
+
+        # Convert rows_between to WindowBound objects
+        lower_bound: WindowBound | None = None
+        upper_bound: WindowBound | None = None
+        if rows_between is not None:
+            lower, upper = rows_between
+            if lower is None:
+                lower_bound = WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING)
+            elif lower == 0:
+                lower_bound = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            elif lower < 0:
+                lower_bound = WindowBound(bound_type=WindowBoundType.PRECEDING, offset=abs(lower))
+            else:
+                lower_bound = WindowBound(bound_type=WindowBoundType.FOLLOWING, offset=lower)
+
+            if upper is None:
+                upper_bound = WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING)
+            elif upper == 0:
+                upper_bound = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            elif upper < 0:
+                upper_bound = WindowBound(bound_type=WindowBoundType.PRECEDING, offset=abs(upper))
+            else:
+                upper_bound = WindowBound(bound_type=WindowBoundType.FOLLOWING, offset=upper)
+
+        # Build the WindowSpec
+        spec = WindowSpec(
+            partition_by=partition_nodes,
+            order_by=sort_fields,
+            lower_bound=lower_bound,
+            upper_bound=upper_bound,
+        )
+
+        # If inner node is a WindowFunctionNode with no spec, populate it
+        if isinstance(self._node, WindowFunctionNode) and self._node.window_spec is None:
+            updated_node = self._node.model_copy(update={"window_spec": spec})
+            return self.create(updated_node)
+
+        # Otherwise, wrap in an OverNode
+        over_node = OverNode(expression=self._node, window_spec=spec)
+        return self.create(over_node)
+
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._node!r})"

@@ -26,6 +26,7 @@ from .api_builders.substrait import (
     SubstraitScalarLogarithmicAPIBuilder,
     SubstraitScalarRoundingAPIBuilder,
     SubstraitScalarSetAPIBuilder,
+    SubstraitWindowArithmeticAPIBuilder,
 
     SubstraitScalarDatetimeAPIBuilder,
     SubstraitScalarStringAPIBuilder,
@@ -130,6 +131,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         SubstraitScalarLogarithmicAPIBuilder,
         SubstraitScalarRoundingAPIBuilder,
         SubstraitScalarSetAPIBuilder,
+        SubstraitWindowArithmeticAPIBuilder,
     )
 
     # Explicit namespace descriptors - accessed via .str, .dt, .name
