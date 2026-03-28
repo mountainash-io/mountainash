@@ -177,4 +177,4 @@ junit.*
 coverage.*
 
 #hiivmind
-.hiivmind/*
+# .hiivmind/*

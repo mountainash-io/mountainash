@@ -1,0 +1,50 @@
+schema_version: 1
+
+corpora:
+  - id: polars
+    source:
+      type: github
+      repo: hiivmind/hiivmind-corpus-data
+      ref: main
+      path: hiivmind-corpus-polars
+    cache:
+      strategy: fetch
+      path: null
+      ttl: 7d
+    registered_at: "2026-03-25T00:00:00Z"
+
+  - id: ibis
+    source:
+      type: github
+      repo: hiivmind/hiivmind-corpus-data
+      ref: main
+      path: hiivmind-corpus-ibis
+    cache:
+      strategy: fetch
+      path: null
+      ttl: 7d
+    registered_at: "2026-03-26T00:00:00Z"
+
+  - id: narwhals
+    source:
+      type: github
+      repo: hiivmind/hiivmind-corpus-data
+      ref: main
+      path: hiivmind-corpus-narwhals
+    cache:
+      strategy: fetch
+      path: null
+      ttl: 7d
+    registered_at: "2026-03-26T00:00:00Z"
+
+  - id: substrait
+    source:
+      type: github
+      repo: hiivmind/hiivmind-corpus-data
+      ref: main
+      path: hiivmind-corpus-substrait
+    cache:
+      strategy: fetch
+      path: null
+      ttl: 7d
+    registered_at: "2026-03-26T00:00:00Z"
