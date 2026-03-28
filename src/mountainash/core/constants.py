@@ -1,5 +1,6 @@
 from typing import Optional
 from enum import Enum, IntEnum, StrEnum, auto
+from dataclasses import dataclass
 
 
 class CONST_BACKEND(StrEnum):
@@ -538,3 +539,56 @@ class CONST_TERNARY_LOGIC_VALUES(IntEnum):
             return None
         else:
             raise ValueError(f"Invalid ternary value: {ternary_value}")
+
+
+# --- Relational AST Enums ---
+
+class ProjectOperation(Enum):
+    """Variants of the Substrait ProjectRel."""
+    SELECT = auto()
+    WITH_COLUMNS = auto()
+    DROP = auto()
+    RENAME = auto()
+
+
+class JoinType(StrEnum):
+    """Join types aligned with Substrait JoinRel."""
+    INNER = "inner"
+    LEFT = "left"
+    RIGHT = "right"
+    OUTER = "outer"
+    SEMI = "semi"
+    ANTI = "anti"
+    CROSS = "cross"
+    ASOF = "asof"
+
+
+class ExecutionTarget(Enum):
+    """Which side of a join to execute on."""
+    LEFT = auto()
+    RIGHT = auto()
+
+
+class SetType(Enum):
+    """Substrait SetRel operation types."""
+    UNION_ALL = auto()
+    UNION_DISTINCT = auto()
+
+
+class ExtensionRelOperation(Enum):
+    """Mountainash extension relation operations (not in Substrait)."""
+    DROP_NULLS = auto()
+    WITH_ROW_INDEX = auto()
+    EXPLODE = auto()
+    SAMPLE = auto()
+    UNPIVOT = auto()
+    PIVOT = auto()
+    TOP_K = auto()
+
+
+@dataclass(frozen=True)
+class SortField:
+    """A single sort specification."""
+    column: str
+    descending: bool = False
+    nulls_last: bool = True
