@@ -179,6 +179,25 @@ from mountainash.expressions.core.expression_nodes.substrait import (
 ```
 
 
+## Documentation Corpora
+
+This project has 4 registered documentation corpora from [hiivmind-corpus-data](https://github.com/hiivmind/hiivmind-corpus-data), providing indexed reference docs for the upstream libraries mountainash builds on.
+
+| Corpus | Covers |
+|--------|--------|
+| `polars` | Polars DataFrame library — expressions, lazy evaluation, IO, types |
+| `ibis` | Ibis framework — deferred execution, backend portability, expression API |
+| `narwhals` | Narwhals — dataframe-agnostic API, expression model, cross-backend behavior |
+| `substrait` | Substrait spec — query plans, type system, scalar/aggregate/window functions |
+
+**Registry:** `.hiivmind/corpus/registry.yaml`
+**Cross-corpus bridges:** `.hiivmind/corpus/registry-graph.yaml` (66 bridges, 25 aliases)
+
+**When to use:** Consult the corpora when you need to understand how an upstream library implements something — e.g., how Polars handles string expressions, what Substrait's scalar function spec looks like, or how Ibis compiles temporal operations. Use `/hiivmind-corpus navigate` to query them.
+
+**When NOT to use:** For mountainash's own architecture and design decisions, use the Design Principles above instead. The corpora document the *upstream libraries*, not mountainash itself.
+
+
 ## GitHub Operations
 
 This project uses [hiivmind-pulse-gh](https://github.com/hiivmind/hiivmind-pulse-gh) for GitHub automation.
