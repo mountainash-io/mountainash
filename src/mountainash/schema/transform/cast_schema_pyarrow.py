@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mountainash.dataframes.runtime_imports import import_pyarrow, import_narwhals
+from mountainash.core.lazy_imports import import_pyarrow, import_narwhals
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 
 if TYPE_CHECKING:
     import pyarrow as pa
-    from mountainash.dataframes.typing import PyArrowTable
+    from mountainash.dataframes.core.typing import PyArrowTable
     from mountainash.schema.config import SchemaConfig
 
 

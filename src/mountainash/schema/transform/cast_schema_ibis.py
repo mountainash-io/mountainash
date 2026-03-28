@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from pandas.core.arrays.datetimelike import ABCCategorical
 
-from mountainash.dataframes.runtime_imports import import_ibis
+from mountainash.core.lazy_imports import import_ibis
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import ibis
-    from mountainash.dataframes.typing import IbisTable
+    from mountainash.dataframes.core.typing import IbisTable
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

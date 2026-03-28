@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mountainash.dataframes.runtime_imports import import_narwhals
+from mountainash.core.lazy_imports import import_narwhals
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import narwhals as nw
-    from mountainash.dataframes.typing import NarwhalsFrame, NarwhalsLazyFrame
+    from mountainash.dataframes.core.typing import NarwhalsFrame, NarwhalsLazyFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

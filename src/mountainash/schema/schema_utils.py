@@ -112,7 +112,7 @@ class SchemaUtils():
             True if schema matches, False otherwise
 
         Examples:
-            >>> from mountainash.dataframes.schema_config import TableSchema
+            >>> from mountainash.schema.config import TableSchema
             >>> expected = TableSchema.from_simple_dict({"id": "integer", "name": "string"})
             >>> is_valid = DataFrameUtils.validate_schema(df, expected)
             >>> if not is_valid:
@@ -142,7 +142,7 @@ class SchemaUtils():
             SchemaValidationError: If validation fails
 
         Examples:
-            >>> from mountainash.dataframes.schema_config import TableSchema
+            >>> from mountainash.schema.config import TableSchema
             >>> expected = TableSchema.from_simple_dict({"id": "integer"})
             >>> DataFrameUtils.assert_schema(df, expected)  # Raises if invalid
         """
@@ -169,7 +169,7 @@ class SchemaUtils():
             Transformed DataFrame (same backend as input)
 
         Examples:
-            >>> from mountainash.dataframes.schema_config import SchemaConfig
+            >>> from mountainash.schema.config import SchemaConfig
             >>> config = SchemaConfig(columns={"old_id": {"rename": "id", "cast": "integer"}})
             >>> result = DataFrameUtils.transform_with_schema(df, config)
         """
@@ -207,7 +207,7 @@ class SchemaUtils():
             Transformed DataFrame matching target schema
 
         Examples:
-            >>> from mountainash.dataframes.schema_config import TableSchema
+            >>> from mountainash.schema.config import TableSchema
             >>> source = TableSchema.from_simple_dict({"user_id": "string"})
             >>> target = TableSchema.from_simple_dict({"user_id": "integer"})
             >>> result = DataFrameUtils.transform_from_schemas(df, source, target)
@@ -246,7 +246,7 @@ class SchemaUtils():
             True if transformation is valid, False otherwise
 
         Examples:
-            >>> from mountainash.dataframes.schema_config import SchemaConfig
+            >>> from mountainash.schema.config import SchemaConfig
             >>> config = SchemaConfig(columns={"old": {"rename": "new"}})
             >>> result = DataFrameUtils.transform_with_schema(source, config)
             >>> is_valid = DataFrameUtils.validate_transformation(result, source, config)
@@ -275,7 +275,7 @@ class SchemaUtils():
             SchemaValidationError: If validation fails
 
         Examples:
-            >>> from mountainash.dataframes.schema_config import SchemaConfig
+            >>> from mountainash.schema.config import SchemaConfig
             >>> config = SchemaConfig(columns={"old": {"rename": "new"}})
             >>> result = DataFrameUtils.transform_with_schema(source, config)
             >>> DataFrameUtils.assert_transformation(result, source, config)

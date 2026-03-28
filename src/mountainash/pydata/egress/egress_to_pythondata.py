@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Ty
 from mountainash_utils_dataclasses import DataclassUtils, PydanticUtils
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.typing import SupportedDataFrames, PandasSeries, PolarsSeries
-    from mountainash.dataframes.schema_config import SchemaConfig
+    from mountainash.dataframes.core.typing import SupportedDataFrames, PandasSeries, PolarsSeries
+    from mountainash.schema.config import SchemaConfig
 
 
-from mountainash.dataframes.schema_config import (
+from mountainash.schema.config import (
     SchemaConfig,
     extract_schema_from_dataframe,
     extract_schema_from_dataclass,
@@ -35,7 +35,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .egress_pydata_from_polars import EgressPydataFromPolars
-from mountainash.dataframes.conversion.dataframe.cast_dataframe import CastDataFrame
+from mountainash.schema.transform import CastDataFrame
 
 class EgressToPythonData:
     """

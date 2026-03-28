@@ -7,13 +7,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mountainash.dataframes.runtime_imports import import_polars
+from mountainash.core.lazy_imports import import_polars
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 
 if TYPE_CHECKING:
     import polars as pl
-    from mountainash.dataframes.typing import PolarsFrame, PolarsLazyFrame
+    from mountainash.dataframes.core.typing import PolarsFrame, PolarsLazyFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

@@ -6,9 +6,9 @@ from collections import namedtuple
 import datetime
 
 # Runtime imports for actual functionality
-from mountainash.dataframes.runtime_imports import import_narwhals, import_polars
+from mountainash.core.lazy_imports import import_narwhals, import_polars
 
-from mountainash.dataframes.typing import (
+from mountainash.dataframes.core.typing import (
 PandasFrame, PyArrowTable, PolarsFrameTypes, PolarsFrame, PolarsLazyFrame,
 NarwhalsFrame,
 PandasSeries,PolarsSeries,
@@ -293,7 +293,7 @@ class EgressFromPolars(CastToIbisMixin, BaseEgressDataFrame):
                 "Install it with: pip install mountainash-utils-dataclasses"
             ) from e
 
-        from mountainash.dataframes.schema_config import (
+        from mountainash.schema.config import (
             SchemaConfig,
             extract_schema_from_dataframe,
             extract_schema_from_dataclass,
@@ -384,7 +384,7 @@ class EgressFromPolars(CastToIbisMixin, BaseEgressDataFrame):
                 "Install it with: pip install mountainash-utils-dataclasses"
             ) from e
 
-        from mountainash.dataframes.schema_config import (
+        from mountainash.schema.config import (
             SchemaConfig,
             extract_schema_from_dataframe,
             extract_schema_from_pydantic,

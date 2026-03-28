@@ -384,7 +384,7 @@ def from_dataframe(
 
 def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -> TableSchema:
     """Extract schema from Polars DataFrame or LazyFrame."""
-    from mountainash.dataframes.runtime_imports import import_polars
+    from mountainash.core.lazy_imports import import_polars
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required")
@@ -418,7 +418,7 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
 
 def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -> TableSchema:
     """Extract schema from pandas DataFrame."""
-    from mountainash.dataframes.runtime_imports import import_pandas
+    from mountainash.core.lazy_imports import import_pandas
     pd = import_pandas()
     if pd is None:
         raise ImportError("pandas is required")
@@ -451,7 +451,7 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
 
 def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -> TableSchema:
     """Extract schema from PyArrow Table."""
-    from mountainash.dataframes.runtime_imports import import_pyarrow
+    from mountainash.core.lazy_imports import import_pyarrow
     pa = import_pyarrow()
     if pa is None:
         raise ImportError("pyarrow is required")
@@ -517,7 +517,7 @@ def _from_ibis(table: 'ibis.Table', preserve_backend_types: bool, **metadata) ->
 
 def _from_narwhals(df: Any, preserve_backend_types: bool, **metadata) -> TableSchema:
     """Extract schema from Narwhals DataFrame."""
-    from mountainash.dataframes.runtime_imports import import_narwhals
+    from mountainash.core.lazy_imports import import_narwhals
     nw = import_narwhals()
     if nw is None:
         raise ImportError("narwhals is required")

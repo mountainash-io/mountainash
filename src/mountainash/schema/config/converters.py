@@ -52,7 +52,7 @@ def to_polars_schema(schema: TableSchema) -> Dict[str, Any]:
         >>> polars_schema
         {'id': Int64, 'name': Utf8}
     """
-    from mountainash.dataframes.runtime_imports import import_polars
+    from mountainash.core.lazy_imports import import_polars
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for to_polars_schema()")
@@ -146,7 +146,7 @@ def to_arrow_schema(schema: TableSchema) -> 'pa.Schema':
         id: int64
         name: string
     """
-    from mountainash.dataframes.runtime_imports import import_pyarrow
+    from mountainash.core.lazy_imports import import_pyarrow
     pa = import_pyarrow()
     if pa is None:
         raise ImportError("pyarrow is required for to_arrow_schema()")

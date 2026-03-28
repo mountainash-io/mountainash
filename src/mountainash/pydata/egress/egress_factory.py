@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import logging
 
-from mountainash.dataframes.typing import SupportedDataFrames
+from mountainash.dataframes.core.typing import SupportedDataFrames
 
 from mountainash.dataframes.constants import CONST_DATAFRAME_TYPE
 
-from .base_cast_strategy import BaseCastDataFrame #, CastFromPandas, CastFromPolarsDataFrame, CastFromPolarsLazyFrame, CastFromIbis, CastFromPyArrow, CastFromNarwhals, CastFromNarwhalsLazyFrame
-from mountainash.dataframes.factories import DataFrameTypeFactoryMixin, BaseStrategyFactory
+from .base_egress_strategy import BaseEgressDataFrame as BaseCastDataFrame
+from mountainash.core.factories import DataFrameTypeFactoryMixin, BaseStrategyFactory
 
 logger = logging.getLogger(__name__)
 

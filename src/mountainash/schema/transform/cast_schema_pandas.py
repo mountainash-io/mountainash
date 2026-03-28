@@ -7,13 +7,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mountainash.dataframes.runtime_imports import import_pandas
+from mountainash.core.lazy_imports import import_pandas
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 
 if TYPE_CHECKING:
     import pandas as pd
-    from mountainash.dataframes.typing import PandasFrame
+    from mountainash.dataframes.core.typing import PandasFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

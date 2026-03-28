@@ -18,12 +18,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import logging
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.schema_config import SchemaConfig
-    from mountainash.dataframes.typing import SupportedDataFrames
+    from mountainash.schema.config import SchemaConfig
+    from mountainash.dataframes.core.typing import SupportedDataFrames
 
 
-from mountainash.dataframes.schema_config import SchemaConfig
-from mountainash.dataframes.conversion.schema import SchemaTransformFactory
+from mountainash.schema.config import SchemaConfig
+from mountainash.schema.transform import SchemaTransformFactory
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ def apply_custom_converters_to_python_data(
         target_col = spec.get("rename", source_col)
         target_custom_convs[target_col] = spec
 
-    from mountainash.dataframes.schema_config.custom_types import CustomTypeRegistry
+    from mountainash.schema.config.custom_types import CustomTypeRegistry
 
     # Apply conversions based on data format
     if data_format == "dict":
@@ -192,7 +192,7 @@ def _apply_custom_to_dicts(
     Returns:
         List of dictionaries with custom conversions applied
     """
-    from mountainash.dataframes.schema_config.custom_types import CustomTypeRegistry
+    from mountainash.schema.config.custom_types import CustomTypeRegistry
 
     converted_data = []
 
@@ -241,7 +241,7 @@ def _apply_custom_to_namedtuples(
     Returns:
         List of named tuples with custom conversions applied
     """
-    from mountainash.dataframes.schema_config.custom_types import CustomTypeRegistry
+    from mountainash.schema.config.custom_types import CustomTypeRegistry
 
     if not named_tuples:
         return named_tuples

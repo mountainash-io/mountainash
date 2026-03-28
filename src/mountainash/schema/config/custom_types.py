@@ -687,7 +687,7 @@ def _convert_safe_float_narwhals(column_name: str) -> Callable:
     """
     def _safe_float_expr(df: Any) -> 'nw.Expr':
         """Generate Narwhals expression for safe_float conversion."""
-        from mountainash.dataframes.runtime_imports import import_narwhals
+        from mountainash.core.lazy_imports import import_narwhals
 
         nw = import_narwhals()
         if nw is None:
@@ -725,7 +725,7 @@ def _convert_safe_int_narwhals(column_name: str) -> Callable:
     """
     def _safe_int_expr(df: Any) -> 'nw.Expr':
         """Generate Narwhals expression for safe_int conversion."""
-        from mountainash.dataframes.runtime_imports import import_narwhals
+        from mountainash.core.lazy_imports import import_narwhals
 
         nw = import_narwhals()
         if nw is None:
@@ -765,7 +765,7 @@ def _convert_xml_string_narwhals(column_name: str) -> Callable:
     """
     def _xml_string_expr(df: Any) -> 'nw.Expr':
         """Generate Narwhals expression for XML entity escaping."""
-        from mountainash.dataframes.runtime_imports import import_narwhals
+        from mountainash.core.lazy_imports import import_narwhals
 
         nw = import_narwhals()
         if nw is None:
@@ -806,7 +806,7 @@ def _convert_rich_boolean_narwhals(column_name: str) -> Callable:
     """
     def _rich_boolean_expr(df: Any) -> 'nw.Expr':
         """Generate Narwhals expression for rich boolean parsing."""
-        from mountainash.dataframes.runtime_imports import import_narwhals
+        from mountainash.core.lazy_imports import import_narwhals
 
         nw = import_narwhals()
         if nw is None:

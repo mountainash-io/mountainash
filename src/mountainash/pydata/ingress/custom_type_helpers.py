@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import logging
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.schema_config import SchemaConfig
-    from mountainash.dataframes.typing import PolarsFrame
+    from mountainash.schema.config import SchemaConfig
+    from mountainash.dataframes.core.typing import PolarsFrame
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def apply_custom_converters_to_dict(
         >>> result
         {'amount': 42.5, 'id': '123'}  # Only amount was converted
     """
-    from mountainash.dataframes.schema_config.custom_types import CustomTypeRegistry
+    from mountainash.schema.config.custom_types import CustomTypeRegistry
 
     converted_dict = {}
 
@@ -135,8 +135,8 @@ def apply_native_conversions_to_dataframe(
         >>> result.schema
         {'id': Int64}  # Vectorized cast to integer!
     """
-    from mountainash.dataframes.runtime_imports import import_polars
-    from mountainash.dataframes.schema_config.types import get_polars_type
+    from mountainash.core.lazy_imports import import_polars
+    from mountainash.schema.config.types import get_polars_type
 
     pl = import_polars()
     if pl is None:
@@ -185,7 +185,7 @@ def apply_native_conversions_to_dataframe(
     # Apply other native operations (rename, null_fill, etc.)
     # Create a temporary SchemaConfig with only native conversions
     if native_conversions:
-        from mountainash.dataframes.schema_config import SchemaConfig
+        from mountainash.schema.config import SchemaConfig
 
         # Create config with only native conversions
         native_config = SchemaConfig(
@@ -233,8 +233,8 @@ def _apply_narwhals_custom_converters(
         ... }
         >>> df = _apply_narwhals_custom_converters(df, narwhals_custom)
     """
-    from mountainash.dataframes.runtime_imports import import_narwhals
-    from mountainash.dataframes.schema_config.custom_types import CustomTypeRegistry
+    from mountainash.core.lazy_imports import import_narwhals
+    from mountainash.schema.config.custom_types import CustomTypeRegistry
 
     nw = import_narwhals()
     if nw is None:
@@ -321,7 +321,7 @@ def apply_hybrid_conversion(
         >>> # Python-only custom applied at edges
         >>> # Narwhals custom + native applied in DataFrame (vectorized!)
     """
-    from mountainash.dataframes.runtime_imports import import_polars, import_narwhals
+    from mountainash.core.lazy_imports import import_polars, import_narwhals
 
     pl = import_polars()
     if pl is None:
@@ -373,7 +373,7 @@ def apply_hybrid_conversion(
 
     # Apply native operations if any
     if native_only_columns:
-        from mountainash.dataframes.schema_config import SchemaConfig
+        from mountainash.schema.config import SchemaConfig
 
         native_config = SchemaConfig(
             columns=native_only_columns,

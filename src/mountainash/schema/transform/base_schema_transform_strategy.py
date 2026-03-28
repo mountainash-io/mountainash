@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import logging
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.typing import SupportedDataFrames
+    from mountainash.dataframes.core.typing import SupportedDataFrames
     from mountainash.schema.config import SchemaConfig, TableSchema
 
 logger = logging.getLogger(__name__)

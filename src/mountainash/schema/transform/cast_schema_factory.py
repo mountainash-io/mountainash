@@ -5,19 +5,19 @@ Follows the established BaseStrategyFactory pattern with lazy loading.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from mountainash.dataframes.factories import BaseStrategyFactory, DataFrameTypeFactoryMixin
+from mountainash.core.factories import BaseStrategyFactory, DataFrameTypeFactoryMixin
 from mountainash.dataframes.constants import CONST_DATAFRAME_TYPE
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.typing import SupportedDataFrames
+    from mountainash.dataframes.core.typing import SupportedDataFrames
     from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 
 class CastSchemaFactory(
     DataFrameTypeFactoryMixin,
-    BaseStrategyFactory[SupportedDataFrames, BaseCastSchemaStrategy]
+    BaseStrategyFactory[Any, Any]
 ):
     """
     Factory for backend-specific schema transformation strategies.
@@ -29,8 +29,8 @@ class CastSchemaFactory(
     loaded when first used.
 
     Example:
-        >>> from mountainash.dataframes.schema_transform import CastSchemaFactory
-        >>> from mountainash.dataframes.schema_config import SchemaConfig
+        >>> from mountainash.schema.transform import CastSchemaFactory
+        >>> from mountainash.schema.config import SchemaConfig
         >>> config = SchemaConfig(columns={"old": {"rename": "new"}})
         >>> strategy = CastSchemaFactory.get_strategy(df)  # Auto-detects backend
         >>> result = strategy.apply(df, config)
@@ -45,13 +45,13 @@ class CastSchemaFactory(
         implementation. Strategies are imported only when first accessed.
         """
         cls._strategy_modules = {
-            CONST_DATAFRAME_TYPE.PANDAS_DATAFRAME:  "mountainash.dataframes.schema_transform",
-            CONST_DATAFRAME_TYPE.POLARS_DATAFRAME:  "mountainash.dataframes.schema_transform",
-            CONST_DATAFRAME_TYPE.POLARS_LAZYFRAME:  "mountainash.dataframes.schema_transform",
-            CONST_DATAFRAME_TYPE.IBIS_TABLE:        "mountainash.dataframes.schema_transform",
-            CONST_DATAFRAME_TYPE.PYARROW_TABLE:     "mountainash.dataframes.schema_transform",
-            CONST_DATAFRAME_TYPE.NARWHALS_DATAFRAME:"mountainash.dataframes.schema_transform",
-            CONST_DATAFRAME_TYPE.NARWHALS_LAZYFRAME:"mountainash.dataframes.schema_transform",
+            CONST_DATAFRAME_TYPE.PANDAS_DATAFRAME:  "mountainash.schema.transform",
+            CONST_DATAFRAME_TYPE.POLARS_DATAFRAME:  "mountainash.schema.transform",
+            CONST_DATAFRAME_TYPE.POLARS_LAZYFRAME:  "mountainash.schema.transform",
+            CONST_DATAFRAME_TYPE.IBIS_TABLE:        "mountainash.schema.transform",
+            CONST_DATAFRAME_TYPE.PYARROW_TABLE:     "mountainash.schema.transform",
+            CONST_DATAFRAME_TYPE.NARWHALS_DATAFRAME:"mountainash.schema.transform",
+            CONST_DATAFRAME_TYPE.NARWHALS_LAZYFRAME:"mountainash.schema.transform",
         }
 
         cls._strategy_classes = {

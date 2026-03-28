@@ -69,7 +69,7 @@ def _get_universal_to_polars() -> Dict[str, Any]:
 
     Lazy import to avoid loading Polars unless needed.
     """
-    from mountainash.dataframes.runtime_imports import import_polars
+    from mountainash.core.lazy_imports import import_polars
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for Polars type mappings")
@@ -115,7 +115,7 @@ def _get_universal_to_arrow() -> Dict[str, Any]:
 
     Lazy import to avoid loading PyArrow unless needed.
     """
-    from mountainash.dataframes.runtime_imports import import_pyarrow
+    from mountainash.core.lazy_imports import import_pyarrow
     pa = import_pyarrow()
     if pa is None:
         raise ImportError("pyarrow is required for PyArrow type mappings")

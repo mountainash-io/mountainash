@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union, Sequence
 import logging
 
 # Runtime imports for actual functionality
-from mountainash.dataframes.runtime_imports import import_polars
+from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
     import polars as pl
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.dataframes.schema_config import SchemaConfig, init_column_config
-from mountainash.dataframes.typing import PolarsFrame
+from mountainash.schema.config import SchemaConfig, init_column_config
+from mountainash.dataframes.core.typing import PolarsFrame
 
 logger = logging.getLogger(__name__)
 

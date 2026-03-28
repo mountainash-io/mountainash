@@ -4,15 +4,15 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 import logging
 from enum import Enum
 
-from mountainash.dataframes.factories import BaseStrategyFactory
+from mountainash.core.factories import BaseStrategyFactory
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.dataframes.typing import PolarsFrame
+from mountainash.dataframes.core.typing import PolarsFrame
 
 if TYPE_CHECKING:
     import polars as pl
-    from mountainash.dataframes.schema_config import SchemaConfig
+    from mountainash.schema.config import SchemaConfig
 
 logger = logging.getLogger(__name__)
 
