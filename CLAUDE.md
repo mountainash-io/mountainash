@@ -111,14 +111,22 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 
 ```
 src/mountainash/
-├── __init__.py                  # Top-level re-exports (col, lit, when, etc.)
-├── core/                        # Shared infrastructure (constants, types)
-├── expressions/                 # Expression module (mature)
+├── __init__.py                  # Top-level re-exports (col, lit, when, relation, concat, etc.)
+├── core/                        # Shared infrastructure (constants, types, enums)
+├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
-│   └── backends/               # Polars, Ibis, Narwhals implementations
-├── dataframes/                  # DataFrame-level operations (planned)
-├── schema/                      # Schema definitions (planned)
-└── pydata/                      # PyData integrations (planned)
+│   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
+├── relations/                   # Relational AST (new, ~60 files, 290 tests)
+│   ├── core/
+│   │   ├── relation_nodes/     # 10 Substrait-aligned node types (reln_*)
+│   │   ├── relation_protocols/ # 9 protocol files + RelationSystem base (prtcl_relsys_*)
+│   │   ├── relation_api/       # Relation fluent API, GroupedRelation
+│   │   └── unified_visitor/    # UnifiedRelationVisitor
+│   └── backends/
+│       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
+├── dataframes/                  # DEPRECATED — superseded by relations/
+├── schema/                      # Schema definitions (ported, partial wiring)
+└── pydata/                      # PyData integrations (ported, partial wiring)
 
 src/mountainash_expressions/     # Backwards-compat shim (import hook → mountainash.expressions)
 ```
@@ -164,19 +172,56 @@ import mountainash as ma                    # Canonical
 import mountainash_expressions as ma        # Deprecated, works via shim
 from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
 
-# Constants (shared core)
-from mountainash.core.constants import CONST_VISITOR_BACKENDS, CONST_LOGIC_TYPES
+# Relations API
+from mountainash import relation, concat    # or ma.relation(df), ma.concat([r1, r2])
 
-# Function key enums
+# Constants (shared core)
+from mountainash.core.constants import (
+    CONST_BACKEND, CONST_BACKEND_SYSTEM,    # Backend detection + routing enums
+    ProjectOperation, JoinType, SetType,     # Relational AST enums
+    SortField, ExecutionTarget,              # Relational supporting types
+)
+
+# Function key enums (expressions)
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     KEY_SCALAR_COMPARISON, KEY_SCALAR_BOOLEAN, MOUNTAINASH_TERNARY,
 )
 
-# Nodes
+# Expression nodes
 from mountainash.expressions.core.expression_nodes.substrait import (
     ScalarFunctionNode, FieldReferenceNode, LiteralNode,
 )
+
+# Relation nodes
+from mountainash.relations.core.relation_nodes import (
+    ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
+    FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode, ExtensionRelNode,
+)
 ```
+
+## Relations Architecture
+
+The `mountainash.relations` module provides a Substrait-aligned relational AST. It mirrors the expressions architecture:
+
+**Build phase** (backend-agnostic):
+```python
+r = ma.relation(df).filter(ma.col("age").gt(30)).sort("name").head(10)
+# Builds: FetchRelNode → SortRelNode → FilterRelNode → ReadRelNode
+```
+
+**Compile phase** (terminal operations trigger visitor):
+```python
+result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
+```
+
+**Key concepts:**
+- 10 node types mapping to Substrait logical relations
+- UnifiedRelationVisitor composes with UnifiedExpressionVisitor for embedded expressions
+- 3 backends: Polars (LazyFrame-based), Narwhals (pandas/PyArrow), Ibis (SQL)
+- Cross-type joins: `relation(polars_df).join(pandas_df, on="id")` — automatic coercion
+- `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
+
+**Spec:** `docs/superpowers/specs/2026-03-28-relational-ast-design.md`
 
 
 ## Documentation Corpora

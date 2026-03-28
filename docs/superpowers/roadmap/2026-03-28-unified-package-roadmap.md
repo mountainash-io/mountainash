@@ -6,17 +6,24 @@
 
 ## Overview
 
-The mountainash unified package consolidation is complete (Phases 1-4). Four previously separate packages now live under one `mountainash` namespace:
+The mountainash unified package consolidation is complete (Phases 1-4). Five modules now live under one `mountainash` namespace:
 
-| Module | Source | Lines | Tests | Status |
-|--------|--------|-------|-------|--------|
-| `mountainash.core` | 3 files | ~250 | via expressions | Stable |
-| `mountainash.expressions` | 224 files | ~25,000 | 2842 passing | Mature |
-| `mountainash.dataframes` | 45 files | ~6,300 | 85 passing | Ported, working |
-| `mountainash.schema` | 19 files | ~6,485 | 10 smoke tests | Ported, partial wiring |
-| `mountainash.pydata` | 23 files | ~3,833 | 2 passing (2 skipped) | Ported, partial wiring |
+| Module | Source | Tests | Status |
+|--------|--------|-------|--------|
+| `mountainash.core` | ~300 lines | via expressions + relations | Stable — shared constants, types, enums |
+| `mountainash.expressions` | ~25,000 lines | ~2850 passing | Mature — Substrait-aligned expression AST |
+| `mountainash.relations` | ~60 files | 290 passing, 3 xfailed | **NEW** — Substrait-aligned relational AST |
+| `mountainash.dataframes` | ~6,300 lines | 85 passing | **Deprecated** — superseded by relations |
+| `mountainash.schema` | ~6,485 lines | 10 smoke tests | Ported, partial wiring |
+| `mountainash.pydata` | ~3,833 lines | 2 passing (2 skipped) | Ported, partial wiring |
 
-**Full suite:** 2939 passed, 278 xfailed, 27 pre-existing failures, 5 skipped.
+**Full suite:** ~3250 passed, ~280 xfailed, 7 pre-existing failures.
+
+### What changed (2026-03-28)
+
+**Relational AST** (`mountainash.relations`) was built as a complete replacement for `mountainash.dataframes`. It mirrors the expressions architecture: immutable Pydantic AST nodes → three-layer separation (protocol → API → backend) → unified visitor → deferred compilation. Entry point: `ma.relation(df)`.
+
+This supersedes roadmap items 3.1 (core table ops), 3.2 (reshape), and 4.1–4.3 (dataframes alignment). The old `dataframes` module is now on a deprecation path.
 
 This roadmap tracks remaining work from "ported but loosely connected" to "unified, architecturally aligned whole."
 
@@ -111,62 +118,37 @@ result = ma.table(df).filter(ma.col("age").gt(30)).to_polars()
 
 ---
 
-### 2.3 Unify backend constants
+### 2.3 Unify backend constants ✅ DONE
 
-**What:** Three different backend enums exist:
-- `mountainash.core.constants.CONST_VISITOR_BACKENDS` (expressions)
-- `mountainash.dataframes.core.dataframe_system.constants.CONST_DATAFRAME_BACKEND` (dataframes)
-- Various `CONST_DATAFRAME_TYPE` references (schema, pydata)
-
-**Target:** One `mountainash.core.constants.CONST_BACKEND` enum that all modules use. Keep module-specific aliases for backwards compat.
-
-**Estimated scope:** Medium (enum consolidation + update all references)
+Collapsed 11 overlapping backend enums across 6 files into `CONST_BACKEND` (StrEnum) + `CONST_BACKEND_SYSTEM` + `CONST_DATAFRAME_TYPE` + `CONST_IBIS_INMEMORY_BACKEND` in `mountainash.core.constants`. Old enum files replaced with re-export shims.
 
 ---
 
-### 2.4 Unify type aliases
+### 2.4 Unify type aliases ✅ DONE
 
-**What:** `SupportedDataFrames`, `SupportedExpressions` duplicated across modules.
-
-**Target:** Single source in `mountainash.core.types`, re-exported by modules for convenience.
-
-**Note:** Phase 1 already moved expressions types to core. This completes the job for dataframes types.
-
-**Estimated scope:** Small
+`mountainash.core.types` is now the single source of truth for all shared type aliases (DataFrame, expression, series). Eliminated 428 lines of duplication. Old typing modules re-export from core.
 
 ---
 
 ## Layer 3: Missing Operations
 
 **Priority:** Medium
-**Goal:** Make `mountainash.dataframes` genuinely useful for real-world data workflows.
-**Dependencies:** Layer 1 (working wiring), optionally Layer 2 (cleaner infra)
+**Goal:** Complete the operation set across both expressions and relations.
+**Dependencies:** Layer 1 (working wiring), Layer 2 (shared infra)
 
-### 3.1 Core table operations
+### 3.1 Core table operations ✅ SUPERSEDED by Relational AST
 
-**What:** The most-requested operations missing from TableBuilder:
+The `mountainash.relations` module now provides all core table operations via a Substrait-aligned relational AST: sort, with_columns, group_by+agg, unique, filter, join (7 types + asof), head/tail/slice, select/drop/rename, concat/union, drop_nulls, with_row_index, explode, sample, pivot, unpivot, top_k.
 
-| Operation | Priority | Substrait Analog |
-|-----------|----------|-----------------|
-| `sort` / `order_by` | High | SortRel |
-| `with_columns` | High | ProjectRel (extend) |
-| `group_by` + `agg` | High | AggregateRel |
-| `unique` / `distinct` | Medium | — |
-| `describe` / `summary` | Low | — |
+**290 tests passing** across Polars, Narwhals (pandas + PyArrow), and Ibis backends.
 
-**Approach:** Add to DataFrameSystem protocol, implement in all 3 backends, expose via TableBuilder.
-
-**Estimated scope:** Large (new protocols, 3 backend implementations each, TableBuilder namespaces, tests)
+See: `docs/superpowers/specs/2026-03-28-relational-ast-design.md`
 
 ---
 
-### 3.2 Reshape operations
+### 3.2 Reshape operations ✅ SUPERSEDED by Relational AST
 
-**What:** pivot, melt/unpivot, transpose — exist in the OLD dataframes architecture but weren't ported (they were in the superseded module structure).
-
-**Approach:** Reimplement in the new DataFrameSystem pattern.
-
-**Estimated scope:** Medium
+Pivot, unpivot, explode are implemented as ExtensionRelNode operations in `mountainash.relations`.
 
 ---
 
@@ -183,48 +165,18 @@ result = ma.table(df).filter(ma.col("age").gt(30)).to_polars()
 ## Layer 4: Architectural Alignment
 
 **Priority:** Medium-Low
-**Goal:** Bring dataframes/schema/pydata up to the same architectural standard as expressions.
-**Dependencies:** Layers 1-2 (stable foundation), ideally Layer 3 (align with final operation set)
+**Goal:** Align remaining modules (schema, pydata) and deprecate old dataframes.
+**Dependencies:** Layer 3 (relations module complete)
 
-### 4.1 Dataframes naming conventions
+### 4.1–4.3 Dataframes alignment ✅ SUPERSEDED
 
-**What:** Expression files use prefixes (`prtcl_`, `expsys_`, `exn_`, `api_bldr_`). Dataframes files don't. Align for consistency.
+The `mountainash.relations` module was built from scratch with Substrait-aligned naming, wiring audit, and protocol categories. The old `mountainash.dataframes` module does not need alignment — it is being deprecated.
 
-**Renames:**
-- `core/protocols/builder_protocols.py` → `prtcl_*.py` per protocol
-- `backends/polars/dataframe_system.py` → `dfsys_pl_*.py` or similar
-- Protocol files split by category (currently one file with all protocols)
-
-**Estimated scope:** Medium (mechanical renames + import updates)
-
----
-
-### 4.2 Dataframes wiring audit
-
-**What:** Extend the expressions wiring audit (`test_protocol_alignment.py`) to cover DataFrameSystem protocols. Same approach: protocol methods are source of truth, test validates ENUM → function mapping → backend implementation chain.
-
-**Estimated scope:** Medium (new test class, KNOWN_ASPIRATIONAL for dataframes)
-
----
-
-### 4.3 Substrait-informed protocol categories
-
-**What:** Align DataFrameSystem protocol categories with Substrait relational operations:
-
-| Current Protocol | Substrait Analog |
-|-----------------|-----------------|
-| `CastProtocol` | — (Mountainash extension) |
-| `IntrospectProtocol` | — (Mountainash extension) |
-| `SelectProtocol` | ProjectRel |
-| `JoinProtocol` | JoinRel |
-| `FilterProtocol` | FilterRel |
-| `RowProtocol` | FetchRel (limit/offset) |
-| `LazyProtocol` | — (execution control) |
-| (missing) | SortRel, AggregateRel |
-
-**Approach:** Rename protocol categories to use Substrait naming where applicable. Add new protocols for sort/aggregate.
-
-**Estimated scope:** Medium
+**Migration plan:**
+1. ~~Both systems coexist~~ ✅ Done — `ma.relation()` and `ma.table()` both work
+2. Port any remaining `dataframes`-only consumers to `relations`
+3. Add DeprecationWarning to `ma.table()`
+4. Remove `mountainash.dataframes` after migration complete
 
 ---
 
@@ -323,62 +275,50 @@ result = ma.table(df).filter(ma.col("age").gt(30)).to_polars()
 
 ---
 
-## Dependency Graph
+## Dependency Graph (Updated)
 
 ```
-Layer 1 (Wiring)
-  ├── 1.1 Schema transforms
-  ├── 1.2 Pydata ingress
-  └── 1.3 End-to-end pipeline test
-          │
-Layer 2 (Shared Infra)
-  ├── 2.1 Factory base → core
-  ├── 2.2 Runtime imports → core
-  ├── 2.3 Unify constants
-  └── 2.4 Unify types
-          │
-Layer 3 (Operations)          Layer 4 (Alignment)
-  ├── 3.1 sort/group_by/agg    ├── 4.1 Naming conventions
-  ├── 3.2 Reshape               ├── 4.2 Wiring audit
-  ├── 3.3 Window functions       ├── 4.3 Substrait categories
-  │                              └── 4.4 Schema/pydata alignment
-  │                                      │
-  └──────────────┬───────────────────────┘
-                 │
-Layer 5 (Testing + Docs)  ←── parallel with all layers
-  ├── 5.1-5.3 Test coverage
-  └── 5.4-5.5 Documentation
-                 │
-Layer 6 (Release)
-  ├── 6.1 PyPI strategy
-  ├── 6.2 Deprecation
-  └── 6.3 CI/CD
+✅ DONE                           REMAINING
+─────────────────                 ─────────────────
+Layer 2.3 Constants               Layer 1.1 Schema wiring
+Layer 2.4 Types                   Layer 1.2 Pydata wiring
+Layer 3.1 Table ops (relations)   Layer 1.3 End-to-end test
+Layer 3.2 Reshape (relations)     Layer 2.1 Factory base → core
+Layer 4.1-4.3 (superseded)        Layer 2.2 Runtime imports → core
+                                  Layer 3.3 Window functions
+                                  Layer 4.4 Schema/pydata alignment
+                                  Layer 5.1-5.5 Testing + docs
+                                  Layer 6 Release
+
+Dependency flow for remaining work:
+  1.1 + 1.2 → 1.3 → 2.1 + 2.2
+                        │
+                        ├── 3.3 Window functions
+                        ├── 4.4 Schema/pydata alignment
+                        ├── 5.1-5.5 Testing + docs
+                        └── 6.1-6.3 Release
 ```
 
-## Recommended Execution Order
+## Recommended Execution Order (Updated)
 
-Each item becomes its own brainstorm → spec → plan → implement cycle:
-
-| # | Item | Layer | Est. Size | Depends On |
-|---|------|-------|-----------|------------|
-| 1 | Wire schema transforms | 1.1 | S | — |
-| 2 | Wire pydata ingress | 1.2 | S | — |
-| 3 | End-to-end pipeline test | 1.3 | S | 1, 2 |
-| 4 | Extract factory base to core | 2.1 | M | 1, 2 |
-| 5 | Extract runtime imports to core | 2.2 | S | 1, 2 |
-| 6 | Unify backend constants | 2.3 | M | 4, 5 |
-| 7 | Unify type aliases | 2.4 | S | 6 |
-| 8 | sort / with_columns / group_by+agg | 3.1 | L | 3 |
-| 9 | Reshape operations | 3.2 | M | 3 |
-| 10 | Dataframes naming conventions | 4.1 | M | 8, 9 |
-| 11 | Dataframes wiring audit | 4.2 | M | 10 |
-| 12 | Substrait protocol categories | 4.3 | M | 10, 11 |
-| 13 | Comprehensive schema tests | 5.1 | M | 1 |
-| 14 | Comprehensive pydata tests | 5.2 | M | 2 |
-| 15 | CLAUDE.md updates | 5.4 | S | 3 |
-| 16 | Window functions | 3.3 | L | 8 |
-| 17 | Schema/pydata alignment | 4.4 | M | 12 |
-| 18 | Principles repo updates | 5.5 | S | 11 |
-| 19 | PyPI strategy + release | 6.1-6.3 | M | all above |
+| # | Item | Layer | Est. Size | Status |
+|---|------|-------|-----------|--------|
+| ~~1~~ | ~~Unify backend constants~~ | 2.3 | ~~M~~ | ✅ Done |
+| ~~2~~ | ~~Unify type aliases~~ | 2.4 | ~~S~~ | ✅ Done |
+| ~~3~~ | ~~Core table operations~~ | 3.1 | ~~L~~ | ✅ Superseded by Relational AST |
+| ~~4~~ | ~~Reshape operations~~ | 3.2 | ~~M~~ | ✅ Superseded by Relational AST |
+| ~~5~~ | ~~Dataframes alignment~~ | 4.1-4.3 | ~~M~~ | ✅ Superseded by Relational AST |
+| 6 | Wire schema transforms | 1.1 | S | Not started |
+| 7 | Wire pydata ingress | 1.2 | S | Not started |
+| 8 | End-to-end pipeline test | 1.3 | S | Not started (depends on 6, 7) |
+| 9 | Extract factory base to core | 2.1 | M | Not started |
+| 10 | Extract runtime imports to core | 2.2 | S | Not started |
+| 11 | Window functions (.over()) | 3.3 | L | Not started |
+| 12 | Schema/pydata alignment | 4.4 | M | Not started |
+| 13 | Comprehensive schema tests | 5.1 | M | Not started |
+| 14 | Comprehensive pydata tests | 5.2 | M | Not started |
+| 15 | CLAUDE.md + principles updates | 5.4-5.5 | S | ✅ Done (this update) |
+| 16 | Deprecate dataframes module | 4.1 | S | Not started |
+| 17 | PyPI strategy + release | 6.1-6.3 | M | Not started |
 
 **Size key:** S = 1-2 hours, M = half day, L = 1-2 days
