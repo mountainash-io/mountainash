@@ -8,12 +8,13 @@ Many functions are not implemented and will raise NotImplementedError.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitWindowArithmeticExpressionSystemProtocol
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowBound
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
@@ -190,3 +191,34 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         if default is not None:
             return x.shift(row_offset).fill_null(nw.lit(default))
         return x.shift(row_offset)
+
+    # =========================================================================
+    # Window Application
+    # =========================================================================
+
+    def apply_window(
+        self,
+        expr: NarwhalsExpr,
+        partition_by: List[Any],
+        order_by: List[Tuple[Any, bool]],
+        lower_bound: Optional[WindowBound] = None,
+        upper_bound: Optional[WindowBound] = None,
+    ) -> NarwhalsExpr:
+        """Apply window context to a Narwhals expression.
+
+        Args:
+            expr: The native Narwhals expression to apply windowing to.
+            partition_by: List of native partition expressions.
+            order_by: List of (expression, descending) tuples.
+            lower_bound: Optional frame lower bound.
+            upper_bound: Optional frame upper bound.
+
+        Returns:
+            Expression with window context applied via .over().
+        """
+        if not partition_by:
+            return expr
+        over_kwargs: dict[str, Any] = {}
+        if order_by:
+            over_kwargs["order_by"] = [col for col, _ in order_by]
+        return expr.over(*partition_by, **over_kwargs)

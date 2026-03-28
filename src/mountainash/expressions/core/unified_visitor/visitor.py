@@ -23,6 +23,8 @@ from ..expression_nodes import (
     IfThenNode,
     CastNode,
     SingularOrListNode,
+    WindowFunctionNode,
+    OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
 from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
@@ -454,3 +456,101 @@ class UnifiedExpressionVisitor:
                 options.append(opt)
 
         return self.backend.is_in(value_expr, *options)
+
+    def visit_window_function(self, node: WindowFunctionNode) -> SupportedExpressions:
+        """Compile a window function node to backend expression.
+
+        Resolves the function from the registry, calls the backend method,
+        then applies the window specification.
+
+        Args:
+            node: WindowFunctionNode with function_key, arguments, and window_spec.
+
+        Returns:
+            Backend expression with window context applied.
+
+        Raises:
+            ValueError: If window_spec is None (i.e., .over() was not called).
+        """
+        if node.window_spec is None:
+            raise ValueError(
+                f"Window function '{node.function_key.value}' requires .over() — "
+                f"e.g., col('x').{node.function_key.name.lower()}().over('group')"
+            )
+
+        # Look up function definition from registry
+        func_def = FunctionRegistry.get(node.function_key)
+        protocol_method = func_def.protocol_method
+        if protocol_method is None:
+            raise ValueError(
+                f"Window function {node.function_key} has no protocol_method defined"
+            )
+        method_name = protocol_method.__name__
+
+        # Resolve arguments
+        compiled_args = [
+            self.visit(arg) if isinstance(arg, ExpressionNode) else arg
+            for arg in node.arguments
+        ]
+
+        # Call backend method
+        method = getattr(self.backend, method_name)
+        options = node.options or {}
+        if options:
+            result = method(*compiled_args, **options)
+        else:
+            result = method(*compiled_args)
+
+        # Apply window context
+        return self._apply_window_spec(result, node.window_spec)
+
+    def visit_over(self, node: OverNode) -> SupportedExpressions:
+        """Compile an OverNode — wraps any expression with window context.
+
+        Visits the inner expression first, then applies the window specification.
+
+        Args:
+            node: OverNode with expression and window_spec.
+
+        Returns:
+            Backend expression with window context applied.
+        """
+        inner_result = self.visit(node.expression)
+        return self._apply_window_spec(inner_result, node.window_spec)
+
+    def _apply_window_spec(self, expr: Any, window_spec: Any) -> SupportedExpressions:
+        """Apply a WindowSpec to a native backend expression.
+
+        Resolves partition_by and order_by columns, then delegates to
+        the backend's apply_window method.
+
+        Args:
+            expr: Native backend expression to apply window context to.
+            window_spec: WindowSpec with partition_by, order_by, and bounds.
+
+        Returns:
+            Backend expression with window context applied.
+        """
+        # Resolve partition_by expressions
+        partition_by = []
+        for p in window_spec.partition_by:
+            if isinstance(p, ExpressionNode):
+                partition_by.append(self.visit(p))
+            elif isinstance(p, str):
+                partition_by.append(self.visit(FieldReferenceNode(field=p)))
+            else:
+                partition_by.append(p)
+
+        # Resolve order_by expressions
+        order_by = []
+        for sf in window_spec.order_by:
+            col_expr = self.visit(FieldReferenceNode(field=sf.column))
+            order_by.append((col_expr, sf.descending))
+
+        return self.backend.apply_window(
+            expr,
+            partition_by=partition_by,
+            order_by=order_by,
+            lower_bound=window_spec.lower_bound,
+            upper_bound=window_spec.upper_bound,
+        )

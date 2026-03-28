@@ -31,6 +31,7 @@ from ..function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ROUNDING,
     FKEY_SUBSTRAIT_SCALAR_SET,
     FKEY_SUBSTRAIT_SCALAR_STRING,
+    SUBSTRAIT_ARITHMETIC_WINDOW,
 
     # Mountainash extension enums
     FKEY_MOUNTAINASH_NAME,
@@ -61,7 +62,8 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
     SubstraitScalarLogarithmicExpressionSystemProtocol,
     SubstraitScalarRoundingExpressionSystemProtocol,
     SubstraitScalarSetExpressionSystemProtocol,
-    SubstraitScalarStringExpressionSystemProtocol
+    SubstraitScalarStringExpressionSystemProtocol,
+    SubstraitWindowArithmeticExpressionSystemProtocol,
 )
 
 
@@ -1724,6 +1726,79 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Window Functions (Substrait standard)
+    # ========================================
+
+    WINDOW_ARITHMETIC_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="row_number",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.row_number,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="rank",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="dense_rank",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.dense_rank,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="percent_rank",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.percent_rank,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="cume_dist",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.cume_dist,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTILE,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="ntile",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.ntile,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="first_value",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.first_value,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="last_value",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.last_value,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="nth_value",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.nth_value,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LEAD,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="lead",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.lead,
+        ),
+        ExpressionFunctionDef(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="lag",
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.lag,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -1737,6 +1812,7 @@ def register_all_functions() -> None:
         + SCALAR_ROUNDING_FUNCTIONS
         + SCALAR_LOGARITHMIC_FUNCTIONS
         + SCALAR_AGGREGATE_FUNCTIONS
+        + WINDOW_ARITHMETIC_FUNCTIONS  # Substrait window functions
         + CAST_FUNCTIONS
         + CONDITIONAL_FUNCTIONS
         # + NULL_FUNCTIONS

@@ -8,12 +8,13 @@ These implementations return expressions that can be used with window specificat
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitWindowArithmeticExpressionSystemProtocol
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowBound
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
@@ -201,3 +202,31 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         if default is not None:
             return x.shift(row_offset).fill_null(default)
         return x.shift(row_offset)
+
+    # =========================================================================
+    # Window Application
+    # =========================================================================
+
+    def apply_window(
+        self,
+        expr: PolarsExpr,
+        partition_by: List[Any],
+        order_by: List[Tuple[Any, bool]],
+        lower_bound: Optional[WindowBound] = None,
+        upper_bound: Optional[WindowBound] = None,
+    ) -> PolarsExpr:
+        """Apply window context to a Polars expression.
+
+        Args:
+            expr: The native Polars expression to apply windowing to.
+            partition_by: List of native partition expressions.
+            order_by: List of (expression, descending) tuples.
+            lower_bound: Optional frame lower bound.
+            upper_bound: Optional frame upper bound.
+
+        Returns:
+            Expression with window context applied via .over().
+        """
+        if not partition_by:
+            return expr
+        return expr.over(partition_by)

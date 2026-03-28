@@ -8,12 +8,14 @@ These implementations return expressions that can be used with window specificat
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 import ibis
 
 from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitWindowArithmeticExpressionSystemProtocol
+from mountainash.core.constants import WindowBoundType
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowBound
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import IbisExpr
@@ -177,3 +179,60 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         if default is not None:
             return x.lag(row_offset, default=default)
         return x.lag(row_offset)
+
+    # =========================================================================
+    # Window Application
+    # =========================================================================
+
+    def apply_window(
+        self,
+        expr: IbisExpr,
+        partition_by: List[Any],
+        order_by: List[Tuple[Any, bool]],
+        lower_bound: Optional[WindowBound] = None,
+        upper_bound: Optional[WindowBound] = None,
+    ) -> IbisExpr:
+        """Apply window context to an Ibis expression.
+
+        Args:
+            expr: The native Ibis expression to apply windowing to.
+            partition_by: List of native partition expressions.
+            order_by: List of (expression, descending) tuples.
+            lower_bound: Optional frame lower bound.
+            upper_bound: Optional frame upper bound.
+
+        Returns:
+            Expression with window context applied via .over().
+        """
+        ibis_order = []
+        for col_expr, descending in order_by:
+            ibis_order.append(ibis.desc(col_expr) if descending else col_expr)
+
+        window_kwargs: dict[str, Any] = {}
+        if partition_by:
+            window_kwargs["group_by"] = partition_by
+        if ibis_order:
+            window_kwargs["order_by"] = ibis_order
+        if lower_bound is not None:
+            window_kwargs["preceding"] = self._bound_to_ibis(lower_bound)
+        if upper_bound is not None:
+            window_kwargs["following"] = self._bound_to_ibis(upper_bound)
+
+        window = ibis.window(**window_kwargs)
+        return expr.over(window)
+
+    @staticmethod
+    def _bound_to_ibis(bound: WindowBound) -> Any:
+        """Convert a WindowBound to an Ibis-compatible value.
+
+        Args:
+            bound: The window bound to convert.
+
+        Returns:
+            Ibis-compatible bound value.
+        """
+        if bound.bound_type == WindowBoundType.CURRENT_ROW:
+            return 0
+        elif bound.bound_type in (WindowBoundType.PRECEDING, WindowBoundType.FOLLOWING):
+            return bound.offset
+        return None  # unbounded
