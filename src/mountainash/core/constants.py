@@ -1,26 +1,76 @@
 from typing import Optional
-from enum import Enum, IntEnum, auto
+from enum import Enum, IntEnum, StrEnum, auto
 
-class CONST_VISITOR_BACKENDS(Enum):
-    """
-    Enumeration for different dataframe frameworks.
 
-    Attributes:
-        - PANDAS (str): Pandas dataframe framework.
-        - POLARS (str): Polars dataframe framework.
-        - IBIS (str): Ibis dataframe framework.
-        - PYARROW (str): PyArrow framework.
-        - NARWHALS (str): Narwhals cross-backend framework.
+class CONST_BACKEND(StrEnum):
     """
-    PANDAS =   "pandas"
-    POLARS =   "polars"
-    IBIS =     "ibis"
-    PYARROW =  "pyarrow"
+    Unified backend enumeration — detection level.
+    "What library produced this object?"
+    Uses StrEnum so CONST_BACKEND.POLARS == "polars" — preserving
+    string-based registry lookups while providing enum identity comparison.
+    """
+    POLARS   = "polars"
+    PANDAS   = "pandas"
+    PYARROW  = "pyarrow"
+    IBIS     = "ibis"
     NARWHALS = "narwhals"
 
-    # NUMPY =    "numpy"
-    # XARRAY = "xarray"
-    # PYSPARK = "pyspark"
+
+class CONST_BACKEND_SYSTEM(StrEnum):
+    """
+    Backend routing targets — system level.
+    "Which system implementation handles this type?"
+    Three routing targets:
+    - POLARS: Native Polars operations
+    - NARWHALS: pandas, PyArrow, cuDF routed through Narwhals adapter
+    - IBIS: SQL backends (DuckDB, PostgreSQL, etc.)
+    """
+    POLARS   = "polars"
+    NARWHALS = "narwhals"
+    IBIS     = "ibis"
+
+
+class CONST_DATAFRAME_TYPE(Enum):
+    """
+    Granular DataFrame variant types.
+    "What specific DataFrame type is this?"
+    Used by schema, pydata, and core factories for strategy dispatch.
+    """
+    IBIS_TABLE           = auto()
+    PANDAS_DATAFRAME     = auto()
+    POLARS_DATAFRAME     = auto()
+    POLARS_LAZYFRAME     = auto()
+    PYARROW_TABLE        = auto()
+    NARWHALS_DATAFRAME   = auto()
+    NARWHALS_LAZYFRAME   = auto()
+
+
+class CONST_IBIS_INMEMORY_BACKEND(StrEnum):
+    """
+    Ibis in-memory backend variants.
+    "Which SQL engine is Ibis using?"
+    """
+    POLARS = "polars"
+    DUCKDB = "duckdb"
+    SQLITE = "sqlite"
+
+
+def backend_to_system(backend: CONST_BACKEND) -> CONST_BACKEND_SYSTEM:
+    """
+    Map a detected backend to its system routing target.
+    """
+    mapping = {
+        CONST_BACKEND.POLARS:   CONST_BACKEND_SYSTEM.POLARS,
+        CONST_BACKEND.PANDAS:   CONST_BACKEND_SYSTEM.NARWHALS,
+        CONST_BACKEND.PYARROW:  CONST_BACKEND_SYSTEM.NARWHALS,
+        CONST_BACKEND.IBIS:     CONST_BACKEND_SYSTEM.IBIS,
+        CONST_BACKEND.NARWHALS: CONST_BACKEND_SYSTEM.NARWHALS,
+    }
+    return mapping[backend]
+
+
+# Backwards-compat alias for expressions code
+CONST_VISITOR_BACKENDS = CONST_BACKEND
 
 class CONST_LOGIC_TYPES(Enum):
     """
