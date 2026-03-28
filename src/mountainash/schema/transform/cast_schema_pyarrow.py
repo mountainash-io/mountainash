@@ -14,7 +14,7 @@ from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import pyarrow as pa
-    from mountainash.dataframes.core.typing import PyArrowTable
+    from mountainash.core.types import PyArrowTable
     from mountainash.schema.config import SchemaConfig
 
 

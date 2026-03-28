@@ -12,7 +12,7 @@ import logging
 if TYPE_CHECKING:
     from .schema_config import SchemaConfig
     from .universal_schema import TableSchema, SchemaDiff
-    from mountainash.dataframes.core.typing import SupportedDataFrames
+    from mountainash.core.types import SupportedDataFrames
 
 logger = logging.getLogger(__name__)
 

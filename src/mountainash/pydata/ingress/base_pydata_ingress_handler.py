@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     import polars as pl
 
 from mountainash.schema.config import SchemaConfig
-from mountainash.dataframes.core.typing import PolarsFrame
+from mountainash.core.types import PolarsFrame
 
 # class PydataInputType(Enum):
 #     """Enumeration of supported input data structure types."""

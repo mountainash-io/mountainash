@@ -11,7 +11,7 @@ from mountainash.core.factories import BaseStrategyFactory, DataFrameTypeFactory
 from mountainash.core.constants import CONST_DATAFRAME_TYPE
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.core.typing import SupportedDataFrames
+    from mountainash.core.types import SupportedDataFrames
     from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 

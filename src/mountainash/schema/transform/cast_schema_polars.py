@@ -13,7 +13,7 @@ from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import polars as pl
-    from mountainash.dataframes.core.typing import PolarsFrame, PolarsLazyFrame
+    from mountainash.core.types import PolarsFrame, PolarsLazyFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

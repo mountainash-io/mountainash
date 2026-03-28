@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from mountainash.dataframes.core.typing import SupportedDataFrames
+from mountainash.core.types import SupportedDataFrames
 
 from mountainash.core.constants import CONST_DATAFRAME_TYPE
 

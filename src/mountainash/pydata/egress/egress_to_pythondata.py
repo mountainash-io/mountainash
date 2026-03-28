@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Ty
 from mountainash_utils_dataclasses import DataclassUtils, PydanticUtils
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.core.typing import SupportedDataFrames, PandasSeries, PolarsSeries
+    from mountainash.core.types import SupportedDataFrames, PandasSeries, PolarsSeries
     from mountainash.schema.config import SchemaConfig
 
 

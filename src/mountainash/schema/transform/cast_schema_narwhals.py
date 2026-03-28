@@ -13,7 +13,7 @@ from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import narwhals as nw
-    from mountainash.dataframes.core.typing import NarwhalsFrame, NarwhalsLazyFrame
+    from mountainash.core.types import NarwhalsFrame, NarwhalsLazyFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

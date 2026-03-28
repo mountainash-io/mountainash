@@ -12,7 +12,7 @@ import logging
 
 if TYPE_CHECKING:
     from mountainash.schema.config import SchemaConfig
-    from mountainash.dataframes.core.typing import PolarsFrame
+    from mountainash.core.types import PolarsFrame
 
 logger = logging.getLogger(__name__)
 

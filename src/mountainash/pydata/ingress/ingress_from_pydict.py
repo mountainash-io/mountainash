@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 from mountainash.schema.config import SchemaConfig, init_column_config
-from mountainash.dataframes.core.typing import PolarsFrame
+from mountainash.core.types import PolarsFrame
 
 logger = logging.getLogger(__name__)
 

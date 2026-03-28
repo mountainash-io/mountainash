@@ -35,56 +35,26 @@ This roadmap tracks remaining work from "ported but loosely connected" to "unifi
 **Goal:** Make the ported modules actually work together, not just import successfully.
 **Dependencies:** None (foundation for everything else)
 
-### 1.1 Wire schema transforms to dataframes infrastructure
+### 1.1 Wire schema transforms to dataframes infrastructure ✅ DONE
 
-**What:** The schema `transform/` module is currently optional (try/except) because it imports `BaseStrategyFactory` and `DataFrameTypeFactoryMixin` from `mountainash.dataframes.factories` — a path from the OLD dataframes package that doesn't exist in the ported version.
-
-**Fix:** Update schema transform imports to use the actual ported paths:
-- `BaseStrategyFactory` → find where it lives in `mountainash.dataframes` now, or inline the base class
-- `DataFrameTypeFactoryMixin` → same
-- `runtime_imports` (import_polars, import_pandas, etc.) → find in ported dataframes or inline
-
-**Success criteria:** `from mountainash.schema import SchemaTransformFactory` works without try/except. Schema transforms can be applied to a Polars DataFrame.
-
-**Estimated scope:** Small (import path fixes, possibly extracting a few functions)
+Schema transforms were already functional — `BaseStrategyFactory` and `DataFrameTypeFactoryMixin` live in `mountainash.core.factories`, types re-exported via `mountainash.dataframes.core.typing`. Migrated all 9 `TYPE_CHECKING` imports in `schema/` from `mountainash.dataframes.core.typing` → `mountainash.core.types` to remove coupling to the deprecated dataframes module.
 
 ---
 
-### 1.2 Wire pydata ingress to dataframes infrastructure
+### 1.2 Wire pydata ingress to dataframes infrastructure ✅ DONE
 
-**What:** Pydata's `PydataIngressFactory` imports from `mountainash.dataframes.factories`, `mountainash.dataframes.runtime_imports`, and `mountainash.dataframes.typing` — OLD paths that don't exist.
-
-**Fix:** Same as 1.1 — update to actual ported paths.
-
-**Success criteria:** `from mountainash.pydata.ingress import PydataIngressFactory` works. Can convert a Python dict to a Polars DataFrame via `PydataIngressFactory().convert(data)`.
-
-**Estimated scope:** Small
+Pydata ingress was already functional — factory imports from `mountainash.core.factories`, lazy imports from `mountainash.core.lazy_imports`. Migrated all 19 imports in `pydata/` from `mountainash.dataframes.core.typing` → `mountainash.core.types` to remove coupling to the deprecated dataframes module.
 
 ---
 
-### 1.3 Validate end-to-end pipeline
+### 1.3 Validate end-to-end pipeline ✅ DONE
 
-**What:** Test the full pipeline: Python data → DataFrame → schema transform → expression filter → output.
-
-**Success criteria:** This works:
-```python
-import mountainash as ma
-from mountainash.schema import SchemaConfig
-from mountainash.pydata.ingress import PydataIngressFactory
-
-# Ingress
-data = [{"age": "25", "name": "alice"}, {"age": "35", "name": "bob"}]
-df = PydataIngressFactory().convert(data)
-
-# Schema transform (cast string age to int)
-config = SchemaConfig(columns={"age": {"cast": "integer"}})
-# ... apply transform ...
-
-# Expression filter
-result = ma.table(df).filter(ma.col("age").gt(30)).to_polars()
-```
-
-**Estimated scope:** Small (integration test, minimal code changes)
+Created `tests/integration/test_end_to_end_pipeline.py` with 12 tests covering:
+- Pydata ingress (dict → DataFrame, list-of-dicts → DataFrame)
+- Schema transforms (cast string → integer/float, multi-column)
+- Relation + expression filter (filter, sort, head, select)
+- Full pipeline: Python data → ingress → schema transform → relation filter → output
+- Aggregation pipeline: ingress → transform → group_by + agg → sort
 
 ---
 
@@ -280,23 +250,22 @@ The `mountainash.relations` module was built from scratch with Substrait-aligned
 ```
 ✅ DONE                           REMAINING
 ─────────────────                 ─────────────────
-Layer 2.3 Constants               Layer 1.1 Schema wiring
-Layer 2.4 Types                   Layer 1.2 Pydata wiring
-Layer 3.1 Table ops (relations)   Layer 1.3 End-to-end test
-Layer 3.2 Reshape (relations)     Layer 2.1 Factory base → core
-Layer 4.1-4.3 (superseded)        Layer 2.2 Runtime imports → core
-                                  Layer 3.3 Window functions
-                                  Layer 4.4 Schema/pydata alignment
-                                  Layer 5.1-5.5 Testing + docs
-                                  Layer 6 Release
+Layer 1.1 Schema wiring           Layer 2.1 Factory base → core
+Layer 1.2 Pydata wiring           Layer 2.2 Runtime imports → core
+Layer 1.3 End-to-end test         Layer 3.3 Window functions
+Layer 2.3 Constants               Layer 4.4 Schema/pydata alignment
+Layer 2.4 Types                   Layer 5.1-5.5 Testing + docs
+Layer 3.1 Table ops (relations)   Layer 6 Release
+Layer 3.2 Reshape (relations)
+Layer 4.1-4.3 (superseded)
 
 Dependency flow for remaining work:
-  1.1 + 1.2 → 1.3 → 2.1 + 2.2
-                        │
-                        ├── 3.3 Window functions
-                        ├── 4.4 Schema/pydata alignment
-                        ├── 5.1-5.5 Testing + docs
-                        └── 6.1-6.3 Release
+  2.1 + 2.2
+      │
+      ├── 3.3 Window functions
+      ├── 4.4 Schema/pydata alignment
+      ├── 5.1-5.5 Testing + docs
+      └── 6.1-6.3 Release
 ```
 
 ## Recommended Execution Order (Updated)
@@ -308,9 +277,9 @@ Dependency flow for remaining work:
 | ~~3~~ | ~~Core table operations~~ | 3.1 | ~~L~~ | ✅ Superseded by Relational AST |
 | ~~4~~ | ~~Reshape operations~~ | 3.2 | ~~M~~ | ✅ Superseded by Relational AST |
 | ~~5~~ | ~~Dataframes alignment~~ | 4.1-4.3 | ~~M~~ | ✅ Superseded by Relational AST |
-| 6 | Wire schema transforms | 1.1 | S | Not started |
-| 7 | Wire pydata ingress | 1.2 | S | Not started |
-| 8 | End-to-end pipeline test | 1.3 | S | Not started (depends on 6, 7) |
+| ~~6~~ | ~~Wire schema transforms~~ | 1.1 | ~~S~~ | ✅ Done (imports migrated to core.types) |
+| ~~7~~ | ~~Wire pydata ingress~~ | 1.2 | ~~S~~ | ✅ Done (imports migrated to core.types) |
+| ~~8~~ | ~~End-to-end pipeline test~~ | 1.3 | ~~S~~ | ✅ Done (12 integration tests) |
 | 9 | Extract factory base to core | 2.1 | M | Not started |
 | 10 | Extract runtime imports to core | 2.2 | S | Not started |
 | 11 | Window functions (.over()) | 3.3 | L | Not started |

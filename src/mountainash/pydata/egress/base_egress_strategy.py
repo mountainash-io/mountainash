@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     # import pyarrow as pa
     # import narwhals as nw
 
-    from mountainash.dataframes.core.typing import (
+    from mountainash.core.types import (
     SupportedDataFrames,
     PandasFrame, PyArrowTable, IbisTable,
     PolarsFrameTypes, NarwhalsFrameTypes, PolarsLazyFrame, PolarsFrame,

@@ -20,7 +20,7 @@ import logging
 # from .universal_schema import TableSchema, SchemaField, compare_schemas
 
 if TYPE_CHECKING:
-    from mountainash.dataframes.core.typing import SupportedDataFrames
+    from mountainash.core.types import SupportedDataFrames
     import polars as pl
 
 logger = logging.getLogger(__name__)

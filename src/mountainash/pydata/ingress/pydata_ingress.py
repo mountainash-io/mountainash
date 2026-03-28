@@ -9,7 +9,7 @@ import logging
 
 from.pydata_ingress_factory import PydataIngressFactory
 # from .base_pydata_converter import BasePydataConverter
-from mountainash.dataframes.core.typing import PolarsFrame
+from mountainash.core.types import PolarsFrame
 
 if TYPE_CHECKING:
     import polars as pl

@@ -19,7 +19,7 @@ import logging
 
 if TYPE_CHECKING:
     from mountainash.schema.config import SchemaConfig
-    from mountainash.dataframes.core.typing import SupportedDataFrames
+    from mountainash.core.types import SupportedDataFrames
 
 
 from mountainash.schema.config import SchemaConfig

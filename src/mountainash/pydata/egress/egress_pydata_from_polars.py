@@ -8,7 +8,7 @@ import datetime
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_narwhals, import_polars
 
-from mountainash.dataframes.core.typing import (
+from mountainash.core.types import (
 PandasFrame, PyArrowTable, PolarsFrameTypes, PolarsFrame, PolarsLazyFrame,
 NarwhalsFrame,
 PandasSeries,PolarsSeries,

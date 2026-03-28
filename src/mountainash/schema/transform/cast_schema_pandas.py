@@ -13,7 +13,7 @@ from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import pandas as pd
-    from mountainash.dataframes.core.typing import PandasFrame
+    from mountainash.core.types import PandasFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 

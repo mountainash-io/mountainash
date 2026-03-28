@@ -8,7 +8,7 @@ from mountainash.core.factories import BaseStrategyFactory
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.dataframes.core.typing import PolarsFrame
+from mountainash.core.types import PolarsFrame
 
 if TYPE_CHECKING:
     import polars as pl

@@ -14,7 +14,7 @@ from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
     import ibis
-    from mountainash.dataframes.core.typing import IbisTable
+    from mountainash.core.types import IbisTable
     from mountainash.schema.config import SchemaConfig, SchemaField
 
 
