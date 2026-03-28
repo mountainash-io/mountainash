@@ -23,6 +23,9 @@ from mountainash.expressions import (
 
 from mountainash.expressions.__version__ import __version__  # noqa: F401
 
+# Relations - Substrait-aligned relational AST
+from mountainash.relations import relation, concat  # noqa: F401
+
 # Dataframes - TableBuilder fluent API
 try:
     from mountainash.dataframes import table, TableBuilder  # noqa: F401
