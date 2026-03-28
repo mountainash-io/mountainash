@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from mountainash.core.constants import JoinType, ProjectOperation
+from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 from ..relation_nodes import (
@@ -172,7 +173,15 @@ class UnifiedRelationVisitor:
         return value
 
     def _compile_expression(self, expr: Any) -> Any:
-        """Compile an expression AST node, or pass through native/string expressions."""
+        """Compile an expression AST node, or pass through native/string expressions.
+
+        Handles three cases:
+        1. ExpressionNode — compile directly via the expression visitor.
+        2. BaseExpressionAPI (e.g. ma.col("x").gt(5)) — extract ._node and compile.
+        3. Anything else (native expressions, strings) — pass through unchanged.
+        """
         if isinstance(expr, ExpressionNode):
             return self.expr_visitor.visit(expr)
+        if isinstance(expr, BaseExpressionAPI):
+            return self.expr_visitor.visit(expr._node)
         return expr
