@@ -181,19 +181,25 @@ from mountainash.expressions.core.expression_nodes.substrait import (
 
 ## Documentation Corpora
 
-This project has 4 registered documentation corpora from [hiivmind-corpus-data](https://github.com/hiivmind/hiivmind-corpus-data), providing indexed reference docs for the upstream libraries mountainash builds on.
+This project has 4 registered documentation corpora from [hiivmind-corpus-data](https://github.com/hiivmind/hiivmind-corpus-data), providing indexed, concept-mapped reference docs for the upstream libraries mountainash builds on.
 
 | Corpus | Covers |
 |--------|--------|
-| `polars` | Polars DataFrame library — expressions, lazy evaluation, IO, types |
-| `ibis` | Ibis framework — deferred execution, backend portability, expression API |
-| `narwhals` | Narwhals — dataframe-agnostic API, expression model, cross-backend behavior |
-| `substrait` | Substrait spec — query plans, type system, scalar/aggregate/window functions |
+| `polars` | Polars DataFrame library — expressions, lazy evaluation, IO, types (19 concepts) |
+| `ibis` | Ibis framework — deferred execution, backend portability, expression API (15 concepts) |
+| `narwhals` | Narwhals — dataframe-agnostic API, expression model, cross-backend behavior (14 concepts) |
+| `substrait` | Substrait spec — query plans, type system, scalar/aggregate/window functions (13 concepts) |
+
+Each corpus has a **concept graph** (`graph.yaml`) that maps the library's domain into named concepts with relationships (depends-on, part-of, extends, see-also). A **cross-corpus registry graph** (`.hiivmind/corpus/registry-graph.yaml`) then bridges equivalent concepts across all four libraries — 66 bridges linking concepts like `polars:string-expressions` ↔ `ibis:string-expressions` ↔ `narwhals:string-expressions` ↔ `substrait:scalar-functions`, with 25 query-routing aliases so a search for "datetime expressions" returns relevant docs from all four corpora simultaneously.
+
+This is particularly valuable for mountainash because the expression system must produce identical results across Polars, Ibis, and Narwhals backends. When implementing or debugging a cross-backend operation, the corpora let you compare how each library handles it — e.g., querying "null handling" pulls up Polars' `fill_null`/`is_null`, Ibis' coalesce/ifelse, and Narwhals' cross-backend null semantics in one search.
 
 **Registry:** `.hiivmind/corpus/registry.yaml`
-**Cross-corpus bridges:** `.hiivmind/corpus/registry-graph.yaml` (66 bridges, 25 aliases)
+**Cross-corpus bridges:** `.hiivmind/corpus/registry-graph.yaml`
 
-**When to use:** Consult the corpora when you need to understand how an upstream library implements something — e.g., how Polars handles string expressions, what Substrait's scalar function spec looks like, or how Ibis compiles temporal operations. Use `/hiivmind-corpus navigate` to query them.
+**How to query:** Use `/hiivmind-corpus navigate` to search across corpora. Queries are routed through aliases and bridges, so searching a concept in one library automatically surfaces the equivalent docs in the others.
+
+**When to use:** Consult the corpora when you need to understand how an upstream library implements something — e.g., how Polars handles string expressions, what Substrait's scalar function spec looks like, or how Ibis compiles temporal operations.
 
 **When NOT to use:** For mountainash's own architecture and design decisions, use the Design Principles above instead. The corpora document the *upstream libraries*, not mountainash itself.
 
