@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 # Keep only essential API exports that don't trigger heavy imports
-from .constants import CONST_DATAFRAME_FRAMEWORK, CONST_IBIS_INMEMORY_BACKEND, CONST_EXPRESSION_TYPE, CONST_JOIN_BACKEND_TYPE, CONST_DATAFRAME_BACKEND, CONST_DATAFRAME_TYPE
+from mountainash.core.constants import (
+    CONST_BACKEND as CONST_DATAFRAME_FRAMEWORK,
+    CONST_BACKEND as CONST_DATAFRAME_BACKEND,
+    CONST_BACKEND_SYSTEM as CONST_EXPRESSION_TYPE,
+    CONST_BACKEND_SYSTEM as CONST_JOIN_BACKEND_TYPE,
+    CONST_DATAFRAME_TYPE,
+    CONST_IBIS_INMEMORY_BACKEND,
+)
 from .core.typing import SupportedDataFrames, SupportedExpressions, SupportedPythonData, SupportedSeries
 
 # Import new DataFrameSystem architecture (primary API going forward)

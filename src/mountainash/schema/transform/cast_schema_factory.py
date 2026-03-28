@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from mountainash.core.factories import BaseStrategyFactory, DataFrameTypeFactoryMixin
-from mountainash.dataframes.constants import CONST_DATAFRAME_TYPE
+from mountainash.core.constants import CONST_DATAFRAME_TYPE
 
 if TYPE_CHECKING:
     from mountainash.dataframes.core.typing import SupportedDataFrames

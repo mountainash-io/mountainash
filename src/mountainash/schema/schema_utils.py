@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import ibis.expr.schema as ibis_schema
     # import narwhals as nw
 
-from .constants import CONST_DATAFRAME_FRAMEWORK
+from mountainash.core.constants import CONST_BACKEND as CONST_DATAFRAME_FRAMEWORK
 
 from .typing import (
     SupportedDataFrames,

@@ -167,7 +167,7 @@ class DataFrameTypeFactoryMixin(BaseFactoryMixin):
     @classmethod
     def _ensure_constants(cls):
         if not cls._constants_loaded:
-            from mountainash.dataframes.constants import CONST_DATAFRAME_TYPE
+            from mountainash.core.constants import CONST_DATAFRAME_TYPE
             cls._CONST_DATAFRAME_TYPE = CONST_DATAFRAME_TYPE
             cls._constants_loaded = True
         return cls._CONST_DATAFRAME_TYPE

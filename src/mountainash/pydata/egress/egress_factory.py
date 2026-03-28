@@ -12,7 +12,7 @@ import logging
 
 from mountainash.dataframes.core.typing import SupportedDataFrames
 
-from mountainash.dataframes.constants import CONST_DATAFRAME_TYPE
+from mountainash.core.constants import CONST_DATAFRAME_TYPE
 
 from .base_egress_strategy import BaseEgressDataFrame as BaseCastDataFrame
 from mountainash.core.factories import DataFrameTypeFactoryMixin, BaseStrategyFactory

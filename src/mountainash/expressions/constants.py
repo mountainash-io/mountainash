@@ -1,57 +1,9 @@
 from typing import Optional
 from enum import Enum, IntEnum
 
-class CONST_VISITOR_BACKENDS(Enum):
-    """
-    Enumeration for different dataframe frameworks.
-
-    Attributes:
-        - PANDAS (str): Pandas dataframe framework.
-        - POLARS (str): Polars dataframe framework.
-        - IBIS (str): Ibis dataframe framework.
-        - PYARROW (str): PyArrow framework.
-    """
-    PANDAS =   "pandas"
-    POLARS =   "polars"
-    IBIS =     "ibis"
-    PYARROW = "pyarrow"
-
-    # NUMPY =    "numpy"
-    # XARRAY = "xarray"
-    # PYSPARK = "pyspark"
-
-class CONST_LOGIC_TYPES(Enum):
-    """
-    Enumeration for different dataframe frameworks.
-
-    Attributes:
-        - PANDAS (str): Pandas dataframe framework.
-        - POLARS (str): Polars dataframe framework.
-        - IBIS (str): Ibis dataframe framework.
-        - NUMPY (str): Numpy array framework.
-        - PYARROW_RECORDBATCH (str): PyArrow RecordBatch framework.
-        - PYARROW_TABLE (str): PyArrow Table framework.
-    """
-    BOOLEAN =   "boolean"
-    TERNARY =   "ternary"
-    FUZZY =     "fuzzy"
-
-class CONST_EXPRESSION_NODE_TYPES(Enum):
-    """
-    Enumeration for different dataframe frameworks.
-
-    Attributes:
-        - PANDAS (str): Pandas dataframe framework.
-        - POLARS (str): Polars dataframe framework.
-        - IBIS (str): Ibis dataframe framework.
-        - NUMPY (str): Numpy array framework.
-        - PYARROW_RECORDBATCH (str): PyArrow RecordBatch framework.
-        - PYARROW_TABLE (str): PyArrow Table framework.
-    """
-    LITERAL =   "literal"
-    COLUMN =    "column"
-    LOGICAL =   "logical"
-    CAST =   "cast"
+# Import unified enums from core
+from mountainash.core.constants import CONST_BACKEND as CONST_VISITOR_BACKENDS
+from mountainash.core.constants import CONST_LOGIC_TYPES, CONST_EXPRESSION_NODE_TYPES
 
 
 class CONST_EXPRESSION_LOGIC_OPERATORS(Enum):
