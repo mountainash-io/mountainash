@@ -46,6 +46,8 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 | minimal-ast.md | ENFORCED | Only 7 node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
 | three-layer-separation.md | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
 | unified-visitor.md | ADOPTED | Single visitor dispatches all node types via function registry lookup |
+| relational-ast.md | ENFORCED | 10 relational node types mapping to Substrait logical relations; ExtensionRelNode for non-Substrait ops |
+| relation-visitor-composition.md | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
 | wiring-matrix.md | ADOPTED | Every operation must be wired through all six architecture layers |
 | unified-package-roadmap.md | ADOPTED | Prioritized roadmap: wiring → shared infra → operations → alignment → release |
 
@@ -62,6 +64,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 | Document | Status | Summary |
 |----------|--------|---------|
 | build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
+| build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
 | fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
 | operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
 | short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
@@ -82,6 +85,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 | backend-detection.md | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
 | consistency-guarantees.md | ENFORCED | Same expression must produce same logical result across all backends |
 | known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps |
+| cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
 | arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals |
 
 ### f. Extension Model
