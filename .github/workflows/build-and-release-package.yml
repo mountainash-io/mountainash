@@ -108,7 +108,7 @@ jobs:
       - name: Python Dependencies
         run: |
           pip install hatchling==1.25.0
-          pip install hatch==1.12.0
+          pip install hatch==1.14.2
 
       # Checkout Mountain Ash Dependencies
       - name: Load Dependencies

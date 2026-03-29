@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant User
+    participant ExpressionNode
+    participant Visitor
+    participant VisitorMethod
+    participant ExpressionSystem
+    
+    Note over User: 1. Create expression tree with bound logic_type
+    User->>ExpressionNode: TernaryLogicalAndNode(children)
+    Note over ExpressionNode: expression_type="logical_and"<br/>logic_type="ternary"<br/>BOUND TOGETHER
+    
+    Note over User: 2. Choose backend_type
+    User->>ExpressionSystem: PolarsExpressionSystem()
+    Note over ExpressionSystem: backend_type="polars"<br/>provides all logic operations
+    
+    Note over User: 3. Create visitor with backend
+    User->>Visitor: UniversalVisitor(polars_system)
+    Note over Visitor: backend_type="polars"<br/>handles ALL logic types
+    
+    Note over User: 4. Compile expression
+    User->>ExpressionNode: expr.accept(visitor)
+    ExpressionNode->>Visitor: accept(visitor)
+    
+    Note over Visitor: Route based on expression_type + logic_type
+    Visitor->>VisitorMethod: visit_ternary_logical_and(node)
+    Note over VisitorMethod: Method binds:<br/>expression_type="logical_and"<br/>logic_type="ternary"
+    
+    VisitorMethod->>ExpressionSystem: native_ternary_and(left, right)
+    Note over ExpressionSystem: Uses backend-specific<br/>ternary AND operation
+    ExpressionSystem-->>VisitorMethod: polars.Expr
+    VisitorMethod-->>Visitor: polars.Expr
+    Visitor-->>ExpressionNode: polars.Expr
+    ExpressionNode-->>User: polars.Expr

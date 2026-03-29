@@ -1,0 +1,14 @@
+{
+  "simple_data": [
+    {"id": 1, "name": "Alice", "value": 100.5},
+    {"id": 2, "name": "Bob", "value": 200.7},
+    {"id": 3, "name": "Charlie", "value": 300.9}
+  ],
+  "complex_data": [
+    {"id": 1, "name": "Alice", "category": "A", "value": 100.5, "active": true},
+    {"id": 2, "name": "Bob", "category": "B", "value": 200.7, "active": false},
+    {"id": 3, "name": "Charlie", "category": "A", "value": 300.9, "active": true},
+    {"id": 4, "name": "Diana", "category": "C", "value": 400.2, "active": true},
+    {"id": 5, "name": "Eve", "category": "B", "value": 500.8, "active": false}
+  ]
+}

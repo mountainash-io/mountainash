@@ -1,0 +1,51 @@
+"""Substrait-aligned expression system protocols.
+
+Auto-generated - regenerate with: python scripts/generate_from_substrait.py
+
+This module exports ExpressionSystem protocols aligned with the Substrait specification.
+Protocols are organized by function type (scalar, aggregate, window) and category.
+"""
+
+from .prtcl_expsys_aggregate_aggregate_approx import SubstraitAggregateAggregateApproxExpressionSystemProtocol
+from .prtcl_expsys_aggregate_aggregate_generic import SubstraitAggregateAggregateGenericExpressionSystemProtocol
+from .prtcl_expsys_aggregate_aggregate_decimal import SubstraitAggregateAggregateDecimalExpressionSystemProtocol
+from .prtcl_expsys_scalar_arithmetic import SubstraitScalarArithmeticExpressionSystemProtocol
+from .prtcl_expsys_aggregate_arithmetic import SubstraitAggregateArithmeticExpressionSystemProtocol
+from .prtcl_expsys_window_arithmetic import SubstraitWindowArithmeticExpressionSystemProtocol
+from .prtcl_expsys_scalar_arithmetic_decimal import SubstraitScalarArithmeticDecimalExpressionSystemProtocol
+from .prtcl_expsys_aggregate_arithmetic_decimal import SubstraitAggregateArithmeticDecimalExpressionSystemProtocol
+from .prtcl_expsys_scalar_boolean import SubstraitScalarBooleanExpressionSystemProtocol
+from .prtcl_expsys_aggregate_boolean import SubstraitAggregateBooleanExpressionSystemProtocol
+from .prtcl_expsys_scalar_comparison import SubstraitScalarComparisonExpressionSystemProtocol
+from .prtcl_expsys_scalar_datetime import SubstraitScalarDatetimeExpressionSystemProtocol
+from .prtcl_expsys_aggregate_datetime import SubstraitAggregateDatetimeExpressionSystemProtocol
+from .prtcl_expsys_scalar_geometry import SubstraitScalarGeometryExpressionSystemProtocol
+from .prtcl_expsys_scalar_logarithmic import SubstraitScalarLogarithmicExpressionSystemProtocol
+from .prtcl_expsys_scalar_rounding import SubstraitScalarRoundingExpressionSystemProtocol
+from .prtcl_expsys_scalar_rounding_decimal import SubstraitScalarRoundingDecimalExpressionSystemProtocol
+from .prtcl_expsys_scalar_set import SubstraitScalarSetExpressionSystemProtocol
+from .prtcl_expsys_scalar_string import SubstraitScalarStringExpressionSystemProtocol
+from .prtcl_expsys_aggregate_string import SubstraitAggregateStringExpressionSystemProtocol
+
+__all__ = [
+    "SubstraitAggregateAggregateApproxExpressionSystemProtocol",
+    "SubstraitAggregateAggregateGenericExpressionSystemProtocol",
+    "SubstraitAggregateAggregateDecimalExpressionSystemProtocol",
+    "SubstraitScalarArithmeticExpressionSystemProtocol",
+    "SubstraitAggregateArithmeticExpressionSystemProtocol",
+    "SubstraitWindowArithmeticExpressionSystemProtocol",
+    "SubstraitScalarArithmeticDecimalExpressionSystemProtocol",
+    "SubstraitAggregateArithmeticDecimalExpressionSystemProtocol",
+    "SubstraitScalarBooleanExpressionSystemProtocol",
+    "SubstraitAggregateBooleanExpressionSystemProtocol",
+    "SubstraitScalarComparisonExpressionSystemProtocol",
+    "SubstraitScalarDatetimeExpressionSystemProtocol",
+    "SubstraitAggregateDatetimeExpressionSystemProtocol",
+    "SubstraitScalarGeometryExpressionSystemProtocol",
+    "SubstraitScalarLogarithmicExpressionSystemProtocol",
+    "SubstraitScalarRoundingExpressionSystemProtocol",
+    "SubstraitScalarRoundingDecimalExpressionSystemProtocol",
+    "SubstraitScalarSetExpressionSystemProtocol",
+    "SubstraitScalarStringExpressionSystemProtocol",
+    "SubstraitAggregateStringExpressionSystemProtocol",
+]
