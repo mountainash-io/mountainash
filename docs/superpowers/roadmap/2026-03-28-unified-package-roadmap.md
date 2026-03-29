@@ -267,9 +267,9 @@ Dependency flow for remaining work:
 | ~~9~~ | ~~Extract factory base to core~~ | 2.1 | ~~M~~ | ✅ Done (already in core.factories) |
 | ~~10~~ | ~~Extract runtime imports to core~~ | 2.2 | ~~S~~ | ✅ Done (already in core.lazy_imports) |
 | ~~11~~ | ~~Window functions (.over())~~ | 3.3 | ~~L~~ | ✅ Done (60 tests, dual model) |
-| 12 | Schema/pydata alignment | 4.4 | M | Not started |
-| 13 | Comprehensive schema tests | 5.1 | M | Not started |
-| 14 | Comprehensive pydata tests | 5.2 | M | Not started |
+| ~~12~~ | ~~Schema/pydata alignment~~ | 4.4 | ~~M~~ | ✅ Done (SchemaBuilder, SourceRelNode, sink terminals) |
+| ~~13~~ | ~~Comprehensive schema tests~~ | 5.1 | ~~M~~ | ✅ Done (371 passed, 27 xfailed, 8 test files) |
+| ~~14~~ | ~~Comprehensive pydata tests~~ | 5.2 | ~~M~~ | ✅ Done (101 passed, 4 skipped, 6 test files) |
 | 15 | CLAUDE.md + principles updates | 5.4-5.5 | S | ✅ Done (this update) |
 | 16 | Deprecate dataframes module | 4.1 | S | Not started |
 | 17 | PyPI strategy + release | 6.1-6.3 | M | Not started |
