@@ -407,6 +407,35 @@ class Relation(RelationBase):
         """Execute and return a list of row dicts."""
         return self.to_polars().to_dicts()
 
+    def to_tuples(self) -> list[tuple]:
+        """Execute the plan and return rows as a list of tuples."""
+        df = self.to_polars()
+        return df.rows()
+
+    def to_dataclasses(self, cls: type) -> list:
+        """Execute the plan and return rows as a list of dataclass instances.
+
+        Args:
+            cls: The dataclass type to instantiate for each row.
+
+        Returns:
+            List of dataclass instances.
+        """
+        rows = self.to_dicts()
+        return [cls(**row) for row in rows]
+
+    def to_pydantic(self, cls: type) -> list:
+        """Execute the plan and return rows as a list of Pydantic model instances.
+
+        Args:
+            cls: The Pydantic model class to instantiate for each row.
+
+        Returns:
+            List of Pydantic model instances.
+        """
+        rows = self.to_dicts()
+        return [cls(**row) for row in rows]
+
     # --- Introspection ---
 
     @property
