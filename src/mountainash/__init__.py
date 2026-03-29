@@ -21,7 +21,7 @@ from mountainash.expressions import (
     CONST_EXPRESSION_NODE_TYPES,
 )  # noqa: F401
 
-from mountainash.expressions.__version__ import __version__  # noqa: F401
+from mountainash.__version__ import __version__  # noqa: F401
 
 # Relations - Substrait-aligned relational AST
 from mountainash.relations import relation, concat  # noqa: F401

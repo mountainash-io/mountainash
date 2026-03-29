@@ -10,13 +10,23 @@ Planned:
 - PyArrow
 """
 
-# Import expression systems to register them
+# Import expression systems to register them.
+# Polars is a core dependency — always imported.
+# Narwhals and Ibis are optional — imported only if available.
 from .expression_systems.polars import PolarsExpressionSystem
-from .expression_systems.narwhals import NarwhalsExpressionSystem
-from .expression_systems.ibis import IbisExpressionSystem
 
 __all__ = [
     "PolarsExpressionSystem",
-    "NarwhalsExpressionSystem",
-    "IbisExpressionSystem",
 ]
+
+try:
+    from .expression_systems.narwhals import NarwhalsExpressionSystem
+    __all__.append("NarwhalsExpressionSystem")
+except ImportError:
+    pass
+
+try:
+    from .expression_systems.ibis import IbisExpressionSystem
+    __all__.append("IbisExpressionSystem")
+except ImportError:
+    pass

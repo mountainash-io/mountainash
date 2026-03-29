@@ -6,13 +6,23 @@ Currently supported:
 - Ibis (multiple database backends: DuckDB, SQLite, Postgres, etc.)
 """
 
-# Import relation systems to register them
+# Import relation systems to register them.
+# Polars is a core dependency — always imported.
+# Narwhals and Ibis are optional — imported only if available.
 from .relation_systems.polars import PolarsRelationSystem
-from .relation_systems.narwhals import NarwhalsRelationSystem
-from .relation_systems.ibis import IbisRelationSystem
 
 __all__ = [
     "PolarsRelationSystem",
-    "NarwhalsRelationSystem",
-    "IbisRelationSystem",
 ]
+
+try:
+    from .relation_systems.narwhals import NarwhalsRelationSystem
+    __all__.append("NarwhalsRelationSystem")
+except ImportError:
+    pass
+
+try:
+    from .relation_systems.ibis import IbisRelationSystem
+    __all__.append("IbisRelationSystem")
+except ImportError:
+    pass

@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Unified cross-backend DataFrame expressions, relations, and schema management"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = {text = "MIT"}
 authors = [
     { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
 ]
@@ -28,14 +28,16 @@ classifiers = [
 dependencies = [
     "polars>=1.35.1",
     "narwhals>=1.0.0",
+    "pydantic>=2.0.0",
+    "typing_extensions>=4.0.0",
+    "lazy_loader>=0.3",
 ]
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=9.0.0"]
 pyarrow = ["pyarrow>=15.0.0"]
-pydantic = ["pydantic>=2.0.0"]
-all = ["mountainash[pandas,ibis,pyarrow,pydantic]"]
+all = ["mountainash[pandas,ibis,pyarrow]"]
 
 
 [project.urls]
