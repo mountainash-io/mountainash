@@ -3,67 +3,46 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-dependencies = [
-    # Core framework dependencies (always required)
-    # Using local ibis with Polars calendar interval fix
-    "ibis-framework[pandas,sqlite,duckdb]",
-    "numpy>=1.23.2,<3",
-    "pandas>=2.2.0",  # Primary DataFrame library - always required
-    "polars>=1.35.1",  # Required for IbisDataFrame default backend
-    "pyarrow==17.0.0", "pyarrow-hotfix>=0.4,<1",
-
-    # Core utilities (always required)
-    "rich>=12.4.4,<14",
-    "universal_pathlib==0.2.2",
-    "openlineage-python==1.17.1",
-    "sqlalchemy",
-    "duckdb",
-    "psutil>=7.0.0",
-    "narwhals"
-
-]
-keywords = []
 name = "mountainash"
 dynamic = ["version"]
-description = 'Mountain Ash - Unified cross-backend DataFrame expression system'
+description = "Unified cross-backend DataFrame expressions, relations, and schema management"
 readme = "README.md"
 requires-python = ">=3.10"
-# license = "Proprietary"
+license = "MIT"
 authors = [
     { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
 ]
+keywords = ["dataframe", "expressions", "polars", "pandas", "ibis", "cross-backend"]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "polars>=1.35.1",
+    "narwhals>=1.0.0",
 ]
 
 [project.optional-dependencies]
-# DataFrame libraries (optional)
-xarray = ["xarray==2024.11.0"]
-pyspark = ["pyspark>=3.5.0"]
-
-# Database backends (via ibis)
-mssql = ["pyodbc==5.2.0", "ibis-framework[mssql]>=11.0.0"]
-snowflake = ["snowflake-connector-python==3.12.3", "ibis-framework[snowflake]>=11.0.0"]
-postgres = ["psycopg2-binary==2.9.9", "ibis-framework[postgres]>=11.0.0"]
-bigquery = ["ibis-framework[bigquery]>=11.0.0"]
-trino = ["ibis-framework[trino]>=11.0.0"]
-
-# Convenience groups
-dataframes = ["xarray"]
-databases = ["mssql", "snowflake", "postgres", "bigquery", "trino"]
-distributed = ["pyspark"]
-all = ["dataframes", "databases", "distributed"]
+pandas = ["pandas>=2.2.0"]
+ibis = ["ibis-framework>=9.0.0"]
+pyarrow = ["pyarrow>=15.0.0"]
+pydantic = ["pydantic>=2.0.0"]
+all = ["mountainash[pandas,ibis,pyarrow,pydantic]"]
 
 
 [project.urls]
-Documentation = "https://github.com/mountainash-io/mountainash-expressions#readme"
-Issues = "https://github.com/mountainash-io/mountainash-expressions/issues"
-Source = "https://github.com/mountainash-io/mountainash-expressions"
+Homepage = "https://github.com/mountainash-io/mountainash"
+Documentation = "https://github.com/mountainash-io/mountainash#readme"
+Issues = "https://github.com/mountainash-io/mountainash/issues"
+Source = "https://github.com/mountainash-io/mountainash"
 
 #================
 # Tool: Coverage
@@ -85,6 +64,3 @@ tests = ["tests", "*/mountainash-expressions/tests"]
 exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]
 
 
-[tool.pyright]
-venvPath = "/home/nathanielramm/git/mountainash-ide/mountainash-dev-local/.venv"
-venv = ".venv"
