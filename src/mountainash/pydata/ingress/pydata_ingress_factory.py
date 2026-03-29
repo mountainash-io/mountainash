@@ -80,7 +80,7 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
             CONST_PYTHON_DATAFORMAT.TUPLE:         "DataframeFromTuple",
             CONST_PYTHON_DATAFORMAT.INDEXED_DATA:  "DataframeFromIndexedData",
             CONST_PYTHON_DATAFORMAT.SERIES_DICT:   "DataframeFromSeriesDict",
-            CONST_PYTHON_DATAFORMAT.COLLECTION:    "DataframeFromCollection",
+            CONST_PYTHON_DATAFORMAT.COLLECTION:    "IngressFromCollection",
             CONST_PYTHON_DATAFORMAT.UNKNOWN:       "DataframeFromDefault",
 
 
