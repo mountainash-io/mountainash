@@ -36,7 +36,7 @@ def require_module(module_name: str, install_hint: Optional[str] = None) -> Any:
 
 def import_pandas() -> Any:
     """Lazy import of pandas."""
-    return require_module("pandas", "pip install pandas>=2.2.0")
+    return require_module("pandas", "pip install 'mountainash[pandas]'")
 
 
 def import_polars() -> Any:
@@ -46,26 +46,26 @@ def import_polars() -> Any:
 
 def import_pyarrow() -> Any:
     """Lazy import of pyarrow."""
-    return require_module("pyarrow", "pip install pyarrow==17.0.0")
+    return require_module("pyarrow", "pip install 'mountainash[pyarrow]'")
 
 
 def import_ibis() -> Any:
     """Lazy import of ibis."""
-    return require_module("ibis", "pip install 'ibis-framework[polars,sqlite,duckdb]'")
+    return require_module("ibis", "pip install 'mountainash[ibis]'")
 
 
 def import_ibis_expr_types() -> Any:
     """Lazy import of ibis.expr.types."""
-    if not require_module("ibis", "pip install 'ibis-framework[polars,sqlite,duckdb]'"):
+    if not require_module("ibis", "pip install 'mountainash[ibis]'"):
         return None
-    return require_module("ibis.expr.types", "pip install 'ibis-framework[polars,sqlite,duckdb]'")
+    return require_module("ibis.expr.types", "pip install 'mountainash[ibis]'")
 
 
 def import_ibis_expr_ops() -> Any:
     """Lazy import of ibis.expr.operations."""
-    if not require_module("ibis", "pip install 'ibis-framework[polars,sqlite,duckdb]'"):
+    if not require_module("ibis", "pip install 'mountainash[ibis]'"):
         return None
-    return require_module("ibis.expr.operations", "pip install 'ibis-framework[polars,sqlite,duckdb]'")
+    return require_module("ibis.expr.operations", "pip install 'mountainash[ibis]'")
 
 
 def import_narwhals() -> Any:
@@ -75,7 +75,7 @@ def import_narwhals() -> Any:
 
 def import_pydantic() -> Any:
     """Lazy import of pydantic."""
-    return require_module("pydantic")
+    return require_module("pydantic", "pip install 'mountainash[pydantic]'")
 
 
 # ============================================================================
@@ -106,13 +106,13 @@ def get_available_backends() -> Dict[str, bool]:
 # ============================================================================
 
 INSTALL_COMMANDS = {
-    "pandas": "pip install pandas>=2.2.0",
+    "pandas": "pip install 'mountainash[pandas]'",
     "polars": "pip install polars>=1.35.1",
-    "pyarrow": "pip install pyarrow==17.0.0",
-    "ibis": "pip install 'ibis-framework[polars,sqlite,duckdb]'",
-    "ibis.expr.types": "pip install 'ibis-framework[polars,sqlite,duckdb]'",
+    "pyarrow": "pip install 'mountainash[pyarrow]'",
+    "ibis": "pip install 'mountainash[ibis]'",
+    "ibis.expr.types": "pip install 'mountainash[ibis]'",
     "narwhals": "pip install narwhals",
-    "pydantic": "pip install pydantic>=2.0.0",
+    "pydantic": "pip install 'mountainash[pydantic]'",
 }
 
 
