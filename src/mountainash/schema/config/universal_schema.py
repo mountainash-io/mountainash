@@ -158,13 +158,35 @@ class SchemaDiff:
     def has_changes(self) -> bool:
         return bool(self.added_fields or self.removed_fields or self.type_changes)
 
+    # ---- Aliases for validator compatibility ----
 
-def compare_schemas(source: TableSchema, target: TableSchema) -> SchemaDiff:
+    @property
+    def missing_columns(self) -> List[str]:
+        """Columns present in expected (target) but absent in actual (source)."""
+        return self.added_fields
+
+    @property
+    def extra_columns(self) -> List[str]:
+        """Columns present in actual (source) but absent in expected (target)."""
+        return self.removed_fields
+
+    @property
+    def type_mismatches(self) -> List[tuple]:
+        """List of (column, actual_type, expected_type) tuples."""
+        return [(col, actual, expected) for col, (actual, expected) in self.type_changes.items()]
+
+
+def compare_schemas(
+    source: TableSchema,
+    target: TableSchema,
+    check_constraints: bool = True,
+) -> SchemaDiff:
     """Compare two TableSchemas and return a SchemaDiff.
 
     Args:
-        source: The original schema
-        target: The target schema to compare against
+        source: The actual / output schema
+        target: The expected schema to compare against
+        check_constraints: Ignored (reserved for future constraint comparison)
 
     Returns:
         SchemaDiff describing the differences
@@ -173,7 +195,9 @@ def compare_schemas(source: TableSchema, target: TableSchema) -> SchemaDiff:
     target_names = set(target.field_names)
 
     diff = SchemaDiff(
+        # Fields in target but not in source → missing from actual output
         added_fields=sorted(target_names - source_names),
+        # Fields in source but not in target → extra in actual output
         removed_fields=sorted(source_names - target_names),
     )
 
@@ -184,5 +208,5 @@ def compare_schemas(source: TableSchema, target: TableSchema) -> SchemaDiff:
         if source_field and target_field and source_field.type != target_field.type:
             diff.type_changes[name] = (source_field.type, target_field.type)
 
-    diff.is_compatible = not diff.removed_fields and not diff.type_changes
+    diff.is_compatible = not diff.added_fields and not diff.type_changes
     return diff
