@@ -17,7 +17,7 @@ from difflib import SequenceMatcher
 import json
 import logging
 
-# from .universal_schema import TableSchema, SchemaField, compare_schemas
+from .universal_schema import TableSchema, SchemaField, compare_schemas
 
 if TYPE_CHECKING:
     from mountainash.core.types import SupportedDataFrames
