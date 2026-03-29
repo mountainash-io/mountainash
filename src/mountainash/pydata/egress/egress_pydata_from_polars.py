@@ -15,15 +15,13 @@ PandasSeries,PolarsSeries,
 )
 
 
-from .base_cast_strategy import BaseEgressDataFrame
-# from ..strategy_mixins import PolarsDataFrameStrategyMixin
-from .cast_to_ibis import CastToIbisMixin
+from .base_egress_strategy import BaseEgressDataFrame
 
 logger = logging.getLogger(__name__)
 
 
 
-class EgressFromPolars(CastToIbisMixin, BaseEgressDataFrame):
+class EgressFromPolars(BaseEgressDataFrame):
     """
     Strategy for handling Polars DataFrame operations.
 
@@ -439,3 +437,17 @@ class EgressFromPolars(CastToIbisMixin, BaseEgressDataFrame):
             model_class,
             mapping=None  # Schema transformations already applied
         )
+
+    @classmethod
+    def _to_ibis(cls, df: PolarsFrame, /, **kwargs):
+        """Convert to Ibis table via PyArrow."""
+        try:
+            import ibis
+        except ImportError as e:
+            raise ImportError("ibis-framework is required for Ibis conversion.") from e
+        arrow_table = cls._to_pyarrow(df)
+        return ibis.memtable(arrow_table)
+
+
+# Alias used by DataFrameEgressFactory and __init__.py exports
+EgressPydataFromPolars = EgressFromPolars
