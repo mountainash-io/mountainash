@@ -8,7 +8,9 @@ compilation machinery in RelationBase.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, TypeVar, Union
+
+_T = TypeVar("_T")
 
 from mountainash.core.constants import (
     ExecutionTarget,
@@ -412,7 +414,7 @@ class Relation(RelationBase):
         df = self.to_polars()
         return df.rows()
 
-    def to_dataclasses(self, cls: type) -> list:
+    def to_dataclasses(self, cls: type[_T]) -> list[_T]:
         """Execute the plan and return rows as a list of dataclass instances.
 
         Args:
@@ -424,8 +426,11 @@ class Relation(RelationBase):
         rows = self.to_dicts()
         return [cls(**row) for row in rows]
 
-    def to_pydantic(self, cls: type) -> list:
+    def to_pydantic(self, cls: type[_T]) -> list[_T]:
         """Execute the plan and return rows as a list of Pydantic model instances.
+
+        Uses model_validate for Pydantic models (proper validation),
+        falls back to direct construction for other types.
 
         Args:
             cls: The Pydantic model class to instantiate for each row.
@@ -434,6 +439,8 @@ class Relation(RelationBase):
             List of Pydantic model instances.
         """
         rows = self.to_dicts()
+        if hasattr(cls, "model_validate"):
+            return [cls.model_validate(row) for row in rows]
         return [cls(**row) for row in rows]
 
     # --- Introspection ---
@@ -452,14 +459,14 @@ class Relation(RelationBase):
 def _is_python_data(data: Any) -> bool:
     """Check if data is a Python data structure suitable for PydataIngress.
 
-    Returns True for list, dict, tuple, set, frozenset, dataclasses, and
-    Pydantic models — the types that PydataIngressFactory can detect and
+    Returns True for list, dict, dataclass instances, and Pydantic model
+    instances — the primary types that PydataIngressFactory can detect and
     convert.  Returns False for everything else (DataFrames, strings,
-    opaque objects) which should go through ReadRelNode.
+    tuples, sets, opaque objects) which should go through ReadRelNode.
     """
-    if isinstance(data, (list, dict, tuple, set, frozenset)):
+    if isinstance(data, (list, dict)):
         return True
-    # Dataclasses and Pydantic models
+    # Dataclass and Pydantic model instances
     if hasattr(data, "__dataclass_fields__") or hasattr(data, "__pydantic_core_schema__"):
         return True
     return False

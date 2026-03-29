@@ -1,8 +1,10 @@
 """Tests for SourceRelNode — Python data source for relations."""
 from __future__ import annotations
 
+import polars as pl
 import pytest
 
+import mountainash as ma
 from mountainash.relations.core.relation_nodes import SourceRelNode
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 
@@ -32,11 +34,6 @@ class TestSourceRelNodeConstruction:
 
         result = node.accept(MockVisitor())
         assert result == "visited"
-
-
-import polars as pl
-
-import mountainash as ma
 
 
 class TestSourceRelVisitorExecution:

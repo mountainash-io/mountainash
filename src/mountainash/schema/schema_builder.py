@@ -143,7 +143,11 @@ class SchemaBuilder:
     # ------------------------------------------------------------------
 
     def validate(self, df: SupportedDataFrames) -> Any:
-        """Validate a DataFrame against this schema."""
+        """Validate a DataFrame against this schema.
+
+        Currently checks for missing columns only. Does not validate
+        type compatibility (e.g. whether a cast would succeed).
+        """
         from mountainash.schema.config.schema_config import ValidationResult, ValidationIssue
 
         issues: List[ValidationIssue] = []
