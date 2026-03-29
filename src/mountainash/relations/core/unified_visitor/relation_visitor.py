@@ -38,6 +38,13 @@ class UnifiedRelationVisitor:
         """Visit a read (scan) node."""
         return self.backend.read(node.dataframe)
 
+    def visit_source_rel(self, node: Any) -> Any:
+        """Visit a source node — materialize Python data into a DataFrame."""
+        from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+        df = PydataIngress.convert(node.data)
+        return self.backend.read(df)
+
     def visit_project_rel(self, node: ProjectRelNode) -> Any:
         """Visit a project node — dispatches on ProjectOperation variant."""
         relation = self.visit(node.input)

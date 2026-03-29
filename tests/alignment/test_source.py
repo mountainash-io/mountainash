@@ -32,3 +32,29 @@ class TestSourceRelNodeConstruction:
 
         result = node.accept(MockVisitor())
         assert result == "visited"
+
+
+import polars as pl
+
+import mountainash as ma
+
+
+class TestSourceRelVisitorExecution:
+    """SourceRelNode visitor materializes Python data into a DataFrame."""
+
+    def test_source_list_of_dicts_collects_to_polars(self):
+        data = [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
+        result = ma.relation(data).collect()
+        assert isinstance(result, (pl.DataFrame, pl.LazyFrame))
+        if isinstance(result, pl.LazyFrame):
+            result = result.collect()
+        assert result.shape == (2, 2)
+        assert result["a"].to_list() == [1, 2]
+        assert result["b"].to_list() == ["x", "y"]
+
+    def test_source_dict_of_lists_collects_to_polars(self):
+        data = {"x": [10, 20, 30], "y": ["a", "b", "c"]}
+        result = ma.relation(data).to_polars()
+        assert isinstance(result, pl.DataFrame)
+        assert result.shape == (3, 2)
+        assert result["x"].to_list() == [10, 20, 30]

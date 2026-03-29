@@ -10,7 +10,7 @@ from mountainash.expressions.core.expression_system.expsys_base import (
     get_expression_system,
 )
 from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
-from ..relation_nodes import RelationNode, ReadRelNode, JoinRelNode, SetRelNode
+from ..relation_nodes import RelationNode, ReadRelNode, JoinRelNode, SetRelNode, SourceRelNode
 from ..relation_protocols.relsys_base import get_relation_system
 from ..unified_visitor.relation_visitor import UnifiedRelationVisitor
 
@@ -40,13 +40,20 @@ class RelationBase:
     def _detect_backend(self) -> CONST_BACKEND:
         """Walk the plan tree to find a ReadRelNode and identify its backend."""
         leaf = self._find_leaf_read_node(self._node)
+        if leaf is None:
+            # No ReadRelNode found (e.g. pure SourceRelNode tree).
+            # PydataIngress produces Polars DataFrames, so default to Polars.
+            return CONST_BACKEND.POLARS
         return identify_backend(leaf.dataframe)
 
     @staticmethod
-    def _find_leaf_read_node(node: RelationNode) -> ReadRelNode:
+    def _find_leaf_read_node(node: RelationNode) -> ReadRelNode | None:
         """Recursively find the first ReadRelNode in the plan tree."""
         if isinstance(node, ReadRelNode):
             return node
+        if isinstance(node, SourceRelNode):
+            # SourceRelNode is a leaf with no backend — return None.
+            return None
         if isinstance(node, JoinRelNode):
             return RelationBase._find_leaf_read_node(node.left)
         if isinstance(node, SetRelNode):

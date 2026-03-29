@@ -420,9 +420,42 @@ class Relation(RelationBase):
 # Module-level factory functions
 # ---------------------------------------------------------------------------
 
-def relation(df: Any) -> Relation:
-    """Create a Relation from a raw data source (DataFrame, Ibis table, etc.)."""
-    return Relation(ReadRelNode(dataframe=df))
+def _is_python_data(data: Any) -> bool:
+    """Check if data is a Python data structure suitable for PydataIngress.
+
+    Returns True for list, dict, tuple, set, frozenset, dataclasses, and
+    Pydantic models — the types that PydataIngressFactory can detect and
+    convert.  Returns False for everything else (DataFrames, strings,
+    opaque objects) which should go through ReadRelNode.
+    """
+    if isinstance(data, (list, dict, tuple, set, frozenset)):
+        return True
+    # Dataclasses and Pydantic models
+    if hasattr(data, "__dataclass_fields__") or hasattr(data, "__pydantic_core_schema__"):
+        return True
+    return False
+
+
+def relation(data: Any) -> Relation:
+    """Create a Relation from a DataFrame or Python data.
+
+    - DataFrames (Polars, Pandas, Ibis, etc.) and other opaque objects
+      produce a ReadRelNode.
+    - Python data structures (list, dict, dataclass, Pydantic model, etc.)
+      produce a SourceRelNode for deferred ingress via PydataIngress.
+    """
+    if _is_python_data(data):
+        from mountainash.pydata.ingress.pydata_ingress_factory import PydataIngressFactory
+        from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
+        from ..relation_nodes import SourceRelNode
+
+        detected = PydataIngressFactory._get_strategy_key(data)
+        if detected is None:
+            detected = CONST_PYTHON_DATAFORMAT.UNKNOWN
+
+        return Relation(SourceRelNode(data=data, detected_format=detected))
+
+    return Relation(ReadRelNode(dataframe=data))
 
 
 def concat(relations: Sequence[Relation]) -> Relation:
