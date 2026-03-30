@@ -97,12 +97,26 @@ Each becomes its own spec. Triage may reveal additional topics.
 
 **This spec does NOT include any of these fixes.** It only establishes the baseline, fixes genuine bugs, and sets up the ratchet.
 
+## 5. Principle: Pyright as an Ongoing Quality Practice
+
+Create a principle in `g.development-practices/` that establishes Pyright-driven type checking as a first-class ongoing concern — alongside linting (ruff) and testing (pytest). The principle should codify:
+
+- **Pyright is not optional.** It runs at the current configured strictness level before every commit, same as ruff and pytest.
+- **Errors are not suppressed without justification.** Every `# pyright: ignore` must have an explanatory comment. Suppressions are reviewed periodically.
+- **The ratchet only moves forward.** Once a rule is enabled, it stays enabled. Strictness increases as architectural improvements land.
+- **Pyright findings drive architecture.** When Pyright surfaces a category of errors, the response is to improve the type system — not to suppress the errors or weaken the configuration. Each category of structural errors is a candidate for an architectural spec.
+- **Three quality gates, three concerns.** Ruff catches style and lint issues. Pytest catches behavioral regressions. Pyright catches type system and structural issues. All three are required.
+
+This principle goes in `g.development-practices/pyright-quality-practice.md` with status `ENFORCED`, and is referenced in the CLAUDE.md principles table.
+
 ## Files touched
 
 1. **Modified:** `pyrightconfig.json` (add `typeCheckingMode`)
 2. **Modified:** `pyproject.toml` (add `[tool.hatch.envs.pyright]`)
 3. **Modified:** Various source files (bug fixes found during triage)
 4. **New:** Targeted `# pyright: ignore` comments where suppression is appropriate
+5. **New:** `g.development-practices/pyright-quality-practice.md` principle
+6. **Modified:** `CLAUDE.md` (add principle to table)
 
 ## Success criteria
 
@@ -110,3 +124,4 @@ Each becomes its own spec. Triage may reveal additional topics.
 - All genuine bugs found during triage are fixed
 - Architectural improvement topics are documented
 - No suppression without an explanatory comment
+- Pyright quality practice principle is written and referenced in CLAUDE.md
