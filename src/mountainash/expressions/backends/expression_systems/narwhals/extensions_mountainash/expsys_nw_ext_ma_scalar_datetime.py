@@ -55,7 +55,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol):
+class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:

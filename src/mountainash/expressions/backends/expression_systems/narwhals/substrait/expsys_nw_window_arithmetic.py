@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol):
+class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of WindowArithmeticExpressionProtocol.
 
     Implements window functions:

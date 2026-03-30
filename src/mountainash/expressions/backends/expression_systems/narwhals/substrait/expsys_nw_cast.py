@@ -56,7 +56,7 @@ _NARWHALS_DTYPE_MAP = {
 }
 
 
-class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol):
+class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of CastExpressionProtocol."""
 
     def cast(self, x: NarwhalsExpr, /, dtype: Any) -> NarwhalsExpr:

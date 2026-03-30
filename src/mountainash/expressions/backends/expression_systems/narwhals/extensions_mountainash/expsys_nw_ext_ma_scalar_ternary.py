@@ -31,7 +31,7 @@ T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN  # 0
 T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE    # -1
 
 
-class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol):
+class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of TernaryExpressionProtocol.
 
     Implements three-valued logic operations for the Narwhals backend.

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol):
+class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarRoundingExpressionProtocol.
 
     Implements 3 rounding methods:

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol):
+class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarStringExpressionProtocol.
 
     Implements string methods across categories:

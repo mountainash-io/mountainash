@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarSetExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol):
+class SubstraitNarwhalsScalarSetExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarSetExpressionProtocol.
 
     Implements set membership operations:

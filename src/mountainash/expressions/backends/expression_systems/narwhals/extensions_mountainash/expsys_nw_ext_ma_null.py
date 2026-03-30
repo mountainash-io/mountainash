@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
+class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of MountainashNullExpressionProtocol.
 
     Implements null handling extension methods:

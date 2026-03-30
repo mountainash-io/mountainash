@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol):
+class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarComparisonExpressionProtocol.
 
     Implements 23 comparison methods organized into categories:
