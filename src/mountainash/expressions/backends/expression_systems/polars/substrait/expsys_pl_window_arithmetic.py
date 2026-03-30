@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol):
+class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol["pl.Expr"]):
     """Polars implementation of WindowArithmeticExpressionProtocol.
 
     Implements window functions:

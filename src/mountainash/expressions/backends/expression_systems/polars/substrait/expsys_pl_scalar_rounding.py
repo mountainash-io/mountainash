@@ -15,7 +15,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
-class SubstraitPolarsScalarRoundingExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol):
+class SubstraitPolarsScalarRoundingExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol["pl.Expr"]):
     """Polars implementation of ScalarRoundingExpressionProtocol.
 
     Implements 3 rounding methods:

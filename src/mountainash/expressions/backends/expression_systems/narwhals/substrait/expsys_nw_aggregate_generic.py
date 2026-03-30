@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 class SubstraitNarwhalsAggregateGenericExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol
+    SubstraitAggregateGenericExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 

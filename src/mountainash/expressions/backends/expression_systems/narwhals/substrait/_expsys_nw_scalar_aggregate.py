@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateArithmeticExpressionSystemProtocol
+    SubstraitAggregateArithmeticExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 
@@ -317,7 +317,7 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
 
 class SubstraitNarwhalsAggregateBooleanExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateBooleanExpressionSystemProtocol
+    SubstraitAggregateBooleanExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateBooleanExpressionSystemProtocol.
 
@@ -359,7 +359,7 @@ class SubstraitNarwhalsAggregateBooleanExpressionSystem(
 
 class SubstraitNarwhalsAggregateGenericExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol
+    SubstraitAggregateGenericExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 
@@ -426,7 +426,7 @@ class SubstraitNarwhalsAggregateGenericExpressionSystem(
 
 class SubstraitNarwhalsAggregateStringExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateStringExpressionSystemProtocol
+    SubstraitAggregateStringExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateStringExpressionSystemProtocol.
 

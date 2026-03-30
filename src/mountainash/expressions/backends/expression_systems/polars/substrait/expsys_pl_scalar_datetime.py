@@ -53,7 +53,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
+class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol["pl.Expr"]):
     """Polars implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:

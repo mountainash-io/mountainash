@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class SubstraitPolarsAggregateArithmeticExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateArithmeticExpressionSystemProtocol
+    SubstraitAggregateArithmeticExpressionSystemProtocol["pl.Expr"]
 ):
     """Polars implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 
@@ -293,7 +293,7 @@ class SubstraitPolarsAggregateArithmeticExpressionSystem(
 
 class SubstraitPolarsAggregateBooleanExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateBooleanExpressionSystemProtocol
+    SubstraitAggregateBooleanExpressionSystemProtocol["pl.Expr"]
 ):
     """Polars implementation of SubstraitAggregateBooleanExpressionSystemProtocol.
 
@@ -335,7 +335,7 @@ class SubstraitPolarsAggregateBooleanExpressionSystem(
 
 class SubstraitPolarsAggregateGenericExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol
+    SubstraitAggregateGenericExpressionSystemProtocol["pl.Expr"]
 ):
     """Polars implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 
@@ -402,7 +402,7 @@ class SubstraitPolarsAggregateGenericExpressionSystem(
 
 class SubstraitPolarsAggregateStringExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateStringExpressionSystemProtocol
+    SubstraitAggregateStringExpressionSystemProtocol["pl.Expr"]
 ):
     """Polars implementation of SubstraitAggregateStringExpressionSystemProtocol.
 

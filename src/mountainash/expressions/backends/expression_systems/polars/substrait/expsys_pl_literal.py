@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsLiteralExpressionSystem(PolarsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol):
+class SubstraitPolarsLiteralExpressionSystem(PolarsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol["pl.Expr"]):
     """Polars implementation of LiteralExpressionProtocol."""
 
     def lit(self, x: Any, /) -> PolarsExpr:

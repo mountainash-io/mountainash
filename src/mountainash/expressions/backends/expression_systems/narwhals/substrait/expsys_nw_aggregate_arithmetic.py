@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateArithmeticExpressionSystemProtocol
+    SubstraitAggregateArithmeticExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 
