@@ -13,13 +13,14 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitFieldReferenceExpressionSystemProtocol
 
 if TYPE_CHECKING:
+    from mountainash.core.types import IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
-class SubstraitIbisFieldReferenceExpressionSystem(IbisBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol):
+class SubstraitIbisFieldReferenceExpressionSystem(IbisBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of FieldReferenceExpressionProtocol."""
 
-    def col(self, x: str) -> IbisExpr:
+    def col(self, x: str) -> IbisValueExpr:
         """Create a column reference expression.
 
         Args:

@@ -18,10 +18,11 @@ from mountainash.core.constants import WindowBoundType
 from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowBound
 
 if TYPE_CHECKING:
+    from mountainash.core.types import IbisNumericExpr
     from mountainash.expressions.types import IbisExpr
 
 
-class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol):
+class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol["IbisNumericExpr"]):
     """Ibis implementation of WindowArithmeticExpressionProtocol.
 
     Implements window functions:
@@ -36,7 +37,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self) -> IbisExpr:
+    def row_number(self) -> IbisNumericExpr:
         """The number of the current row within its partition, starting at 1.
 
         Returns:
@@ -44,7 +45,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return ibis.row_number()
 
-    def rank(self) -> IbisExpr:
+    def rank(self) -> IbisNumericExpr:
         """The rank of the current row, with gaps.
 
         Returns:
@@ -52,7 +53,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return ibis.rank()
 
-    def dense_rank(self) -> IbisExpr:
+    def dense_rank(self) -> IbisNumericExpr:
         """The rank of the current row, without gaps.
 
         Returns:
@@ -60,7 +61,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return ibis.dense_rank()
 
-    def percent_rank(self) -> IbisExpr:
+    def percent_rank(self) -> IbisNumericExpr:
         """The relative rank of the current row.
 
         Returns:
@@ -68,7 +69,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return ibis.percent_rank()
 
-    def cume_dist(self) -> IbisExpr:
+    def cume_dist(self) -> IbisNumericExpr:
         """The cumulative distribution.
 
         Returns:
@@ -80,7 +81,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Distribution Functions
     # =========================================================================
 
-    def ntile(self, x: IbisExpr, /) -> IbisExpr:
+    def ntile(self, x: IbisNumericExpr, /) -> IbisNumericExpr:
         """Return an integer ranging from 1 to the argument value.
 
         Divides the partition as equally as possible.
@@ -97,7 +98,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Value Access Functions
     # =========================================================================
 
-    def first_value(self, x: IbisExpr, /) -> IbisExpr:
+    def first_value(self, x: IbisNumericExpr, /) -> IbisNumericExpr:
         """Returns the first value in the window.
 
         Args:
@@ -108,7 +109,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return x.first()
 
-    def last_value(self, x: IbisExpr, /) -> IbisExpr:
+    def last_value(self, x: IbisNumericExpr, /) -> IbisNumericExpr:
         """Returns the last value in the window.
 
         Args:
@@ -121,11 +122,11 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
     def nth_value(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
-        window_offset: IbisExpr,
+        window_offset: IbisNumericExpr,
         on_domain_error: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Returns a value from the nth row based on the window_offset.
 
         Args:
@@ -140,11 +141,11 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
     def lead(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Return a value from a following row based on physical offset.
 
         Args:
@@ -161,11 +162,11 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
     def lag(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
         row_offset: int = 1,
         default: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Return a value from a previous row based on physical offset.
 
         Args:
@@ -186,12 +187,12 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
     def apply_window(
         self,
-        expr: IbisExpr,
+        expr: IbisNumericExpr,
         partition_by: List[Any],
         order_by: List[Tuple[Any, bool]],
         lower_bound: Optional[WindowBound] = None,
         upper_bound: Optional[WindowBound] = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Apply window context to an Ibis expression.
 
         Args:

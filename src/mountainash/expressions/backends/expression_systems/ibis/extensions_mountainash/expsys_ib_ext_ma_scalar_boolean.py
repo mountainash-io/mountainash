@@ -14,10 +14,11 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
+    from mountainash.core.types import IbisBooleanExpr
     from mountainash.expressions.types import IbisExpr
 
 
-class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
+class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol["IbisBooleanExpr"]):
     """Ibis implementation of ScalarBooleanExpressionProtocol.
 
     Implements 5 boolean methods using Kleene (three-valued) logic:
@@ -29,7 +30,7 @@ class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, Subst
     """
 
 
-    def xor_parity(self, a: IbisExpr, b: IbisExpr, /) -> IbisExpr:
+    def xor_parity(self, a: IbisBooleanExpr, b: IbisBooleanExpr, /) -> IbisBooleanExpr:
         """XOR parity check (odd number of TRUE values).
 
         Returns TRUE if an odd number of operands are TRUE.

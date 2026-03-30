@@ -14,11 +14,12 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshNullExpressionSystemProtocol
 
 if TYPE_CHECKING:
+    from mountainash.core.types import IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
 
-class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
+class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshNullExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of MountainashNullExpressionProtocol.
 
     Implements null handling extension methods:
@@ -28,10 +29,10 @@ class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshN
 
     def fill_null(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         replacement: Any,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Replace NULL values with the specified replacement value.
 
         Args:
@@ -45,10 +46,10 @@ class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshN
 
     def null_if(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         condition: Any,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Replace values equal to condition with NULL.
 
         SQL NULLIF(input, condition) semantics.
@@ -57,8 +58,8 @@ class MountainAshIbisNullExpressionSystem(IbisBaseExpressionSystem, MountainAshN
 
     def fill_nan(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         replacement: Any,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         return ibis.ifelse(input.isnan(), replacement, input)

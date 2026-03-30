@@ -14,10 +14,11 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarLogarithmicExpressionSystemProtocol
 
 if TYPE_CHECKING:
+    from mountainash.core.types import IbisNumericExpr
     from mountainash.expressions.types import IbisExpr
 
 
-class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol):
+class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol["IbisNumericExpr"]):
     """Ibis implementation of ScalarLogarithmicExpressionProtocol.
 
     Implements 4 logarithmic methods:
@@ -29,12 +30,12 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
 
     def ln(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Natural logarithm (base e).
 
         Args:
@@ -50,12 +51,12 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
 
     def log10(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Logarithm base 10.
 
         Args:
@@ -71,12 +72,12 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
 
     def log2(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Logarithm base 2.
 
         Args:
@@ -92,13 +93,13 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
 
     def logb(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
-        base: IbisExpr,
+        base: IbisNumericExpr,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Logarithm with arbitrary base.
 
         logb(x, b) = log_b(x)
@@ -121,12 +122,12 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
 
     def log1p(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
         rounding: Any = None,
         on_domain_error: Any = None,
         on_log_zero: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Natural logarithm of (1 + x).
 
         log1p(x) = ln(1 + x)

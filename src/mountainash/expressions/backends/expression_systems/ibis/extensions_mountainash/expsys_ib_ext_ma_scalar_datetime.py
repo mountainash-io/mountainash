@@ -16,6 +16,7 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
 
 if TYPE_CHECKING:
+    from mountainash.core.types import IbisTemporalExpr
     from mountainash.expressions.types import IbisExpr
 
 
@@ -55,7 +56,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol):
+class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol["IbisTemporalExpr"]):
     """Ibis implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
@@ -71,11 +72,11 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def extract(
         self,
-        x: IbisExpr,
-        component: IbisExpr,
-        timezone: IbisExpr = None,
+        x: IbisTemporalExpr,
+        component: IbisTemporalExpr,
+        timezone: IbisTemporalExpr = None,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Extract portion of a date/time value.
 
         Args:
@@ -111,10 +112,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def extract_boolean(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         /,
-        component: IbisExpr,
-    ) -> IbisExpr:
+        component: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Extract boolean values of a date/time value.
 
         Args:
@@ -140,39 +141,39 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     # Convenience Extraction Methods
     # =========================================================================
 
-    def year(self, x: IbisExpr, /) -> IbisExpr:
+    def year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the year."""
         return x.year()
 
-    def month(self, x: IbisExpr, /) -> IbisExpr:
+    def month(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the month (1-12)."""
         return x.month()
 
-    def day(self, x: IbisExpr, /) -> IbisExpr:
+    def day(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the day of month (1-31)."""
         return x.day()
 
-    def hour(self, x: IbisExpr, /) -> IbisExpr:
+    def hour(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the hour (0-23)."""
         return x.hour()
 
-    def minute(self, x: IbisExpr, /) -> IbisExpr:
+    def minute(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the minute (0-59)."""
         return x.minute()
 
-    def second(self, x: IbisExpr, /) -> IbisExpr:
+    def second(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the second (0-59)."""
         return x.second()
 
-    def millisecond(self, x: IbisExpr, /) -> IbisExpr:
+    def millisecond(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract milliseconds since last full second."""
         return x.millisecond()
 
-    def microsecond(self, x: IbisExpr, /) -> IbisExpr:
+    def microsecond(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract microseconds since last full millisecond."""
         return x.microsecond()
 
-    def nanosecond(self, x: IbisExpr, /) -> IbisExpr:
+    def nanosecond(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract nanoseconds since last full microsecond.
 
         Note: Ibis may not have nanosecond. Falls back to 0.
@@ -180,23 +181,23 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have nanosecond - fallback
         return ibis.literal(0)
 
-    def quarter(self, x: IbisExpr, /) -> IbisExpr:
+    def quarter(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the quarter (1-4)."""
         return x.quarter()
 
-    def day_of_year(self, x: IbisExpr, /) -> IbisExpr:
+    def day_of_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract day of year (1-366)."""
         return x.day_of_year()
 
-    def day_of_week(self, x: IbisExpr, /) -> IbisExpr:
+    def day_of_week(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract day of week (Monday=1 to Sunday=7)."""
         return x.day_of_week.index() + ibis.literal(1)
 
-    def week_of_year(self, x: IbisExpr, /) -> IbisExpr:
+    def week_of_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract ISO week of year (1-53)."""
         return x.week_of_year()
 
-    def iso_year(self, x: IbisExpr, /) -> IbisExpr:
+    def iso_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract ISO 8601 week-numbering year.
 
         Note: Ibis may not have iso_year. Falls back to year.
@@ -204,11 +205,11 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have iso_year - fallback
         return x.year()
 
-    def unix_timestamp(self, x: IbisExpr, /) -> IbisExpr:
+    def unix_timestamp(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract seconds since 1970-01-01 00:00:00 UTC."""
         return x.epoch_seconds()
 
-    def timezone_offset(self, x: IbisExpr, /) -> IbisExpr:
+    def timezone_offset(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract timezone offset to UTC in seconds.
 
         Note: Ibis doesn't directly expose timezone offset.
@@ -216,7 +217,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         """
         return ibis.literal(0)
 
-    def is_leap_year(self, x: IbisExpr, /) -> IbisExpr:
+    def is_leap_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Check if the year is a leap year."""
         year = x.year()
         return ((year % ibis.literal(4) == ibis.literal(0)) &
@@ -224,10 +225,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def is_dst(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         /,
         timezone: str = None,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Check if DST is observed at this time.
 
         Note: Ibis doesn't have direct DST detection.
@@ -241,10 +242,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_years(
         self,
-        x: IbisExpr,
-        years: IbisExpr,
+        x: IbisTemporalExpr,
+        years: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add years to a datetime.
 
         Args:
@@ -259,10 +260,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_months(
         self,
-        x: IbisExpr,
-        months: IbisExpr,
+        x: IbisTemporalExpr,
+        months: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add months to a datetime.
 
         Args:
@@ -277,10 +278,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_days(
         self,
-        x: IbisExpr,
-        days: IbisExpr,
+        x: IbisTemporalExpr,
+        days: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add days to a datetime.
 
         Args:
@@ -295,10 +296,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_hours(
         self,
-        x: IbisExpr,
-        hours: IbisExpr,
+        x: IbisTemporalExpr,
+        hours: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add hours to a datetime.
 
         Args:
@@ -313,10 +314,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_minutes(
         self,
-        x: IbisExpr,
-        minutes: IbisExpr,
+        x: IbisTemporalExpr,
+        minutes: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add minutes to a datetime.
 
         Args:
@@ -331,10 +332,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_seconds(
         self,
-        x: IbisExpr,
-        seconds: IbisExpr,
+        x: IbisTemporalExpr,
+        seconds: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add seconds to a datetime.
 
         Args:
@@ -349,10 +350,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_milliseconds(
         self,
-        x: IbisExpr,
-        milliseconds: IbisExpr,
+        x: IbisTemporalExpr,
+        milliseconds: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add milliseconds to a datetime.
 
         Args:
@@ -367,10 +368,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_microseconds(
         self,
-        x: IbisExpr,
-        microseconds: IbisExpr,
+        x: IbisTemporalExpr,
+        microseconds: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add microseconds to a datetime.
 
         Args:
@@ -389,10 +390,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_years(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in years.
 
         Args:
@@ -406,10 +407,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_months(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in months.
 
         Args:
@@ -425,10 +426,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_days(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in days.
 
         Args:
@@ -442,10 +443,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_hours(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in hours.
 
         Args:
@@ -459,10 +460,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_minutes(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in minutes.
 
         Args:
@@ -476,10 +477,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_seconds(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in seconds.
 
         Args:
@@ -493,10 +494,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_milliseconds(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in milliseconds.
 
         Args:
@@ -514,10 +515,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def truncate(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Truncate datetime to the specified unit.
 
         Args:
@@ -547,10 +548,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def round(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Round datetime to the nearest unit.
 
         Args:
@@ -569,10 +570,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def ceil(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Round datetime up to the next unit.
 
         Args:
@@ -591,10 +592,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def floor(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Round datetime down to the previous unit.
 
         Args:
@@ -613,10 +614,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def to_timezone(
         self,
-        x: IbisExpr,
-        timezone: IbisExpr,
+        x: IbisTemporalExpr,
+        timezone: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Convert to specified timezone.
 
         Args:
@@ -634,10 +635,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def assume_timezone(
         self,
-        x: IbisExpr,
-        timezone: IbisExpr,
+        x: IbisTemporalExpr,
+        timezone: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Assume the timestamp is in the specified timezone.
 
         Args:
@@ -659,10 +660,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def strftime(
         self,
-        x: IbisExpr,
-        format: IbisExpr,
+        x: IbisTemporalExpr,
+        format: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Format datetime as string.
 
         Args:
@@ -678,11 +679,11 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     # Snapshot Methods (Static)
     # =========================================================================
 
-    def today(self) -> IbisExpr:
+    def today(self) -> IbisTemporalExpr:
         """Return today's date as a literal expression."""
         return ibis.literal(date.today())
 
-    def now(self) -> IbisExpr:
+    def now(self) -> IbisTemporalExpr:
         """Return current datetime as a literal expression."""
         return ibis.now()
 
@@ -720,10 +721,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def offset_by(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
         offset: str,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add/subtract flexible duration from datetime.
 
         Uses ibis.interval() for each component.
@@ -766,27 +767,27 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         return x.day()
 
-    def hour(self, x: IbisExpr, /) -> IbisExpr:
+    def hour(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the hour (0-23)."""
         return x.hour()
 
-    def minute(self, x: IbisExpr, /) -> IbisExpr:
+    def minute(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the minute (0-59)."""
         return x.minute()
 
-    def second(self, x: IbisExpr, /) -> IbisExpr:
+    def second(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the second (0-59)."""
         return x.second()
 
-    def millisecond(self, x: IbisExpr, /) -> IbisExpr:
+    def millisecond(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract milliseconds since last full second."""
         return x.millisecond()
 
-    def microsecond(self, x: IbisExpr, /) -> IbisExpr:
+    def microsecond(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract microseconds since last full millisecond."""
         return x.microsecond()
 
-    def nanosecond(self, x: IbisExpr, /) -> IbisExpr:
+    def nanosecond(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract nanoseconds since last full microsecond.
 
         Note: Ibis may not have nanosecond. Falls back to 0.
@@ -794,23 +795,23 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have nanosecond - fallback
         return ibis.literal(0)
 
-    def quarter(self, x: IbisExpr, /) -> IbisExpr:
+    def quarter(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract the quarter (1-4)."""
         return x.quarter()
 
-    def day_of_year(self, x: IbisExpr, /) -> IbisExpr:
+    def day_of_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract day of year (1-366)."""
         return x.day_of_year()
 
-    def day_of_week(self, x: IbisExpr, /) -> IbisExpr:
+    def day_of_week(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract day of week (Monday=1 to Sunday=7)."""
         return x.day_of_week.index() + ibis.literal(1)
 
-    def week_of_year(self, x: IbisExpr, /) -> IbisExpr:
+    def week_of_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract ISO week of year (1-53)."""
         return x.week_of_year()
 
-    def iso_year(self, x: IbisExpr, /) -> IbisExpr:
+    def iso_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract ISO 8601 week-numbering year.
 
         Note: Ibis may not have iso_year. Falls back to year.
@@ -818,11 +819,11 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have iso_year - fallback
         return x.year()
 
-    def unix_timestamp(self, x: IbisExpr, /) -> IbisExpr:
+    def unix_timestamp(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract seconds since 1970-01-01 00:00:00 UTC."""
         return x.epoch_seconds()
 
-    def timezone_offset(self, x: IbisExpr, /) -> IbisExpr:
+    def timezone_offset(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Extract timezone offset to UTC in seconds.
 
         Note: Ibis doesn't directly expose timezone offset.
@@ -830,7 +831,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         """
         return ibis.literal(0)
 
-    def is_leap_year(self, x: IbisExpr, /) -> IbisExpr:
+    def is_leap_year(self, x: IbisTemporalExpr, /) -> IbisTemporalExpr:
         """Check if the year is a leap year."""
         year = x.year()
         return ((year % ibis.literal(4) == ibis.literal(0)) &
@@ -838,10 +839,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def is_dst(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         /,
         timezone: str = None,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Check if DST is observed at this time.
 
         Note: Ibis doesn't have direct DST detection.
@@ -855,10 +856,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_years(
         self,
-        x: IbisExpr,
-        years: IbisExpr,
+        x: IbisTemporalExpr,
+        years: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add years to a datetime.
 
         Args:
@@ -873,10 +874,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_months(
         self,
-        x: IbisExpr,
-        months: IbisExpr,
+        x: IbisTemporalExpr,
+        months: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add months to a datetime.
 
         Args:
@@ -891,10 +892,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_days(
         self,
-        x: IbisExpr,
-        days: IbisExpr,
+        x: IbisTemporalExpr,
+        days: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add days to a datetime.
 
         Args:
@@ -909,10 +910,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_hours(
         self,
-        x: IbisExpr,
-        hours: IbisExpr,
+        x: IbisTemporalExpr,
+        hours: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add hours to a datetime.
 
         Args:
@@ -927,10 +928,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_minutes(
         self,
-        x: IbisExpr,
-        minutes: IbisExpr,
+        x: IbisTemporalExpr,
+        minutes: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add minutes to a datetime.
 
         Args:
@@ -945,10 +946,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_seconds(
         self,
-        x: IbisExpr,
-        seconds: IbisExpr,
+        x: IbisTemporalExpr,
+        seconds: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add seconds to a datetime.
 
         Args:
@@ -963,10 +964,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_milliseconds(
         self,
-        x: IbisExpr,
-        milliseconds: IbisExpr,
+        x: IbisTemporalExpr,
+        milliseconds: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add milliseconds to a datetime.
 
         Args:
@@ -981,10 +982,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def add_microseconds(
         self,
-        x: IbisExpr,
-        microseconds: IbisExpr,
+        x: IbisTemporalExpr,
+        microseconds: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Add microseconds to a datetime.
 
         Args:
@@ -1003,10 +1004,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_years(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in years.
 
         Args:
@@ -1020,10 +1021,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_months(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in months.
 
         Args:
@@ -1039,10 +1040,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_days(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in days.
 
         Args:
@@ -1056,10 +1057,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_hours(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in hours.
 
         Args:
@@ -1073,10 +1074,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_minutes(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in minutes.
 
         Args:
@@ -1090,10 +1091,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_seconds(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in seconds.
 
         Args:
@@ -1107,10 +1108,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def diff_milliseconds(
         self,
-        x: IbisExpr,
-        other: IbisExpr,
+        x: IbisTemporalExpr,
+        other: IbisTemporalExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Calculate difference in milliseconds.
 
         Args:
@@ -1128,10 +1129,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def truncate(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Truncate datetime to the specified unit.
 
         Args:
@@ -1161,10 +1162,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def round(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Round datetime to the nearest unit.
 
         Args:
@@ -1183,10 +1184,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def ceil(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Round datetime up to the next unit.
 
         Args:
@@ -1205,10 +1206,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def floor(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         *,
-        unit: IbisExpr,
-    ) -> IbisExpr:
+        unit: IbisTemporalExpr,
+    ) -> IbisTemporalExpr:
         """Round datetime down to the previous unit.
 
         Args:
@@ -1227,10 +1228,10 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     def to_timezone(
         self,
-        x: IbisExpr,
+        x: IbisTemporalExpr,
         timezone: str,
         /,
-    ) -> IbisExpr:
+    ) -> IbisTemporalExpr:
         """Convert to specified timezone.
 
         Args:
@@ -1250,24 +1251,24 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     # Component Extraction
     # =========================================================================
 
-    def date(self, input: IbisExpr, /) -> IbisExpr:
+    def date(self, input: IbisTemporalExpr, /) -> IbisTemporalExpr:
         return input.date()
 
-    def time(self, input: IbisExpr, /) -> IbisExpr:
+    def time(self, input: IbisTemporalExpr, /) -> IbisTemporalExpr:
         return input.time()
 
     # =========================================================================
     # Calendar Helpers
     # =========================================================================
 
-    def month_start(self, input: IbisExpr, /) -> IbisExpr:
+    def month_start(self, input: IbisTemporalExpr, /) -> IbisTemporalExpr:
         return input.truncate("M")
 
-    def month_end(self, input: IbisExpr, /) -> IbisExpr:
+    def month_end(self, input: IbisTemporalExpr, /) -> IbisTemporalExpr:
         next_month = input.truncate("M") + ibis.interval(months=1)
         return next_month - ibis.interval(days=1)
 
-    def days_in_month(self, input: IbisExpr, /) -> IbisExpr:
+    def days_in_month(self, input: IbisTemporalExpr, /) -> IbisTemporalExpr:
         next_month = input.truncate("M") + ibis.interval(months=1)
         end_of_month = next_month - ibis.interval(days=1)
         return end_of_month.day()
