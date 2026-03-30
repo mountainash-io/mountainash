@@ -9,13 +9,12 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Protocol, TYPE_CHECKING
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
 
-class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
+class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     """Backend protocol for Mountainash arithmetic extensions.
 
     These operations extend beyond the Substrait standard arithmetic
@@ -25,10 +24,10 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 
     def floor_divide(
         self,
-        x: SupportedExpressions,
-        y: SupportedExpressions,
+        x: ExpressionT,
+        y: ExpressionT,
         /,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Floor division: x // y.
 
         Divides x by y and returns the floor of the result.
@@ -47,7 +46,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 
 
 
-#     def sqrt(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+#     def sqrt(self, x: ExpressionT, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
 #         """Square root of the value
 
 #         Substrait: sqrt
@@ -55,7 +54,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def exp(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def exp(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """The mathematical constant e, raised to the power of the value.
 
 #         Substrait: exp
@@ -63,7 +62,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def cos(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def cos(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the cosine of a value in radians.
 
 #         Substrait: cos
@@ -71,7 +70,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def sin(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def sin(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the sine of a value in radians.
 
 #         Substrait: sin
@@ -79,7 +78,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def tan(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def tan(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the tangent of a value in radians.
 
 #         Substrait: tan
@@ -87,7 +86,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def cosh(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def cosh(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the hyperbolic cosine of a value in radians.
 
 #         Substrait: cosh
@@ -95,7 +94,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def sinh(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def sinh(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the hyperbolic sine of a value in radians.
 
 #         Substrait: sinh
@@ -103,7 +102,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def tanh(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def tanh(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the hyperbolic tangent of a value in radians.
 
 #         Substrait: tanh
@@ -111,7 +110,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def acos(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+#     def acos(self, x: ExpressionT, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
 #         """Get the arccosine of a value in radians.
 
 #         Substrait: acos
@@ -119,7 +118,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def asin(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+#     def asin(self, x: ExpressionT, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
 #         """Get the arcsine of a value in radians.
 
 #         Substrait: asin
@@ -127,7 +126,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def atan(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def atan(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the arctangent of a value in radians.
 
 #         Substrait: atan
@@ -135,7 +134,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def acosh(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+#     def acosh(self, x: ExpressionT, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
 #         """Get the hyperbolic arccosine of a value in radians.
 
 #         Substrait: acosh
@@ -143,7 +142,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def asinh(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def asinh(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Get the hyperbolic arcsine of a value in radians.
 
 #         Substrait: asinh
@@ -151,7 +150,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def atanh(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+#     def atanh(self, x: ExpressionT, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
 #         """Get the hyperbolic arctangent of a value in radians.
 
 #         Substrait: atanh
@@ -159,7 +158,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def atan2(self, x: SupportedExpressions, y: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+#     def atan2(self, x: ExpressionT, y: ExpressionT, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
 #         """Get the arctangent of values given as x/y pairs.
 
 #         Substrait: atan2
@@ -167,7 +166,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def radians(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def radians(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Converts angle `x` in degrees to radians.
 
 
@@ -176,7 +175,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def degrees(self, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def degrees(self, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Converts angle `x` in radians to degrees.
 
 
@@ -185,7 +184,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def abs(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+#     def abs(self, x: ExpressionT, overflow: Any = None) -> ExpressionT:
 #         """Calculate the absolute value of the argument.
 # Integer values allow the specification of overflow behavior to handle the unevenness of the twos complement, e.g. Int8 range [-128 : 127].
 
@@ -195,7 +194,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def sign(self, x: SupportedExpressions) -> SupportedExpressions:
+#     def sign(self, x: ExpressionT) -> ExpressionT:
 #         """Return the signedness of the argument.
 # Integer values return signedness with the same type as the input. Possible return values are [-1, 0, 1]
 # Floating point values return signedness with the same type as the input. Possible return values are [-1.0, -0.0, 0.0, 1.0, NaN]
@@ -206,7 +205,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def factorial(self, n: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+#     def factorial(self, n: ExpressionT, overflow: Any = None) -> ExpressionT:
 #         """Return the factorial of a given integer input.
 # The factorial of 0! is 1 by convention.
 # Negative inputs will raise an error.
@@ -217,7 +216,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def bitwise_not(self, x: SupportedExpressions) -> SupportedExpressions:
+#     def bitwise_not(self, x: ExpressionT) -> ExpressionT:
 #         """Return the bitwise NOT result for one integer input.
 
 
@@ -226,7 +225,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def bitwise_and(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
+#     def bitwise_and(self, x: ExpressionT, y: ExpressionT) -> ExpressionT:
 #         """Return the bitwise AND result for two integer inputs.
 
 
@@ -235,7 +234,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def bitwise_or(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
+#     def bitwise_or(self, x: ExpressionT, y: ExpressionT) -> ExpressionT:
 #         """Return the bitwise OR result for two given integer inputs.
 
 
@@ -244,7 +243,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def bitwise_xor(self, x: SupportedExpressions, y: SupportedExpressions) -> SupportedExpressions:
+#     def bitwise_xor(self, x: ExpressionT, y: ExpressionT) -> ExpressionT:
 #         """Return the bitwise XOR result for two integer inputs.
 
 
@@ -253,7 +252,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def shift_left(self, base: SupportedExpressions, shift: SupportedExpressions) -> SupportedExpressions:
+#     def shift_left(self, base: ExpressionT, shift: ExpressionT) -> ExpressionT:
 #         """Bitwise shift left. The vacant (least-significant) bits are filled with zeros. Params:
 #   base – the base number to shift.
 #   shift – number of bits to left shift.
@@ -263,7 +262,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def shift_right(self, base: SupportedExpressions, shift: SupportedExpressions) -> SupportedExpressions:
+#     def shift_right(self, base: ExpressionT, shift: ExpressionT) -> ExpressionT:
 #         """Bitwise (signed) shift right. The vacant (most-significant) bits are filled with zeros if the base number is positive or with ones if the base number is negative, thus preserving the sign of the resulting number. Params:
 #   base – the base number to shift.
 #   shift – number of bits to right shift.
@@ -273,7 +272,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def shift_right_unsigned(self, base: SupportedExpressions, shift: SupportedExpressions) -> SupportedExpressions:
+#     def shift_right_unsigned(self, base: ExpressionT, shift: ExpressionT) -> ExpressionT:
 #         """Bitwise unsigned shift right. The vacant (most-significant) bits are filled with zeros. Params:
 #   base – the base number to shift.
 #   shift – number of bits to right shift.
@@ -283,7 +282,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def sum(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+#     def sum(self, x: ExpressionT, overflow: Any = None) -> ExpressionT:
 #         """Sum a set of values. The sum of zero elements yields null.
 
 #         Substrait: sum
@@ -291,7 +290,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def sum0(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+#     def sum0(self, x: ExpressionT, overflow: Any = None) -> ExpressionT:
 #         """Sum a set of values. The sum of zero elements yields zero.
 # Null values are ignored.
 
@@ -301,7 +300,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def avg(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+#     def avg(self, x: ExpressionT, overflow: Any = None) -> ExpressionT:
 #         """Average a set of values. For integral types, this truncates partial values.
 
 #         Substrait: avg
@@ -309,7 +308,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def min(self, x: SupportedExpressions) -> SupportedExpressions:
+#     def min(self, x: ExpressionT) -> ExpressionT:
 #         """Min a set of values.
 
 #         Substrait: min
@@ -317,7 +316,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def max(self, x: SupportedExpressions) -> SupportedExpressions:
+#     def max(self, x: ExpressionT) -> ExpressionT:
 #         """Max a set of values.
 
 #         Substrait: max
@@ -325,7 +324,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def product(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+#     def product(self, x: ExpressionT, overflow: Any = None) -> ExpressionT:
 #         """Product of a set of values. Returns 1 for empty input.
 
 #         Substrait: product
@@ -333,7 +332,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def std_dev(self, x: SupportedExpressions, rounding: Any = None, distribution: Any = None) -> SupportedExpressions:
+#     def std_dev(self, x: ExpressionT, rounding: Any = None, distribution: Any = None) -> ExpressionT:
 #         """Calculates standard-deviation for a set of values.
 
 #         Substrait: std_dev
@@ -341,7 +340,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def variance(self, x: SupportedExpressions, rounding: Any = None, distribution: Any = None) -> SupportedExpressions:
+#     def variance(self, x: ExpressionT, rounding: Any = None, distribution: Any = None) -> ExpressionT:
 #         """Calculates variance for a set of values.
 
 #         Substrait: variance
@@ -349,7 +348,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def corr(self, x: SupportedExpressions, y: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def corr(self, x: ExpressionT, y: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Calculates the value of Pearson's correlation coefficient between `x` and `y`. If there is no input, null is returned.
 
 
@@ -358,7 +357,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def mode(self, x: SupportedExpressions) -> SupportedExpressions:
+#     def mode(self, x: ExpressionT) -> ExpressionT:
 #         """Calculates mode for a set of values. If there is no input, null is returned.
 
 
@@ -367,7 +366,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def median(self, precision: SupportedExpressions, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def median(self, precision: ExpressionT, x: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Calculate the median for a set of values.
 # Returns null if applied to zero records. For the integer implementations, the rounding option determines how the median should be rounded if it ends up midway between two values. For the floating point implementations, they specify the usual floating point rounding mode.
 
@@ -377,7 +376,7 @@ class MountainAshScalarArithmeticExpressionSystemProtocol(Protocol):
 #         """
 #         ...
 
-#     def quantile(self, boundaries: SupportedExpressions, precision: SupportedExpressions, n: SupportedExpressions, distribution: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+#     def quantile(self, boundaries: ExpressionT, precision: ExpressionT, n: ExpressionT, distribution: ExpressionT, rounding: Any = None) -> ExpressionT:
 #         """Calculates quantiles for a set of values.
 # This function will divide the aggregated values (passed via the distribution argument) over N equally-sized bins, where N is passed via a constant argument. It will then return the values at the boundaries of these bins in list form. If the input is appropriately sorted, this computes the quantiles of the distribution.
 # The function can optionally return the first and/or last element of the input, as specified by the `boundaries` argument. If the input is appropriately sorted, this will thus be the minimum and/or maximum values of the distribution.

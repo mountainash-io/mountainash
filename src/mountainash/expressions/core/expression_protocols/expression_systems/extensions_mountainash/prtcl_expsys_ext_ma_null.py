@@ -11,13 +11,12 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TYPE_CHECKING
+from typing import Any, Protocol
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
 
-class MountainAshNullExpressionSystemProtocol(Protocol):
+class MountainAshNullExpressionSystemProtocol(Protocol[ExpressionT]):
     """Backend protocol for Mountainash null handling extensions.
 
     These operations extend Substrait's null handling capabilities with
@@ -26,10 +25,10 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
 
     def fill_null(
         self,
-        input: SupportedExpressions,
+        input: ExpressionT,
         replacement: Any,
         /,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Replace NULL values with the specified replacement value.
 
         Args:
@@ -43,10 +42,10 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
 
     def null_if(
         self,
-        input: SupportedExpressions,
+        input: ExpressionT,
         condition: Any,
         /,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Replace values matching a condition with NULL.
 
         Args:
@@ -60,10 +59,10 @@ class MountainAshNullExpressionSystemProtocol(Protocol):
 
     def fill_nan(
         self,
-        input: SupportedExpressions,
+        input: ExpressionT,
         replacement: Any,
         /,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Replace NaN values with the specified replacement value."""
         ...
 

@@ -8,13 +8,11 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union
 
+from mountainash.core.types import ExpressionT
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-class SubstraitScalarSetExpressionSystemProtocol(Protocol):
+class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for set operations.
 
     Auto-generated from Substrait set extension.
@@ -22,8 +20,8 @@ class SubstraitScalarSetExpressionSystemProtocol(Protocol):
 
     def is_in(
         self,
-        needle: SupportedExpressions, /, *haystack: SupportedExpressions
-    ) -> SupportedExpressions:
+        needle: ExpressionT, /, *haystack: ExpressionT
+    ) -> ExpressionT:
         """Check if value is in the given set of values.
 
         Substrait: index_in (returns bool based on >= 0)
@@ -32,8 +30,8 @@ class SubstraitScalarSetExpressionSystemProtocol(Protocol):
 
     def is_not_in(
         self,
-        needle: SupportedExpressions, /, *haystack: SupportedExpressions
-    ) -> SupportedExpressions:
+        needle: ExpressionT, /, *haystack: ExpressionT
+    ) -> ExpressionT:
         """Check if value is not in the given set of values.
 
         Substrait: index_in (returns bool based on < 0)
