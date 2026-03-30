@@ -178,6 +178,22 @@ class ExpressionLike(Protocol):
         ...
 
 # ============================================================================
+# Ibis Domain-Specific Type Aliases
+# ============================================================================
+
+if TYPE_CHECKING:
+    IbisNumericExpr: TypeAlias = ir.NumericValue
+    IbisBooleanExpr: TypeAlias = ir.BooleanValue
+    IbisStringExpr: TypeAlias = ir.StringValue
+    IbisTemporalExpr: TypeAlias = Union[ir.TimestampValue, ir.DateValue, ir.TimeValue]
+    IbisColumnExpr: TypeAlias = ir.Column
+    IbisNumericColumnExpr: TypeAlias = ir.NumericColumn
+    IbisBooleanColumnExpr: TypeAlias = ir.BooleanColumn
+    IbisStringColumnExpr: TypeAlias = ir.StringColumn
+    IbisValueExpr: TypeAlias = ir.Value
+    IbisScalarExpr: TypeAlias = ir.Scalar
+
+# ============================================================================
 # Column Type Mappings
 # ============================================================================
 
