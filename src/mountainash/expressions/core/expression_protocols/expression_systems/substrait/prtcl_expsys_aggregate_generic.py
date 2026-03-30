@@ -8,21 +8,18 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TYPE_CHECKING
+from typing import Any, Protocol
 
-from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-class SubstraitAggregateGenericExpressionSystemProtocol(Protocol):
+class SubstraitAggregateGenericExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for aggregate_generic operations.
 
     Auto-generated from Substrait aggregate_generic extension.
     """
 
-    def count(self, x: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def count(self, x: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Count a set of values
 
         Substrait: count
@@ -30,7 +27,7 @@ class SubstraitAggregateGenericExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def any_value(self, x: SupportedExpressions, /, ignore_nulls: Any = None) -> SupportedExpressions:
+    def any_value(self, x: ExpressionT, /, ignore_nulls: Any = None) -> ExpressionT:
         """Selects an arbitrary value from a group of values.
 If the input is empty, the function returns null.
 

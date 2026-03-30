@@ -8,20 +8,18 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-class SubstraitCastExpressionSystemProtocol(Protocol):
+class SubstraitCastExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for type casting operations.
 
     Auto-generated from Substrait cast extension.
     """
 
-    def cast(self, x: SupportedExpressions, /, dtype: Any) -> SupportedExpressions:
+    def cast(self, x: ExpressionT, /, dtype: Any) -> ExpressionT:
         """Cast expression to a target data type.
 
         Substrait: cast

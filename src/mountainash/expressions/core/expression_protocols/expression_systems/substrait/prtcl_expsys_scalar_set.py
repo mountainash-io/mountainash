@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Optional, TYPE_CHECKING
+from typing import Any, Protocol, Optional
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitScalarSetExpressionSystemProtocol(Protocol):
+class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for scalar set operations.
 
     Auto-generated from Substrait set extension.
     Function type: scalar
     """
 
-    def index_in(self, needle: SupportedExpressions , /, *haystack: SupportedExpressions) -> SupportedExpressions:
+    def index_in(self, needle: ExpressionT , /, *haystack: ExpressionT) -> ExpressionT:
         """Checks the membership of a value in a list of values
 Returns the first 0-based index value of some input `needle` if `needle` is equal to any element in `haystack`.  Returns `NULL` if not found.
 If `needle` is `NULL`, returns `NULL`.

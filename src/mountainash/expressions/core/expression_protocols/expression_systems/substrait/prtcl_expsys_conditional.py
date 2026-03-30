@@ -8,14 +8,12 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-class SubstraitConditionalExpressionSystemProtocol(Protocol):
+class SubstraitConditionalExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for conditional operations.
 
     Auto-generated from Substrait conditional extension.
@@ -23,10 +21,10 @@ class SubstraitConditionalExpressionSystemProtocol(Protocol):
 
     def if_then_else(
         self,
-        condition: SupportedExpressions,
-        if_true: SupportedExpressions,
-        if_false: SupportedExpressions, /
-    ) -> SupportedExpressions:
+        condition: ExpressionT,
+        if_true: ExpressionT,
+        if_false: ExpressionT, /
+    ) -> ExpressionT:
         """Create a conditional if-then-else expression.
 
         Substrait: if_then

@@ -8,24 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-
-class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
+class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for scalar arithmetic operations.
 
     Auto-generated from Substrait arithmetic extension.
     Function type: scalar
     """
 
-    def add(self, x: SupportedExpressions, y: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def add(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Add two values.
 
         Substrait: add
@@ -33,7 +28,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def subtract(self, x: SupportedExpressions, y: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def subtract(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Subtract one value from another.
 
         Substrait: subtract
@@ -41,7 +36,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def multiply(self, x: SupportedExpressions, y: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def multiply(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Multiply two values.
 
         Substrait: multiply
@@ -49,7 +44,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def divide(self, x: SupportedExpressions, y: SupportedExpressions, /, overflow: Any = None, on_domain_error: Any = None, on_division_by_zero: Any = None) -> SupportedExpressions:
+    def divide(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None, on_domain_error: Any = None, on_division_by_zero: Any = None) -> ExpressionT:
         """Divide x by y. In the case of integer division, partial values are truncated (i.e. rounded towards 0). The `on_division_by_zero` option governs behavior in cases where y is 0.  If the option is IEEE then the IEEE754 standard is followed: all values except +/-infinity return NaN and +/-infinity are unchanged. If the option is LIMIT then the result is +/-infinity in all cases. If either x or y are NaN then behavior will be governed by `on_domain_error`. If x and y are both +/-infinity, behavior will be governed by `on_domain_error`.
 
 
@@ -58,7 +53,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def negate(self, x: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def negate(self, x: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Negation of the value
 
         Substrait: negate
@@ -66,7 +61,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def modulus(self, x: SupportedExpressions, y: SupportedExpressions, /, division_type: Any = None, overflow: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def modulus(self, x: ExpressionT, y: ExpressionT, /, division_type: Any = None, overflow: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Calculate the remainder (r) when dividing dividend (x) by divisor (y).
 In mathematics, many conventions for the modulus (mod) operation exists. The result of a mod operation depends on the software implementation and underlying hardware. Substrait is a format for describing compute operations on structured data and designed for interoperability. Therefore the user is responsible for determining a definition of division as defined by the quotient (q).
 The following basic conditions of division are satisfied: (1) q ∈ ℤ (the quotient is an integer) (2) x = y * q + r (division rule) (3) abs(r) < abs(y) where q is the quotient.
@@ -81,7 +76,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def power(self, x: SupportedExpressions, y: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def power(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Take the power with x as the base and y as exponent.
 
         Substrait: power
@@ -89,7 +84,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def sqrt(self, x: SupportedExpressions, /, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def sqrt(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Square root of the value
 
         Substrait: sqrt
@@ -97,7 +92,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def exp(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def exp(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """The mathematical constant e, raised to the power of the value.
 
         Substrait: exp
@@ -105,7 +100,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def abs(self, x: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def abs(self, x: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Calculate the absolute value of the argument.
 Integer values allow the specification of overflow behavior to handle the unevenness of the twos complement, e.g. Int8 range [-128 : 127].
 
@@ -115,7 +110,7 @@ Integer values allow the specification of overflow behavior to handle the uneven
         """
         ...
 
-    def sign(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def sign(self, x: ExpressionT, /) -> ExpressionT:
         """Return the signedness of the argument.
 Integer values return signedness with the same type as the input. Possible return values are [-1, 0, 1]
 Floating point values return signedness with the same type as the input. Possible return values are [-1.0, -0.0, 0.0, 1.0, NaN]
@@ -126,7 +121,7 @@ Floating point values return signedness with the same type as the input. Possibl
         """
         ...
 
-    def factorial(self, n: SupportedExpressions, /, overflow: Any = None) -> SupportedExpressions:
+    def factorial(self, n: ExpressionT, /, overflow: Any = None) -> ExpressionT:
         """Return the factorial of a given integer input.
 The factorial of 0! is 1 by convention.
 Negative inputs will raise an error.
@@ -137,7 +132,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def sin(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def sin(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the sine of a value in radians.
 
         Substrait: sin
@@ -145,7 +140,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def cos(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def cos(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the cosine of a value in radians.
 
         Substrait: cos
@@ -154,8 +149,7 @@ Negative inputs will raise an error.
         ...
 
 
-
-    def tan(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def tan(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the tangent of a value in radians.
 
         Substrait: tan
@@ -164,7 +158,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def sinh(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def sinh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the hyperbolic sine of a value in radians.
 
         Substrait: sinh
@@ -173,7 +167,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def cosh(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def cosh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the hyperbolic cosine of a value in radians.
 
         Substrait: cosh
@@ -182,7 +176,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def tanh(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def tanh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the hyperbolic tangent of a value in radians.
 
         Substrait: tanh
@@ -190,7 +184,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def asin(self, x: SupportedExpressions, /, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def asin(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Get the arcsine of a value in radians.
 
         Substrait: asin
@@ -198,7 +192,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def acos(self, x: SupportedExpressions, /, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def acos(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Get the arccosine of a value in radians.
 
         Substrait: acos
@@ -206,7 +200,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def atan(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def atan(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the arctangent of a value in radians.
 
         Substrait: atan
@@ -214,7 +208,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def asinh(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def asinh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Get the hyperbolic arcsine of a value in radians.
 
         Substrait: asinh
@@ -222,7 +216,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def acosh(self, x: SupportedExpressions, /, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def acosh(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Get the hyperbolic arccosine of a value in radians.
 
         Substrait: acosh
@@ -230,7 +224,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def atanh(self, x: SupportedExpressions, /, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def atanh(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Get the hyperbolic arctangent of a value in radians.
 
         Substrait: atanh
@@ -238,7 +232,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def atan2(self, x: SupportedExpressions, y: SupportedExpressions, /, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
+    def atan2(self, x: ExpressionT, y: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
         """Get the arctangent of values given as x/y pairs.
 
         Substrait: atan2
@@ -246,7 +240,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def radians(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def radians(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Converts angle `x` in degrees to radians.
 
 
@@ -255,7 +249,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def degrees(self, x: SupportedExpressions, /, rounding: Any = None) -> SupportedExpressions:
+    def degrees(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
         """Converts angle `x` in radians to degrees.
 
 
@@ -265,11 +259,7 @@ Negative inputs will raise an error.
         ...
 
 
-
-
-
-
-    def bitwise_not(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def bitwise_not(self, x: ExpressionT, /) -> ExpressionT:
         """Return the bitwise NOT result for one integer input.
 
 
@@ -278,7 +268,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def bitwise_and(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def bitwise_and(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Return the bitwise AND result for two integer inputs.
 
 
@@ -287,7 +277,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def bitwise_or(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def bitwise_or(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Return the bitwise OR result for two given integer inputs.
 
 
@@ -296,7 +286,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def bitwise_xor(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def bitwise_xor(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Return the bitwise XOR result for two integer inputs.
 
 
@@ -305,7 +295,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def shift_left(self, base: SupportedExpressions, shift: SupportedExpressions, /) -> SupportedExpressions:
+    def shift_left(self, base: ExpressionT, shift: ExpressionT, /) -> ExpressionT:
         """Bitwise shift left. The vacant (least-significant) bits are filled with zeros. Params:
   base – the base number to shift.
   shift – number of bits to left shift.
@@ -315,7 +305,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def shift_right(self, base: SupportedExpressions, shift: SupportedExpressions, /) -> SupportedExpressions:
+    def shift_right(self, base: ExpressionT, shift: ExpressionT, /) -> ExpressionT:
         """Bitwise (signed) shift right. The vacant (most-significant) bits are filled with zeros if the base number is positive or with ones if the base number is negative, thus preserving the sign of the resulting number. Params:
   base – the base number to shift.
   shift – number of bits to right shift.
@@ -325,7 +315,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def shift_right_unsigned(self, base: SupportedExpressions, shift: SupportedExpressions, /) -> SupportedExpressions:
+    def shift_right_unsigned(self, base: ExpressionT, shift: ExpressionT, /) -> ExpressionT:
         """Bitwise unsigned shift right. The vacant (most-significant) bits are filled with zeros. Params:
   base – the base number to shift.
   shift – number of bits to right shift.

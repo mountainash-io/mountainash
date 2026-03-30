@@ -8,20 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
 
-class SubstraitScalarBooleanExpressionSystemProtocol(Protocol):
+class SubstraitScalarBooleanExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for boolean operations.
 
     Auto-generated from Substrait boolean extension.
     """
 
 
-    def and_(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def and_(self, *args: ExpressionT) -> ExpressionT:
         """The boolean `and` using Kleene logic.
 This function behaves as follows with nulls:
 
@@ -46,7 +45,7 @@ Behavior for 0 or 1 inputs is as follows:
         """
         ...
 
-    def or_(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def or_(self, *args: ExpressionT) -> ExpressionT:
         """The boolean `or` using Kleene logic.
 This function behaves as follows with nulls:
 
@@ -72,8 +71,7 @@ Behavior for 0 or 1 inputs is as follows:
         ...
 
 
-
-    def not_(self, a: SupportedExpressions, /) -> SupportedExpressions:
+    def not_(self, a: ExpressionT, /) -> ExpressionT:
         """The `not` of a boolean value.
 When a null is input, a null is output.
 
@@ -83,7 +81,7 @@ When a null is input, a null is output.
         """
         ...
 
-    def xor(self, a: SupportedExpressions, b: SupportedExpressions, /) -> SupportedExpressions:
+    def xor(self, a: ExpressionT, b: ExpressionT, /) -> ExpressionT:
         """The boolean `xor` of two values using Kleene logic.
 When a null is encountered in either input, a null is output.
 
@@ -94,8 +92,7 @@ When a null is encountered in either input, a null is output.
         ...
 
 
-
-    def and_not(self, a: SupportedExpressions, b: SupportedExpressions, /) -> SupportedExpressions:
+    def and_not(self, a: ExpressionT, b: ExpressionT, /) -> ExpressionT:
         """The boolean `and` of one value and the negation of the other using Kleene logic.
 This function behaves as follows with nulls:
 
@@ -116,7 +113,6 @@ In other words, in this context a null value really means "unknown", and an unkn
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_boolean.yaml
         """
         ...
-
 
 
     # def bool_and(self, a: SupportedExpressions) -> SupportedExpressions:

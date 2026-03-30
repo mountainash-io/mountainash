@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Any, Protocol, Union
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitAggregateBooleanExpressionSystemProtocol(Protocol):
+class SubstraitAggregateBooleanExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for aggregate boolean operations.
 
     Auto-generated from Substrait boolean extension.
     Function type: aggregate
     """
 
-    def bool_and(self, *a: SupportedExpressions) -> SupportedExpressions:
+    def bool_and(self, *a: ExpressionT) -> ExpressionT:
         """If any value in the input is false, false is returned. If the input is empty or only contains nulls, null is returned. Otherwise, true is returned.
 
 
@@ -33,7 +29,7 @@ class SubstraitAggregateBooleanExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def bool_or(self, *a: SupportedExpressions) -> SupportedExpressions:
+    def bool_or(self, *a: ExpressionT) -> ExpressionT:
         """If any value in the input is true, true is returned. If the input is empty or only contains nulls, null is returned. Otherwise, false is returned.
 
 
