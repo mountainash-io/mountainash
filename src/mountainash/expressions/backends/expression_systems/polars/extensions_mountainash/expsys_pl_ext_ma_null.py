@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 
-class MountainAshPolarsNullExpressionSystem(PolarsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
+class MountainAshPolarsNullExpressionSystem(PolarsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of MountainashNullExpressionProtocol.
 
     Implements null handling extension methods:

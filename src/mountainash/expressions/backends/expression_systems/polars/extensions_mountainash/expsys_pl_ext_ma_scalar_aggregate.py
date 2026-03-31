@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 # Type alias for expression type
 
-class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol):
+class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarAggregateExpressionProtocol.
 
     Implements aggregation methods:

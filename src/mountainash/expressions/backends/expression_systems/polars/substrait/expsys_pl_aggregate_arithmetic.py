@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class SubstraitPolarsAggregateArithmeticExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateArithmeticExpressionSystemProtocol["pl.Expr"]
+    SubstraitAggregateArithmeticExpressionSystemProtocol[pl.Expr]
 ):
     """Polars implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 

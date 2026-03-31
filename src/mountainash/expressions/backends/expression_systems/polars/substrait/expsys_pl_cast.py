@@ -57,7 +57,7 @@ _POLARS_DTYPE_MAP = {
 }
 
 
-class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol["pl.Expr"]):
+class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of CastExpressionProtocol."""
 
     def cast(self, x: PolarsExpr, /, dtype: Any) -> PolarsExpr:

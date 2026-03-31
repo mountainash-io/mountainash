@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 # Type alias for expression type
 
-class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
+class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarBooleanExpressionProtocol.
 
     Implements 5 boolean methods using Kleene (three-valued) logic:

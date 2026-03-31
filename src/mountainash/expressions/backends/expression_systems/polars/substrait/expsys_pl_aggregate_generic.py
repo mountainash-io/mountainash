@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 class SubstraitPolarsAggregateGenericExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol["pl.Expr"]
+    SubstraitAggregateGenericExpressionSystemProtocol[pl.Expr]
 ):
     """Polars implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 

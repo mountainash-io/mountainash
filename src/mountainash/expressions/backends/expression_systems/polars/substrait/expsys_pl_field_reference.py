@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsFieldReferenceExpressionSystem(PolarsBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol["pl.Expr"]):
+class SubstraitPolarsFieldReferenceExpressionSystem(PolarsBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of FieldReferenceExpressionProtocol."""
 
     def col(self, x: str) -> PolarsExpr:

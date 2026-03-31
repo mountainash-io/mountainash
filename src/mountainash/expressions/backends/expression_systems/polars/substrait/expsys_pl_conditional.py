@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitPolarsConditionalExpressionSystem(PolarsBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol["pl.Expr"]):
+class SubstraitPolarsConditionalExpressionSystem(PolarsBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(

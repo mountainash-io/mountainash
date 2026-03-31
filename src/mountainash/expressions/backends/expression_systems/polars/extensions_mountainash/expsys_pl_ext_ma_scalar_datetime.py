@@ -55,7 +55,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol):
+class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:

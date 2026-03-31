@@ -15,7 +15,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
-class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol["pl.Expr"]):
+class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarLogarithmicExpressionProtocol.
 
     Implements 4 logarithmic methods:

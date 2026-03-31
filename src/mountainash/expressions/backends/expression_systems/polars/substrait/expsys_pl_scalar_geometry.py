@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsScalarGeometryExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol["pl.Expr"]):
+class SubstraitPolarsScalarGeometryExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarGeometryExpressionProtocol.
 
     Note: Geometry operations are not supported by Polars.

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsScalarSetExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol["pl.Expr"]):
+class SubstraitPolarsScalarSetExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarSetExpressionProtocol.
 
     Implements set membership operations:
