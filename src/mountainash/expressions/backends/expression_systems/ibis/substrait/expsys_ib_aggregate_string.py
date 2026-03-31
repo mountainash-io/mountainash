@@ -19,13 +19,13 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 )
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisStringColumnExpr
+    from mountainash.core.types import IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
 class SubstraitIbisAggregateStringExpressionSystem(
     IbisBaseExpressionSystem,
-    SubstraitAggregateStringExpressionSystemProtocol["IbisStringColumnExpr"]
+    SubstraitAggregateStringExpressionSystemProtocol["IbisValueExpr"]
 ):
     """Ibis implementation of SubstraitAggregateStringExpressionSystemProtocol.
 
@@ -38,10 +38,10 @@ class SubstraitIbisAggregateStringExpressionSystem(
 
     def string_agg(
         self,
-        input: IbisStringColumnExpr,
+        input: IbisValueExpr,
         /,
         separator: str = ",",
-    ) -> IbisStringColumnExpr:
+    ) -> IbisValueExpr:
         """Concatenate strings with a separator.
 
         Args:

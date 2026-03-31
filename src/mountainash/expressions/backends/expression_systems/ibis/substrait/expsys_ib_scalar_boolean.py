@@ -14,11 +14,11 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisBooleanExpr
+    from mountainash.core.types import IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
-class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol["IbisBooleanExpr"]):
+class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarBooleanExpressionProtocol.
 
     Implements 5 boolean methods using Kleene (three-valued) logic:
@@ -29,7 +29,7 @@ class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, Subst
     - and_not: Boolean AND of first value with negation of second
     """
 
-    def and_(self, *args: IbisBooleanExpr) -> IbisBooleanExpr:
+    def and_(self, *args: IbisValueExpr) -> IbisValueExpr:
         """Boolean AND using Kleene logic.
 
         Behavior with nulls:
@@ -50,7 +50,7 @@ class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, Subst
             result = result & arg
         return result
 
-    def or_(self, *args: IbisBooleanExpr) -> IbisBooleanExpr:
+    def or_(self, *args: IbisValueExpr) -> IbisValueExpr:
         """Boolean OR using Kleene logic.
 
         Behavior with nulls:
@@ -71,21 +71,21 @@ class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, Subst
             result = result | arg
         return result
 
-    def not_(self, a: IbisBooleanExpr, /) -> IbisBooleanExpr:
+    def not_(self, a: IbisValueExpr, /) -> IbisValueExpr:
         """Boolean NOT.
 
         Returns null if input is null.
         """
         return ~a
 
-    def xor(self, a: IbisBooleanExpr, b: IbisBooleanExpr, /) -> IbisBooleanExpr:
+    def xor(self, a: IbisValueExpr, b: IbisValueExpr, /) -> IbisValueExpr:
         """Boolean XOR using Kleene logic.
 
         Returns null if either input is null.
         """
         return a ^ b
 
-    def and_not(self, a: IbisBooleanExpr, b: IbisBooleanExpr, /) -> IbisBooleanExpr:
+    def and_not(self, a: IbisValueExpr, b: IbisValueExpr, /) -> IbisValueExpr:
         """Boolean AND of first value with negation of second.
 
         Equivalent to: a AND (NOT b)

@@ -19,13 +19,13 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 )
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisColumnExpr
+    from mountainash.core.types import IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
 class SubstraitIbisAggregateGenericExpressionSystem(
     IbisBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol["IbisColumnExpr"]
+    SubstraitAggregateGenericExpressionSystemProtocol["IbisValueExpr"]
 ):
     """Ibis implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 
@@ -34,10 +34,10 @@ class SubstraitIbisAggregateGenericExpressionSystem(
 
     def count(
         self,
-        x: IbisColumnExpr,
+        x: IbisValueExpr,
         /,
         overflow: Any = None,
-    ) -> IbisColumnExpr:
+    ) -> IbisValueExpr:
         """Count a set of values.
 
         Counts non-null values.
@@ -54,7 +54,7 @@ class SubstraitIbisAggregateGenericExpressionSystem(
     # def count_all(
     #     self,
     #     overflow: Any = None,
-    # ) -> IbisColumnExpr:
+    # ) -> IbisValueExpr:
     #     """Count a set of records (not field referenced).
 
     #     Counts all rows including nulls.
@@ -69,10 +69,10 @@ class SubstraitIbisAggregateGenericExpressionSystem(
 
     def any_value(
         self,
-        x: IbisColumnExpr,
+        x: IbisValueExpr,
         /,
         ignore_nulls: Any = None,
-    ) -> IbisColumnExpr:
+    ) -> IbisValueExpr:
         """Select an arbitrary value from a group of values.
 
         Returns the first value in the group.
