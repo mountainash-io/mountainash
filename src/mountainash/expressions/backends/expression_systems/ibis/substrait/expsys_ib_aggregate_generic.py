@@ -19,7 +19,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 )
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisValueExpr
+    from mountainash.core.types import IbisColumnExpr, IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
@@ -34,7 +34,7 @@ class SubstraitIbisAggregateGenericExpressionSystem(
 
     def count(
         self,
-        x: IbisValueExpr,
+        x: IbisColumnExpr,
         /,
         overflow: Any = None,
     ) -> IbisValueExpr:
@@ -69,7 +69,7 @@ class SubstraitIbisAggregateGenericExpressionSystem(
 
     def any_value(
         self,
-        x: IbisValueExpr,
+        x: IbisColumnExpr,
         /,
         ignore_nulls: Any = None,
     ) -> IbisValueExpr:

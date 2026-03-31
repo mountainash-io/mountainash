@@ -19,7 +19,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 )
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisValueExpr
+    from mountainash.core.types import IbisNumericColumnExpr, IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 class SubstraitIbisAggregateArithmeticExpressionSystem(
@@ -31,7 +31,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
     Implements arithmetic aggregation methods.
     """
 
-    def sum(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def sum(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
         """Sum values.
 
         Args:
@@ -44,7 +44,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def sum0(
         self,
-        x: IbisValueExpr,
+        x: IbisNumericColumnExpr,
         /,
         overflow: Any = None,
     ) -> IbisValueExpr:
@@ -62,7 +62,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def avg(
         self,
-        x: IbisValueExpr,
+        x: IbisNumericColumnExpr,
         /,
         overflow: Any = None,
     ) -> IbisValueExpr:
@@ -78,7 +78,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
         return x.mean()
 
 
-    def min(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def min(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
         """Get minimum value.
 
         Args:
@@ -89,7 +89,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
         """
         return x.min()
 
-    def max(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def max(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
         """Get maximum value.
 
         Args:
@@ -103,7 +103,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def product(
         self,
-        x: IbisValueExpr,
+        x: IbisNumericColumnExpr,
         /,
         overflow: Any = None,
     ) -> IbisValueExpr:
@@ -125,7 +125,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def std_dev(
         self,
-        x: IbisValueExpr,
+        x: IbisNumericColumnExpr,
         /,
         rounding: Any = None,
         distribution: Any = None,
@@ -146,7 +146,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def variance(
         self,
-        x: IbisValueExpr,
+        x: IbisNumericColumnExpr,
         /,
         rounding: Any = None,
         distribution: Any = None,
@@ -167,8 +167,8 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def corr(
         self,
-        x: IbisValueExpr,
-        y: IbisValueExpr,
+        x: IbisNumericColumnExpr,
+        y: IbisNumericColumnExpr,
         /,
         rounding: Any = None,
     ) -> IbisValueExpr:
@@ -184,7 +184,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
         """
         return x.corr(y)
 
-    def mode(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def mode(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
         """Calculate mode (most frequent value).
 
         Args:
@@ -196,7 +196,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
         return x.mode()
 
 
-    def median(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def median(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
         """Calculate median.
 
         Args:
@@ -210,7 +210,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
 
     def quantile(
         self,
-        x: IbisValueExpr,
+        x: IbisNumericColumnExpr,
         /,
         q: float = 0.5,
         interpolation: str = "linear",
@@ -227,7 +227,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
         """
         return x.quantile(q)
 
-    # def first(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    # def first(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
     #     """Get first value.
 
     #     Args:
@@ -238,7 +238,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
     #     """
     #     return x.first()
 
-    # def last(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    # def last(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
     #     """Get last value.
 
     #     Args:
@@ -249,7 +249,7 @@ class SubstraitIbisAggregateArithmeticExpressionSystem(
     #     """
     #     return x.last()
 
-    # def n_unique(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    # def n_unique(self, x: IbisNumericColumnExpr, /) -> IbisValueExpr:
     #     """Count unique values.
 
     #     Args:

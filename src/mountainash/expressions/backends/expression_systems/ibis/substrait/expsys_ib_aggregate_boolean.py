@@ -19,7 +19,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 )
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisValueExpr
+    from mountainash.core.types import IbisBooleanColumnExpr, IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
@@ -37,7 +37,7 @@ class SubstraitIbisAggregateBooleanExpressionSystem(
     # Substrait Aggregate Boolean Methods
     # =========================================================================
 
-    def bool_and(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def bool_and(self, x: IbisBooleanColumnExpr, /) -> IbisValueExpr:
         """Aggregate AND - true if all values are true.
 
         Returns false if any value is false.
@@ -51,7 +51,7 @@ class SubstraitIbisAggregateBooleanExpressionSystem(
         """
         return x.all()
 
-    def bool_or(self, x: IbisValueExpr, /) -> IbisValueExpr:
+    def bool_or(self, x: IbisBooleanColumnExpr, /) -> IbisValueExpr:
         """Aggregate OR - true if any value is true.
 
         Returns true if any value is true.

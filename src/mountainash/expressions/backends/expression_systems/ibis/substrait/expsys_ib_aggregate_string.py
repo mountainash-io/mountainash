@@ -19,7 +19,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 )
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisValueExpr
+    from mountainash.core.types import IbisStringColumnExpr, IbisValueExpr
     from mountainash.expressions.types import IbisExpr
 
 
@@ -38,7 +38,7 @@ class SubstraitIbisAggregateStringExpressionSystem(
 
     def string_agg(
         self,
-        input: IbisValueExpr,
+        input: IbisStringColumnExpr,
         /,
         separator: str = ",",
     ) -> IbisValueExpr:
