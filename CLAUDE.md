@@ -57,6 +57,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | function-key-enums.md | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
 | protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
+| expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
 | node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
 
 ### c. API Design
