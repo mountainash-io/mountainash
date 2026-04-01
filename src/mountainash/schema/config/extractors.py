@@ -10,11 +10,11 @@ All extractors use lazy imports to avoid loading unnecessary dependencies.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 import logging
 
 from .universal_schema import TableSchema, SchemaField, FieldConstraints
-from .types import normalize_type, PYTHON_TO_UNIVERSAL
+from .types import normalize_type
 
 if TYPE_CHECKING:
     import polars as pl

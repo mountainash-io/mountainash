@@ -5,7 +5,7 @@ Implements column transformations using pandas DataFrame API.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from mountainash.core.lazy_imports import import_pandas
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
@@ -193,7 +193,6 @@ class CastSchemaPandas(BaseCastSchemaStrategy):
         Returns:
             DataFrame with missing values replaced by None in string columns
         """
-        pd = import_pandas()
         if not missing_values:
             return df
 
@@ -226,7 +225,6 @@ class CastSchemaPandas(BaseCastSchemaStrategy):
             field.false_values = ["no", "N", "false", "0"]
             "yes" → True, "no" → False, "maybe" → None
         """
-        pd = import_pandas()
 
         # Create a mapping dict
         mapping = {}

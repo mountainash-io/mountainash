@@ -27,10 +27,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Protocol
 from dataclasses import dataclass
-from enum import StrEnum
 
 if TYPE_CHECKING:
-    from .types import UniversalType
     import narwhals as nw
 
 logger = logging.getLogger(__name__)

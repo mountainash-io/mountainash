@@ -23,7 +23,6 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    import polars as pl
     import pyarrow as pa
 
 logger = logging.getLogger(__name__)

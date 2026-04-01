@@ -5,7 +5,7 @@ Implements column transformations using Polars expressions and select() API.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from mountainash.core.lazy_imports import import_polars
 from .base_schema_transform_strategy import BaseCastSchemaStrategy

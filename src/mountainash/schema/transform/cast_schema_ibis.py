@@ -7,13 +7,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
-from pandas.core.arrays.datetimelike import ABCCategorical
 
 from mountainash.core.lazy_imports import import_ibis
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
-    import ibis
     from mountainash.core.types import IbisTable
     from mountainash.schema.config import SchemaConfig, SchemaField
 

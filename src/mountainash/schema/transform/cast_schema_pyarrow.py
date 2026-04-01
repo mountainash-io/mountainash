@@ -6,14 +6,13 @@ For complex transformations, delegates to Narwhals for universal support.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from mountainash.core.lazy_imports import import_pyarrow, import_narwhals
+from mountainash.core.lazy_imports import import_narwhals
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 
 if TYPE_CHECKING:
-    import pyarrow as pa
     from mountainash.core.types import PyArrowTable
     from mountainash.schema.config import SchemaConfig
 

@@ -6,12 +6,12 @@ and can be reversed without data loss.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Tuple, Optional
+from typing import TYPE_CHECKING, List, Tuple, Optional
 import logging
 
 if TYPE_CHECKING:
     from .schema_config import SchemaConfig
-    from .universal_schema import TableSchema, SchemaDiff
+    from .universal_schema import TableSchema
     from mountainash.core.types import SupportedDataFrames
 
 logger = logging.getLogger(__name__)

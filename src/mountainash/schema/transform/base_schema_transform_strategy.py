@@ -7,12 +7,12 @@ Integrates with Universal Schema system for type safety and validation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 import logging
 
 if TYPE_CHECKING:
     from mountainash.core.types import SupportedDataFrames
-    from mountainash.schema.config import SchemaConfig, TableSchema
+    from mountainash.schema.config import SchemaConfig
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class BaseCastSchemaStrategy(ABC):
         Raises:
             SchemaTransformError: If validation fails
         """
-        from mountainash.schema.config import from_dataframe, validate_schema_match
+        from mountainash.schema.config import validate_schema_match
 
         if config.source_schema is None:
             return

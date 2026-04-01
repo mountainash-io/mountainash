@@ -17,11 +17,10 @@ Architecture:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Dict, Set, Tuple, Optional, Any, Union
+from typing import TYPE_CHECKING, Dict, Set, Tuple, Any, Union
 
 if TYPE_CHECKING:
-    import polars as pl
-    import pyarrow as pa
+    pass
 
 
 # ============================================================================
