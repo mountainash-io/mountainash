@@ -4,8 +4,7 @@ Corresponds to Substrait's ScalarFunction message.
 """
 
 from __future__ import annotations
-from enum import Enum
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from .exn_base import ExpressionNode
 from ...expression_system.function_keys.enums import (

@@ -223,7 +223,6 @@ class BaseExpressionAPI(ABC):
         """
         from ..expression_nodes import ScalarFunctionNode
         from ..expression_system.function_keys.enums import (
-            FKEY_MOUNTAINASH_SCALAR_TERNARY,
             MOUNTAINASH_TERNARY_TERMINAL,
             MOUNTAINASH_TERNARY_NON_TERMINAL,
         )

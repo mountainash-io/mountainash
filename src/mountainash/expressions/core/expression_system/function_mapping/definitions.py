@@ -19,9 +19,6 @@ from ..function_keys.enums import (
 
     FKEY_SUBSTRAIT_CONDITIONAL,
     FKEY_SUBSTRAIT_CAST,
-    FKEY_SUBSTRAIT_FIELD_REFERENCE,
-    FKEY_SUBSTRAIT_LITERAL,
-
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
@@ -37,7 +34,6 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
-    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
@@ -49,12 +45,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
     SubstraitCastExpressionSystemProtocol,
     SubstraitConditionalExpressionSystemProtocol,
-    SubstraitFieldReferenceExpressionSystemProtocol,
-    SubstraitLiteralExpressionSystemProtocol,
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
     SubstraitScalarArithmeticExpressionSystemProtocol,
     SubstraitScalarBooleanExpressionSystemProtocol,
     SubstraitScalarComparisonExpressionSystemProtocol,

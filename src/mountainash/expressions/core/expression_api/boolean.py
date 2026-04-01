@@ -14,8 +14,6 @@ from .api_base import BaseExpressionAPI
 
 # Import flat namespaces from new Substrait-aligned core
 from .api_builders.substrait import (
-    SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder,
-
     SubstraitCastAPIBuilder,
     SubstraitFieldReferenceAPIBuilder,
     SubstraitLiteralAPIBuilder,

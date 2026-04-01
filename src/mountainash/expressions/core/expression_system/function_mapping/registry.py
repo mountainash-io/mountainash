@@ -13,7 +13,7 @@ The registry enables:
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional, List, Callable, Any, Type
+from typing import Dict, Optional, List, Callable
 import inspect
 
 

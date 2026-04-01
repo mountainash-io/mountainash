@@ -2,8 +2,6 @@ from typing import Optional
 from enum import Enum, IntEnum
 
 # Import unified enums from core
-from mountainash.core.constants import CONST_BACKEND as CONST_VISITOR_BACKENDS
-from mountainash.core.constants import CONST_LOGIC_TYPES, CONST_EXPRESSION_NODE_TYPES
 
 
 class CONST_EXPRESSION_LOGIC_OPERATORS(Enum):
