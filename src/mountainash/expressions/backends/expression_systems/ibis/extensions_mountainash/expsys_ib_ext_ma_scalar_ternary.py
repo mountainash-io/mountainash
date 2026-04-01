@@ -21,8 +21,7 @@ from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarTernaryExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisValueExpr
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisValueExpr, IbisBooleanExpr, IbisNumericExpr
 
 
 # Ternary constants
@@ -46,7 +45,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         self,
         expr: IbisValueExpr,
         unknown_values: Optional[FrozenSet[Any]] = None,
-    ) -> ir.BooleanValue:
+    ) -> IbisBooleanExpr|IbisValueExpr:
         """Check if expression value is in the UNKNOWN set.
 
         Args:
@@ -77,10 +76,10 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         self,
         left: IbisValueExpr,
         right: IbisValueExpr,
-        comparison: ir.BooleanValue,
+        comparison: IbisNumericExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Perform a ternary comparison with UNKNOWN handling.
 
         Args:
@@ -98,7 +97,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
 
         # Use nested ifelse: if unknown return UNKNOWN, else if comparison TRUE, else FALSE
         return ibis.ifelse(
-            left_is_unknown | right_is_unknown,
+            left_is_unknown == ibis.Literal(True) | right_is_unknown == ibis.Literal(True),
             ibis.literal(int(T_UNKNOWN)),
             ibis.ifelse(comparison, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
         )
@@ -113,7 +112,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         right: IbisValueExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary equality - returns -1/0/1."""
         return self._ternary_comparison(
             left, right,
@@ -127,7 +126,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         right: IbisValueExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary inequality - returns -1/0/1."""
         return self._ternary_comparison(
             left, right,
@@ -141,7 +140,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         right: IbisValueExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary greater-than - returns -1/0/1."""
         return self._ternary_comparison(
             left, right,
@@ -155,7 +154,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         right: IbisValueExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary less-than - returns -1/0/1."""
         return self._ternary_comparison(
             left, right,
@@ -169,7 +168,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         right: IbisValueExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary greater-than-or-equal - returns -1/0/1."""
         return self._ternary_comparison(
             left, right,
@@ -183,7 +182,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         right: IbisValueExpr,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary less-than-or-equal - returns -1/0/1."""
         return self._ternary_comparison(
             left, right,
@@ -196,7 +195,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         element: IbisValueExpr,
         collection: List[Any],
         unknown_values: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary membership test - returns -1/0/1."""
         is_unknown = self._check_unknown(element, unknown_values)
 
@@ -211,7 +210,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         element: IbisValueExpr,
         collection: List[Any],
         unknown_values: Optional[FrozenSet[Any]] = None,
-    ) -> ir.IntegerValue:
+    ) -> IbisValueExpr:
         """Ternary non-membership test - returns -1/0/1."""
         is_unknown = self._check_unknown(element, unknown_values)
 
@@ -225,20 +224,20 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     # Logical Operations
     # ========================================
 
-    def t_and(self, left: IbisValueExpr, right: IbisValueExpr) -> ir.IntegerValue:
+    def t_and(self, left: IbisValueExpr, right: IbisValueExpr) -> IbisValueExpr:
         """Ternary AND - minimum of operands."""
         return ibis.least(left, right)
 
-    def t_or(self, left: IbisValueExpr, right: IbisValueExpr) -> ir.IntegerValue:
+    def t_or(self, left: IbisValueExpr, right: IbisValueExpr) -> IbisValueExpr:
         """Ternary OR - maximum of operands."""
         return ibis.greatest(left, right)
 
-    def t_not(self, operand: IbisValueExpr) -> ir.IntegerValue:
+    def t_not(self, operand: IbisValueExpr) -> IbisValueExpr:
         """Ternary NOT - sign flip (TRUE↔FALSE, UNKNOWN stays)."""
         # Simple negation: -operand flips 1 to -1 and vice versa, 0 stays 0
-        return -operand
+        return ~operand
 
-    def t_xor(self, left: IbisValueExpr, right: IbisValueExpr) -> ir.IntegerValue:
+    def t_xor(self, left: IbisValueExpr, right: IbisValueExpr) -> IbisValueExpr:
         """Ternary XOR - exclusive OR.
 
         Returns TRUE if exactly one is TRUE.
@@ -257,7 +256,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
             ibis.ifelse(is_xor_true, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
         )
 
-    def t_xor_parity(self, left: IbisValueExpr, right: IbisValueExpr) -> ir.IntegerValue:
+    def t_xor_parity(self, left: IbisValueExpr, right: IbisValueExpr) -> IbisValueExpr:
         """Ternary XOR parity - standard XOR for ternary.
 
         Same as t_xor for binary case.
@@ -268,15 +267,15 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     # Constants
     # ========================================
 
-    def always_true_ternary(self) -> ir.IntegerValue:
+    def always_true_ternary(self) -> IbisValueExpr:
         """Return literal TRUE (1)."""
         return ibis.literal(int(T_TRUE))
 
-    def always_false_ternary(self) -> ir.IntegerValue:
+    def always_false_ternary(self) -> IbisValueExpr:
         """Return literal FALSE (-1)."""
         return ibis.literal(int(T_FALSE))
 
-    def always_unknown(self) -> ir.IntegerValue:
+    def always_unknown(self) -> IbisValueExpr:
         """Return literal UNKNOWN (0)."""
         return ibis.literal(int(T_UNKNOWN))
 
@@ -284,28 +283,28 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     # Conversions (Ternary → Boolean)
     # ========================================
 
-    def is_true_ternary(self, operand: IbisValueExpr) -> ir.BooleanValue:
+    def is_true_ternary(self, operand: IbisValueExpr) -> IbisBooleanExpr:
         """TRUE(1) → True, else → False."""
         # Cast to int to avoid Ibis type coercion issues
         return operand == ibis.literal(int(T_TRUE))
 
-    def is_false_ternary(self, operand: IbisValueExpr) -> ir.BooleanValue:
+    def is_false_ternary(self, operand: IbisValueExpr) -> IbisBooleanExpr:
         """FALSE(-1) → True, else → False."""
         return operand == ibis.literal(int(T_FALSE))
 
-    def is_unknown(self, operand: IbisValueExpr) -> ir.BooleanValue:
+    def is_unknown(self, operand: IbisValueExpr) -> IbisBooleanExpr:
         """UNKNOWN(0) → True, else → False."""
         return operand == ibis.literal(int(T_UNKNOWN))
 
-    def is_known(self, operand: IbisValueExpr) -> ir.BooleanValue:
+    def is_known(self, operand: IbisValueExpr) -> IbisBooleanExpr:
         """TRUE or FALSE → True, UNKNOWN → False."""
         return operand != ibis.literal(int(T_UNKNOWN))
 
-    def maybe_true(self, operand: IbisValueExpr) -> ir.BooleanValue:
+    def maybe_true(self, operand: IbisValueExpr) -> IbisBooleanExpr:
         """TRUE or UNKNOWN → True, FALSE → False."""
         return operand >= ibis.literal(int(T_UNKNOWN))
 
-    def maybe_false(self, operand: IbisValueExpr) -> ir.BooleanValue:
+    def maybe_false(self, operand: IbisValueExpr) -> IbisBooleanExpr:
         """FALSE or UNKNOWN → True, TRUE → False."""
         return operand <= ibis.literal(int(T_UNKNOWN))
 
@@ -313,7 +312,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     # Conversions (Boolean → Ternary)
     # ========================================
 
-    def to_ternary(self, operand: IbisValueExpr) -> ir.IntegerValue:
+    def to_ternary(self, operand: IbisValueExpr) -> IbisValueExpr:
         """True → 1, False → -1."""
         return ibis.ifelse(operand, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
 

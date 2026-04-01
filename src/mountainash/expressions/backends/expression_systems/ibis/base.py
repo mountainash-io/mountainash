@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import ibis
 import ibis.expr.types as ir
 
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS

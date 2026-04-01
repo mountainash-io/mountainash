@@ -5,9 +5,8 @@ Implements datetime operations for the Ibis backend.
 
 from __future__ import annotations
 
-from datetime import date, datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import ibis
 
@@ -16,7 +15,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
-    from mountainash.expressions.types import IbisExpr
 
 
 class DatetimeComponent(Enum):

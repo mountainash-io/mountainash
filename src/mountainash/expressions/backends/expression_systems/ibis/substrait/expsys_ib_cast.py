@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import ibis
 import ibis.expr.datatypes as dt
 
 from ..base import IbisBaseExpressionSystem
@@ -16,7 +15,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
-    from mountainash.expressions.types import IbisExpr
 
 # Mapping from string type names to Ibis dtypes
 _IBIS_DTYPE_MAP = {

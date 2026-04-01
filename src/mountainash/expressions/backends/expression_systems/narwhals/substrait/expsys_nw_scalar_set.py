@@ -6,7 +6,6 @@ Implements set membership operations for the Narwhals backend.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Optional, Any
 
 import narwhals as nw
 

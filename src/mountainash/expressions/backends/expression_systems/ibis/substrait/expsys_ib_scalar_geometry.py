@@ -16,7 +16,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
-    from mountainash.expressions.types import IbisExpr
 
 
 class SubstraitIbisScalarGeometryExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol["IbisValueExpr"]):

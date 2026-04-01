@@ -5,9 +5,8 @@ Implements arithmetic operations for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-import ibis
 
 from ..base import IbisBaseExpressionSystem
 
@@ -15,7 +14,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisNumericExpr
-    from mountainash.expressions.types import IbisExpr
 
 
 

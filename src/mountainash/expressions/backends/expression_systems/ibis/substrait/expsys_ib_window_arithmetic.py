@@ -19,7 +19,6 @@ from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec imp
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisNumericExpr
-    from mountainash.expressions.types import IbisExpr
 
 
 class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol["IbisNumericExpr"]):

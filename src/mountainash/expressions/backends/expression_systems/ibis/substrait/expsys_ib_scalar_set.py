@@ -6,7 +6,6 @@ Implements set membership operations for the Ibis backend.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Optional, Any
 
 import ibis
 from ..base import IbisBaseExpressionSystem
@@ -15,7 +14,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
-    from mountainash.expressions.types import IbisExpr
 
 
 class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol["IbisValueExpr"]):
