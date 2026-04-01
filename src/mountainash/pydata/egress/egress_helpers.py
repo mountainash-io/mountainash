@@ -100,7 +100,7 @@ def apply_native_conversions_for_egress(
         strategy = factory.get_strategy(df)
         df = strategy.apply(df, native_config)
 
-        logger.debug(f"Applied native operations to DataFrame")
+        logger.debug("Applied native operations to DataFrame")
 
     return df
 
@@ -137,7 +137,7 @@ def apply_custom_converters_to_python_data(
         >>> result
         [{'amount': 42.5}, {'amount': 99.9}]
     """
-    logger.debug(f"EGRESS TRACE: apply_custom_converters_to_python_data called")
+    logger.debug("EGRESS TRACE: apply_custom_converters_to_python_data called")
     logger.debug(f"  schema_config: {schema_config}")
     logger.debug(f"  data_format: {data_format}")
     logger.debug(f"  data length: {len(data) if data else 0}")
@@ -154,7 +154,7 @@ def apply_custom_converters_to_python_data(
 
     if not custom_convs:
         # No custom conversions to apply
-        logger.debug(f"  No custom conversions, returning unchanged")
+        logger.debug("  No custom conversions, returning unchanged")
         return data
 
     logger.info(f"Applying {len(custom_convs)} custom converters to {len(data)} records")
@@ -166,7 +166,6 @@ def apply_custom_converters_to_python_data(
         target_col = spec.get("rename", source_col)
         target_custom_convs[target_col] = spec
 
-    from mountainash.schema.config.custom_types import CustomTypeRegistry
 
     # Apply conversions based on data format
     if data_format == "dict":

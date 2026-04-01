@@ -292,7 +292,6 @@ class EgressFromPolars(BaseEgressDataFrame):
             ) from e
 
         from mountainash.schema.config import (
-            SchemaConfig,
             extract_schema_from_dataframe,
             extract_schema_from_dataclass,
             build_schema_config_with_fuzzy_matching,
@@ -383,7 +382,6 @@ class EgressFromPolars(BaseEgressDataFrame):
             ) from e
 
         from mountainash.schema.config import (
-            SchemaConfig,
             extract_schema_from_dataframe,
             extract_schema_from_pydantic,
             build_schema_config_with_fuzzy_matching,

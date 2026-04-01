@@ -11,7 +11,6 @@ from .base_pydata_ingress_handler import BasePydataIngressHandler
 from mountainash.core.types import PolarsFrame
 
 if TYPE_CHECKING:
-    import polars as pl
     from mountainash.schema.config import SchemaConfig
 
 logger = logging.getLogger(__name__)

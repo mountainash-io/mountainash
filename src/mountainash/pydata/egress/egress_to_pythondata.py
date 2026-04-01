@@ -209,22 +209,22 @@ class EgressToPythonData:
             # TIER 3: Apply CUSTOM converters after extraction (Python layer)
 
 
-            logger.debug(f"EGRESS TRACE: Starting hybrid egress for dataclass")
+            logger.debug("EGRESS TRACE: Starting hybrid egress for dataclass")
 
             # Apply only native conversions in DataFrame
-            logger.debug(f"  Step 1: Applying native conversions")
+            logger.debug("  Step 1: Applying native conversions")
             df = apply_native_conversions_for_egress(df, schema_config)
             logger.debug(f"  After native: df.columns={df.columns}")
 
             # Extract to named tuples
-            logger.debug(f"  Step 2: Extracting to named tuples")
+            logger.debug("  Step 2: Extracting to named tuples")
             named_tuples = cls._to_list_of_named_tuples(df)
             logger.debug(f"  Extracted {len(named_tuples)} named tuples")
             if named_tuples:
                 logger.debug(f"  First tuple fields: {named_tuples[0]._fields if hasattr(named_tuples[0], '_fields') else 'N/A'}")
 
             # Apply custom converters to named tuples (if any)
-            logger.debug(f"  Step 3: Applying custom converters")
+            logger.debug("  Step 3: Applying custom converters")
             named_tuples = apply_custom_converters_to_python_data(
                 named_tuples,
                 schema_config,
@@ -320,22 +320,22 @@ class EgressToPythonData:
             import logging
             logger = logging.getLogger(__name__)
 
-            logger.debug(f"EGRESS TRACE: Starting hybrid egress for dataclass")
+            logger.debug("EGRESS TRACE: Starting hybrid egress for dataclass")
 
             # Apply only native conversions in DataFrame
-            logger.debug(f"  Step 1: Applying native conversions")
+            logger.debug("  Step 1: Applying native conversions")
             df = apply_native_conversions_for_egress(df, schema_config)
             logger.debug(f"  After native: df.columns={df.columns}")
 
             # Extract to named tuples
-            logger.debug(f"  Step 2: Extracting to named tuples")
+            logger.debug("  Step 2: Extracting to named tuples")
             named_tuples = cls._to_list_of_named_tuples(df)
             logger.debug(f"  Extracted {len(named_tuples)} named tuples")
             if named_tuples:
                 logger.debug(f"  First tuple fields: {named_tuples[0]._fields if hasattr(named_tuples[0], '_fields') else 'N/A'}")
 
             # Apply custom converters to named tuples (if any)
-            logger.debug(f"  Step 3: Applying custom converters")
+            logger.debug("  Step 3: Applying custom converters")
             named_tuples = apply_custom_converters_to_python_data(
                 named_tuples,
                 schema_config,

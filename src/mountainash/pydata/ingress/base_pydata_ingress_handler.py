@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 if TYPE_CHECKING:
-    import polars as pl
+    pass
 
 from mountainash.schema.config import SchemaConfig
 from mountainash.core.types import PolarsFrame

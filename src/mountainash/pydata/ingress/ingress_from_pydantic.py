@@ -7,7 +7,7 @@ import logging
 from mountainash.core.lazy_imports import import_polars, import_pydantic
 
 if TYPE_CHECKING:
-    import polars as pl
+    pass
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 from mountainash.schema.config import SchemaConfig, init_column_config
