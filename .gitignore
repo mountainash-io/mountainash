@@ -176,5 +176,6 @@ htmlcov/
 junit.*
 coverage.*
 
-#hiivmind
-# .hiivmind/*
+# hiivmind-pulse-gh
+.hiivmind/github/user.yaml
+.hiivmind/github/log/

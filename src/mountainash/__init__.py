@@ -1,5 +1,3 @@
-"""Mountainash - Unified cross-backend DataFrame expression system."""
-
 # Re-export the full expressions public API at the top level
 # so that `import mountainash as ma; ma.col("x")` works
 from mountainash.expressions import (
@@ -28,6 +26,9 @@ from mountainash.relations import relation, concat  # noqa: F401
 
 # Schema - SchemaBuilder deferred API
 from mountainash.schema.schema_builder import SchemaBuilder as schema  # noqa: F401
+
+"""Mountainash - Unified cross-backend DataFrame expression system."""
+
 
 # Dataframes - TableBuilder fluent API
 try:
