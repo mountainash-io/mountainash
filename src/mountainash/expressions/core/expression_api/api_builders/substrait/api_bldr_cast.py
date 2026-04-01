@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
-from mountainash.expressions.core.expression_nodes import CastNode, ExpressionNode
+from mountainash.expressions.core.expression_nodes import CastNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import SubstraitCastAPIBuilderProtocol, CaseFailureBehaviour
 
 

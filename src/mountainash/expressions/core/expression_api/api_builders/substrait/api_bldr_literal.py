@@ -9,13 +9,11 @@ from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
-from mountainash.expressions.core.expression_nodes import LiteralNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitLiteralAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
-    from ...api_base import BaseExpressionAPI
+    pass
 
 
 class SubstraitLiteralAPIBuilder(BaseExpressionAPIBuilder, SubstraitLiteralAPIBuilderProtocol):

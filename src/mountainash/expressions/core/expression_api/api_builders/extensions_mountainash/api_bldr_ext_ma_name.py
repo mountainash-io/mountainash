@@ -6,14 +6,12 @@ Provides column renaming and name transformation operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ...api_base import BaseExpressionAPI
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, LiteralNode
-from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNameAPIBuilderProtocol
 
 
 

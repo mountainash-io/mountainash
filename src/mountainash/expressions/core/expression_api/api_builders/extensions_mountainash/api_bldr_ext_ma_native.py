@@ -5,13 +5,11 @@ Provides an escape hatch for backend-specific expressions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ...api_base import BaseExpressionAPI
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, LiteralNode
+from mountainash.expressions.core.expression_nodes import LiteralNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNativeAPIBuilderProtocol
 
 
