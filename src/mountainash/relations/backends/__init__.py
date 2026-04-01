@@ -1,3 +1,8 @@
+# Import relation systems to register them.
+# Polars is a core dependency — always imported.
+# Narwhals and Ibis are optional — imported only if available.
+from .relation_systems.polars import PolarsRelationSystem
+
 """Backend implementations for relational operations.
 
 Currently supported:
@@ -6,10 +11,6 @@ Currently supported:
 - Ibis (multiple database backends: DuckDB, SQLite, Postgres, etc.)
 """
 
-# Import relation systems to register them.
-# Polars is a core dependency — always imported.
-# Narwhals and Ibis are optional — imported only if available.
-from .relation_systems.polars import PolarsRelationSystem
 
 __all__ = [
     "PolarsRelationSystem",
