@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     import polars as pl
     import pandas as pd
     import pyarrow as pa
-    import narwhals as nw
     import ibis.expr.types as ir
 
 logger = logging.getLogger(__name__)

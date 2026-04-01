@@ -172,7 +172,6 @@ class RowNamespace(BaseNamespace, RowBuilderProtocol):
             result = df.limit(length, offset=offset)
         else:
             # Fallback: convert to Polars, slice, convert back
-            import polars as pl
 
             polars_df = self._system.to_polars(df)
             if length is None:

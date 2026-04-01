@@ -10,7 +10,7 @@ Provides:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Type
 
 from .base import DataFrameSystem
 from .constants import CONST_DATAFRAME_BACKEND

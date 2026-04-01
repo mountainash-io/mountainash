@@ -18,10 +18,8 @@ from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
-    import polars as pl
     import pyarrow as pa
     import ibis.expr.types as ir
-    from ..base import BaseTableBuilder
 
 from ..base import BaseNamespace
 from ...protocols import CastBuilderProtocol

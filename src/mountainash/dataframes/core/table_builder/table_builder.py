@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ClassVar, Tuple, Type
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    pass
 
 from .base import BaseTableBuilder, BaseNamespace, NamespaceDescriptor
 from .namespaces import (

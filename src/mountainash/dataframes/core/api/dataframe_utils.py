@@ -42,12 +42,10 @@ if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
     import pyarrow as pa
-    import ibis
     import ibis.expr.types as ir
 
 # Import DataFrameSystem infrastructure
 from ..dataframe_system import DataFrameSystemFactory, DataFrameSystem
-from ..dataframe_system.constants import CONST_DATAFRAME_BACKEND
 
 # Type alias for supported DataFrames
 SupportedDataFrames = Any  # Will be properly typed when typing module is updated

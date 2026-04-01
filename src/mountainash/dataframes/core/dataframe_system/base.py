@@ -24,9 +24,7 @@ from ..protocols import (
 )
 
 if TYPE_CHECKING:
-    import polars as pl
     import pandas as pd
-    import narwhals as nw
     import ibis.expr.types as ir
 
 

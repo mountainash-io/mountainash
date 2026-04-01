@@ -285,7 +285,7 @@ class SeriesResolver:
 
         # Wrap series in Narwhals for other backends
         wrapped_series = SeriesConverter.convert(converted_series, SeriesBackend.NARWHALS)
-        logger.debug(f"Wrapped converted series in Narwhals for nw.DataFrame")
+        logger.debug("Wrapped converted series in Narwhals for nw.DataFrame")
 
         return ResolvedSeries(
             series=wrapped_series,

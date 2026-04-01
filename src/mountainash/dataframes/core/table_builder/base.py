@@ -29,7 +29,6 @@ from abc import ABC
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Dict,
     List,
@@ -40,10 +39,6 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
-    import pyarrow as pa
-    import ibis.expr.types as ir
     from typing_extensions import Self
 
 from ..dataframe_system import DataFrameSystem, DataFrameSystemFactory

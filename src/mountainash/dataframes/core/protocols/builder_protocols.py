@@ -16,7 +16,7 @@ Protocol Hierarchy:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Protocol, Union, runtime_checkable
 
 if TYPE_CHECKING:
     from ..table_builder.base import BaseTableBuilder

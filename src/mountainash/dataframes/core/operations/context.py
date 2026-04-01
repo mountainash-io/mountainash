@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from ..constants import Backend, InputType, EXPRESSION_BACKENDS
+from ..constants import Backend, InputType
 from .detection import InputDetector, DetectedInput
 
 logger = logging.getLogger(__name__)

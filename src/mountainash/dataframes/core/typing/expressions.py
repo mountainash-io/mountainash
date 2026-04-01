@@ -9,7 +9,6 @@ is_native_expression(), is_supported_expression(), detect_expression_backend().
 from __future__ import annotations
 
 from typing import Any
-from typing_extensions import TypeAlias, TypeGuard
 
 # Re-export type aliases and basic guards from core
 from mountainash.core.types import (

@@ -15,10 +15,8 @@ from ...core.dataframe_system.constants import CONST_DATAFRAME_BACKEND
 from ...core.dataframe_system.factory import register_dataframe_system
 
 if TYPE_CHECKING:
-    import polars as pl
     import pandas as pd
     import pyarrow as pa
-    import ibis
     import ibis.expr.types as ir
 
 logger = logging.getLogger(__name__)

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from ..base import BaseNamespace
 from ...protocols import FilterBuilderProtocol
-from ...constants import Backend, InputType
+from ...constants import InputType
 
 # Import type detection utilities from core.typing
 from ...typing import (
@@ -35,7 +35,7 @@ from ...typing import (
 
 # Import expression compiler and unified resolver
 from ...utils import compile_expression
-from ...operations import OperationResolver, InputDetector
+from ...operations import OperationResolver
 
 logger = logging.getLogger(__name__)
 
