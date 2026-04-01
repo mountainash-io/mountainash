@@ -8,6 +8,10 @@ from __future__ import annotations
 from typing import Any
 
 from mountainash.core.constants import JoinType, ProjectOperation
+from mountainash.core.types import (
+    is_polars_dataframe, is_polars_lazyframe,
+    is_pandas_dataframe, is_pyarrow_table,
+)
 from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 from mountainash.expressions.core.expression_nodes import ExpressionNode
 
@@ -148,28 +152,27 @@ class UnifiedRelationVisitor:
           or narwhals intermediary
         - target is narwhals DataFrame → convert via nw.from_native()
         """
-        import polars as pl
-
-        if isinstance(target, (pl.DataFrame, pl.LazyFrame)):
-            if isinstance(value, (pl.DataFrame, pl.LazyFrame)):
-                return value.lazy() if isinstance(value, pl.DataFrame) else value
+        if is_polars_dataframe(target) or is_polars_lazyframe(target):
+            if is_polars_lazyframe(value):
+                return value
+            if is_polars_dataframe(value):
+                return value.lazy()
             # Try pandas → polars
-            import pandas as pd
-            if isinstance(value, pd.DataFrame):
+            if is_pandas_dataframe(value):
+                import polars as pl
                 return pl.from_pandas(value).lazy()
             # Try pyarrow → polars
-            try:
-                import pyarrow as pa
-                if isinstance(value, pa.Table):
-                    return pl.from_arrow(value).lazy()
-            except ImportError:
-                pass
+            if is_pyarrow_table(value):
+                import polars as pl
+                return pl.from_arrow(value).lazy()
             # Try dict → polars
             if isinstance(value, dict):
+                import polars as pl
                 return pl.DataFrame(value).lazy()
             # Fallback via narwhals
             try:
                 import narwhals as nw
+                import polars as pl
                 native = nw.from_native(value, eager_only=True)
                 return pl.from_pandas(native.to_pandas()).lazy()
             except Exception:

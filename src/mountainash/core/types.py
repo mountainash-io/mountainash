@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
-from collections.abc import Sequence, Mapping, Callable
+from collections.abc import Sequence, Mapping
 
 if TYPE_CHECKING:
     import ibis as ibis
@@ -288,3 +288,23 @@ def is_ibis_expression(obj: Any) -> TypeGuard[IbisExpr]:
 def is_narwhals_expression(obj: Any) -> TypeGuard[NarwhalsExpr]:
     """Type guard for Narwhals Expressions."""
     return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "Expr"
+
+# ============================================================================
+# Type Guards — Series Detection
+# ============================================================================
+
+def is_pandas_series(obj: Any) -> TypeGuard[PandasSeries]:
+    """Type guard for pandas Series."""
+    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "Series"
+
+def is_polars_series(obj: Any) -> TypeGuard[PolarsSeries]:
+    """Type guard for polars Series."""
+    return type(obj).__module__.startswith("polars") and type(obj).__name__ == "Series"
+
+def is_narwhals_series(obj: Any) -> TypeGuard[NarwhalsSeries]:
+    """Type guard for Narwhals Series."""
+    return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "Series"
+
+def is_pyarrow_array(obj: Any) -> TypeGuard[PyArrowArray]:
+    """Type guard for PyArrow Arrays."""
+    return type(obj).__module__.startswith("pyarrow") and type(obj).__name__ == "Array"

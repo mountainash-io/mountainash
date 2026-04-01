@@ -7,7 +7,7 @@ Implements the hybrid strategy for optimal performance:
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import logging
 
 if TYPE_CHECKING:
@@ -241,7 +241,8 @@ def _apply_narwhals_custom_converters(
         raise ImportError("narwhals is required for vectorized custom type conversion")
 
     # Convert to Narwhals if not already narwhals DataFrame
-    was_native = not isinstance(df, (nw.DataFrame, nw.LazyFrame))
+    from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
+    was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
     nw_df = nw.from_native(df) if was_native else df
 
     # Apply each Narwhals custom converter as a vectorized expression
@@ -321,7 +322,7 @@ def apply_hybrid_conversion(
         >>> # Python-only custom applied at edges
         >>> # Narwhals custom + native applied in DataFrame (vectorized!)
     """
-    from mountainash.core.lazy_imports import import_polars, import_narwhals
+    from mountainash.core.lazy_imports import import_polars
 
     pl = import_polars()
     if pl is None:
@@ -381,7 +382,7 @@ def apply_hybrid_conversion(
             strict=schema_config.strict
         )
         df = native_config.apply(df)
-        logger.debug(f"Applied native operations to DataFrame")
+        logger.debug("Applied native operations to DataFrame")
 
     return df
 

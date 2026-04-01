@@ -1,16 +1,7 @@
-"""Relation fluent API, factory functions, and helpers.
-
-This module provides the user-facing Relation class whose chainable methods
-build relational AST nodes.  No backend execution happens here -- only AST
-construction.  Terminal operations (collect, to_polars, ...) delegate to the
-compilation machinery in RelationBase.
-"""
-
 from __future__ import annotations
 
 from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
-_T = TypeVar("_T")
 
 from mountainash.core.constants import (
     ExecutionTarget,
@@ -35,7 +26,16 @@ from ..relation_nodes import (
 from .relation_base import RelationBase
 from .grouped_relation import GroupedRelation
 
+_T = TypeVar("_T")
 
+
+"""Relation fluent API, factory functions, and helpers.
+
+This module provides the user-facing Relation class whose chainable methods
+build relational AST nodes.  No backend execution happens here -- only AST
+construction.  Terminal operations (collect, to_polars, ...) delegate to the
+compilation machinery in RelationBase.
+"""
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -384,14 +384,15 @@ class Relation(RelationBase):
 
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
-        import polars as pl
+        from mountainash.core.types import is_polars_dataframe, is_polars_lazyframe
 
         result = self._compile_and_execute()
-        if isinstance(result, pl.DataFrame):
+        if is_polars_dataframe(result):
             return result
-        if isinstance(result, pl.LazyFrame):
+        if is_polars_lazyframe(result):
             return result.collect()
         # Fallback for other backends
+        import polars as pl
         return pl.from_pandas(result.to_pandas())
 
     def to_pandas(self) -> Any:

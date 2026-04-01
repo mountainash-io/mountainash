@@ -12,7 +12,6 @@ from mountainash.core.lazy_imports import import_narwhals
 from .base_schema_transform_strategy import BaseCastSchemaStrategy
 
 if TYPE_CHECKING:
-    import narwhals as nw
     from mountainash.core.types import NarwhalsFrame, NarwhalsLazyFrame
     from mountainash.schema.config import SchemaConfig, SchemaField
 
@@ -56,7 +55,8 @@ class CastSchemaNarwhals(BaseCastSchemaStrategy):
             raise ImportError("narwhals is required for this operation")
 
         # Wrap in Narwhals if not already wrapped
-        nw_df = nw.from_native(df) if not isinstance(df, (nw.DataFrame, nw.LazyFrame)) else df
+        from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
+        nw_df = nw.from_native(df) if not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df)) else df
 
         # Step 1: Apply missing_values replacement (schema-level)
         if config.source_schema and config.source_schema.missing_values:
