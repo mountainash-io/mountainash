@@ -13,7 +13,7 @@ where comparisons involving NULL return UNKNOWN instead of FALSE.
 """
 
 from __future__ import annotations
-from typing import Any, Union, Optional, Set, FrozenSet, List, Protocol
+from typing import Any, Optional, FrozenSet, List, Protocol
 
 from mountainash.core.types import ExpressionT
 

@@ -13,7 +13,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 

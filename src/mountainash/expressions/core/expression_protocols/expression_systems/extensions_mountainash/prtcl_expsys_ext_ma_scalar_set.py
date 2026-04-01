@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 

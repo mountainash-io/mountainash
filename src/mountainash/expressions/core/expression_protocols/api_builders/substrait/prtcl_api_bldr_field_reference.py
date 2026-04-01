@@ -8,12 +8,11 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TYPE_CHECKING
+from typing import Protocol, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
-    from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 
 class SubstraitFieldReferenceAPIBuilderProtocol(Protocol):

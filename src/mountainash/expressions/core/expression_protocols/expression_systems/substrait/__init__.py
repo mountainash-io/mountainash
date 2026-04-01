@@ -40,7 +40,6 @@ from .prtcl_expsys_scalar_string import  SubstraitScalarStringExpressionSystemPr
 from .prtcl_expsys_window_arithmetic import SubstraitWindowArithmeticExpressionSystemProtocol
 
 # Geometry protocols
-from .prtcl_expsys_scalar_geometry import SubstraitScalarGeometryExpressionSystemProtocol
 
 __all__ = [
     # Foundation - Expression Protocols
