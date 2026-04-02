@@ -261,22 +261,18 @@ class EgressFromPolars(BaseEgressDataFrame):
         df: PolarsFrame,
         /,
         dataclass_type: Type,
-        schema_config: Optional['SchemaConfig'] = None,
+        spec: Optional[Any] = None,
         auto_derive_schema: bool = True,
-        fuzzy_match_threshold: float = 0.6,
         apply_defaults: bool = False
     ) -> List[Any]:
         """
         Convert DataFrame to list of dataclass instances with schema-aware transformations.
 
-        BREAKING CHANGE: 'mapping' parameter removed. Use 'schema_config' instead.
-
         Args:
             df: Input Polars DataFrame
             dataclass_type: The dataclass type to instantiate
-            schema_config: Optional schema configuration for transformations
-            auto_derive_schema: Auto-derive schemas if config not provided (default: True)
-            fuzzy_match_threshold: Column name similarity threshold 0.0-1.0 (default: 0.6)
+            spec: Optional TypeSpec for transformations
+            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
             apply_defaults: Whether to apply dataclass field defaults
 
         Returns:
@@ -291,40 +287,25 @@ class EgressFromPolars(BaseEgressDataFrame):
                 "Install it with: pip install mountainash-utils-dataclasses"
             ) from e
 
-        from mountainash.schema.config import (
-            extract_schema_from_dataframe,
-            extract_schema_from_dataclass,
-            build_schema_config_with_fuzzy_matching,
+        from mountainash.typespec.extraction import extract_schema_from_dataclass
+        from .egress_helpers import (
+            apply_native_conversions_for_egress,
+            apply_custom_converters_to_python_data
         )
 
         # Auto-derive schema if needed
-        if schema_config is None and auto_derive_schema:
-            source_schema = extract_schema_from_dataframe(df, include_backend_types=False)
-            target_schema = extract_schema_from_dataclass(dataclass_type, use_cache=True)
-            schema_config = build_schema_config_with_fuzzy_matching(
-                source_schema=source_schema,
-                target_schema=target_schema,
-                fuzzy_match_threshold=fuzzy_match_threshold,
-                strict=False
-            )
+        if spec is None and auto_derive_schema:
+            spec = extract_schema_from_dataclass(dataclass_type, use_cache=True)
 
         # Apply schema transformations using HYBRID STRATEGY
-        if schema_config is not None:
-            # Validate against source schema (if strict)
-            if schema_config.strict and schema_config.source_schema:
-                schema_config.validate_against_dataframe(df, mode='source')
-
+        if spec is not None:
             # HYBRID STRATEGY FOR EGRESS:
             # TIER 1: Apply NATIVE conversions in DataFrame (vectorized, FAST!)
             # TIER 2: Extract to named tuples
             # TIER 3: Apply CUSTOM converters after extraction (Python layer)
-            from .egress_helpers import (
-                apply_native_conversions_for_egress,
-                apply_custom_converters_to_python_data
-            )
 
             # Apply only native conversions in DataFrame
-            df = apply_native_conversions_for_egress(df, schema_config)
+            df, python_only_custom = apply_native_conversions_for_egress(df, spec)
 
             # Extract to named tuples
             named_tuples = cls._to_list_of_named_tuples(df)
@@ -332,7 +313,7 @@ class EgressFromPolars(BaseEgressDataFrame):
             # Apply custom converters to named tuples (if any)
             named_tuples = apply_custom_converters_to_python_data(
                 named_tuples,
-                schema_config,
+                python_only_custom,
                 data_format="namedtuple"
             )
         else:
@@ -353,21 +334,17 @@ class EgressFromPolars(BaseEgressDataFrame):
         df: PolarsFrame,
         /,
         model_class: Type,
-        schema_config: Optional['SchemaConfig'] = None,
+        spec: Optional[Any] = None,
         auto_derive_schema: bool = True,
-        fuzzy_match_threshold: float = 0.6
     ) -> List[Any]:
         """
         Convert DataFrame to list of Pydantic model instances with schema-aware transformations.
 
-        BREAKING CHANGE: 'mapping' parameter removed. Use 'schema_config' instead.
-
         Args:
             df: Input Polars DataFrame
             model_class: The Pydantic model class to instantiate
-            schema_config: Optional schema configuration for transformations
-            auto_derive_schema: Auto-derive schemas if config not provided (default: True)
-            fuzzy_match_threshold: Column name similarity threshold 0.0-1.0 (default: 0.6)
+            spec: Optional TypeSpec for transformations
+            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
 
         Returns:
             List of Pydantic model instances
@@ -381,40 +358,25 @@ class EgressFromPolars(BaseEgressDataFrame):
                 "Install it with: pip install mountainash-utils-dataclasses"
             ) from e
 
-        from mountainash.schema.config import (
-            extract_schema_from_dataframe,
-            extract_schema_from_pydantic,
-            build_schema_config_with_fuzzy_matching,
+        from mountainash.typespec.extraction import extract_schema_from_pydantic
+        from .egress_helpers import (
+            apply_native_conversions_for_egress,
+            apply_custom_converters_to_python_data
         )
 
         # Auto-derive schema if needed
-        if schema_config is None and auto_derive_schema:
-            source_schema = extract_schema_from_dataframe(df, include_backend_types=False)
-            target_schema = extract_schema_from_pydantic(model_class, use_cache=True)
-            schema_config = build_schema_config_with_fuzzy_matching(
-                source_schema=source_schema,
-                target_schema=target_schema,
-                fuzzy_match_threshold=fuzzy_match_threshold,
-                strict=False
-            )
+        if spec is None and auto_derive_schema:
+            spec = extract_schema_from_pydantic(model_class, use_cache=True)
 
         # Apply schema transformations using HYBRID STRATEGY
-        if schema_config is not None:
-            # Validate against source schema (if strict)
-            if schema_config.strict and schema_config.source_schema:
-                schema_config.validate_against_dataframe(df, mode='source')
-
+        if spec is not None:
             # HYBRID STRATEGY FOR EGRESS:
             # TIER 1: Apply NATIVE conversions in DataFrame (vectorized, FAST!)
             # TIER 2: Extract to named tuples
             # TIER 3: Apply CUSTOM converters after extraction (Python layer)
-            from .egress_helpers import (
-                apply_native_conversions_for_egress,
-                apply_custom_converters_to_python_data
-            )
 
             # Apply only native conversions in DataFrame
-            df = apply_native_conversions_for_egress(df, schema_config)
+            df, python_only_custom = apply_native_conversions_for_egress(df, spec)
 
             # Extract to named tuples
             named_tuples = cls._to_list_of_named_tuples(df)
@@ -422,7 +384,7 @@ class EgressFromPolars(BaseEgressDataFrame):
             # Apply custom converters to named tuples (if any)
             named_tuples = apply_custom_converters_to_python_data(
                 named_tuples,
-                schema_config,
+                python_only_custom,
                 data_format="namedtuple"
             )
         else:

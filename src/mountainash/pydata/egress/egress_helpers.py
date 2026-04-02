@@ -18,20 +18,20 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import logging
 
 if TYPE_CHECKING:
-    from mountainash.schema.config import SchemaConfig
     from mountainash.core.types import SupportedDataFrames
+    from mountainash.typespec.spec import TypeSpec, FieldSpec
 
 
-from mountainash.schema.config import SchemaConfig
-from mountainash.schema.transform import SchemaTransformFactory
+from mountainash.typespec.spec import TypeSpec, FieldSpec
+from mountainash.pydata.ingress.custom_type_helpers import separate_conversions
 
 logger = logging.getLogger(__name__)
 
 
 def apply_native_conversions_for_egress(
     df: 'SupportedDataFrames',
-    schema_config: Optional['SchemaConfig'] = None
-) -> 'SupportedDataFrames':
+    spec: Optional['TypeSpec'] = None
+) -> tuple:
     """
     Apply NATIVE conversions in DataFrame before extraction (TIER 1).
 
@@ -41,73 +41,59 @@ def apply_native_conversions_for_egress(
 
     Args:
         df: Input DataFrame (any backend)
-        schema_config: Schema configuration with conversions
+        spec: TypeSpec configuration with field specifications
 
     Returns:
-        DataFrame with native conversions applied
+        Tuple of (df, python_only_custom) where python_only_custom is a
+        dict[str, FieldSpec] of fields that need Python-layer conversion.
 
     Example:
-        >>> config = SchemaConfig(columns={
-        ...     "id": {"cast": "integer"},           # Native - apply here
-        ...     "amount": {"cast": "safe_float"},    # Custom - skip here
-        ... })
-        >>> df = apply_native_conversions_for_egress(df, config)
-        >>> # Only 'id' cast applied, 'amount' left for post-extraction
+        >>> spec = TypeSpec(fields=[
+        ...     FieldSpec(name="id", type=UniversalType.INTEGER),   # Native
+        ...     FieldSpec(name="amount", custom_cast="safe_float"), # Custom
+        ... ])
+        >>> df, python_only = apply_native_conversions_for_egress(df, spec)
+        >>> # Only 'id' cast applied in DataFrame, 'amount' left for post-extraction
     """
-    if schema_config is None:
-        return df
+    import polars as pl
+
+    if spec is None:
+        if not isinstance(df, pl.DataFrame):
+            import mountainash as ma
+            df = ma.relation(df).to_polars()
+        return df, {}
 
     # Separate conversions into three tiers
-    python_only_custom, narwhals_custom, native_convs = schema_config.separate_conversions()
+    python_only, narwhals_custom, native = separate_conversions(spec)
 
-    # For egress, combine all custom types (both Python-only and Narwhals)
-    # because they'll be applied as Python converters after extraction
-    custom_convs = {**python_only_custom, **narwhals_custom}
+    # For egress, both python_only and narwhals_custom are deferred to Python layer
+    python_only_custom = {**python_only, **narwhals_custom}
 
     logger.info(
-        f"Egress hybrid: {len(native_convs)} native conversions in DataFrame, "
-        f"{len(custom_convs)} custom conversions deferred to Python layer "
-        f"(Python-only: {len(python_only_custom)}, Narwhals: {len(narwhals_custom)})"
+        f"Egress hybrid: {len(native)} native conversions in DataFrame, "
+        f"{len(python_only_custom)} custom conversions deferred to Python layer "
+        f"(Python-only: {len(python_only)}, Narwhals: {len(narwhals_custom)})"
     )
 
-    # Build a config that applies ALL operations but removes custom casts
-    # This ensures operations like rename work even for columns with custom casts
-
-
-    native_only_columns = {}
-    for col_name, spec in schema_config.columns.items():
-        # Copy the spec
-        native_spec = spec.copy()
-
-        # If this column has a custom cast, remove it from the spec
-        if "cast" in native_spec and col_name in custom_convs:
-            # Custom cast - remove it, but keep other operations (rename, null_fill, etc.)
-            del native_spec["cast"]
-
-        # Only include if there are remaining operations to perform
-        if native_spec:
-            native_only_columns[col_name] = native_spec
-
-    # Apply native operations if any
-    if native_only_columns:
-        native_config = SchemaConfig(
-            columns=native_only_columns,
-            keep_only_mapped=schema_config.keep_only_mapped,
-            strict=schema_config.strict
+    # Build conform spec for all non-python-only fields
+    conform_fields = [f for f in spec.fields if f.source_name not in python_only_custom]
+    if conform_fields:
+        conform_spec = TypeSpec(
+            fields=conform_fields,
+            keep_only_mapped=spec.keep_only_mapped
         )
+        from mountainash.conform.compiler import compile_conform
+        df = compile_conform(conform_spec, df)
+    elif not isinstance(df, pl.DataFrame):
+        import mountainash as ma
+        df = ma.relation(df).to_polars()
 
-        factory = SchemaTransformFactory()
-        strategy = factory.get_strategy(df)
-        df = strategy.apply(df, native_config)
-
-        logger.debug("Applied native operations to DataFrame")
-
-    return df
+    return df, python_only_custom
 
 
 def apply_custom_converters_to_python_data(
     data: List[Any],
-    schema_config: Optional['SchemaConfig'] = None,
+    python_only_custom: Dict[str, 'FieldSpec'],
     data_format: str = "dict"
 ) -> List[Any]:
     """
@@ -122,50 +108,36 @@ def apply_custom_converters_to_python_data(
 
     Args:
         data: List of dicts or named tuples extracted from DataFrame
-        schema_config: Schema configuration with conversions
+        python_only_custom: Dict of FieldSpec keyed by source_name (already separated)
         data_format: Format of data - "dict" or "namedtuple"
 
     Returns:
         List with custom conversions applied
 
     Example:
-        >>> config = SchemaConfig(columns={
-        ...     "amount": {"cast": "safe_float"}
-        ... })
+        >>> field = FieldSpec(name="amount", custom_cast="safe_float")
         >>> data = [{"amount": "42.5"}, {"amount": "99.9"}]
-        >>> result = apply_custom_converters_to_python_data(data, config, "dict")
+        >>> result = apply_custom_converters_to_python_data(data, {"amount": field}, "dict")
         >>> result
         [{'amount': 42.5}, {'amount': 99.9}]
     """
     logger.debug("EGRESS TRACE: apply_custom_converters_to_python_data called")
-    logger.debug(f"  schema_config: {schema_config}")
+    logger.debug(f"  python_only_custom: {python_only_custom}")
     logger.debug(f"  data_format: {data_format}")
     logger.debug(f"  data length: {len(data) if data else 0}")
 
-    if schema_config is None or not data:
-        logger.debug(f"  Returning early: schema_config={schema_config}, data={data}")
+    if not python_only_custom or not data:
+        logger.debug(f"  Returning early: python_only_custom={python_only_custom}, data={data}")
         return data
 
-    # Separate conversions - for egress, combine all custom types
-    python_only_custom, narwhals_custom, _ = schema_config.separate_conversions()
-    custom_convs = {**python_only_custom, **narwhals_custom}
-
-    logger.debug(f"  Custom conversions: {custom_convs}")
-
-    if not custom_convs:
-        # No custom conversions to apply
-        logger.debug("  No custom conversions, returning unchanged")
-        return data
-
-    logger.info(f"Applying {len(custom_convs)} custom converters to {len(data)} records")
+    logger.info(f"Applying {len(python_only_custom)} custom converters to {len(data)} records")
 
     # Map custom conversions from source names to target names
     # (DataFrame columns have been renamed by native conversions)
-    target_custom_convs = {}
-    for source_col, spec in custom_convs.items():
-        target_col = spec.get("rename", source_col)
-        target_custom_convs[target_col] = spec
-
+    target_custom_convs: Dict[str, 'FieldSpec'] = {}
+    for source_name, field_spec in python_only_custom.items():
+        target_name = field_spec.name  # FieldSpec.name is the target column name
+        target_custom_convs[target_name] = field_spec
 
     # Apply conversions based on data format
     if data_format == "dict":
@@ -179,19 +151,19 @@ def apply_custom_converters_to_python_data(
 
 def _apply_custom_to_dicts(
     data_dicts: List[Dict[str, Any]],
-    custom_conversions: Dict[str, Dict[str, Any]]
+    custom_conversions: Dict[str, 'FieldSpec']
 ) -> List[Dict[str, Any]]:
     """
     Apply custom converters to list of dictionaries.
 
     Args:
         data_dicts: List of dictionaries
-        custom_conversions: Dict of columns with custom converters
+        custom_conversions: Dict of FieldSpec keyed by TARGET column name
 
     Returns:
         List of dictionaries with custom conversions applied
     """
-    from mountainash.schema.config.custom_types import CustomTypeRegistry
+    from mountainash.typespec.custom_types import CustomTypeRegistry
 
     converted_data = []
 
@@ -201,11 +173,10 @@ def _apply_custom_to_dicts(
         for field_name, value in row_dict.items():
             # Check if this field needs custom conversion
             if field_name in custom_conversions:
-                spec = custom_conversions[field_name]
+                field_spec = custom_conversions[field_name]
+                cast_type = field_spec.custom_cast
 
-                # Apply custom converter if configured
-                if "cast" in spec:
-                    cast_type = spec["cast"]
+                if cast_type is not None:
                     try:
                         value = CustomTypeRegistry.convert(
                             value,
@@ -228,19 +199,19 @@ def _apply_custom_to_dicts(
 
 def _apply_custom_to_namedtuples(
     named_tuples: List[Any],
-    custom_conversions: Dict[str, Dict[str, Any]]
+    custom_conversions: Dict[str, 'FieldSpec']
 ) -> List[Any]:
     """
     Apply custom converters to list of named tuples.
 
     Args:
         named_tuples: List of named tuples
-        custom_conversions: Dict of columns with custom converters
+        custom_conversions: Dict of FieldSpec keyed by TARGET column name
 
     Returns:
         List of named tuples with custom conversions applied
     """
-    from mountainash.schema.config.custom_types import CustomTypeRegistry
+    from mountainash.typespec.custom_types import CustomTypeRegistry
 
     if not named_tuples:
         return named_tuples
@@ -258,7 +229,7 @@ def _apply_custom_to_namedtuples(
     fields_to_convert = {
         idx: (field_name, custom_conversions[field_name])
         for idx, field_name in enumerate(field_names)
-        if field_name in custom_conversions and "cast" in custom_conversions[field_name]
+        if field_name in custom_conversions and custom_conversions[field_name].custom_cast is not None
     }
 
     if not fields_to_convert:
@@ -272,8 +243,8 @@ def _apply_custom_to_namedtuples(
         values = list(nt)
 
         # Apply custom converters to specific fields
-        for idx, (field_name, spec) in fields_to_convert.items():
-            cast_type = spec["cast"]
+        for idx, (field_name, field_spec) in fields_to_convert.items():
+            cast_type = field_spec.custom_cast
             try:
                 values[idx] = CustomTypeRegistry.convert(
                     values[idx],
@@ -295,7 +266,7 @@ def _apply_custom_to_namedtuples(
 
 def apply_hybrid_egress_conversion(
     df: 'SupportedDataFrames',
-    schema_config: Optional['SchemaConfig'] = None,
+    spec: Optional['TypeSpec'] = None,
     extract_func: Optional[Any] = None,
     data_format: str = "dict"
 ) -> List[Any]:
@@ -320,7 +291,7 @@ def apply_hybrid_egress_conversion(
 
     Args:
         df: Input DataFrame (any backend)
-        schema_config: Optional schema configuration
+        spec: Optional TypeSpec configuration
         extract_func: Function to extract data from DataFrame
                      Should return List[Dict] or List[NamedTuple]
         data_format: Format of extracted data - "dict" or "namedtuple"
@@ -329,40 +300,36 @@ def apply_hybrid_egress_conversion(
         List of Python data structures with all conversions applied
 
     Example:
-        >>> config = SchemaConfig(columns={
-        ...     "id": {"cast": "integer"},           # Native
-        ...     "amount": {"cast": "safe_float"},    # Custom
-        ... })
+        >>> spec = TypeSpec(fields=[
+        ...     FieldSpec(name="id", type=UniversalType.INTEGER),   # Native
+        ...     FieldSpec(name="amount", custom_cast="safe_float"), # Custom
+        ... ])
         >>> result = apply_hybrid_egress_conversion(
-        ...     df, config, extract_func=lambda d: d.to_dicts(), data_format="dict"
+        ...     df, spec, extract_func=lambda d: d.to_dicts(), data_format="dict"
         ... )
     """
-    if schema_config is None:
+    if spec is None:
         # No conversions - just extract
         if extract_func:
             return extract_func(df)
         else:
-            raise ValueError("Must provide either schema_config or extract_func")
+            raise ValueError("Must provide either spec or extract_func")
 
-    # STEP 1: Apply NATIVE conversions in DataFrame (TIER 1, vectorized!)
-    df = apply_native_conversions_for_egress(df, schema_config)
-
-    # STEP 2: Extract data from DataFrame (TIER 2)
     if extract_func is None:
         raise ValueError("extract_func is required for hybrid egress conversion")
 
+    # STEP 1: Apply NATIVE conversions in DataFrame (TIER 1, vectorized!)
+    df, python_only_custom = apply_native_conversions_for_egress(df, spec)
+
+    # STEP 2: Extract data from DataFrame (TIER 2)
     data = extract_func(df)
 
     if not data:
         return data
 
     # STEP 3: Apply CUSTOM converters to Python data (TIER 3)
-    # For egress, combine all custom types (both Python-only and Narwhals)
-    python_only_custom, narwhals_custom, _ = schema_config.separate_conversions()
-    custom_convs = {**python_only_custom, **narwhals_custom}
-
-    if custom_convs:
-        data = apply_custom_converters_to_python_data(data, schema_config, data_format)
+    if python_only_custom:
+        data = apply_custom_converters_to_python_data(data, python_only_custom, data_format)
         logger.debug(f"Applied custom converters to {len(data)} records")
 
     return data
