@@ -12,7 +12,6 @@ import pytest
 from datetime import datetime
 
 import mountainash.expressions as ma
-import mountainash as ma_top
 
 
 ALL_BACKENDS = [
