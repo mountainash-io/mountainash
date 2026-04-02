@@ -395,30 +395,30 @@ def get_result() -> Callable:
 @pytest.fixture
 def select_and_extract() -> Callable:
     """
-    Helper to select expression and extract values - handles all backends.
+    Extract compiled expression results — for booleanizer/internal tests only.
 
-    Single function that:
-    1. Selects with backend-specific method (.name() or .alias())
-    2. Collects/executes if needed (no double-collect)
-    3. Extracts column values to list
-
-    Returns:
-        Callable that takes (df, backend_expr, column_alias, backend_name) and returns list
+    Most tests should use `collect_expr` instead. This fixture exists only for
+    tests that need to pass explicit booleanizer parameters to .compile(),
+    which the relation API does not support.
 
     Usage:
-        actual = select_and_extract(df, backend_expr, "result", "polars")
-        assert actual == [12, 23, 34]
+        backend_expr = expr.compile(df, booleanizer=None)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
     """
     def _select_and_extract(df: Any, backend_expr: Any, column_alias: str, backend_name: str) -> List:
         # Handle each backend type completely in one place
         if backend_name.startswith("ibis-"):
-            # Ibis: use .name(), then execute to get values
+            # Ibis: use .name(), then PyArrow to avoid pandas NaN/null conflation
             result = df.select(backend_expr.name(column_alias))
-            return result[column_alias].execute().tolist()
+            return result.to_pyarrow()[column_alias].to_pylist()
 
-        elif backend_name in ("polars", "narwhals", "pandas"):
-            # Polars/Narwhals/Pandas: use .alias(), then to_list()
-            # (pandas is routed through narwhals in factory)
+        elif backend_name == "pandas":
+            # Pandas (via narwhals): use PyArrow to avoid NaN/null conflation
+            result = df.select(backend_expr.alias(column_alias))
+            return result.to_arrow()[column_alias].to_pylist()
+
+        elif backend_name in ("polars", "narwhals"):
+            # Polars/Narwhals: .to_list() preserves nulls correctly
             result = df.select(backend_expr.alias(column_alias))
             return result[column_alias].to_list()
 
@@ -429,7 +429,38 @@ def select_and_extract() -> Callable:
 
 
 @pytest.fixture
-def assert_parameter_sensitivity(select_and_extract) -> Callable:
+def collect_expr():
+    """Extract expression results via the relation API.
+
+    Mirrors real-world usage: wraps the DataFrame in a relation, projects
+    the expression, and extracts via .to_dict() (which routes through
+    Polars for null-safe extraction).
+
+    Usage:
+        actual = collect_expr(df, expr)
+        actual = collect_expr(df, expr, alias="custom_name")
+    """
+    def _collect(df, expr, alias="result"):
+        import mountainash as ma
+        return ma.relation(df).select(expr.name.alias(alias)).to_dict()[alias]
+    return _collect
+
+
+@pytest.fixture
+def collect_col():
+    """Extract column values via the relation API.
+
+    Usage:
+        values = collect_col(df, "age")
+    """
+    def _collect(df, column):
+        import mountainash as ma
+        return ma.relation(df).select(column).to_dict()[column]
+    return _collect
+
+
+@pytest.fixture
+def assert_parameter_sensitivity(collect_expr) -> Callable:
     """
     Assert that different parameter values produce different results.
 
@@ -450,8 +481,8 @@ def assert_parameter_sensitivity(select_and_extract) -> Callable:
     ) -> None:
         expr_a = build_expr(param_a)
         expr_b = build_expr(param_b)
-        result_a = select_and_extract(df, expr_a.compile(df), "result", backend_name)
-        result_b = select_and_extract(df, expr_b.compile(df), "result", backend_name)
+        result_a = collect_expr(df, expr_a)
+        result_b = collect_expr(df, expr_b)
         assert result_a != result_b, (
             f"[{backend_name}] param_a={param_a} and param_b={param_b} produced "
             f"identical results {result_a} — parameter may be silently ignored"
