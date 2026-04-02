@@ -48,6 +48,24 @@ _IBIS_DTYPE_MAP = {
     "int": "int64",
     "float": "float64",
     "str": "string",
+    # Unsigned integers
+    "u8": "uint8",
+    "u16": "uint16",
+    "u32": "uint32",
+    "u64": "uint64",
+    "UInt8": "uint8",
+    "UInt16": "uint16",
+    "UInt32": "uint32",
+    "UInt64": "uint64",
+    "uint8": "uint8",
+    "uint16": "uint16",
+    "uint32": "uint32",
+    "uint64": "uint64",
+    # Missing canonical names
+    "binary": "binary",
+    "Binary": "binary",
+    "time": "time",
+    "Time": "time",
 }
 
 
@@ -64,6 +82,13 @@ class SubstraitIbisCastExpressionSystem(IbisBaseExpressionSystem, SubstraitCastE
         Returns:
             An Ibis expression cast to the specified type.
         """
+        # Try canonical resolution first
+        try:
+            from mountainash.core.dtypes import resolve_dtype
+            dtype = resolve_dtype(dtype)
+        except ValueError:
+            pass  # Fall through to backend-specific handling
+
         # If already an Ibis DataType, use directly
         if isinstance(dtype, dt.DataType):
             return x.cast(dtype)

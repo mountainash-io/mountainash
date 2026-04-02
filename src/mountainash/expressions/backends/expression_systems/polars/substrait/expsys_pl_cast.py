@@ -54,6 +54,24 @@ _POLARS_DTYPE_MAP = {
     "int32": pl.Int32,
     "float64": pl.Float64,
     "float32": pl.Float32,
+    # Unsigned integers
+    "u8": pl.UInt8,
+    "u16": pl.UInt16,
+    "u32": pl.UInt32,
+    "u64": pl.UInt64,
+    "UInt8": pl.UInt8,
+    "UInt16": pl.UInt16,
+    "UInt32": pl.UInt32,
+    "UInt64": pl.UInt64,
+    "uint8": pl.UInt8,
+    "uint16": pl.UInt16,
+    "uint32": pl.UInt32,
+    "uint64": pl.UInt64,
+    # Missing canonical names
+    "binary": pl.Binary,
+    "Binary": pl.Binary,
+    "time": pl.Time,
+    "Time": pl.Time,
 }
 
 
@@ -70,6 +88,13 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
         Returns:
             A Polars expression cast to the specified type.
         """
+        # Try canonical resolution first
+        try:
+            from mountainash.core.dtypes import resolve_dtype
+            dtype = resolve_dtype(dtype)
+        except ValueError:
+            pass  # Fall through to backend-specific handling
+
         # If already a Polars dtype, use directly
         if isinstance(dtype, pl.DataType) or (isinstance(dtype, type) and issubclass(dtype, pl.DataType)):
             return x.cast(dtype)
