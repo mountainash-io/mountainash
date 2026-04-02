@@ -3,7 +3,7 @@
 import math
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -21,13 +21,13 @@ ALL_BACKENDS = [
 class TestComposeCast:
     """Test cast operations composed with other builders."""
 
-    def test_cast_float_then_divide(self, backend_name, backend_factory, select_and_extract):
+    def test_cast_float_then_divide(self, backend_name, backend_factory, collect_expr):
         """Cast to float then divide: .cast(float).divide(total)."""
         data = {"value": [10, 20, 30], "total": [100.0, 100.0, 100.0]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("value").cast(float).divide(ma.col("total"))
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         for i, (a, e) in enumerate(zip(actual, [0.1, 0.2, 0.3])):
             assert math.isclose(a, e, rel_tol=1e-9), f"[{backend_name}] Row {i}: {a} != {e}"
@@ -61,13 +61,13 @@ class TestComposeCast:
         # 50.3 -> 50, no
         assert count == 1, f"[{backend_name}] Expected 1 (71), got {count}"
 
-    def test_fill_null_cast_multiply(self, backend_name, backend_factory, select_and_extract):
+    def test_fill_null_cast_multiply(self, backend_name, backend_factory, collect_expr):
         """Chain: fill_null -> cast -> multiply."""
         data = {"price": [10, None, 30], "rate": [1.1, 1.2, 1.3]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("price").fill_null(0).cast(float).multiply(ma.col("rate"))
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert math.isclose(actual[0], 11.0, rel_tol=1e-9), f"[{backend_name}] Row 0: {actual[0]}"
         assert math.isclose(actual[1], 0.0, abs_tol=1e-9), f"[{backend_name}] Row 1: {actual[1]}"

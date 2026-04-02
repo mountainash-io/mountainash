@@ -9,7 +9,7 @@ least() method has a typo in the builder (LTEAST vs LEAST) — xfailed.
 import math
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -105,7 +105,7 @@ class TestComposeComparisonNumeric:
 class TestComposeComparisonNull:
     """Test null handling: nullif method form."""
 
-    def test_nullif(self, backend_name, backend_factory, select_and_extract):
+    def test_nullif(self, backend_name, backend_factory, collect_expr):
         """Test nullif: return null if value equals sentinel."""
         if backend_name in ("pandas", "ibis-polars", "ibis-duckdb", "ibis-sqlite"):
             pytest.xfail(f"{backend_name}: nullif method form not fully supported.")
@@ -113,7 +113,7 @@ class TestComposeComparisonNull:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").nullif(0)
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual[0] == 10, f"[{backend_name}] Row 0: {actual[0]}"
         assert actual[1] is None, f"[{backend_name}] Row 1 should be null: {actual[1]}"
         assert actual[3] is None, f"[{backend_name}] Row 3 should be null: {actual[3]}"
@@ -124,13 +124,13 @@ class TestComposeComparisonNull:
 class TestComposeComparisonMinMax:
     """Test greatest method form (least has LTEAST typo in builder — xfailed)."""
 
-    def test_greatest_method(self, backend_name, backend_factory, select_and_extract):
+    def test_greatest_method(self, backend_name, backend_factory, collect_expr):
         """Test col.greatest(other) method form."""
         data = {"a": [10, 5, 30], "b": [20, 3, 25]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").greatest(ma.col("b"))
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual == [20, 5, 30], f"[{backend_name}] got {actual}"
 
 
@@ -139,22 +139,22 @@ class TestComposeComparisonMinMax:
 class TestComposeRounding:
     """Test ceil and floor."""
 
-    def test_ceil(self, backend_name, backend_factory, select_and_extract):
+    def test_ceil(self, backend_name, backend_factory, collect_expr):
         """Test ceil on float values."""
         data = {"val": [1.2, 2.8, -1.5]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").ceil()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual == [2, 3, -1], f"[{backend_name}] ceil got {actual}"
 
-    def test_floor(self, backend_name, backend_factory, select_and_extract):
+    def test_floor(self, backend_name, backend_factory, collect_expr):
         """Test floor on float values."""
         data = {"val": [1.2, 2.8, -1.5]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").floor()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual == [1, 2, -2], f"[{backend_name}] floor got {actual}"
 
 
@@ -163,32 +163,32 @@ class TestComposeRounding:
 class TestComposeLogarithmic:
     """Test log10, log2, ln."""
 
-    def test_log10(self, backend_name, backend_factory, select_and_extract):
+    def test_log10(self, backend_name, backend_factory, collect_expr):
         """Test log10."""
         data = {"val": [1.0, 10.0, 100.0]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").log10()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         for i, (a, e) in enumerate(zip(actual, [0.0, 1.0, 2.0])):
             assert math.isclose(a, e, abs_tol=1e-9), f"[{backend_name}] Row {i}: {a} != {e}"
 
-    def test_log2(self, backend_name, backend_factory, select_and_extract):
+    def test_log2(self, backend_name, backend_factory, collect_expr):
         """Test log2."""
         data = {"val": [1.0, 2.0, 8.0]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").log2()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         for i, (a, e) in enumerate(zip(actual, [0.0, 1.0, 3.0])):
             assert math.isclose(a, e, abs_tol=1e-9), f"[{backend_name}] Row {i}: {a} != {e}"
 
-    def test_ln(self, backend_name, backend_factory, select_and_extract):
+    def test_ln(self, backend_name, backend_factory, collect_expr):
         """Test ln (natural log)."""
         data = {"val": [1.0, math.e, math.e ** 2]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").ln()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         for i, (a, e) in enumerate(zip(actual, [0.0, 1.0, 2.0])):
             assert math.isclose(a, e, abs_tol=1e-6), f"[{backend_name}] Row {i}: {a} != {e}"
