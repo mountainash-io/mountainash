@@ -40,7 +40,7 @@ class MountainAshNativeAPIBuilder(BaseExpressionAPIBuilder, MountainAshNativeAPI
 
         Example:
             >>> import polars as pl
-            >>> import mountainash_expressions as ma
+            >>> import mountainash.expressions as ma
             >>>
             >>> # Wrap an existing expression
             >>> expr = ma.col("values").as_native()

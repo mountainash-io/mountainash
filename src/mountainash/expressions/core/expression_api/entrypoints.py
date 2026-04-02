@@ -241,7 +241,7 @@ def native(expr: Any) -> BaseExpressionAPI:
 
     Example:
         >>> import polars as pl
-        >>> import mountainash_expressions as ma
+        >>> import mountainash.expressions as ma
         >>>
         >>> # Use a native Polars expression
         >>> native_filter = pl.col("status").is_in(["active", "pending"])

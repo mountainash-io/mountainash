@@ -1,6 +1,6 @@
 """AST construction tests for comparison API builders."""
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode, IfThenNode
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,

@@ -101,7 +101,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     - .name: Column naming (alias, prefix, suffix, etc.)
 
     Example:
-        >>> import mountainash_expressions as ma
+        >>> import mountainash.expressions as ma
         >>> expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
         >>> result = df.filter(expr.compile(df))
     """

@@ -15,13 +15,14 @@ from functools import reduce
 
 import ibis
 
+
 from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarTernaryExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.core.types import IbisValueExpr, IbisBooleanExpr, IbisNumericExpr
+    from mountainash.core.types import IbisValueExpr, IbisBooleanExpr, IbisNumericExpr, IbisScalarExpr
 
 
 # Ternary constants
@@ -45,7 +46,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         self,
         expr: IbisValueExpr,
         unknown_values: Optional[FrozenSet[Any]] = None,
-    ) -> IbisBooleanExpr|IbisValueExpr:
+    ) -> IbisBooleanExpr|IbisScalarExpr:
         """Check if expression value is in the UNKNOWN set.
 
         Args:
@@ -97,7 +98,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
 
         # Use nested ifelse: if unknown return UNKNOWN, else if comparison TRUE, else FALSE
         return ibis.ifelse(
-            left_is_unknown == ibis.Literal(True) | right_is_unknown == ibis.Literal(True),
+            ibis.or_(left_is_unknown, right_is_unknown),
             ibis.literal(int(T_UNKNOWN)),
             ibis.ifelse(comparison, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
         )
@@ -235,7 +236,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     def t_not(self, operand: IbisValueExpr) -> IbisValueExpr:
         """Ternary NOT - sign flip (TRUE↔FALSE, UNKNOWN stays)."""
         # Simple negation: -operand flips 1 to -1 and vice versa, 0 stays 0
-        return ~operand
+        return (operand * ibis.literal(-1) )
 
     def t_xor(self, left: IbisValueExpr, right: IbisValueExpr) -> IbisValueExpr:
         """Ternary XOR - exclusive OR.

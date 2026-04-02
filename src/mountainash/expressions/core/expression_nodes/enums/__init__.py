@@ -1,7 +1,7 @@
 """Substrait extension URIs.
 
 DEPRECATED: Function key enums have been moved to:
-    mountainash_expressions.core.expression_system.function_keys.enums
+    mountainash.expressions.core.expression_system.function_keys.enums
 
 This package now only exports SubstraitExtension URIs.
 

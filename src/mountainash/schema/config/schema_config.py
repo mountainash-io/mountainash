@@ -855,28 +855,38 @@ class SchemaConfig:
         """
         Apply this configuration to a DataFrame (any backend).
 
-        Automatically detects the DataFrame backend and applies transformations
-        using the appropriate strategy.
-
-        **Note**: This method will be deprecated in favor of explicit
-        transform strategies in a future version.
-
-        Args:
-            df: Input DataFrame (pandas, polars, ibis, pyarrow, or narwhals)
-
-        Returns:
-            Transformed DataFrame (same backend as input)
-
-        Example:
-            >>> config = SchemaConfig(columns={"old": {"rename": "new"}})
-            >>> result = config.apply(any_dataframe)
+        Delegates to the conform compiler, which compiles to relation operations.
+        When strict=False (default), columns referenced in the config but missing
+        from the DataFrame are silently skipped.
         """
-        # Import factory here to avoid circular dependency
-        from mountainash.schema.transform import SchemaTransformFactory
+        from mountainash.conform.compiler import compile_conform, _get_source_columns
+        from mountainash.typespec.spec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import normalize_type, UniversalType
 
-        factory = SchemaTransformFactory()
-        strategy = factory.get_strategy(df)
-        return strategy.apply(df, self)
+        # Get source column names for missing-column check
+        source_cols = set(_get_source_columns(df))
+
+        # Convert SchemaConfig columns to TypeSpec
+        fields = []
+        for source_col, spec in self.columns.items():
+            if source_col not in source_cols:
+                if self.strict:
+                    raise ValueError(
+                        f"Column '{source_col}' referenced in config does not exist "
+                        f"in the DataFrame. Available columns: {sorted(source_cols)}"
+                    )
+                # Non-strict: silently skip missing columns
+                continue
+            field = FieldSpec(
+                name=spec.get("rename", source_col),
+                type=normalize_type(spec["cast"]) if "cast" in spec else UniversalType.ANY,
+                rename_from=source_col if "rename" in spec else None,
+                null_fill=spec.get("null_fill"),
+            )
+            fields.append(field)
+
+        type_spec = TypeSpec(fields=fields, keep_only_mapped=self.keep_only_mapped)
+        return compile_conform(type_spec, df)
 
 
 def init_column_config(
@@ -918,38 +928,9 @@ def apply_column_config(
     df: 'SupportedDataFrames',
     config: Union[SchemaConfig, Dict[str, Any], str]
 ) -> 'SupportedDataFrames':
-    """
-    Apply column transformation configuration to a DataFrame (any backend).
-
-    Backend-agnostic function that auto-detects the DataFrame type and
-    applies transformations using the appropriate strategy.
-
-    Supports:
-    - Column renaming ("rename")
-    - Type casting ("cast") - universal type names like "integer", "number", "string", "boolean"
-    - Null filling ("null_fill") - replace nulls in existing columns
-    - Default values ("default") - add missing columns with default values
-
-    Args:
-        df: Input DataFrame (pandas, polars, ibis, pyarrow, narwhals)
-        config: SchemaConfig, dict, or JSON string
-
-    Returns:
-        Transformed DataFrame (same backend as input)
-
-    Example:
-        >>> config = {"user_id": {"rename": "id", "cast": "integer"}}
-        >>> result = apply_column_config(any_df, config)
-    """
-    # Normalize config to SchemaConfig
+    """Apply column transformation configuration to a DataFrame."""
     normalized_config = init_column_config(config)
-
-    # Use factory to get appropriate strategy
-    from mountainash.schema.transform import SchemaTransformFactory
-
-    factory = SchemaTransformFactory()
-    strategy = factory.get_strategy(df)
-    return strategy.apply(df, normalized_config)
+    return normalized_config.apply(df)
 
 
 # Convenience functions for common patterns

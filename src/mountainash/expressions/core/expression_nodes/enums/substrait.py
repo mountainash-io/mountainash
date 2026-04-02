@@ -1,7 +1,7 @@
 """Substrait extension URIs.
 
 DEPRECATED: Function key ENUMs have been moved to:
-    mountainash_expressions.core.expression_system.function_keys.enums
+    mountainash.expressions.core.expression_system.function_keys.enums
 
 This module now only contains Substrait extension URI constants for serialization.
 
@@ -20,8 +20,8 @@ import warnings
 
 # Emit deprecation warning when this module is imported
 warnings.warn(
-    "mountainash_expressions.core.expression_nodes.enums.substrait is deprecated. "
-    "Function keys have moved to mountainash_expressions.core.expression_system.function_keys.enums. "
+    "mountainash.expressions.core.expression_nodes.enums.substrait is deprecated. "
+    "Function keys have moved to mountainash.expressions.core.expression_system.function_keys.enums. "
     "Only SubstraitExtension URIs remain in this module.",
     DeprecationWarning,
     stacklevel=2,

@@ -21,7 +21,7 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # Ternary constant values for assertions (internal sentinels)

@@ -1,6 +1,6 @@
 """AST construction tests for ternary logic API builders."""
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 

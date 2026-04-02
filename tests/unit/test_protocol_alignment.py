@@ -1089,7 +1089,7 @@ class TestInheritanceIntegrity:
         violations = []
 
         classes = _collect_classes_from_package(
-            "mountainash_expressions.core.expression_api.api_builders.extensions_mountainash"
+            "mountainash.expressions.core.expression_api.api_builders.extensions_mountainash"
         )
         for cls, module_path in classes:
             for base in cls.__mro__[1:]:  # skip the class itself
@@ -1111,7 +1111,7 @@ class TestInheritanceIntegrity:
         violations = []
 
         for backend in ("polars", "ibis", "narwhals"):
-            pkg = f"mountainash_expressions.backends.expression_systems.{backend}.extensions_mountainash"
+            pkg = f"mountainash.expressions.backends.expression_systems.{backend}.extensions_mountainash"
             try:
                 classes = _collect_classes_from_package(pkg)
             except Exception:
@@ -1140,7 +1140,7 @@ class TestInheritanceIntegrity:
 
         # API builders
         classes = _collect_classes_from_package(
-            "mountainash_expressions.core.expression_api.api_builders.extensions_mountainash"
+            "mountainash.expressions.core.expression_api.api_builders.extensions_mountainash"
         )
         for cls, module_path in classes:
             if cls.__name__.startswith("Substrait"):
@@ -1148,7 +1148,7 @@ class TestInheritanceIntegrity:
 
         # Backend implementations
         for backend in ("polars", "ibis", "narwhals"):
-            pkg = f"mountainash_expressions.backends.expression_systems.{backend}.extensions_mountainash"
+            pkg = f"mountainash.expressions.backends.expression_systems.{backend}.extensions_mountainash"
             try:
                 classes = _collect_classes_from_package(pkg)
             except Exception:
@@ -1169,7 +1169,7 @@ class TestInheritanceIntegrity:
 
         # API builders
         classes = _collect_classes_from_package(
-            "mountainash_expressions.core.expression_api.api_builders.substrait"
+            "mountainash.expressions.core.expression_api.api_builders.substrait"
         )
         for cls, module_path in classes:
             if cls.__name__.startswith("MountainAsh"):
@@ -1177,7 +1177,7 @@ class TestInheritanceIntegrity:
 
         # Backend implementations
         for backend in ("polars", "ibis", "narwhals"):
-            pkg = f"mountainash_expressions.backends.expression_systems.{backend}.substrait"
+            pkg = f"mountainash.expressions.backends.expression_systems.{backend}.substrait"
             try:
                 classes = _collect_classes_from_package(pkg)
             except Exception:
@@ -1202,10 +1202,10 @@ class TestInheritanceIntegrity:
 
         # API builders
         substrait_classes = _collect_classes_from_package(
-            "mountainash_expressions.core.expression_api.api_builders.substrait"
+            "mountainash.expressions.core.expression_api.api_builders.substrait"
         )
         extension_classes = _collect_classes_from_package(
-            "mountainash_expressions.core.expression_api.api_builders.extensions_mountainash"
+            "mountainash.expressions.core.expression_api.api_builders.extensions_mountainash"
         )
         substrait_names = {cls.__name__ for cls, _ in substrait_classes}
         for cls, module_path in extension_classes:
@@ -1217,8 +1217,8 @@ class TestInheritanceIntegrity:
 
         # Backend implementations
         for backend in ("polars", "ibis", "narwhals"):
-            sub_pkg = f"mountainash_expressions.backends.expression_systems.{backend}.substrait"
-            ext_pkg = f"mountainash_expressions.backends.expression_systems.{backend}.extensions_mountainash"
+            sub_pkg = f"mountainash.expressions.backends.expression_systems.{backend}.substrait"
+            ext_pkg = f"mountainash.expressions.backends.expression_systems.{backend}.extensions_mountainash"
             try:
                 sub_classes = _collect_classes_from_package(sub_pkg)
                 ext_classes = _collect_classes_from_package(ext_pkg)
