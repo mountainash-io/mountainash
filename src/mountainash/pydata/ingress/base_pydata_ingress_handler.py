@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    pass
+    from mountainash.typespec.spec import TypeSpec
 
-from mountainash.schema.config import SchemaConfig
 from mountainash.core.types import PolarsFrame
 
 # class PydataInputType(Enum):
@@ -33,7 +32,7 @@ class BasePydataIngressHandler(ABC):
     @abstractmethod
     def convert(cls,
                 data: Any, /,
-                column_config: Optional[Union[SchemaConfig, Dict[str, Any], str]] = None
+                type_spec: Optional['TypeSpec'] = None
     ) -> PolarsFrame:
         """
         Convert input data to a Polars DataFrame.

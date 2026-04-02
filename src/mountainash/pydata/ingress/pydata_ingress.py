@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 import logging
 # from enum import Enum
 
@@ -12,7 +12,7 @@ from.pydata_ingress_factory import PydataIngressFactory
 from mountainash.core.types import PolarsFrame
 
 if TYPE_CHECKING:
-    from mountainash.schema.config import SchemaConfig
+    from mountainash.typespec.spec import TypeSpec
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class PydataIngress():
     @classmethod
     def convert(cls,
                 data: Any, /,
-                column_config: Optional[Union["SchemaConfig", Dict[str, Any], str]] = None
+                type_spec: Optional['TypeSpec'] = None
     ) -> PolarsFrame:
         """
         Convert Python data structure to Polars DataFrame.
@@ -31,7 +31,7 @@ class PydataIngress():
 
         Args:
             data: Input data (dataclass, Pydantic model, dict of lists, or list of dicts)
-            column_config: Optional column transformation configuration
+            type_spec: Optional TypeSpec for column type coercion and renaming
 
         Returns:
             pl.DataFrame: Converted DataFrame
@@ -45,4 +45,4 @@ class PydataIngress():
             True
         """
         strategy = PydataIngressFactory.get_strategy(data)
-        return strategy.convert(data, column_config=column_config)
+        return strategy.convert(data, type_spec=type_spec)

@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 import logging
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
-    pass
+    from mountainash.typespec.spec import TypeSpec
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.schema.config import SchemaConfig, init_column_config
 from mountainash.core.types import PolarsFrame
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,7 @@ class DataframeFromPylist(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                column_config: Optional[Union[SchemaConfig, Dict[str, Any], str]] = None
+                type_spec: Optional['TypeSpec'] = None
     ) -> PolarsFrame:
         """
         Convert list of dictionaries to Polars DataFrame.
@@ -41,7 +40,7 @@ class DataframeFromPylist(BasePydataIngressHandler):
         Args:
             data: List of dictionaries (row format)
                   Example: [{"col1": 1, "col2": "a"}, {"col1": 2, "col2": "b"}]
-            column_config: Optional column transformation config
+            type_spec: Optional TypeSpec for column type coercion and renaming
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -50,18 +49,16 @@ class DataframeFromPylist(BasePydataIngressHandler):
         if pl is None:
             raise ImportError("polars is required for this operation")
 
-        # Apply hybrid conversion strategy if config provided
-        if column_config is not None:
+        # Apply hybrid conversion strategy if spec provided
+        if type_spec is not None:
             from .custom_type_helpers import apply_hybrid_conversion
-
-            column_transforms: SchemaConfig = init_column_config(column_config)
 
             # HYBRID STRATEGY:
             # 1. Custom converters at edges (Python layer)
             # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data, column_transforms)
+            df = apply_hybrid_conversion(data, type_spec)
         else:
-            # No config - just create DataFrame
+            # No spec - just create DataFrame
             df = pl.DataFrame(data, strict=False)
 
         return df

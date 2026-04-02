@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 import logging
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
-    pass
+    from mountainash.typespec.spec import TypeSpec
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.schema.config import SchemaConfig, init_column_config
 from mountainash.core.types import PolarsFrame
 
 logger = logging.getLogger(__name__)
@@ -66,7 +65,7 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                column_config: Optional[Union[SchemaConfig, Dict[str, Any], str]] = None
+                type_spec: Optional['TypeSpec'] = None
         ) -> PolarsFrame:
         """
         Convert dictionary of Series to Polars DataFrame.
@@ -144,8 +143,8 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
             raise ValueError(f"Unsupported Series type from module: {module_name}")
 
         # Apply column transformations if provided
-        if column_config is not None:
-            column_transforms: SchemaConfig = init_column_config(column_config)
-            df = column_transforms.apply(df)
+        if type_spec is not None:
+            from mountainash.conform.compiler import compile_conform
+            df = compile_conform(type_spec, df)
 
         return df
