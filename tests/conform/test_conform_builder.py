@@ -82,3 +82,22 @@ class TestConformBuilderToFrictionless:
         exported = builder.to_frictionless()
         assert exported["fields"][0]["x-mountainash"]["rename_from"] == "raw_id"
         assert exported["fields"][1]["x-mountainash"]["null_fill"] == "n/a"
+
+
+class TestPublicAPI:
+    """ma.conform() and ma.typespec() entry points."""
+
+    def test_ma_conform_from_dict(self):
+        import mountainash as ma
+        builder = ma.conform({"val": {"cast": "integer"}})
+        assert isinstance(builder, ConformBuilder)
+
+    def test_ma_typespec_from_dict(self):
+        import mountainash as ma
+        spec = ma.typespec({"id": "integer", "name": "string"})
+        assert isinstance(spec, TypeSpec)
+        assert spec.fields[0].type == UniversalType.INTEGER
+
+    def test_ma_typespec_class_accessible(self):
+        import mountainash as ma
+        assert hasattr(ma, "TypeSpec")
