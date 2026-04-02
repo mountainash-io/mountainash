@@ -15,7 +15,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # =============================================================================
@@ -35,7 +35,7 @@ import mountainash_expressions as ma
 class TestBasicConditionals:
     """Test basic when-then-otherwise conditionals."""
 
-    def test_when_then_otherwise_string(self, backend_name, backend_factory, select_and_extract):
+    def test_when_then_otherwise_string(self, backend_name, backend_factory, collect_expr):
         """Test when-then-otherwise with string values."""
         data = {
             "age": [15, 25, 35, 45, 55, 65, 75],
@@ -45,16 +45,14 @@ class TestBasicConditionals:
 
         # Age category: senior if >= 65
         expr = ma.when(ma.col("age") >= 65).then("senior").otherwise("non-senior")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "category", backend_name)
+        actual = collect_expr(df, expr, alias="category")
 
         expected = ["non-senior", "non-senior", "non-senior", "non-senior", "non-senior", "senior", "senior"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_when_then_otherwise_numeric(self, backend_name, backend_factory, select_and_extract):
+    def test_when_then_otherwise_numeric(self, backend_name, backend_factory, collect_expr):
         """Test when-then-otherwise with numeric values."""
         data = {
             "age": [15, 25, 35, 45, 55, 65, 75]
@@ -63,9 +61,7 @@ class TestBasicConditionals:
 
         # Binary flag: 1 if > 50, else 0
         expr = ma.when(ma.col("age") > 50).then(1).otherwise(0)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "flag", backend_name)
+        actual = collect_expr(df, expr, alias="flag")
 
         expected = [0, 0, 0, 0, 1, 1, 1]
         assert actual == expected, (
@@ -90,7 +86,7 @@ class TestBasicConditionals:
 class TestNestedConditionals:
     """Test nested when-then-otherwise conditions."""
 
-    def test_nested_when_letter_grades(self, backend_name, backend_factory, select_and_extract):
+    def test_nested_when_letter_grades(self, backend_name, backend_factory, collect_expr):
         """Test nested conditionals for letter grades."""
         data = {
             "score": [95, 85, 75, 65, 55]
@@ -103,9 +99,7 @@ class TestNestedConditionals:
                 ma.when(ma.col("score") >= 70).then("C").otherwise("D")
             )
         )
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "grade", backend_name)
+        actual = collect_expr(df, expr, alias="grade")
 
         expected = ["A", "B", "C", "D", "D"]
         assert actual == expected, (
@@ -130,7 +124,7 @@ class TestNestedConditionals:
 class TestCoalesce:
     """Test coalesce - return first non-null value."""
 
-    def test_coalesce_multiple_columns(self, backend_name, backend_factory, select_and_extract):
+    def test_coalesce_multiple_columns(self, backend_name, backend_factory, collect_expr):
         """Test coalesce across multiple columns."""
         data = {
             "phone_mobile": ["555-1234", None, "555-5678", None],
@@ -141,9 +135,7 @@ class TestCoalesce:
 
         # Get first available phone number
         expr = ma.coalesce(ma.col("phone_mobile"), ma.col("phone_home"), ma.col("phone_work"))
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "phone", backend_name)
+        actual = collect_expr(df, expr, alias="phone")
 
         expected = ["555-1234", "555-2345", "555-5678", "555-6789"]
         assert actual == expected, (
@@ -168,7 +160,7 @@ class TestCoalesce:
 class TestFillNull:
     """Test fill_null - replace nulls with a value."""
 
-    def test_fill_null_with_zero(self, backend_name, backend_factory, select_and_extract):
+    def test_fill_null_with_zero(self, backend_name, backend_factory, collect_expr):
         """Test filling null values with zero."""
         data = {
             "score": [100, None, 85, None, 90],
@@ -178,9 +170,7 @@ class TestFillNull:
 
         # Fill null scores with 0
         expr = ma.col("score").fill_null(0)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "score_filled", backend_name)
+        actual = collect_expr(df, expr, alias="score_filled")
 
         expected = [100, 0, 85, 0, 90]
         assert actual == expected, (
@@ -205,7 +195,7 @@ class TestFillNull:
 class TestConditionalsWithBooleanLogic:
     """Test conditionals combined with boolean operations."""
 
-    def test_when_with_and_condition(self, backend_name, backend_factory, select_and_extract):
+    def test_when_with_and_condition(self, backend_name, backend_factory, collect_expr):
         """Test when with AND condition."""
         data = {
             "age": [15, 25, 35, 45],
@@ -216,16 +206,14 @@ class TestConditionalsWithBooleanLogic:
 
         # Eligible if age >= 18 AND active
         expr = ma.when((ma.col("age") >= 18) & ma.col("active")).then("eligible").otherwise("not eligible")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "status", backend_name)
+        actual = collect_expr(df, expr, alias="status")
 
         expected = ["not eligible", "eligible", "not eligible", "eligible"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_when_with_range_condition(self, backend_name, backend_factory, select_and_extract):
+    def test_when_with_range_condition(self, backend_name, backend_factory, collect_expr):
         """Test when with range condition (score between 80 and 90)."""
         data = {
             "age": [15, 25, 35, 45],
@@ -236,9 +224,7 @@ class TestConditionalsWithBooleanLogic:
 
         # Grade B if 80 <= score < 90
         expr = ma.when((ma.col("score") >= 80) & (ma.col("score") < 90)).then("B").otherwise("other")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "grade", backend_name)
+        actual = collect_expr(df, expr, alias="grade")
 
         expected = ["other", "B", "other", "other"]
         assert actual == expected, (
@@ -263,7 +249,7 @@ class TestConditionalsWithBooleanLogic:
 class TestConditionalsWithArithmetic:
     """Test conditionals combined with arithmetic operations."""
 
-    def test_conditional_arithmetic_transformation(self, backend_name, backend_factory, select_and_extract):
+    def test_conditional_arithmetic_transformation(self, backend_name, backend_factory, collect_expr):
         """Test conditional that applies arithmetic transformation."""
         data = {
             "value": [10, 20, 30, 40, 50]
@@ -272,9 +258,7 @@ class TestConditionalsWithArithmetic:
 
         # Double if > 25, otherwise keep as is
         expr = ma.when(ma.col("value") > 25).then(ma.col("value") * 2).otherwise(ma.col("value"))
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [10, 20, 60, 80, 100]
         assert actual == expected, (
@@ -299,7 +283,7 @@ class TestConditionalsWithArithmetic:
 class TestConditionalsWithStringOperations:
     """Test conditionals combined with string operations."""
 
-    def test_conditional_string_case(self, backend_name, backend_factory, select_and_extract):
+    def test_conditional_string_case(self, backend_name, backend_factory, collect_expr):
         """Test conditional with string case transformations."""
         data = {
             "name": ["alice", "BOB", "Charlie", None],
@@ -313,9 +297,7 @@ class TestConditionalsWithStringOperations:
         ).otherwise(
             ma.col("name").str.lower()
         )
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "formatted_name", backend_name)
+        actual = collect_expr(df, expr, alias="formatted_name")
 
         # alice (age 25, <=28) -> lowercase -> alice
         # BOB (age 30, >28) -> uppercase -> BOB
@@ -344,7 +326,7 @@ class TestConditionalsWithStringOperations:
 class TestConditionalEdgeCases:
     """Test edge cases for conditional operations."""
 
-    def test_all_nulls_coalesce(self, backend_name, backend_factory, select_and_extract):
+    def test_all_nulls_coalesce(self, backend_name, backend_factory, collect_expr):
         """Test coalesce when all values are null."""
         # DuckDB doesn't support creating tables with all NULL columns
         if backend_name == "ibis-duckdb":
@@ -362,16 +344,14 @@ class TestConditionalEdgeCases:
 
         # Coalesce with all nulls should return null
         expr = ma.coalesce(ma.col("a"), ma.col("b"), ma.col("c"))
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [None, None, None]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_when_all_false(self, backend_name, backend_factory, select_and_extract):
+    def test_when_all_false(self, backend_name, backend_factory, collect_expr):
         """Test when condition that's always false."""
         data = {
             "value": [1, 2, 3, 4, 5]
@@ -380,16 +360,14 @@ class TestConditionalEdgeCases:
 
         # Condition never true, should always go to otherwise
         expr = ma.when(ma.col("value") > 100).then("big").otherwise("small")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["small", "small", "small", "small", "small"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_when_all_true(self, backend_name, backend_factory, select_and_extract):
+    def test_when_all_true(self, backend_name, backend_factory, collect_expr):
         """Test when condition that's always true."""
         data = {
             "value": [1, 2, 3, 4, 5]
@@ -398,9 +376,7 @@ class TestConditionalEdgeCases:
 
         # Condition always true, should never go to otherwise
         expr = ma.when(ma.col("value") > 0).then("positive").otherwise("non-positive")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["positive", "positive", "positive", "positive", "positive"]
         assert actual == expected, (
