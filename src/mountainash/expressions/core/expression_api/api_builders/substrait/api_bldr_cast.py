@@ -56,17 +56,8 @@ class SubstraitCastAPIBuilder(BaseExpressionAPIBuilder, SubstraitCastAPIBuilderP
             >>> col("count").cast(int)    # Cast to integer
             >>> col("date_str").cast("date", failure_behavior="null")  # Safe cast
         """
-        # Normalize dtype to string representation
-        if isinstance(dtype, type):
-            type_map = {
-                int: "i64",
-                float: "f64",
-                str: "string",
-                bool: "bool",
-            }
-            target_type = type_map.get(dtype, str(dtype))
-        else:
-            target_type = str(dtype)
+        from mountainash.core.dtypes import resolve_dtype
+        target_type = resolve_dtype(dtype)
 
         # Convert enum to string value if needed
         fb = failure_behavior.value if isinstance(failure_behavior, CaseFailureBehaviour) else failure_behavior
