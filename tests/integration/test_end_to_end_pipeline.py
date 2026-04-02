@@ -7,7 +7,6 @@ Validates that typespec, conform, pydata, relations, and expressions modules wor
 import pytest
 import polars as pl
 import mountainash as ma
-from mountainash.schema.config.schema_config import SchemaConfig
 from mountainash.conform.builder import ConformBuilder
 from mountainash.pydata.ingress.pydata_ingress_factory import PydataIngressFactory
 

@@ -124,6 +124,8 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
             field_extensions["rename_from"] = fspec.rename_from
         if fspec.null_fill is not None:
             field_extensions["null_fill"] = fspec.null_fill
+        if fspec.custom_cast is not None:
+            field_extensions["custom_cast"] = fspec.custom_cast
         if field_extensions:
             field_dict["x-mountainash"] = field_extensions
 
@@ -195,6 +197,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
         rename_from: Optional[str] = field_ext.get("rename_from")
         null_fill: Any = field_ext.get("null_fill")
+        custom_cast: Optional[str] = field_ext.get("custom_cast")
 
         fields.append(
             FieldSpec(
@@ -207,6 +210,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
                 missing_values=field_missing_values,
                 rename_from=rename_from,
                 null_fill=null_fill,
+                custom_cast=custom_cast,
             )
         )
 

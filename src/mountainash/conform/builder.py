@@ -130,11 +130,20 @@ class ConformBuilder:
         """
         fields = []
         for target_name, config in columns.items():
-            cast_value = config.get("cast")
-            if cast_value is not None:
-                universal_type: UniversalType = normalize_type(cast_value)
+            cast_str = config.get("cast")
+            if cast_str is not None:
+                # Check if the cast string is a recognized UniversalType value.
+                # normalize_type() silently returns ANY for unknown types rather
+                # than raising, so we must check membership ourselves.
+                if cast_str in UniversalType._value2member_map_:
+                    universal_type: UniversalType = normalize_type(cast_str)
+                    custom: str | None = None
+                else:
+                    universal_type = UniversalType.ANY
+                    custom = cast_str
             else:
                 universal_type = UniversalType.ANY
+                custom = None
 
             rename_from = config.get("rename_from")
             null_fill = config.get("null_fill")
@@ -143,6 +152,7 @@ class ConformBuilder:
                 FieldSpec(
                     name=target_name,
                     type=universal_type,
+                    custom_cast=custom,
                     rename_from=rename_from,
                     null_fill=null_fill,
                 )

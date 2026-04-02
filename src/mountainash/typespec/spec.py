@@ -60,6 +60,7 @@ class FieldSpec:
     backend_type: Optional[str] = None
     null_fill: Any = None
     rename_from: Optional[str] = None
+    custom_cast: Optional[str] = None
 
     @property
     def source_name(self) -> str:
