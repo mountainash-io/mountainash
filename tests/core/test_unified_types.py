@@ -74,26 +74,6 @@ class TestCoreTypesImportable:
 class TestShimIdentity:
     """Types from old import paths are identical to core types."""
 
-    def test_dataframes_typing_polars_expr(self):
-        from mountainash.dataframes.core.typing import PolarsExpr as df_PolarsExpr
-        assert df_PolarsExpr is PolarsExpr
-
-    def test_dataframes_typing_supported_dataframes(self):
-        from mountainash.dataframes.core.typing import SupportedDataFrames as df_SD
-        assert df_SD is SupportedDataFrames
-
-    def test_dataframes_typing_supported_expressions(self):
-        from mountainash.dataframes.core.typing import SupportedExpressions as df_SE
-        assert df_SE is SupportedExpressions
-
-    def test_dataframes_typing_polars_frame(self):
-        from mountainash.dataframes.core.typing import PolarsFrame as df_PF
-        assert df_PF is PolarsFrame
-
-    def test_dataframes_typing_pandas_series(self):
-        from mountainash.dataframes.core.typing import PandasSeries as df_PS
-        assert df_PS is PandasSeries
-
     def test_expressions_types_polars_expr(self):
         from mountainash.expressions.types import PolarsExpr as expr_PolarsExpr
         assert expr_PolarsExpr is PolarsExpr

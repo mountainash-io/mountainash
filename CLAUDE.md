@@ -129,11 +129,8 @@ src/mountainash/
 │   │   └── unified_visitor/    # UnifiedRelationVisitor
 │   └── backends/
 │       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
-├── dataframes/                  # DEPRECATED — superseded by relations/
 ├── schema/                      # Schema definitions (ported, partial wiring)
 └── pydata/                      # PyData integrations (ported, partial wiring)
-
-src/mountainash_expressions/     # Backwards-compat shim (import hook → mountainash.expressions)
 ```
 
 For detailed file organisation see principle: `g.development-practices/file-organisation.md`

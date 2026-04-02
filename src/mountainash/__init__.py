@@ -28,10 +28,3 @@ from mountainash.relations import relation, concat  # noqa: F401
 from mountainash.schema.schema_builder import SchemaBuilder as schema  # noqa: F401
 
 """Mountainash - Unified cross-backend DataFrame expression system."""
-
-
-# Dataframes - TableBuilder fluent API
-try:
-    from mountainash.dataframes import table, TableBuilder  # noqa: F401
-except ImportError:
-    pass  # dataframes module not yet available
