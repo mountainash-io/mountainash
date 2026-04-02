@@ -14,7 +14,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 
 import pytest
 from datetime import datetime, timedelta
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # =============================================================================
@@ -34,7 +34,7 @@ import mountainash_expressions as ma
 class TestAddTimeComponents:
     """Test adding hours, minutes, seconds to datetimes."""
 
-    def test_add_hours(self, backend_name, backend_factory, select_and_extract):
+    def test_add_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding hours to datetimes."""
         data = {
             "timestamp": [
@@ -46,9 +46,7 @@ class TestAddTimeComponents:
 
         # Add 2 hours
         expr = ma.col("timestamp").dt.add_hours(2)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2024, 1, 1, 12, 30, 45),
@@ -58,7 +56,7 @@ class TestAddTimeComponents:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_add_minutes(self, backend_name, backend_factory, select_and_extract):
+    def test_add_minutes(self, backend_name, backend_factory, collect_expr):
         """Test adding minutes to datetimes."""
         data = {
             "timestamp": [
@@ -70,9 +68,7 @@ class TestAddTimeComponents:
 
         # Add 30 minutes
         expr = ma.col("timestamp").dt.add_minutes(30)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2024, 1, 1, 11, 0, 45),
@@ -82,7 +78,7 @@ class TestAddTimeComponents:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_add_seconds(self, backend_name, backend_factory, select_and_extract):
+    def test_add_seconds(self, backend_name, backend_factory, collect_expr):
         """Test adding seconds to datetimes."""
         data = {
             "timestamp": [
@@ -94,9 +90,7 @@ class TestAddTimeComponents:
 
         # Add 15 seconds
         expr = ma.col("timestamp").dt.add_seconds(15)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2024, 1, 1, 10, 31, 0),
@@ -124,7 +118,7 @@ class TestAddTimeComponents:
 class TestTimeDifferences:
     """Test calculating time differences in various units."""
 
-    def test_diff_hours(self, backend_name, backend_factory, select_and_extract):
+    def test_diff_hours(self, backend_name, backend_factory, collect_expr):
         """Test calculating difference in hours between datetimes."""
         if backend_name == "ibis-polars":
             pytest.xfail(
@@ -149,9 +143,7 @@ class TestTimeDifferences:
 
         # Calculate difference in hours
         expr = ma.col("end").dt.diff_hours(ma.col("start"))
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "diff", backend_name)
+        actual = collect_expr(df, expr, alias="diff")
 
         # 3 hours, 2.25 hours (rounded to 2 for int representation)
         expected = [3, 2]
@@ -159,7 +151,7 @@ class TestTimeDifferences:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_diff_minutes(self, backend_name, backend_factory, select_and_extract):
+    def test_diff_minutes(self, backend_name, backend_factory, collect_expr):
         """Test calculating difference in minutes between datetimes."""
         if backend_name == "ibis-polars":
             pytest.xfail(
@@ -184,9 +176,7 @@ class TestTimeDifferences:
 
         # Calculate difference in minutes
         expr = ma.col("end").dt.diff_minutes(ma.col("start"))
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "diff", backend_name)
+        actual = collect_expr(df, expr, alias="diff")
 
         # 180 minutes, 135 minutes
         expected = [180, 135]
@@ -212,7 +202,7 @@ class TestTimeDifferences:
 class TestDateTimeTruncation:
     """Test truncating datetimes to different units."""
 
-    def test_truncate_to_day(self, backend_name, backend_factory, select_and_extract):
+    def test_truncate_to_day(self, backend_name, backend_factory, collect_expr):
         """Test truncating datetime to day (midnight)."""
         data = {
             "timestamp": [
@@ -224,9 +214,7 @@ class TestDateTimeTruncation:
 
         # Truncate to day
         expr = ma.col("timestamp").dt.truncate("1d")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2024, 1, 15, 0, 0, 0),
@@ -236,7 +224,7 @@ class TestDateTimeTruncation:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_truncate_to_hour(self, backend_name, backend_factory, select_and_extract):
+    def test_truncate_to_hour(self, backend_name, backend_factory, collect_expr):
         """Test truncating datetime to hour."""
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite limitation: Hour-level truncation not supported")
@@ -251,9 +239,7 @@ class TestDateTimeTruncation:
 
         # Truncate to hour
         expr = ma.col("timestamp").dt.truncate("1h")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2024, 1, 15, 14, 0, 0),
@@ -281,7 +267,7 @@ class TestDateTimeTruncation:
 class TestFlexibleOffsetBy:
     """Test flexible duration offsets using string format."""
 
-    def test_offset_add_days_and_hours(self, backend_name, backend_factory, select_and_extract):
+    def test_offset_add_days_and_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding combined duration (1 day 2 hours)."""
         data = {
             "timestamp": [
@@ -293,9 +279,7 @@ class TestFlexibleOffsetBy:
 
         # Add 1 day 2 hours
         expr = ma.col("timestamp").dt.offset_by("1d2h")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2024, 1, 2, 12, 0, 0),
@@ -305,7 +289,7 @@ class TestFlexibleOffsetBy:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_offset_subtract_months(self, backend_name, backend_factory, select_and_extract):
+    def test_offset_subtract_months(self, backend_name, backend_factory, collect_expr):
         """Test subtracting months."""
         if backend_name == "ibis-polars":
             pytest.xfail(
@@ -326,9 +310,7 @@ class TestFlexibleOffsetBy:
 
         # Subtract 3 months
         expr = ma.col("timestamp").dt.offset_by("-3mo")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [
             datetime(2023, 10, 1, 10, 0, 0),
@@ -356,7 +338,7 @@ class TestFlexibleOffsetBy:
 class TestChainingTimeOperations:
     """Test chaining multiple temporal operations."""
 
-    def test_chain_add_and_truncate(self, backend_name, backend_factory, select_and_extract):
+    def test_chain_add_and_truncate(self, backend_name, backend_factory, collect_expr):
         """Test chaining: add hours, add minutes, then truncate."""
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite limitation: Hour-level truncation not supported")
@@ -374,16 +356,14 @@ class TestChainingTimeOperations:
             .dt.add_minutes(30)
             .dt.truncate("1h")
         )
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [datetime(2024, 1, 1, 12, 0, 0)]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_chain_multiple_additions(self, backend_name, backend_factory, select_and_extract):
+    def test_chain_multiple_additions(self, backend_name, backend_factory, collect_expr):
         """Test chaining multiple time additions."""
         data = {
             "timestamp": [datetime(2024, 1, 1, 10, 0, 0)]
@@ -398,9 +378,7 @@ class TestChainingTimeOperations:
             .dt.add_hours(2)
             .dt.add_minutes(30)
         )
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [datetime(2024, 1, 2, 12, 30, 0)]
         assert actual == expected, (
@@ -425,7 +403,7 @@ class TestChainingTimeOperations:
 class TestTemporalEdgeCases:
     """Test edge cases for temporal operations."""
 
-    def test_add_zero_hours(self, backend_name, backend_factory, select_and_extract):
+    def test_add_zero_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding zero hours (should return same timestamp)."""
         data = {
             "timestamp": [datetime(2024, 1, 1, 10, 30, 45)]
@@ -433,16 +411,14 @@ class TestTemporalEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.add_hours(0)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [datetime(2024, 1, 1, 10, 30, 45)]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_add_negative_hours(self, backend_name, backend_factory, select_and_extract):
+    def test_add_negative_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding negative hours (subtraction)."""
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite limitation: Negative time addition produces NaT")
@@ -454,9 +430,7 @@ class TestTemporalEdgeCases:
 
         # Add -2 hours (subtract 2 hours)
         expr = ma.col("timestamp").dt.add_hours(-2)
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [datetime(2024, 1, 1, 8, 30, 45)]
         assert actual == expected, (
@@ -481,7 +455,7 @@ class TestTemporalEdgeCases:
 class TestDateTimeExtraction:
     """Test extracting components from date/time values."""
 
-    def test_extract_year(self, backend_name, backend_factory, select_and_extract):
+    def test_extract_year(self, backend_name, backend_factory, collect_expr):
         """Test extracting year from datetime."""
         data = {
             "timestamp": [
@@ -493,16 +467,14 @@ class TestDateTimeExtraction:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.year()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "year", backend_name)
+        actual = collect_expr(df, expr, alias="year")
 
         expected = [2024, 2023, 2025]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_extract_month(self, backend_name, backend_factory, select_and_extract):
+    def test_extract_month(self, backend_name, backend_factory, collect_expr):
         """Test extracting month from datetime."""
         data = {
             "timestamp": [
@@ -514,16 +486,14 @@ class TestDateTimeExtraction:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.month()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "month", backend_name)
+        actual = collect_expr(df, expr, alias="month")
 
         expected = [3, 12, 1]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_extract_day(self, backend_name, backend_factory, select_and_extract):
+    def test_extract_day(self, backend_name, backend_factory, collect_expr):
         """Test extracting day from datetime."""
         data = {
             "timestamp": [
@@ -535,16 +505,14 @@ class TestDateTimeExtraction:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.day()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "day", backend_name)
+        actual = collect_expr(df, expr, alias="day")
 
         expected = [15, 25, 1]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_extract_hour(self, backend_name, backend_factory, select_and_extract):
+    def test_extract_hour(self, backend_name, backend_factory, collect_expr):
         """Test extracting hour from datetime."""
         data = {
             "timestamp": [
@@ -556,16 +524,14 @@ class TestDateTimeExtraction:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.hour()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "hour", backend_name)
+        actual = collect_expr(df, expr, alias="hour")
 
         expected = [10, 23, 0]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_extract_minute(self, backend_name, backend_factory, select_and_extract):
+    def test_extract_minute(self, backend_name, backend_factory, collect_expr):
         """Test extracting minute from datetime."""
         data = {
             "timestamp": [
@@ -577,16 +543,14 @@ class TestDateTimeExtraction:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.minute()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "minute", backend_name)
+        actual = collect_expr(df, expr, alias="minute")
 
         expected = [30, 45, 0]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_extract_second(self, backend_name, backend_factory, select_and_extract):
+    def test_extract_second(self, backend_name, backend_factory, collect_expr):
         """Test extracting second from datetime."""
         data = {
             "timestamp": [
@@ -598,9 +562,7 @@ class TestDateTimeExtraction:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("timestamp").dt.second()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "second", backend_name)
+        actual = collect_expr(df, expr, alias="second")
 
         expected = [45, 30, 0]
         assert actual == expected, (
