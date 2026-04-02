@@ -13,7 +13,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # =============================================================================
@@ -34,7 +34,7 @@ import mountainash_expressions as ma
 class TestBasicArithmetic:
     """Test basic arithmetic operations across all backends."""
 
-    def test_addition(self, backend_name, backend_factory, select_and_extract):
+    def test_addition(self, backend_name, backend_factory, collect_expr):
         """Test addition operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -43,17 +43,16 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").add(ma.col("b"))
-        backend_expr = expr.compile(df)
 
         # Use helper - replaces 9 lines with 1!
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [12, 23, 34, 45, 56]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_subtraction(self, backend_name, backend_factory, select_and_extract):
+    def test_subtraction(self, backend_name, backend_factory, collect_expr):
         """Test subtraction operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -62,16 +61,15 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").subtract(ma.col("b"))
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [8, 17, 26, 35, 44]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiplication(self, backend_name, backend_factory, select_and_extract):
+    def test_multiplication(self, backend_name, backend_factory, collect_expr):
         """Test multiplication operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -80,9 +78,8 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").multiply(ma.col("c"))
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
 
         expected = [10, 40, 90, 160, 250]
@@ -90,7 +87,7 @@ class TestBasicArithmetic:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_division(self, backend_name, backend_factory, select_and_extract):
+    def test_division(self, backend_name, backend_factory, collect_expr):
         """Test division operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -99,9 +96,8 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").divide(ma.col("b"))
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [10/2, 20/3, 30/4, 40/5, 50/6]
 
@@ -111,7 +107,7 @@ class TestBasicArithmetic:
                 f"[{backend_name}] At index {i}: expected {exp}, got {act}"
             )
 
-    def test_modulo(self, backend_name, backend_factory, select_and_extract):
+    def test_modulo(self, backend_name, backend_factory, collect_expr):
         """Test modulo operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -120,16 +116,15 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").modulo(ma.col("b"))
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [0, 2, 2, 0, 2]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_power(self, backend_name, backend_factory, select_and_extract):
+    def test_power(self, backend_name, backend_factory, collect_expr):
         """Test power operation."""
         data = {
             "c": [1, 2, 3, 4, 5]
@@ -137,16 +132,15 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("c").power(2)
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [1, 4, 9, 16, 25]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_floor_division(self, backend_name, backend_factory, select_and_extract):
+    def test_floor_division(self, backend_name, backend_factory, collect_expr):
         """Test floor division operation."""
         data = {
             "a": [10, 20, 30, 40, 50],
@@ -155,9 +149,8 @@ class TestBasicArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").floor_divide(ma.col("b"))
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [5, 6, 7, 8, 8]
         assert actual == expected, (
@@ -183,7 +176,7 @@ class TestBasicArithmetic:
 class TestPythonMagicOperators:
     """Test Python magic operators (+, -, *, /, etc.)."""
 
-    def test_plus_operator(self, backend_name, backend_factory, select_and_extract):
+    def test_plus_operator(self, backend_name, backend_factory, collect_expr):
         """Test + operator."""
         data = {
             "x": [10, 20, 30],
@@ -192,16 +185,15 @@ class TestPythonMagicOperators:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("x") + ma.col("y")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [12, 24, 35]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_minus_operator(self, backend_name, backend_factory, select_and_extract):
+    def test_minus_operator(self, backend_name, backend_factory, collect_expr):
         """Test - operator."""
         data = {
             "x": [10, 20, 30],
@@ -210,16 +202,15 @@ class TestPythonMagicOperators:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("x") - ma.col("y")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [8, 16, 25]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiply_operator(self, backend_name, backend_factory, select_and_extract):
+    def test_multiply_operator(self, backend_name, backend_factory, collect_expr):
         """Test * operator."""
         data = {
             "x": [10, 20, 30],
@@ -228,16 +219,15 @@ class TestPythonMagicOperators:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("x") * ma.col("y")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [20, 80, 150]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_divide_operator(self, backend_name, backend_factory, select_and_extract):
+    def test_divide_operator(self, backend_name, backend_factory, collect_expr):
         """Test / operator."""
         data = {
             "x": [10, 20, 30],
@@ -246,9 +236,8 @@ class TestPythonMagicOperators:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("x") / ma.col("y")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [5.0, 5.0, 6.0]
 
@@ -276,7 +265,7 @@ class TestPythonMagicOperators:
 class TestComplexArithmetic:
     """Test chaining and complex arithmetic operations."""
 
-    def test_chained_operations(self, backend_name, backend_factory, select_and_extract):
+    def test_chained_operations(self, backend_name, backend_factory, collect_expr):
         """Test chaining multiple arithmetic operations."""
         data = {
             "a": [10, 20, 30],
@@ -287,16 +276,15 @@ class TestComplexArithmetic:
 
         # (a + b) * c
         expr = (ma.col("a") + ma.col("b")) * ma.col("c")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [12, 46, 102]  # (10+2)*1=12, (20+3)*2=46, (30+4)*3=102
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_mixed_literals_and_columns(self, backend_name, backend_factory, select_and_extract):
+    def test_mixed_literals_and_columns(self, backend_name, backend_factory, collect_expr):
         """Test mixing literal values with column references."""
         data = {
             "a": [10, 20, 30]
@@ -305,9 +293,8 @@ class TestComplexArithmetic:
 
         # a * 2 + 5
         expr = ma.col("a") * 2 + 5
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [25, 45, 65]  # 10*2+5=25, 20*2+5=45, 30*2+5=65
         assert actual == expected, (
@@ -333,7 +320,7 @@ class TestComplexArithmetic:
 class TestArithmeticEdgeCases:
     """Test edge cases for arithmetic operations."""
 
-    def test_negative_numbers(self, backend_name, backend_factory, select_and_extract):
+    def test_negative_numbers(self, backend_name, backend_factory, collect_expr):
         """Test arithmetic with negative numbers."""
         data = {
             "a": [-10, -20, 30],
@@ -342,16 +329,15 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") + ma.col("b")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [-8, -23, 34]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_zero_operations(self, backend_name, backend_factory, select_and_extract):
+    def test_zero_operations(self, backend_name, backend_factory, collect_expr):
         """Test arithmetic with zero."""
         data = {
             "a": [10, 0, 30],
@@ -361,9 +347,8 @@ class TestArithmeticEdgeCases:
 
         # Add zero (should return same values)
         expr = ma.col("a") + ma.col("zero")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [10, 0, 30]
         assert actual == expected, (
@@ -371,7 +356,7 @@ class TestArithmeticEdgeCases:
         )
 
 
-    def test_large_numbers(self, backend_name, backend_factory, select_and_extract):
+    def test_large_numbers(self, backend_name, backend_factory, collect_expr):
         """Test arithmetic with large numbers."""
         data = {
             "a": [1000000, 2000000, 3000000],
@@ -380,16 +365,15 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") + ma.col("b")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [1500000, 3000000, 4500000]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_floating_point_operations(self, backend_name, backend_factory, select_and_extract):
+    def test_floating_point_operations(self, backend_name, backend_factory, collect_expr):
         """Test arithmetic with floating point numbers."""
         data = {
             "a": [1.5, 2.5, 3.5],
@@ -398,16 +382,15 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") + ma.col("b")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [2.0, 4.0, 6.0]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_power_with_zero(self, backend_name, backend_factory, select_and_extract):
+    def test_power_with_zero(self, backend_name, backend_factory, collect_expr):
         """Test power operation with zero exponent."""
         data = {
             "a": [5, 10, 100]
@@ -416,16 +399,15 @@ class TestArithmeticEdgeCases:
 
         # Any number to the power of 0 should be 1
         expr = ma.col("a") ** 0
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [1, 1, 1]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_power_with_one(self, backend_name, backend_factory, select_and_extract):
+    def test_power_with_one(self, backend_name, backend_factory, collect_expr):
         """Test power operation with one as exponent."""
         data = {
             "a": [5, 10, 100]
@@ -434,16 +416,15 @@ class TestArithmeticEdgeCases:
 
         # Any number to the power of 1 should be itself
         expr = ma.col("a") ** 1
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [5, 10, 100]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_floor_division_with_negatives(self, backend_name, backend_factory, select_and_extract):
+    def test_floor_division_with_negatives(self, backend_name, backend_factory, collect_expr):
         """Test floor division with negative numbers."""
         data = {
             "a": [-10, 10, -10],
@@ -452,9 +433,8 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") // ma.col("b")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Floor division rounds toward negative infinity
         expected = [-4, -4, 3]
@@ -462,7 +442,7 @@ class TestArithmeticEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_modulo_with_negatives(self, backend_name, backend_factory, select_and_extract):
+    def test_modulo_with_negatives(self, backend_name, backend_factory, collect_expr):
         """Test modulo operation with negative numbers.
 
         KNOWN ISSUE: SQLite and DuckDB use different modulo semantics than Python.
@@ -492,9 +472,8 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") % ma.col("b")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Python modulo: result has same sign as divisor
         # This is the EXPECTED behavior for consistency
@@ -504,7 +483,7 @@ class TestArithmeticEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiply_by_zero(self, backend_name, backend_factory, select_and_extract):
+    def test_multiply_by_zero(self, backend_name, backend_factory, collect_expr):
         """Test multiplication by zero."""
         data = {
             "a": [10, 20, 30, -5]
@@ -512,16 +491,15 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") * 0
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [0, 0, 0, 0]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_multiply_by_one(self, backend_name, backend_factory, select_and_extract):
+    def test_multiply_by_one(self, backend_name, backend_factory, collect_expr):
         """Test multiplication by one (identity)."""
         data = {
             "a": [10, 20, 30, -5]
@@ -529,17 +507,16 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a") * 1
-        backend_expr = expr.compile(df)
 
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [10, 20, 30, -5]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_subtract_from_zero(self, backend_name, backend_factory, select_and_extract):
+    def test_subtract_from_zero(self, backend_name, backend_factory, collect_expr):
         """Test subtracting from zero (negation)."""
         from ibis.common.exceptions import InputTypeError
 
@@ -558,17 +535,13 @@ class TestArithmeticEdgeCases:
                 result = df.select(backend_expr.name("result"))
                 _ = result["result"].execute().tolist()
         else:
-            backend_expr = expr.compile(df)
-            result = df.select(backend_expr.alias("result"))
-            if backend_name == "narwhals-ibis":
-                result = result.collect()
-            actual = result["result"].to_list()
+            actual = collect_expr(df, expr)
             expected = [-10, 20, -30, 0]
             assert actual == expected, (
                 f"[{backend_name}] Expected {expected}, got {actual}"
             )
 
-    def test_complex_chained_operations(self, backend_name, backend_factory, select_and_extract):
+    def test_complex_chained_operations(self, backend_name, backend_factory, collect_expr):
         """Test complex chained arithmetic operations.
 
         KNOWN ISSUE: SQLite performs integer division instead of float division.
@@ -601,9 +574,8 @@ class TestArithmeticEdgeCases:
 
         # (a + b) * c - a / b
         expr = (ma.col("a") + ma.col("b")) * ma.col("c") - ma.col("a") / ma.col("b")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # (10+2)*5 - 10/2 = 60 - 5.0 = 55.0
         # (20+3)*10 - 20/3 = 230 - 6.666... = 223.333...
@@ -618,7 +590,7 @@ class TestArithmeticEdgeCases:
             assert math.isclose(a, e, rel_tol=1e-9), \
                 f"[{backend_name}] At index {i}: expected {e}, got {a}"
 
-    def test_mixed_integer_float(self, backend_name, backend_factory, select_and_extract):
+    def test_mixed_integer_float(self, backend_name, backend_factory, collect_expr):
         """Test operations with mixed integer and float types."""
         data = {
             "int_col": [10, 20, 30],
@@ -627,9 +599,8 @@ class TestArithmeticEdgeCases:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("int_col") * ma.col("float_col")
-        backend_expr = expr.compile(df)
 
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [25.0, 70.0, 135.0]
         assert actual == expected, (
