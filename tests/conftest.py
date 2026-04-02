@@ -492,29 +492,6 @@ def assert_parameter_sensitivity(collect_expr) -> Callable:
 
 
 @pytest.fixture
-def get_column_values() -> Callable:
-    """
-    Helper to extract column values as list from any backend.
-
-    Returns:
-        Callable that takes (df, column, backend_name) and returns list
-
-    Usage:
-        values = get_column_values(df, "age", "polars")
-        assert values == [25, 30, 35]
-    """
-    def _get_values(df: Any, column: str, backend_name: str) -> List:
-        if backend_name.startswith("ibis-"):
-            return df[column].execute().tolist()
-        elif backend_name in ["polars", "pandas", "narwhals"]:
-            # Pandas is routed through narwhals, so all use .to_list()
-            return df[column].to_list()
-        else:
-            raise ValueError(f"Unknown backend: {backend_name}")
-    return _get_values
-
-
-@pytest.fixture
 def get_scalar_result() -> Callable:
     """
     Helper to extract scalar result from aggregation operations.

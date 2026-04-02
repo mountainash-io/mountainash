@@ -327,27 +327,3 @@ def assert_backend_results_equal(
     if not BackendResultHelper.compare_with_tolerance(actual, expected, tolerance):
         error_msg = f"{message} [{backend_name}]: expected {expected}, got {actual}"
         raise AssertionError(error_msg)
-
-
-def select_and_collect(
-    df: Any, backend_expr: Any, column_alias: str, backend_name: str
-) -> List:
-    """Select an expression and extract values as a Python list.
-
-    Uses PyArrow for Ibis backends to avoid pandas NaN/null conflation.
-
-    Args:
-        df: DataFrame from any backend
-        backend_expr: Compiled backend expression
-        column_alias: Name for the result column
-        backend_name: Backend identifier
-
-    Returns:
-        List of column values
-    """
-    if backend_name.startswith("ibis-"):
-        result = df.select(backend_expr.name(column_alias))
-        return result.to_pyarrow()[column_alias].to_pylist()
-    else:
-        result = df.select(backend_expr.alias(column_alias))
-        return result[column_alias].to_list()
