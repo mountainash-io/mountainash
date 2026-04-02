@@ -9,11 +9,6 @@ import pytest
 import mountainash.expressions as ma
 from mountainash.core.dtypes import MountainashDtype
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from fixtures.backend_helpers import select_and_collect
-
 
 ALL_BACKENDS = [
     "polars",
@@ -47,12 +42,11 @@ class TestCanonicalTypeStrings:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     @pytest.mark.parametrize("dtype,input_data", INT_CASTABLE_TYPES,
                              ids=[t[0] for t in INT_CASTABLE_TYPES])
-    def test_canonical_type_accepted(self, backend_name, backend_factory, dtype, input_data):
+    def test_canonical_type_accepted(self, backend_name, backend_factory, collect_expr, dtype, input_data):
         data = {"value": input_data}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(dtype)
-        backend_expr = expr.compile(df)
-        values = select_and_collect(df, backend_expr, "result", backend_name)
+        values = collect_expr(df, expr)
         assert len(values) == len(input_data), (
             f"[{backend_name}] cast to {dtype!r}: expected {len(input_data)} values, got {len(values)}"
         )
@@ -84,14 +78,14 @@ class TestTypeAliases:
     @pytest.mark.parametrize("alias,canonical", ALIAS_PAIRS,
                              ids=[f"{a}->{c}" for a, c in ALIAS_PAIRS])
     def test_alias_produces_same_result_as_canonical(
-        self, backend_name, backend_factory, alias, canonical
+        self, backend_name, backend_factory, collect_expr, alias, canonical
     ):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
         expr_alias = ma.col("value").cast(alias)
         expr_canonical = ma.col("value").cast(canonical)
-        values_alias = select_and_collect(df, expr_alias.compile(df), "r1", backend_name)
-        values_canonical = select_and_collect(df, expr_canonical.compile(df), "r2", backend_name)
+        values_alias = collect_expr(df, expr_alias)
+        values_canonical = collect_expr(df, expr_canonical)
         assert values_alias == values_canonical, (
             f"[{backend_name}] alias {alias!r} produced {values_alias}, "
             f"canonical {canonical!r} produced {values_canonical}"
@@ -102,44 +96,44 @@ class TestTypeAliases:
 class TestNativeTypesOwnBackend:
     """Native backend types work when passed to their own backend."""
 
-    def test_polars_native_on_polars(self, backend_factory):
+    def test_polars_native_on_polars(self, backend_factory, collect_expr):
         import polars as pl
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(pl.Int64)
-        values = select_and_collect(df, expr.compile(df), "result", "polars")
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
-    def test_polars_utf8_on_polars(self, backend_factory):
+    def test_polars_utf8_on_polars(self, backend_factory, collect_expr):
         import polars as pl
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(pl.Utf8)
-        values = select_and_collect(df, expr.compile(df), "result", "polars")
+        values = collect_expr(df, expr)
         assert values == ["1", "2", "3"]
 
-    def test_narwhals_native_on_narwhals(self, backend_factory):
+    def test_narwhals_native_on_narwhals(self, backend_factory, collect_expr):
         import narwhals as nw
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(nw.Int64)
-        values = select_and_collect(df, expr.compile(df), "result", "narwhals")
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
-    def test_narwhals_string_on_narwhals(self, backend_factory):
+    def test_narwhals_string_on_narwhals(self, backend_factory, collect_expr):
         import narwhals as nw
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(nw.String)
-        values = select_and_collect(df, expr.compile(df), "result", "narwhals")
+        values = collect_expr(df, expr)
         assert values == ["1", "2", "3"]
 
-    def test_ibis_native_on_ibis_duckdb(self, backend_factory):
+    def test_ibis_native_on_ibis_duckdb(self, backend_factory, collect_expr):
         import ibis.expr.datatypes as dt
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(dt.int64)
-        values = select_and_collect(df, expr.compile(df), "result", "ibis-duckdb")
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
 
@@ -147,44 +141,44 @@ class TestNativeTypesOwnBackend:
 class TestNativeTypesCrossBackend:
     """Native types from one backend resolve via str() on another backend."""
 
-    def test_polars_int64_on_ibis(self, backend_factory):
+    def test_polars_int64_on_ibis(self, backend_factory, collect_expr):
         import polars as pl
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(pl.Int64)
-        values = select_and_collect(df, expr.compile(df), "result", "ibis-duckdb")
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
-    def test_polars_utf8_on_narwhals(self, backend_factory):
+    def test_polars_utf8_on_narwhals(self, backend_factory, collect_expr):
         import polars as pl
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(pl.Utf8)
-        values = select_and_collect(df, expr.compile(df), "result", "narwhals")
+        values = collect_expr(df, expr)
         assert values == ["1", "2", "3"]
 
-    def test_narwhals_string_on_polars(self, backend_factory):
+    def test_narwhals_string_on_polars(self, backend_factory, collect_expr):
         import narwhals as nw
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(nw.String)
-        values = select_and_collect(df, expr.compile(df), "result", "polars")
+        values = collect_expr(df, expr)
         assert values == ["1", "2", "3"]
 
-    def test_narwhals_int64_on_ibis(self, backend_factory):
+    def test_narwhals_int64_on_ibis(self, backend_factory, collect_expr):
         import narwhals as nw
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(nw.Int64)
-        values = select_and_collect(df, expr.compile(df), "result", "ibis-duckdb")
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
-    def test_polars_uint16_on_ibis(self, backend_factory):
+    def test_polars_uint16_on_ibis(self, backend_factory, collect_expr):
         import polars as pl
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "ibis-polars")
         expr = ma.col("value").cast(pl.UInt16)
-        values = select_and_collect(df, expr.compile(df), "result", "ibis-polars")
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
 
@@ -213,34 +207,34 @@ class TestInvalidTypeStrings:
 class TestPythonBuiltinTypes:
     """Python built-in types (int, float, str, bool) work in cast()."""
 
-    def test_cast_with_python_int(self, backend_name, backend_factory):
+    def test_cast_with_python_int(self, backend_name, backend_factory, collect_expr):
         if backend_name == "ibis-duckdb":
             pytest.xfail("DuckDB uses banker's rounding for float-to-int cast.")
         data = {"value": [1.5, 2.5, 3.5]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(int)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
-    def test_cast_with_python_float(self, backend_name, backend_factory):
+    def test_cast_with_python_float(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(float)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == [1.0, 2.0, 3.0]
 
-    def test_cast_with_python_str(self, backend_name, backend_factory):
+    def test_cast_with_python_str(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(str)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == ["1", "2", "3"]
 
-    def test_cast_with_python_bool(self, backend_name, backend_factory):
+    def test_cast_with_python_bool(self, backend_name, backend_factory, collect_expr):
         data = {"value": [0, 1, 0]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(bool)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == [False, True, False]
 
 
@@ -249,32 +243,32 @@ class TestPythonBuiltinTypes:
 class TestMountainashDtypeEnum:
     """MountainashDtype enum members work directly in cast()."""
 
-    def test_cast_with_enum_i64(self, backend_name, backend_factory):
+    def test_cast_with_enum_i64(self, backend_name, backend_factory, collect_expr):
         if backend_name == "ibis-duckdb":
             pytest.xfail("DuckDB uses banker's rounding for float-to-int cast.")
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(MountainashDtype.I64)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == [1, 2, 3]
 
-    def test_cast_with_enum_string(self, backend_name, backend_factory):
+    def test_cast_with_enum_string(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(MountainashDtype.STRING)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == ["1", "2", "3"]
 
-    def test_cast_with_enum_fp64(self, backend_name, backend_factory):
+    def test_cast_with_enum_fp64(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(MountainashDtype.FP64)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == [1.0, 2.0, 3.0]
 
-    def test_cast_with_enum_bool(self, backend_name, backend_factory):
+    def test_cast_with_enum_bool(self, backend_name, backend_factory, collect_expr):
         data = {"value": [0, 1, 0]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(MountainashDtype.BOOL)
-        values = select_and_collect(df, expr.compile(df), "result", backend_name)
+        values = collect_expr(df, expr)
         assert values == [False, True, False]
