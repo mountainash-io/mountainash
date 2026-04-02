@@ -2,8 +2,7 @@
 mountainash.typespec — Universal type system foundation.
 
 This package provides the type vocabulary that all schema and conformance
-operations depend on. It is deliberately minimal at this stage; further
-modules will be added as Tasks 2–7 are completed.
+operations depend on.
 """
 from __future__ import annotations
 
@@ -28,6 +27,44 @@ from mountainash.typespec.universal_types import (
 from mountainash.typespec.type_bridge import (
     UNIVERSAL_TO_MOUNTAINASH,
     bridge_type,
+)
+from mountainash.typespec.spec import (
+    FieldConstraints,
+    FieldSpec,
+    TypeSpec,
+    SpecDiff,
+    compare_specs,
+)
+from mountainash.typespec.extraction import (
+    extract_from_dataframe,
+    extract_from_dataclass,
+    extract_from_pydantic,
+    extract_schema_from_dataframe,
+    extract_schema_from_dataclass,
+    extract_schema_from_pydantic,
+    from_dataframe,
+    from_dataclass,
+    from_pydantic,
+)
+from mountainash.typespec.validation import (
+    SchemaValidationError,
+    validate_match,
+    assert_match,
+    validate_schema_match,
+    assert_schema_match,
+)
+from mountainash.typespec.converters import (
+    to_polars_schema,
+    to_pandas_dtypes,
+    to_arrow_schema,
+    to_ibis_schema,
+    convert_to_backend,
+)
+from mountainash.typespec.custom_types import (
+    TypeConverter,
+    NarwhalsConverter,
+    TypeConverterSpec,
+    CustomTypeRegistry,
 )
 
 __all__ = [
@@ -60,4 +97,42 @@ __all__ = [
     # Type bridge
     "UNIVERSAL_TO_MOUNTAINASH",
     "bridge_type",
+
+    # Spec classes
+    "FieldConstraints",
+    "FieldSpec",
+    "TypeSpec",
+    "SpecDiff",
+    "compare_specs",
+
+    # Extraction functions
+    "extract_from_dataframe",
+    "extract_from_dataclass",
+    "extract_from_pydantic",
+    "extract_schema_from_dataframe",
+    "extract_schema_from_dataclass",
+    "extract_schema_from_pydantic",
+    "from_dataframe",
+    "from_dataclass",
+    "from_pydantic",
+
+    # Validation
+    "SchemaValidationError",
+    "validate_match",
+    "assert_match",
+    "validate_schema_match",
+    "assert_schema_match",
+
+    # Converters
+    "to_polars_schema",
+    "to_pandas_dtypes",
+    "to_arrow_schema",
+    "to_ibis_schema",
+    "convert_to_backend",
+
+    # Custom types
+    "TypeConverter",
+    "NarwhalsConverter",
+    "TypeConverterSpec",
+    "CustomTypeRegistry",
 ]
