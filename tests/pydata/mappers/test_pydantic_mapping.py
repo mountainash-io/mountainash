@@ -6,7 +6,6 @@ Pydantic v1 and v2.
 """
 
 from collections import namedtuple
-from typing import List
 import pytest
 
 # Check if pydantic is available

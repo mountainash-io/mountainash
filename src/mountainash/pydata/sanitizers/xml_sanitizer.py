@@ -143,7 +143,7 @@ def restore_special_characters(value: Any) -> Any:
         return value
 
 
-def validate_file_xsd(file_path: UPath | str, xsd_path: UPath | str) -> bool:
+def validate_file_xsd(file_path: UPath | str, xsd_path: UPath | str) -> bool | None:
     """Validate an XML file against an XSD schema (stub — not yet implemented).
 
     Args:

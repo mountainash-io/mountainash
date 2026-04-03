@@ -5,7 +5,7 @@ Provides functions for validating that DataFrames match expected TypeSpec schema
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Tuple, Optional
+from typing import TYPE_CHECKING, List, Tuple
 import logging
 
 if TYPE_CHECKING:

@@ -59,7 +59,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions
 | protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
 | expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
 | node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
-| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types |
+| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types; ForeignKey/ForeignKeyReference for cross-table relationships; enum_weights for weighted enums |
 
 ### c. API Design
 

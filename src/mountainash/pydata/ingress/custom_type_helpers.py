@@ -42,7 +42,6 @@ def separate_conversions(
         >>> python_only, narwhals, native = separate_conversions(spec)
     """
     from mountainash.typespec.custom_types import CustomTypeRegistry
-    from mountainash.typespec.universal_types import UniversalType
 
     python_only: Dict[str, "FieldSpec"] = {}
     narwhals: Dict[str, "FieldSpec"] = {}
