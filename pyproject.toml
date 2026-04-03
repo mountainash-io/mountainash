@@ -67,3 +67,32 @@ tests = ["tests", "*/mountainash-expressions/tests"]
 exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]
 
 
+# ============================================================================
+# Ruff Configuration
+# ============================================================================
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "FA",     # flake8-future-annotations
+    "TCH",    # flake8-type-checking
+]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py files re-export symbols intentionally
+"__init__.py" = ["F401"]
+# Expression backend files legitimately import their backend eagerly
+"src/mountainash/expressions/backends/**" = ["TCH001", "TCH002"]
+# Relation backend files legitimately import their backend eagerly
+"src/mountainash/relations/backends/**" = ["TCH001", "TCH002"]
+# Pydantic node files need enum/type imports at runtime for field definitions
+"src/mountainash/expressions/core/expression_nodes/**" = ["TCH001", "TCH002", "TCH003"]
+"src/mountainash/relations/core/relation_nodes/**" = ["TCH001", "TCH002", "TCH003"]
+# Relation protocol files use types in Protocol definitions (Pydantic-based)
+"src/mountainash/relations/core/relation_protocols/**" = ["TCH001", "TCH002"]
+
