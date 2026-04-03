@@ -18,6 +18,14 @@ from mountainash.pydata.mappers.dataclass_mapping import (
     map_list_of_tuples_to_dataclasses,
     map_list_of_namedtuples_to_dataclasses,
 )
+from mountainash.pydata.mappers.pydantic_mapping import (
+    map_dict_to_pydantic,
+    map_tuple_to_pydantic,
+    map_namedtuple_to_pydantic,
+    map_list_of_dicts_to_pydantic,
+    map_list_of_tuples_to_pydantic,
+    map_list_of_namedtuples_to_pydantic,
+)
 
 __all__ = [
     "create_all_none_dataclass",
@@ -35,4 +43,10 @@ __all__ = [
     "map_list_of_dicts_to_dataclasses",
     "map_list_of_tuples_to_dataclasses",
     "map_list_of_namedtuples_to_dataclasses",
+    "map_dict_to_pydantic",
+    "map_tuple_to_pydantic",
+    "map_namedtuple_to_pydantic",
+    "map_list_of_dicts_to_pydantic",
+    "map_list_of_tuples_to_pydantic",
+    "map_list_of_namedtuples_to_pydantic",
 ]
