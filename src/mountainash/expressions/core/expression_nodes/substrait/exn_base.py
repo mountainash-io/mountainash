@@ -12,8 +12,6 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
 
-if TYPE_CHECKING:
-    pass  # substrait types would go here when implementing serialization
 
 
 class ExpressionNode(BaseModel, ABC):

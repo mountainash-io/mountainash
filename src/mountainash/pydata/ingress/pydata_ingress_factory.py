@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 import logging
-from enum import Enum
 
 from mountainash.core.factories import BaseStrategyFactory
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
@@ -10,6 +9,7 @@ from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 
 if TYPE_CHECKING:
+    from enum import Enum
     from mountainash.core.types import PolarsFrame
     from mountainash.typespec.spec import TypeSpec
 

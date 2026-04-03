@@ -7,10 +7,13 @@ from __future__ import annotations
 
 
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ...api_base import BaseExpressionAPI
 
 from mountainash.expressions.core.expression_nodes import LiteralNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNativeAPIBuilderProtocol
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...api_base import BaseExpressionAPI
 
 
 

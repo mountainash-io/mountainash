@@ -12,8 +12,6 @@ from ..api_builder_base import BaseExpressionAPIBuilder
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitLiteralAPIBuilderProtocol
 
 
-if TYPE_CHECKING:
-    pass
 
 
 class SubstraitLiteralAPIBuilder(BaseExpressionAPIBuilder, SubstraitLiteralAPIBuilderProtocol):

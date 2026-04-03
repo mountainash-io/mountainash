@@ -9,15 +9,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ...api_base import BaseExpressionAPI
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarStringAPIBuilderProtocol
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
+    from ...api_base import BaseExpressionAPI
+    from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 
 class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarStringAPIBuilderProtocol):

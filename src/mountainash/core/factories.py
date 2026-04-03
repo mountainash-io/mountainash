@@ -15,9 +15,9 @@ import importlib
 import importlib.util
 import logging
 import re
-from enum import Enum
 
 if TYPE_CHECKING:
+    from enum import Enum
     pass
 
 logger = logging.getLogger(__name__)

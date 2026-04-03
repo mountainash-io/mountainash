@@ -64,12 +64,12 @@ class StringAPIBuilder(
 
 
 # Import base namespace type for type hints
-from .api_builders.api_builder_base import BaseExpressionAPIBuilder
 
 # Import descriptor for explicit namespaces
 from .descriptor import NamespaceDescriptor
 
 if TYPE_CHECKING:
+    from .api_builders.api_builder_base import BaseExpressionAPIBuilder
     from ..expression_nodes import ExpressionNode
 
 

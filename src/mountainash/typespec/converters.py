@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict
 import logging
 
-from .spec import TypeSpec
 from .universal_types import (
     get_polars_type,
     get_arrow_type,
@@ -23,6 +22,7 @@ from .universal_types import (
 )
 
 if TYPE_CHECKING:
+    from .spec import TypeSpec
     import pyarrow as pa
 
 logger = logging.getLogger(__name__)

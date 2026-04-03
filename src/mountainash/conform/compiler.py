@@ -1,11 +1,13 @@
 """Conform compiler — compiles TypeSpec to relation/expression operations."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from mountainash.typespec.spec import TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.type_bridge import bridge_type
+
+if TYPE_CHECKING:
+    from mountainash.typespec.spec import TypeSpec
 
 
 def _get_source_columns(df: Any) -> list[str]:

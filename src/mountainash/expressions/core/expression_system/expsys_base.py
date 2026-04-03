@@ -35,10 +35,9 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait.prtcl_expsys_scalar_rounding import  SubstraitScalarRoundingExpressionSystemProtocol
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait.prtcl_expsys_scalar_set import SubstraitScalarSetExpressionSystemProtocol
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait.prtcl_expsys_scalar_string import  SubstraitScalarStringExpressionSystemProtocol
+from ..constants import CONST_VISITOR_BACKENDS
 
 
-if TYPE_CHECKING:
-    from ..constants import CONST_VISITOR_BACKENDS
 
 
 

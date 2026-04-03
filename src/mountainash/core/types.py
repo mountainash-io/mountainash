@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
-from collections.abc import Sequence, Mapping
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence, Mapping
     import ibis as ibis
     import ibis.expr.types as ir
     import pandas as pd

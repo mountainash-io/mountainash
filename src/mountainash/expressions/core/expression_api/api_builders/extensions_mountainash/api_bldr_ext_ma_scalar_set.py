@@ -13,10 +13,11 @@ from ..api_builder_base import BaseExpressionAPIBuilder
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_SET
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarSetAPIBuilderProtocol
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
+    from mountainash.expressions.core.expression_nodes import ExpressionNode
 
     from ...api_base import BaseExpressionAPI
     from ....expression_nodes import ExpressionNode

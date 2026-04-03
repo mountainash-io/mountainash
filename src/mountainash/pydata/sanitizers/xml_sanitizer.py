@@ -5,9 +5,11 @@ strings, lists, dicts, and sets, plus an XSD validation stub.
 """
 from __future__ import annotations
 
-from typing import List, Dict, Set, Any
+from typing import List, Dict, Set, Any, TYPE_CHECKING
 
-from upath import UPath
+
+if TYPE_CHECKING:
+    from upath import UPath
 
 __all__ = [
     "restore_special_characters",
