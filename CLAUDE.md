@@ -106,6 +106,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions
 | naming-conventions.md | ENFORCED | File prefixes (exn_, prtcl_, api_bldr_, expsys_), backend prefixes (pl_, ib_, nw_) |
 | testing-philosophy.md | ENFORCED | Cross-backend parametrized tests; xfail for known quirks; never skip or disable |
 | file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
+| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
 
 ### h. Backlog
 
