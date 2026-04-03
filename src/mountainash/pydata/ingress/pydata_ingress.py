@@ -9,9 +9,9 @@ import logging
 
 from.pydata_ingress_factory import PydataIngressFactory
 # from .base_pydata_converter import BasePydataConverter
-from mountainash.core.types import PolarsFrame
 
 if TYPE_CHECKING:
+    from mountainash.core.types import PolarsFrame
     from mountainash.typespec.spec import TypeSpec
 
 logger = logging.getLogger(__name__)

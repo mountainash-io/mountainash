@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from mountainash.core.types import (
-    PolarsLazyFrame, is_polars_lazyframe, is_polars_dataframe,
-)
+from mountainash.core.types import is_polars_lazyframe, is_polars_dataframe
+
+if TYPE_CHECKING:
+    from mountainash.core.types import PolarsLazyFrame
 
 
 class SubstraitPolarsReadRelationSystem:

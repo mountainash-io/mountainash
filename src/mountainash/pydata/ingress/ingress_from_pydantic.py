@@ -8,9 +8,9 @@ from mountainash.core.lazy_imports import import_polars, import_pydantic
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
+    from mountainash.core.types import PolarsFrame
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.core.types import PolarsFrame
 
 logger = logging.getLogger(__name__)
 

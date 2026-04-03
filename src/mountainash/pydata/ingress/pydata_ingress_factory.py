@@ -8,9 +8,9 @@ from mountainash.core.factories import BaseStrategyFactory
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.core.types import PolarsFrame
 
 if TYPE_CHECKING:
+    from mountainash.core.types import PolarsFrame
     from mountainash.typespec.spec import TypeSpec
 
 logger = logging.getLogger(__name__)

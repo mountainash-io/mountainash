@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple, Sequence, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Sequence, Type
 import logging
 from collections import namedtuple
 import datetime
@@ -8,14 +8,14 @@ import datetime
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_narwhals, import_polars
 
-from mountainash.core.types import (
-PandasFrame, PyArrowTable, PolarsFrameTypes, PolarsFrame, PolarsLazyFrame,
-NarwhalsFrame,
-PandasSeries,PolarsSeries,
-)
-
-
 from .base_egress_strategy import BaseEgressDataFrame
+
+if TYPE_CHECKING:
+    from mountainash.core.types import (
+        PandasFrame, PyArrowTable, PolarsFrameTypes, PolarsFrame, PolarsLazyFrame,
+        NarwhalsFrame,
+        PandasSeries, PolarsSeries,
+    )
 
 logger = logging.getLogger(__name__)
 

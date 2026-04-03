@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
-
-from mountainash.core.types import PolarsFrame
+    from mountainash.core.types import PolarsFrame
 
 # class PydataInputType(Enum):
 #     """Enumeration of supported input data structure types."""
