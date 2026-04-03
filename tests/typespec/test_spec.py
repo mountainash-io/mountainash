@@ -7,6 +7,8 @@ import pytest
 
 from mountainash.typespec.spec import (
     FieldConstraints,
+    ForeignKeyReference,
+    ForeignKey,
     FieldSpec,
     TypeSpec,
     SpecDiff,
@@ -139,3 +141,68 @@ class TestSpecDiff:
         old_type, new_type = diff.type_changes["id"]
         assert old_type == UniversalType.INTEGER
         assert new_type == UniversalType.STRING
+
+
+# ============================================================================
+# TestForeignKeyReference
+# ============================================================================
+
+class TestForeignKeyReference:
+    def test_construction(self):
+        ref = ForeignKeyReference(resource="customers", fields=["id"])
+        assert ref.resource == "customers"
+        assert ref.fields == ["id"]
+
+    def test_self_referencing(self):
+        ref = ForeignKeyReference(resource="", fields=["manager_id"])
+        assert ref.resource == ""
+
+    def test_composite_key(self):
+        ref = ForeignKeyReference(resource="orders", fields=["order_id", "line_id"])
+        assert len(ref.fields) == 2
+
+
+# ============================================================================
+# TestForeignKey
+# ============================================================================
+
+class TestForeignKey:
+    def test_construction(self):
+        fk = ForeignKey(
+            fields=["customer_id"],
+            reference=ForeignKeyReference(resource="customers", fields=["id"]),
+        )
+        assert fk.fields == ["customer_id"]
+        assert fk.reference.resource == "customers"
+        assert fk.reference.fields == ["id"]
+
+    def test_composite_foreign_key(self):
+        fk = ForeignKey(
+            fields=["order_id", "line_id"],
+            reference=ForeignKeyReference(resource="order_lines", fields=["order_id", "line_id"]),
+        )
+        assert len(fk.fields) == 2
+        assert len(fk.reference.fields) == 2
+
+
+# ============================================================================
+# TestTypeSpec ForeignKeys
+# ============================================================================
+
+class TestTypeSpecForeignKeys:
+    def test_foreign_keys_default_is_none(self):
+        spec = TypeSpec()
+        assert spec.foreign_keys is None
+
+    def test_foreign_keys_with_value(self):
+        fk = ForeignKey(
+            fields=["customer_id"],
+            reference=ForeignKeyReference(resource="customers", fields=["id"]),
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="customer_id", type=UniversalType.INTEGER)],
+            foreign_keys=[fk],
+        )
+        assert len(spec.foreign_keys) == 1
+        assert spec.foreign_keys[0].fields == ["customer_id"]
+        assert spec.foreign_keys[0].reference.resource == "customers"

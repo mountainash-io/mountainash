@@ -30,6 +30,8 @@ from mountainash.typespec.type_bridge import (
 )
 from mountainash.typespec.spec import (
     FieldConstraints,
+    ForeignKeyReference,
+    ForeignKey,
     FieldSpec,
     TypeSpec,
     SpecDiff,
@@ -100,6 +102,8 @@ __all__ = [
 
     # Spec classes
     "FieldConstraints",
+    "ForeignKeyReference",
+    "ForeignKey",
     "FieldSpec",
     "TypeSpec",
     "SpecDiff",

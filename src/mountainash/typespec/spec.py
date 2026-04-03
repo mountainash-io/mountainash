@@ -40,6 +40,30 @@ class FieldConstraints:
 
 
 @dataclass
+class ForeignKeyReference:
+    """Reference target for a foreign key (Frictionless Table Schema compliant).
+
+    Attributes:
+        resource: Name of the referenced table. Empty string for self-referencing.
+        fields: Field name(s) in the referenced table.
+    """
+    resource: str
+    fields: List[str]
+
+
+@dataclass
+class ForeignKey:
+    """Foreign key constraint (Frictionless Table Schema compliant).
+
+    Attributes:
+        fields: Field name(s) in this table.
+        reference: The target table and fields being referenced.
+    """
+    fields: List[str]
+    reference: ForeignKeyReference
+
+
+@dataclass
 class FieldSpec:
     """A single field in a TypeSpec (Frictionless Table Schema compliant).
 
@@ -110,6 +134,7 @@ class TypeSpec:
     title: Optional[str] = None
     description: Optional[str] = None
     primary_key: Optional[Union[str, List[str]]] = None
+    foreign_keys: Optional[List[ForeignKey]] = None
     missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
     keep_only_mapped: bool = False
 
@@ -256,6 +281,8 @@ def compare_specs(
 
 __all__ = [
     "FieldConstraints",
+    "ForeignKeyReference",
+    "ForeignKey",
     "FieldSpec",
     "TypeSpec",
     "SpecDiff",
