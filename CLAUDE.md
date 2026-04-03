@@ -114,6 +114,12 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions
 |----------|---------|
 | polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
 
+### i. Competitor Analysis
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| competitive-positioning.md | ADOPTED | Market landscape, Socratic strengths/weaknesses, feature gaps, positioning as "abstract data products" alongside Ibis/Narwhals/Pandera |
+
 
 ## Package Structure
 
