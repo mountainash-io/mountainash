@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type
 
-from mountainash_utils_dataclasses import DataclassUtils, PydanticUtils
+from mountainash.pydata.mappers.dataclass_mapping import map_list_of_namedtuples_to_dataclasses
+from mountainash.pydata.mappers.pydantic_mapping import map_list_of_namedtuples_to_pydantic
 
 if TYPE_CHECKING:
     from mountainash.core.types import SupportedDataFrames, PandasSeries, PolarsSeries
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
 
 
 from mountainash.typespec.extraction import (
-    extract_schema_from_dataframe,
     extract_schema_from_dataclass,
     extract_schema_from_pydantic,
 )
@@ -207,7 +207,7 @@ class EgressToPythonData:
             named_tuples = cls._to_list_of_named_tuples(df)
 
         # Convert to dataclass instances (no mapping needed - schema already applied)
-        return DataclassUtils.map_list_of_namedtuples_to_dataclasses(
+        return map_list_of_namedtuples_to_dataclasses(
             named_tuples,
             dataclass_type,
             mapping=None,  # Schema transformations already applied
@@ -286,7 +286,7 @@ class EgressToPythonData:
             named_tuples = cls._to_list_of_named_tuples(df)
 
         # Convert to Pydantic instances (no mapping needed - schema already applied)
-        return PydanticUtils.map_list_of_namedtuples_to_pydantic(
+        return map_list_of_namedtuples_to_pydantic(
             named_tuples,
             model_class,
             mapping=None  # Schema transformations already applied

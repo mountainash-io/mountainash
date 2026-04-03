@@ -13,12 +13,6 @@ from mountainash.pydata.egress.egress_pydata_from_polars import EgressFromPolars
 # ---------------------------------------------------------------------------
 # Optional dependency guard
 # ---------------------------------------------------------------------------
-try:
-    from mountainash_utils_dataclasses import DataclassUtils  # noqa: F401
-    HAS_UTILS_DATACLASSES = True
-except ImportError:
-    HAS_UTILS_DATACLASSES = False
-
 # ---------------------------------------------------------------------------
 # Inline type definitions
 # ---------------------------------------------------------------------------
@@ -287,10 +281,6 @@ class TestEgressIndexed:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not HAS_UTILS_DATACLASSES,
-    reason="mountainash-utils-dataclasses not installed"
-)
 class TestEgressTypedOutput:
     def test_to_list_of_dataclasses(self, test_df):
         df = pl.DataFrame({

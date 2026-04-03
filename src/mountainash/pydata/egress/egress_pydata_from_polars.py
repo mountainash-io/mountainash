@@ -279,13 +279,7 @@ class EgressFromPolars(BaseEgressDataFrame):
             List of dataclass instances
         """
         # Import dependencies at runtime
-        try:
-            from mountainash_utils_dataclasses import DataclassUtils
-        except ImportError as e:
-            raise ImportError(
-                "mountainash-utils-dataclasses is required for dataclass conversion. "
-                "Install it with: pip install mountainash-utils-dataclasses"
-            ) from e
+        from mountainash.pydata.mappers.dataclass_mapping import map_list_of_namedtuples_to_dataclasses
 
         from mountainash.typespec.extraction import extract_schema_from_dataclass
         from .egress_helpers import (
@@ -321,7 +315,7 @@ class EgressFromPolars(BaseEgressDataFrame):
             named_tuples = cls._to_list_of_named_tuples(df)
 
         # Convert to dataclass instances (no mapping needed - schema already applied)
-        return DataclassUtils.map_list_of_namedtuples_to_dataclasses(
+        return map_list_of_namedtuples_to_dataclasses(
             named_tuples,
             dataclass_type,
             mapping=None,  # Schema transformations already applied
@@ -350,13 +344,7 @@ class EgressFromPolars(BaseEgressDataFrame):
             List of Pydantic model instances
         """
         # Import dependencies at runtime
-        try:
-            from mountainash_utils_dataclasses import PydanticUtils
-        except ImportError as e:
-            raise ImportError(
-                "mountainash-utils-dataclasses is required for Pydantic conversion. "
-                "Install it with: pip install mountainash-utils-dataclasses"
-            ) from e
+        from mountainash.pydata.mappers.pydantic_mapping import map_list_of_namedtuples_to_pydantic
 
         from mountainash.typespec.extraction import extract_schema_from_pydantic
         from .egress_helpers import (
@@ -392,7 +380,7 @@ class EgressFromPolars(BaseEgressDataFrame):
             named_tuples = cls._to_list_of_named_tuples(df)
 
         # Convert to Pydantic instances (no mapping needed - schema already applied)
-        return PydanticUtils.map_list_of_namedtuples_to_pydantic(
+        return map_list_of_namedtuples_to_pydantic(
             named_tuples,
             model_class,
             mapping=None  # Schema transformations already applied
