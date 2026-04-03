@@ -18,6 +18,23 @@ from mountainash.typespec.universal_types import UniversalType
 
 
 # ============================================================================
+# TestFieldConstraints
+# ============================================================================
+
+class TestFieldConstraints:
+    def test_enum_weights_default_is_none(self):
+        c = FieldConstraints()
+        assert c.enum_weights is None
+
+    def test_enum_weights_with_values(self):
+        c = FieldConstraints(
+            enum=["A", "B", "C"],
+            enum_weights={"A": 0.5, "B": 0.3, "C": 0.2},
+        )
+        assert c.enum_weights == {"A": 0.5, "B": 0.3, "C": 0.2}
+
+
+# ============================================================================
 # TestFieldSpec
 # ============================================================================
 

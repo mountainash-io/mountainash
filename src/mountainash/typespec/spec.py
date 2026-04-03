@@ -37,6 +37,7 @@ class FieldConstraints:
     max_length: Optional[int] = None
     pattern: Optional[str] = None
     enum: Optional[List[Any]] = None
+    enum_weights: Optional[Dict[str, float]] = None  # x-mountainash extension
 
 
 @dataclass
