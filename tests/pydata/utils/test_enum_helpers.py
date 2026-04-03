@@ -1,7 +1,6 @@
 from enum import Enum, StrEnum, IntEnum, Flag, IntFlag, auto
 from dataclasses import dataclass
 import pytest
-from pytest_check import check
 from mountainash.pydata.utils.enum_helpers import (
     is_enum,
     member_identities,
@@ -1172,7 +1171,6 @@ class TestIntFlagSupport:
         # However, 6 (R|W) is not named, so it won't be in members
         # But Python's IntFlag behavior makes comparison tricky
         # The combo itself is an IntFlag, not in original members
-        identities = member_identities(FileMode)
         # Runtime combination is not in the original member identities
         assert combo not in [FileMode.R, FileMode.W, FileMode.X, FileMode.RWX]
 
