@@ -1,4 +1,5 @@
 """Polars relation system — composed backend for all relational operations."""
+from __future__ import annotations
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_protocols.relsys_base import register_relation_system

@@ -3,6 +3,7 @@
 This module provides a single visitor that handles all node types,
 replacing the previous category-specific visitors.
 """
+from __future__ import annotations
 
 from .visitor import UnifiedExpressionVisitor
 

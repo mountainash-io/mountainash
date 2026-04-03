@@ -12,6 +12,7 @@ beyond the Substrait specification. These extensions include:
 
 Extension URIs are stored in /extensions/ directory at repository root.
 """
+from __future__ import annotations
 
 # from .prtcl_expsys_ext_ma_scalar_aggregate import  MountainAshScalarAggregateExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticExpressionSystemProtocol

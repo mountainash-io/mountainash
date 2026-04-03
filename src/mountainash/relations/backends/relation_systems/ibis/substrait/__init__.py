@@ -1,4 +1,5 @@
 """Ibis substrait-aligned relation system implementations."""
+from __future__ import annotations
 
 from .relsys_ib_read import SubstraitIbisReadRelationSystem
 from .relsys_ib_project import SubstraitIbisProjectRelationSystem

@@ -3,6 +3,7 @@ Expression API package.
 
 Provides the fluent API facades for building expressions.
 """
+from __future__ import annotations
 
 from .descriptor import NamespaceDescriptor
 from .api_base import BaseExpressionAPI

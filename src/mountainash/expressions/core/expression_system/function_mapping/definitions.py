@@ -9,6 +9,7 @@ Each function maps:
 
 Functions are organized by category for clarity.
 """
+from __future__ import annotations
 
 from .registry import ExpressionFunctionRegistry as FunctionRegistry, ExpressionFunctionDef
 

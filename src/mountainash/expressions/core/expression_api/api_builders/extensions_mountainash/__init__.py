@@ -2,6 +2,7 @@
 
 Extension APIBuilder implementations for operations beyond Substrait standard.
 """
+from __future__ import annotations
 
 from .api_bldr_ext_ma_name import MountainAshNameAPIBuilder
 from .api_bldr_ext_ma_native import MountainAshNativeAPIBuilder

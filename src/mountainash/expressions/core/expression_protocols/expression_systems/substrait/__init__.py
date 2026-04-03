@@ -6,6 +6,7 @@ This module exports ExpressionSystemProtocols (backend primitives) and BuilderPr
 ExpressionSystemProtocols define the backend-specific operations.
 BuilderProtocols define the user-facing API methods that create expression nodes.
 """
+from __future__ import annotations
 
 # Foundation protocols
 from .prtcl_expsys_cast import SubstraitCastExpressionSystemProtocol #, CastBuilderProtocol

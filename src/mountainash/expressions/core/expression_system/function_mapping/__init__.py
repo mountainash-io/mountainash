@@ -3,6 +3,7 @@
 This module provides the central function registry that maps operation names
 to Substrait metadata and backend methods.
 """
+from __future__ import annotations
 
 from .registry import (
     ExpressionFunctionRegistry as FunctionRegistry,

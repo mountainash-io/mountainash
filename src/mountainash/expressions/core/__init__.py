@@ -3,6 +3,7 @@
 This module contains the core logic, visitor patterns, and infrastructure
 for expression nodes and their evaluation across different backends.
 """
+from __future__ import annotations
 
 from .constants import (
     CONST_VISITOR_BACKENDS,

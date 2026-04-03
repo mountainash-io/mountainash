@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Re-export the full expressions public API at the top level
 # so that `import mountainash as ma; ma.col("x")` works
 from mountainash.expressions import (

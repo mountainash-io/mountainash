@@ -6,6 +6,7 @@ This module exports APIBuilderProtocols (backend primitives) and APIBuilderProto
 APIBuilderProtocols define the backend-specific operations.
 APIBuilderProtocols define the user-facing API methods that create expression nodes.
 """
+from __future__ import annotations
 
 # Foundation protocols
 from .prtcl_api_bldr_cast import SubstraitCastAPIBuilderProtocol

@@ -6,6 +6,7 @@ narwhals, ibis, pyarrow, pydantic) with helpful error messages.
 
 These are shared by schema, pydata, dataframes, and expressions modules.
 """
+from __future__ import annotations
 
 import importlib
 import importlib.util

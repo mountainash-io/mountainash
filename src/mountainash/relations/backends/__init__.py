@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Import relation systems to register them.
 # Polars is a core dependency — always imported.
 # Narwhals and Ibis are optional — imported only if available.

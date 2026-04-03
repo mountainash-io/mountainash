@@ -14,6 +14,7 @@ For function keys, import from the canonical location:
         # etc.
     )
 """
+from __future__ import annotations
 
 from .substrait import SubstraitExtension
 

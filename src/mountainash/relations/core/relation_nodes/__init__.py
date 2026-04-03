@@ -2,6 +2,7 @@
 
 Re-exports all relation nodes from substrait and extension namespaces.
 """
+from __future__ import annotations
 
 from .reln_base import RelationNode
 

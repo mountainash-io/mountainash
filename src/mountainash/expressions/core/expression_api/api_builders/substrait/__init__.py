@@ -2,6 +2,7 @@
 
 Substrait-aligned APIBuilder implementations.
 """
+from __future__ import annotations
 
 from .api_bldr_cast import SubstraitCastAPIBuilder
 from .api_bldr_conditional import SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder

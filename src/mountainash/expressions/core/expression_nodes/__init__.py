@@ -16,6 +16,7 @@ with a minimal set that maps directly to Substrait's expression types.
 Function identifiers are defined as ENUMs in the function_keys.enums module
 for compile-time safety and IDE autocomplete.
 """
+from __future__ import annotations
 
 from .substrait.exn_base import ExpressionNode
 from .substrait.exn_literal import LiteralNode

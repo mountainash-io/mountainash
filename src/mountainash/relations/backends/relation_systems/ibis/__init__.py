@@ -1,4 +1,5 @@
 """Ibis relation system — composed from all substrait and extension mixins."""
+from __future__ import annotations
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_protocols.relsys_base import register_relation_system

@@ -3,6 +3,7 @@
 Provides namespace classes for organizing expression operations.
 Namespaces implement BuilderProtocols for Substrait-aligned operations.
 """
+from __future__ import annotations
 
 from .api_builder_base import BaseExpressionAPIBuilder
 

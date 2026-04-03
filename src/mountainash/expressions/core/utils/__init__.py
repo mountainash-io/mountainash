@@ -1,4 +1,5 @@
 """Core utility modules."""
+from __future__ import annotations
 
 from .temporal import (
     TIME_UNITS,
