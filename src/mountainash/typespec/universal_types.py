@@ -17,10 +17,8 @@ Architecture:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Dict, Set, Tuple, Any, Union
+from typing import Dict, Set, Tuple, Any, Union
 
-if TYPE_CHECKING:
-    pass
 
 
 # ============================================================================
