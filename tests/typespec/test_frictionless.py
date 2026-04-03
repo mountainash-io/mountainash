@@ -13,7 +13,7 @@ from mountainash.typespec.frictionless import (
     typespec_from_frictionless,
     typespec_to_frictionless,
 )
-from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldConstraints, FieldSpec, ForeignKey, ForeignKeyReference, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -97,6 +97,45 @@ class TestToFrictionless:
         # No field-level x-mountainash
         for field in result["fields"]:
             assert "x-mountainash" not in field
+
+    def test_foreign_keys_exported(self):
+        fk = ForeignKey(
+            fields=["customer_id"],
+            reference=ForeignKeyReference(resource="customers", fields=["id"]),
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="customer_id", type=UniversalType.INTEGER)],
+            foreign_keys=[fk],
+        )
+        result = typespec_to_frictionless(spec)
+        assert "foreignKeys" in result
+        assert len(result["foreignKeys"]) == 1
+        assert result["foreignKeys"][0]["fields"] == ["customer_id"]
+        assert result["foreignKeys"][0]["reference"]["resource"] == "customers"
+        assert result["foreignKeys"][0]["reference"]["fields"] == ["id"]
+
+    def test_no_foreign_keys_omitted(self):
+        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+        result = typespec_to_frictionless(spec)
+        assert "foreignKeys" not in result
+
+    def test_enum_weights_exported_in_extensions(self):
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="status",
+                    type=UniversalType.STRING,
+                    constraints=FieldConstraints(
+                        enum=["A", "B"],
+                        enum_weights={"A": 0.7, "B": 0.3},
+                    ),
+                )
+            ]
+        )
+        result = typespec_to_frictionless(spec)
+        field_dict = result["fields"][0]
+        assert field_dict["constraints"]["enum"] == ["A", "B"]
+        assert field_dict["x-mountainash"]["enum_weights"] == {"A": 0.7, "B": 0.3}
 
 
 # ============================================================================
@@ -213,6 +252,59 @@ class TestFromFrictionless:
         spec = typespec_from_frictionless(descriptor)
         assert len(spec.fields) == 1
         assert spec.fields[0].name == "col"
+
+    def test_foreign_keys_imported(self):
+        descriptor = {
+            "fields": [{"name": "customer_id", "type": "integer"}],
+            "foreignKeys": [
+                {
+                    "fields": ["customer_id"],
+                    "reference": {"resource": "customers", "fields": ["id"]},
+                }
+            ],
+        }
+        spec = typespec_from_frictionless(descriptor)
+        assert spec.foreign_keys is not None
+        assert len(spec.foreign_keys) == 1
+        assert spec.foreign_keys[0].fields == ["customer_id"]
+        assert spec.foreign_keys[0].reference.resource == "customers"
+
+    def test_no_foreign_keys_results_in_none(self):
+        descriptor = {"fields": [{"name": "id", "type": "integer"}]}
+        spec = typespec_from_frictionless(descriptor)
+        assert spec.foreign_keys is None
+
+    def test_enum_weights_imported_from_extensions(self):
+        descriptor = {
+            "fields": [
+                {
+                    "name": "status",
+                    "type": "string",
+                    "constraints": {"enum": ["A", "B"]},
+                    "x-mountainash": {"enum_weights": {"A": 0.7, "B": 0.3}},
+                }
+            ]
+        }
+        spec = typespec_from_frictionless(descriptor)
+        assert spec.fields[0].constraints.enum_weights == {"A": 0.7, "B": 0.3}
+
+    def test_foreign_keys_round_trip(self):
+        fk = ForeignKey(
+            fields=["dept_id"],
+            reference=ForeignKeyReference(resource="departments", fields=["id"]),
+        )
+        original = TypeSpec(
+            fields=[FieldSpec(name="dept_id", type=UniversalType.INTEGER)],
+            primary_key="dept_id",
+            foreign_keys=[fk],
+        )
+        descriptor = typespec_to_frictionless(original)
+        restored = typespec_from_frictionless(descriptor)
+        assert restored.foreign_keys is not None
+        assert len(restored.foreign_keys) == 1
+        assert restored.foreign_keys[0].fields == ["dept_id"]
+        assert restored.foreign_keys[0].reference.resource == "departments"
+        assert restored.foreign_keys[0].reference.fields == ["id"]
 
 
 # ============================================================================

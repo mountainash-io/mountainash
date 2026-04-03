@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from .spec import FieldConstraints, FieldSpec, TypeSpec
+from .spec import FieldConstraints, FieldSpec, ForeignKey, ForeignKeyReference, TypeSpec
 from .universal_types import UniversalType, normalize_type
 
 
@@ -47,10 +47,15 @@ def _constraints_to_dict(constraints: FieldConstraints) -> dict:
     return result
 
 
-def _parse_constraints(data: Optional[Dict[str, Any]]) -> Optional[FieldConstraints]:
+def _parse_constraints(
+    data: Optional[Dict[str, Any]],
+    enum_weights: Optional[Dict[str, float]] = None,
+) -> Optional[FieldConstraints]:
     """Deserialize a Frictionless constraints dict → FieldConstraints (or None)."""
-    if not data:
+    if not data and not enum_weights:
         return None
+    if not data:
+        data = {}
     return FieldConstraints(
         required=data.get("required", False),
         unique=data.get("unique", False),
@@ -60,6 +65,7 @@ def _parse_constraints(data: Optional[Dict[str, Any]]) -> Optional[FieldConstrai
         max_length=data.get("maxLength"),
         pattern=data.get("pattern"),
         enum=data.get("enum"),
+        enum_weights=enum_weights,
     )
 
 
@@ -89,6 +95,19 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["description"] = spec.description
     if spec.primary_key is not None:
         descriptor["primaryKey"] = spec.primary_key
+
+    # Foreign keys (standard Frictionless field)
+    if spec.foreign_keys:
+        fk_list = []
+        for fk in spec.foreign_keys:
+            fk_list.append({
+                "fields": fk.fields,
+                "reference": {
+                    "resource": fk.reference.resource,
+                    "fields": fk.reference.fields,
+                },
+            })
+        descriptor["foreignKeys"] = fk_list
 
     # Spec-level x-mountainash
     spec_extensions: Dict[str, Any] = {}
@@ -126,6 +145,8 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
             field_extensions["null_fill"] = fspec.null_fill
         if fspec.custom_cast is not None:
             field_extensions["custom_cast"] = fspec.custom_cast
+        if fspec.constraints and fspec.constraints.enum_weights is not None:
+            field_extensions["enum_weights"] = fspec.constraints.enum_weights
         if field_extensions:
             field_dict["x-mountainash"] = field_extensions
 
@@ -180,6 +201,23 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}
     keep_only_mapped: bool = bool(spec_ext.get("keep_only_mapped", False))
 
+    # Foreign keys
+    raw_fks = descriptor.get("foreignKeys")
+    foreign_keys: Optional[List[ForeignKey]] = None
+    if raw_fks:
+        foreign_keys = []
+        for raw_fk in raw_fks:
+            ref = raw_fk["reference"]
+            foreign_keys.append(
+                ForeignKey(
+                    fields=raw_fk["fields"],
+                    reference=ForeignKeyReference(
+                        resource=ref["resource"],
+                        fields=ref["fields"],
+                    ),
+                )
+            )
+
     # -- Fields --
     fields: List[FieldSpec] = []
     for raw_field in descriptor.get("fields", []):
@@ -190,7 +228,6 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         format_: str = raw_field.get("format", "default")
         field_title: Optional[str] = raw_field.get("title")
         field_description: Optional[str] = raw_field.get("description")
-        constraints = _parse_constraints(raw_field.get("constraints"))
         field_missing_values: Optional[List[str]] = raw_field.get("missingValues")
 
         # Field-level x-mountainash extensions
@@ -198,6 +235,9 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         rename_from: Optional[str] = field_ext.get("rename_from")
         null_fill: Any = field_ext.get("null_fill")
         custom_cast: Optional[str] = field_ext.get("custom_cast")
+        enum_weights: Optional[Dict[str, float]] = field_ext.get("enum_weights")
+
+        constraints = _parse_constraints(raw_field.get("constraints"), enum_weights=enum_weights)
 
         fields.append(
             FieldSpec(
@@ -219,6 +259,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         title=title,
         description=description,
         primary_key=primary_key,
+        foreign_keys=foreign_keys,
         missing_values=missing_values,
         keep_only_mapped=keep_only_mapped,
     )
