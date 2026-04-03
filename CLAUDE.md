@@ -34,9 +34,9 @@ moving on. Fix any type errors or missing imports immediately.
 This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
 
 **Principles location:**
-`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expresions/`
+`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expressions/`
 
-See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
+See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
 
 ### a. Architecture
 
@@ -59,6 +59,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 | protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
 | expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
 | node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
+| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types |
 
 ### c. API Design
 
@@ -66,6 +67,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
 | build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
+| build-then-conform.md | ENFORCED | ma.conform({...}).apply(df) compiles TypeSpec to relation operations; replaces old schema backend strategies |
 | fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
 | operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
 | short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
@@ -103,7 +105,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | naming-conventions.md | ENFORCED | File prefixes (exn_, prtcl_, api_bldr_, expsys_), backend prefixes (pl_, ib_, nw_) |
 | testing-philosophy.md | ENFORCED | Cross-backend parametrized tests; xfail for known quirks; never skip or disable |
-| file-organisation.md | ADOPTED | Mirror directory structure across layers; every substrait/ has a parallel extensions_mountainash/ |
+| file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
 
 ### h. Backlog
 
@@ -116,12 +118,12 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 
 ```
 src/mountainash/
-├── __init__.py                  # Top-level re-exports (col, lit, when, relation, concat, etc.)
-├── core/                        # Shared infrastructure (constants, types, enums)
+├── __init__.py                  # Top-level re-exports (col, lit, when, relation, conform, typespec, etc.)
+├── core/                        # Shared infrastructure (constants, types, enums, factories)
 ├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
 │   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
-├── relations/                   # Relational AST (new, ~60 files, 290 tests)
+├── relations/                   # Relational AST (~60 files, 290 tests)
 │   ├── core/
 │   │   ├── relation_nodes/     # 10 Substrait-aligned node types (reln_*)
 │   │   ├── relation_protocols/ # 9 protocol files + RelationSystem base (prtcl_relsys_*)
@@ -129,8 +131,21 @@ src/mountainash/
 │   │   └── unified_visitor/    # UnifiedRelationVisitor
 │   └── backends/
 │       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
-├── schema/                      # Schema definitions (ported, partial wiring)
-└── pydata/                      # PyData integrations (ported, partial wiring)
+├── typespec/                    # Type metadata — serializable Frictionless-aligned specs
+│   ├── spec.py                 # TypeSpec, FieldSpec, FieldConstraints
+│   ├── universal_types.py      # UniversalType enum, backend type mappings
+│   ├── type_bridge.py          # UniversalType <-> MountainashDtype interim bridge
+│   ├── frictionless.py         # Frictionless Table Schema import/export
+│   ├── extraction.py           # Extract TypeSpec from DataFrames, dataclasses, Pydantic
+│   ├── validation.py           # Validate DataFrames against a TypeSpec
+│   ├── converters.py           # UniversalType -> backend-specific types
+│   └── custom_types.py         # CustomTypeRegistry, semantic type converters
+├── conform/                     # Data conformance — compiles TypeSpec to relation operations
+│   ├── builder.py              # ConformBuilder — user-facing DSL (ma.conform)
+│   └── compiler.py             # compile_conform() — ~130 lines replacing ~1,400 lines of backend strategies
+└── pydata/                      # Python data ingress/egress with three-tier hybrid conversion
+    ├── ingress/                # Python data -> Polars DataFrame (11 handlers)
+    └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
 ```
 
 For detailed file organisation see principle: `g.development-practices/file-organisation.md`
