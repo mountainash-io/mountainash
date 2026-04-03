@@ -2,265 +2,281 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+### Code Intelligence
 
-**mountainash-expressions** is a Python package that provides a sophisticated dual-logic expression system for building cross-backend DataFrame operations. The package supports both Boolean (TRUE/FALSE) and Ternary (TRUE/FALSE/UNKNOWN) logic systems with automatic backend detection across pandas, polars, Ibis, PyArrow, and other DataFrame libraries.
+Prefer LSP over Grep/Glob/Read for code navigation:
+- `goToDefinition` / `goToImplementation` to jump to source
+- `findReferences` to see all usages across the codebase
+- `workspaceSymbol` to find where something is defined
+- `documentSymbol` to list all symbols in a file
+- `hover` for type info without reading the file
+- `incomingCalls` / `outgoingCalls` for call hierarchy
 
-The package is designed as a foundation for cross-backend DataFrame filtering, mutations, and other operations that need consistent expression evaluation regardless of the underlying DataFrame implementation.
+Before renaming or changing a function signature, use
+`findReferences` to find all call sites first.
 
-## Recent Architecture Refactoring
+Use Grep/Glob only for text/pattern searches (comments,
+strings, config values) where LSP doesn't help.
 
-**IMPORTANT**: The package underwent a major architectural refactoring that consolidated the modular file structure into a more cohesive organization:
-- Core logic and visitor implementations are now in `core/` module
-- Backend-specific implementations moved to `backends/` module  
-- Old paths in `logic/`, `visitors/`, and `helpers/` directories are being phased out
-- Some imports may still reference old paths and need updating
+After writing or editing code, check LSP diagnostics before
+moving on. Fix any type errors or missing imports immediately.
 
-## Core Architecture
 
-### New Package Structure (After Refactoring)
+## Design Principles (MANDATORY)
+
+**You MUST read the relevant principle documents before:**
+- Making any architectural decision
+- Adding or modifying operations, protocols, or function keys
+- Changing backend implementations
+- Modifying the extension model or naming conventions
+- Resolving design tensions or trade-offs
+
+This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
+
+**Principles location:**
+`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expressions/`
+
+See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
+
+### a. Architecture
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| substrait-first-design.md | ENFORCED | All operations align with Substrait specification; custom ops in separate extension namespace |
+| minimal-ast.md | ENFORCED | Only 7 node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
+| three-layer-separation.md | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
+| unified-visitor.md | ADOPTED | Single visitor dispatches all node types via function registry lookup |
+| relational-ast.md | ENFORCED | 10 relational node types mapping to Substrait logical relations; ExtensionRelNode for non-Substrait ops |
+| relation-visitor-composition.md | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
+| wiring-matrix.md | ADOPTED | Every operation must be wired through all six architecture layers |
+| unified-package-roadmap.md | ADOPTED | Prioritized roadmap: wiring → shared infra → operations → alignment → release |
+
+### b. Type System
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| function-key-enums.md | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
+| protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
+| expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
+| node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
+| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types; ForeignKey/ForeignKeyReference for cross-table relationships; enum_weights for weighted enums |
+
+### c. API Design
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
+| build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
+| build-then-conform.md | ENFORCED | ma.conform({...}).apply(df) compiles TypeSpec to relation operations; replaces old schema backend strategies |
+| fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
+| operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
+| short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
+
+### d. Ternary Logic
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| three-valued-semantics.md | ENFORCED | TRUE=1, UNKNOWN=0, FALSE=-1; sentinel integer values, not NULL propagation |
+| booleanization.md | ENFORCED | Ternary expressions auto-booleanize at compile time; six built-in booleanizers |
+| sentinel-values.md | ADOPTED | t_col(name, unknown={...}) treats custom values as UNKNOWN |
+| bidirectional-coercion.md | ADOPTED | Boolean↔ternary coercion happens automatically at the API builder level |
+
+### e. Cross-Backend
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| backend-detection.md | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
+| consistency-guarantees.md | ENFORCED | Same expression must produce same logical result across all backends |
+| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps |
+| cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
+| arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals |
+
+### f. Extension Model
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| substrait-vs-mountainash.md | ENFORCED | Physical directory separation at every layer; FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_* enums |
+| adding-operations.md | ADOPTED | Six-step process: enum → protocol → API builder → all backends → function mapping → tests |
+| backend-composition.md | ENFORCED | Each backend composes all protocol implementations via multiple inheritance |
+
+### g. Development Practices
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| naming-conventions.md | ENFORCED | File prefixes (exn_, prtcl_, api_bldr_, expsys_), backend prefixes (pl_, ib_, nw_) |
+| testing-philosophy.md | ENFORCED | Cross-backend parametrized tests; xfail for known quirks; never skip or disable |
+| file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
+| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
+
+### h. Backlog
+
+| Document | Summary |
+|----------|---------|
+| polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
+
+### i. Competitor Analysis
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| competitive-positioning.md | ADOPTED | Market landscape, Socratic strengths/weaknesses, feature gaps, positioning as "abstract data products" alongside Ibis/Narwhals/Pandera |
+
+
+## Package Structure
 
 ```
-src/mountainash_expressions/
-├── __init__.py                       # Main exports (needs import path updates)
-├── __version__.py                    # Package version
-├── core/                            # Core consolidated modules
-│   ├── constants.py                 # Shared constants and enums
-│   ├── logic/                       # Logic implementations
-│   │   ├── __init__.py             # Core logic exports
-│   │   ├── expression_nodes.py     # Base node classes
-│   │   ├── expression_builder.py   # Base builder
-│   │   ├── expression_converter.py # Base converter
-│   │   ├── conversion_matrix.py    # Cross-logic conversion
-│   │   ├── boolean/                # Boolean logic
-│   │   │   ├── boolean_nodes.py
-│   │   │   ├── boolean_builder.py
-│   │   │   └── boolean_converter.py
-│   │   └── ternary/                # Ternary logic
-│   │       ├── ternary_nodes.py
-│   │       ├── ternary_builder.py
-│   │       ├── ternary_converter.py
-│   │       └── ternary_value_mappings.py
-│   └── visitor/                     # Visitor patterns
-│       ├── __init__.py
-│       ├── expression_visitor.py   # Base visitor
-│       ├── visitor_factory.py      # Factory for visitor creation
-│       ├── logic/                   # Logic-specific visitors
-│       │   ├── boolean_visitor.py
-│       │   └── ternary_visitor.py
-│       └── backends/                # Backend mixins
-│           └── backend_visitor_mixin.py
-├── backends/                        # Backend implementations
-│   ├── __init__.py
-│   ├── ibis/
-│   │   ├── ibis_visitor.py
-│   │   ├── boolean_visitor_ibis.py
-│   │   └── ternary_visitor_ibis.py
-│   ├── pandas/
-│   │   ├── pandas_visitor.py
-│   │   ├── boolean_visitor_pandas.py
-│   │   └── ternary_visitor_pandas.py
-│   ├── polars/
-│   │   ├── polars_visitor.py
-│   │   ├── boolean_visitor_polars.py
-│   │   └── ternary_visitor_polars.py
-│   └── pyarrow/
-│       ├── pyarrow_visitor.py
-│       ├── boolean_visitor_pyarrow.py
-│       └── ternary_visitor_pyarrow.py
-├── logic/                          # Legacy paths (being phased out)
-│   ├── core/                       # Empty/remnants
-│   └── ternary/
-│       └── ternary_nodes.py       # Still has some code
-└── visitors/                       # Legacy paths (empty)
-    ├── boolean/
-    ├── ternary/
-    └── core/
-        └── backends/
+src/mountainash/
+├── __init__.py                  # Top-level re-exports (col, lit, when, relation, conform, typespec, etc.)
+├── core/                        # Shared infrastructure (constants, types, enums, factories)
+├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
+│   ├── core/                   # Nodes, protocols, API builders, function keys
+│   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
+├── relations/                   # Relational AST (~60 files, 290 tests)
+│   ├── core/
+│   │   ├── relation_nodes/     # 10 Substrait-aligned node types (reln_*)
+│   │   ├── relation_protocols/ # 9 protocol files + RelationSystem base (prtcl_relsys_*)
+│   │   ├── relation_api/       # Relation fluent API, GroupedRelation
+│   │   └── unified_visitor/    # UnifiedRelationVisitor
+│   └── backends/
+│       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
+├── typespec/                    # Type metadata — serializable Frictionless-aligned specs
+│   ├── spec.py                 # TypeSpec, FieldSpec, FieldConstraints
+│   ├── universal_types.py      # UniversalType enum, backend type mappings
+│   ├── type_bridge.py          # UniversalType <-> MountainashDtype interim bridge
+│   ├── frictionless.py         # Frictionless Table Schema import/export
+│   ├── extraction.py           # Extract TypeSpec from DataFrames, dataclasses, Pydantic
+│   ├── validation.py           # Validate DataFrames against a TypeSpec
+│   ├── converters.py           # UniversalType -> backend-specific types
+│   └── custom_types.py         # CustomTypeRegistry, semantic type converters
+├── conform/                     # Data conformance — compiles TypeSpec to relation operations
+│   ├── builder.py              # ConformBuilder — user-facing DSL (ma.conform)
+│   └── compiler.py             # compile_conform() — ~130 lines replacing ~1,400 lines of backend strategies
+└── pydata/                      # Python data ingress/egress with three-tier hybrid conversion
+    ├── ingress/                # Python data -> Polars DataFrame (11 handlers)
+    └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
 ```
 
-### Import Path Updates Needed
+For detailed file organisation see principle: `g.development-practices/file-organisation.md`
 
-The main `__init__.py` file still references old import paths that need to be updated:
-- `from .logic.boolean` → `from .core.logic.boolean`
-- `from .logic.ternary` → `from .core.logic.ternary`  
-- `from .helpers` → `from .core.visitor`
-- Backend visitor imports need updating to `backends/` module
-
-## Development Commands
-
-### Essential Daily Commands
-- **Tests**: `hatch run test:test` (full test suite with coverage) or `hatch run test:test-quick` (fast iteration)
-- **Single test**: `hatch run test:test-target tests/path/to/test_file.py::TestClass::test_function`
-- **Lint**: `hatch run ruff:check` or `hatch run ruff:fix` to auto-fix
-- **Type check**: `hatch run mypy:check`
-- **Build**: `hatch build`
-
-### Test Categories
-- `hatch run test:test-unit` - Unit tests only
-- `hatch run test:test-integration` - Integration tests only
-- `hatch run test:test-performance` - Performance benchmarks
-- `hatch run test:test-changed` - Only changed files (useful after refactoring)
-- `hatch run test:test-changed-quick` - Changed files without coverage
-
-### Targeted Testing (For Debugging)
-- `hatch run test:test-target <path>` - Test specific files with coverage
-- `hatch run test:test-target-quick <path>` - Test specific files without coverage (fastest)
-- `hatch run test:test-perf` - Run performance benchmarks only
-
-## Core Concepts
-
-### Dual Logic Systems
-- **Boolean Logic**: Traditional binary logic (TRUE/FALSE) in `core/logic/boolean/`
-- **Ternary Logic**: Three-valued logic (TRUE/FALSE/UNKNOWN) in `core/logic/ternary/`
-
-### Expression Node Hierarchy
-All expressions inherit from `ExpressionNode` (in `core/logic/expression_nodes.py`):
-- `eval()`: Core evaluation returning backend-specific expressions
-- `eval_is_true()`: Boolean TRUE check (works for both Boolean and Ternary)
-- `eval_is_false()`: Boolean FALSE check (works for both Boolean and Ternary)
-- For Ternary: `eval_is_unknown()`, `eval_maybe_true()`, `eval_maybe_false()`, `eval_is_known()`
-
-### Ternary Logic System
-Mathematical optimization using integer values:
-- **-1 = FALSE**
-- **1 = TRUE**
-- **0 = UNKNOWN**
-
-UNKNOWN value mappings (configurable):
-- String: `"<NA>"` (default)
-- Numeric: `-999999999` (default)
-- None/null values automatically handled
-
-### Visitor Pattern Implementation
-The visitor factory (`core/visitor/visitor_factory.py`) automatically selects the appropriate visitor based on DataFrame type:
-
-```python
-# Automatic visitor selection (recommended)
-result = expression.eval_is_true()(dataframe)
-
-# Manual visitor creation (if needed)
-from mountainash_expressions.core.visitor import ExpressionVisitorFactory
-visitor = ExpressionVisitorFactory.create_boolean_visitor_for_backend(df)
-```
-
-### Backend Detection
-The factory identifies backends through `_identify_backend()` method:
-- Ibis tables → `CONST_VISITOR_BACKENDS.IBIS`
-- Pandas DataFrames → `CONST_VISITOR_BACKENDS.PANDAS`
-- Polars DataFrames/LazyFrames → `CONST_VISITOR_BACKENDS.POLARS`
-- PyArrow Tables/RecordBatches → `CONST_VISITOR_BACKENDS.PYARROW`
-
-## Usage Patterns
-
-### Import Paths (Current - May Need Updates)
-
-```python
-# Boolean expressions (current imports - may need path updates)
-from mountainash_expressions.logic.boolean import (
-    BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanExpressionBuilder
-)
-
-# Ternary expressions (current imports - may need path updates)
-from mountainash_expressions.logic.ternary import (
-    TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryExpressionBuilder
-)
-
-# Visitor factory (current import - may need path update)
-from mountainash_expressions.helpers import ExpressionVisitorFactory
-```
-
-### Correct Import Paths (After Full Migration)
-
-```python
-# Boolean expressions
-from mountainash_expressions.core.logic.boolean import (
-    BooleanColumnExpressionNode, BooleanLogicalExpressionNode, BooleanExpressionBuilder
-)
-
-# Ternary expressions  
-from mountainash_expressions.core.logic.ternary import (
-    TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryExpressionBuilder
-)
-
-# Visitor factory
-from mountainash_expressions.core.visitor import ExpressionVisitorFactory
-```
 
 ## Dependencies
 
-### Core Dependencies
-- **ibis-framework[pandas,sqlite,duckdb]** == 10.4.0 - DataFrame framework support
-- **numpy** >=1.23.2,<3 - Numerical computing
-- **pandas** >=2.2.0 - DataFrame operations
-- **polars** ==1.16.0 - Fast DataFrame library
-- **pyarrow** ==17.0.0 - Columnar operations
-- **narwhals** - Cross-DataFrame compatibility layer
+**IMPORTANT:** Using **local Ibis fork** with Polars calendar interval fix:
 
-### Mountain Ash Ecosystem
-- **mountainash-constants** - Shared constants and enums (local dev path: `../mountainash-constants`)
-- **mountainash-settings** - Configuration management (local dev path: `../mountainash-settings`)
-- **mountainash-utils-files** - File utilities (local dev path: `../mountainash-utils-files`)
-- **mountainash-utils-os** - OS utilities (local dev path: `../mountainash-utils-os`)
+```toml
+ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "sqlite", "duckdb"] }
+```
 
-## Design Patterns
+All other dependencies are in `pyproject.toml`.
 
-### Visitor Pattern
-Backend-specific expression generation with automatic visitor selection through `ExpressionVisitorFactory` in `core/visitor/visitor_factory.py`.
 
-### Builder Pattern
-Fluent interface for complex expression construction with helper methods for common operations in `core/logic/*/builder.py` files.
+## Development Commands
 
-### Protocol Pattern
-Type-safe interfaces using Python protocols in `core/logic/expression_node_protocol.py` and `core/visitor/expression_visitor_protocol.py`.
+```bash
+# Testing
+hatch run test:test                  # Full suite with coverage
+hatch run test:test-quick            # Fast iteration (no coverage)
+hatch run test:test-target <path>    # Specific file or test
+hatch run test:test-target-quick <path>  # Specific, no coverage
 
-### Conversion Matrix
-Cross-logic type conversion matrix in `core/logic/conversion_matrix.py` enables seamless Boolean ↔ Ternary transformations.
+# Linting & type checking
+hatch run ruff:check                 # Check for issues
+hatch run ruff:fix                   # Auto-fix issues
+hatch run mypy:check                 # Type safety validation
 
-## Architecture Principles
+# Building
+hatch build
+```
 
-### Consolidation Over Fragmentation
-The refactoring moved from many small files to fewer, more cohesive modules that group related functionality.
 
-### Protocol-Based Design
-Using Python protocols for type safety and clear interfaces between components.
+## Import Paths
 
-### Backend Isolation
-Each backend has its own module in `backends/` with complete visitor implementations, allowing backend-specific optimizations.
+```python
+# Public API (both work identically)
+import mountainash as ma                    # Canonical
+import mountainash_expressions as ma        # Deprecated, works via shim
+from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
 
-### Logic Type Orthogonality
-Any expression can work with any visitor through automatic conversion, enabling seamless cross-logic operations.
+# Relations API
+from mountainash import relation, concat    # or ma.relation(df), ma.concat([r1, r2])
 
-## Common Development Tasks
+# Constants (shared core)
+from mountainash.core.constants import (
+    CONST_BACKEND, CONST_BACKEND_SYSTEM,    # Backend detection + routing enums
+    ProjectOperation, JoinType, SetType,     # Relational AST enums
+    SortField, ExecutionTarget,              # Relational supporting types
+)
 
-### After Refactoring Checklist
-1. Run all tests to ensure nothing broke: `hatch run test:test`
-2. Check for import errors: `hatch run test:test-quick`
-3. Update imports in any code using old paths
-4. Run linter to catch issues: `hatch run ruff:check`
-5. Type check for consistency: `hatch run mypy:check`
+# Function key enums (expressions)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    KEY_SCALAR_COMPARISON, KEY_SCALAR_BOOLEAN, MOUNTAINASH_TERNARY,
+)
 
-### Adding a New Backend
-1. Create new directory in `backends/<backend_name>/`
-2. Implement visitor classes inheriting from base visitors in `core/visitor/logic/`
-3. Register in `ExpressionVisitorFactory._visitors_registry`
-4. Add backend detection in `ExpressionVisitorFactory._identify_backend()`
+# Expression nodes
+from mountainash.expressions.core.expression_nodes.substrait import (
+    ScalarFunctionNode, FieldReferenceNode, LiteralNode,
+)
 
-### Testing Specific Logic Types
-- Boolean tests: `hatch run test:test-target tests/boolean/`
-- Ternary tests: `hatch run test:test-target tests/ternary/`
-- Gold standard API: `hatch run test:test-target tests/ternary/test_gold_standard_api.py`
+# Relation nodes
+from mountainash.relations.core.relation_nodes import (
+    ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
+    FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode, ExtensionRelNode,
+)
+```
 
-## Important Notes
+## Relations Architecture
 
-### Ongoing Migration
-The codebase is in transition from the old modular structure to the new consolidated architecture. Some imports and references may still point to old paths.
+The `mountainash.relations` module provides a Substrait-aligned relational AST. It mirrors the expressions architecture:
 
-### Import Resolution Priority
-When fixing imports, prioritize the `core/` module paths over legacy `logic/`, `visitors/`, and `helpers/` paths.
+**Build phase** (backend-agnostic):
+```python
+r = ma.relation(df).filter(ma.col("age").gt(30)).sort("name").head(10)
+# Builds: FetchRelNode → SortRelNode → FilterRelNode → ReadRelNode
+```
 
-### Test Coverage
-After the refactoring, ensure comprehensive test coverage by running: `hatch run test:test` and checking the coverage report.
+**Compile phase** (terminal operations trigger visitor):
+```python
+result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
+```
 
-### Type Safety
-The new architecture emphasizes protocols and type annotations. Always run `hatch run mypy:check` after making changes.
+**Key concepts:**
+- 10 node types mapping to Substrait logical relations
+- UnifiedRelationVisitor composes with UnifiedExpressionVisitor for embedded expressions
+- 3 backends: Polars (LazyFrame-based), Narwhals (pandas/PyArrow), Ibis (SQL)
+- Cross-type joins: `relation(polars_df).join(pandas_df, on="id")` — automatic coercion
+- `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
+
+**Spec:** `docs/superpowers/specs/2026-03-28-relational-ast-design.md`
+
+
+## Documentation Corpora
+
+This project has 4 registered documentation corpora from [hiivmind-corpus-data](https://github.com/hiivmind/hiivmind-corpus-data), providing indexed, concept-mapped reference docs for the upstream libraries mountainash builds on.
+
+| Corpus | Covers |
+|--------|--------|
+| `polars` | Polars DataFrame library — expressions, lazy evaluation, IO, types (19 concepts) |
+| `ibis` | Ibis framework — deferred execution, backend portability, expression API (15 concepts) |
+| `narwhals` | Narwhals — dataframe-agnostic API, expression model, cross-backend behavior (14 concepts) |
+| `substrait` | Substrait spec — query plans, type system, scalar/aggregate/window functions (13 concepts) |
+
+Each corpus has a **concept graph** (`graph.yaml`) that maps the library's domain into named concepts with relationships (depends-on, part-of, extends, see-also). A **cross-corpus registry graph** (`.hiivmind/corpus/registry-graph.yaml`) then bridges equivalent concepts across all four libraries — 66 bridges linking concepts like `polars:string-expressions` ↔ `ibis:string-expressions` ↔ `narwhals:string-expressions` ↔ `substrait:scalar-functions`, with 25 query-routing aliases so a search for "datetime expressions" returns relevant docs from all four corpora simultaneously.
+
+This is particularly valuable for mountainash because the expression system must produce identical results across Polars, Ibis, and Narwhals backends. When implementing or debugging a cross-backend operation, the corpora let you compare how each library handles it — e.g., querying "null handling" pulls up Polars' `fill_null`/`is_null`, Ibis' coalesce/ifelse, and Narwhals' cross-backend null semantics in one search.
+
+**Registry:** `.hiivmind/corpus/registry.yaml`
+**Cross-corpus bridges:** `.hiivmind/corpus/registry-graph.yaml`
+
+**How to query:** Use `/hiivmind-corpus navigate` to search across corpora. Queries are routed through aliases and bridges, so searching a concept in one library automatically surfaces the equivalent docs in the others.
+
+**When to use:** Consult the corpora when you need to understand how an upstream library implements something — e.g., how Polars handles string expressions, what Substrait's scalar function spec looks like, or how Ibis compiles temporal operations.
+
+**When NOT to use:** For mountainash's own architecture and design decisions, use the Design Principles above instead. The corpora document the *upstream libraries*, not mountainash itself.
+
+
+## GitHub Operations
+
+This project uses [hiivmind-pulse-gh](https://github.com/hiivmind/hiivmind-pulse-gh) for GitHub automation.
+
+**Configuration Location**: `/home/nathanielramm/git/mountainash-io/mountainash/.hiivmind/github`
+
+Use the hiivmind-pulse-gh plugin for all GitHub operations (issues, PRs, milestones, project status) to benefit from automatic context enrichment.

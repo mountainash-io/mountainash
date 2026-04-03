@@ -1,358 +1,128 @@
-# Mountain Ash Expressions
+# mountainash
 
-![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-[![codecov](https://codecov.io/gh/mountainash-io/mountainash-expressions/branch/main/graph/badge.svg)](https://codecov.io/gh/mountainash-io/mountainash-expressions)
+[![PyPI](https://img.shields.io/pypi/v/mountainash.svg)](https://pypi.org/project/mountainash/)
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A sophisticated dual-logic expression system for building cross-backend DataFrame operations with Boolean (TRUE/FALSE) and Ternary (TRUE/FALSE/UNKNOWN) logic support.
+Build DataFrame expressions and query plans once, execute on any backend. Mountainash provides a unified API for expressions, relations, schema management, and Python data ingress/egress across Polars, Pandas, Ibis, Narwhals, and PyArrow.
 
-## 🚀 Features
-
-- **Dual Logic Systems**: Complete Boolean and Ternary logic implementations
-- **Cross-Backend Compatibility**: Works seamlessly with pandas, polars, Ibis, PyArrow, and more
-- **Automatic Backend Detection**: No manual visitor selection required
-- **Real-World Data Handling**: Built-in support for missing/UNKNOWN values
-- **Mathematical Foundation**: Efficient ternary arithmetic using integer optimization
-- **Visitor Pattern**: Clean separation of expression logic from backend implementation
-- **Type-Safe**: Full typing support with comprehensive type annotations
-
-## 📦 Installation
+## Installation
 
 ```bash
-pip install mountainash-expressions
+pip install mountainash                    # Core (Polars + Narwhals)
+pip install 'mountainash[pandas]'          # + Pandas backend
+pip install 'mountainash[ibis]'            # + Ibis backend (SQL databases)
+pip install 'mountainash[pyarrow]'         # + PyArrow backend
+pip install 'mountainash[pydantic]'        # + Pydantic model support
+pip install 'mountainash[all]'             # Everything
 ```
 
-### Optional Dependencies
+## Quick Start
 
-```bash
-# For extended DataFrame support
-pip install mountainash-expressions[xarray]
-
-# For distributed processing
-pip install mountainash-expressions[pyspark]
-
-# For database backends
-pip install mountainash-expressions[databases]
-
-# Install everything
-pip install mountainash-expressions[all]
-```
-
-## 🔧 Quick Start
-
-### Boolean Expressions
+### Expressions — build once, compile to any backend
 
 ```python
-from mountainash_expressions.logic.boolean import (
-    BooleanColumnExpressionNode, BooleanLogicalExpressionNode
-)
+import mountainash as ma
 
-# Create expressions with automatic backend detection
-age_condition = BooleanColumnExpressionNode("age", ">", 18)
-status_condition = BooleanColumnExpressionNode("status", "==", "active")
-combined = BooleanLogicalExpressionNode("AND", [age_condition, status_condition])
+# Build a backend-agnostic expression
+expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
 
-# Use with any DataFrame backend
-import polars as pl
-df = pl.DataFrame({"age": [25, 17, 30], "status": ["active", "inactive", "active"]})
-
-# Automatic backend detection and expression generation
-filtered = df.filter(combined.eval_is_true()(df))
+# Compile to any backend — auto-detected from DataFrame type
+polars_expr = expr.compile(polars_df)
+pandas_expr = expr.compile(pandas_df)
+ibis_expr = expr.compile(ibis_table)
 ```
 
-### Ternary Expressions (Real-World Data)
+### Relations — fluent query plans
 
 ```python
-from mountainash_expressions.logic.ternary import (
-    TernaryColumnExpressionNode, TernaryLogicalExpressionNode, TernaryExpressionBuilder
-)
-
-# Handle missing data with three-valued logic
-customer_rule = TernaryLogicalExpressionNode("AND", [
-    TernaryColumnExpressionNode("status", "==", "premium"),     # "<NA>" → UNKNOWN
-    TernaryColumnExpressionNode("score", ">", 700),             # -999999999 → UNKNOWN
-    TernaryColumnExpressionNode("verified", "==", True)         # None → UNKNOWN
-])
-
-# Multiple evaluation modes
-df_qualified = df.filter(customer_rule.eval_is_true()(df))      # Only TRUE cases
-df_uncertain = df.filter(customer_rule.eval_is_unknown()(df))   # UNKNOWN cases
-df_potential = df.filter(customer_rule.eval_maybe_true()(df))   # TRUE or UNKNOWN
-```
-
-### Builder Pattern
-
-```python
-# Boolean builder for standard operations
-bool_expr = BooleanExpressionBuilder.and_(
-    BooleanExpressionBuilder.eq("department", "engineering"),
-    BooleanExpressionBuilder.gt("salary", 75000)
-)
-
-# Ternary builder with XOR (mutual exclusion)
-payment_validation = TernaryExpressionBuilder.xor(
-    TernaryExpressionBuilder.eq("credit_card", "active"),
-    TernaryExpressionBuilder.eq("bank_transfer", "active"),
-    TernaryExpressionBuilder.eq("digital_wallet", "active")
+result = (
+    ma.relation(df)
+    .filter(ma.col("age").gt(30))
+    .sort("name")
+    .head(10)
+    .to_polars()
 )
 ```
 
-## 🧮 Ternary Logic System
+### Python data — no DataFrame needed
 
-The ternary system uses mathematical optimization for efficient operations:
-
-- **-1 = FALSE**
-- **1 = TRUE** 
-- **0 = UNKNOWN**
-
-### Logical Operations
-
-| A | B | AND | OR | XOR | NOT A |
-|---|---|-----|----|----|-------|
-| F | F | F   | F  | F   | T     |
-| F | T | F   | T  | T   | T     |
-| F | U | F   | U  | U   | T     |
-| T | F | F   | T  | T   | F     |
-| T | T | T   | T  | F   | F     |
-| T | U | U   | T  | U   | F     |
-| U | F | U   | U  | U   | U     |
-| U | T | U   | T  | U   | U     |
-| U | U | U   | U  | U   | U     |
-
-### Real-World Applications
-
-#### Customer Segmentation
 ```python
-# E-commerce customer analysis with missing data
-high_value_customer = TernaryLogicalExpressionNode("AND", [
-    TernaryColumnExpressionNode("account_status", "==", "active"),
-    TernaryColumnExpressionNode("annual_spend", ">", 10000),
-    TernaryColumnExpressionNode("loyalty_tier", "==", "gold")
-])
-
-# Results:
-# - All conditions TRUE → Definitely high-value
-# - Any condition FALSE → Definitely not high-value  
-# - UNKNOWN conditions with no FALSE → Uncertain (requires follow-up)
-```
-
-#### Payment Method Validation
-```python
-# Exactly one payment method should be active (XOR logic)
-valid_payment_setup = TernaryExpressionBuilder.xor(
-    TernaryExpressionBuilder.eq("credit_card", "active"),
-    TernaryExpressionBuilder.eq("bank_account", "active"),
-    TernaryExpressionBuilder.eq("digital_wallet", "active")
+# Python data in, Python data out
+result = (
+    ma.relation([
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+    ])
+    .filter(ma.col("age").gt(25))
+    .to_dicts()
 )
-
-# TRUE: Exactly one method active
-# FALSE: Zero or multiple methods active  
-# UNKNOWN: Cannot determine due to missing data
+# [{"name": "Alice", "age": 30}]
 ```
 
-## 🏗️ Architecture
-
-### Expression Node Hierarchy
+### Schema — deferred definition and application
 
 ```python
-ExpressionNode (Abstract)
-├── LiteralExpressionNode
-├── ColumnExpressionNode  
-└── LogicalExpressionNode
-    ├── BooleanLogicalExpressionNode
-    └── TernaryLogicalExpressionNode
+schema = ma.schema({
+    "age": {"cast": "integer"},
+    "name": {"rename": "full_name"},
+    "score": {"null_fill": 0.0},
+})
+result = schema.apply(df)  # Backend auto-detected
 ```
 
-### Visitor Pattern
+## Features
 
-Backend-specific implementations through the visitor pattern:
+- **Cross-backend expressions** — same expression compiles to Polars, Pandas, Ibis, Narwhals, or PyArrow
+- **Relational query plans** — filter, sort, join, group_by, window functions — all backend-agnostic
+- **Schema management** — define, extract, validate, and apply schemas across backends
+- **Python data support** — ingest lists, dicts, dataclasses, Pydantic models; output to any format
+- **Ternary logic** — three-valued TRUE/FALSE/UNKNOWN semantics for real-world data with missing values
+- **Automatic backend detection** — no manual configuration; backend determined from DataFrame type
+- **Substrait-aligned** — expression and relation ASTs follow the [Substrait](https://substrait.io/) specification
 
-```python
-# Automatic visitor selection (recommended)
-result = expression.eval_is_true()(dataframe)
+## Backend Support
 
-# Manual visitor selection (traditional approach)
-from mountainash_expressions.visitors.ternary import PolarsTernaryExpressionVisitor
-visitor = PolarsTernaryExpressionVisitor()
-result = expression.accept(visitor)(dataframe)
+| Backend | Install | Expressions | Relations | Schema |
+|---------|---------|:-----------:|:---------:|:------:|
+| Polars | *(included)* | Full | Full | Full |
+| Narwhals | *(included)* | Full | Full | Full |
+| Pandas | `[pandas]` | Full | Via Narwhals | Full |
+| Ibis | `[ibis]` | Full | Full | Partial |
+| PyArrow | `[pyarrow]` | Via Narwhals | Via Narwhals | Partial |
+
+## Architecture
+
+Mountainash separates **building** from **execution**. Expressions, relations, and schemas are defined as backend-agnostic AST nodes. Execution happens when a terminal method is called (`.compile()`, `.collect()`, `.apply()`), which auto-detects the backend and produces native operations.
+
+```
+Build phase (no backend needed)     Execute phase (backend auto-detected)
+─────────────────────────────────   ──────────────────────────────────────
+ma.col("x").gt(5)                   .compile(polars_df) → pl.col("x") > 5
+ma.relation(df).filter(...)         .to_polars()        → pl.DataFrame
+ma.schema({"x": {"cast": "int"}})  .apply(df)          → transformed df
 ```
 
-### Supported Backends
+For deeper architectural details, see the [design principles](https://github.com/mountainash-io/mountainash-central/tree/main/01.principles/mountainash-expresions).
 
-- **Polars**: Native polars expressions
-- **Ibis**: Universal SQL-like expressions
-- **Pandas**: DataFrame operations
-- **PyArrow**: Table/RecordBatch operations
-- **NumPy**: Array operations (planned)
-- **Xarray**: N-dimensional arrays (planned)
-- **PySpark**: Distributed processing (planned)
-
-## 🧪 Development
-
-### Prerequisites
-
-- Python 3.10+
-- [Hatch](https://hatch.pypa.io/) for environment management
-
-### Setup
+## Development
 
 ```bash
-git clone https://github.com/mountainash-io/mountainash-expressions.git
-cd mountainash-expressions
-hatch shell
-```
+git clone https://github.com/mountainash-io/mountainash.git
+cd mountainash
 
-### Running Tests
+# Run tests
+hatch run test:test              # Full suite with coverage
+hatch run test:test-quick        # Fast iteration (no coverage)
 
-```bash
-# Full test suite with coverage
-hatch run test:test
-
-# Quick tests (no coverage)
-hatch run test:test-quick
-
-# Target specific tests
-hatch run test:test-target tests/ternary/test_gold_standard_api.py
-
-# Performance benchmarks
-hatch run test:test-perf
-```
-
-### Code Quality
-
-```bash
 # Linting
 hatch run ruff:check
 hatch run ruff:fix
 
 # Type checking
 hatch run mypy:check
-
-# Build package
-hatch build
 ```
 
-## 📊 Test Categories
+## License
 
-- **Unit Tests**: Core logic validation (`hatch run test:test-unit`)
-- **Integration Tests**: Cross-backend compatibility (`hatch run test:test-integration`)
-- **Performance Tests**: Benchmark suite (`hatch run test:test-performance`)
-- **Gold Standard Tests**: Comprehensive API validation
-
-## 🔍 Usage Examples
-
-### Data Quality Rules
-
-```python
-# Age eligibility with boundary validation
-age_eligible = TernaryExpressionBuilder.between("age", 18, 65)
-# If upper boundary is UNKNOWN, result is UNKNOWN (prevents false positives)
-
-# Multi-condition data quality
-clean_record = TernaryLogicalExpressionNode("AND", [
-    TernaryColumnExpressionNode("email", "IS_NOT_NULL", None),
-    TernaryColumnExpressionNode("phone", "IS_NOT_NULL", None),
-    TernaryColumnExpressionNode("address", "!=", "")
-])
-```
-
-### Business Logic Implementation
-
-```python
-# Complex eligibility criteria
-loan_eligible = TernaryLogicalExpressionNode("AND", [
-    TernaryColumnExpressionNode("credit_score", ">=", 650),
-    TernaryColumnExpressionNode("income", ">", 50000),
-    TernaryLogicalExpressionNode("OR", [
-        TernaryColumnExpressionNode("employment_years", ">=", 2),
-        TernaryColumnExpressionNode("assets", ">", 100000)
-    ])
-])
-
-# Risk assessment with multiple evaluation modes
-df_approved = df.filter(loan_eligible.eval_is_true()(df))        # Auto-approve
-df_manual_review = df.filter(loan_eligible.eval_is_unknown()(df))  # Manual review
-df_rejected = df.filter(loan_eligible.eval_is_false()(df))       # Auto-reject
-```
-
-### Cross-Backend Compatibility
-
-```python
-# Same expression works across different DataFrame types
-import pandas as pd
-import polars as pl
-import ibis
-
-expression = BooleanExpressionBuilder.gt("value", 100)
-
-# Works automatically with any backend
-pandas_result = pd_df.query(expression.eval_is_true()(pd_df))
-polars_result = pl_df.filter(expression.eval_is_true()(pl_df))
-ibis_result = ibis_table.filter(expression.eval_is_true()(ibis_table))
-```
-
-## 📚 Documentation
-
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Testing Procedures](TESTING.md)
-- [Release Process](RELEASE.md)
-- [API Documentation](https://mountainash-expressions.readthedocs.io/)
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
-
-- Development setup
-- Branching strategy
-- Code standards
-- Testing requirements
-- Pull request process
-
-## 📋 Requirements
-
-### Core Dependencies
-
-- `ibis-framework[pandas,sqlite,duckdb] == 10.4.0`
-- `numpy >=1.23.2,<3`
-- `pandas >=2.2.0`
-- `polars ==1.16.0`
-- `pyarrow ==17.0.0`
-- `narwhals` (cross-DataFrame compatibility)
-
-### Optional Dependencies
-
-- `xarray ==2024.11.0` (N-dimensional arrays)
-- `pyspark >=3.5.0` (distributed processing)
-- Database backends: `mssql`, `snowflake`, `postgres`, `bigquery`, `trino`
-
-## 🏷️ Versioning
-
-We use [CalVer](https://calver.org/) versioning: `YYYY.MM.MICRO`
-
-- **YYYY.MM.0.0**: Release candidates
-- **YYYY.MM.1.0**: Production releases  
-- **YYYY.MM.1.x**: Updates and patches
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Related Projects
-
-- [mountainash-dataframes](https://github.com/mountainash-io/mountainash-dataframes): DataFrame abstractions and operations
-- [mountainash-constants](https://github.com/mountainash-io/mountainash-constants): Shared constants and enums
-- [mountainash-settings](https://github.com/mountainash-io/mountainash-settings): Configuration management
-
-## 🏔️ Mountain Ash Ecosystem
-
-Mountain Ash Expressions is part of the Mountain Ash ecosystem of Python packages designed for data science and engineering workflows. The ecosystem provides:
-
-- **Unified APIs** across different data processing backends
-- **Type-safe operations** with comprehensive validation
-- **Real-world data handling** with sophisticated missing value support
-- **Performance optimization** through mathematical foundations
-- **Enterprise-ready** architecture patterns and testing
-
----
-
-**Built with ❤️ by the Mountain Ash Team**
+MIT License. See [LICENSE](LICENSE) for details.
