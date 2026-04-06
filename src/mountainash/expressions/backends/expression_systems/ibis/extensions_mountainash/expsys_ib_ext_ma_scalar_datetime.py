@@ -562,7 +562,6 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Truncated datetime.
         """
-        unit_val = self._extract_literal_value(unit)
         # Ibis truncate expects just the unit letter, not "1d" format
         # Convert "1d" -> "D", "1h" -> "h", etc.
         unit_mapping = {
@@ -576,9 +575,8 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
             "1ms": "ms",
             "1us": "us",
         }
-        if unit_val in unit_mapping:
-            unit_val = unit_mapping[unit_val]
-        return x.truncate(unit_val)
+        unit_mapped = unit_mapping.get(unit, unit)
+        return x.truncate(unit_mapped)
 
     def round(
         self,
@@ -599,8 +597,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
             Ibis may not have round. Falls back to truncate.
         """
         # Ibis doesn't have round - fallback to truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.truncate(unit_val)
+        return x.truncate(unit)
 
     def ceil(
         self,
@@ -621,8 +618,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
             Ibis doesn't have ceil. Falls back to truncate.
         """
         # Ibis doesn't have ceil - fallback to truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.truncate(unit_val)
+        return x.truncate(unit)
 
     def floor(
         self,
@@ -639,8 +635,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Floor datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.truncate(unit_val)
+        return x.truncate(unit)
 
     # =========================================================================
     # Timezone Methods
@@ -770,8 +765,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with offset applied.
         """
-        offset_val = self._extract_literal_value(offset)
-        components = self._parse_duration_string(offset_val)
+        components = self._parse_duration_string(offset)
 
         # Map unit abbreviations to ibis.interval kwargs
         unit_mapping = {

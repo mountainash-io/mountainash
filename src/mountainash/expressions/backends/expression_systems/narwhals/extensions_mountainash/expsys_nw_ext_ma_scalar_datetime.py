@@ -567,8 +567,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Truncated datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def round(
         self,
@@ -589,8 +588,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Narwhals may not have round. Falls back to truncate.
         """
         # Narwhals doesn't have round - fallback to truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def ceil(
         self,
@@ -611,8 +609,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             Narwhals doesn't have ceil. Falls back to truncate.
         """
         # Narwhals doesn't have ceil - fallback to truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def floor(
         self,
@@ -629,8 +626,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Floor datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     # =========================================================================
     # Timezone Methods
@@ -740,8 +736,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         """
         from mountainash.expressions.core.utils.temporal import parse_combined_duration
 
-        offset_val = self._extract_literal_value(offset)
-        components = parse_combined_duration(offset_val)
+        components = parse_combined_duration(offset)
 
         result = x
         for component in components:

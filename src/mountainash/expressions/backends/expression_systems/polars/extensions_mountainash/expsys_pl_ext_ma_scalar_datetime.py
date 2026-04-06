@@ -561,8 +561,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Truncated datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def round(
         self,
@@ -579,8 +578,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Rounded datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.round(unit_val)
+        return x.dt.round(unit)
 
     def ceil(
         self,
@@ -598,10 +596,9 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Ceiling datetime.
         """
         # Polars doesn't have ceil for datetime, use truncate + add
-        unit_val = self._extract_literal_value(unit)
-        truncated = x.dt.truncate(unit_val)
+        truncated = x.dt.truncate(unit)
         # If truncated != original, add one unit
-        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
+        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
 
     def floor(
         self,
@@ -619,8 +616,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Floor datetime.
         """
         # Floor is the same as truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     # =========================================================================
     # Timezone Methods
@@ -642,9 +638,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Datetime in target timezone.
         """
 
-        timezone_val = self._extract_literal_value(timezone)
-
-        return x.dt.convert_time_zone(timezone_val)
+        return x.dt.convert_time_zone(timezone)
 
     def assume_timezone(
         self,
@@ -661,8 +655,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Timezone-aware datetime.
         """
-        timezone_val = self._extract_literal_value(timezone)
-        return x.dt.replace_time_zone(timezone_val)
+        return x.dt.replace_time_zone(timezone)
 
     # =========================================================================
     # Formatting Methods
@@ -684,9 +677,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Formatted string.
         """
 
-        format_val = self._extract_literal_value(format)
-
-        return x.dt.strftime(format_val)
+        return x.dt.strftime(format)
 
     # =========================================================================
     # Snapshot Methods (Static)
@@ -723,8 +714,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         """
         from mountainash.expressions.core.utils.temporal import parse_combined_duration
 
-        offset_val = self._extract_literal_value(offset)
-        components = parse_combined_duration(offset_val)
+        components = parse_combined_duration(offset)
 
         result = x
         for component in components:

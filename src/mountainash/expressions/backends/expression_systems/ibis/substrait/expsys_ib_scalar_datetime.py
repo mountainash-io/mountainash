@@ -445,9 +445,8 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Note:
             Ibis only supports truncate. Falls back to truncate for all modes.
         """
-        unit_val = self._extract_literal_value(unit)
         # Ibis only has truncate - use for all rounding modes
-        return x.truncate(unit_val)
+        return x.truncate(unit)
 
     def round_calendar(
         self,

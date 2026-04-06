@@ -460,9 +460,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         Note:
             Narwhals only supports truncate. Falls back to truncate for all modes.
         """
-        unit_val = self._extract_literal_value(unit)
         # Narwhals only has truncate - use for all rounding modes
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def round_calendar(
         self,

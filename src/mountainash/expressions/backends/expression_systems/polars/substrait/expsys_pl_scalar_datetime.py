@@ -442,17 +442,16 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Rounded datetime.
         """
-        rounding_val = self._extract_literal_value(rounding) if rounding else "FLOOR"
-        unit_val = self._extract_literal_value(unit)
+        rounding = rounding if rounding else "FLOOR"
 
-        if rounding_val == "FLOOR":
-            return x.dt.truncate(unit_val)
-        elif rounding_val == "CEIL":
-            truncated = x.dt.truncate(unit_val)
-            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
+        if rounding == "FLOOR":
+            return x.dt.truncate(unit)
+        elif rounding == "CEIL":
+            truncated = x.dt.truncate(unit)
+            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
         else:
             # ROUND_TIE_DOWN, ROUND_TIE_UP - use round
-            return x.dt.round(unit_val)
+            return x.dt.round(unit)
 
     def round_calendar(
         self,
