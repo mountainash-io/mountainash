@@ -9,7 +9,11 @@ from typing import Any
 
 import narwhals as nw
 
+from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
@@ -19,6 +23,32 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     Provides common functionality and backend identification for all
     Narwhals protocol implementations.
     """
+
+    BACKEND_NAME: str = "narwhals"
+
+    _NW_STRING_LITERAL_ONLY = KnownLimitation(
+        message="Narwhals string methods require literal values, not column references",
+        native_errors=(TypeError,),
+        workaround="Use a literal string value instead of a column reference",
+    )
+
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[str, str], KnownLimitation] = {
+        (FK_STR.STARTS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.ENDS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.CONTAINS, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REPLACE, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LIKE, "match"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REGEXP_REPLACE, "pattern"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REGEXP_REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.SUBSTRING, "start"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.SUBSTRING, "length"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LEFT, "count"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.RIGHT, "count"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.TRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LTRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.RTRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+    }
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
@@ -75,4 +105,26 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
 
         # If extraction fails, return the original expr
         # This will work for Polars-backed Narwhals but may fail for Pandas
+        return expr
+
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Extract literal value from a Narwhals expression.
+
+        Narwhals/Pandas string methods require raw Python values -- they reject
+        even nw.lit("hello"). This unwraps literal expressions back to raw
+        values while letting column references pass through unchanged.
+        """
+        if isinstance(expr, (str, int, float, bool, type(None))):
+            return expr
+        if isinstance(expr, nw.Expr):
+            expr_repr = repr(expr)
+            if "lit(" in expr_repr.lower() or "literal" in expr_repr.lower():
+                try:
+                    import pandas as pd
+
+                    tiny_df = nw.from_native(pd.DataFrame({"_": [0]}))
+                    result = tiny_df.select(expr.alias("_val"))["_val"].to_list()[0]
+                    return result
+                except Exception:
+                    pass
         return expr

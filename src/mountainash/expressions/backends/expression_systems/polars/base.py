@@ -9,7 +9,11 @@ from typing import Any
 
 import polars as pl
 
+from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
@@ -19,6 +23,26 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
     Provides common functionality and backend identification for all
     Polars protocol implementations.
     """
+
+    BACKEND_NAME: str = "polars"
+
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[str, str], KnownLimitation] = {
+        (FK_STR.REPLACE, "pattern"): KnownLimitation(
+            message="Polars does not support dynamic column patterns in str.replace",
+            native_errors=(Exception,),
+            workaround="Use a literal string pattern; replacement can be a column reference",
+        ),
+        (FK_STR.LPAD, "length"): KnownLimitation(
+            message="Polars str.pad_start requires a literal integer length",
+            native_errors=(TypeError,),
+            workaround="Use a literal integer for the padding length",
+        ),
+        (FK_STR.RPAD, "length"): KnownLimitation(
+            message="Polars str.pad_end requires a literal integer length",
+            native_errors=(TypeError,),
+            workaround="Use a literal integer for the padding length",
+        ),
+    }
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
@@ -64,4 +88,16 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
                 pass
 
         # If extraction fails, return the original expr
+        return expr
+
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Extract literal value from a Polars expression."""
+        if isinstance(expr, (str, int, float, bool, type(None))):
+            return expr
+        if isinstance(expr, pl.Expr):
+            try:
+                result = pl.select(expr).item()
+                return result
+            except Exception:
+                pass
         return expr

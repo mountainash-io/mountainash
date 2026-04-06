@@ -67,6 +67,12 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
         # If extraction fails, return the original expr
         return expr
 
+    BACKEND_NAME: str = "ibis"
+
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Ibis accepts expressions everywhere -- no extraction needed."""
+        return expr
+
     def _extract_column_name(self, expr: Any) -> str | None:
         """Extract the column name from an Ibis expression.
 
