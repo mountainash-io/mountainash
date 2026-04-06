@@ -13,6 +13,9 @@ import ibis
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+)
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
@@ -357,26 +360,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         substring: IbisValueExpr,
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
-        """Whether the input string contains the substring.
-
-        Args:
-            input: String expression.
-            substring: Substring to search for.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Boolean expression.
-        """
-        pattern = self._extract_literal_value(substring)
-        if isinstance(pattern, str):
-            # Check if it looks like a regex pattern
-            regex_chars = r".*+?^${}[]|()\\"
-            is_regex = any(c in pattern for c in regex_chars)
-            if is_regex:
-                # Use re_search for regex patterns
-                return input.re_search(pattern)
-        # Use literal contains for plain strings (or non-literal expressions)
-        return input.contains(pattern)
+        """Whether the input string contains the substring."""
+        return self._call_with_expr_support(
+            lambda: input.contains(substring),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            substring=substring,
+        )
 
     def starts_with(
         self,
@@ -385,18 +374,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
-        """Whether input string starts with the substring.
-
-        Args:
-            input: String expression.
-            substring: Prefix to check.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Boolean expression.
-        """
-        prefix = self._extract_literal_value(substring)
-        return input.startswith(prefix)
+        """Whether input string starts with the substring."""
+        return self._call_with_expr_support(
+            lambda: input.startswith(substring),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+            substring=substring,
+        )
 
     def ends_with(
         self,
@@ -405,18 +388,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         substring: IbisValueExpr,
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
-        """Whether input string ends with the substring.
-
-        Args:
-            input: String expression.
-            substring: Suffix to check.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Boolean expression.
-        """
-        suffix = self._extract_literal_value(substring)
-        return input.endswith(suffix)
+        """Whether input string ends with the substring."""
+        return self._call_with_expr_support(
+            lambda: input.endswith(substring),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+            substring=substring,
+        )
 
     def strpos(
         self,
