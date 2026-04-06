@@ -6,7 +6,7 @@ Implements ScalarRoundingBuilderProtocol for rounding operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
@@ -17,7 +17,6 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait im
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-    from ....expression_nodes import ExpressionNode
 
 
 class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarRoundingAPIBuilderProtocol):
@@ -64,7 +63,7 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
 
     def round(
         self,
-        decimals: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        decimals: Optional[int] = None,
     ) -> BaseExpressionAPI:
         """
         Round to the specified number of decimal places.
@@ -83,9 +82,9 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
                 arguments=[self._node],
             )
         else:
-            decimals_node = self._to_substrait_node(decimals)
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
-                arguments=[self._node, decimals_node],
+                arguments=[self._node],
+                options={"s": decimals},
             )
         return self._build(node)

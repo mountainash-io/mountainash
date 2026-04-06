@@ -2,7 +2,7 @@
 
 import pytest
 import mountainash.expressions as ma
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ROUNDING
 
 
@@ -14,10 +14,9 @@ class TestRoundingMethods:
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND
-        assert len(node.arguments) == 2
+        assert len(node.arguments) == 1
         assert isinstance(node.arguments[0], FieldReferenceNode)
-        assert isinstance(node.arguments[1], LiteralNode)
-        assert node.arguments[1].value == 2
+        assert node.options == {"s": 2}
 
     def test_ceil(self):
         expr = ma.col("x").ceil()

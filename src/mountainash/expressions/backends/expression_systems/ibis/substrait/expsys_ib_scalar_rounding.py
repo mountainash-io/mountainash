@@ -51,18 +51,17 @@ class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisNumericExpr,
         /,
-        s: int,
+        s: int = 0,
         rounding: Any = None,
     ) -> IbisNumericExpr:
         """Round to s decimal places.
 
         Args:
             x: Value to round.
-            s: Number of decimal places (as expression or int).
+            s: Number of decimal places (raw int option).
             rounding: Rounding mode (ignored in Ibis, uses backend default).
 
         Returns:
             Rounded value.
         """
-        s_val = self._extract_literal_value(s)
-        return x.round(int(s_val))
+        return x.round(s)
