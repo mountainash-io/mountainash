@@ -14,6 +14,9 @@ import narwhals as nw
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+)
 
 
 if TYPE_CHECKING:
@@ -249,8 +252,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with years added.
         """
-        years_val = self._extract_literal_value(years)
-        return x.dt.offset_by(f"{int(years_val)}y")
+        years_val = self._extract_literal_if_possible(years)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(years_val)}y"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
+            years=years,
+        )
 
     def add_months(
         self,
@@ -267,8 +274,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with months added.
         """
-        months_val = self._extract_literal_value(months)
-        return x.dt.offset_by(f"{int(months_val)}mo")
+        months_val = self._extract_literal_if_possible(months)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(months_val)}mo"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
+            months=months,
+        )
 
     def add_days(
         self,
@@ -285,8 +296,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with days added.
         """
-        days_val = self._extract_literal_value(days)
-        return x.dt.offset_by(f"{int(days_val)}d")
+        days_val = self._extract_literal_if_possible(days)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(days_val)}d"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
+            days=days,
+        )
 
     def add_hours(
         self,
@@ -303,8 +318,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with hours added.
         """
-        hours_val = self._extract_literal_value(hours)
-        return x.dt.offset_by(f"{int(hours_val)}h")
+        hours_val = self._extract_literal_if_possible(hours)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(hours_val)}h"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
+            hours=hours,
+        )
 
     def add_minutes(
         self,
@@ -321,8 +340,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with minutes added.
         """
-        minutes_val = self._extract_literal_value(minutes)
-        return x.dt.offset_by(f"{int(minutes_val)}m")
+        minutes_val = self._extract_literal_if_possible(minutes)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(minutes_val)}m"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
+            minutes=minutes,
+        )
 
     def add_seconds(
         self,
@@ -339,8 +362,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with seconds added.
         """
-        seconds_val = self._extract_literal_value(seconds)
-        return x.dt.offset_by(f"{int(seconds_val)}s")
+        seconds_val = self._extract_literal_if_possible(seconds)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(seconds_val)}s"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
+            seconds=seconds,
+        )
 
     def add_milliseconds(
         self,
@@ -360,9 +387,13 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Note:
             Narwhals offset_by may not support 'ms'. Falls back to microseconds.
         """
-        ms_val = self._extract_literal_value(milliseconds)
+        ms_val = self._extract_literal_if_possible(milliseconds)
         # Convert to microseconds: 1ms = 1000us
-        return x.dt.offset_by(f"{int(ms_val) * 1000}us")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(ms_val) * 1000}us"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
+            milliseconds=milliseconds,
+        )
 
     def add_microseconds(
         self,
@@ -379,8 +410,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with microseconds added.
         """
-        us_val = self._extract_literal_value(microseconds)
-        return x.dt.offset_by(f"{int(us_val)}us")
+        us_val = self._extract_literal_if_possible(microseconds)
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(f"{int(us_val)}us"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
+            microseconds=microseconds,
+        )
 
     # =========================================================================
     # Date Difference Methods

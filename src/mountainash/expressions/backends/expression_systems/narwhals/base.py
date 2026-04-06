@@ -13,6 +13,7 @@ from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
@@ -32,6 +33,12 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         workaround="Use a literal string value instead of a column reference",
     )
 
+    _NW_DATETIME_OFFSET_LITERAL_ONLY = KnownLimitation(
+        message="Narwhals datetime offset operations require literal integer values",
+        native_errors=(TypeError,),
+        workaround="Use a literal integer for the offset amount",
+    )
+
     KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
         (FK_STR.STARTS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.ENDS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
@@ -48,6 +55,14 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         (FK_STR.TRIM, "characters"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.LTRIM, "characters"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.RTRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+        (FK_DT.ADD_YEARS, "years"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MONTHS, "months"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_DAYS, "days"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_HOURS, "hours"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MINUTES, "minutes"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_SECONDS, "seconds"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MILLISECONDS, "milliseconds"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MICROSECONDS, "microseconds"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
     }
 
     @property

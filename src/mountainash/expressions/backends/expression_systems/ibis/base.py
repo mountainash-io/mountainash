@@ -9,7 +9,11 @@ from typing import Any
 
 import ibis.expr.types as ir
 
+from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
@@ -19,6 +23,23 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
     Provides common functionality and backend identification for all
     Ibis protocol implementations.
     """
+
+    _IB_DATETIME_OFFSET_LITERAL_ONLY = KnownLimitation(
+        message="Ibis datetime offset operations require literal integer values",
+        native_errors=(TypeError,),
+        workaround="Use a literal integer for the offset amount",
+    )
+
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
+        (FK_DT.ADD_YEARS, "years"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MONTHS, "months"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_DAYS, "days"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_HOURS, "hours"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MINUTES, "minutes"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_SECONDS, "seconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MILLISECONDS, "milliseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MICROSECONDS, "microseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+    }
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
