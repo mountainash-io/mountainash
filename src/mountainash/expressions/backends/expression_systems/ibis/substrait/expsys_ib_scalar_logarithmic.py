@@ -11,6 +11,9 @@ from typing import Any, TYPE_CHECKING
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarLogarithmicExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
+)
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisNumericExpr
@@ -112,11 +115,11 @@ class SubstraitIbisScalarLogarithmicExpressionSystem(IbisBaseExpressionSystem, S
         Returns:
             Log base `base` of x.
         """
-        base_val = self._extract_literal_value(base)
-        if isinstance(base_val, (int, float)):
-            return x.log(base_val)
-        # Fallback: change of base formula for expression base
-        return x.ln() / base.ln()
+        return self._call_with_expr_support(
+            lambda: x.ln() / base.ln(),
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB,
+            base=base,
+        )
 
     def log1p(
         self,
