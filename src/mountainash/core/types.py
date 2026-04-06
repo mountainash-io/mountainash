@@ -250,3 +250,51 @@ def is_narwhals_series(obj: Any) -> TypeGuard['NarwhalsSeries']:
 def is_pyarrow_array(obj: Any) -> TypeGuard['PyArrowArray']:
     """Type guard for PyArrow Arrays."""
     return type(obj).__module__.startswith("pyarrow") and type(obj).__name__ == "Array"
+
+# ============================================================================
+# Backend Capability — Known Limitations
+# ============================================================================
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class KnownLimitation:
+    """Documents a known backend limitation for expression-typed arguments.
+
+    Consulted only when the backend raises a native error — never gates
+    execution. When the upstream library adds support, the error stops
+    being raised and this entry becomes dormant.
+    """
+
+    message: str
+    native_errors: tuple[type[Exception], ...]
+    upstream_issue: str | None = None
+    workaround: str | None = None
+
+
+class BackendCapabilityError(Exception):
+    """Raised when a backend cannot handle an expression-typed argument.
+
+    Wraps native backend errors with curated context from the known
+    limitation registry.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        backend: str,
+        function_key: str,
+        limitation: KnownLimitation | None = None,
+    ) -> None:
+        parts = [f"[{backend}] {message}"]
+        if limitation:
+            if limitation.workaround:
+                parts.append(f"Workaround: {limitation.workaround}")
+            if limitation.upstream_issue:
+                parts.append(f"Upstream: {limitation.upstream_issue}")
+        super().__init__("\n".join(parts))
+        self.backend = backend
+        self.function_key = function_key
+        self.limitation = limitation
