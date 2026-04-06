@@ -5,7 +5,6 @@ Implements string operations for the Ibis backend.
 
 from __future__ import annotations
 
-import re
 from typing import Any, TYPE_CHECKING
 
 import ibis
@@ -223,9 +222,13 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Left-padded string.
         """
-        length_val = self._extract_literal_value(length)
-        fill_char = " " if characters is None else self._extract_literal_value(characters)
-        return input.lpad(length_val, fill_char)
+        fill_char = ibis.literal(" ") if characters is None else characters
+        return self._call_with_expr_support(
+            lambda: input.lpad(length, fill_char),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            length=length,
+            characters=fill_char,
+        )
 
     def rpad(
         self,
@@ -244,9 +247,13 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Right-padded string.
         """
-        length_val = self._extract_literal_value(length)
-        fill_char = " " if characters is None else self._extract_literal_value(characters)
-        return input.rpad(length_val, fill_char)
+        fill_char = ibis.literal(" ") if characters is None else characters
+        return self._call_with_expr_support(
+            lambda: input.rpad(length, fill_char),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+            length=length,
+            characters=fill_char,
+        )
 
     def center(
         self,
@@ -296,13 +303,18 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Substring expression.
         """
-        # Extract literal values where possible; ibis.substr accepts expressions
-        start_val = self._extract_literal_value(start)
-        length_val = self._extract_literal_value(length) if length is not None else None
-
-        if length_val is None:
-            return input.substr(start_val)
-        return input.substr(start_val, length_val)
+        if length is None:
+            return self._call_with_expr_support(
+                lambda: input.substr(start),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+                start=start,
+            )
+        return self._call_with_expr_support(
+            lambda: input.substr(start, length),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            start=start,
+            length=length,
+        )
 
     def left(
         self,
@@ -311,8 +323,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         count: IbisValueExpr,
     ) -> IbisValueExpr:
         """Extract count characters from the left."""
-        count_val = self._extract_literal_value(count)
-        return input.left(count_val)
+        return self._call_with_expr_support(
+            lambda: input.left(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
+            count=count,
+        )
 
     def right(
         self,
@@ -321,8 +336,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         count: IbisValueExpr,
     ) -> IbisValueExpr:
         """Extract count characters from the right."""
-        count_val = self._extract_literal_value(count)
-        return input.right(count_val)
+        return self._call_with_expr_support(
+            lambda: input.right(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
+            count=count,
+        )
 
     def replace_slice(
         self,
@@ -543,22 +561,16 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             String with replacements.
 
         Note:
-            Ibis .replace() only replaces the first occurrence.
-            We use .re_replace() with escaped pattern to replace all occurrences,
-            matching Python's str.replace behavior.
+            Ibis .replace() only replaces the first occurrence on some backends
+            (e.g., Polars). We use .re_replace() to get replace-all semantics
+            consistent with Python str.replace across all Ibis backends.
         """
-        # Extract literal values if they're Ibis expressions
-        pattern = self._extract_literal_value(substring)
-        repl = self._extract_literal_value(replacement)
-
-        # If we got string values, escape them for regex and use re_replace
-        if isinstance(pattern, str) and isinstance(repl, str):
-            # Escape regex special characters for literal match
-            escaped_pattern = re.escape(pattern)
-            return input.re_replace(escaped_pattern, repl)
-
-        # Fallback to regular replace (only replaces first occurrence)
-        return input.replace(substring, replacement)
+        return self._call_with_expr_support(
+            lambda: input.re_replace(substring, replacement),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            substring=substring,
+            replacement=replacement,
+        )
 
     def repeat(
         self,
@@ -575,8 +587,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Repeated string.
         """
-        count_val = self._extract_literal_value(count)
-        return input.repeat(count_val)
+        return self._call_with_expr_support(
+            lambda: input.repeat(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
+            count=count,
+        )
 
     def reverse(self, input: IbisValueExpr, /) -> IbisValueExpr:
         """Return the string in reverse order.
@@ -610,8 +625,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Boolean expression.
         """
-        pattern = self._extract_literal_value(match)
-        return input.like(pattern)
+        return self._call_with_expr_support(
+            lambda: input.like(match),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+            match=match,
+        )
 
     def regexp_match_substring(
         self,
@@ -640,9 +658,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Matched substring or null.
         """
-        regex_pattern = self._extract_literal_value(pattern)
         group_index = 0 if group is None else (group if isinstance(group, int) else 0)
-        return input.re_extract(regex_pattern, group_index)
+        return self._call_with_expr_support(
+            lambda: input.re_extract(pattern, group_index),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            pattern=pattern,
+        )
 
     def regexp_match_substring_all(
         self,
@@ -762,9 +783,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             String with replacements.
         """
-        regex_pattern = self._extract_literal_value(pattern)
-        repl = self._extract_literal_value(replacement)
-        return input.re_replace(regex_pattern, repl)
+        return self._call_with_expr_support(
+            lambda: input.re_replace(pattern, replacement),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            pattern=pattern,
+            replacement=replacement,
+        )
 
     # =========================================================================
     # Split Operations
