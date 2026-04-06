@@ -31,9 +31,7 @@ class MountainAshNarwhalsNameExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         Returns:
             The expression with the new name.
         """
-        # Extract literal value if needed
-        name_val = self._extract_literal_value(name)
-        return input.alias(name_val)
+        return input.alias(name)
 
     def prefix(self, input: NarwhalsExpr, /, prefix: str) -> NarwhalsExpr:
         """Add a prefix to the column name.
@@ -45,8 +43,7 @@ class MountainAshNarwhalsNameExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         Returns:
             The expression with prefixed name.
         """
-        prefix_val = self._extract_literal_value(prefix)
-        return input.name.prefix(prefix_val)
+        return input.name.prefix(prefix)
 
     def suffix(self, input: NarwhalsExpr, /, suffix: str) -> NarwhalsExpr:
         """Add a suffix to the column name.
@@ -58,8 +55,7 @@ class MountainAshNarwhalsNameExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         Returns:
             The expression with suffixed name.
         """
-        suffix_val = self._extract_literal_value(suffix)
-        return input.name.suffix(suffix_val)
+        return input.name.suffix(suffix)
 
     def name_to_upper(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
         """Convert column name to uppercase.

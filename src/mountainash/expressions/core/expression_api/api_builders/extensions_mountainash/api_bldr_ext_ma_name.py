@@ -10,7 +10,7 @@ from __future__ import annotations
 from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, LiteralNode
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -48,7 +48,8 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         """
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NAME.ALIAS,
-            arguments=[self._node, LiteralNode(value=name)],
+            arguments=[self._node],
+            options={"name": name},
         )
         return self._build(node)
 
@@ -68,7 +69,8 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         """
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NAME.PREFIX,
-            arguments=[self._node, LiteralNode(value=prefix)],
+            arguments=[self._node],
+            options={"prefix": prefix},
         )
         return self._build(node)
 
@@ -88,7 +90,8 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         """
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NAME.SUFFIX,
-            arguments=[self._node, LiteralNode(value=suffix)],
+            arguments=[self._node],
+            options={"suffix": suffix},
         )
         return self._build(node)
 
