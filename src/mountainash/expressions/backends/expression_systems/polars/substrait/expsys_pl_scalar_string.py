@@ -182,8 +182,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars()
-        chars_val = self._extract_literal_value(characters)
-        return input.str.strip_chars(chars_val)
+        return self._call_with_expr_support(
+            lambda: input.str.strip_chars(characters),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM,
+            characters=characters,
+        )
 
     def ltrim(
         self,
@@ -202,8 +205,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars_start()
-        chars_val = self._extract_literal_value(characters)
-        return input.str.strip_chars_start(chars_val)
+        return self._call_with_expr_support(
+            lambda: input.str.strip_chars_start(characters),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
+            characters=characters,
+        )
 
     def rtrim(
         self,
@@ -222,8 +228,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars_end()
-        chars_val = self._extract_literal_value(characters)
-        return input.str.strip_chars_end(chars_val)
+        return self._call_with_expr_support(
+            lambda: input.str.strip_chars_end(characters),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
+            characters=characters,
+        )
 
     def lpad(
         self,
@@ -242,9 +251,12 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Left-padded string.
         """
-        length_val = self._extract_literal_value(length)
-        fill_char = " " if characters is None else self._extract_literal_value(characters)
-        return input.str.pad_start(length_val, fill_char)
+        fill_char = " " if characters is None else self._extract_literal_if_possible(characters)
+        return self._call_with_expr_support(
+            lambda: input.str.pad_start(length, fill_char=str(fill_char)),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            length=length,
+        )
 
     def rpad(
         self,
@@ -263,9 +275,12 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Right-padded string.
         """
-        length_val = self._extract_literal_value(length)
-        fill_char = " " if characters is None else self._extract_literal_value(characters)
-        return input.str.pad_end(length_val, fill_char)
+        fill_char = " " if characters is None else self._extract_literal_if_possible(characters)
+        return self._call_with_expr_support(
+            lambda: input.str.pad_end(length, fill_char=str(fill_char)),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+            length=length,
+        )
 
     def center(
         self,
@@ -286,8 +301,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Centered string.
         """
-        fill_char_val = " " if character is None else self._extract_literal_value(character)
-        length_val = self._extract_literal_value(length)
+        fill_char_val = " " if character is None else self._extract_literal_if_possible(character)
+        length_val = self._extract_literal_if_possible(length)
         target_len = int(length_val)
         char = str(fill_char_val) if not isinstance(fill_char_val, str) else fill_char_val
         return input.map_elements(
@@ -318,13 +333,18 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Substring expression.
         """
-        # Extract literal values where possible; Polars str.slice accepts expressions
-        start_val = self._extract_literal_value(start)
-        length_val = self._extract_literal_value(length) if length is not None else None
-
-        if length_val is None:
-            return input.str.slice(start_val)
-        return input.str.slice(start_val, length_val)
+        if length is None:
+            return self._call_with_expr_support(
+                lambda: input.str.slice(start),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+                start=start,
+            )
+        return self._call_with_expr_support(
+            lambda: input.str.slice(start, length),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            start=start,
+            length=length,
+        )
 
     def left(
         self,
@@ -333,8 +353,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         count: PolarsExpr,
     ) -> PolarsExpr:
         """Extract count characters from the left."""
-        count_val = self._extract_literal_value(count)
-        return input.str.slice(0, count_val)
+        return self._call_with_expr_support(
+            lambda: input.str.head(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
+            count=count,
+        )
 
     def right(
         self,
@@ -343,8 +366,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         count: PolarsExpr,
     ) -> PolarsExpr:
         """Extract count characters from the right."""
-        count_val = self._extract_literal_value(count)
-        return input.str.slice(-count_val)
+        return self._call_with_expr_support(
+            lambda: input.str.tail(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
+            count=count,
+        )
 
     def replace_slice(
         self,
@@ -365,9 +391,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             String with replaced slice.
         """
-        start_val = self._extract_literal_value(start)
-        length_val = self._extract_literal_value(length)
-        replacement_val = self._extract_literal_value(replacement)
+        start_val = self._extract_literal_if_possible(start)
+        length_val = self._extract_literal_if_possible(length)
+        replacement_val = self._extract_literal_if_possible(replacement)
         offset = int(start_val) - 1 if int(start_val) > 0 else 0
         repl = str(replacement_val)
         len_val = int(length_val)
@@ -606,7 +632,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Repeated string.
         """
-        count_val = self._extract_literal_value(count)
+        count_val = self._extract_literal_if_possible(count)
         n = int(count_val)
         return input.map_elements(
             lambda s: s * n if s is not None else None,
@@ -645,8 +671,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
-        # Extract literal value from Expr if needed
-        pattern = self._extract_literal_value(match)
+        # Extract literal value — SQL LIKE → regex conversion requires a string
+        pattern = self._extract_literal_if_possible(match)
 
         pattern_str = str(pattern)
         # Convert SQL LIKE pattern to regex
@@ -794,15 +820,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             String with replacements.
         """
-        # Extract literal values from Expr objects if needed
-        regex_pattern = self._extract_literal_value(pattern)
-        repl = self._extract_literal_value(replacement)
-
         # If occurrence is 0 or None, replace all
         if occurrence is None or occurrence == 0:
-            return input.str.replace_all(regex_pattern, repl, literal=False)
+            return self._call_with_expr_support(
+                lambda: input.str.replace_all(pattern, replacement, literal=False),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                pattern=pattern,
+                replacement=replacement,
+            )
         # Replace first occurrence only
-        return input.str.replace(regex_pattern, repl, literal=False)
+        return self._call_with_expr_support(
+            lambda: input.str.replace(pattern, replacement, literal=False),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            pattern=pattern,
+            replacement=replacement,
+        )
 
     # =========================================================================
     # Split Operations
