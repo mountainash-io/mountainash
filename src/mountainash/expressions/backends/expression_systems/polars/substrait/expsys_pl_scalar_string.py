@@ -12,6 +12,9 @@ import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
@@ -388,18 +391,17 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            substring: Substring to search for (can be literal or regex pattern).
+            substring: Substring to search for (expression or literal).
             case_sensitivity: Case sensitivity option.
 
         Returns:
             Boolean expression.
         """
-        # Extract literal value from Expr if needed
-        pattern = self._extract_literal_value(substring)
-
-        regex_chars = r".*+?^${}[]|()\\"
-        is_regex = any(c in str(pattern) for c in regex_chars)
-        return input.str.contains(str(pattern), literal=not is_regex)
+        return self._call_with_expr_support(
+            lambda: input.str.contains(substring, literal=True),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            substring=substring,
+        )
 
     def starts_with(
         self,
@@ -446,20 +448,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         substring: PolarsExpr,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
-        """Return position of first occurrence of substring (1-indexed).
+        """Return 1-indexed position of substring in input, 0 if not found.
 
         Args:
             input: String expression.
-            substring: Substring to find.
+            substring: Substring to search for (expression or literal).
             case_sensitivity: Case sensitivity option.
 
         Returns:
-            Position (1-indexed), or 0 if not found.
+            Integer expression (1-indexed, 0 = not found).
         """
-        # Polars find returns 0-indexed position, -1 if not found
-        # Substrait expects 1-indexed, 0 if not found
-        sub_val = self._extract_literal_value(substring)
-        return (input.str.find(sub_val, literal=True) + 1).fill_null(0)
+        return self._call_with_expr_support(
+            lambda: input.str.find(substring).fill_null(-1) + 1,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+            substring=substring,
+        )
 
     def count_substring(
         self,
@@ -468,18 +471,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         substring: PolarsExpr,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
-        """Return the number of non-overlapping occurrences of substring.
+        """Count occurrences of substring in input.
 
         Args:
             input: String expression.
-            substring: Substring to count.
+            substring: Substring to count (expression or literal).
             case_sensitivity: Case sensitivity option.
 
         Returns:
-            Count of occurrences.
+            Integer expression.
         """
-        sub_val = self._extract_literal_value(substring)
-        return input.str.count_matches(sub_val, literal=True)
+        return self._call_with_expr_support(
+            lambda: input.str.count_matches(substring, literal=True),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+            substring=substring,
+        )
 
     # =========================================================================
     # Length Operations
