@@ -165,10 +165,9 @@ class TestWindowBuilderMethods:
         node = api._node
         assert isinstance(node, WindowFunctionNode)
         assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE
-        assert len(node.arguments) == 2
+        assert len(node.arguments) == 1
         assert isinstance(node.arguments[0], FieldReferenceNode)
-        assert isinstance(node.arguments[1], LiteralNode)
-        assert node.arguments[1].value == 3
+        assert node.options == {"window_offset": 3}
 
 
 # ========================================

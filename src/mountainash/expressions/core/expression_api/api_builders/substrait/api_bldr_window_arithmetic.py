@@ -223,18 +223,10 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         return self._build(node)
 
     def nth_value(self, n: int) -> BaseExpressionAPI:
-        """Nth value in the window frame (1-based).
-
-        Substrait: nth_value
-
-        Args:
-            n: Position (1-based) of the value to return.
-
-        Returns:
-            New ExpressionAPI with WindowFunctionNode.
-        """
+        """Nth value in the window frame (1-based)."""
         node = WindowFunctionNode(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE,
-            arguments=[self._node, LiteralNode(value=n)],
+            arguments=[self._node],
+            options={"window_offset": n},
         )
         return self._build(node)

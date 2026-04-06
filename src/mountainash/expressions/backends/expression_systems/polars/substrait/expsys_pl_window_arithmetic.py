@@ -158,8 +158,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Value at specified position, or null if out of range.
         """
-        offset_val = self._extract_literal_value(window_offset)
-        return x.gather(int(offset_val) - 1)
+        return x.gather(int(window_offset) - 1)
 
     def lead(
         self,
