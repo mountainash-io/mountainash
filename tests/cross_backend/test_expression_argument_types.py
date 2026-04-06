@@ -260,3 +260,121 @@ class TestCountSubstringArgTypes:
         expr = ma.col("text").str.count_substring(ma.col("sub"))
         actual = collect_expr(df, expr)
         assert actual == [2, 1], f"[{backend_name}] got {actual}"
+
+
+# =============================================================================
+# Replace Operations
+# =============================================================================
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+class TestReplaceArgTypes:
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_replace_raw_scalar(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello world", "foo bar"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.replace("world", "earth")
+        actual = collect_expr(df, expr)
+        assert actual == ["hello earth", "foo bar"], f"[{backend_name}] got {actual}"
+
+    @pytest.mark.parametrize("backend_name", [
+        pytest.param("ibis-polars", marks=pytest.mark.xfail(
+            strict=True, reason="ibis-polars compiler requires literal for replace")),
+        "ibis-duckdb",
+        "ibis-sqlite",
+        pytest.param("polars", marks=pytest.mark.xfail(
+            strict=True, reason="polars dynamic pattern not supported")),
+        pytest.param("pandas", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals requires literal")),
+        pytest.param("narwhals", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals requires literal")),
+    ])
+    def test_replace_column_reference_pattern(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello world", "foo bar"], "old": ["world", "bar"], "new": ["earth", "baz"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.replace(ma.col("old"), ma.col("new"))
+        actual = collect_expr(df, expr)
+        assert actual == ["hello earth", "foo baz"], f"[{backend_name}] got {actual}"
+
+
+# =============================================================================
+# Substring Operations
+# =============================================================================
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+class TestSubstringArgTypes:
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_substring_raw_scalar(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello world", "foo bar"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.substring(0, 5)
+        actual = collect_expr(df, expr)
+        assert actual == ["hello", "foo b"], f"[{backend_name}] got {actual}"
+
+    @pytest.mark.parametrize("backend_name", [
+        "polars",
+        pytest.param("ibis-polars", marks=pytest.mark.xfail(
+            strict=True, reason="ibis-polars compiler requires literal for substring")),
+        "ibis-duckdb",
+        "ibis-sqlite",
+        pytest.param("pandas", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals requires literal")),
+        pytest.param("narwhals", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals requires literal")),
+    ])
+    def test_substring_column_reference_start(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello world", "foo bar"], "start": [6, 4]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.substring(ma.col("start"), 3)
+        actual = collect_expr(df, expr)
+        assert actual == ["wor", "bar"], f"[{backend_name}] got {actual}"
+
+
+# =============================================================================
+# Padding Operations
+# =============================================================================
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+class TestPaddingArgTypes:
+
+    @pytest.mark.parametrize("backend_name", [
+        "polars",
+        "ibis-polars",
+        "ibis-duckdb",
+        "ibis-sqlite",
+        pytest.param("pandas", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals lpad not implemented")),
+        pytest.param("narwhals", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals lpad not implemented")),
+    ])
+    def test_lpad_raw_scalar(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hi", "hey"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.lpad(5, " ")
+        actual = collect_expr(df, expr)
+        assert actual == ["   hi", "  hey"], f"[{backend_name}] got {actual}"
+
+    @pytest.mark.parametrize("backend_name", [
+        "polars",
+        pytest.param("ibis-polars", marks=pytest.mark.xfail(
+            strict=True, reason="ibis-polars compiler requires literal for lpad")),
+        "ibis-duckdb",
+        "ibis-sqlite",
+        pytest.param("pandas", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals lpad not implemented")),
+        pytest.param("narwhals", marks=pytest.mark.xfail(
+            strict=True, reason="narwhals lpad not implemented")),
+    ])
+    def test_lpad_column_reference_length(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hi", "hey"], "len": [5, 6]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.lpad(ma.col("len"), " ")
+        actual = collect_expr(df, expr)
+        assert actual == ["   hi", "   hey"], f"[{backend_name}] got {actual}"
