@@ -13,6 +13,9 @@ import narwhals as nw
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
@@ -392,10 +395,15 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.contains expects a string pattern, not an Expr
-        # Extract value from literal expression if possible
-        pattern = self._extract_literal_value(substring)
-        return input.str.contains(pattern)
+        # Narwhals/Pandas str.contains expects a string pattern, not an Expr.
+        # Unwrap nw.lit("...") to a raw value; column refs pass through and
+        # will be caught by _call_with_expr_support with an enriched error.
+        pattern = self._extract_literal_if_possible(substring)
+        return self._call_with_expr_support(
+            lambda: input.str.contains(pattern),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            substring=substring,
+        )
 
     def starts_with(
         self,
@@ -414,10 +422,15 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.starts_with expects a string pattern, not an Expr
-        # Extract value from literal expression if possible
-        prefix = self._extract_literal_value(substring)
-        return input.str.starts_with(prefix)
+        # Narwhals/Pandas str.starts_with expects a string pattern, not an Expr.
+        # Unwrap nw.lit("...") to a raw value; column refs pass through and
+        # will be caught by _call_with_expr_support with an enriched error.
+        prefix = self._extract_literal_if_possible(substring)
+        return self._call_with_expr_support(
+            lambda: input.str.starts_with(prefix),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+            substring=substring,
+        )
 
     def ends_with(
         self,
@@ -436,10 +449,15 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.ends_with expects a string pattern, not an Expr
-        # Extract value from literal expression if possible
-        suffix = self._extract_literal_value(substring)
-        return input.str.ends_with(suffix)
+        # Narwhals/Pandas str.ends_with expects a string pattern, not an Expr.
+        # Unwrap nw.lit("...") to a raw value; column refs pass through and
+        # will be caught by _call_with_expr_support with an enriched error.
+        suffix = self._extract_literal_if_possible(substring)
+        return self._call_with_expr_support(
+            lambda: input.str.ends_with(suffix),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+            substring=substring,
+        )
 
     def strpos(
         self,
