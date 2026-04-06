@@ -285,7 +285,7 @@ class BackendCapabilityError(Exception):
         message: str,
         *,
         backend: str,
-        function_key: str,
+        function_key: Any,
         limitation: KnownLimitation | None = None,
     ) -> None:
         parts = [f"[{backend}] {message}"]

@@ -40,7 +40,8 @@ class BaseExpressionSystem(ABC):
         ...
 
     # Class-level registry for known expression argument limitations.
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[str, str], "KnownLimitation"] = {}
+    # Keys are (function_key_enum_value, param_name) tuples.
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], "KnownLimitation"] = {}
 
     BACKEND_NAME: str = "unknown"
 
@@ -58,7 +59,7 @@ class BaseExpressionSystem(ABC):
         self,
         fn: Any,
         *,
-        function_key: str,
+        function_key: Any,
         **named_args: Any,
     ) -> Any:
         """Call a native backend function, enriching errors for known limitations.

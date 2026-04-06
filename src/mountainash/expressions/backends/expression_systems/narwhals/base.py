@@ -32,7 +32,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         workaround="Use a literal string value instead of a column reference",
     )
 
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[str, str], KnownLimitation] = {
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
         (FK_STR.STARTS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.ENDS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.CONTAINS, "substring"): _NW_STRING_LITERAL_ONLY,

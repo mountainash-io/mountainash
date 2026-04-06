@@ -26,7 +26,7 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
 
     BACKEND_NAME: str = "polars"
 
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[str, str], KnownLimitation] = {
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
         (FK_STR.REPLACE, "pattern"): KnownLimitation(
             message="Polars does not support dynamic column patterns in str.replace",
             native_errors=(Exception,),
