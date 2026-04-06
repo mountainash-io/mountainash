@@ -37,18 +37,13 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
         return isinstance(expr, (ir.Column, ir.Scalar, ir.Expr))
 
     def _extract_literal_value(self, expr: Any) -> Any:
-        """Extract the literal value from an Ibis literal expression.
+        """Extract the literal value from a backend literal expression.
 
-        Some operations (like string slice/substring) work better with raw
-        Python values than Expr objects. This helper extracts the underlying
-        value from ibis.literal() expressions.
-
-        Args:
-            expr: An Ibis expression or literal value.
-
-        Returns:
-            The underlying Python value if it's a literal expression,
-            otherwise returns the expr unchanged.
+        .. deprecated::
+            Use ``_extract_literal_if_possible()`` + ``_call_with_expr_support()`` instead.
+            See: docs/superpowers/specs/2026-04-06-expression-argument-consistency-design.md
+            Remaining callers: datetime, rounding, logarithmic, name operations.
+            Will be removed once all callers are migrated.
         """
         # If it's already a raw Python value, return as-is
         if isinstance(expr, (str, int, float, bool, type(None))):
