@@ -145,7 +145,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        window_offset: PolarsExpr,
+        window_offset: Any = 1,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
         """Returns a value from the nth row based on the window_offset.
@@ -158,7 +158,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Value at specified position, or null if out of range.
         """
-        return x.gather(int(window_offset) - 1)
+        return x.gather(window_offset - 1)
 
     def lead(
         self,
