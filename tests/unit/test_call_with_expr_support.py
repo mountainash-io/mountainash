@@ -110,10 +110,19 @@ class TestExtractLiteralIfPossible:
         result = sys._extract_literal_if_possible(col_expr)
         assert isinstance(result, nw.Expr)
 
-    def test_ibis_always_passes_through(self):
+    def test_ibis_extracts_literal(self):
         import ibis
 
         sys = IbisBaseExpressionSystem()
         lit_expr = ibis.literal("hello")
         result = sys._extract_literal_if_possible(lit_expr)
-        assert result is lit_expr
+        assert result == "hello"
+
+    def test_ibis_column_ref_passes_through(self):
+        import ibis
+
+        sys = IbisBaseExpressionSystem()
+        # Column references (non-literal Scalars) should pass through
+        raw_val = 42
+        result = sys._extract_literal_if_possible(raw_val)
+        assert result == 42

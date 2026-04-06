@@ -57,36 +57,24 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
         """
         return isinstance(expr, (ir.Column, ir.Scalar, ir.Expr))
 
-    def _extract_literal_value(self, expr: Any) -> Any:
-        """Extract the literal value from a backend literal expression.
+    BACKEND_NAME: str = "ibis"
 
-        .. deprecated::
-            Use ``_extract_literal_if_possible()`` + ``_call_with_expr_support()`` instead.
-            See: docs/superpowers/specs/2026-04-06-expression-argument-consistency-design.md
-            Remaining callers: datetime, rounding, logarithmic, name operations.
-            Will be removed once all callers are migrated.
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Extract literal value from an Ibis expression.
+
+        Ibis accepts expressions for most operations, but some (like
+        ibis.interval) require raw Python values. This extracts literals
+        while passing column references through unchanged.
         """
-        # If it's already a raw Python value, return as-is
         if isinstance(expr, (str, int, float, bool, type(None))):
             return expr
-
-        # If it's an Ibis Scalar, try to extract the literal value
         if isinstance(expr, ir.Scalar):
             try:
-                # For Ibis literals, we can try to get the value from the op
                 op = expr.op()
                 if hasattr(op, "value"):
                     return op.value
             except Exception:
                 pass
-
-        # If extraction fails, return the original expr
-        return expr
-
-    BACKEND_NAME: str = "ibis"
-
-    def _extract_literal_if_possible(self, expr: Any) -> Any:
-        """Ibis accepts expressions everywhere -- no extraction needed."""
         return expr
 
     def _extract_column_name(self, expr: Any) -> str | None:

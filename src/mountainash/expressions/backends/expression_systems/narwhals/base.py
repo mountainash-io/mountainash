@@ -81,42 +81,6 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         """
         return isinstance(expr, nw.Expr)
 
-    def _extract_literal_value(self, expr: Any) -> Any:
-        """Extract the literal value from a backend literal expression.
-
-        .. deprecated::
-            Use ``_extract_literal_if_possible()`` + ``_call_with_expr_support()`` instead.
-            See: docs/superpowers/specs/2026-04-06-expression-argument-consistency-design.md
-            Remaining callers: datetime, rounding, logarithmic, name operations.
-            Will be removed once all callers are migrated.
-        """
-        # If it's already a raw Python value, return as-is
-        if isinstance(expr, (str, int, float, bool, type(None))):
-            return expr
-
-        # If it's a Narwhals Expr, try to extract the literal value
-        if isinstance(expr, nw.Expr):
-            # Check if this is a literal expression by looking at the repr
-            # Narwhals literals have a recognizable pattern
-            expr_repr = repr(expr)
-            if "lit(" in expr_repr.lower() or "literal" in expr_repr.lower():
-                # Try to extract from the internal representation
-                # The underlying value is typically stored in the expression
-                try:
-                    # For Narwhals, we can try to access the underlying call
-                    # This is backend-dependent, so we need a workaround
-                    # Create a tiny DataFrame to evaluate the literal
-                    import pandas as pd
-                    tiny_df = nw.from_native(pd.DataFrame({"_": [0]}))
-                    result = tiny_df.select(expr.alias("_val"))["_val"].to_list()[0]
-                    return result
-                except Exception:
-                    pass
-
-        # If extraction fails, return the original expr
-        # This will work for Polars-backed Narwhals but may fail for Pandas
-        return expr
-
     def _extract_literal_if_possible(self, expr: Any) -> Any:
         """Extract literal value from a Narwhals expression.
 
