@@ -68,6 +68,11 @@ from mountainash.typespec.custom_types import (
     TypeConverterSpec,
     CustomTypeRegistry,
 )
+from mountainash.typespec.datapackage import (
+    TableDialect,
+    DataResource,
+    DataPackage,
+)
 
 __all__ = [
     # Universal type enum
@@ -139,4 +144,9 @@ __all__ = [
     "NarwhalsConverter",
     "TypeConverterSpec",
     "CustomTypeRegistry",
+
+    # Data Package
+    "TableDialect",
+    "DataResource",
+    "DataPackage",
 ]
