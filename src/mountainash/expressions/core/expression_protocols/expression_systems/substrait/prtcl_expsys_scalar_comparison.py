@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -200,7 +200,7 @@ If `x` is `null`, `null` is returned.
         """
         ...
 
-    def nullif(self, x: ExpressionT, y: Any, /) -> ExpressionT:
+    def nullif(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """If two values are equal, return null. Otherwise, return the first value.
 
         Substrait: nullif
