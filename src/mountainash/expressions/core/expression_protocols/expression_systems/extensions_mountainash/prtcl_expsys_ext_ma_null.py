@@ -11,7 +11,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -26,7 +26,7 @@ class MountainAshNullExpressionSystemProtocol(Protocol[ExpressionT]):
     def fill_null(
         self,
         input: ExpressionT,
-        replacement: Any,
+        replacement: ExpressionT,
         /,
     ) -> ExpressionT:
         """Replace NULL values with the specified replacement value.
@@ -43,7 +43,7 @@ class MountainAshNullExpressionSystemProtocol(Protocol[ExpressionT]):
     def null_if(
         self,
         input: ExpressionT,
-        condition: Any,
+        condition: ExpressionT,
         /,
     ) -> ExpressionT:
         """Replace values matching a condition with NULL.
@@ -60,7 +60,7 @@ class MountainAshNullExpressionSystemProtocol(Protocol[ExpressionT]):
     def fill_nan(
         self,
         input: ExpressionT,
-        replacement: Any,
+        replacement: ExpressionT,
         /,
     ) -> ExpressionT:
         """Replace NaN values with the specified replacement value."""
