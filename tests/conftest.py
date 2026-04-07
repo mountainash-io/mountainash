@@ -25,14 +25,16 @@ from typing import Any, Callable, Dict, List
 ALL_BACKENDS = [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-duckdb",
     "ibis-polars",
     "ibis-sqlite"
 ]
 TEMPORAL_BACKENDS = [
     "polars",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-duckdb",
     "ibis-polars",
     "ibis-sqlite"
@@ -256,9 +258,11 @@ def backend_df(backend_name: str, sample_data) -> Any:
         return pl.DataFrame(sample_data)
     elif backend_name == "pandas":
         return pd.DataFrame(sample_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(sample_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(sample_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("sample", sample_data, overwrite=True)
@@ -280,9 +284,11 @@ def backend_temporal_df(backend_name: str, temporal_data) -> Any:
         return pl.DataFrame(temporal_data)
     elif backend_name == "pandas":
         return pd.DataFrame(temporal_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(temporal_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(temporal_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("temporal", temporal_data, overwrite=True)
@@ -304,9 +310,11 @@ def backend_arithmetic_df(backend_name: str, arithmetic_data) -> Any:
         return pl.DataFrame(arithmetic_data)
     elif backend_name == "pandas":
         return pd.DataFrame(arithmetic_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(arithmetic_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(arithmetic_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("arithmetic", arithmetic_data, overwrite=True)
@@ -328,9 +336,11 @@ def backend_string_df(backend_name: str, string_data) -> Any:
         return pl.DataFrame(string_data)
     elif backend_name == "pandas":
         return pd.DataFrame(string_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(string_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(string_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("strings", string_data, overwrite=True)
@@ -364,7 +374,7 @@ def get_result_count() -> Callable:
     def _get_count(df: Any, backend_name: str) -> int:
         if backend_name.startswith("ibis-"):
             return df.count().execute()
-        elif backend_name in ["polars", "pandas", "narwhals"]:
+        elif backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
             return df.shape[0]
         else:
             return len(df)
@@ -386,7 +396,7 @@ def get_result() -> Callable:
     def _get_result(df: Any, backend_name: str) -> int:
         if backend_name.startswith("ibis-"):
             return df.execute()
-        else: # backend_name in ["polars", "pandas", "narwhals"]:
+        else: # backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
             return df
     return _get_result
 
@@ -417,7 +427,7 @@ def select_and_extract() -> Callable:
             result = df.select(backend_expr.alias(column_alias))
             return result.to_arrow()[column_alias].to_pylist()
 
-        elif backend_name in ("polars", "narwhals"):
+        elif backend_name in ("polars", "narwhals-polars", "narwhals-pandas"):
             # Polars/Narwhals: .to_list() preserves nulls correctly
             result = df.select(backend_expr.alias(column_alias))
             return result[column_alias].to_list()
@@ -510,7 +520,7 @@ def get_scalar_result() -> Callable:
             return result
         elif backend_name == "pandas":
             return result
-        elif backend_name == "narwhals":
+        elif backend_name in ("narwhals-polars", "narwhals-pandas"):
             return result
         else:
             raise ValueError(f"Unknown backend: {backend_name}")

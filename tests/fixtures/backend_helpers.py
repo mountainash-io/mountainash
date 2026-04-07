@@ -48,7 +48,7 @@ class BackendResultHelper:
         """
         if backend_name.startswith("ibis-"):
             return df.count().execute()
-        elif backend_name in ["polars", "pandas", "narwhals"]:
+        elif backend_name in ["polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas"]:
             return df.shape[0]
         else:
             return len(df)
@@ -77,7 +77,7 @@ class BackendResultHelper:
             return df[column].to_list()
         elif backend_name == "pandas":
             return df[column].tolist()
-        elif backend_name == "narwhals":
+        elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas"):
             return df[column].to_list()
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
@@ -120,7 +120,7 @@ class BackendResultHelper:
             result = df.select(backend_expr.name(column_alias))
             return result[column_alias].execute().tolist()
 
-        elif backend_name in ("polars", "narwhals", "pandas"):
+        elif backend_name in ("polars", "narwhals", "narwhals-polars", "narwhals-pandas", "pandas"):
             # Polars/Narwhals/Pandas: use .alias(), then to_list()
             # (pandas is routed through narwhals in factory)
             result = df.select(backend_expr.alias(column_alias))
@@ -156,7 +156,7 @@ class BackendResultHelper:
             return result
         elif backend_name == "pandas":
             return result
-        elif backend_name == "narwhals":
+        elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas"):
             return result
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
@@ -260,10 +260,13 @@ class BackendDataFrameFactory:
             # Route pandas through narwhals for visitor compatibility
             pd_df = pd.DataFrame(data)
             return nw.from_native(pd_df)
-        elif backend_name == "narwhals":
-            # Narwhals can wrap either polars or pandas
+        elif backend_name in ("narwhals", "narwhals-polars"):
+            # Narwhals wrapping a polars frame
             pl_df = pl.DataFrame(data)
             return nw.from_native(pl_df)
+        elif backend_name == "narwhals-pandas":
+            # Narwhals wrapping a pandas frame
+            return nw.from_native(pd.DataFrame(data), eager_only=True)
         elif backend_name == "ibis-duckdb":
             conn = ibis.duckdb.connect()
             return conn.create_table("test_table", data, overwrite=True)
