@@ -55,9 +55,8 @@ class TestContainsArgTypes:
         "ibis-duckdb",
         "ibis-sqlite",
         pytest.param("pandas", marks=pytest.mark.xfail(
-            strict=True, reason="narwhals requires literal")),
-        pytest.param("narwhals", marks=pytest.mark.xfail(
-            strict=True, reason="narwhals requires literal")),
+            strict=True, reason="narwhals-on-pandas requires literal pattern for str.contains")),
+        "narwhals",
     ])
     def test_contains_column_reference(self, backend_name, backend_factory, collect_expr):
         data = {"text": ["hello world", "foo bar", "world cup"], "pattern": ["world", "baz", "cup"]}
@@ -73,9 +72,8 @@ class TestContainsArgTypes:
         "ibis-duckdb",
         "ibis-sqlite",
         pytest.param("pandas", marks=pytest.mark.xfail(
-            strict=True, reason="narwhals requires literal")),
-        pytest.param("narwhals", marks=pytest.mark.xfail(
-            strict=True, reason="narwhals requires literal")),
+            strict=True, reason="narwhals-on-pandas requires literal pattern for str.contains")),
+        "narwhals",
     ])
     def test_contains_complex_expression(self, backend_name, backend_factory, collect_expr):
         data = {"text": ["hello world", "foo bar", "world cup"], "pattern": ["WORLD", "BAZ", "CUP"]}
