@@ -10,7 +10,7 @@ This is a Mountainash extension (not part of Substrait standard).
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, FrozenSet, TYPE_CHECKING
+from typing import Any, Collection, FrozenSet, List, Optional, TYPE_CHECKING
 from functools import reduce
 
 import narwhals as nw
@@ -197,7 +197,7 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     def t_is_in(
         self,
         element: NarwhalsExpr,
-        collection: List[Any],
+        collection: Collection[Any],
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> NarwhalsExpr:
         """Ternary membership test - returns -1/0/1."""
@@ -216,7 +216,7 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     def t_is_not_in(
         self,
         element: NarwhalsExpr,
-        collection: List[Any],
+        collection: Collection[Any],
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> NarwhalsExpr:
         """Ternary non-membership test - returns -1/0/1."""

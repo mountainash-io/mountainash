@@ -13,7 +13,7 @@ where comparisons involving NULL return UNKNOWN instead of FALSE.
 """
 
 from __future__ import annotations
-from typing import Any, Optional, FrozenSet, List, Protocol
+from typing import Any, Collection, FrozenSet, List, Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -93,7 +93,7 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     def t_is_in(
         self,
         element: ExpressionT,
-        collection: Any,
+        collection: Collection[Any],
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> ExpressionT:
         """Ternary membership test - returns -1/0/1."""
@@ -102,7 +102,7 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     def t_is_not_in(
         self,
         element: ExpressionT,
-        collection: Any,
+        collection: Collection[Any],
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> ExpressionT:
         """Ternary non-membership test - returns -1/0/1."""
@@ -204,7 +204,7 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     # Utility Functions
     # ========================================
 
-    def collect_values(self, *values: Any) -> List[Any]:
+    def collect_values(self, *values: object) -> List[Any]:
         """Collect values into a list for use in collection operations.
 
         This is a utility function that simply returns its arguments as a list.
