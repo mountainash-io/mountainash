@@ -36,6 +36,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
@@ -66,6 +67,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshNullExpressionSystemProtocol,
     MountainAshScalarArithmeticExpressionSystemProtocol,
     MountainAshScalarBooleanExpressionSystemProtocol,
+    MountainAshScalarStringExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
@@ -667,6 +669,13 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="reverse",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.reverse,
+        ),
+        # Mountainash string extensions
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="regex_contains",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.regex_contains,
         ),
     ]
 
