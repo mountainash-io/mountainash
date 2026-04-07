@@ -1,4 +1,3 @@
-import pytest
 from mountainash.typespec.datapackage import TableDialect
 
 
