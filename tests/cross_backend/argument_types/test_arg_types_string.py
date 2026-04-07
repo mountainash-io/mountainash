@@ -70,7 +70,7 @@ TESTED_PARAMS: list[tuple] = [
 # at compile time — they raise on execution as TypeError outside the
 # _call_with_expr_support wrapper, so xfail(strict, raises=BackendCapabilityError)
 # cannot trap them. Use compile-only OP_SPECS once the wrapper covers these.
-_STRING_OP_SPECS_DEFERRED: list[OpSpec] = [
+OP_SPECS: list[OpSpec] = [
     OpSpec(
         function_key=FK_STR.CONTAINS,
         op_name="contains",
@@ -132,7 +132,6 @@ _STRING_OP_SPECS_DEFERRED: list[OpSpec] = [
         },
     ),
 ]
-OP_SPECS: list[OpSpec] = []
 
 
 def _params():

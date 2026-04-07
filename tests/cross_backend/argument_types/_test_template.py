@@ -69,8 +69,6 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     is only applied for narwhals-pandas (not narwhals-polars)."""
     if input_type in ("raw", "lit"):
         return None
-    if backend == "narwhals-polars":
-        return None
     registry = _get_registry(backend)
     limitation = registry.get((function_key, param_name))
     if limitation is None:

@@ -27,20 +27,10 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
     BACKEND_NAME: str = "polars"
 
     KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
-        (FK_STR.REPLACE, "pattern"): KnownLimitation(
+        (FK_STR.REPLACE, "substring"): KnownLimitation(
             message="Polars does not support dynamic column patterns in str.replace",
-            native_errors=(Exception,),
-            workaround="Use a literal string pattern; replacement can be a column reference",
-        ),
-        (FK_STR.LPAD, "length"): KnownLimitation(
-            message="Polars str.pad_start requires a literal integer length",
-            native_errors=(TypeError,),
-            workaround="Use a literal integer for the padding length",
-        ),
-        (FK_STR.RPAD, "length"): KnownLimitation(
-            message="Polars str.pad_end requires a literal integer length",
-            native_errors=(TypeError,),
-            workaround="Use a literal integer for the padding length",
+            native_errors=(pl.exceptions.ComputeError,),
+            workaround="Use a literal string substring; replacement can be a column reference",
         ),
     }
 
