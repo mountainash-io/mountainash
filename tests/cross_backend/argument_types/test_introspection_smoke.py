@@ -1,4 +1,4 @@
-from ._introspection import ProtocolParam, introspect_protocols
+from cross_backend.argument_types._introspection import ProtocolParam, introspect_protocols
 
 
 def test_introspector_returns_non_empty():
