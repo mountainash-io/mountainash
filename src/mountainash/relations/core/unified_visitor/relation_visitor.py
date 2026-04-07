@@ -5,7 +5,7 @@ Composes with the expression visitor for compiling embedded expression ASTs.
 """
 
 from __future__ import annotations
-from typing import Any
+from typing import Any, Callable, Optional
 
 from mountainash.core.constants import JoinType, ProjectOperation
 from mountainash.core.types import (
@@ -30,9 +30,16 @@ class UnifiedRelationVisitor:
         expr_visitor: The expression visitor for compiling expression AST nodes.
     """
 
-    def __init__(self, relation_system: Any, expression_visitor: Any) -> None:
+    def __init__(
+        self,
+        relation_system: Any,
+        expression_visitor: Any,
+        *,
+        ref_resolver: Optional[Callable[[str], Any]] = None,
+    ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
+        self.ref_resolver = ref_resolver
 
     def visit(self, node: RelationNode) -> Any:
         """Dispatch to the appropriate visit method via double-dispatch."""
@@ -125,6 +132,67 @@ class UnifiedRelationVisitor:
         method_name = node.operation.name.lower()
         method = getattr(self.backend, method_name)
         return method(relation, **node.options)
+
+    def visit_ref_rel(self, node: Any) -> Any:
+        """Visit a ref node — resolves via ref_resolver or raises RelationDAGRequired."""
+        if self.ref_resolver is None:
+            from mountainash.relations.dag.errors import RelationDAGRequired
+            raise RelationDAGRequired(
+                f"RefRelNode({node.name!r}) cannot be compiled standalone — "
+                "use RelationDAG.collect() or supply ref_resolver explicitly"
+            )
+        return self.ref_resolver(node.name)
+
+    def visit_resource_read_rel(self, node: Any) -> Any:
+        """Visit a resource-read node — loads via readers and coerces to active backend."""
+        from mountainash.relations.dag.readers import read_resource_to_polars
+        lf = read_resource_to_polars(node.resource)  # always pl.LazyFrame
+        out = self._coerce_from_polars_lazy(lf)
+        if node.resource.table_schema is not None:
+            out = self._apply_conform(out, node.resource.table_schema)
+        return out
+
+    def _coerce_from_polars_lazy(self, lf: Any) -> Any:
+        """Convert a Polars LazyFrame to the relation_system's native type.
+
+        - Polars backends: pass through unchanged.
+        - Narwhals backends: wrap with nw.from_native (eager collect first).
+        - Ibis backends: convert to ibis memtable via pandas intermediary.
+        """
+        cls_name = type(self.backend).__name__
+        if "Narwhals" in cls_name:
+            import narwhals as nw
+            return nw.from_native(lf.collect(), eager_only=True)
+        if "Ibis" in cls_name:
+            import ibis
+            return ibis.memtable(lf.collect().to_pandas())
+        # Polars (default / any unrecognised backend): pass through as LazyFrame
+        return lf
+
+    def _apply_conform(self, native: Any, schema: Any) -> Any:
+        """Apply conform from a TypeSpec or raw frictionless schema dict.
+
+        ``compile_conform`` always returns a Polars DataFrame; wrap back to
+        LazyFrame so this method's return type is consistent with the Polars
+        path of ``visit_resource_read_rel``.
+
+        For non-Polars backends, conform is deferred.
+        # TODO: conform on non-Polars backends (narwhals, ibis)
+        """
+        cls_name = type(self.backend).__name__
+        if "Narwhals" in cls_name or "Ibis" in cls_name:
+            # Conform on non-Polars backends is not yet supported.
+            return native
+        if isinstance(schema, dict):
+            from mountainash.typespec.frictionless import typespec_from_frictionless
+            schema = typespec_from_frictionless(schema)
+        from mountainash.conform.compiler import compile_conform
+        import polars as pl
+        # compile_conform returns a Polars DataFrame; re-wrap as LazyFrame
+        result_df = compile_conform(schema, native)
+        if isinstance(result_df, pl.DataFrame):
+            return result_df.lazy()
+        return result_df
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:
         """Visit the right side of a join, coercing to match the left's type if needed.
