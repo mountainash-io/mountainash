@@ -65,11 +65,73 @@ TESTED_PARAMS: list[tuple] = [
 ]
 
 # OP_SPECS exercise the (op × backend × input_type) matrix for representative
-# operations. The make_df helper uses eager-pandas Narwhals which does not
-# trigger several KNOWN_EXPR_LIMITATIONS registry entries (those apply to lazy
-# Narwhals backends), so OP_SPECS is intentionally empty until the
-# infrastructure can route through lazy backends. The full TESTED_PARAMS list
-# above still satisfies the coverage guard.
+# operations. String ops are intentionally empty: registry-tracked limitations
+# (CONTAINS/STARTS_WITH/ENDS_WITH/REPLACE substring, LPAD length) do not fire
+# at compile time — they raise on execution as TypeError outside the
+# _call_with_expr_support wrapper, so xfail(strict, raises=BackendCapabilityError)
+# cannot trap them. Use compile-only OP_SPECS once the wrapper covers these.
+_STRING_OP_SPECS_DEFERRED: list[OpSpec] = [
+    OpSpec(
+        function_key=FK_STR.CONTAINS,
+        op_name="contains",
+        build=lambda col, arg: col.str.contains(arg),
+        raw_arg="world",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello world", "foo bar", "world cup"],
+            "pattern": ["world", "baz", "cup"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.STARTS_WITH,
+        op_name="starts_with",
+        build=lambda col, arg: col.str.starts_with(arg),
+        raw_arg="hel",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello", "foo", "help"],
+            "pattern": ["hel", "baz", "hel"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.ENDS_WITH,
+        op_name="ends_with",
+        build=lambda col, arg: col.str.ends_with(arg),
+        raw_arg="world",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello world", "foo bar", "my world"],
+            "pattern": ["world", "baz", "world"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE,
+        op_name="replace",
+        build=lambda col, arg: col.str.replace(arg, "X"),
+        raw_arg="o",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello", "foo", "world"],
+            "pattern": ["o", "o", "o"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LPAD,
+        op_name="lpad",
+        build=lambda col, arg: col.str.lpad(arg, "*"),
+        raw_arg=5,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "length": [5, 5, 5],
+        },
+    ),
+]
 OP_SPECS: list[OpSpec] = []
 
 

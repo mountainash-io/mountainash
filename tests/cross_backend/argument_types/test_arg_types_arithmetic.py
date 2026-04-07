@@ -74,7 +74,38 @@ TESTED_PARAMS: list[tuple] = [
     (FK_ARITH.TANH, "x"),
 ]
 
-OP_SPECS: list[OpSpec] = []
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key=FK_ARITH.ADD,
+        op_name="add",
+        build=lambda col, arg: col.add(arg),
+        raw_arg=10,
+        arg_col_name="b",
+        param_name="y",
+        input_col="a",
+        data={"a": [1, 2, 3], "b": [10, 20, 30]},
+    ),
+    OpSpec(
+        function_key=FK_ARITH.SUBTRACT,
+        op_name="subtract",
+        build=lambda col, arg: col.sub(arg),
+        raw_arg=1,
+        arg_col_name="b",
+        param_name="y",
+        input_col="a",
+        data={"a": [10, 20, 30], "b": [1, 2, 3]},
+    ),
+    OpSpec(
+        function_key=FK_ARITH.MULTIPLY,
+        op_name="multiply",
+        build=lambda col, arg: col.mul(arg),
+        raw_arg=2,
+        arg_col_name="b",
+        param_name="y",
+        input_col="a",
+        data={"a": [1, 2, 3], "b": [2, 3, 4]},
+    ),
+]
 
 
 def _params():

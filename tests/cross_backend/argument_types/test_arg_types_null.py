@@ -27,7 +27,18 @@ TESTED_PARAMS: list[tuple] = [
     (FK_NULL.NULL_IF, "condition"),
 ]
 
-OP_SPECS: list[OpSpec] = []
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key=FK_NULL.FILL_NULL,
+        op_name="fill_null",
+        build=lambda col, arg: col.fill_null(arg),
+        raw_arg=0,
+        arg_col_name="b",
+        param_name="replacement",
+        input_col="a",
+        data={"a": [1, 2, 3], "b": [0, 0, 0]},
+    ),
+]
 
 
 def _params():
