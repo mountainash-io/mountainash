@@ -76,6 +76,11 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         Returns:
             New ExpressionAPI with round node.
         """
+        if decimals is not None and (not isinstance(decimals, int) or isinstance(decimals, bool)):
+            raise TypeError(
+                f"round(decimals=...) requires a literal int, got {type(decimals).__name__}. "
+                f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+            )
         if decimals is None:
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
