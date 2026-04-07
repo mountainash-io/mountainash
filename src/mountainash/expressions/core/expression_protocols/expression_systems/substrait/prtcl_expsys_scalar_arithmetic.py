@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, Optional
 
 from mountainash.core.types import ExpressionT
 
@@ -20,7 +20,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: scalar
     """
 
-    def add(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def add(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Add two values.
 
         Substrait: add
@@ -28,7 +28,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def subtract(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def subtract(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Subtract one value from another.
 
         Substrait: subtract
@@ -36,7 +36,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def multiply(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def multiply(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Multiply two values.
 
         Substrait: multiply
@@ -44,7 +44,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def divide(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None, on_domain_error: Any = None, on_division_by_zero: Any = None) -> ExpressionT:
+    def divide(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None, on_domain_error: Optional[str] = None, on_division_by_zero: Optional[str] = None) -> ExpressionT:
         """Divide x by y. In the case of integer division, partial values are truncated (i.e. rounded towards 0). The `on_division_by_zero` option governs behavior in cases where y is 0.  If the option is IEEE then the IEEE754 standard is followed: all values except +/-infinity return NaN and +/-infinity are unchanged. If the option is LIMIT then the result is +/-infinity in all cases. If either x or y are NaN then behavior will be governed by `on_domain_error`. If x and y are both +/-infinity, behavior will be governed by `on_domain_error`.
 
 
@@ -53,7 +53,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def negate(self, x: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def negate(self, x: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Negation of the value
 
         Substrait: negate
@@ -61,7 +61,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def modulus(self, x: ExpressionT, y: ExpressionT, /, division_type: Any = None, overflow: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def modulus(self, x: ExpressionT, y: ExpressionT, /, division_type: Optional[str] = None, overflow: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Calculate the remainder (r) when dividing dividend (x) by divisor (y).
 In mathematics, many conventions for the modulus (mod) operation exists. The result of a mod operation depends on the software implementation and underlying hardware. Substrait is a format for describing compute operations on structured data and designed for interoperability. Therefore the user is responsible for determining a definition of division as defined by the quotient (q).
 The following basic conditions of division are satisfied: (1) q ∈ ℤ (the quotient is an integer) (2) x = y * q + r (division rule) (3) abs(r) < abs(y) where q is the quotient.
@@ -76,7 +76,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def power(self, x: ExpressionT, y: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def power(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Take the power with x as the base and y as exponent.
 
         Substrait: power
@@ -84,7 +84,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def sqrt(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def sqrt(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Square root of the value
 
         Substrait: sqrt
@@ -92,7 +92,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def exp(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def exp(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """The mathematical constant e, raised to the power of the value.
 
         Substrait: exp
@@ -100,7 +100,7 @@ The `on_domain_error` option governs behavior in cases where y is 0, y is +/-inf
         """
         ...
 
-    def abs(self, x: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def abs(self, x: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Calculate the absolute value of the argument.
 Integer values allow the specification of overflow behavior to handle the unevenness of the twos complement, e.g. Int8 range [-128 : 127].
 
@@ -121,7 +121,7 @@ Floating point values return signedness with the same type as the input. Possibl
         """
         ...
 
-    def factorial(self, n: ExpressionT, /, overflow: Any = None) -> ExpressionT:
+    def factorial(self, n: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
         """Return the factorial of a given integer input.
 The factorial of 0! is 1 by convention.
 Negative inputs will raise an error.
@@ -132,7 +132,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def sin(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def sin(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the sine of a value in radians.
 
         Substrait: sin
@@ -140,7 +140,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def cos(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def cos(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the cosine of a value in radians.
 
         Substrait: cos
@@ -149,7 +149,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def tan(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def tan(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the tangent of a value in radians.
 
         Substrait: tan
@@ -158,7 +158,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def sinh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def sinh(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the hyperbolic sine of a value in radians.
 
         Substrait: sinh
@@ -167,7 +167,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def cosh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def cosh(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the hyperbolic cosine of a value in radians.
 
         Substrait: cosh
@@ -176,7 +176,7 @@ Negative inputs will raise an error.
         ...
 
 
-    def tanh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def tanh(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the hyperbolic tangent of a value in radians.
 
         Substrait: tanh
@@ -184,7 +184,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def asin(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def asin(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Get the arcsine of a value in radians.
 
         Substrait: asin
@@ -192,7 +192,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def acos(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def acos(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Get the arccosine of a value in radians.
 
         Substrait: acos
@@ -200,7 +200,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def atan(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def atan(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the arctangent of a value in radians.
 
         Substrait: atan
@@ -208,7 +208,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def asinh(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def asinh(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Get the hyperbolic arcsine of a value in radians.
 
         Substrait: asinh
@@ -216,7 +216,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def acosh(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def acosh(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Get the hyperbolic arccosine of a value in radians.
 
         Substrait: acosh
@@ -224,7 +224,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def atanh(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def atanh(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Get the hyperbolic arctangent of a value in radians.
 
         Substrait: atanh
@@ -232,7 +232,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def atan2(self, x: ExpressionT, y: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None) -> ExpressionT:
+    def atan2(self, x: ExpressionT, y: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None) -> ExpressionT:
         """Get the arctangent of values given as x/y pairs.
 
         Substrait: atan2
@@ -240,7 +240,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def radians(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def radians(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Converts angle `x` in degrees to radians.
 
 
@@ -249,7 +249,7 @@ Negative inputs will raise an error.
         """
         ...
 
-    def degrees(self, x: ExpressionT, /, rounding: Any = None) -> ExpressionT:
+    def degrees(self, x: ExpressionT, /, rounding: Optional[str] = None) -> ExpressionT:
         """Converts angle `x` in radians to degrees.
 
 
