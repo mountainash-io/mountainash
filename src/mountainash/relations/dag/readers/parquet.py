@@ -27,8 +27,8 @@ def _facade_read_bytes(path: str) -> bytes:
 
     Dispatches to the appropriate backend based on URL scheme.
     """
-    from mountainash_utils_files.constants import CONST_STORAGE_PROVIDER_TYPE
-    from mountainash_utils_files.storage_facade.facade import StorageFacade
+    from mountainash_utils_files.constants import CONST_STORAGE_PROVIDER_TYPE  # type: ignore[import-not-found]
+    from mountainash_utils_files.storage_facade.facade import StorageFacade  # type: ignore[import-not-found]
 
     if path.startswith("s3://"):
         provider = CONST_STORAGE_PROVIDER_TYPE.S3
@@ -55,7 +55,9 @@ def _scan_one(path: str, kwargs: dict[str, Any]) -> pl.LazyFrame:
 def read_parquet(res: DataResource) -> pl.LazyFrame:
     """Read a Parquet DataResource into a Polars LazyFrame."""
     kwargs: dict[str, Any] = {}
-    paths = res.path if isinstance(res.path, list) else [res.path]
+    raw_path = res.path
+    assert raw_path is not None, f"DataResource '{res.name}' has no path"
+    paths: list[str] = raw_path if isinstance(raw_path, list) else [raw_path]
     frames = [_scan_one(p, kwargs) for p in paths]
     if len(frames) == 1:
         return frames[0]

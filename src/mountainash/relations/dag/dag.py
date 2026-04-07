@@ -167,6 +167,8 @@ class RelationDAG:
         for n in order:
             rel = self.relations[n]
             root = getattr(rel, "_node", None)
+            if root is None:
+                raise ValueError(f"relation {n!r} has no _node attribute")
             cache[n] = root.accept(visitor)
         return cache[name]
 
@@ -205,7 +207,7 @@ class RelationDAG:
                 missing.append(name)
                 continue
             resources.append(
-                DataResource(
+                DataResource(  # type: ignore[call-arg]
                     name=name,
                     path=f"{name}.csv",  # placeholder
                     type="table",
@@ -256,6 +258,8 @@ class RelationDAG:
         for n in order:
             rel = self.relations[n]
             root = getattr(rel, "_node", None)
+            if root is None:
+                continue
             try:
                 read_node = RelationBase._find_leaf_read_node(root)
             except (ValueError, AttributeError):
