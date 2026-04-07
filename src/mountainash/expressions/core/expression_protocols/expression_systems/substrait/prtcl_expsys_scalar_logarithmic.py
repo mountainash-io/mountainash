@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, Optional
 
 from mountainash.core.types import ExpressionT
 
@@ -20,7 +20,7 @@ class SubstraitScalarLogarithmicExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: scalar
     """
 
-    def ln(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None, on_log_zero: Any = None) -> ExpressionT:
+    def ln(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None, on_log_zero: Optional[str] = None) -> ExpressionT:
         """Natural logarithm of the value
 
         Substrait: ln
@@ -28,7 +28,7 @@ class SubstraitScalarLogarithmicExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def log10(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None, on_log_zero: Any = None) -> ExpressionT:
+    def log10(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None, on_log_zero: Optional[str] = None) -> ExpressionT:
         """Logarithm to base 10 of the value
 
         Substrait: log10
@@ -36,7 +36,7 @@ class SubstraitScalarLogarithmicExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def log2(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None, on_log_zero: Any = None) -> ExpressionT:
+    def log2(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None, on_log_zero: Optional[str] = None) -> ExpressionT:
         """Logarithm to base 2 of the value
 
         Substrait: log2
@@ -44,7 +44,7 @@ class SubstraitScalarLogarithmicExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def logb(self, x: ExpressionT, /, base: ExpressionT, rounding: Any = None, on_domain_error: Any = None, on_log_zero: Any = None) -> ExpressionT:
+    def logb(self, x: ExpressionT, /, base: ExpressionT, rounding: Optional[str] = None, on_domain_error: Optional[str] = None, on_log_zero: Optional[str] = None) -> ExpressionT:
         """Logarithm of the value with the given base
 logb(x, b) => log_{b} (x)
 
@@ -54,7 +54,7 @@ logb(x, b) => log_{b} (x)
         """
         ...
 
-    def log1p(self, x: ExpressionT, /, rounding: Any = None, on_domain_error: Any = None, on_log_zero: Any = None) -> ExpressionT:
+    def log1p(self, x: ExpressionT, /, rounding: Optional[str] = None, on_domain_error: Optional[str] = None, on_log_zero: Optional[str] = None) -> ExpressionT:
         """Natural logarithm (base e) of 1 + x
 log1p(x) => log(1+x)
 
