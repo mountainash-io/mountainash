@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, Optional
 
 from mountainash.core.types import ExpressionT
 
@@ -38,7 +38,7 @@ class SubstraitScalarRoundingExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def round(self, x: ExpressionT, /, s: int, rounding: Any = None) -> ExpressionT:
+    def round(self, x: ExpressionT, /, s: int, rounding: Optional[str] = None) -> ExpressionT:
         """Rounding the value `x` to `s` decimal places.
 
 
