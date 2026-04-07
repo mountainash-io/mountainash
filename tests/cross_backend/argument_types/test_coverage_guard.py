@@ -17,6 +17,7 @@ _CATEGORY_MODULES = [
     "test_arg_types_name",
     "test_arg_types_window",
     "test_arg_types_aggregate",
+    "test_arg_types_misc",
 ]
 
 
