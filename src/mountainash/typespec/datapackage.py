@@ -1,6 +1,7 @@
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
