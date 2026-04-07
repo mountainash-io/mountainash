@@ -82,6 +82,23 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     )
 
 
+def _materialize_result(df, compiled, backend: str) -> None:
+    """Force execution to surface errors that fire at materialization time."""
+    if backend == "polars":
+        import polars as pl
+
+        if isinstance(df, pl.LazyFrame):
+            df.select(compiled).collect()
+        else:
+            df.select(compiled)
+    elif backend == "ibis":
+        df.select(compiled.name("__result__")).execute()
+    elif backend in ("narwhals-polars", "narwhals-pandas"):
+        df.select(compiled).to_native()
+    else:
+        raise ValueError(backend)
+
+
 def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     """Execute one cell of the (operation × backend × input_type) matrix."""
     from cross_backend.argument_types.conftest import make_df
@@ -89,5 +106,22 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     df = make_df(op.data, backend)
     arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name)
     expr = op.build(ma.col(op.input_col), arg)
-    compiled = expr.compile(df)
-    assert compiled is not None
+
+    registry = _get_registry(backend)
+    limitation = registry.get((op.function_key, op.param_name))
+
+    try:
+        compiled = expr.compile(df)
+        assert compiled is not None
+        _materialize_result(df, compiled, backend)
+    except BackendCapabilityError:
+        raise
+    except Exception as e:
+        if limitation is not None and isinstance(e, limitation.native_errors):
+            raise BackendCapabilityError(
+                str(limitation.message),
+                backend=backend,
+                function_key=op.function_key,
+                limitation=limitation,
+            ) from e
+        raise
