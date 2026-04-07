@@ -92,8 +92,6 @@ class DataResource(BaseModel):
 
     @classmethod
     def from_descriptor(cls, raw: dict[str, Any]) -> "DataResource":
-        from mountainash.typespec.frictionless import typespec_from_frictionless
-
         kwargs: dict[str, Any] = {}
         extras: dict[str, Any] = {}
         for k, v in raw.items():
@@ -103,8 +101,8 @@ class DataResource(BaseModel):
                 extras[k] = v
         if "dialect" in kwargs and isinstance(kwargs["dialect"], dict):
             kwargs["dialect"] = TableDialect.from_descriptor(kwargs["dialect"])
-        if "schema" in kwargs and isinstance(kwargs["schema"], dict):
-            kwargs["schema"] = typespec_from_frictionless(kwargs["schema"])
+        # Store schema as raw dict for lossless round-trip; callers that need
+        # a TypeSpec can call typespec_from_frictionless(resource.table_schema).
         kwargs["extras"] = extras
         return cls.model_validate(kwargs)
 
@@ -128,7 +126,10 @@ class DataResource(BaseModel):
             if d:
                 out["dialect"] = d
         if self.table_schema is not None:
-            out["schema"] = typespec_to_frictionless(self.table_schema)
+            if isinstance(self.table_schema, dict):
+                out["schema"] = self.table_schema
+            else:
+                out["schema"] = typespec_to_frictionless(self.table_schema)
         out.update(self.extras)
         return out
 
