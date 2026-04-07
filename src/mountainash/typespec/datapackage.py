@@ -61,7 +61,7 @@ _KNOWN_RESOURCE_FIELDS = {
 class DataResource(BaseModel):
     """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=(), populate_by_name=True)
 
     name: str
     path: Optional[str | list[str]] = None
@@ -228,3 +228,53 @@ class DataPackage(BaseModel):
         from pathlib import Path
         import json
         Path(path).write_text(json.dumps(self.to_descriptor(), indent=2))
+
+    def to_relation_dag(
+        self,
+        overrides: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        """Build a RelationDAG from this package's resources.
+
+        Tabular resources become named relations wrapping a ResourceReadRelNode.
+        Non-tabular resources become asset entries on the DAG. Foreign keys
+        populate ``dag.constraint_edges`` (NOT ``dependency_edges``).
+
+        The ``overrides`` mapping replaces a resource's data with an in-memory
+        DataFrame, useful for testing or for substituting trusted local data.
+        """
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ResourceReadRelNode,
+        )
+        from mountainash.relations.dag.dag import RelationDAG
+        from mountainash.relations.dag.resource_ref import ResourceRef
+        import mountainash as ma
+
+        overrides = overrides or {}
+        dag = RelationDAG()
+
+        for r in self.resources:
+            ref = ResourceRef(r)
+            if not ref.is_tabular:
+                dag.assets[r.name] = ref
+                continue
+            if r.name in overrides:
+                dag.add(r.name, ma.relation(overrides[r.name]))
+            else:
+                dag.add(r.name, Relation(ResourceReadRelNode(resource=r)))
+
+        # Constraint edges from foreignKeys (parsed straight out of the raw
+        # schema dict — no need to round-trip through TypeSpec).
+        valid_names = set(dag.relations.keys())
+        for r in self.resources:
+            schema = r.table_schema
+            if not isinstance(schema, dict):
+                continue
+            for fk in schema.get("foreignKeys", []) or []:
+                ref_resource = (fk.get("reference") or {}).get("resource", "")
+                # Empty string means self-referencing; use the resource's own name
+                target = ref_resource if ref_resource else r.name
+                if target in valid_names and r.name in valid_names:
+                    dag.constraint_edges.add((target, r.name))
+
+        return dag

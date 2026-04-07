@@ -170,6 +170,63 @@ class RelationDAG:
             cache[n] = root.accept(visitor)
         return cache[name]
 
+    def to_package(self) -> Any:
+        """Export this DAG as a Frictionless DataPackage descriptor.
+
+        Each named relation must either:
+        1. Have a ResourceReadRelNode at its root (so we can reuse the original
+           DataResource), OR
+        2. Expose an output schema we can derive (currently only the first case
+           is supported — derived synthesis is deferred).
+
+        Raises ``MissingResourceSchema`` if any relation has neither.
+        Assets pass through to the returned package unchanged.
+        """
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ResourceReadRelNode,
+        )
+        from mountainash.typespec.datapackage import DataPackage, DataResource
+        from .errors import MissingResourceSchema
+
+        resources: list[DataResource] = []
+        missing: list[str] = []
+
+        for name, relation in self.relations.items():
+            root = getattr(relation, "_node", None)
+            if isinstance(root, ResourceReadRelNode):
+                res = root.resource
+                if res.name != name:
+                    res = res.model_copy(update={"name": name})
+                resources.append(res)
+                continue
+            # No source resource — try the relation's declared output schema
+            output_schema = getattr(relation, "output_schema", None)
+            if output_schema is None:
+                missing.append(name)
+                continue
+            resources.append(
+                DataResource(
+                    name=name,
+                    path=f"{name}.csv",  # placeholder
+                    type="table",
+                    format="csv",
+                    table_schema=output_schema,
+                )
+            )
+
+        # Asset resources pass through
+        for name, ref in self.assets.items():
+            res = ref.resource
+            if res.name != name:
+                res = res.model_copy(update={"name": name})
+            resources.append(res)
+
+        if missing:
+            raise MissingResourceSchema(
+                f"cannot export to DataPackage; relations without schema: {missing}"
+            )
+        return DataPackage(resources=resources)
+
     def _resolve_backend_const(
         self, backend: Optional[str], target_name: str
     ) -> CONST_BACKEND:
