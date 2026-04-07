@@ -95,6 +95,10 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["description"] = spec.description
     if spec.primary_key is not None:
         descriptor["primaryKey"] = spec.primary_key
+    if spec.fields_match is not None:  # Gap 3
+        descriptor["fieldsMatch"] = spec.fields_match
+    if spec.unique_keys is not None:  # Gap 4
+        descriptor["uniqueKeys"] = spec.unique_keys
 
     # Foreign keys (standard Frictionless field)
     if spec.foreign_keys:
@@ -108,6 +112,10 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
                 },
             })
         descriptor["foreignKeys"] = fk_list
+
+    # Gap 1: missingValues (schema-level) — emit if non-default (non-empty list)
+    if spec.missing_values is not None and spec.missing_values != [""]:
+        descriptor["missingValues"] = spec.missing_values
 
     # Spec-level x-mountainash
     spec_extensions: Dict[str, Any] = {}
@@ -136,6 +144,12 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
                 field_dict["constraints"] = constraints_dict
         if fspec.missing_values is not None:
             field_dict["missingValues"] = fspec.missing_values
+        if fspec.categories is not None:  # Gap 7
+            field_dict["categories"] = fspec.categories
+        if fspec.true_values is not None:  # Gap 9
+            field_dict["trueValues"] = fspec.true_values
+        if fspec.false_values is not None:  # Gap 9
+            field_dict["falseValues"] = fspec.false_values
 
         # Field-level x-mountainash extensions
         field_extensions: Dict[str, Any] = {}
@@ -147,6 +161,8 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
             field_extensions["custom_cast"] = fspec.custom_cast
         if fspec.constraints and fspec.constraints.enum_weights is not None:
             field_extensions["enum_weights"] = fspec.constraints.enum_weights
+        if fspec.backend_type is not None:  # Gap 10: move under x-mountainash
+            field_extensions["backend_type"] = fspec.backend_type
         if field_extensions:
             field_dict["x-mountainash"] = field_extensions
 
@@ -196,6 +212,8 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     description: Optional[str] = descriptor.get("description")
     primary_key = descriptor.get("primaryKey")
     missing_values: Optional[List[str]] = descriptor.get("missingValues")
+    fields_match: Optional[str] = descriptor.get("fieldsMatch")  # Gap 3
+    unique_keys: Optional[List[List[str]]] = descriptor.get("uniqueKeys")  # Gap 4
 
     # Spec-level x-mountainash extensions
     spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}
@@ -229,6 +247,9 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         field_title: Optional[str] = raw_field.get("title")
         field_description: Optional[str] = raw_field.get("description")
         field_missing_values: Optional[List[str]] = raw_field.get("missingValues")
+        categories: Optional[List[Any]] = raw_field.get("categories")  # Gap 7
+        true_values: Optional[List[str]] = raw_field.get("trueValues")  # Gap 9
+        false_values: Optional[List[str]] = raw_field.get("falseValues")  # Gap 9
 
         # Field-level x-mountainash extensions
         field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
@@ -236,6 +257,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         null_fill: Any = field_ext.get("null_fill")
         custom_cast: Optional[str] = field_ext.get("custom_cast")
         enum_weights: Optional[Dict[str, float]] = field_ext.get("enum_weights")
+        backend_type: Optional[str] = field_ext.get("backend_type")  # Gap 10
 
         constraints = _parse_constraints(raw_field.get("constraints"), enum_weights=enum_weights)
 
@@ -248,6 +270,10 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
                 description=field_description,
                 constraints=constraints,
                 missing_values=field_missing_values,
+                categories=categories,
+                true_values=true_values,
+                false_values=false_values,
+                backend_type=backend_type,
                 rename_from=rename_from,
                 null_fill=null_fill,
                 custom_cast=custom_cast,
@@ -262,6 +288,8 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         foreign_keys=foreign_keys,
         missing_values=missing_values,
         keep_only_mapped=keep_only_mapped,
+        fields_match=fields_match,
+        unique_keys=unique_keys,
     )
 
 
