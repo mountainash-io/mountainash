@@ -15,7 +15,7 @@ import mountainash.expressions as ma
 ALL_BACKENDS = [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",

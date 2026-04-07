@@ -14,7 +14,7 @@ import mountainash.expressions as ma
 ALL_BACKENDS = [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -28,7 +28,7 @@ class TestComposeStringTrimExtended:
 
     def test_ltrim(self, backend_name, backend_factory, collect_expr):
         """Test ltrim removes leading spaces."""
-        if backend_name in ("pandas", "narwhals"):
+        if backend_name in ("pandas", "narwhals-polars"):
             pytest.xfail(f"{backend_name}: ltrim strips both sides instead of left only.")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)
@@ -39,7 +39,7 @@ class TestComposeStringTrimExtended:
 
     def test_rtrim(self, backend_name, backend_factory, collect_expr):
         """Test rtrim removes trailing spaces."""
-        if backend_name in ("pandas", "narwhals"):
+        if backend_name in ("pandas", "narwhals-polars"):
             pytest.xfail(f"{backend_name}: rtrim strips both sides instead of right only.")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)

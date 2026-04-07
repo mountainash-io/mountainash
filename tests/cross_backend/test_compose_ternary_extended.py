@@ -6,7 +6,7 @@ import mountainash.expressions as ma
 
 TERNARY_BACKENDS = [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ]

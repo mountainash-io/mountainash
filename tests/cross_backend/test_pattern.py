@@ -27,7 +27,7 @@ import mountainash as ma_top
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",  # Not implemented yet
     "ibis-duckdb",  # External dependency issue
     "ibis-sqlite",  # Limited temporal support
@@ -102,7 +102,7 @@ class TestSQLLikePatterns:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -150,7 +150,7 @@ class TestRegexMatch:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -198,7 +198,7 @@ class TestRegexContains:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -248,7 +248,7 @@ class TestRegexReplace:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -304,7 +304,7 @@ class TestPatternWithBooleanLogic:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -354,7 +354,7 @@ class TestChainedPatternOperations:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -403,7 +403,7 @@ class TestRealWorldPatterns:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -454,7 +454,7 @@ class TestPatternEdgeCases:
     @pytest.mark.parametrize("backend_name", [
         "polars",
         "pandas",
-        "narwhals",
+        "narwhals-polars",
         "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
@@ -483,7 +483,7 @@ class TestPatternEdgeCases:
     @pytest.mark.parametrize("backend_name", [
         "polars",
         "pandas",
-        "narwhals",
+        "narwhals-polars",
         "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
@@ -507,7 +507,7 @@ class TestPatternEdgeCases:
     @pytest.mark.parametrize("backend_name", [
         "polars",
         "pandas",
-        "narwhals",
+        "narwhals-polars",
         "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
