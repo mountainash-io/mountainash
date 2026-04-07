@@ -1,4 +1,18 @@
-"""DAG package for Frictionless DataPackage → Relation DAG compilation.
+"""Mountainash relation DAG — orchestrator for named, interconnected Relations."""
+from __future__ import annotations
 
-Re-exports are populated in Task 18.
-"""
+from .dag import RelationDAG
+from .errors import (
+    MissingResourceSchema,
+    RelationDAGRequired,
+    UnsupportedResourceFormat,
+)
+from .resource_ref import ResourceRef
+
+__all__ = [
+    "RelationDAG",
+    "ResourceRef",
+    "RelationDAGRequired",
+    "MissingResourceSchema",
+    "UnsupportedResourceFormat",
+]

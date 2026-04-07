@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Optional
 
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_nodes.extensions_mountainash import (
     RefRelNode,
 )
@@ -116,3 +117,97 @@ class RelationDAG:
                 f"cycle detected in dependency_edges (target={target!r})"
             )
         return out
+
+    # ------------------------------------------------------------------
+    # Task 17: collect() — topological compilation with per-call cache
+    # ------------------------------------------------------------------
+
+    def collect(self, name: str, *, backend: Optional[str] = None) -> Any:
+        """Topologically walk dependencies of ``name`` and compile each in order.
+
+        Each upstream relation's compiled value is cached for the duration of
+        this call and exposed to the visitor as ``ref_resolver(name)``.
+        Returns the backend-native compiled value for ``name`` itself.
+        """
+        if name not in self.relations:
+            raise KeyError(f"relation {name!r} not in DAG")
+
+        from mountainash.relations.core.relation_protocols.relsys_base import (
+            get_relation_system,
+        )
+        from mountainash.expressions.core.expression_system.expsys_base import (
+            get_expression_system,
+        )
+        from mountainash.expressions.core.unified_visitor import (
+            UnifiedExpressionVisitor,
+        )
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        resolved_backend = self._resolve_backend_const(backend, name)
+        relation_system_cls = get_relation_system(resolved_backend)
+        relation_system = relation_system_cls()
+        expression_system_cls = get_expression_system(resolved_backend)
+        expression_system = expression_system_cls()
+        expr_visitor = UnifiedExpressionVisitor(expression_system)
+
+        cache: dict[str, Any] = {}
+
+        def resolver(n: str) -> Any:
+            return cache[n]
+
+        visitor = UnifiedRelationVisitor(
+            relation_system,
+            expression_visitor=expr_visitor,
+            ref_resolver=resolver,
+        )
+
+        order = self.topological_order(target=name)
+        for n in order:
+            rel = self.relations[n]
+            root = getattr(rel, "_node", None)
+            cache[n] = root.accept(visitor)
+        return cache[name]
+
+    def _resolve_backend_const(
+        self, backend: Optional[str], target_name: str
+    ) -> CONST_BACKEND:
+        """Determine the CONST_BACKEND to use for compilation.
+
+        If ``backend`` is given explicitly, honour it. Otherwise walk the
+        dependency tree of ``target_name`` to find the first ReadRelNode and
+        detect its backend. Falls back to Polars when no ReadRelNode is found
+        (e.g. pure SourceRelNode / inline data trees).
+        """
+        if backend is not None:
+            try:
+                return CONST_BACKEND(backend.lower())
+            except ValueError:
+                raise ValueError(f"unknown backend: {backend!r}")
+
+        # Walk through relations in topological order and look for a
+        # ReadRelNode to detect the backend from its dataframe.
+        from mountainash.relations.core.relation_api.relation_base import (
+            RelationBase,
+        )
+        from mountainash.expressions.core.expression_system.expsys_base import (
+            identify_backend,
+        )
+
+        order = self.topological_order(target=target_name)
+        for n in order:
+            rel = self.relations[n]
+            root = getattr(rel, "_node", None)
+            try:
+                read_node = RelationBase._find_leaf_read_node(root)
+            except (ValueError, AttributeError):
+                # Node type not handled (e.g. RefRelNode) — skip, try next.
+                continue
+            if read_node is not None:
+                try:
+                    return identify_backend(read_node.dataframe)
+                except Exception:
+                    pass
+        # No ReadRelNode found — default to Polars (SourceRelNode / inline data).
+        return CONST_BACKEND.POLARS

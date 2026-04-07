@@ -28,6 +28,16 @@ from mountainash.relations import relation, concat  # noqa: F401
 # TypeSpec - backend-agnostic type specification
 from mountainash.typespec.spec import TypeSpec  # noqa: F401
 
+# DataPackage / DataResource / TableDialect — Frictionless Data Package support
+from mountainash.typespec.datapackage import (  # noqa: F401
+    DataPackage,
+    DataResource,
+    TableDialect,
+)
+
+# RelationDAG — orchestrator for named, interconnected Relations
+from mountainash.relations.dag import RelationDAG, ResourceRef  # noqa: F401
+
 # Conform - compile type specifications to relation operations
 from mountainash.conform.builder import ConformBuilder  # noqa: F401
 
