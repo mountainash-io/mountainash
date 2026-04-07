@@ -53,7 +53,7 @@ def _get_registry(backend: str):
         from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem as B
     elif backend == "ibis":
         from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem as B
-    elif backend == "narwhals":
+    elif backend in ("narwhals-polars", "narwhals-pandas"):
         from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem as B
     else:
         raise ValueError(backend)
@@ -62,8 +62,14 @@ def _get_registry(backend: str):
 
 def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_type: str):
     """Returns a pytest.mark.xfail if the registry declares this combination limited,
-    and the input type actually exercises the limitation (col/complex, not raw/lit)."""
+    and the input type actually exercises the limitation (col/complex, not raw/lit).
+
+    The narwhals KNOWN_EXPR_LIMITATIONS registry documents pandas-backend behavior;
+    when narwhals wraps a polars frame the expression is usually accepted, so xfail
+    is only applied for narwhals-pandas (not narwhals-polars)."""
     if input_type in ("raw", "lit"):
+        return None
+    if backend == "narwhals-polars":
         return None
     registry = _get_registry(backend)
     limitation = registry.get((function_key, param_name))

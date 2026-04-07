@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-ALL_BACKENDS = ["polars", "ibis", "narwhals"]
+ALL_BACKENDS = ["polars", "ibis", "narwhals-polars", "narwhals-pandas"]
 
 
 def make_df(data: dict[str, list[Any]], backend: str):
@@ -17,7 +17,10 @@ def make_df(data: dict[str, list[Any]], backend: str):
     if backend == "ibis":
         import ibis
         return ibis.memtable(pdf.to_pandas())
-    if backend == "narwhals":
+    if backend == "narwhals-polars":
+        import narwhals as nw
+        return nw.from_native(pdf, eager_only=True)
+    if backend == "narwhals-pandas":
         import narwhals as nw
         return nw.from_native(pdf.to_pandas(), eager_only=True)
     raise ValueError(f"Unknown backend: {backend}")

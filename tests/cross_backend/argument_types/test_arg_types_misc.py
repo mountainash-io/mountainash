@@ -14,6 +14,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_SET as FK_MA_SET,
     FKEY_SUBSTRAIT_SCALAR_SET as FK_SET,
 )
+from cross_backend.argument_types.conftest import ALL_BACKENDS
 from cross_backend.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
@@ -63,7 +64,7 @@ OP_SPECS: list[OpSpec] = []
 def _params():
     cases = []
     for op in OP_SPECS:
-        for bk in ["polars", "ibis", "narwhals"]:
+        for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
                 marks = [mark] if mark else []
