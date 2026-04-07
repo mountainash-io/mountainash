@@ -1077,14 +1077,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
-        """Check if string contains a match for regex pattern.
+        """Check if string contains a match for a regex pattern.
 
-        Uses regexp_match_substring under the hood — a non-null result means the pattern matched.
+        Routes through the mountainash extension REGEX_CONTAINS function key.
+        Substrait has no regexp_contains primitive — its CONTAINS is literal —
+        so each backend implements regex_contains natively (polars str.contains
+        with literal=False, ibis re_search, narwhals str.contains).
         """
-        # Delegate to contains with the pattern — backends handle regex in contains
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_STRING,
+        )
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS,
             arguments=[self._node, pattern_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
