@@ -44,7 +44,7 @@ def _materialize_arg(input_type: str, raw: Any, col_name: str):
     if input_type == "complex":
         if isinstance(raw, str):
             return ma.col(col_name).str.lower()
-        return ma.col(col_name) + 0
+        return ma.col(col_name).add(ma.lit(0))
     raise ValueError(input_type)
 
 
