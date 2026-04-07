@@ -116,6 +116,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions
 | Document | Summary |
 |----------|---------|
 | polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
+| frictionless-typespec-gaps-deferred.md | 5 Low-severity FieldSpec round-trip gaps deferred from the 2026-04-07 DataPackage work (`$schema`, `example`, `rdfType`, `categoriesOrdered`, type-specific number/integer/list parsing properties) |
 
 ### i. Competitor Analysis
 
