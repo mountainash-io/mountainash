@@ -2,7 +2,7 @@
 import pytest
 import mountainash.expressions as ma
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode, IfThenNode
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING, FKEY_MOUNTAINASH_SCALAR_STRING
 
 
 class TestStringUnary:
@@ -188,18 +188,18 @@ class TestStringPattern:
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE
 
     def test_regex_contains(self):
-        # regex_contains is implemented via CONTAINS fkey
+        # regex_contains routes through the mountainash REGEX_CONTAINS extension
         expr = ma.col("x").str.regex_contains(r"\d+")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
-        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS
+        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS
 
     def test_regex_match(self):
-        # regex_match delegates to regex_contains (with anchored pattern) → CONTAINS fkey
+        # regex_match delegates to regex_contains (with anchored pattern) → REGEX_CONTAINS fkey
         expr = ma.col("x").str.regex_match(r"^\d+$")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
-        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS
+        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS
 
 
 class TestStringAliases:
