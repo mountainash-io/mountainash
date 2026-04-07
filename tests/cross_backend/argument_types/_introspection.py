@@ -75,9 +75,13 @@ def _classify_annotation(ann: Any) -> Kind:
         args = typing.get_args(ann)
         if any("ExpressionT" in str(a) for a in args):
             return "argument"
-    if ann in (int, str, bool, float, bytes):
+    if ann in (int, str, bool, float, bytes, object):
         return "option"
-    if s.startswith("typing.Optional[") and any(t in s for t in ("int", "str", "bool", "float")):
+    # Optional[concrete] and unions of concrete literal types
+    if s.startswith("typing.Optional[") and any(t in s for t in ("int", "str", "bool", "float", "bytes", "object")):
+        return "option"
+    # Literal collections (frozenset, set, list, tuple, Collection) carrying literal values
+    if any(tok in s for tok in ("FrozenSet", "frozenset", "typing.Collection", "collections.abc.Collection")):
         return "option"
     if ann is typing.Any or s == "typing.Any":
         return "unclassified"
