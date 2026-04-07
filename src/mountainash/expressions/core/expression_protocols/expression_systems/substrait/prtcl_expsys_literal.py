@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -18,7 +18,7 @@ class SubstraitLiteralExpressionSystemProtocol(Protocol[ExpressionT]):
     Auto-generated from Substrait rounding extension.
     """
 
-    def lit(self, x: Any, /) -> ExpressionT:
+    def lit(self, x: object, /) -> ExpressionT:
         """Literal Value.
 
         Substrait: lit
