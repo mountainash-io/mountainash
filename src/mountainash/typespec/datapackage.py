@@ -130,3 +130,99 @@ class DataResource(BaseModel):
             out["schema"] = typespec_to_frictionless(self.table_schema)
         out.update(self.extras)
         return out
+
+
+_KNOWN_PACKAGE_FIELDS = {
+    "name", "id", "licenses", "$schema", "profile",
+    "title", "description", "homepage", "version", "created",
+    "keywords", "contributors", "sources", "image", "resources",
+}
+
+
+class DataPackage(BaseModel):
+    """Frictionless Data Package — top-level container of DataResources."""
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        protected_namespaces=(),
+        populate_by_name=True,
+    )
+
+    resources: list[DataResource]
+    name: Optional[str] = None
+    id: Optional[str] = None
+    licenses: Optional[list[dict[str, Any]]] = None
+    dollar_schema: Optional[str] = Field(default=None, alias="$schema")
+    profile: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    homepage: Optional[str] = None
+    version: Optional[str] = None
+    created: Optional[str] = None
+    keywords: Optional[list[str]] = None
+    contributors: Optional[list[dict[str, Any]]] = None
+    sources: Optional[list[dict[str, Any]]] = None
+    image: Optional[str] = None
+    extras: dict[str, Any] = Field(default_factory=dict)
+
+    def model_post_init(self, _ctx: Any) -> None:
+        if not self.resources:
+            raise ValueError("DataPackage must have at least one resource")
+        seen: set[str] = set()
+        for r in self.resources:
+            if r.name in seen:
+                raise ValueError(f"duplicate resource name: {r.name!r}")
+            seen.add(r.name)
+        # FK references resolve to existing resource names (or "" for self-ref)
+        valid = seen | {""}
+        for r in self.resources:
+            schema = r.table_schema  # DataResource attribute name (alias is "schema")
+            if schema is None:
+                continue
+            for fk in (getattr(schema, "foreign_keys", None) or []):
+                ref_resource = fk.reference.resource
+                if ref_resource not in valid:
+                    raise ValueError(
+                        f"resource {r.name!r} foreignKey references unknown resource {ref_resource!r}"
+                    )
+
+    @classmethod
+    def from_descriptor(cls, raw: "dict[str, Any] | str | Path") -> "DataPackage":
+        from pathlib import Path
+        import json
+        if isinstance(raw, (str, Path)):
+            p = Path(raw)
+            if p.exists():
+                raw = json.loads(p.read_text())
+            else:
+                raw = json.loads(str(raw))
+        assert isinstance(raw, dict)
+        kwargs: dict[str, Any] = {}
+        extras: dict[str, Any] = {}
+        for k, v in raw.items():
+            if k in _KNOWN_PACKAGE_FIELDS:
+                kwargs[k] = v
+            else:
+                extras[k] = v
+        kwargs["resources"] = [DataResource.from_descriptor(r) for r in kwargs["resources"]]
+        kwargs["extras"] = extras
+        return cls.model_validate(kwargs)
+
+    def to_descriptor(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        if self.dollar_schema is not None:
+            out["$schema"] = self.dollar_schema
+        for k in ("name", "id", "title", "description", "homepage", "version",
+                  "created", "keywords", "contributors", "sources", "image",
+                  "licenses", "profile"):
+            v = getattr(self, k)
+            if v is not None:
+                out[k] = v
+        out["resources"] = [r.to_descriptor() for r in self.resources]
+        out.update(self.extras)
+        return out
+
+    def write(self, path: "str | Path") -> None:
+        from pathlib import Path
+        import json
+        Path(path).write_text(json.dumps(self.to_descriptor(), indent=2))
