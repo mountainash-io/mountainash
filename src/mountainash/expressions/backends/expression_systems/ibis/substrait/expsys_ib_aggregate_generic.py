@@ -46,21 +46,26 @@ class SubstraitIbisAggregateGenericExpressionSystem(
         """
         return x.count()
 
-    # def count_all(
-    #     self,
-    #     overflow: Any = None,
-    # ) -> IbisValueExpr:
-    #     """Count a set of records (not field referenced).
+    def count_records(
+        self,
+        /,
+        overflow: Any = None,
+    ) -> IbisValueExpr:
+        """Substrait count_records() — counts all rows including nulls.
 
-    #     Counts all rows including nulls.
+        Ibis separates column aggregates from table aggregates. At the
+        expression-protocol level we produce a count of a non-null literal,
+        which is equivalent to the row count. The relation visitor can
+        special-case Ibis to use table.count() directly at compile time.
 
-    #     Args:
-    #         overflow: Overflow handling (ignored in Ibis).
+        Args:
+            overflow: Overflow handling (ignored in Ibis).
 
-    #     Returns:
-    #         Count expression.
-    #     """
-    #     return ibis.literal(1).count()
+        Returns:
+            An Ibis expression that resolves to the row count.
+        """
+        import ibis
+        return ibis.literal(1).count()
 
     def any_value(
         self,
