@@ -13,7 +13,7 @@ The api/ layer re-exports these for user convenience.
 """
 
 from __future__ import annotations
-from typing import Any, Union, TYPE_CHECKING
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 from ..expression_nodes import (
     FieldReferenceNode,
@@ -299,7 +299,131 @@ def t_col(name: str, unknown: set[Any] | None = None) -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
-def always_true() -> BaseExpressionAPI:
+def count_records() -> BaseExpressionAPI:
+    """Substrait count_records() — counts all rows including nulls.
+
+    Produces a backend-agnostic aggregate expression suitable for use inside
+    ``relation.group_by(...).agg(...)`` or as a measure in an aggregate plan.
+
+    Returns:
+        A BaseExpressionAPI wrapping a ScalarFunctionNode with COUNT_RECORDS.
+    """
+    from ..expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    )
+    from ..expression_api import BooleanExpressionAPI
+
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS,
+        arguments=[],
+        options={},
+    )
+    return BooleanExpressionAPI(node)
+
+
+def corr(
+    x: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    y: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    *,
+    rounding: Optional[str] = None,
+) -> "BaseExpressionAPI":
+    """Pearson correlation between two expressions. Substrait ``corr(x, y)``.
+
+    Args:
+        x: First column expression.
+        y: Second column expression.
+        rounding: Optional Substrait rounding mode.
+
+    Returns:
+        BooleanExpressionAPI wrapping a ScalarFunctionNode with CORR.
+    """
+    from ..expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    )
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [_to_substrait_node(x), _to_substrait_node(y)]
+    opts: dict = {}
+    if rounding is not None:
+        opts["rounding"] = rounding
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR,
+        arguments=operands,
+        options=opts,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def median(
+    precision: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    x: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    *,
+    rounding: Optional[str] = None,
+) -> "BaseExpressionAPI":
+    """Median value. Substrait ``median(precision, x)``.
+
+    Args:
+        precision: Precision parameter (per Substrait spec).
+        x: Column expression to take the median of.
+        rounding: Optional Substrait rounding mode.
+    """
+    from ..expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    )
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [_to_substrait_node(precision), _to_substrait_node(x)]
+    opts: dict = {}
+    if rounding is not None:
+        opts["rounding"] = rounding
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN,
+        arguments=operands,
+        options=opts,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def quantile(
+    boundaries: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    precision: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    n: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    distribution: Union["BaseExpressionAPI", "ExpressionNode", Any],
+    *,
+    rounding: Optional[str] = None,
+) -> "BaseExpressionAPI":
+    """Quantile aggregate. Substrait ``quantile(boundaries, precision, n, distribution)``.
+
+    Args:
+        boundaries: Quantile boundaries (e.g. 0.5 for median).
+        precision: Precision parameter.
+        n: Sample-size hint.
+        distribution: Distribution mode (e.g. "linear").
+        rounding: Optional Substrait rounding mode.
+    """
+    from ..expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    )
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [
+        _to_substrait_node(boundaries),
+        _to_substrait_node(precision),
+        _to_substrait_node(n),
+        _to_substrait_node(distribution),
+    ]
+    opts: dict = {}
+    if rounding is not None:
+        opts["rounding"] = rounding
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE,
+        arguments=operands,
+        options=opts,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def always_true() -> "BaseExpressionAPI":
     """
     Create a constant TRUE (1) ternary expression.
 
@@ -375,6 +499,11 @@ __all__ = [
     "coalesce",
     "greatest",
     "least",
+    # Aggregate
+    "count_records",
+    "corr",
+    "median",
+    "quantile",
     # Conditional
     "when",
     # Native

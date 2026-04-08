@@ -23,7 +23,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        pattern: NarwhalsExpr,
+        *,
+        pattern: str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Regex containment via Narwhals str.contains (regex by default).

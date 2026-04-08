@@ -14,6 +14,7 @@ from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+    FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
 )
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
@@ -46,6 +47,13 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         (FK_STR.REPLACE, "substring"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.LIKE, "match"): _NW_STRING_LITERAL_ONLY,
+        # Mountainash extension — regex_contains pattern is literal-only
+        # on every backend (per arguments-vs-options.md). Defensive entry:
+        # the API builder rejects non-str patterns at build time, so this
+        # lookup should never actually fire — but if a future caller routes
+        # around the builder this surfaces an enriched error instead of the
+        # raw `TypeError: unhashable type: 'Expr'` from re.compile.
+        (FK_MA_STR.REGEX_CONTAINS, "pattern"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.REGEXP_REPLACE, "pattern"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.REGEXP_REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.SUBSTRING, "start"): _NW_STRING_LITERAL_ONLY,

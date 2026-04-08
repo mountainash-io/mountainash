@@ -179,3 +179,5 @@ coverage.*
 # hiivmind-pulse-gh
 .hiivmind/github/user.yaml
 .hiivmind/github/log/
+.ruff_cache/
+.substrait_cache/

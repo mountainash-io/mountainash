@@ -253,6 +253,7 @@ class RelationDAG:
         from mountainash.expressions.core.expression_system.expsys_base import (
             identify_backend,
         )
+        from mountainash.relations.dag.errors import RelationDAGRequired
 
         order = self.topological_order(target=target_name)
         for n in order:
@@ -262,7 +263,7 @@ class RelationDAG:
                 continue
             try:
                 read_node = RelationBase._find_leaf_read_node(root)
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError, RelationDAGRequired):
                 # Node type not handled (e.g. RefRelNode) — skip, try next.
                 continue
             if read_node is not None:

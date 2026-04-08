@@ -24,7 +24,8 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         input: ExpressionT,
         /,
-        pattern: ExpressionT,
+        *,
+        pattern: str,
         case_sensitivity: Optional[str] = None,
     ) -> ExpressionT:
         """Check if string contains a match for a regex pattern.
@@ -36,7 +37,8 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
 
         Args:
             input: String expression.
-            pattern: Regex pattern (string or expression).
+            pattern: Regex pattern as a literal ``str`` (kw-only, never an
+                expression — see arguments-vs-options.md).
             case_sensitivity: "CASE_SENSITIVE" or "CASE_INSENSITIVE".
 
         Returns:

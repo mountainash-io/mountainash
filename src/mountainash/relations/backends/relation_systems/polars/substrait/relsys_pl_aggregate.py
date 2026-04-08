@@ -13,6 +13,10 @@ class SubstraitPolarsAggregateRelationSystem:
     def aggregate(
         self, relation: pl.LazyFrame, keys: list[Any], measures: list[Any], /
     ) -> pl.LazyFrame:
+        if not keys:
+            # Global aggregate (no group-by keys): use select() to get a
+            # single-row scalar result.  group_by([]) raises a ComputeError.
+            return relation.select(measures)
         return relation.group_by(keys).agg(measures)
 
     def distinct(self, relation: pl.LazyFrame, columns: list[Any], /) -> pl.LazyFrame:

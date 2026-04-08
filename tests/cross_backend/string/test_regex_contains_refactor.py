@@ -50,27 +50,17 @@ class TestRegexContainsRefactor:
                 f"[{backend_name}] Expected None at idx 4, got {actual[4]!r}"
             )
 
-    def test_regex_contains_column_pattern(self, backend_name, backend_factory, collect_expr):
-        """regex_contains with a per-row pattern column."""
-        if backend_name == "pandas":
-            pytest.xfail(
-                "pre-existing: narwhals-pandas str.contains rejects columnar pattern; out of scope"
-            )
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "pre-existing: ibis-polars backend does not support columnar regex pattern; out of scope"
-            )
-        data = {
-            "s": ["abc123", "xyz", "hello world", "foo"],
-            "pat": [r"\d+", r"^x", r"\s", r"^bar"],
-        }
-        df = backend_factory.create(data, backend_name)
+    def test_regex_contains_column_pattern_rejected(self, backend_name, backend_factory, collect_expr):
+        """regex_contains rejects column-reference patterns at build time.
 
-        expr = ma.col("s").str.regex_contains(ma.col("pat"))
-        actual = collect_expr(df, expr)
-        assert actual == [True, True, True, False], (
-            f"[{backend_name}] Expected [True, True, True, False], got {actual}"
-        )
+        Per arguments-vs-options.md, the regex pattern is a universally-literal
+        parameter. Dynamic per-row patterns are not supported on any backend;
+        users who need them should reach for Relation.compile() and drop into
+        the native backend. This test replaces the former
+        ``test_regex_contains_column_pattern`` which asserted the opposite.
+        """
+        with pytest.raises(TypeError, match="literal str"):
+            ma.col("s").str.regex_contains(ma.col("pat"))
 
     def test_contains_column_pattern(self, backend_name, backend_factory, collect_expr):
         """Literal contains with a per-row pattern column (Bug 2)."""
@@ -81,6 +71,12 @@ class TestRegexContainsRefactor:
         if backend_name == "ibis-polars":
             pytest.xfail(
                 "pre-existing: ibis-polars backend does not support columnar literal needle; out of scope"
+            )
+        if backend_name == "narwhals-polars":
+            pytest.xfail(
+                "narwhals-polars: nw.lit() cannot wrap a Polars Expr as a literal, "
+                "so columnar substring patterns fail at visit time. Same class of "
+                "limitation as the pandas/ibis-polars cases above."
             )
         data = {
             "s": ["apple pie", "banana split", "cherry", "date"],

@@ -378,20 +378,172 @@ class Relation(RelationBase):
 
     # --- Terminal operations ---
 
-    def collect(self) -> Any:
-        """Execute the plan and return the native backend result."""
+    def compile(self) -> Any:
+        """Compile to a native backend plan without materializing.
+
+        For lazy backends (Polars ``LazyFrame``, Ibis) this returns the
+        unexecuted plan — use it as an escape hatch to interleave native
+        ops before calling :meth:`collect`. For eager backends the result
+        is already materialized and :meth:`collect` is a no-op over it.
+
+        Symmetric with the expressions-side ``expr.compile(df)``.
+        """
         return self._compile_and_execute()
+
+    def collect(self) -> Any:
+        """Execute the plan and return a fully materialized native result.
+
+        Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
+        an Ibis expression returns an executed result, narwhals returns its
+        native frame, and so on. One syntax for all backends.
+        """
+        from mountainash.core.types import is_polars_lazyframe
+
+        result = self.compile()
+        if is_polars_lazyframe(result):
+            return result.collect()
+        return result
+
+    def item(self, column: str, row: int = 0) -> Any:
+        """Extract a single cell value as a Python scalar with strict semantics.
+
+        The relation is materialised via the existing ``to_polars()`` terminal,
+        and the cell is extracted via Polars' ``Series`` scalar accessor
+        (which handles native → Python conversion for datetime, decimal, etc.).
+
+        Args:
+            column: Column name to extract. Must exist in the result.
+            row: Row index; must satisfy ``0 <= row < number_of_rows``.
+                Defaults to ``0``. Negative indexing is **not** supported.
+
+        Returns:
+            The cell value as a Python scalar.
+
+        Raises:
+            KeyError: if ``column`` is not present in the result.
+            IndexError: if ``row < 0``, if ``row >= number_of_rows``, or if
+                the relation is empty.
+            RelationDAGRequired: if the relation contains a ``RefRelNode`` and
+                is compiled standalone.
+        """
+        df = self.to_polars()
+
+        if column not in df.columns:
+            raise KeyError(column)
+
+        n = len(df)
+        if row < 0 or row >= n:
+            raise IndexError(
+                f"row {row} out of range for relation with {n} row(s) "
+                f"in column {column!r}"
+            )
+
+        return df[column][row]
+
+    def count_rows(self) -> int:
+        """Execute the relation and return the number of rows as a Python int.
+
+        Implemented as a thin composition: wraps ``self._node`` in an
+        ``AggregateRelNode`` with a single ``count_records()`` measure, compiles
+        via the standard visitor pipeline, and extracts the single scalar
+        from the single-row result. No per-backend dispatch — all backend
+        variance lives inside the ``count_records`` aggregate implementations.
+
+        Returns:
+            Row count as a Python ``int``. Returns ``0`` for an empty relation.
+
+        Raises:
+            RelationDAGRequired: if the relation contains a ``RefRelNode`` and
+                is compiled standalone instead of inside
+                ``RelationDAG.collect()``.
+        """
+        import mountainash as ma
+
+        counted = Relation(
+            AggregateRelNode(
+                input=self._node,
+                keys=[],
+                measures=[ma.count_records().alias("__count_rows__")],
+            )
+        )
+        return int(counted.item("__count_rows__"))
+
+    # ------------------------------------------------------------------
+    # Scalar aggregate terminals
+    #
+    # Each method is a thin composition over the corresponding aggregate
+    # expression function. The pattern is identical to ``count_rows()``:
+    # wrap ``self._node`` in an AggregateRelNode with empty keys, compile
+    # via the existing visitor pipeline, extract via ``.item(...)``.
+    # ------------------------------------------------------------------
+
+    def _scalar_aggregate(self, agg_expr: Any) -> Any:
+        """Internal helper: aggregate the relation to one row, extract scalar."""
+        aggregated = Relation(
+            AggregateRelNode(
+                input=self._node,
+                keys=[],
+                measures=[agg_expr.alias("__value__")],
+            )
+        )
+        return aggregated.item("__value__")
+
+    def sum(self, col: str) -> Any:
+        """Return the sum of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).sum())
+
+    def avg(self, col: str) -> Any:
+        """Return the arithmetic mean of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).avg())
+
+    def mean(self, col: str) -> Any:
+        """Short alias for :meth:`avg`."""
+        return self.avg(col)
+
+    def min(self, col: str) -> Any:
+        """Return the minimum value in ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).min())
+
+    def max(self, col: str) -> Any:
+        """Return the maximum value in ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).max())
+
+    def product(self, col: str) -> Any:
+        """Return the product of values in ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).product())
+
+    def std_dev(self, col: str) -> Any:
+        """Return the standard deviation of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).std_dev())
+
+    def variance(self, col: str) -> Any:
+        """Return the variance of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).variance())
+
+    def any_value(self, col: str) -> Any:
+        """Return one representative value from ``col`` as a Python scalar.
+
+        Note: nondeterministic — different backends may return different
+        representatives across runs.
+        """
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).any_value())
 
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
-        from mountainash.core.types import is_polars_dataframe, is_polars_lazyframe
+        from mountainash.core.types import is_polars_dataframe
 
-        result = self._compile_and_execute()
+        result = self.collect()
         if is_polars_dataframe(result):
             return result
-        if is_polars_lazyframe(result):
-            return result.collect()
-        # Fallback for other backends
+        # Fallback for other backends (Ibis, narwhals, pandas)
         import polars as pl
         return pl.from_pandas(result.to_pandas())
 

@@ -18,7 +18,7 @@ from .prtcl_api_bldr_conditional import (
 from .prtcl_api_bldr_field_reference import SubstraitFieldReferenceAPIBuilderProtocol
 from .prtcl_api_bldr_literal import SubstraitLiteralAPIBuilderProtocol
 
-# from .prtcl_api_bldr_scalar_aggregate import SubstraitScalarAggregateAPIBuilderProtocol
+from .prtcl_api_bldr_scalar_aggregate import SubstraitScalarAggregateAPIBuilderProtocol
 from .prtcl_api_bldr_scalar_arithmetic import SubstraitScalarArithmeticAPIBuilderProtocol
 from .prtcl_api_bldr_scalar_boolean import SubstraitScalarBooleanAPIBuilderProtocol
 from .prtcl_api_bldr_scalar_comparison import SubstraitScalarComparisonAPIBuilderProtocol
@@ -39,7 +39,7 @@ __all__ = [
     "SubstraitWhenAPIBuilderProtocol",
     "SubstraitThenAPIBuilderProtocol",
 
-    # "SubstraitScalarAggregateAPIBuilderProtocol",
+    "SubstraitScalarAggregateAPIBuilderProtocol",
     "SubstraitScalarArithmeticAPIBuilderProtocol",
     "SubstraitScalarBooleanAPIBuilderProtocol",
     "SubstraitScalarComparisonAPIBuilderProtocol",
