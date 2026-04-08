@@ -74,6 +74,8 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions
 | fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
 | operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
 | short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
+| scalar-terminal-composition.md | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions; no per-backend dispatch |
+| free-function-entrypoints.md | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
 
 ### d. Ternary Logic
 
