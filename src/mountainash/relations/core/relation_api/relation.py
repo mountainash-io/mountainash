@@ -446,6 +446,74 @@ class Relation(RelationBase):
         )
         return int(counted.item("__count_rows__"))
 
+    # ------------------------------------------------------------------
+    # Scalar aggregate terminals
+    #
+    # Each method is a thin composition over the corresponding aggregate
+    # expression function. The pattern is identical to ``count_rows()``:
+    # wrap ``self._node`` in an AggregateRelNode with empty keys, compile
+    # via the existing visitor pipeline, extract via ``.item(...)``.
+    # ------------------------------------------------------------------
+
+    def _scalar_aggregate(self, agg_expr: Any) -> Any:
+        """Internal helper: aggregate the relation to one row, extract scalar."""
+        aggregated = Relation(
+            AggregateRelNode(
+                input=self._node,
+                keys=[],
+                measures=[agg_expr.alias("__value__")],
+            )
+        )
+        return aggregated.item("__value__")
+
+    def sum(self, col: str) -> Any:
+        """Return the sum of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).sum())
+
+    def avg(self, col: str) -> Any:
+        """Return the arithmetic mean of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).avg())
+
+    def mean(self, col: str) -> Any:
+        """Short alias for :meth:`avg`."""
+        return self.avg(col)
+
+    def min(self, col: str) -> Any:
+        """Return the minimum value in ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).min())
+
+    def max(self, col: str) -> Any:
+        """Return the maximum value in ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).max())
+
+    def product(self, col: str) -> Any:
+        """Return the product of values in ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).product())
+
+    def std_dev(self, col: str) -> Any:
+        """Return the standard deviation of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).std_dev())
+
+    def variance(self, col: str) -> Any:
+        """Return the variance of ``col`` as a Python scalar."""
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).variance())
+
+    def any_value(self, col: str) -> Any:
+        """Return one representative value from ``col`` as a Python scalar.
+
+        Note: nondeterministic — different backends may return different
+        representatives across runs.
+        """
+        import mountainash as ma
+        return self._scalar_aggregate(ma.col(col).any_value())
+
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
         from mountainash.core.types import is_polars_dataframe, is_polars_lazyframe
