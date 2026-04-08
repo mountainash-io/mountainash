@@ -194,7 +194,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     def t_is_in(
         self,
         element: IbisValueExpr,
-        collection: Collection[Any] | Any,   # "Any" covers ibis Expr subtypes
+        collection: Collection[Any] | "IbisValueExpr",
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> IbisValueExpr:
         """Ternary membership test - returns -1/0/1.
@@ -206,7 +206,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
 
         if isinstance(collection, ibis.expr.types.Expr):
             # Array-column path: Ibis `array.contains(element)`.
-            membership = collection.contains(element)
+            membership = collection.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
         else:
             membership = element.isin(collection)
 
@@ -219,7 +219,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     def t_is_not_in(
         self,
         element: IbisValueExpr,
-        collection: Collection[Any] | Any,
+        collection: Collection[Any] | "IbisValueExpr",
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> IbisValueExpr:
         """Ternary non-membership test - returns -1/0/1.
@@ -229,7 +229,7 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         is_unknown = self._check_unknown(element, unknown_values)
 
         if isinstance(collection, ibis.expr.types.Expr):
-            membership = collection.contains(element)
+            membership = collection.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
         else:
             membership = element.isin(collection)
 
