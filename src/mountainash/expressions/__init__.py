@@ -26,6 +26,9 @@ from .core.expression_api.entrypoints import (
     least,
     # Aggregate entry points
     count_records,
+    corr,
+    median,
+    quantile,
     # Conditional
     when,
     native,
