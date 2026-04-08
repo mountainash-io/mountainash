@@ -53,3 +53,36 @@ def test_count_records_via_group_by_agg(sample_df):
     )
     # group 'a' has 2 rows total, group 'b' has 3 rows total
     assert result["row_count"].to_list() == [2, 3]
+
+
+def test_count_records_narwhals_backend():
+    """count_records via Narwhals-backed relation."""
+    pytest.importorskip("narwhals")
+    import narwhals as nw
+    nw_df = nw.from_native(
+        pl.DataFrame({"g": ["a", "b", "b"], "v": [1, 2, None]}),
+        eager_only=True,
+    )
+    result = (
+        relation(nw_df)
+        .group_by("g")
+        .agg(ma.count_records().alias("n"))
+        .to_polars()
+        .sort("g")
+    )
+    assert result["n"].to_list() == [1, 2]
+
+
+def test_count_records_ibis_backend():
+    """count_records via Ibis-backed relation."""
+    pytest.importorskip("ibis")
+    import ibis
+    t = ibis.memtable({"g": ["a", "b", "b"], "v": [1, 2, None]})
+    result = (
+        relation(t)
+        .group_by("g")
+        .agg(ma.count_records().alias("n"))
+        .to_polars()
+        .sort("g")
+    )
+    assert result["n"].to_list() == [1, 2]
