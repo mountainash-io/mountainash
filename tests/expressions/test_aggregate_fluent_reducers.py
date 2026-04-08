@@ -96,6 +96,13 @@ def test_any_value(df):
     assert b_val in {4, 6}
 
 
+def test_mean_alias_for_avg(df):
+    """ma.col('x').mean() is a short alias for .avg() — same numeric result."""
+    avg_result = _agg_via_polars(df, lambda c: c.avg())
+    mean_result = _agg_via_polars(df, lambda c: c.mean())
+    assert avg_result["v"].to_list() == mean_result["v"].to_list()
+
+
 # Cross-backend smoke tests for sum (representative of the wiring path)
 
 def test_sum_narwhals():
