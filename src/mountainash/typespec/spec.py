@@ -82,6 +82,7 @@ class FieldSpec:
     missing_values: Optional[List[str]] = None
     true_values: Optional[List[str]] = None
     false_values: Optional[List[str]] = None
+    categories: Optional[List[Any]] = None  # Gap 7: array of values or {value, label} dicts
     backend_type: Optional[str] = None
     null_fill: Any = None
     rename_from: Optional[str] = None
@@ -138,6 +139,8 @@ class TypeSpec:
     foreign_keys: Optional[List[ForeignKey]] = None
     missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
     keep_only_mapped: bool = False
+    fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
+    unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
 
     @classmethod
     def from_simple_dict(cls, columns: Dict[str, str], **metadata: Any) -> TypeSpec:
