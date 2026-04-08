@@ -64,11 +64,31 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     """Returns a pytest.mark.xfail if the registry declares this combination limited,
     and the input type actually exercises the limitation (col/complex, not raw/lit).
 
-    The narwhals KNOWN_EXPR_LIMITATIONS registry documents pandas-backend behavior;
-    when narwhals wraps a polars frame the expression is usually accepted, so xfail
-    is only applied for narwhals-pandas (not narwhals-polars)."""
+    The narwhals KNOWN_EXPR_LIMITATIONS registry is shared between narwhals-polars
+    and narwhals-pandas, but the actual native-backend behaviour differs: narwhals
+    wrapping polars sometimes accepts expressions the registry flags (in particular
+    anything narwhals itself has learned to pass through to polars). Rather than
+    maintain two parallel registries, we keep a small allow-list of
+    (function_key, param_name) pairs that are known to work on narwhals-polars
+    despite the registry entry, and skip the xfail for those on that variant only.
+    When upstream narwhals extends support further, entries are added to the
+    allow-list and the registry entry itself is kept to enrich narwhals-pandas
+    errors until both variants work.
+    """
     if input_type in ("raw", "lit"):
         return None
+    if backend == "narwhals-polars":
+        # narwhals 2.19.0 added Expr support for str.contains on polars.
+        # Extend this list as upstream closes more gaps; see
+        # h.backlog/narwhals-219-upgrade.md.
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_STRING as _FK_STR,
+        )
+        _NW_POLARS_FIXED: set[tuple[Any, str]] = {
+            (_FK_STR.CONTAINS, "substring"),
+        }
+        if (function_key, param_name) in _NW_POLARS_FIXED:
+            return None
     registry = _get_registry(backend)
     limitation = registry.get((function_key, param_name))
     if limitation is None:
