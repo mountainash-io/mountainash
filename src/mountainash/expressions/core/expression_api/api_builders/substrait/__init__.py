@@ -8,7 +8,7 @@ from .api_bldr_cast import SubstraitCastAPIBuilder
 from .api_bldr_conditional import SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder
 from .api_bldr_field_reference import SubstraitFieldReferenceAPIBuilder
 from .api_bldr_literal import SubstraitLiteralAPIBuilder
-# from .api_bldr_scalar_aggregate import SubstraitScalarAggregateAPIBuilder
+from .api_bldr_scalar_aggregate import SubstraitScalarAggregateAPIBuilder
 from .api_bldr_scalar_arithmetic import SubstraitScalarArithmeticAPIBuilder
 from .api_bldr_scalar_boolean import SubstraitScalarBooleanAPIBuilder
 from .api_bldr_scalar_comparison import SubstraitScalarComparisonAPIBuilder
@@ -35,7 +35,7 @@ __all__ = [
 
 
     # Scalar operations
-    # "SubstraitScalarAggregateAPIBuilder",
+    "SubstraitScalarAggregateAPIBuilder",
     "SubstraitScalarArithmeticAPIBuilder",
     "SubstraitScalarBooleanAPIBuilder",
     "SubstraitScalarComparisonAPIBuilder",

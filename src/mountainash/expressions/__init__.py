@@ -24,6 +24,9 @@ from .core.expression_api.entrypoints import (
     coalesce,
     greatest,
     least,
+    # Aggregate entry points
+    count_records,
+    # Conditional
     when,
     native,
     # Ternary entry points

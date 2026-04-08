@@ -10,6 +10,7 @@ from mountainash.expressions import (
     coalesce,
     greatest,
     least,
+    count_records,
     when,
     t_col,
     always_true,

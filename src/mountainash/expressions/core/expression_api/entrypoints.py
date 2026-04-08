@@ -299,6 +299,28 @@ def t_col(name: str, unknown: set[Any] | None = None) -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
+def count_records() -> BaseExpressionAPI:
+    """Substrait count_records() — counts all rows including nulls.
+
+    Produces a backend-agnostic aggregate expression suitable for use inside
+    ``relation.group_by(...).agg(...)`` or as a measure in an aggregate plan.
+
+    Returns:
+        A BaseExpressionAPI wrapping a ScalarFunctionNode with COUNT_RECORDS.
+    """
+    from ..expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    )
+    from ..expression_api import BooleanExpressionAPI
+
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS,
+        arguments=[],
+        options={},
+    )
+    return BooleanExpressionAPI(node)
+
+
 def always_true() -> BaseExpressionAPI:
     """
     Create a constant TRUE (1) ternary expression.
@@ -375,6 +397,8 @@ __all__ = [
     "coalesce",
     "greatest",
     "least",
+    # Aggregate
+    "count_records",
     # Conditional
     "when",
     # Native
