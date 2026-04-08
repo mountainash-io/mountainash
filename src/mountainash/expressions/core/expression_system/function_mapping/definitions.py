@@ -677,6 +677,7 @@ def register_all_functions() -> None:
             substrait_uri=MountainashExtension.STRING,
             substrait_name="regex_contains",
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.regex_contains,
+            options=("pattern",),
         ),
     ]
 
