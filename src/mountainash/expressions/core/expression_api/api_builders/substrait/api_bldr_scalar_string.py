@@ -1062,6 +1062,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     def regex_match(
         self,
         pattern: str,
+        *,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
         """Check if entire string matches regex pattern (anchored with ^ and $).
@@ -1083,6 +1084,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     def regex_contains(
         self,
         pattern: str,
+        *,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
         """Check if string contains a match for a regex pattern.
