@@ -192,20 +192,32 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         self,
         values: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
-        """Ternary membership check. Returns -1/0/1."""
-        if isinstance(values, (list, tuple, set)):
-            value_nodes = [LiteralNode(value=v) for v in values]
-        else:
-            value_nodes = [self._to_substrait_node(values)]
+        """Ternary membership check. Returns -1/0/1.
 
+        `values` may be a Python list/tuple/set (literal collection, baked in
+        at build time) or a single expression. When the expression resolves to
+        a list-typed column at compile time, each backend compiles the operation
+        as per-row `list.contains(element)`; scalar expressions keep today's
+        `element == value` semantics.
+        """
         left_unknown = getattr(self._node, "unknown_values", None)
         options = {"unknown_values": frozenset(left_unknown)} if left_unknown else {}
+
+        if isinstance(values, (list, tuple, set)):
+            # Literal path — wrap in LIST node; visitor will extract raw values.
+            collection_arg: "ExpressionNode" = ScalarFunctionNode(
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+                arguments=[LiteralNode(value=v) for v in values],
+            )
+        else:
+            # Expression path — pass through raw. Visitor compiles normally;
+            # the backend distinguishes list-literal vs compiled-Expr arguments
+            # via `isinstance` at its own boundary.
+            collection_arg = self._to_substrait_node(values)
+
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
-            arguments=[self._node, ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
-                arguments=value_nodes,
-            )],
+            arguments=[self._node, collection_arg],
             options=options,
         )
         return self._build(node)
@@ -214,20 +226,24 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         self,
         values: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
-        """Ternary non-membership check. Returns -1/0/1."""
-        if isinstance(values, (list, tuple, set)):
-            value_nodes = [LiteralNode(value=v) for v in values]
-        else:
-            value_nodes = [self._to_substrait_node(values)]
+        """Ternary non-membership check. Returns -1/0/1.
 
+        Mirror of `t_is_in`. See its docstring for `values` semantics.
+        """
         left_unknown = getattr(self._node, "unknown_values", None)
         options = {"unknown_values": frozenset(left_unknown)} if left_unknown else {}
+
+        if isinstance(values, (list, tuple, set)):
+            collection_arg: "ExpressionNode" = ScalarFunctionNode(
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+                arguments=[LiteralNode(value=v) for v in values],
+            )
+        else:
+            collection_arg = self._to_substrait_node(values)
+
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
-            arguments=[self._node, ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
-                arguments=value_nodes,
-            )],
+            arguments=[self._node, collection_arg],
             options=options,
         )
         return self._build(node)
