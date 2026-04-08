@@ -72,6 +72,12 @@ class TestRegexContainsRefactor:
             pytest.xfail(
                 "pre-existing: ibis-polars backend does not support columnar literal needle; out of scope"
             )
+        if backend_name == "narwhals-polars":
+            pytest.xfail(
+                "narwhals-polars: nw.lit() cannot wrap a Polars Expr as a literal, "
+                "so columnar substring patterns fail at visit time. Same class of "
+                "limitation as the pandas/ibis-polars cases above."
+            )
         data = {
             "s": ["apple pie", "banana split", "cherry", "date"],
             "needle": ["pie", "split", "XX", "dat"],
