@@ -378,9 +378,31 @@ class Relation(RelationBase):
 
     # --- Terminal operations ---
 
-    def collect(self) -> Any:
-        """Execute the plan and return the native backend result."""
+    def compile(self) -> Any:
+        """Compile to a native backend plan without materializing.
+
+        For lazy backends (Polars ``LazyFrame``, Ibis) this returns the
+        unexecuted plan — use it as an escape hatch to interleave native
+        ops before calling :meth:`collect`. For eager backends the result
+        is already materialized and :meth:`collect` is a no-op over it.
+
+        Symmetric with the expressions-side ``expr.compile(df)``.
+        """
         return self._compile_and_execute()
+
+    def collect(self) -> Any:
+        """Execute the plan and return a fully materialized native result.
+
+        Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
+        an Ibis expression returns an executed result, narwhals returns its
+        native frame, and so on. One syntax for all backends.
+        """
+        from mountainash.core.types import is_polars_lazyframe
+
+        result = self.compile()
+        if is_polars_lazyframe(result):
+            return result.collect()
+        return result
 
     def item(self, column: str, row: int = 0) -> Any:
         """Extract a single cell value as a Python scalar with strict semantics.
@@ -516,14 +538,12 @@ class Relation(RelationBase):
 
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
-        from mountainash.core.types import is_polars_dataframe, is_polars_lazyframe
+        from mountainash.core.types import is_polars_dataframe
 
-        result = self._compile_and_execute()
+        result = self.collect()
         if is_polars_dataframe(result):
             return result
-        if is_polars_lazyframe(result):
-            return result.collect()
-        # Fallback for other backends
+        # Fallback for other backends (Ibis, narwhals, pandas)
         import polars as pl
         return pl.from_pandas(result.to_pandas())
 
