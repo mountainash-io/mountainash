@@ -43,9 +43,10 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
 
     _NW_LIST_CONTAINS_LIMITED = KnownLimitation(
         message=(
-            "Narwhals does not support list-column membership on all native "
-            "backends (narwhals-pandas in particular). Use polars or an ibis "
-            "backend, or pass a literal list/tuple/set as the t_is_in argument."
+            "Narwhals (as of 2.19.0) does not accept expression arguments for "
+            "list.contains on any native backend — its `item` parameter is typed "
+            "`NonNestedLiteral` and rejects Expr. Use the polars or an ibis "
+            "backend directly, or pass a literal list/tuple/set as the argument."
         ),
         native_errors=(TypeError, AttributeError),
         workaround="Use a literal collection, the polars backend, or an ibis backend",

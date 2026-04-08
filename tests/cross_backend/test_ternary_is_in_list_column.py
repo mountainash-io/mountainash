@@ -27,11 +27,19 @@ class TestTIsInListColumn:
 
     def test_t_is_in_list_column_happy_path(self, backend_name, backend_factory, collect_expr):
         """Scalar column vs list column: per-row membership."""
-        if backend_name == "narwhals-pandas":
+        if backend_name in ("narwhals-pandas", "narwhals-polars"):
             pytest.xfail(
-                "narwhals-pandas list ops lag narwhals-polars; "
-                "KNOWN_EXPR_LIMITATIONS registers an enriched error"
+                "narwhals (as of 2.19.0) does not accept expression arguments "
+                "for list.contains on any native backend — signature rejects "
+                "non-literal `item`. Tracked via KNOWN_EXPR_LIMITATIONS."
             )
+        if backend_name == "pandas":
+            pytest.xfail(
+                "pandas backend routes through narwhals, which has the same "
+                "list.contains(expr) gap as narwhals-polars/narwhals-pandas."
+            )
+        if backend_name == "ibis-sqlite":
+            pytest.xfail("SQLite has no native array/list column type.")
         data = {
             "ctx": ["AU", "US", "CN"],
             "allowed": [["AU", "NZ"], ["US", "CA"], ["JP", "KR"]],
