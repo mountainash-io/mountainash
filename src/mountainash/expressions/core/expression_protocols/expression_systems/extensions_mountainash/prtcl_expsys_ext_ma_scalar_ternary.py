@@ -93,19 +93,27 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     def t_is_in(
         self,
         element: ExpressionT,
-        collection: Collection[Any],
+        collection: Collection[Any] | ExpressionT,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> ExpressionT:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        `collection` is either a Python collection of literal values (the
+        historical literal-list path) or a backend expression (new: per-row
+        list-column membership). Backends dispatch on the Python type.
+        """
         ...
 
     def t_is_not_in(
         self,
         element: ExpressionT,
-        collection: Collection[Any],
+        collection: Collection[Any] | ExpressionT,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> ExpressionT:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        See `t_is_in` for `collection` semantics.
+        """
         ...
 
     # ========================================
