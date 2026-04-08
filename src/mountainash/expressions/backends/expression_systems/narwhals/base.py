@@ -15,6 +15,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
     FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY as FK_MA_TERN,
 )
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
@@ -40,6 +41,16 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         workaround="Use a literal integer for the offset amount",
     )
 
+    _NW_LIST_CONTAINS_LIMITED = KnownLimitation(
+        message=(
+            "Narwhals does not support list-column membership on all native "
+            "backends (narwhals-pandas in particular). Use polars or an ibis "
+            "backend, or pass a literal list/tuple/set as the t_is_in argument."
+        ),
+        native_errors=(TypeError, AttributeError),
+        workaround="Use a literal collection, the polars backend, or an ibis backend",
+    )
+
     KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
         (FK_STR.STARTS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.ENDS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
@@ -54,6 +65,8 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         # around the builder this surfaces an enriched error instead of the
         # raw `TypeError: unhashable type: 'Expr'` from re.compile.
         (FK_MA_STR.REGEX_CONTAINS, "pattern"): _NW_STRING_LITERAL_ONLY,
+        (FK_MA_TERN.T_IS_IN, "collection"): _NW_LIST_CONTAINS_LIMITED,
+        (FK_MA_TERN.T_IS_NOT_IN, "collection"): _NW_LIST_CONTAINS_LIMITED,
         (FK_STR.REGEXP_REPLACE, "pattern"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.REGEXP_REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.SUBSTRING, "start"): _NW_STRING_LITERAL_ONLY,

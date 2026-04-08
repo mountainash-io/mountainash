@@ -197,17 +197,26 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     def t_is_in(
         self,
         element: NarwhalsExpr,
-        collection: Collection[Any],
+        collection: Collection[Any] | "NarwhalsExpr",
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> NarwhalsExpr:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        `collection` is a Python collection (literal path) or a narwhals
+        expression resolving to a list-typed column (per-row path).
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, nw.Expr):
+            membership = collection.list.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            membership = element.is_in(collection)
 
         return (
             nw.when(is_unknown)
             .then(nw.lit(T_UNKNOWN))
             .otherwise(
-                nw.when(element.is_in(collection))
+                nw.when(membership)
                 .then(nw.lit(T_TRUE))
                 .otherwise(nw.lit(T_FALSE))
             )
@@ -216,17 +225,25 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     def t_is_not_in(
         self,
         element: NarwhalsExpr,
-        collection: Collection[Any],
+        collection: Collection[Any] | "NarwhalsExpr",
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> NarwhalsExpr:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        Mirror of `t_is_in`.
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, nw.Expr):
+            membership = collection.list.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            membership = element.is_in(collection)
 
         return (
             nw.when(is_unknown)
             .then(nw.lit(T_UNKNOWN))
             .otherwise(
-                nw.when(~element.is_in(collection))
+                nw.when(~membership)
                 .then(nw.lit(T_TRUE))
                 .otherwise(nw.lit(T_FALSE))
             )
