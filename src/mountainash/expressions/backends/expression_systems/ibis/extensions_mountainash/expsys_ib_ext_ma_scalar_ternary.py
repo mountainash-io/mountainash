@@ -194,31 +194,49 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     def t_is_in(
         self,
         element: IbisValueExpr,
-        collection: Collection[Any],
+        collection: Collection[Any] | Any,   # "Any" covers ibis Expr subtypes
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> IbisValueExpr:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        `collection` is either a Python collection (literal path) or an Ibis
+        array/list-valued expression (per-row path).
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, ibis.expr.types.Expr):
+            # Array-column path: Ibis `array.contains(element)`.
+            membership = collection.contains(element)
+        else:
+            membership = element.isin(collection)
 
         return ibis.ifelse(
             is_unknown,
             ibis.literal(int(T_UNKNOWN)),
-            ibis.ifelse(element.isin(collection), ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
+            ibis.ifelse(membership, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
         )
 
     def t_is_not_in(
         self,
         element: IbisValueExpr,
-        collection: Collection[Any],
+        collection: Collection[Any] | Any,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> IbisValueExpr:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        Mirror of `t_is_in`.
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, ibis.expr.types.Expr):
+            membership = collection.contains(element)
+        else:
+            membership = element.isin(collection)
 
         return ibis.ifelse(
             is_unknown,
             ibis.literal(int(T_UNKNOWN)),
-            ibis.ifelse(~element.isin(collection), ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
+            ibis.ifelse(~membership, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
         )
 
     # ========================================
