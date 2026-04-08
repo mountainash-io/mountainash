@@ -64,8 +64,8 @@ class SubstraitIbisAggregateGenericExpressionSystem(
         Returns:
             An Ibis expression that resolves to the row count.
         """
-        import ibis
-        return ibis.literal(1).count()
+        from ibis import _
+        return _.count()  # type: ignore[return-value]  # Deferred resolves to count aggregate in agg context
 
     def any_value(
         self,
