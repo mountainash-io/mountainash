@@ -19,7 +19,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input,
         /,
-        pattern,
+        *,
+        pattern: str,
         case_sensitivity: Any = None,
     ):
         """Regex containment via Ibis re_search.

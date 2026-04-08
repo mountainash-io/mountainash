@@ -23,7 +23,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        pattern: PolarsExpr,
+        *,
+        pattern: str,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
         """Regex containment via Polars str.contains(literal=False).
