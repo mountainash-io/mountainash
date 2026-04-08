@@ -117,7 +117,9 @@ class FKEY_SUBSTRAIT_SCALAR_AGGREGATE(Enum):
     """
 
     # Generic aggregate functions
-    COUNT = auto()
+    COUNT = auto()           # Substrait count(x) — 1-arg overload, counts non-null values
+    COUNT_RECORDS = auto()   # Substrait count() — 0-arg overload, counts all records
+                             # (both serialize to substrait_name="count" on the wire)
     ANY_VALUE = auto()
 
     # Arithmetic aggregate functions

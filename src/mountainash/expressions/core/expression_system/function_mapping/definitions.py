@@ -797,6 +797,14 @@ def register_all_functions() -> None:
             options=("overflow",),
             protocol_method=SubstraitAggregateGenericExpressionSystemProtocol.count,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="count",   # ← SAME Substrait function as COUNT above;
+                                      #   distinguished by arity (this is the 0-arg impl)
+            options=("overflow",),
+            protocol_method=SubstraitAggregateGenericExpressionSystemProtocol.count_records,
+        ),
     ]
 
     # ========================================
