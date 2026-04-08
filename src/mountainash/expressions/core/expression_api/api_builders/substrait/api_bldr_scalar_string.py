@@ -13,7 +13,6 @@ from ..api_builder_base import BaseExpressionAPIBuilder
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarStringAPIBuilderProtocol
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 
 
 if TYPE_CHECKING:

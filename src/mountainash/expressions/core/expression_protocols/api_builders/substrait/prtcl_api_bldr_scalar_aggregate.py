@@ -4,9 +4,6 @@ from __future__ import annotations
 from typing import Optional, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.expression_api.api_builder_base import (
-        BaseExpressionAPIBuilder,
-    )
     from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 
 

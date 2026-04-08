@@ -5,7 +5,6 @@ Substrait-aligned implementation for literal values.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
