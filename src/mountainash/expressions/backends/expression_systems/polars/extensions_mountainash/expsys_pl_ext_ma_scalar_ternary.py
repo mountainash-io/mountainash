@@ -196,17 +196,28 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
     def t_is_in(
         self,
         element: PolarsExpr,
-        collection: Collection[Any],
+        collection: Collection[Any] | pl.Expr,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> PolarsExpr:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        `collection` is either a Python list/tuple/set (literal path) or a
+        Polars expression resolving to a list-typed column (per-row path).
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, pl.Expr):
+            # Expression path: assume list-typed column. If it isn't, Polars
+            # raises at collect time with its own clear error.
+            membership = collection.list.contains(element)
+        else:
+            membership = element.is_in(collection)
 
         return (
             pl.when(is_unknown)
             .then(pl.lit(T_UNKNOWN))
             .otherwise(
-                pl.when(element.is_in(collection))
+                pl.when(membership)
                 .then(pl.lit(T_TRUE))
                 .otherwise(pl.lit(T_FALSE))
             )
@@ -215,17 +226,25 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
     def t_is_not_in(
         self,
         element: PolarsExpr,
-        collection: Collection[Any],
+        collection: Collection[Any] | pl.Expr,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> PolarsExpr:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        Mirror of `t_is_in`. See its docstring.
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, pl.Expr):
+            membership = collection.list.contains(element)
+        else:
+            membership = element.is_in(collection)
 
         return (
             pl.when(is_unknown)
             .then(pl.lit(T_UNKNOWN))
             .otherwise(
-                pl.when(~element.is_in(collection))
+                pl.when(~membership)
                 .then(pl.lit(T_TRUE))
                 .otherwise(pl.lit(T_FALSE))
             )
