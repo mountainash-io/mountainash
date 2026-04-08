@@ -208,8 +208,10 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
 
         if isinstance(collection, pl.Expr):
             # Expression path: assume list-typed column. If it isn't, Polars
-            # raises at collect time with its own clear error.
+            # raises at collect time with its own clear error. A null list
+            # row propagates to UNKNOWN, matching the ternary principle.
             membership = collection.list.contains(element)
+            is_unknown = is_unknown | collection.is_null()
         else:
             membership = element.is_in(collection)
 
@@ -237,6 +239,7 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
 
         if isinstance(collection, pl.Expr):
             membership = collection.list.contains(element)
+            is_unknown = is_unknown | collection.is_null()
         else:
             membership = element.is_in(collection)
 

@@ -106,6 +106,12 @@ __all__ = [
     "least",
     "when",
 
+    # Aggregate functions
+    "count_records",
+    "corr",
+    "median",
+    "quantile",
+
     # Ternary functions
     "t_col",
     "always_true",

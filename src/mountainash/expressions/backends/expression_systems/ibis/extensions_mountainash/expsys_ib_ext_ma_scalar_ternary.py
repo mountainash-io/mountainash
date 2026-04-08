@@ -204,9 +204,13 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         """
         is_unknown = self._check_unknown(element, unknown_values)
 
-        if isinstance(collection, ibis.expr.types.Expr):
+        if isinstance(collection, (ibis.expr.types.Expr, ibis.Deferred)):
             # Array-column path: Ibis `array.contains(element)`.
+            # A null array row propagates to UNKNOWN. Note mountainash's
+            # ibis backend returns `ibis._[name]` for column references,
+            # which is a Deferred — hence the dual isinstance check.
             membership = collection.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
+            is_unknown = ibis.or_(is_unknown, collection.isnull())  # pyright: ignore[reportAttributeAccessIssue]
         else:
             membership = element.isin(collection)
 
@@ -228,8 +232,9 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
         """
         is_unknown = self._check_unknown(element, unknown_values)
 
-        if isinstance(collection, ibis.expr.types.Expr):
+        if isinstance(collection, (ibis.expr.types.Expr, ibis.Deferred)):
             membership = collection.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
+            is_unknown = ibis.or_(is_unknown, collection.isnull())  # pyright: ignore[reportAttributeAccessIssue]
         else:
             membership = element.isin(collection)
 
