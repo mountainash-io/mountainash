@@ -1,6 +1,6 @@
 """Unit tests verifying Polars-compatible aliases resolve to the same methods."""
 
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 class TestArithmeticAliases:

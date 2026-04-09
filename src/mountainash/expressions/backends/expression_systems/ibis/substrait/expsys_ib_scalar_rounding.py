@@ -7,17 +7,16 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import ibis
 
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarRoundingExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisNumericExpr
 
 
-class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol):
+class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol["IbisNumericExpr"]):
     """Ibis implementation of ScalarRoundingExpressionProtocol.
 
     Implements 3 rounding methods:
@@ -26,7 +25,7 @@ class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, Subs
     - round: Round to specified decimal places
     """
 
-    def ceil(self, x: IbisExpr, /) -> IbisExpr:
+    def ceil(self, x: IbisNumericExpr, /) -> IbisNumericExpr:
         """Round up to the nearest integer (ceiling).
 
         Args:
@@ -37,7 +36,7 @@ class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, Subs
         """
         return x.ceil()
 
-    def floor(self, x: IbisExpr, /) -> IbisExpr:
+    def floor(self, x: IbisNumericExpr, /) -> IbisNumericExpr:
         """Round down to the nearest integer (floor).
 
         Args:
@@ -50,20 +49,19 @@ class SubstraitIbisScalarRoundingExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def round(
         self,
-        x: IbisExpr,
+        x: IbisNumericExpr,
         /,
-        s: int,
+        s: int = 0,
         rounding: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Round to s decimal places.
 
         Args:
             x: Value to round.
-            s: Number of decimal places (as expression or int).
+            s: Number of decimal places (raw int option).
             rounding: Rounding mode (ignored in Ibis, uses backend default).
 
         Returns:
             Rounded value.
         """
-        s_val = self._extract_literal_value(s)
-        return x.round(int(s_val))
+        return x.round(s)

@@ -7,24 +7,20 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import ibis
 
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
 )
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisColumnExpr, IbisValueExpr
 
 
 class SubstraitIbisAggregateGenericExpressionSystem(
     IbisBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol
+    SubstraitAggregateGenericExpressionSystemProtocol["IbisValueExpr"]
 ):
     """Ibis implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 
@@ -33,10 +29,10 @@ class SubstraitIbisAggregateGenericExpressionSystem(
 
     def count(
         self,
-        x: IbisExpr,
+        x: IbisColumnExpr,
         /,
         overflow: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Count a set of values.
 
         Counts non-null values.
@@ -50,28 +46,33 @@ class SubstraitIbisAggregateGenericExpressionSystem(
         """
         return x.count()
 
-    # def count_all(
-    #     self,
-    #     overflow: Any = None,
-    # ) -> IbisExpr:
-    #     """Count a set of records (not field referenced).
+    def count_records(
+        self,
+        /,
+        overflow: Any = None,
+    ) -> IbisValueExpr:
+        """Substrait count_records() — counts all rows including nulls.
 
-    #     Counts all rows including nulls.
+        Ibis separates column aggregates from table aggregates. At the
+        expression-protocol level we produce a count of a non-null literal,
+        which is equivalent to the row count. The relation visitor can
+        special-case Ibis to use table.count() directly at compile time.
 
-    #     Args:
-    #         overflow: Overflow handling (ignored in Ibis).
+        Args:
+            overflow: Overflow handling (ignored in Ibis).
 
-    #     Returns:
-    #         Count expression.
-    #     """
-    #     return ibis.literal(1).count()
+        Returns:
+            An Ibis expression that resolves to the row count.
+        """
+        from ibis import _
+        return _.count()  # type: ignore[return-value]  # Deferred resolves to count aggregate in agg context
 
     def any_value(
         self,
-        x: IbisExpr,
+        x: IbisColumnExpr,
         /,
         ignore_nulls: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Select an arbitrary value from a group of values.
 
         Returns the first value in the group.

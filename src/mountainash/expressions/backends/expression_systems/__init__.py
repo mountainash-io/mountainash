@@ -7,6 +7,7 @@ cross-backend expression compilation.
 Backends are registered with the ExpressionVisitorFactory via the
 @register_expression_system decorator.
 """
+from __future__ import annotations
 
 from .polars import PolarsExpressionSystem
 

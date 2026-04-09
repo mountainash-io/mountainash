@@ -7,15 +7,11 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +20,7 @@ if TYPE_CHECKING:
 
 class SubstraitNarwhalsAggregateGenericExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol
+    SubstraitAggregateGenericExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 
@@ -50,21 +46,21 @@ class SubstraitNarwhalsAggregateGenericExpressionSystem(
         """
         return x.count()
 
-    # def count_all(
-    #     self,
-    #     overflow: Any = None,
-    # ) -> NarwhalsExpr:
-    #     """Count a set of records (not field referenced).
+    def count_records(
+        self,
+        /,
+        overflow: Any = None,
+    ) -> NarwhalsExpr:
+        """Substrait count_records() — counts all rows including nulls.
 
-    #     Counts all rows including nulls.
+        Args:
+            overflow: Overflow handling (ignored in Narwhals).
 
-    #     Args:
-    #         overflow: Overflow handling (ignored in Narwhals).
-
-    #     Returns:
-    #         Count expression.
-    #     """
-    #     return nw.len()
+        Returns:
+            A Narwhals expression that resolves to the row count.
+        """
+        import narwhals as nw
+        return nw.len()
 
     def any_value(
         self,

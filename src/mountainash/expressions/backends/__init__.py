@@ -9,6 +9,7 @@ Planned:
 - Pandas
 - PyArrow
 """
+from __future__ import annotations
 
 # Import expression systems to register them.
 # Polars is a core dependency — always imported.

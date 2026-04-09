@@ -7,10 +7,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import ibis
 import ibis.expr.types as ir
 
+from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
@@ -20,6 +23,23 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
     Provides common functionality and backend identification for all
     Ibis protocol implementations.
     """
+
+    _IB_DATETIME_OFFSET_LITERAL_ONLY = KnownLimitation(
+        message="Ibis datetime offset operations require literal integer values",
+        native_errors=(TypeError,),
+        workaround="Use a literal integer for the offset amount",
+    )
+
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
+        (FK_DT.ADD_YEARS, "years"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MONTHS, "months"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_DAYS, "days"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_HOURS, "hours"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MINUTES, "minutes"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_SECONDS, "seconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MILLISECONDS, "milliseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MICROSECONDS, "microseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
+    }
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
@@ -37,35 +57,24 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
         """
         return isinstance(expr, (ir.Column, ir.Scalar, ir.Expr))
 
-    def _extract_literal_value(self, expr: Any) -> Any:
-        """Extract the literal value from an Ibis literal expression.
+    BACKEND_NAME: str = "ibis"
 
-        Some operations (like string slice/substring) work better with raw
-        Python values than Expr objects. This helper extracts the underlying
-        value from ibis.literal() expressions.
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Extract literal value from an Ibis expression.
 
-        Args:
-            expr: An Ibis expression or literal value.
-
-        Returns:
-            The underlying Python value if it's a literal expression,
-            otherwise returns the expr unchanged.
+        Ibis accepts expressions for most operations, but some (like
+        ibis.interval) require raw Python values. This extracts literals
+        while passing column references through unchanged.
         """
-        # If it's already a raw Python value, return as-is
         if isinstance(expr, (str, int, float, bool, type(None))):
             return expr
-
-        # If it's an Ibis Scalar, try to extract the literal value
         if isinstance(expr, ir.Scalar):
             try:
-                # For Ibis literals, we can try to get the value from the op
                 op = expr.op()
                 if hasattr(op, "value"):
                     return op.value
             except Exception:
                 pass
-
-        # If extraction fails, return the original expr
         return expr
 
     def _extract_column_name(self, expr: Any) -> str | None:

@@ -11,12 +11,11 @@ from typing import TYPE_CHECKING, Any, Union
 from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarArithmeticAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
     from ...api_base import BaseExpressionAPI
     from ....expression_nodes import ExpressionNode
 

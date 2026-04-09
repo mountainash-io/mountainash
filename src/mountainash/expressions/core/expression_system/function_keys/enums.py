@@ -47,6 +47,7 @@ class MountainashExtension:
     NAME = "file://extensions/functions_name.yaml"
     ARITHMETIC = "file://extensions/functions_arithmetic.yaml"
     COMPARISON = "file://extensions/functions_comparison.yaml"
+    STRING = "file://extensions/functions_string.yaml"
 
 
 
@@ -116,7 +117,9 @@ class FKEY_SUBSTRAIT_SCALAR_AGGREGATE(Enum):
     """
 
     # Generic aggregate functions
-    COUNT = auto()
+    COUNT = auto()           # Substrait count(x) — 1-arg overload, counts non-null values
+    COUNT_RECORDS = auto()   # Substrait count() — 0-arg overload, counts all records
+                             # (both serialize to substrait_name="count" on the wire)
     ANY_VALUE = auto()
 
     # Arithmetic aggregate functions
@@ -522,6 +525,18 @@ class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
     XOR_PARITY = "xor_parity"
 
 
+class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
+    """Mountainash string extensions not in Substrait.
+
+    Substrait has no regexp_contains primitive — its CONTAINS is literal-only
+    per spec. REGEX_CONTAINS is a mountainash extension implemented natively
+    by each backend (polars str.contains literal=False, ibis re_search,
+    narwhals str.contains).
+    """
+
+    REGEX_CONTAINS = "regex_contains"
+
+
 class FKEY_MOUNTAINASH_NULL(Enum):
     """Mountainash null handling functions.
 
@@ -653,6 +668,8 @@ MountainashFunction = Union[
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_NAME,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
+    FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 ]
@@ -687,6 +704,8 @@ __all__ = [
     "SUBSTRAIT_ARITHMETIC_WINDOW",
     # Mountainash extensions
     "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
+    "FKEY_MOUNTAINASH_SCALAR_BOOLEAN",
+    "FKEY_MOUNTAINASH_SCALAR_STRING",
     "FKEY_MOUNTAINASH_SCALAR_COMPARISON",
     "FKEY_MOUNTAINASH_SCALAR_DATETIME",
     "FKEY_MOUNTAINASH_NULL",

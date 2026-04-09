@@ -1,7 +1,7 @@
 """Cross-backend tests for set operations fluent composition."""
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [

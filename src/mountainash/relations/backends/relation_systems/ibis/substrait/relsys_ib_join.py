@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-import ibis
 import ibis.expr.types as ir
 
 from mountainash.core.constants import JoinType

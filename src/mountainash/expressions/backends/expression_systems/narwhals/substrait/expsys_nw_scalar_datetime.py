@@ -5,9 +5,8 @@ Implements datetime operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from datetime import date, datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 
@@ -55,7 +54,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
+class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
@@ -461,9 +460,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         Note:
             Narwhals only supports truncate. Falls back to truncate for all modes.
         """
-        unit_val = self._extract_literal_value(unit)
         # Narwhals only has truncate - use for all rounding modes
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def round_calendar(
         self,

@@ -1,3 +1,4 @@
+from __future__ import annotations
 # file: mountainash_dataframes/runtime_imports.py
 
 import importlib

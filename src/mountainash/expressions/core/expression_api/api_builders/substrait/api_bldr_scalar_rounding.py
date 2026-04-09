@@ -6,19 +6,17 @@ Implements ScalarRoundingBuilderProtocol for rounding operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ROUNDING
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarRoundingAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
     from ...api_base import BaseExpressionAPI
-    from ....expression_nodes import ExpressionNode
 
 
 class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarRoundingAPIBuilderProtocol):
@@ -65,7 +63,7 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
 
     def round(
         self,
-        decimals: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        decimals: Optional[int] = None,
     ) -> BaseExpressionAPI:
         """
         Round to the specified number of decimal places.
@@ -78,15 +76,20 @@ class SubstraitScalarRoundingAPIBuilder(BaseExpressionAPIBuilder, SubstraitScala
         Returns:
             New ExpressionAPI with round node.
         """
+        if decimals is not None and (not isinstance(decimals, int) or isinstance(decimals, bool)):
+            raise TypeError(
+                f"round(decimals=...) requires a literal int, got {type(decimals).__name__}. "
+                f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+            )
         if decimals is None:
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
                 arguments=[self._node],
             )
         else:
-            decimals_node = self._to_substrait_node(decimals)
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
-                arguments=[self._node, decimals_node],
+                arguments=[self._node],
+                options={"s": decimals},
             )
         return self._build(node)

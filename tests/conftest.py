@@ -25,14 +25,16 @@ from typing import Any, Callable, Dict, List
 ALL_BACKENDS = [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-duckdb",
     "ibis-polars",
     "ibis-sqlite"
 ]
 TEMPORAL_BACKENDS = [
     "polars",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-duckdb",
     "ibis-polars",
     "ibis-sqlite"
@@ -256,9 +258,11 @@ def backend_df(backend_name: str, sample_data) -> Any:
         return pl.DataFrame(sample_data)
     elif backend_name == "pandas":
         return pd.DataFrame(sample_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(sample_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(sample_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("sample", sample_data, overwrite=True)
@@ -280,9 +284,11 @@ def backend_temporal_df(backend_name: str, temporal_data) -> Any:
         return pl.DataFrame(temporal_data)
     elif backend_name == "pandas":
         return pd.DataFrame(temporal_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(temporal_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(temporal_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("temporal", temporal_data, overwrite=True)
@@ -304,9 +310,11 @@ def backend_arithmetic_df(backend_name: str, arithmetic_data) -> Any:
         return pl.DataFrame(arithmetic_data)
     elif backend_name == "pandas":
         return pd.DataFrame(arithmetic_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(arithmetic_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(arithmetic_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("arithmetic", arithmetic_data, overwrite=True)
@@ -328,9 +336,11 @@ def backend_string_df(backend_name: str, string_data) -> Any:
         return pl.DataFrame(string_data)
     elif backend_name == "pandas":
         return pd.DataFrame(string_data)
-    elif backend_name == "narwhals":
+    elif backend_name == "narwhals-polars":
         pl_df = pl.DataFrame(string_data)
         return nw.from_native(pl_df)
+    elif backend_name == "narwhals-pandas":
+        return nw.from_native(pd.DataFrame(string_data), eager_only=True)
     elif backend_name == "ibis-duckdb":
         conn = ibis.duckdb.connect()
         return conn.create_table("strings", string_data, overwrite=True)
@@ -364,7 +374,7 @@ def get_result_count() -> Callable:
     def _get_count(df: Any, backend_name: str) -> int:
         if backend_name.startswith("ibis-"):
             return df.count().execute()
-        elif backend_name in ["polars", "pandas", "narwhals"]:
+        elif backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
             return df.shape[0]
         else:
             return len(df)
@@ -386,7 +396,7 @@ def get_result() -> Callable:
     def _get_result(df: Any, backend_name: str) -> int:
         if backend_name.startswith("ibis-"):
             return df.execute()
-        else: # backend_name in ["polars", "pandas", "narwhals"]:
+        else: # backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
             return df
     return _get_result
 
@@ -395,30 +405,30 @@ def get_result() -> Callable:
 @pytest.fixture
 def select_and_extract() -> Callable:
     """
-    Helper to select expression and extract values - handles all backends.
+    Extract compiled expression results — for booleanizer/internal tests only.
 
-    Single function that:
-    1. Selects with backend-specific method (.name() or .alias())
-    2. Collects/executes if needed (no double-collect)
-    3. Extracts column values to list
-
-    Returns:
-        Callable that takes (df, backend_expr, column_alias, backend_name) and returns list
+    Most tests should use `collect_expr` instead. This fixture exists only for
+    tests that need to pass explicit booleanizer parameters to .compile(),
+    which the relation API does not support.
 
     Usage:
-        actual = select_and_extract(df, backend_expr, "result", "polars")
-        assert actual == [12, 23, 34]
+        backend_expr = expr.compile(df, booleanizer=None)
+        actual = select_and_extract(df, backend_expr, "result", backend_name)
     """
     def _select_and_extract(df: Any, backend_expr: Any, column_alias: str, backend_name: str) -> List:
         # Handle each backend type completely in one place
         if backend_name.startswith("ibis-"):
-            # Ibis: use .name(), then execute to get values
+            # Ibis: use .name(), then PyArrow to avoid pandas NaN/null conflation
             result = df.select(backend_expr.name(column_alias))
-            return result[column_alias].execute().tolist()
+            return result.to_pyarrow()[column_alias].to_pylist()
 
-        elif backend_name in ("polars", "narwhals", "pandas"):
-            # Polars/Narwhals/Pandas: use .alias(), then to_list()
-            # (pandas is routed through narwhals in factory)
+        elif backend_name == "pandas":
+            # Pandas (via narwhals): use PyArrow to avoid NaN/null conflation
+            result = df.select(backend_expr.alias(column_alias))
+            return result.to_arrow()[column_alias].to_pylist()
+
+        elif backend_name in ("polars", "narwhals-polars", "narwhals-pandas"):
+            # Polars/Narwhals: .to_list() preserves nulls correctly
             result = df.select(backend_expr.alias(column_alias))
             return result[column_alias].to_list()
 
@@ -429,7 +439,38 @@ def select_and_extract() -> Callable:
 
 
 @pytest.fixture
-def assert_parameter_sensitivity(select_and_extract) -> Callable:
+def collect_expr():
+    """Extract expression results via the relation API.
+
+    Mirrors real-world usage: wraps the DataFrame in a relation, projects
+    the expression, and extracts via .to_dict() (which routes through
+    Polars for null-safe extraction).
+
+    Usage:
+        actual = collect_expr(df, expr)
+        actual = collect_expr(df, expr, alias="custom_name")
+    """
+    def _collect(df, expr, alias="result"):
+        import mountainash as ma
+        return ma.relation(df).select(expr.name.alias(alias)).to_dict()[alias]
+    return _collect
+
+
+@pytest.fixture
+def collect_col():
+    """Extract column values via the relation API.
+
+    Usage:
+        values = collect_col(df, "age")
+    """
+    def _collect(df, column):
+        import mountainash as ma
+        return ma.relation(df).select(column).to_dict()[column]
+    return _collect
+
+
+@pytest.fixture
+def assert_parameter_sensitivity(collect_expr) -> Callable:
     """
     Assert that different parameter values produce different results.
 
@@ -450,37 +491,14 @@ def assert_parameter_sensitivity(select_and_extract) -> Callable:
     ) -> None:
         expr_a = build_expr(param_a)
         expr_b = build_expr(param_b)
-        result_a = select_and_extract(df, expr_a.compile(df), "result", backend_name)
-        result_b = select_and_extract(df, expr_b.compile(df), "result", backend_name)
+        result_a = collect_expr(df, expr_a)
+        result_b = collect_expr(df, expr_b)
         assert result_a != result_b, (
             f"[{backend_name}] param_a={param_a} and param_b={param_b} produced "
             f"identical results {result_a} — parameter may be silently ignored"
         )
 
     return _assert_parameter_sensitivity
-
-
-@pytest.fixture
-def get_column_values() -> Callable:
-    """
-    Helper to extract column values as list from any backend.
-
-    Returns:
-        Callable that takes (df, column, backend_name) and returns list
-
-    Usage:
-        values = get_column_values(df, "age", "polars")
-        assert values == [25, 30, 35]
-    """
-    def _get_values(df: Any, column: str, backend_name: str) -> List:
-        if backend_name.startswith("ibis-"):
-            return df[column].execute().tolist()
-        elif backend_name in ["polars", "pandas", "narwhals"]:
-            # Pandas is routed through narwhals, so all use .to_list()
-            return df[column].to_list()
-        else:
-            raise ValueError(f"Unknown backend: {backend_name}")
-    return _get_values
 
 
 @pytest.fixture
@@ -502,7 +520,7 @@ def get_scalar_result() -> Callable:
             return result
         elif backend_name == "pandas":
             return result
-        elif backend_name == "narwhals":
+        elif backend_name in ("narwhals-polars", "narwhals-pandas"):
             return result
         else:
             raise ValueError(f"Unknown backend: {backend_name}")

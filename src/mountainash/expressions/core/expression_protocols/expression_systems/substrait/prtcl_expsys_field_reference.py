@@ -8,21 +8,17 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TYPE_CHECKING
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
-
-
-
-class SubstraitFieldReferenceExpressionSystemProtocol(Protocol):
+class SubstraitFieldReferenceExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for rounding operations.
 
     Auto-generated from Substrait rounding extension.
     """
 
-    def col(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def col(self, x: ExpressionT, /) -> ExpressionT:
         """Rounding to the ceiling of the value `x`.
 
 

@@ -1,25 +1,19 @@
 """End-to-end pipeline integration tests.
 
-Tests the full pipeline: Python data → ingress → schema transform → relation → expression filter → output.
-Validates that schema, pydata, relations, and expressions modules work together.
+Tests the full pipeline: Python data → ingress → conform → relation → expression filter → output.
+Validates that typespec, conform, pydata, relations, and expressions modules work together.
 """
 
 import pytest
 import polars as pl
 import mountainash as ma
-from mountainash.schema import SchemaConfig
-from mountainash.schema.transform import CastSchemaFactory
+from mountainash.conform.builder import ConformBuilder
 from mountainash.pydata.ingress.pydata_ingress_factory import PydataIngressFactory
 
 
 @pytest.fixture
 def ingress_factory():
     return PydataIngressFactory()
-
-
-@pytest.fixture
-def transform_factory():
-    return CastSchemaFactory()
 
 
 @pytest.fixture
@@ -52,31 +46,25 @@ class TestPydataIngress:
         assert result.dtypes == [pl.String, pl.String, pl.String]
 
 
-class TestSchemaTransform:
-    """Test DataFrame → schema-transformed DataFrame."""
+class TestConformTransform:
+    """Test DataFrame → conform-transformed DataFrame."""
 
-    def test_cast_string_to_integer(self, transform_factory):
+    def test_cast_string_to_integer(self):
         df = pl.DataFrame({"age": ["25", "35"], "name": ["alice", "bob"]})
-        config = SchemaConfig(columns={"age": {"cast": "integer"}})
-        strategy = transform_factory.get_strategy(df)()
-        result = strategy.apply(df, config)
+        result = ConformBuilder({"age": {"cast": "integer"}}).apply(df)
         assert result["age"].dtype == pl.Int64
 
-    def test_cast_string_to_float(self, transform_factory):
+    def test_cast_string_to_float(self):
         df = pl.DataFrame({"score": ["88.5", "92.1"]})
-        config = SchemaConfig(columns={"score": {"cast": "number"}})
-        strategy = transform_factory.get_strategy(df)()
-        result = strategy.apply(df, config)
+        result = ConformBuilder({"score": {"cast": "number"}}).apply(df)
         assert result["score"].dtype == pl.Float64
 
-    def test_cast_multiple_columns(self, transform_factory):
+    def test_cast_multiple_columns(self):
         df = pl.DataFrame({"age": ["25", "35"], "score": ["88.5", "92.1"], "name": ["a", "b"]})
-        config = SchemaConfig(columns={
+        result = ConformBuilder({
             "age": {"cast": "integer"},
             "score": {"cast": "number"},
-        })
-        strategy = transform_factory.get_strategy(df)()
-        result = strategy.apply(df, config)
+        }).apply(df)
         assert result["age"].dtype == pl.Int64
         assert result["score"].dtype == pl.Float64
         assert result["name"].dtype == pl.String
@@ -104,20 +92,18 @@ class TestRelationExpressionFilter:
 
 
 class TestFullPipeline:
-    """End-to-end: Python data → ingress → schema transform → relation filter → output."""
+    """End-to-end: Python data → ingress → conform → relation filter → output."""
 
-    def test_full_pipeline(self, ingress_factory, transform_factory, sample_records):
+    def test_full_pipeline(self, ingress_factory, sample_records):
         # Step 1: Ingress
         df = ingress_factory.convert(sample_records)
         assert df.dtypes == [pl.String, pl.String, pl.String]
 
-        # Step 2: Schema transform
-        config = SchemaConfig(columns={
+        # Step 2: Conform (replaces old schema transform)
+        df = ConformBuilder({
             "age": {"cast": "integer"},
             "score": {"cast": "number"},
-        })
-        strategy = transform_factory.get_strategy(df)()
-        df = strategy.apply(df, config)
+        }).apply(df)
         assert df["age"].dtype == pl.Int64
         assert df["score"].dtype == pl.Float64
 
@@ -133,7 +119,7 @@ class TestFullPipeline:
         assert result["name"].to_list() == ["bob", "diana"]
         assert result["score"].to_list() == [92.1, 95.0]
 
-    def test_pipeline_with_aggregation(self, ingress_factory, transform_factory):
+    def test_pipeline_with_aggregation(self, ingress_factory):
         records = [
             {"dept": "eng", "salary": "100000"},
             {"dept": "eng", "salary": "120000"},
@@ -141,11 +127,9 @@ class TestFullPipeline:
             {"dept": "sales", "salary": "95000"},
         ]
 
-        # Ingress + transform
+        # Ingress + conform
         df = ingress_factory.convert(records)
-        config = SchemaConfig(columns={"salary": {"cast": "integer"}})
-        strategy = transform_factory.get_strategy(df)()
-        df = strategy.apply(df, config)
+        df = ConformBuilder({"salary": {"cast": "integer"}}).apply(df)
 
         # Relation: group by + aggregate (agg takes native Polars expressions)
         result = (
@@ -159,12 +143,10 @@ class TestFullPipeline:
         assert result.shape[0] == 2
         assert result["dept"].to_list() == ["eng", "sales"]
 
-    def test_pipeline_with_select_and_rename(self, ingress_factory, transform_factory, sample_records):
-        # Ingress + transform
+    def test_pipeline_with_select_and_rename(self, ingress_factory, sample_records):
+        # Ingress + conform
         df = ingress_factory.convert(sample_records)
-        config = SchemaConfig(columns={"age": {"cast": "integer"}})
-        strategy = transform_factory.get_strategy(df)()
-        df = strategy.apply(df, config)
+        df = ConformBuilder({"age": {"cast": "integer"}}).apply(df)
 
         # Relation: select + rename + filter
         result = (

@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Protocol
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitScalarDatetimeExpressionSystemProtocol(Protocol):
+class SubstraitScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for scalar datetime operations.
 
     Auto-generated from Substrait datetime extension.
     Function type: scalar
     """
 
-    def extract(self, x: SupportedExpressions, /, component: SupportedExpressions, timezone: str) -> SupportedExpressions:
+    def extract(self, x: ExpressionT, /, component: ExpressionT, timezone: str) -> ExpressionT:
         """Extract portion of a date/time value. * YEAR Return the year. * ISO_YEAR Return the ISO 8601 week-numbering year. First week of an ISO year has the majority (4 or more) of
   its days in January.
 * US_YEAR Return the US epidemiological year. First week of US epidemiological year has the majority (4 or more)
@@ -54,7 +50,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def extract_boolean(self, x: SupportedExpressions, /, component: SupportedExpressions) -> SupportedExpressions:
+    def extract_boolean(self, x: ExpressionT, /, component: ExpressionT) -> ExpressionT:
         """Extract boolean values of a date/time value. * IS_LEAP_YEAR Return true if year of the given value is a leap year and false otherwise. * IS_DST Return true if DST (Daylight Savings Time) is observed at the given value
   in the given timezone.
 
@@ -65,7 +61,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def add(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def add(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Add an interval to a date/time type.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -74,7 +70,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def subtract(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def subtract(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Subtract an interval from a date/time type.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -83,7 +79,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def multiply(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def multiply(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Multiply an interval by an integral number.
 
         Substrait: multiply
@@ -91,7 +87,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def add_intervals(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def add_intervals(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Add two intervals together.
 
         Substrait: add_intervals
@@ -100,7 +96,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         ...
 
 
-    def lt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def lt(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """less than
 
         Substrait: lt
@@ -108,7 +104,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def lte(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def lte(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """less than or equal to
 
         Substrait: lte
@@ -116,7 +112,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def gt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def gt(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """greater than
 
         Substrait: gt
@@ -125,7 +121,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         ...
 
 
-    def gte(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def gte(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """greater than or equal to
 
         Substrait: gte
@@ -134,8 +130,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         ...
 
 
-
-    def assume_timezone(self, x: SupportedExpressions, /, timezone: str) -> SupportedExpressions:
+    def assume_timezone(self, x: ExpressionT, /, timezone: str) -> ExpressionT:
         """Convert local timestamp to UTC-relative timestamp_tz using given local time's timezone.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -144,7 +139,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def local_timestamp(self, x: SupportedExpressions, /, timezone: str) -> SupportedExpressions:
+    def local_timestamp(self, x: ExpressionT, /, timezone: str) -> ExpressionT:
         """Convert UTC-relative timestamp_tz to local timestamp using given local time's timezone.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -153,7 +148,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strptime_time(self, x: SupportedExpressions, /, format: str) -> SupportedExpressions:
+    def strptime_time(self, x: ExpressionT, /, format: str) -> ExpressionT:
         """Parse string into time using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
 
         Substrait: strptime_time
@@ -161,7 +156,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strptime_date(self, x: SupportedExpressions, /, format: str) -> SupportedExpressions:
+    def strptime_date(self, x: ExpressionT, /, format: str) -> ExpressionT:
         """Parse string into date using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
 
         Substrait: strptime_date
@@ -169,7 +164,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strptime_timestamp(self, x: SupportedExpressions, /, format: str, timezone: str) -> SupportedExpressions:
+    def strptime_timestamp(self, x: ExpressionT, /, format: str, timezone: str) -> ExpressionT:
         """Parse string into timestamp using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference. If timezone is present in timestamp and provided as parameter an error is thrown.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is supplied as parameter and present in the parsed string the parsed timezone is used. If parameter supplied timezone is invalid an error is thrown.
 
@@ -178,7 +173,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strftime(self, x: SupportedExpressions, /, format: str) -> SupportedExpressions:
+    def strftime(self, x: ExpressionT, /, format: str) -> ExpressionT:
         """Convert timestamp/date/time to string using provided format, see https://man7.org/linux/man-pages/man3/strftime.3.html for reference.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -187,7 +182,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_temporal(self, x: SupportedExpressions, /, rounding: SupportedExpressions, unit: SupportedExpressions, multiple: SupportedExpressions, origin: SupportedExpressions) -> SupportedExpressions:
+    def round_temporal(self, x: ExpressionT, /, rounding: ExpressionT, unit: ExpressionT, multiple: ExpressionT, origin: ExpressionT) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -196,7 +191,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_calendar(self, x: SupportedExpressions, /, rounding: SupportedExpressions, unit: SupportedExpressions, origin: SupportedExpressions, multiple: SupportedExpressions) -> SupportedExpressions:
+    def round_calendar(self, x: ExpressionT, /, rounding: ExpressionT, unit: ExpressionT, origin: ExpressionT, multiple: ExpressionT) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 

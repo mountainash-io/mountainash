@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol):
+class SubstraitNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarBooleanExpressionProtocol.
 
     Implements 5 boolean methods using Kleene (three-valued) logic:

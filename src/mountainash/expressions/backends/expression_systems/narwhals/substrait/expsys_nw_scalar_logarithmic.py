@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarLogarithmicExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol):
+class SubstraitNarwhalsScalarLogarithmicExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarLogarithmicExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarLogarithmicExpressionProtocol.
 
     Implements 4 logarithmic methods:

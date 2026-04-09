@@ -6,7 +6,6 @@ Implements set membership operations for the Narwhals backend.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Optional, Any
 
 import narwhals as nw
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarSetExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol):
+class SubstraitNarwhalsScalarSetExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarSetExpressionProtocol.
 
     Implements set membership operations:

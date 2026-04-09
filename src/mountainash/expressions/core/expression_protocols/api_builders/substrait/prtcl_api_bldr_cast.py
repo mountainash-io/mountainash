@@ -13,7 +13,6 @@ from typing import Any, Protocol, Union, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
-    from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 
 class CaseFailureBehaviour(Enum):

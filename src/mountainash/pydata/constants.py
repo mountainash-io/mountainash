@@ -3,6 +3,7 @@ Constants for mountainash-pydata.
 
 Contains enumerations for Python data format types used in ingress/egress operations.
 """
+from __future__ import annotations
 
 from enum import Enum, auto
 

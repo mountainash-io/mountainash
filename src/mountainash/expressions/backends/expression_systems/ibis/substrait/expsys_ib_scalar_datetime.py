@@ -5,9 +5,8 @@ Implements datetime operations for the Ibis backend.
 
 from __future__ import annotations
 
-from datetime import date, datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import ibis
 
@@ -15,7 +14,7 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarDatetimeExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisValueExpr
 
 
 class DatetimeComponent(Enum):
@@ -53,7 +52,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
+class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
@@ -69,11 +68,11 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def extract(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
-        component: IbisExpr,
+        component: IbisValueExpr,
         timezone: str = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Extract portion of a date/time value.
 
         Args:
@@ -109,10 +108,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def extract_boolean(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
-        component: IbisExpr,
-    ) -> IbisExpr:
+        component: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Extract boolean values of a date/time value.
 
         Args:
@@ -142,10 +141,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def add(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Add an interval to a date/time value.
 
         Args:
@@ -159,10 +158,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def subtract(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Subtract an interval from a date/time value.
 
         Args:
@@ -176,10 +175,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def multiply(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Multiply an interval by an integral number.
 
         Args:
@@ -193,10 +192,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def add_intervals(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Add two intervals together.
 
         Args:
@@ -214,10 +213,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def lt(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Less than comparison for datetime/interval.
 
         Args:
@@ -231,10 +230,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def lte(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Less than or equal comparison for datetime/interval.
 
         Args:
@@ -248,10 +247,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def gt(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Greater than comparison for datetime/interval.
 
         Args:
@@ -265,10 +264,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def gte(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisValueExpr,
+        y: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Greater than or equal comparison for datetime/interval.
 
         Args:
@@ -287,10 +286,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def assume_timezone(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
         timezone: str,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Assume the timestamp is in the specified timezone.
 
         Args:
@@ -308,10 +307,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def local_timestamp(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
         timezone: str,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Convert UTC-relative timestamp_tz to local timestamp.
 
         Args:
@@ -333,10 +332,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def strptime_time(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
         format: str,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Parse string into time using provided format.
 
         Args:
@@ -354,10 +353,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def strptime_date(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
         format: str,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Parse string into date using provided format.
 
         Args:
@@ -375,11 +374,11 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def strptime_timestamp(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
         format: str,
         timezone: str = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Parse string into timestamp using provided format.
 
         Args:
@@ -402,10 +401,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def strftime(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
         format: str,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Format datetime as string.
 
         Args:
@@ -424,13 +423,13 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
     def round_temporal(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
-        rounding: IbisExpr,
-        unit: IbisExpr,
-        multiple: IbisExpr = None,
-        origin: IbisExpr = None,
-    ) -> IbisExpr:
+        rounding: IbisValueExpr,
+        unit: IbisValueExpr,
+        multiple: IbisValueExpr = None,
+        origin: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Round datetime to a multiple of a time unit.
 
         Args:
@@ -446,19 +445,18 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Note:
             Ibis only supports truncate. Falls back to truncate for all modes.
         """
-        unit_val = self._extract_literal_value(unit)
         # Ibis only has truncate - use for all rounding modes
-        return x.truncate(unit_val)
+        return x.truncate(unit)
 
     def round_calendar(
         self,
-        x: IbisExpr,
+        x: IbisValueExpr,
         /,
-        rounding: IbisExpr,
-        unit: IbisExpr,
-        origin: IbisExpr = None,
-        multiple: IbisExpr = None,
-    ) -> IbisExpr:
+        rounding: IbisValueExpr,
+        unit: IbisValueExpr,
+        origin: IbisValueExpr = None,
+        multiple: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Round datetime to a calendar unit.
 
         Similar to round_temporal but for calendar-aware rounding.

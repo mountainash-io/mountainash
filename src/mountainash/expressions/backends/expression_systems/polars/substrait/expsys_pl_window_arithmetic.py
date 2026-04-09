@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol):
+class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem, SubstraitWindowArithmeticExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of WindowArithmeticExpressionProtocol.
 
     Implements window functions:
@@ -145,7 +145,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        window_offset: PolarsExpr,
+        window_offset: Any = 1,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
         """Returns a value from the nth row based on the window_offset.
@@ -158,8 +158,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Value at specified position, or null if out of range.
         """
-        offset_val = self._extract_literal_value(window_offset)
-        return x.gather(int(offset_val) - 1)
+        return x.gather(window_offset - 1)
 
     def lead(
         self,

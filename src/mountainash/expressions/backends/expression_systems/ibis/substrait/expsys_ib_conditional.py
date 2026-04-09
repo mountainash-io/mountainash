@@ -13,19 +13,19 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitConditionalExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisValueExpr
 
 
-class SubstraitIbisConditionalExpressionSystem(IbisBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol):
+class SubstraitIbisConditionalExpressionSystem(IbisBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(
         self,
-        condition: IbisExpr,
-        if_true: IbisExpr,
-        if_false: IbisExpr,
+        condition: IbisValueExpr,
+        if_true: IbisValueExpr,
+        if_false: IbisValueExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Create a conditional if-then-else expression.
 
         Args:

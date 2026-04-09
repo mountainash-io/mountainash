@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
-from mountainash.expressions.core.expression_nodes import CastNode, ExpressionNode
+from mountainash.expressions.core.expression_nodes import CastNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import SubstraitCastAPIBuilderProtocol, CaseFailureBehaviour
 
 
@@ -57,17 +56,8 @@ class SubstraitCastAPIBuilder(BaseExpressionAPIBuilder, SubstraitCastAPIBuilderP
             >>> col("count").cast(int)    # Cast to integer
             >>> col("date_str").cast("date", failure_behavior="null")  # Safe cast
         """
-        # Normalize dtype to string representation
-        if isinstance(dtype, type):
-            type_map = {
-                int: "i64",
-                float: "f64",
-                str: "string",
-                bool: "bool",
-            }
-            target_type = type_map.get(dtype, str(dtype))
-        else:
-            target_type = str(dtype)
+        from mountainash.core.dtypes import resolve_dtype
+        target_type = resolve_dtype(dtype)
 
         # Convert enum to string value if needed
         fb = failure_behavior.value if isinstance(failure_behavior, CaseFailureBehaviour) else failure_behavior

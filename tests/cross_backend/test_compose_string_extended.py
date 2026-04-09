@@ -8,13 +8,13 @@ enums that don't exist yet — these are aspirational and excluded from coverage
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -26,26 +26,26 @@ ALL_BACKENDS = [
 class TestComposeStringTrimExtended:
     """Test ltrim and rtrim (trim already covered in test_compose_string.py)."""
 
-    def test_ltrim(self, backend_name, backend_factory, select_and_extract):
+    def test_ltrim(self, backend_name, backend_factory, collect_expr):
         """Test ltrim removes leading spaces."""
-        if backend_name in ("pandas", "narwhals"):
+        if backend_name in ("pandas", "narwhals-polars"):
             pytest.xfail(f"{backend_name}: ltrim strips both sides instead of left only.")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.ltrim()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual == ["hello  ", "world  "], f"[{backend_name}] ltrim got {actual}"
 
-    def test_rtrim(self, backend_name, backend_factory, select_and_extract):
+    def test_rtrim(self, backend_name, backend_factory, collect_expr):
         """Test rtrim removes trailing spaces."""
-        if backend_name in ("pandas", "narwhals"):
+        if backend_name in ("pandas", "narwhals-polars"):
             pytest.xfail(f"{backend_name}: rtrim strips both sides instead of right only.")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.rtrim()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual == ["  hello", "  world"], f"[{backend_name}] rtrim got {actual}"
 
 
@@ -54,13 +54,13 @@ class TestComposeStringTrimExtended:
 class TestComposeStringRegexExtended:
     """Test regex methods: regexp_replace, regex_contains, regex_match, slice."""
 
-    def test_regexp_replace(self, backend_name, backend_factory, select_and_extract):
+    def test_regexp_replace(self, backend_name, backend_factory, collect_expr):
         """Test regexp_replace: replace regex matches."""
         data = {"text": ["hello 123 world 456", "no digits here"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.regexp_replace(r"\d+", "NUM")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual[0] == "hello NUM world NUM", f"[{backend_name}] got {actual[0]}"
         assert actual[1] == "no digits here", f"[{backend_name}] got {actual[1]}"
 
@@ -86,21 +86,21 @@ class TestComposeStringRegexExtended:
         # "ABC123" matches, "abc123" no (lowercase), "ABC" no (no digits), "123ABC" no (digits first)
         assert count == 1, f"[{backend_name}] Expected 1, got {count}"
 
-    def test_slice_alias(self, backend_name, backend_factory, select_and_extract):
+    def test_slice_alias(self, backend_name, backend_factory, collect_expr):
         """Test slice() as substring alias."""
         data = {"text": ["abcdef", "xyz123"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.slice(1, 3)
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert len(actual[0]) == 3, f"[{backend_name}] Expected 3-char slice, got {actual}"
 
-    def test_regex_replace_alias(self, backend_name, backend_factory, select_and_extract):
+    def test_regex_replace_alias(self, backend_name, backend_factory, collect_expr):
         """Test regex_replace convenience alias (delegates to regexp_replace)."""
         data = {"text": ["a1b2c3", "no-digits"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.regex_replace(r"\d", "X")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
         assert actual[0] == "aXbXcX", f"[{backend_name}] got {actual[0]}"
         assert actual[1] == "no-digits", f"[{backend_name}] got {actual[1]}"

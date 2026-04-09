@@ -5,7 +5,7 @@ Implements arithmetic operations for the Polars backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class MountainAshPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
+class MountainAshPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 1 arithmetic methods:

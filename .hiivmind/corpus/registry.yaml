@@ -48,3 +48,15 @@ corpora:
       path: null
       ttl: 7d
     registered_at: "2026-03-26T00:00:00Z"
+
+  - id: frictionless
+    source:
+      type: github
+      repo: hiivmind/hiivmind-corpus-frictionless
+      ref: main
+      path: null
+    cache:
+      strategy: fetch
+      path: null
+      ttl: 7d
+    registered_at: "2026-04-07T00:00:00Z"

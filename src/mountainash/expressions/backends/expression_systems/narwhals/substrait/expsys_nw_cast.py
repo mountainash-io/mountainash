@@ -53,10 +53,30 @@ _NARWHALS_DTYPE_MAP = {
     "int32": nw.Int32,
     "float64": nw.Float64,
     "float32": nw.Float32,
+    # Missing canonical names
+    "timestamp": nw.Datetime,
+    "time": nw.Time,
+    "Time": nw.Time,
+    # Unsigned integers
+    "u8": nw.UInt8,
+    "u16": nw.UInt16,
+    "u32": nw.UInt32,
+    "u64": nw.UInt64,
+    "UInt8": nw.UInt8,
+    "UInt16": nw.UInt16,
+    "UInt32": nw.UInt32,
+    "UInt64": nw.UInt64,
+    "uint8": nw.UInt8,
+    "uint16": nw.UInt16,
+    "uint32": nw.UInt32,
+    "uint64": nw.UInt64,
+    # Binary
+    "binary": nw.Binary,
+    "Binary": nw.Binary,
 }
 
 
-class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol):
+class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of CastExpressionProtocol."""
 
     def cast(self, x: NarwhalsExpr, /, dtype: Any) -> NarwhalsExpr:
@@ -69,6 +89,13 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
         Returns:
             A Narwhals expression cast to the specified type.
         """
+        # Try canonical resolution first
+        try:
+            from mountainash.core.dtypes import resolve_dtype
+            dtype = resolve_dtype(dtype)
+        except ValueError:
+            pass  # Fall through to backend-specific handling
+
         # If already a Narwhals dtype, use directly
         if hasattr(nw, "DType") and isinstance(dtype, nw.DType):
             return x.cast(dtype)

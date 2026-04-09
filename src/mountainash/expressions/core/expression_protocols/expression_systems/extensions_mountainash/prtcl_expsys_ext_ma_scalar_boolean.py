@@ -9,13 +9,12 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Protocol, TYPE_CHECKING
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
 
-class MountainAshScalarBooleanExpressionSystemProtocol(Protocol):
+class MountainAshScalarBooleanExpressionSystemProtocol(Protocol[ExpressionT]):
     """Backend protocol for Mountainash boolean extensions.
 
     These operations extend beyond the Substrait standard boolean
@@ -24,8 +23,8 @@ class MountainAshScalarBooleanExpressionSystemProtocol(Protocol):
 
     def xor_parity(
         self,
-        *args: SupportedExpressions
-    ) -> SupportedExpressions:
+        *args: ExpressionT
+    ) -> ExpressionT:
         """XOR parity check (odd number of TRUE values).
 
         Returns TRUE if an odd number of operands are TRUE.

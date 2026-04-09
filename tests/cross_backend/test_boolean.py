@@ -14,7 +14,8 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
+import mountainash as ma_top
 
 
 # =============================================================================
@@ -546,7 +547,7 @@ class TestBooleanEdgeCases:
 class TestComplexBooleanExpressions:
     """Test complex real-world boolean expressions."""
 
-    def test_age_range_and_category(self, backend_name, backend_factory, get_column_values):
+    def test_age_range_and_category(self, backend_name, backend_factory):
         """Test age range filtering with category check."""
         data = {
             "name": ["Alice", "Bob", "Charlie", "David", "Eve", "Frank"],
@@ -563,10 +564,7 @@ class TestComplexBooleanExpressions:
             ma.col("category").is_in(["A", "B"]) &
             (ma.col("score") >= 80)
         )
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "name", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         # Bob: age=30, cat=B, score=90: True
         # Charlie: age=35, cat=A, score=75: False (score < 80)
         # Eve: age=45, cat=B, score=80: True
@@ -575,7 +573,7 @@ class TestComplexBooleanExpressions:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_complex_eligibility_check(self, backend_name, backend_factory, get_column_values):
+    def test_complex_eligibility_check(self, backend_name, backend_factory):
         """Test complex eligibility criteria."""
         data = {
             "applicant": ["Alice", "Bob", "Charlie", "David", "Eve"],
@@ -590,10 +588,7 @@ class TestComplexBooleanExpressions:
             ((ma.col("age") >= 18) & (ma.col("score") >= 80)) |
             ((ma.col("premium") == True) & (ma.col("score") >= 85))
         )
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "applicant", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["applicant"]
         # Alice: (17>=18 & 95>=80) | (True & 95>=85) = False | True = True
         # Bob: (25>=18 & 70>=80) | (False & 70>=85) = False | False = False
         # Charlie: (35>=18 & 85>=80) | (True & 85>=85) = True | True = True

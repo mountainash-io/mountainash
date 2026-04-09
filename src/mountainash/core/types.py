@@ -9,133 +9,91 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
-from collections.abc import Sequence, Mapping, Callable
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence, Mapping
     import ibis as ibis
     import ibis.expr.types as ir
     import pandas as pd
     import polars as pl
     import pyarrow as pa
     import narwhals as nw
-else:
-    # Runtime fallback for optional imports
-    # This enables runtime type introspection (e.g., Hamilton) while keeping dependencies optional
-    import types
 
-    # Pandas
-    try:
-        import pandas as pd
-    except ImportError:
-        pd = types.ModuleType('pandas')
-        pd.DataFrame = Any
-        pd.Series = Any
+    # ========================================================================
+    # Type Aliases — DataFrames
+    # ========================================================================
 
-    # Polars
-    try:
-        import polars as pl
-    except ImportError:
-        pl = types.ModuleType('polars')
-        pl.DataFrame = Any
-        pl.LazyFrame = Any
-        pl.Series = Any
-        pl.Expr = Any
+    PandasFrame: TypeAlias = pd.DataFrame
+    PolarsFrame: TypeAlias = pl.DataFrame
+    PolarsLazyFrame: TypeAlias = pl.LazyFrame
+    PyArrowTable: TypeAlias = pa.Table
+    IbisTable: TypeAlias = ir.Table
+    IbisBaseBackend: TypeAlias = ibis.BaseBackend
+    IbisSchema: TypeAlias = ibis.expr.schema.Schema
+    NarwhalsFrame: TypeAlias = nw.DataFrame
+    NarwhalsLazyFrame: TypeAlias = nw.LazyFrame
 
-    # PyArrow
-    try:
-        import pyarrow as pa
-    except ImportError:
-        pa = types.ModuleType('pyarrow')
-        pa.Table = Any
-        pa.Array = Any
+    # ========================================================================
+    # Type Aliases — Expressions
+    # ========================================================================
 
-    # Ibis
-    try:
-        import ibis as ibis
-        import ibis.expr.types as ir
-    except ImportError:
-        ibis = types.ModuleType('ibis')
-        ibis.BaseBackend = Any
-        ir = types.ModuleType('ibis.expr.types')
-        ir.Table = Any
-        ir.Expr = Any
-        ir.Column = Any
-        ir.Scalar = Any
-        # Add to ibis module for ibis.expr.schema.Schema reference
-        ibis.expr = types.ModuleType('ibis.expr')
-        ibis.expr.schema = types.ModuleType('ibis.expr.schema')
-        ibis.expr.schema.Schema = Any
+    PolarsExpr: TypeAlias = pl.Expr
+    IbisExpr: TypeAlias = Union[ir.Expr, ir.Column, ir.Scalar]
+    NarwhalsExpr: TypeAlias = nw.Expr
 
-    # Narwhals
-    try:
-        import narwhals as nw
-    except ImportError:
-        nw = types.ModuleType('narwhals')
-        nw.DataFrame = Any
-        nw.LazyFrame = Any
-        nw.Series = Any
-        nw.Expr = Any
+    # ========================================================================
+    # Type Aliases — Series
+    # ========================================================================
 
+    PandasSeries: TypeAlias = pd.Series
+    PolarsSeries: TypeAlias = pl.Series
+    NarwhalsSeries: TypeAlias = nw.Series
+    PyArrowArray: TypeAlias = pa.Array
 
-# ============================================================================
-# Type Aliases — DataFrames
-# ============================================================================
+    # ========================================================================
+    # Composite Type Unions
+    # ========================================================================
 
-PandasFrame: TypeAlias = pd.DataFrame
-PolarsFrame: TypeAlias = pl.DataFrame
-PolarsLazyFrame: TypeAlias = pl.LazyFrame
-PyArrowTable: TypeAlias = pa.Table
-IbisTable: TypeAlias = ir.Table
-IbisBaseBackend: TypeAlias = ibis.BaseBackend
-IbisSchema: TypeAlias = ibis.expr.schema.Schema
-NarwhalsFrame: TypeAlias = nw.DataFrame
-NarwhalsLazyFrame: TypeAlias = nw.LazyFrame
+    PolarsFrameTypes: TypeAlias = Union[PolarsFrame, PolarsLazyFrame]
+    NarwhalsFrameTypes: TypeAlias = Union[NarwhalsFrame, NarwhalsLazyFrame]
 
-# ============================================================================
-# Type Aliases — Expressions
-# ============================================================================
+    SupportedDataFrames: TypeAlias = Union[
+        PandasFrame,
+        PolarsFrame,
+        PolarsLazyFrame,
+        PyArrowTable,
+        IbisTable,
+        NarwhalsFrame,
+        NarwhalsLazyFrame,
+    ]
 
-PolarsExpr: TypeAlias = pl.Expr
-IbisExpr: TypeAlias = Union[ir.Expr, ir.Column, ir.Scalar]
-NarwhalsExpr: TypeAlias = nw.Expr
+    SupportedExpressions: TypeAlias = Union[PolarsExpr, IbisExpr, NarwhalsExpr]
 
-# ============================================================================
-# Type Aliases — Series
-# ============================================================================
+    SupportedSeries: TypeAlias = Union[PandasSeries, PolarsSeries, NarwhalsSeries, PyArrowArray]
 
-PandasSeries: TypeAlias = pd.Series
-PolarsSeries: TypeAlias = pl.Series
-NarwhalsSeries: TypeAlias = nw.Series
-PyArrowArray: TypeAlias = pa.Array
+    # ========================================================================
+    # Ibis Domain-Specific Type Aliases
+    # ========================================================================
 
-# ============================================================================
-# Composite Type Unions
-# ============================================================================
+    IbisNumericExpr: TypeAlias = ir.NumericValue
+    IbisBooleanExpr: TypeAlias = ir.BooleanValue
+    IbisStringExpr: TypeAlias = ir.StringValue
+    IbisTemporalExpr: TypeAlias = Union[ir.TimestampValue, ir.DateValue, ir.TimeValue]
+    IbisColumnExpr: TypeAlias = ir.Column
+    IbisNumericColumnExpr: TypeAlias = ir.NumericColumn
+    IbisBooleanColumnExpr: TypeAlias = ir.BooleanColumn
+    IbisStringColumnExpr: TypeAlias = ir.StringColumn
+    IbisValueExpr: TypeAlias = ir.Value
+    IbisScalarExpr: TypeAlias = ir.Scalar
 
-PolarsFrameTypes: TypeAlias = Union[PolarsFrame, PolarsLazyFrame]
-NarwhalsFrameTypes: TypeAlias = Union[NarwhalsFrame, NarwhalsLazyFrame]
-
-SupportedDataFrames: TypeAlias = Union[
-    PandasFrame,
-    PolarsFrame,
-    PolarsLazyFrame,
-    PyArrowTable,
-    IbisTable,
-    NarwhalsFrame,
-    NarwhalsLazyFrame,
-]
-
-SupportedExpressions: TypeAlias = Union[PolarsExpr, IbisExpr, NarwhalsExpr]
-
-SupportedSeries: TypeAlias = Union[PandasSeries, PolarsSeries, NarwhalsSeries, PyArrowArray]
 
 # ============================================================================
 # Generic Type Variables
 # ============================================================================
 
-DataFrameT = TypeVar("DataFrameT", bound=SupportedDataFrames)
-ExpressionT = TypeVar("ExpressionT", bound=SupportedExpressions)
-SeriesT = TypeVar("SeriesT", bound=SupportedSeries)
+DataFrameT = TypeVar("DataFrameT", bound="SupportedDataFrames")
+ExpressionT = TypeVar("ExpressionT", bound="SupportedExpressions")
+SeriesT = TypeVar("SeriesT", bound="SupportedSeries")
 
 # ============================================================================
 # Protocols for Structural Typing
@@ -178,7 +136,7 @@ class ExpressionLike(Protocol):
         ...
 
 # ============================================================================
-# Column Type Mappings
+# Column Type Mappings (stdlib only — no backend dependency)
 # ============================================================================
 
 ColumnTypes: TypeAlias = Union[type, str]
@@ -192,36 +150,36 @@ else:
 # Type Guards — DataFrame Detection
 # ============================================================================
 
-def is_pandas_dataframe(obj: Any) -> TypeGuard[PandasFrame]:
+def is_pandas_dataframe(obj: Any) -> TypeGuard['PandasFrame']:
     """Type guard for pandas DataFrames."""
     return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "DataFrame"
 
-def is_polars_dataframe(obj: Any) -> TypeGuard[PolarsFrame]:
+def is_polars_dataframe(obj: Any) -> TypeGuard['PolarsFrame']:
     """Type guard for polars DataFrames."""
     return type(obj).__module__.startswith("polars") and type(obj).__name__ == "DataFrame"
 
-def is_polars_lazyframe(obj: Any) -> TypeGuard[PolarsLazyFrame]:
+def is_polars_lazyframe(obj: Any) -> TypeGuard['PolarsLazyFrame']:
     """Type guard for polars LazyFrames."""
     return type(obj).__module__.startswith("polars") and type(obj).__name__ == "LazyFrame"
 
-def is_pyarrow_table(obj: Any) -> TypeGuard[PyArrowTable]:
+def is_pyarrow_table(obj: Any) -> TypeGuard['PyArrowTable']:
     """Type guard for PyArrow Tables."""
     return type(obj).__module__.startswith("pyarrow") and type(obj).__name__ == "Table"
 
-def is_ibis_table(obj: Any) -> TypeGuard[IbisTable]:
+def is_ibis_table(obj: Any) -> TypeGuard['IbisTable']:
     """Type guard for Ibis Tables."""
     module = type(obj).__module__
     return "ibis" in module and hasattr(obj, "execute")
 
-def is_narwhals_dataframe(obj: Any) -> TypeGuard[NarwhalsFrame]:
+def is_narwhals_dataframe(obj: Any) -> TypeGuard['NarwhalsFrame']:
     """Type guard for Narwhals DataFrames."""
     return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "DataFrame"
 
-def is_narwhals_lazyframe(obj: Any) -> TypeGuard[NarwhalsLazyFrame]:
+def is_narwhals_lazyframe(obj: Any) -> TypeGuard['NarwhalsLazyFrame']:
     """Type guard for Narwhals LazyFrames."""
     return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "LazyFrame"
 
-def is_supported_dataframe(obj: Any) -> TypeGuard[SupportedDataFrames]:
+def is_supported_dataframe(obj: Any) -> TypeGuard['SupportedDataFrames']:
     """Type guard for any supported dataframe type."""
     return any([
         is_pandas_dataframe(obj),
@@ -260,15 +218,83 @@ def detect_dataframe_backend_type(obj: Any) -> str:
 # Type Guards — Expression Detection
 # ============================================================================
 
-def is_polars_expression(obj: Any) -> TypeGuard[PolarsExpr]:
+def is_polars_expression(obj: Any) -> TypeGuard['PolarsExpr']:
     """Type guard for polars Expressions."""
     return type(obj).__module__.startswith("polars") and type(obj).__name__ == "Expr"
 
-def is_ibis_expression(obj: Any) -> TypeGuard[IbisExpr]:
+def is_ibis_expression(obj: Any) -> TypeGuard['IbisExpr']:
     """Type guard for Ibis Expressions."""
     module = type(obj).__module__
     return "ibis" in module and hasattr(obj, "execute")
 
-def is_narwhals_expression(obj: Any) -> TypeGuard[NarwhalsExpr]:
+def is_narwhals_expression(obj: Any) -> TypeGuard['NarwhalsExpr']:
     """Type guard for Narwhals Expressions."""
     return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "Expr"
+
+# ============================================================================
+# Type Guards — Series Detection
+# ============================================================================
+
+def is_pandas_series(obj: Any) -> TypeGuard['PandasSeries']:
+    """Type guard for pandas Series."""
+    return type(obj).__module__.startswith("pandas") and type(obj).__name__ == "Series"
+
+def is_polars_series(obj: Any) -> TypeGuard['PolarsSeries']:
+    """Type guard for polars Series."""
+    return type(obj).__module__.startswith("polars") and type(obj).__name__ == "Series"
+
+def is_narwhals_series(obj: Any) -> TypeGuard['NarwhalsSeries']:
+    """Type guard for Narwhals Series."""
+    return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "Series"
+
+def is_pyarrow_array(obj: Any) -> TypeGuard['PyArrowArray']:
+    """Type guard for PyArrow Arrays."""
+    return type(obj).__module__.startswith("pyarrow") and type(obj).__name__ == "Array"
+
+# ============================================================================
+# Backend Capability — Known Limitations
+# ============================================================================
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class KnownLimitation:
+    """Documents a known backend limitation for expression-typed arguments.
+
+    Consulted only when the backend raises a native error — never gates
+    execution. When the upstream library adds support, the error stops
+    being raised and this entry becomes dormant.
+    """
+
+    message: str
+    native_errors: tuple[type[Exception], ...]
+    upstream_issue: str | None = None
+    workaround: str | None = None
+
+
+class BackendCapabilityError(Exception):
+    """Raised when a backend cannot handle an expression-typed argument.
+
+    Wraps native backend errors with curated context from the known
+    limitation registry.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        backend: str,
+        function_key: Any,
+        limitation: KnownLimitation | None = None,
+    ) -> None:
+        parts = [f"[{backend}] {message}"]
+        if limitation:
+            if limitation.workaround:
+                parts.append(f"Workaround: {limitation.workaround}")
+            if limitation.upstream_issue:
+                parts.append(f"Upstream: {limitation.upstream_issue}")
+        super().__init__("\n".join(parts))
+        self.backend = backend
+        self.function_key = function_key
+        self.limitation = limitation

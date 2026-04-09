@@ -5,9 +5,8 @@ Implements datetime operations for the Polars backend.
 
 from __future__ import annotations
 
-from datetime import date, datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -53,7 +52,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol):
+class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
@@ -443,17 +442,16 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         Returns:
             Rounded datetime.
         """
-        rounding_val = self._extract_literal_value(rounding) if rounding else "FLOOR"
-        unit_val = self._extract_literal_value(unit)
+        rounding = rounding if rounding else "FLOOR"
 
-        if rounding_val == "FLOOR":
-            return x.dt.truncate(unit_val)
-        elif rounding_val == "CEIL":
-            truncated = x.dt.truncate(unit_val)
-            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
+        if rounding == "FLOOR":
+            return x.dt.truncate(unit)
+        elif rounding == "CEIL":
+            truncated = x.dt.truncate(unit)
+            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
         else:
             # ROUND_TIE_DOWN, ROUND_TIE_UP - use round
-            return x.dt.round(unit_val)
+            return x.dt.round(unit)
 
     def round_calendar(
         self,

@@ -9,11 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ....expression_nodes import ScalarFunctionNode, LiteralNode, SingularOrListNode
+from ....expression_nodes import ScalarFunctionNode, LiteralNode
 from ....expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
-    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )

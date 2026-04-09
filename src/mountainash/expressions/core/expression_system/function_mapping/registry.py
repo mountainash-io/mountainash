@@ -12,9 +12,11 @@ The registry enables:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, Optional, List, Callable, Any, Type
+from typing import Dict, Optional, List, Callable, TYPE_CHECKING
 import inspect
+
+if TYPE_CHECKING:
+    from enum import Enum
 
 
 # class SubstraitExtension(str, Enum):

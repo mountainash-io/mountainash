@@ -426,11 +426,11 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def regex_contains(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
+    def regex_contains(self, pattern: str, *, case_sensitive: bool = True) -> BaseExpressionAPI:
         """Test if pattern matches. Alias for regexp_match_substring (returns bool)."""
         ...
 
-    def regex_match(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
+    def regex_match(self, pattern: str, *, case_sensitive: bool = True) -> BaseExpressionAPI:
         """Alias for regexp_match_substring."""
         ...
 

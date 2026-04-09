@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsConditionalExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol):
+class SubstraitNarwhalsConditionalExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitConditionalExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ConditionalExpressionProtocol."""
 
     def if_then_else(

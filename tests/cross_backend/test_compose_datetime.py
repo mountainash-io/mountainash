@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -38,7 +38,7 @@ class TestComposeDatetime:
         count = get_result_count(result, backend_name)
         assert count == 2, f"[{backend_name}] Expected 2 rows in year 2024, got {count}"
 
-    def test_add_days_then_extract_month(self, backend_name, backend_factory, select_and_extract):
+    def test_add_days_then_extract_month(self, backend_name, backend_factory, collect_expr):
         """Arithmetic then extract: .dt.add_days(20).dt.month()."""
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite has no native datetime type. Interval addition not supported.")
@@ -52,7 +52,7 @@ class TestComposeDatetime:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_days(20).dt.month()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert actual == [2, 3, 1], f"[{backend_name}] Expected [2, 3, 1], got {actual}"
 

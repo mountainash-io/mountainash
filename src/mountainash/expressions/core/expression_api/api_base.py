@@ -169,7 +169,7 @@ class BaseExpressionAPI(ABC):
             Backend-native expression (pl.Expr | nw.Expr | ir.Expr)
 
         Example:
-            >>> import mountainash_expressions as ma
+            >>> import mountainash.expressions as ma
             >>> expr = ma.col("age").t_gt(30)  # ternary comparison
             >>> # Default: strict is_true() - only definite TRUE passes
             >>> backend_expr = expr.compile(df)
@@ -223,7 +223,6 @@ class BaseExpressionAPI(ABC):
         """
         from ..expression_nodes import ScalarFunctionNode
         from ..expression_system.function_keys.enums import (
-            FKEY_MOUNTAINASH_SCALAR_TERNARY,
             MOUNTAINASH_TERNARY_TERMINAL,
             MOUNTAINASH_TERNARY_NON_TERMINAL,
         )

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol):
+class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshNullExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of MountainashNullExpressionProtocol.
 
     Implements null handling extension methods:
@@ -41,10 +41,7 @@ class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         Returns:
             Expression with NULLs replaced by the replacement value.
         """
-        # Narwhals fill_null expects a scalar value, not an Expr
-        # Extract literal value if possible
-        fill_value = self._extract_literal_value(replacement)
-        return input.fill_null(fill_value)
+        return input.fill_null(replacement)
 
     def null_if(
         self,
@@ -56,8 +53,7 @@ class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, Moun
 
         SQL NULLIF(input, condition) semantics.
         """
-        fill_value = self._extract_literal_value(condition)
-        return nw.when(input == fill_value).then(None).otherwise(input)
+        return nw.when(input == condition).then(None).otherwise(input)
 
     def fill_nan(
         self,
@@ -65,6 +61,5 @@ class MountainAshNarwhalsNullExpressionSystem(NarwhalsBaseExpressionSystem, Moun
         replacement: Any,
         /,
     ) -> NarwhalsExpr:
-        fill_value = self._extract_literal_value(replacement)
-        return nw.when(input.is_nan()).then(fill_value).otherwise(input)
+        return nw.when(input.is_nan()).then(replacement).otherwise(input)
 

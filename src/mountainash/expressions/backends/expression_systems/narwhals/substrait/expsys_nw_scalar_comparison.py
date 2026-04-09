@@ -5,7 +5,7 @@ Implements comparison operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol):
+class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarComparisonExpressionProtocol.
 
     Implements 23 comparison methods organized into categories:

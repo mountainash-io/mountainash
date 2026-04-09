@@ -1,3 +1,53 @@
+from __future__ import annotations
+from .__version__ import __version__
+
+# ========================================
+# Backend Registration
+# ========================================
+# Import backends to register expression systems
+from . import backends  # noqa: F401
+
+# ========================================
+# Public API (Primary Interface)
+# ========================================
+from .core.expression_api import (
+    # Expression API classes
+    BaseExpressionAPI,
+    BooleanExpressionAPI,
+    # ExpressionBuilder,  # Backwards compatibility alias
+)
+
+from .core.expression_api.entrypoints import (
+    # Entry point functions (from expression_api)
+    col,
+    lit,
+    coalesce,
+    greatest,
+    least,
+    # Aggregate entry points
+    count_records,
+    corr,
+    median,
+    quantile,
+    # Conditional
+    when,
+    native,
+    # Ternary entry points
+    t_col,
+    always_true,
+    always_false,
+    always_unknown,
+)
+
+# ========================================
+# Core constants
+# ========================================
+from .core.constants import (
+    CONST_VISITOR_BACKENDS,
+    CONST_LOGIC_TYPES,
+    CONST_EXPRESSION_NODE_TYPES,
+)
+
 """Mountain Ash Expressions
 
 A sophisticated expression system for building cross-backend DataFrame operations.
@@ -35,48 +85,6 @@ Python Operator Overloading:
     >>> expr = ma.col("price").multiply(ma.col("quantity")).add(ma.col("tax"))
 """
 
-from .__version__ import __version__
-
-# ========================================
-# Backend Registration
-# ========================================
-# Import backends to register expression systems
-from . import backends  # noqa: F401
-
-# ========================================
-# Public API (Primary Interface)
-# ========================================
-from .core.expression_api import (
-    # Expression API classes
-    BaseExpressionAPI,
-    BooleanExpressionAPI,
-    # ExpressionBuilder,  # Backwards compatibility alias
-)
-
-from .core.expression_api.entrypoints import (
-    # Entry point functions (from expression_api)
-    col,
-    lit,
-    coalesce,
-    greatest,
-    least,
-    when,
-    native,
-    # Ternary entry points
-    t_col,
-    always_true,
-    always_false,
-    always_unknown,
-)
-
-# ========================================
-# Core constants
-# ========================================
-from .core.constants import (
-    CONST_VISITOR_BACKENDS,
-    CONST_LOGIC_TYPES,
-    CONST_EXPRESSION_NODE_TYPES,
-)
 
 __all__ = [
     # Version
@@ -97,6 +105,12 @@ __all__ = [
     "greatest",
     "least",
     "when",
+
+    # Aggregate functions
+    "count_records",
+    "corr",
+    "median",
+    "quantile",
 
     # Ternary functions
     "t_col",

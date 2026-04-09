@@ -14,12 +14,10 @@ from .api_base import BaseExpressionAPI
 
 # Import flat namespaces from new Substrait-aligned core
 from .api_builders.substrait import (
-    SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder,
-
     SubstraitCastAPIBuilder,
     SubstraitFieldReferenceAPIBuilder,
     SubstraitLiteralAPIBuilder,
-    # SubstraitScalarAggregateAPIBuilder,
+    SubstraitScalarAggregateAPIBuilder,
     SubstraitScalarArithmeticAPIBuilder,
     SubstraitScalarBooleanAPIBuilder,
     SubstraitScalarComparisonAPIBuilder,
@@ -37,6 +35,7 @@ from .api_builders.extensions_mountainash import (
     MountainAshNameAPIBuilder,
     MountainAshNativeAPIBuilder,
     MountainAshNullAPIBuilder,
+    MountainAshScalarAggregateAPIBuilder,
     MountainAshScalarArithmeticAPIBuilder,
     MountainAshScalarBooleanAPIBuilder,
     MountainAshScalarComparisonAPIBuilder,
@@ -66,12 +65,12 @@ class StringAPIBuilder(
 
 
 # Import base namespace type for type hints
-from .api_builders.api_builder_base import BaseExpressionAPIBuilder
 
 # Import descriptor for explicit namespaces
 from .descriptor import NamespaceDescriptor
 
 if TYPE_CHECKING:
+    from .api_builders.api_builder_base import BaseExpressionAPIBuilder
     from ..expression_nodes import ExpressionNode
 
 
@@ -103,7 +102,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     - .name: Column naming (alias, prefix, suffix, etc.)
 
     Example:
-        >>> import mountainash_expressions as ma
+        >>> import mountainash.expressions as ma
         >>> expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
         >>> result = df.filter(expr.compile(df))
     """
@@ -115,6 +114,8 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         # Mountainash extensions first (ternary takes priority for is_true etc.)
         MountainAshScalarTernaryAPIBuilder,
         MountainAshNullAPIBuilder,
+        MountainAshNameAPIBuilder,
+        MountainAshScalarAggregateAPIBuilder,
         MountainAshScalarArithmeticAPIBuilder,
         MountainAshScalarBooleanAPIBuilder,
         MountainAshScalarComparisonAPIBuilder,
@@ -124,7 +125,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         SubstraitCastAPIBuilder,
         SubstraitFieldReferenceAPIBuilder,
         SubstraitLiteralAPIBuilder,
-        # SubstraitScalarAggregateAPIBuilder,
+        SubstraitScalarAggregateAPIBuilder,
         SubstraitScalarArithmeticAPIBuilder,
         SubstraitScalarBooleanAPIBuilder,
         SubstraitScalarComparisonAPIBuilder,

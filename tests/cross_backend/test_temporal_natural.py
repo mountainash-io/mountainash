@@ -12,7 +12,8 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 
 import pytest
 from datetime import datetime, timedelta
-import mountainash_expressions as ma
+import mountainash.expressions as ma
+import mountainash as ma_top
 from mountainash.expressions.core.utils.temporal import (
     parse_time_expression,
     to_timedelta,
@@ -92,8 +93,6 @@ class TestWithinLastFilter:
         backend_name,
         backend_factory,
         get_result_count,
-        get_column_values,
-        select_and_extract
     ):
         """Test filtering for 'last X minutes' like journalctl --since."""
 
@@ -120,17 +119,12 @@ class TestWithinLastFilter:
 
         # Filter: last 8 minutes
         expr = within_last(ma.col("timestamp"), "8 minutes")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        print(select_and_extract(df, backend_expr, "formatted", backend_name))
+        result_dict = ma_top.relation(df).filter(expr).to_dict()
 
         # Should get messages A, B (within 8 minutes)
         # Message C (10 min) and D (30 min) are older
-        count = get_result_count(result, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 rows, got {count}"
-
-        messages = get_column_values(result, "message", backend_name)
+        messages = result_dict["message"]
+        assert len(messages) == 2, f"[{backend_name}] Expected 2 rows, got {len(messages)}"
         assert messages == ["A", "B"], (
             f"[{backend_name}] Expected ['A', 'B'], got {messages}"
         )
@@ -153,8 +147,6 @@ class TestOlderThanFilter:
         self,
         backend_name,
         backend_factory,
-        get_result_count,
-        get_column_values
     ):
         """Test filtering for 'older than X' like find -mtime."""
         now = datetime.now()
@@ -173,14 +165,11 @@ class TestOlderThanFilter:
 
         # Filter: older than 7 days
         expr = older_than(ma.col("created_at"), "7 days")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
+        result_dict = ma_top.relation(df).filter(expr).to_dict()
 
         # Should get files C, D (older than 7 days)
-        count = get_result_count(result, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 rows, got {count}"
-
-        files = get_column_values(result, "file", backend_name)
+        files = result_dict["file"]
+        assert len(files) == 2, f"[{backend_name}] Expected 2 rows, got {len(files)}"
         assert files == ["C", "D"], (
             f"[{backend_name}] Expected ['C', 'D'], got {files}"
         )
@@ -203,8 +192,6 @@ class TestBetweenLastFilter:
         self,
         backend_name,
         backend_factory,
-        get_result_count,
-        get_column_values
     ):
 
         if backend_name == "ibis-sqlite":
@@ -231,15 +218,12 @@ class TestBetweenLastFilter:
 
         # Filter: between 8 hours ago and 2 hours ago
         expr = between_last(ma.col("timestamp"), "8 hours", "2 hours")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
+        result_dict = ma_top.relation(df).filter(expr).to_dict()
 
         # Should get events B, C (between 8h and 2h ago)
         # Event A (1h) is too recent, D (12h) is too old
-        count = get_result_count(result, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 rows, got {count}"
-
-        events = get_column_values(result, "event", backend_name)
+        events = result_dict["event"]
+        assert len(events) == 2, f"[{backend_name}] Expected 2 rows, got {len(events)}"
         assert events == ["B", "C"], (
             f"[{backend_name}] Expected ['B', 'C'], got {events}"
         )
@@ -266,8 +250,6 @@ class TestRealWorldLogFiltering:
         self,
         backend_name,
         backend_factory,
-        get_result_count,
-        get_column_values
     ):
         if backend_name == "ibis-sqlite":
             pytest.xfail(
@@ -307,13 +289,9 @@ class TestRealWorldLogFiltering:
             (ma.col("level") == ma.lit("ERROR")) &
             within_last(ma.col("timestamp"), "15 minutes")
         )
-        backend_expr = expr.compile(logs)
-        recent_errors = logs.filter(backend_expr)
-
-        count = get_result_count(recent_errors, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 recent errors, got {count}"
-
-        messages = get_column_values(recent_errors, "message", backend_name)
+        result_dict = ma_top.relation(logs).filter(expr).to_dict()
+        messages = result_dict["message"]
+        assert len(messages) == 2, f"[{backend_name}] Expected 2 recent errors, got {len(messages)}"
         assert messages == [
             "Database connection failed",
             "Timeout error"
@@ -323,8 +301,6 @@ class TestRealWorldLogFiltering:
         self,
         backend_name,
         backend_factory,
-        get_result_count,
-        get_column_values
     ):
         if backend_name == "ibis-sqlite":
             pytest.xfail(
@@ -360,13 +336,9 @@ class TestRealWorldLogFiltering:
 
         # Scenario: Cleanup old logs (older than 1 hour)
         expr = older_than(ma.col("timestamp"), "1 hour")
-        backend_expr = expr.compile(logs)
-        old_logs = logs.filter(backend_expr)
-
-        count = get_result_count(old_logs, backend_name)
-        assert count == 1, f"[{backend_name}] Expected 1 old log, got {count}"
-
-        messages = get_column_values(old_logs, "message", backend_name)
+        result_dict = ma_top.relation(logs).filter(expr).to_dict()
+        messages = result_dict["message"]
+        assert len(messages) == 1, f"[{backend_name}] Expected 1 old log, got {len(messages)}"
         assert messages == ["Old error"], (
             f"[{backend_name}] Expected ['Old error'], got {messages}"
         )
@@ -389,8 +361,6 @@ class TestChainingTemporalWithOtherOperations:
         self,
         backend_name,
         backend_factory,
-        get_result_count,
-        get_column_values
     ):
         """Test complex filter: recent + active + high value."""
         now = datetime.now()
@@ -413,14 +383,11 @@ class TestChainingTemporalWithOtherOperations:
             (ma.col("status") == ma.lit("active")) &
             (ma.col("value") > 150)
         )
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
+        result_dict = ma_top.relation(df).filter(expr).to_dict()
 
         # Should only get the middle row (5 min ago, active, value=200)
-        count = get_result_count(result, backend_name)
-        assert count == 1, f"[{backend_name}] Expected 1 row, got {count}"
-
-        values = get_column_values(result, "value", backend_name)
+        values = result_dict["value"]
+        assert len(values) == 1, f"[{backend_name}] Expected 1 row, got {len(values)}"
         assert values == [200], (
             f"[{backend_name}] Expected [200], got {values}"
         )

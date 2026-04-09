@@ -618,7 +618,7 @@ from typing import Any, Protocol, Union, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import SupportedExpressions
+    from mountainash.expressions.types import SupportedExpressions
 
 
 
@@ -735,7 +735,7 @@ from __future__ import annotations
 from typing import Any, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mountainash_expressions.types import SupportedExpressions
+    from mountainash.expressions.types import SupportedExpressions
 
 '''
 

@@ -13,7 +13,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Union, Any, Protocol, TYPE_CHECKING
+from typing import Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI

@@ -5,9 +5,13 @@ Composes with the expression visitor for compiling embedded expression ASTs.
 """
 
 from __future__ import annotations
-from typing import Any
+from typing import Any, Callable, Optional
 
 from mountainash.core.constants import JoinType, ProjectOperation
+from mountainash.core.types import (
+    is_polars_dataframe, is_polars_lazyframe,
+    is_pandas_dataframe, is_pyarrow_table,
+)
 from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 from mountainash.expressions.core.expression_nodes import ExpressionNode
 
@@ -26,9 +30,16 @@ class UnifiedRelationVisitor:
         expr_visitor: The expression visitor for compiling expression AST nodes.
     """
 
-    def __init__(self, relation_system: Any, expression_visitor: Any) -> None:
+    def __init__(
+        self,
+        relation_system: Any,
+        expression_visitor: Any,
+        *,
+        ref_resolver: Optional[Callable[[str], Any]] = None,
+    ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
+        self.ref_resolver = ref_resolver
 
     def visit(self, node: RelationNode) -> Any:
         """Dispatch to the appropriate visit method via double-dispatch."""
@@ -122,6 +133,67 @@ class UnifiedRelationVisitor:
         method = getattr(self.backend, method_name)
         return method(relation, **node.options)
 
+    def visit_ref_rel(self, node: Any) -> Any:
+        """Visit a ref node — resolves via ref_resolver or raises RelationDAGRequired."""
+        if self.ref_resolver is None:
+            from mountainash.relations.dag.errors import RelationDAGRequired
+            raise RelationDAGRequired(
+                f"RefRelNode({node.name!r}) cannot be compiled standalone — "
+                "use RelationDAG.collect() or supply ref_resolver explicitly"
+            )
+        return self.ref_resolver(node.name)
+
+    def visit_resource_read_rel(self, node: Any) -> Any:
+        """Visit a resource-read node — loads via readers and coerces to active backend."""
+        from mountainash.relations.dag.readers import read_resource_to_polars
+        lf = read_resource_to_polars(node.resource)  # always pl.LazyFrame
+        out = self._coerce_from_polars_lazy(lf)
+        if node.resource.table_schema is not None:
+            out = self._apply_conform(out, node.resource.table_schema)
+        return out
+
+    def _coerce_from_polars_lazy(self, lf: Any) -> Any:
+        """Convert a Polars LazyFrame to the relation_system's native type.
+
+        - Polars backends: pass through unchanged.
+        - Narwhals backends: wrap with nw.from_native (eager collect first).
+        - Ibis backends: convert to ibis memtable via pandas intermediary.
+        """
+        cls_name = type(self.backend).__name__
+        if "Narwhals" in cls_name:
+            import narwhals as nw
+            return nw.from_native(lf.collect(), eager_only=True)
+        if "Ibis" in cls_name:
+            import ibis
+            return ibis.memtable(lf.collect().to_pandas())
+        # Polars (default / any unrecognised backend): pass through as LazyFrame
+        return lf
+
+    def _apply_conform(self, native: Any, schema: Any) -> Any:
+        """Apply conform from a TypeSpec or raw frictionless schema dict.
+
+        ``compile_conform`` always returns a Polars DataFrame; wrap back to
+        LazyFrame so this method's return type is consistent with the Polars
+        path of ``visit_resource_read_rel``.
+
+        For non-Polars backends, conform is deferred.
+        # TODO: conform on non-Polars backends (narwhals, ibis)
+        """
+        cls_name = type(self.backend).__name__
+        if "Narwhals" in cls_name or "Ibis" in cls_name:
+            # Conform on non-Polars backends is not yet supported.
+            return native
+        if isinstance(schema, dict):
+            from mountainash.typespec.frictionless import typespec_from_frictionless
+            schema = typespec_from_frictionless(schema)
+        from mountainash.conform.compiler import compile_conform
+        import polars as pl
+        # compile_conform returns a Polars DataFrame; re-wrap as LazyFrame
+        result_df = compile_conform(schema, native)
+        if isinstance(result_df, pl.DataFrame):
+            return result_df.lazy()
+        return result_df
+
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:
         """Visit the right side of a join, coercing to match the left's type if needed.
 
@@ -148,28 +220,27 @@ class UnifiedRelationVisitor:
           or narwhals intermediary
         - target is narwhals DataFrame → convert via nw.from_native()
         """
-        import polars as pl
-
-        if isinstance(target, (pl.DataFrame, pl.LazyFrame)):
-            if isinstance(value, (pl.DataFrame, pl.LazyFrame)):
-                return value.lazy() if isinstance(value, pl.DataFrame) else value
+        if is_polars_dataframe(target) or is_polars_lazyframe(target):
+            if is_polars_lazyframe(value):
+                return value
+            if is_polars_dataframe(value):
+                return value.lazy()
             # Try pandas → polars
-            import pandas as pd
-            if isinstance(value, pd.DataFrame):
+            if is_pandas_dataframe(value):
+                import polars as pl
                 return pl.from_pandas(value).lazy()
             # Try pyarrow → polars
-            try:
-                import pyarrow as pa
-                if isinstance(value, pa.Table):
-                    return pl.from_arrow(value).lazy()
-            except ImportError:
-                pass
+            if is_pyarrow_table(value):
+                import polars as pl
+                return pl.from_arrow(value).lazy()
             # Try dict → polars
             if isinstance(value, dict):
+                import polars as pl
                 return pl.DataFrame(value).lazy()
             # Fallback via narwhals
             try:
                 import narwhals as nw
+                import polars as pl
                 native = nw.from_native(value, eager_only=True)
                 return pl.from_pandas(native.to_pandas()).lazy()
             except Exception:

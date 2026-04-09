@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Protocol
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitAggregateStringExpressionSystemProtocol(Protocol):
+class SubstraitAggregateStringExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for aggregate string operations.
 
     Auto-generated from Substrait string extension.
     Function type: aggregate
     """
 
-    def string_agg(self, input: SupportedExpressions, /, separator: str) -> SupportedExpressions:
+    def string_agg(self, input: ExpressionT, /, separator: str) -> ExpressionT:
         """Concatenates a column of string values with a separator.
 
         Substrait: string_agg

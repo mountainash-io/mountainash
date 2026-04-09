@@ -51,8 +51,10 @@ class TestExtensionRelOperation:
         assert ExtensionRelOperation.UNPIVOT is not None
         assert ExtensionRelOperation.PIVOT is not None
         assert ExtensionRelOperation.TOP_K is not None
+        assert ExtensionRelOperation.REF is not None
+        assert ExtensionRelOperation.READ_RESOURCE is not None
     def test_member_count(self):
-        assert len(ExtensionRelOperation) == 7
+        assert len(ExtensionRelOperation) == 9
 
 class TestSortField:
     def test_creation(self):

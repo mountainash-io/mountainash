@@ -9,6 +9,7 @@ Each function maps:
 
 Functions are organized by category for clarity.
 """
+from __future__ import annotations
 
 from .registry import ExpressionFunctionRegistry as FunctionRegistry, ExpressionFunctionDef
 
@@ -19,9 +20,6 @@ from ..function_keys.enums import (
 
     FKEY_SUBSTRAIT_CONDITIONAL,
     FKEY_SUBSTRAIT_CAST,
-    FKEY_SUBSTRAIT_FIELD_REFERENCE,
-    FKEY_SUBSTRAIT_LITERAL,
-
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
@@ -37,8 +35,8 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
-    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
@@ -49,12 +47,8 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
     SubstraitCastExpressionSystemProtocol,
     SubstraitConditionalExpressionSystemProtocol,
-    SubstraitFieldReferenceExpressionSystemProtocol,
-    SubstraitLiteralExpressionSystemProtocol,
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
+    SubstraitAggregateArithmeticExpressionSystemProtocol,   # NEW
     SubstraitScalarArithmeticExpressionSystemProtocol,
     SubstraitScalarBooleanExpressionSystemProtocol,
     SubstraitScalarComparisonExpressionSystemProtocol,
@@ -74,6 +68,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshNullExpressionSystemProtocol,
     MountainAshScalarArithmeticExpressionSystemProtocol,
     MountainAshScalarBooleanExpressionSystemProtocol,
+    MountainAshScalarStringExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
@@ -676,6 +671,14 @@ def register_all_functions() -> None:
             substrait_name="reverse",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.reverse,
         ),
+        # Mountainash string extensions
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="regex_contains",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.regex_contains,
+            options=("pattern",),
+        ),
     ]
 
     # ========================================
@@ -795,6 +798,98 @@ def register_all_functions() -> None:
             substrait_name="count",
             options=("overflow",),
             protocol_method=SubstraitAggregateGenericExpressionSystemProtocol.count,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="count",   # ← SAME Substrait function as COUNT above;
+                                      #   distinguished by arity (this is the 0-arg impl)
+            options=("overflow",),
+            protocol_method=SubstraitAggregateGenericExpressionSystemProtocol.count_records,
+        ),
+        # --- generic ---
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.ANY_VALUE,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="any_value",
+            options=("ignore_nulls",),
+            protocol_method=SubstraitAggregateGenericExpressionSystemProtocol.any_value,
+        ),
+        # --- arithmetic, single-arg ---
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="sum",
+            options=("overflow",),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.sum,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.AVG,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="avg",
+            options=("overflow",),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.avg,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MIN,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="min",
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.min,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MAX,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="max",
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.max,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="product",
+            options=("overflow",),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.product,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.STD_DEV,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="std_dev",
+            options=("rounding", "distribution"),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.std_dev,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.VARIANCE,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="variance",
+            options=("rounding", "distribution"),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.variance,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="mode",
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.mode,
+        ),
+        # --- arithmetic, multi-arg (free functions only) ---
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="corr",
+            options=("rounding",),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.corr,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="median",
+            options=("rounding",),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.median,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE,
+            substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
+            substrait_name="quantile",
+            options=("rounding",),
+            protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.quantile,
         ),
     ]
 

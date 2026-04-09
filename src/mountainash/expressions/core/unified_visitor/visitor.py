@@ -13,7 +13,6 @@ The visitor:
 from __future__ import annotations
 from typing import Any, Dict, Optional, TYPE_CHECKING
 import inspect
-from enum import Enum
 
 from ..expression_nodes import (
     ExpressionNode,

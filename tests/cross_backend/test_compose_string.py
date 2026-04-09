@@ -1,7 +1,7 @@
 """Cross-backend tests for string namespace fluent composition."""
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -30,13 +30,13 @@ class TestComposeString:
         count = get_result_count(result, backend_name)
         assert count == 3, f"[{backend_name}] Expected 3 (John Smith, JOHNNY B, johnson), got {count}"
 
-    def test_replace_then_upper(self, backend_name, backend_factory, select_and_extract):
+    def test_replace_then_upper(self, backend_name, backend_factory, collect_expr):
         """Sequential transforms: replace then uppercase."""
         data = {"code": ["a_b", "c_d", "e_f"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("code").str.replace("_", "-").str.upper()
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert actual == ["A-B", "C-D", "E-F"], f"[{backend_name}] got {actual}"
 

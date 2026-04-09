@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol):
+class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:

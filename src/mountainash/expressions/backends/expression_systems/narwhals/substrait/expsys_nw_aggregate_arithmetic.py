@@ -13,9 +13,6 @@ from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
     SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
-    SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
 )
 
 if TYPE_CHECKING:
@@ -23,7 +20,7 @@ if TYPE_CHECKING:
 
 class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
     NarwhalsBaseExpressionSystem,
-    SubstraitAggregateArithmeticExpressionSystemProtocol
+    SubstraitAggregateArithmeticExpressionSystemProtocol["nw.Expr"]
 ):
     """Narwhals implementation of SubstraitAggregateArithmeticExpressionSystemProtocol.
 

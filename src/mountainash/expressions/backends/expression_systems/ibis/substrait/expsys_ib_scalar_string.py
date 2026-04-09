@@ -5,7 +5,6 @@ Implements string operations for the Ibis backend.
 
 from __future__ import annotations
 
-import re
 from typing import Any, TYPE_CHECKING
 
 import ibis
@@ -13,12 +12,15 @@ import ibis
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+)
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisValueExpr
 
 
-class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol):
+class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarStringExpressionProtocol.
 
     Implements string methods across categories:
@@ -38,10 +40,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def lower(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         char_set: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Transform the string to lower case characters.
 
         Args:
@@ -55,10 +57,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def upper(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         char_set: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Transform the string to upper case characters.
 
         Args:
@@ -72,10 +74,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def swapcase(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         char_set: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Swap case of characters (lowercase to uppercase and vice versa).
 
         Args:
@@ -93,10 +95,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def capitalize(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         char_set: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Capitalize the first character of the input string.
 
         Args:
@@ -110,10 +112,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def title(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         char_set: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Convert to title case (capitalize first char of each word except articles).
 
         Args:
@@ -131,10 +133,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def initcap(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         char_set: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Capitalize first character of each word.
 
         Unlike title(), this includes articles.
@@ -154,10 +156,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def trim(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        characters: IbisExpr = None,
-    ) -> IbisExpr:
+        characters: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Remove characters from both sides of the string.
 
         Args:
@@ -171,10 +173,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def ltrim(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        characters: IbisExpr = None,
-    ) -> IbisExpr:
+        characters: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Remove characters from the left side of the string.
 
         Args:
@@ -188,10 +190,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def rtrim(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        characters: IbisExpr = None,
-    ) -> IbisExpr:
+        characters: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Remove characters from the right side of the string.
 
         Args:
@@ -205,11 +207,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def lpad(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        length: IbisExpr,
-        characters: IbisExpr = None,
-    ) -> IbisExpr:
+        length: IbisValueExpr,
+        characters: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Left-pad the input string to specified length.
 
         Args:
@@ -220,17 +222,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Left-padded string.
         """
-        length_val = self._extract_literal_value(length)
-        fill_char = " " if characters is None else self._extract_literal_value(characters)
-        return input.lpad(length_val, fill_char)
+        fill_char = ibis.literal(" ") if characters is None else characters
+        return self._call_with_expr_support(
+            lambda: input.lpad(length, fill_char),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            length=length,
+            characters=fill_char,
+        )
 
     def rpad(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        length: IbisExpr,
-        characters: IbisExpr = None,
-    ) -> IbisExpr:
+        length: IbisValueExpr,
+        characters: IbisValueExpr = None,
+    ) -> IbisValueExpr:
         """Right-pad the input string to specified length.
 
         Args:
@@ -241,18 +247,22 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Right-padded string.
         """
-        length_val = self._extract_literal_value(length)
-        fill_char = " " if characters is None else self._extract_literal_value(characters)
-        return input.rpad(length_val, fill_char)
+        fill_char = ibis.literal(" ") if characters is None else characters
+        return self._call_with_expr_support(
+            lambda: input.rpad(length, fill_char),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+            length=length,
+            characters=fill_char,
+        )
 
     def center(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        length: IbisExpr,
-        character: IbisExpr = None,
+        length: IbisValueExpr,
+        character: IbisValueExpr = None,
         padding: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Center the input string by padding both sides.
 
         Args:
@@ -276,12 +286,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def substring(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        start: IbisExpr,
-        length: IbisExpr = None,
+        start: IbisValueExpr,
+        length: IbisValueExpr = None,
         negative_start: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Extract a substring.
 
         Args:
@@ -293,42 +303,53 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Substring expression.
         """
-        # Extract literal values where possible; ibis.substr accepts expressions
-        start_val = self._extract_literal_value(start)
-        length_val = self._extract_literal_value(length) if length is not None else None
-
-        if length_val is None:
-            return input.substr(start_val)
-        return input.substr(start_val, length_val)
+        if length is None:
+            return self._call_with_expr_support(
+                lambda: input.substr(start),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+                start=start,
+            )
+        return self._call_with_expr_support(
+            lambda: input.substr(start, length),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            start=start,
+            length=length,
+        )
 
     def left(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        count: IbisExpr,
-    ) -> IbisExpr:
+        count: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Extract count characters from the left."""
-        count_val = self._extract_literal_value(count)
-        return input.left(count_val)
+        return self._call_with_expr_support(
+            lambda: input.left(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
+            count=count,
+        )
 
     def right(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        count: IbisExpr,
-    ) -> IbisExpr:
+        count: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Extract count characters from the right."""
-        count_val = self._extract_literal_value(count)
-        return input.right(count_val)
+        return self._call_with_expr_support(
+            lambda: input.right(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
+            count=count,
+        )
 
     def replace_slice(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        start: IbisExpr,
-        length: IbisExpr,
-        replacement: IbisExpr,
-    ) -> IbisExpr:
+        start: IbisValueExpr,
+        length: IbisValueExpr,
+        replacement: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Replace a slice of the input string.
 
         Args:
@@ -352,79 +373,53 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def contains(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        substring: IbisExpr,
+        substring: IbisValueExpr,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
-        """Whether the input string contains the substring.
-
-        Args:
-            input: String expression.
-            substring: Substring to search for.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Boolean expression.
-        """
-        pattern = self._extract_literal_value(substring)
-        if isinstance(pattern, str):
-            # Check if it looks like a regex pattern
-            regex_chars = r".*+?^${}[]|()\\"
-            is_regex = any(c in pattern for c in regex_chars)
-            if is_regex:
-                # Use re_search for regex patterns
-                return input.re_search(pattern)
-        # Use literal contains for plain strings (or non-literal expressions)
-        return input.contains(pattern)
+    ) -> IbisValueExpr:
+        """Whether the input string contains the substring."""
+        return self._call_with_expr_support(
+            lambda: input.contains(substring),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            substring=substring,
+        )
 
     def starts_with(
         self,
-        input: IbisExpr,
-        substring: IbisExpr,
+        input: IbisValueExpr,
+        substring: IbisValueExpr,
         /,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
-        """Whether input string starts with the substring.
-
-        Args:
-            input: String expression.
-            substring: Prefix to check.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Boolean expression.
-        """
-        prefix = self._extract_literal_value(substring)
-        return input.startswith(prefix)
+    ) -> IbisValueExpr:
+        """Whether input string starts with the substring."""
+        return self._call_with_expr_support(
+            lambda: input.startswith(substring),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+            substring=substring,
+        )
 
     def ends_with(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        substring: IbisExpr,
+        substring: IbisValueExpr,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
-        """Whether input string ends with the substring.
-
-        Args:
-            input: String expression.
-            substring: Suffix to check.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Boolean expression.
-        """
-        suffix = self._extract_literal_value(substring)
-        return input.endswith(suffix)
+    ) -> IbisValueExpr:
+        """Whether input string ends with the substring."""
+        return self._call_with_expr_support(
+            lambda: input.endswith(substring),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+            substring=substring,
+        )
 
     def strpos(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        substring: IbisExpr,
+        substring: IbisValueExpr,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Return position of first occurrence of substring (1-indexed).
 
         Args:
@@ -440,11 +435,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def count_substring(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        substring: IbisExpr,
+        substring: IbisValueExpr,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Return the number of non-overlapping occurrences of substring.
 
         Args:
@@ -465,7 +460,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     # Length Operations
     # =========================================================================
 
-    def char_length(self, input: IbisExpr, /) -> IbisExpr:
+    def char_length(self, input: IbisValueExpr, /) -> IbisValueExpr:
         """Return the number of characters in the input string.
 
         Args:
@@ -476,7 +471,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         return input.length()
 
-    def bit_length(self, input: IbisExpr, /) -> IbisExpr:
+    def bit_length(self, input: IbisValueExpr, /) -> IbisValueExpr:
         """Return the number of bits in the input string.
 
         Args:
@@ -488,7 +483,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         # Bit length = byte length * 8
         return input.length() * ibis.literal(8)
 
-    def octet_length(self, input: IbisExpr, /) -> IbisExpr:
+    def octet_length(self, input: IbisValueExpr, /) -> IbisValueExpr:
         """Return the number of bytes in the input string.
 
         Args:
@@ -506,10 +501,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def concat(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
         null_handling: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Concatenate strings.
 
         Note: This is variadic in Substrait. For single input, returns input.
@@ -525,10 +520,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def concat_ws(
         self,
-        separator: IbisExpr,
+        separator: IbisValueExpr,
         /,
-        string_arguments: IbisExpr,
-    ) -> IbisExpr:
+        string_arguments: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Concatenate strings with separator.
 
         Args:
@@ -548,12 +543,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def replace(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        substring: IbisExpr,
-        replacement: IbisExpr,
+        substring: IbisValueExpr,
+        replacement: IbisValueExpr,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Replace all occurrences of substring with replacement.
 
         Args:
@@ -566,29 +561,23 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             String with replacements.
 
         Note:
-            Ibis .replace() only replaces the first occurrence.
-            We use .re_replace() with escaped pattern to replace all occurrences,
-            matching Python's str.replace behavior.
+            Ibis .replace() only replaces the first occurrence on some backends
+            (e.g., Polars). We use .re_replace() to get replace-all semantics
+            consistent with Python str.replace across all Ibis backends.
         """
-        # Extract literal values if they're Ibis expressions
-        pattern = self._extract_literal_value(substring)
-        repl = self._extract_literal_value(replacement)
-
-        # If we got string values, escape them for regex and use re_replace
-        if isinstance(pattern, str) and isinstance(repl, str):
-            # Escape regex special characters for literal match
-            escaped_pattern = re.escape(pattern)
-            return input.re_replace(escaped_pattern, repl)
-
-        # Fallback to regular replace (only replaces first occurrence)
-        return input.replace(substring, replacement)
+        return self._call_with_expr_support(
+            lambda: input.re_replace(substring, replacement),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            substring=substring,
+            replacement=replacement,
+        )
 
     def repeat(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        count: IbisExpr,
-    ) -> IbisExpr:
+        count: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Repeat a string count number of times.
 
         Args:
@@ -598,10 +587,13 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Repeated string.
         """
-        count_val = self._extract_literal_value(count)
-        return input.repeat(count_val)
+        return self._call_with_expr_support(
+            lambda: input.repeat(count),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
+            count=count,
+        )
 
-    def reverse(self, input: IbisExpr, /) -> IbisExpr:
+    def reverse(self, input: IbisValueExpr, /) -> IbisValueExpr:
         """Return the string in reverse order.
 
         Args:
@@ -618,11 +610,11 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def like(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        match: IbisExpr,
+        match: IbisValueExpr,
         case_sensitivity: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """SQL LIKE pattern matching (% and _ wildcards).
 
         Args:
@@ -633,21 +625,24 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Boolean expression.
         """
-        pattern = self._extract_literal_value(match)
-        return input.like(pattern)
+        return self._call_with_expr_support(
+            lambda: input.like(match),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+            match=match,
+        )
 
     def regexp_match_substring(
         self,
-        input: IbisExpr,
-        pattern: IbisExpr,
+        input: IbisValueExpr,
+        pattern: IbisValueExpr,
         /,
-        position: IbisExpr = None,
-        occurrence: IbisExpr = None,
-        group: IbisExpr = None,
+        position: IbisValueExpr = None,
+        occurrence: IbisValueExpr = None,
+        group: IbisValueExpr = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Extract substring matching regex pattern.
 
         Args:
@@ -663,21 +658,24 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Matched substring or null.
         """
-        regex_pattern = self._extract_literal_value(pattern)
         group_index = 0 if group is None else (group if isinstance(group, int) else 0)
-        return input.re_extract(regex_pattern, group_index)
+        return self._call_with_expr_support(
+            lambda: input.re_extract(pattern, group_index),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            pattern=pattern,
+        )
 
     def regexp_match_substring_all(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        pattern: IbisExpr,
-        position: IbisExpr = None,
-        group: IbisExpr = None,
+        pattern: IbisValueExpr,
+        position: IbisValueExpr = None,
+        group: IbisValueExpr = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Extract all substrings matching regex pattern.
 
         Args:
@@ -700,15 +698,15 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def regexp_strpos(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        pattern: IbisExpr,
-        position: IbisExpr = None,
-        occurrence: IbisExpr = None,
+        pattern: IbisValueExpr,
+        position: IbisValueExpr = None,
+        occurrence: IbisValueExpr = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Return position of regex pattern match (1-indexed).
 
         Args:
@@ -731,14 +729,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def regexp_count_substring(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        pattern: IbisExpr,
-        position: IbisExpr = None,
+        pattern: IbisValueExpr,
+        position: IbisValueExpr = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Return count of non-overlapping regex matches.
 
         Args:
@@ -760,16 +758,16 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def regexp_replace(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        pattern: IbisExpr,
-        replacement: IbisExpr,
-        position: IbisExpr = None,
-        occurrence: IbisExpr = None,
+        pattern: IbisValueExpr,
+        replacement: IbisValueExpr,
+        position: IbisValueExpr = None,
+        occurrence: IbisValueExpr = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Replace text matching regex pattern.
 
         Args:
@@ -785,9 +783,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             String with replacements.
         """
-        regex_pattern = self._extract_literal_value(pattern)
-        repl = self._extract_literal_value(replacement)
-        return input.re_replace(regex_pattern, repl)
+        return self._call_with_expr_support(
+            lambda: input.re_replace(pattern, replacement),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            pattern=pattern,
+            replacement=replacement,
+        )
 
     # =========================================================================
     # Split Operations
@@ -795,10 +796,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def string_split(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        separator: IbisExpr,
-    ) -> IbisExpr:
+        separator: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Split a string into a list based on separator.
 
         Args:
@@ -812,13 +813,13 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
     def regexp_string_split(
         self,
-        input: IbisExpr,
+        input: IbisValueExpr,
         /,
-        pattern: IbisExpr,
+        pattern: IbisValueExpr,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Split a string into a list based on regex pattern.
 
         Args:

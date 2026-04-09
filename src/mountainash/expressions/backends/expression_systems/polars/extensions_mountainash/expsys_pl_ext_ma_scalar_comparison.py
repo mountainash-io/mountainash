@@ -5,7 +5,7 @@ Implements comparison operations for the Polars backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol):
+class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarComparisonExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarComparisonExpressionProtocol.
 
     Implements 23 comparison methods organized into categories:

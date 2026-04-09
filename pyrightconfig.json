@@ -1,0 +1,54 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+
+  "include": ["src", "tests"],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/build",
+    "**/dist",
+    "**/node_modules",
+    "docs/superpowers"
+  ],
+  "extraPaths": ["src"],
+
+  "pythonVersion": "3.10",
+  "pythonPlatform": "Linux",
+
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+
+  "reportMissingImports": "error",
+  "reportUndefinedVariable": "error",
+  "reportInvalidTypeForm": "error",
+  "reportAssignmentType": "warning",
+  "reportReturnType": "warning",
+  "reportArgumentType": "warning",
+  "reportCallIssue": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportOperatorIssue": "warning",
+  "reportIndexIssue": "warning",
+
+  "reportUnusedImport": "none",
+  "reportUnusedVariable": "none",
+  "reportUnusedFunction": "none",
+  "reportUnusedClass": "none",
+  "reportPrivateImportUsage": "none",
+  "reportImportCycles": "none",
+
+  "reportIncompatibleMethodOverride": "warning",
+  "reportIncompatibleVariableOverride": "warning",
+  "reportGeneralTypeIssues": "warning",
+
+  "executionEnvironments": [
+    {
+      "root": "tests",
+      "reportPrivateUsage": "none",
+      "reportMissingTypeStubs": "none",
+      "reportUntypedFunctionDecorator": "none"
+    }
+  ]
+}

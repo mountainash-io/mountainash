@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, List, Tuple, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CONDITIONAL
 from mountainash.expressions.core.expression_nodes import IfThenNode, LiteralNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitConditionalAPIBuilderProtocol, SubstraitWhenAPIBuilderProtocol, SubstraitThenAPIBuilderProtocol
 

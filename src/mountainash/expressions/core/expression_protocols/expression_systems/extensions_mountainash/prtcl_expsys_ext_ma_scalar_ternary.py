@@ -13,13 +13,12 @@ where comparisons involving NULL return UNKNOWN instead of FALSE.
 """
 
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING, Union, Optional, Set, FrozenSet, List, Protocol
+from typing import Any, Collection, FrozenSet, List, Optional, Protocol
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
+from mountainash.core.types import ExpressionT
 
 
-class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
+class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     """
     Backend protocol for ternary logic operations.
 
@@ -33,80 +32,88 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
 
     def t_eq(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
+        left: ExpressionT,
+        right: ExpressionT,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Ternary equality - returns -1/0/1."""
         ...
 
     def t_ne(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
+        left: ExpressionT,
+        right: ExpressionT,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Ternary inequality - returns -1/0/1."""
         ...
 
     def t_gt(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
+        left: ExpressionT,
+        right: ExpressionT,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Ternary greater-than - returns -1/0/1."""
         ...
 
     def t_lt(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
+        left: ExpressionT,
+        right: ExpressionT,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Ternary less-than - returns -1/0/1."""
         ...
 
     def t_ge(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
+        left: ExpressionT,
+        right: ExpressionT,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Ternary greater-than-or-equal - returns -1/0/1."""
         ...
 
     def t_le(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
+        left: ExpressionT,
+        right: ExpressionT,
         left_unknown: Optional[FrozenSet[Any]] = None,
         right_unknown: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
+    ) -> ExpressionT:
         """Ternary less-than-or-equal - returns -1/0/1."""
         ...
 
     def t_is_in(
         self,
-        element: SupportedExpressions,
-        collection: Any,
+        element: ExpressionT,
+        collection: Collection[Any] | ExpressionT,
         unknown_values: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
-        """Ternary membership test - returns -1/0/1."""
+    ) -> ExpressionT:
+        """Ternary membership test - returns -1/0/1.
+
+        `collection` is either a Python collection of literal values (the
+        historical literal-list path) or a backend expression (new: per-row
+        list-column membership). Backends dispatch on the Python type.
+        """
         ...
 
     def t_is_not_in(
         self,
-        element: SupportedExpressions,
-        collection: Any,
+        element: ExpressionT,
+        collection: Collection[Any] | ExpressionT,
         unknown_values: Optional[FrozenSet[Any]] = None,
-    ) -> SupportedExpressions:
-        """Ternary non-membership test - returns -1/0/1."""
+    ) -> ExpressionT:
+        """Ternary non-membership test - returns -1/0/1.
+
+        See `t_is_in` for `collection` semantics.
+        """
         ...
 
     # ========================================
@@ -115,37 +122,37 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
 
     def t_and(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
-    ) -> SupportedExpressions:
+        left: ExpressionT,
+        right: ExpressionT,
+    ) -> ExpressionT:
         """Ternary AND - minimum of operands."""
         ...
 
     def t_or(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
-    ) -> SupportedExpressions:
+        left: ExpressionT,
+        right: ExpressionT,
+    ) -> ExpressionT:
         """Ternary OR - maximum of operands."""
         ...
 
-    def t_not(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def t_not(self, operand: ExpressionT) -> ExpressionT:
         """Ternary NOT - sign flip (TRUE<->FALSE, UNKNOWN stays)."""
         ...
 
     def t_xor(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
-    ) -> SupportedExpressions:
+        left: ExpressionT,
+        right: ExpressionT,
+    ) -> ExpressionT:
         """Ternary XOR - exactly one TRUE."""
         ...
 
     def t_xor_parity(
         self,
-        left: SupportedExpressions,
-        right: SupportedExpressions,
-    ) -> SupportedExpressions:
+        left: ExpressionT,
+        right: ExpressionT,
+    ) -> ExpressionT:
         """Ternary XOR parity - odd number of TRUEs."""
         ...
 
@@ -153,15 +160,15 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
     # Constants
     # ========================================
 
-    def always_true_ternary(self) -> SupportedExpressions:
+    def always_true_ternary(self) -> ExpressionT:
         """Return literal TRUE (1)."""
         ...
 
-    def always_false_ternary(self) -> SupportedExpressions:
+    def always_false_ternary(self) -> ExpressionT:
         """Return literal FALSE (-1)."""
         ...
 
-    def always_unknown(self) -> SupportedExpressions:
+    def always_unknown(self) -> ExpressionT:
         """Return literal UNKNOWN (0)."""
         ...
 
@@ -169,27 +176,27 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
     # Conversions (Ternary -> Boolean)
     # ========================================
 
-    def is_true_ternary(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def is_true_ternary(self, operand: ExpressionT) -> ExpressionT:
         """TRUE(1) -> True, else -> False."""
         ...
 
-    def is_false_ternary(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def is_false_ternary(self, operand: ExpressionT) -> ExpressionT:
         """FALSE(-1) -> True, else -> False."""
         ...
 
-    def is_unknown(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def is_unknown(self, operand: ExpressionT) -> ExpressionT:
         """UNKNOWN(0) -> True, else -> False."""
         ...
 
-    def is_known(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def is_known(self, operand: ExpressionT) -> ExpressionT:
         """TRUE or FALSE -> True, UNKNOWN -> False."""
         ...
 
-    def maybe_true(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def maybe_true(self, operand: ExpressionT) -> ExpressionT:
         """TRUE or UNKNOWN -> True, FALSE -> False."""
         ...
 
-    def maybe_false(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def maybe_false(self, operand: ExpressionT) -> ExpressionT:
         """FALSE or UNKNOWN -> True, TRUE -> False."""
         ...
 
@@ -197,7 +204,7 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
     # Conversions (Boolean -> Ternary)
     # ========================================
 
-    def to_ternary(self, operand: SupportedExpressions) -> SupportedExpressions:
+    def to_ternary(self, operand: ExpressionT) -> ExpressionT:
         """True -> 1, False -> -1."""
         ...
 
@@ -205,7 +212,7 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol):
     # Utility Functions
     # ========================================
 
-    def collect_values(self, *values: Any) -> List[Any]:
+    def collect_values(self, *values: object) -> List[Any]:
         """Collect values into a list for use in collection operations.
 
         This is a utility function that simply returns its arguments as a list.

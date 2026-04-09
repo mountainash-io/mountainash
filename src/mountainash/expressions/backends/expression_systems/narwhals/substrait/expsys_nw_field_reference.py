@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsFieldReferenceExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol):
+class SubstraitNarwhalsFieldReferenceExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitFieldReferenceExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of FieldReferenceExpressionProtocol."""
 
     def col(self, x: str) -> NarwhalsExpr:

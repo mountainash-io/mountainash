@@ -14,10 +14,10 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarSetExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisValueExpr
 
 
-class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol):
+class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarSetExpressionProtocol.
 
     Implements set membership operations:
@@ -28,10 +28,10 @@ class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, Substrait
 
     def index_in(
         self,
-        needle: IbisExpr,
+        needle: IbisValueExpr,
         /,
-        *haystack: IbisExpr,
-    ) -> IbisExpr:
+        *haystack: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Return the 0-indexed position of needle in haystack, or -1 if not found.
 
         Args:
@@ -54,10 +54,10 @@ class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, Substrait
 
     def is_in(
         self,
-        needle: IbisExpr,
+        needle: IbisValueExpr,
         /,
-        *haystack: IbisExpr,
-    ) -> IbisExpr:
+        *haystack: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Check if needle is in haystack.
 
         Args:
@@ -82,10 +82,10 @@ class SubstraitIbisScalarSetExpressionSystem(IbisBaseExpressionSystem, Substrait
 
     def is_not_in(
         self,
-        needle: IbisExpr,
+        needle: IbisValueExpr,
         /,
-        *haystack: IbisExpr,
-    ) -> IbisExpr:
+        *haystack: IbisValueExpr,
+    ) -> IbisValueExpr:
         """Check if needle is not in haystack.
 
         Args:

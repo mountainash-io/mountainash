@@ -10,7 +10,7 @@ Also provides backend detection and expression system registry functions.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Dict, Type, TYPE_CHECKING
+from typing import Any, Dict, Type
 
 from ..constants import CONST_VISITOR_BACKENDS
 
@@ -37,8 +37,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait.prtcl_expsys_scalar_string import  SubstraitScalarStringExpressionSystemProtocol
 
 
-if TYPE_CHECKING:
-    from ..constants import CONST_VISITOR_BACKENDS
 
 
 

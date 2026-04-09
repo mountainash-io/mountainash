@@ -10,7 +10,7 @@ This is a Mountainash extension (not part of Substrait standard).
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, FrozenSet, TYPE_CHECKING
+from typing import Any, Collection, FrozenSet, List, Optional, TYPE_CHECKING
 from functools import reduce
 
 import polars as pl
@@ -30,7 +30,7 @@ T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN  # 0
 T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE    # -1
 
 
-class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol):
+class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of TernaryExpressionProtocol.
 
     Implements three-valued logic operations for the Polars backend.
@@ -196,17 +196,30 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
     def t_is_in(
         self,
         element: PolarsExpr,
-        collection: List[Any],
+        collection: Collection[Any] | pl.Expr,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> PolarsExpr:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        `collection` is either a Python list/tuple/set (literal path) or a
+        Polars expression resolving to a list-typed column (per-row path).
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, pl.Expr):
+            # Expression path: assume list-typed column. If it isn't, Polars
+            # raises at collect time with its own clear error. A null list
+            # row propagates to UNKNOWN, matching the ternary principle.
+            membership = collection.list.contains(element)
+            is_unknown = is_unknown | collection.is_null()
+        else:
+            membership = element.is_in(collection)
 
         return (
             pl.when(is_unknown)
             .then(pl.lit(T_UNKNOWN))
             .otherwise(
-                pl.when(element.is_in(collection))
+                pl.when(membership)
                 .then(pl.lit(T_TRUE))
                 .otherwise(pl.lit(T_FALSE))
             )
@@ -215,17 +228,26 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
     def t_is_not_in(
         self,
         element: PolarsExpr,
-        collection: List[Any],
+        collection: Collection[Any] | pl.Expr,
         unknown_values: Optional[FrozenSet[Any]] = None,
     ) -> PolarsExpr:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        Mirror of `t_is_in`. See its docstring.
+        """
         is_unknown = self._check_unknown(element, unknown_values)
+
+        if isinstance(collection, pl.Expr):
+            membership = collection.list.contains(element)
+            is_unknown = is_unknown | collection.is_null()
+        else:
+            membership = element.is_in(collection)
 
         return (
             pl.when(is_unknown)
             .then(pl.lit(T_UNKNOWN))
             .otherwise(
-                pl.when(~element.is_in(collection))
+                pl.when(~membership)
                 .then(pl.lit(T_TRUE))
                 .otherwise(pl.lit(T_FALSE))
             )

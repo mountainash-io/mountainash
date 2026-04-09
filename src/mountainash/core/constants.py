@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 from enum import Enum, IntEnum, StrEnum, auto
 from dataclasses import dataclass
@@ -584,6 +585,8 @@ class ExtensionRelOperation(Enum):
     UNPIVOT = auto()
     PIVOT = auto()
     TOP_K = auto()
+    REF = auto()              # dag.ref(name) placeholder for RelationDAG
+    READ_RESOURCE = auto()    # load via storage facade from a DataResource
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,5 @@
 """Substrait-aligned relational AST nodes."""
+from __future__ import annotations
 
 from .reln_read import ReadRelNode
 from .reln_project import ProjectRelNode

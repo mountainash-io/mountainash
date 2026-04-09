@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ...api_base import BaseExpressionAPI
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
@@ -17,7 +16,8 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait im
 
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
+    from ...api_base import BaseExpressionAPI
+    from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 
 class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarStringAPIBuilderProtocol):
@@ -1061,31 +1061,66 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
     def regex_match(
         self,
-        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        pattern: str,
+        *,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
-        """Check if entire string matches regex pattern (anchored with ^ and $)."""
-        if isinstance(pattern, str):
-            anchored_pattern = f"^{pattern}$"
-        else:
-            anchored_pattern = pattern
-        return self.regex_contains(anchored_pattern, case_sensitive=case_sensitive)
+        """Check if entire string matches regex pattern (anchored with ^ and $).
+
+        Args:
+            pattern: Regex pattern. Must be a literal ``str``. See
+                :meth:`regex_contains` for the rationale and the escape
+                hatch for dynamic patterns.
+            case_sensitive: Whether matching is case-sensitive (default True).
+        """
+        if not isinstance(pattern, str):
+            raise TypeError(
+                f"regex_match pattern must be a literal str, "
+                f"got {type(pattern).__name__}. For dynamic patterns, use "
+                f"rel.compile() to drop into the native backend."
+            )
+        return self.regex_contains(f"^{pattern}$", case_sensitive=case_sensitive)
 
     def regex_contains(
         self,
-        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        pattern: str,
+        *,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
-        """Check if string contains a match for regex pattern.
+        """Check if string contains a match for a regex pattern.
 
-        Uses regexp_match_substring under the hood — a non-null result means the pattern matched.
+        Routes through the mountainash extension REGEX_CONTAINS function key.
+        Substrait has no regexp_contains primitive — its CONTAINS is literal —
+        so each backend implements regex_contains natively (polars str.contains
+        with literal=False, ibis re_search, narwhals str.contains).
+
+        Args:
+            pattern: Regex pattern. Must be a literal ``str``. Mountainash
+                does not support dynamic regex patterns drawn from another
+                column or computed at runtime — every supported backend
+                requires the pattern as a literal at compile time.
+
+                For dynamic patterns, use ``rel.compile()`` to drop into
+                the native backend (Polars, Ibis, narwhals) and apply that
+                backend's own dynamic-regex API directly.
+            case_sensitive: Whether matching is case-sensitive (default True).
         """
-        # Delegate to contains with the pattern — backends handle regex in contains
-        pattern_node = self._to_substrait_node(pattern)
+        if not isinstance(pattern, str):
+            raise TypeError(
+                f"regex_contains pattern must be a literal str, "
+                f"got {type(pattern).__name__}. For dynamic patterns, use "
+                f"rel.compile() to drop into the native backend."
+            )
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_STRING,
+        )
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-            arguments=[self._node, pattern_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS,
+            arguments=[self._node],
+            options={
+                "pattern": pattern,
+                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+            },
         )
         return self._build(node)
 

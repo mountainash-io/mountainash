@@ -1,6 +1,6 @@
 """AST construction tests for native expression API builder."""
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 class TestNativeMethod:

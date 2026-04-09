@@ -7,12 +7,15 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
@@ -55,7 +58,7 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol):
+class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarDatetimeExpressionProtocol.
 
     Implements core datetime methods:
@@ -78,7 +81,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         component: PolarsExpr,
-        timezone: PolarsExpr = None,
+        timezone: Optional[PolarsExpr] = None,
         /,
     ) -> PolarsExpr:
         """Extract portion of a date/time value.
@@ -233,7 +236,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        timezone: str = None,
+        timezone: Optional[str] = None,
     ) -> PolarsExpr:
         """Check if DST is observed at this time.
 
@@ -256,16 +259,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            years: Number of years to add.
+            years: Number of years to add (accepts expressions).
 
         Returns:
             Datetime with years added.
         """
-        years_val = self._extract_literal_value(years)
-        if isinstance(years_val, int):
-            return x.dt.offset_by(f"{years_val}y")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(years.cast(pl.Utf8) + "y")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(years.cast(pl.Utf8) + "y"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
+            years=years,
+        )
 
     def add_months(
         self,
@@ -277,16 +280,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            months: Number of months to add.
+            months: Number of months to add (accepts expressions).
 
         Returns:
             Datetime with months added.
         """
-        months_val = self._extract_literal_value(months)
-        if isinstance(months_val, int):
-            return x.dt.offset_by(f"{months_val}mo")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(months.cast(pl.Utf8) + "mo")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(months.cast(pl.Utf8) + "mo"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
+            months=months,
+        )
 
     def add_days(
         self,
@@ -298,16 +301,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            days: Number of days to add.
+            days: Number of days to add (accepts expressions).
 
         Returns:
             Datetime with days added.
         """
-        days_val = self._extract_literal_value(days)
-        if isinstance(days_val, int):
-            return x.dt.offset_by(f"{days_val}d")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(days.cast(pl.Utf8) + "d")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(days.cast(pl.Utf8) + "d"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
+            days=days,
+        )
 
     def add_hours(
         self,
@@ -319,16 +322,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            hours: Number of hours to add.
+            hours: Number of hours to add (accepts expressions).
 
         Returns:
             Datetime with hours added.
         """
-        hours_val = self._extract_literal_value(hours)
-        if isinstance(hours_val, int):
-            return x.dt.offset_by(f"{hours_val}h")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(hours.cast(pl.Utf8) + "h")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(hours.cast(pl.Utf8) + "h"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
+            hours=hours,
+        )
 
     def add_minutes(
         self,
@@ -340,16 +343,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            minutes: Number of minutes to add.
+            minutes: Number of minutes to add (accepts expressions).
 
         Returns:
             Datetime with minutes added.
         """
-        minutes_val = self._extract_literal_value(minutes)
-        if isinstance(minutes_val, int):
-            return x.dt.offset_by(f"{minutes_val}m")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(minutes.cast(pl.Utf8) + "m")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(minutes.cast(pl.Utf8) + "m"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
+            minutes=minutes,
+        )
 
     def add_seconds(
         self,
@@ -361,16 +364,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            seconds: Number of seconds to add.
+            seconds: Number of seconds to add (accepts expressions).
 
         Returns:
             Datetime with seconds added.
         """
-        seconds_val = self._extract_literal_value(seconds)
-        if isinstance(seconds_val, int):
-            return x.dt.offset_by(f"{seconds_val}s")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(seconds.cast(pl.Utf8) + "s")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(seconds.cast(pl.Utf8) + "s"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
+            seconds=seconds,
+        )
 
     def add_milliseconds(
         self,
@@ -382,16 +385,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            milliseconds: Number of milliseconds to add.
+            milliseconds: Number of milliseconds to add (accepts expressions).
 
         Returns:
             Datetime with milliseconds added.
         """
-        ms_val = self._extract_literal_value(milliseconds)
-        if isinstance(ms_val, int):
-            return x.dt.offset_by(f"{ms_val}ms")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
+            milliseconds=milliseconds,
+        )
 
     def add_microseconds(
         self,
@@ -403,16 +406,16 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Datetime expression.
-            microseconds: Number of microseconds to add.
+            microseconds: Number of microseconds to add (accepts expressions).
 
         Returns:
             Datetime with microseconds added.
         """
-        us_val = self._extract_literal_value(microseconds)
-        if isinstance(us_val, int):
-            return x.dt.offset_by(f"{us_val}us")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(microseconds.cast(pl.Utf8) + "us")
+        return self._call_with_expr_support(
+            lambda: x.dt.offset_by(microseconds.cast(pl.Utf8) + "us"),
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
+            microseconds=microseconds,
+        )
 
     # =========================================================================
     # Date Difference Methods
@@ -558,8 +561,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Truncated datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     def round(
         self,
@@ -576,8 +578,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Rounded datetime.
         """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.round(unit_val)
+        return x.dt.round(unit)
 
     def ceil(
         self,
@@ -595,10 +596,9 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Ceiling datetime.
         """
         # Polars doesn't have ceil for datetime, use truncate + add
-        unit_val = self._extract_literal_value(unit)
-        truncated = x.dt.truncate(unit_val)
+        truncated = x.dt.truncate(unit)
         # If truncated != original, add one unit
-        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
+        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
 
     def floor(
         self,
@@ -616,8 +616,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
             Floor datetime.
         """
         # Floor is the same as truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
+        return x.dt.truncate(unit)
 
     # =========================================================================
     # Timezone Methods
@@ -638,6 +637,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime in target timezone.
         """
+
         return x.dt.convert_time_zone(timezone)
 
     def assume_timezone(
@@ -676,6 +676,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Formatted string.
         """
+
         return x.dt.strftime(format)
 
     # =========================================================================
@@ -698,7 +699,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         *,
-        offset: str,
+        offset: PolarsExpr,
     ) -> PolarsExpr:
         """Add/subtract flexible duration from datetime.
 
@@ -713,8 +714,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         """
         from mountainash.expressions.core.utils.temporal import parse_combined_duration
 
-        offset_val = self._extract_literal_value(offset)
-        components = parse_combined_duration(offset_val)
+        components = parse_combined_duration(offset)
 
         result = x
         for component in components:
@@ -724,548 +724,6 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
 
 
-
-
-
-
-
-
-
-
-    # =========================================================================
-    # Snapshot Methods (Static)
-    # =========================================================================
-
-    def today(self) -> PolarsExpr:
-        """Return today's date as a literal expression."""
-        return pl.lit(date.today())
-
-    def now(self) -> PolarsExpr:
-        """Return current datetime as a literal expression."""
-        return pl.lit(datetime.now())
-
-    # =========================================================================
-    # Flexible Duration Offset
-    # =========================================================================
-
-    def offset_by(
-        self,
-        x: PolarsExpr,
-        *,
-        offset: str,
-    ) -> PolarsExpr:
-        """Add/subtract flexible duration from datetime.
-
-        Uses shared temporal helper for parsing combined duration strings.
-
-        Args:
-            x: Datetime expression.
-            offset: Duration string (e.g., "1d", "2h30m", "-3mo", "1d2h").
-
-        Returns:
-            Datetime with offset applied.
-        """
-        from mountainash.expressions.core.utils.temporal import parse_combined_duration
-
-        offset_val = self._extract_literal_value(offset)
-        components = parse_combined_duration(offset_val)
-
-        result = x
-        for component in components:
-            result = result.dt.offset_by(component)
-
-        return result
-
-
-
-    # =========================================================================
-    # Convenience Extraction Methods
-    # =========================================================================
-
-    def year(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the year."""
-        return x.dt.year()
-
-    def month(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the month (1-12)."""
-        return x.dt.month()
-
-    def day(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the day of month (1-31)."""
-        return x.dt.day()
-
-    def hour(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the hour (0-23)."""
-        return x.dt.hour()
-
-    def minute(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the minute (0-59)."""
-        return x.dt.minute()
-
-    def second(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the second (0-59)."""
-        return x.dt.second()
-
-    def millisecond(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract milliseconds since last full second."""
-        return x.dt.millisecond()
-
-    def microsecond(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract microseconds since last full millisecond."""
-        return x.dt.microsecond()
-
-    def nanosecond(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract nanoseconds since last full microsecond."""
-        return x.dt.nanosecond()
-
-    def quarter(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract the quarter (1-4)."""
-        return x.dt.quarter()
-
-    def day_of_year(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract day of year (1-366)."""
-        return x.dt.ordinal_day()
-
-    def day_of_week(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract day of week (Monday=1 to Sunday=7)."""
-        return x.dt.weekday()
-
-    def week_of_year(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract ISO week of year (1-53)."""
-        return x.dt.week()
-
-    def iso_year(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract ISO 8601 week-numbering year."""
-        return x.dt.iso_year()
-
-    def unix_timestamp(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract seconds since 1970-01-01 00:00:00 UTC."""
-        return x.dt.epoch("s")
-
-    def timezone_offset(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Extract timezone offset to UTC in seconds.
-
-        Note: Polars doesn't directly expose timezone offset.
-        Returns 0 for timezone-naive datetimes.
-        """
-        # Polars doesn't have direct timezone offset extraction
-        return pl.lit(0)
-
-    def is_leap_year(self, x: PolarsExpr, /) -> PolarsExpr:
-        """Check if the year is a leap year."""
-        year = x.dt.year()
-        return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
-
-    def is_dst(
-        self,
-        x: PolarsExpr,
-        /,
-        timezone: str = None,
-    ) -> PolarsExpr:
-        """Check if DST is observed at this time.
-
-        Note: Polars doesn't have direct DST detection.
-        Returns False as a placeholder.
-        """
-        return pl.lit(False)
-
-    # =========================================================================
-    # Date Arithmetic Methods
-    # =========================================================================
-
-    def add_years(
-        self,
-        x: PolarsExpr,
-        years: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add years to a datetime.
-
-        Args:
-            x: Datetime expression.
-            years: Number of years to add.
-
-        Returns:
-            Datetime with years added.
-        """
-        years_val = self._extract_literal_value(years)
-        if isinstance(years_val, int):
-            return x.dt.offset_by(f"{years_val}y")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(years.cast(pl.Utf8) + "y")
-
-    def add_months(
-        self,
-        x: PolarsExpr,
-        months: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add months to a datetime.
-
-        Args:
-            x: Datetime expression.
-            months: Number of months to add.
-
-        Returns:
-            Datetime with months added.
-        """
-        months_val = self._extract_literal_value(months)
-        if isinstance(months_val, int):
-            return x.dt.offset_by(f"{months_val}mo")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(months.cast(pl.Utf8) + "mo")
-
-    def add_days(
-        self,
-        x: PolarsExpr,
-        days: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add days to a datetime.
-
-        Args:
-            x: Datetime expression.
-            days: Number of days to add.
-
-        Returns:
-            Datetime with days added.
-        """
-        days_val = self._extract_literal_value(days)
-        if isinstance(days_val, int):
-            return x.dt.offset_by(f"{days_val}d")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(days.cast(pl.Utf8) + "d")
-
-    def add_hours(
-        self,
-        x: PolarsExpr,
-        hours: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add hours to a datetime.
-
-        Args:
-            x: Datetime expression.
-            hours: Number of hours to add.
-
-        Returns:
-            Datetime with hours added.
-        """
-        hours_val = self._extract_literal_value(hours)
-        if isinstance(hours_val, int):
-            return x.dt.offset_by(f"{hours_val}h")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(hours.cast(pl.Utf8) + "h")
-
-    def add_minutes(
-        self,
-        x: PolarsExpr,
-        minutes: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add minutes to a datetime.
-
-        Args:
-            x: Datetime expression.
-            minutes: Number of minutes to add.
-
-        Returns:
-            Datetime with minutes added.
-        """
-        minutes_val = self._extract_literal_value(minutes)
-        if isinstance(minutes_val, int):
-            return x.dt.offset_by(f"{minutes_val}m")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(minutes.cast(pl.Utf8) + "m")
-
-    def add_seconds(
-        self,
-        x: PolarsExpr,
-        seconds: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add seconds to a datetime.
-
-        Args:
-            x: Datetime expression.
-            seconds: Number of seconds to add.
-
-        Returns:
-            Datetime with seconds added.
-        """
-        seconds_val = self._extract_literal_value(seconds)
-        if isinstance(seconds_val, int):
-            return x.dt.offset_by(f"{seconds_val}s")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(seconds.cast(pl.Utf8) + "s")
-
-    def add_milliseconds(
-        self,
-        x: PolarsExpr,
-        milliseconds: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add milliseconds to a datetime.
-
-        Args:
-            x: Datetime expression.
-            milliseconds: Number of milliseconds to add.
-
-        Returns:
-            Datetime with milliseconds added.
-        """
-        ms_val = self._extract_literal_value(milliseconds)
-        if isinstance(ms_val, int):
-            return x.dt.offset_by(f"{ms_val}ms")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms")
-
-    def add_microseconds(
-        self,
-        x: PolarsExpr,
-        microseconds: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Add microseconds to a datetime.
-
-        Args:
-            x: Datetime expression.
-            microseconds: Number of microseconds to add.
-
-        Returns:
-            Datetime with microseconds added.
-        """
-        us_val = self._extract_literal_value(microseconds)
-        if isinstance(us_val, int):
-            return x.dt.offset_by(f"{us_val}us")
-        # Fallback: expression-based offset
-        return x.dt.offset_by(microseconds.cast(pl.Utf8) + "us")
-
-    # =========================================================================
-    # Date Difference Methods
-    # =========================================================================
-
-    def diff_years(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in years.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in years (x - other).
-        """
-        return x.dt.year() - other.dt.year()
-
-    def diff_months(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in months.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in months (x - other).
-        """
-        years_diff = x.dt.year() - other.dt.year()
-        months_diff = x.dt.month() - other.dt.month()
-        return years_diff * 12 + months_diff
-
-    def diff_days(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in days.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in days (x - other).
-        """
-        return (x - other).dt.total_days()
-
-    def diff_hours(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in hours.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in hours (x - other).
-        """
-        return (x - other).dt.total_hours()
-
-    def diff_minutes(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in minutes.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in minutes (x - other).
-        """
-        return (x - other).dt.total_minutes()
-
-    def diff_seconds(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in seconds.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in seconds (x - other).
-        """
-        return (x - other).dt.total_seconds()
-
-    def diff_milliseconds(
-        self,
-        x: PolarsExpr,
-        other: PolarsExpr,
-        /,
-    ) -> PolarsExpr:
-        """Calculate difference in milliseconds.
-
-        Args:
-            x: First datetime.
-            other: Second datetime.
-
-        Returns:
-            Difference in milliseconds (x - other).
-        """
-        return (x - other).dt.total_milliseconds()
-
-    # =========================================================================
-    # Truncation / Rounding Methods
-    # =========================================================================
-
-    def truncate(
-        self,
-        x: PolarsExpr,
-        *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
-        """Truncate datetime to the specified unit.
-
-        Args:
-            x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
-
-        Returns:
-            Truncated datetime.
-        """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
-
-    def round(
-        self,
-        x: PolarsExpr,
-        *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
-        """Round datetime to the nearest unit.
-
-        Args:
-            x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
-
-        Returns:
-            Rounded datetime.
-        """
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.round(unit_val)
-
-    def ceil(
-        self,
-        x: PolarsExpr,
-        *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
-        """Round datetime up to the next unit.
-
-        Args:
-            x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
-
-        Returns:
-            Ceiling datetime.
-        """
-        # Polars doesn't have ceil for datetime, use truncate + add
-        unit_val = self._extract_literal_value(unit)
-        truncated = x.dt.truncate(unit_val)
-        # If truncated != original, add one unit
-        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit_val))
-
-    def floor(
-        self,
-        x: PolarsExpr,
-        *,
-        unit: PolarsExpr,
-    ) -> PolarsExpr:
-        """Round datetime down to the previous unit.
-
-        Args:
-            x: Datetime expression.
-            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
-
-        Returns:
-            Floor datetime.
-        """
-        # Floor is the same as truncate
-        unit_val = self._extract_literal_value(unit)
-        return x.dt.truncate(unit_val)
-
-    # =========================================================================
-    # Timezone Methods
-    # =========================================================================
-
-    def to_timezone(
-        self,
-        x: PolarsExpr,
-        timezone: str,
-        /,
-    ) -> PolarsExpr:
-        """Convert to specified timezone.
-
-        Args:
-            x: Datetime expression (must be timezone-aware).
-            timezone: Target timezone (IANA format).
-
-        Returns:
-            Datetime in target timezone.
-        """
-        return x.dt.convert_time_zone(timezone)
 
     # =========================================================================
     # Component Extraction

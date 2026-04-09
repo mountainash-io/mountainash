@@ -261,7 +261,7 @@ def within_last(column_expr, duration: str):
         >>> expr = within_last(ma.col("timestamp"), "10 minutes")
         >>> result = df.filter(expr.compile(df))
     """
-    import mountainash_expressions as ma
+    import mountainash.expressions as ma
 
     threshold = time_ago(duration)
     return column_expr.gt(ma.lit(threshold))
@@ -286,7 +286,7 @@ def older_than(column_expr, duration: str):
         >>> expr = older_than(ma.col("created_at"), "7 days")
         >>> result = df.filter(expr.compile(df))
     """
-    import mountainash_expressions as ma
+    import mountainash.expressions as ma
 
     threshold = time_ago(duration)
     return column_expr.lt(ma.lit(threshold))
@@ -312,7 +312,7 @@ def between_last(column_expr, older_duration: str, newer_duration: str):
         >>> expr = between_last(ma.col("timestamp"), "8 hours", "2 hours")
         >>> result = df.filter(expr.compile(df))
     """
-    import mountainash_expressions as ma
+    import mountainash.expressions as ma
 
     older_threshold = time_ago(older_duration)  # Further back
     newer_threshold = time_ago(newer_duration)  # More recent

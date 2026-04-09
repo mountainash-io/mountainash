@@ -8,6 +8,8 @@ All methods raise NotImplementedError.
 
 from __future__ import annotations
 
+import polars as pl
+
 from typing import TYPE_CHECKING
 
 from ..base import PolarsBaseExpressionSystem
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsScalarGeometryExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol):
+class SubstraitPolarsScalarGeometryExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarGeometryExpressionProtocol.
 
     Note: Geometry operations are not supported by Polars.

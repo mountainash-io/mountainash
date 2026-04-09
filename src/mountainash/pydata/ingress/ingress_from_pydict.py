@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 import logging
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
-    import polars as pl
+    from mountainash.typespec.spec import TypeSpec
+    from mountainash.core.types import PolarsFrame
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
-from mountainash.schema.config import SchemaConfig, init_column_config
-from mountainash.core.types import PolarsFrame
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class DataframeFromPydict(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                column_config: Optional[Union[SchemaConfig, Dict[str, Any], str]] = None
+                type_spec: Optional['TypeSpec'] = None
     ) -> PolarsFrame:
         """
         Convert dictionary of lists to Polars DataFrame.
@@ -42,7 +41,7 @@ class DataframeFromPydict(BasePydataIngressHandler):
         Args:
             data: Dictionary of lists (columnar format)
                   Example: {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
-            column_config: Optional column transformation config
+            type_spec: Optional TypeSpec for column type coercion and renaming
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -51,11 +50,9 @@ class DataframeFromPydict(BasePydataIngressHandler):
         if pl is None:
             raise ImportError("polars is required for this operation")
 
-        # Apply hybrid conversion strategy if config provided
-        if column_config is not None:
+        # Apply hybrid conversion strategy if spec provided
+        if type_spec is not None:
             from .custom_type_helpers import apply_hybrid_conversion
-
-            column_transforms: SchemaConfig = init_column_config(column_config)
 
             # Convert columnar format (dict of lists) to row format (list of dicts)
             # for hybrid conversion
@@ -75,9 +72,9 @@ class DataframeFromPydict(BasePydataIngressHandler):
             # HYBRID STRATEGY:
             # 1. Custom converters at edges (Python layer)
             # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data_dicts, column_transforms)
+            df = apply_hybrid_conversion(data_dicts, type_spec)
         else:
-            # No config - just create DataFrame directly from columnar data
+            # No spec - just create DataFrame directly from columnar data
             df = pl.DataFrame(data, strict=False)
 
         return df

@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Protocol
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitScalarGeometryExpressionSystemProtocol(Protocol):
+class SubstraitScalarGeometryExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for scalar geometry operations.
 
     Auto-generated from Substrait geometry extension.
     Function type: scalar
     """
 
-    def point(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def point(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Returns a 2D point with the given `x` and `y` coordinate values.
 
 
@@ -33,7 +29,7 @@ class SubstraitScalarGeometryExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def make_line(self, geom1: SupportedExpressions, geom2: SupportedExpressions, /) -> SupportedExpressions:
+    def make_line(self, geom1: ExpressionT, geom2: ExpressionT, /) -> ExpressionT:
         """Returns a linestring connecting the endpoint of geometry `geom1` to the begin point of geometry `geom2`. Repeated points at the beginning of input geometries are collapsed to a single point.
 A linestring can be closed or simple.  A closed linestring starts and ends on the same point. A simple linestring does not cross or touch itself.
 
@@ -43,7 +39,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def x_coordinate(self, point: SupportedExpressions, /) -> SupportedExpressions:
+    def x_coordinate(self, point: ExpressionT, /) -> ExpressionT:
         """Return the x coordinate of the point.  Return null if not available.
 
 
@@ -52,7 +48,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def y_coordinate(self, point: SupportedExpressions, /) -> SupportedExpressions:
+    def y_coordinate(self, point: ExpressionT, /) -> ExpressionT:
         """Return the y coordinate of the point.  Return null if not available.
 
 
@@ -61,7 +57,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def num_points(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def num_points(self, geom: ExpressionT, /) -> ExpressionT:
         """Return the number of points in the geometry.  The geometry should be an linestring or circularstring.
 
 
@@ -70,7 +66,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def is_empty(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def is_empty(self, geom: ExpressionT, /) -> ExpressionT:
         """Return true is the geometry is an empty geometry.
 
 
@@ -79,7 +75,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def is_closed(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def is_closed(self, geom: ExpressionT, /) -> ExpressionT:
         """Return true if the geometry's start and end points are the same.
 
 
@@ -88,7 +84,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def is_simple(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def is_simple(self, geom: ExpressionT, /) -> ExpressionT:
         """Return true if the geometry does not self intersect.
 
 
@@ -97,7 +93,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def is_ring(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def is_ring(self, geom: ExpressionT, /) -> ExpressionT:
         """Return true if the geometry's start and end points are the same and it does not self intersect.
 
 
@@ -106,7 +102,7 @@ A linestring can be closed or simple.  A closed linestring starts and ends on th
         """
         ...
 
-    def is_valid(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def is_valid(self, geom: ExpressionT, /) -> ExpressionT:
         """Return true if the input geometry is a valid 2D geometry.
 For 3 dimensional and 4 dimensional geometries, the validity is still only tested in 2 dimensions.
 
@@ -117,7 +113,7 @@ For 3 dimensional and 4 dimensional geometries, the validity is still only teste
         ...
 
 
-    def geometry_type(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def geometry_type(self, geom: ExpressionT, /) -> ExpressionT:
         """Return the type of geometry as a string.
 
 
@@ -126,7 +122,7 @@ For 3 dimensional and 4 dimensional geometries, the validity is still only teste
         """
         ...
 
-    def dimension(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def dimension(self, geom: ExpressionT, /) -> ExpressionT:
         """Return the dimension of the input geometry.  If the input is a collection of geometries, return the largest dimension from the collection. Dimensionality is determined by the complexity of the input and not the coordinate system being used.
 Type dimensions: POINT   - 0 LINE    - 1 POLYGON - 2
 
@@ -137,7 +133,7 @@ Type dimensions: POINT   - 0 LINE    - 1 POLYGON - 2
         ...
 
 
-    def envelope(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def envelope(self, geom: ExpressionT, /) -> ExpressionT:
         """Return the minimum bounding box for the input geometry as a geometry.
 The returned geometry is defined by the corner points of the bounding box.  If the input geometry is a point or a line, the returned geometry can also be a point or line.
 
@@ -147,7 +143,7 @@ The returned geometry is defined by the corner points of the bounding box.  If t
         """
         ...
 
-    def centroid(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def centroid(self, geom: ExpressionT, /) -> ExpressionT:
         """Return a point which is the geometric center of mass of the input geometry.
 
 
@@ -157,7 +153,7 @@ The returned geometry is defined by the corner points of the bounding box.  If t
         ...
 
 
-    def buffer(self, geom: SupportedExpressions, /, buffer_radius: SupportedExpressions) -> SupportedExpressions:
+    def buffer(self, geom: ExpressionT, /, buffer_radius: ExpressionT) -> ExpressionT:
         """Compute and return an expanded version of the input geometry. All the points of the returned geometry are at a distance of `buffer_radius` away from the points of the input geometry. If a negative `buffer_radius` is provided, the geometry will shrink instead of expand.  A negative `buffer_radius` may shrink the geometry completely, in which case an empty geometry is returned. For input the geometries of points or lines, a negative `buffer_radius` will always return an emtpy geometry.
 
 
@@ -167,7 +163,7 @@ The returned geometry is defined by the corner points of the bounding box.  If t
         ...
 
 
-    def minimum_bounding_circle(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def minimum_bounding_circle(self, geom: ExpressionT, /) -> ExpressionT:
         """Return the smallest circle polygon that contains the input geometry.
 
 
@@ -176,7 +172,7 @@ The returned geometry is defined by the corner points of the bounding box.  If t
         """
         ...
 
-    def collection_extract(self, geom_collection: SupportedExpressions, /) -> SupportedExpressions:
+    def collection_extract(self, geom_collection: ExpressionT, /) -> ExpressionT:
         """Given the input geometry collection, return a homogenous multi-geometry.  All geometries in the multi-geometry will have the same dimension.
 If type is not specified, the multi-geometry will only contain geometries of the highest dimension.  If type is specified, the multi-geometry will only contain geometries of that type.  If there are no geometries of the specified type, an empty geometry is returned.  Only points, linestrings, and polygons are supported.
 Type numbers: POINT   - 0 LINE    - 1 POLYGON - 2
@@ -187,7 +183,7 @@ Type numbers: POINT   - 0 LINE    - 1 POLYGON - 2
         """
         ...
 
-    def flip_coordinates(self, geom_collection: SupportedExpressions, /) -> SupportedExpressions:
+    def flip_coordinates(self, geom_collection: ExpressionT, /) -> ExpressionT:
         """Return a version of the input geometry with the X and Y axis flipped.
 This operation can be performed on geometries with more than 2 dimensions. However, only X and Y axis will be flipped.
 
@@ -197,7 +193,7 @@ This operation can be performed on geometries with more than 2 dimensions. Howev
         """
         ...
 
-    def remove_repeated_points(self, geom: SupportedExpressions, /) -> SupportedExpressions:
+    def remove_repeated_points(self, geom: ExpressionT, /) -> ExpressionT:
         """Return a version of the input geometry with duplicate consecutive points removed.
 If the `tolerance` argument is provided, consecutive points within the tolerance distance of one another are considered to be duplicates.
 

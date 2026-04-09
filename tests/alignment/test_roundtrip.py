@@ -97,9 +97,8 @@ class TestRoundTripWithSchema:
         # Raw data with string ages
         df = pl.DataFrame({"age": ["30", "25"], "name": ["Alice", "Bob"]})
 
-        # Apply schema to cast types
-        s = ma.schema({"age": {"cast": "integer"}})
-        transformed = s.apply(df)
+        # Apply conform to cast types
+        transformed = ma.conform({"age": {"cast": "integer"}}).apply(df)
 
         # Then use relation for further transforms
         result = ma.relation(transformed).filter(

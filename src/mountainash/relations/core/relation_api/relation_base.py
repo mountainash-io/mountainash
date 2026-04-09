@@ -11,8 +11,10 @@ from mountainash.expressions.core.expression_system.expsys_base import (
 )
 from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 from ..relation_nodes import RelationNode, ReadRelNode, JoinRelNode, SetRelNode, SourceRelNode
+from ..relation_nodes.extensions_mountainash import RefRelNode
 from ..relation_protocols.relsys_base import get_relation_system
 from ..unified_visitor.relation_visitor import UnifiedRelationVisitor
+from ...dag.errors import RelationDAGRequired
 
 
 class RelationBase:
@@ -54,6 +56,11 @@ class RelationBase:
         if isinstance(node, SourceRelNode):
             # SourceRelNode is a leaf with no backend — return None.
             return None
+        if isinstance(node, RefRelNode):
+            raise RelationDAGRequired(
+                f"Relation contains a RefRelNode ('{node.name}') and cannot be compiled "
+                "standalone. Use RelationDAG.collect() to resolve named references."
+            )
         if isinstance(node, JoinRelNode):
             return RelationBase._find_leaf_read_node(node.left)
         if isinstance(node, SetRelNode):

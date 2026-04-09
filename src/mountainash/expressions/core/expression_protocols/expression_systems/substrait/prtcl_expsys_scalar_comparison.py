@@ -8,16 +8,12 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Protocol
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitScalarComparisonExpressionSystemProtocol(Protocol):
+class SubstraitScalarComparisonExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for scalar comparison operations.
 
     Auto-generated from Substrait comparison extension.
@@ -25,7 +21,7 @@ class SubstraitScalarComparisonExpressionSystemProtocol(Protocol):
     """
 
 
-    def equal(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def equal(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Whether two values are equal.
 `equal(x, y) := (x == y)`
 If either/both of `x` and `y` are `null`, `null` is returned.
@@ -36,7 +32,7 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         """
         ...
 
-    def not_equal(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def not_equal(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Whether two values are not_equal.
 `not_equal(x, y) := (x != y)`
 If either/both of `x` and `y` are `null`, `null` is returned.
@@ -48,8 +44,7 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         ...
 
 
-
-    def is_not_distinct_from(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def is_not_distinct_from(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Whether two values are equal.
 This function treats `null` values as comparable, so
 `is_not_distinct_from(null, null) == True`
@@ -61,7 +56,7 @@ This is in contrast to `equal`, in which `null` values do not compare.
         """
         ...
 
-    def is_distinct_from(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def is_distinct_from(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Whether two values are not equal.
 This function treats `null` values as comparable, so
 `is_distinct_from(null, null) == False`
@@ -73,7 +68,7 @@ This is in contrast to `equal`, in which `null` values do not compare.
         """
         ...
 
-    def lt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def lt(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Less than.
 lt(x, y) := (x < y)
 If either/both of `x` and `y` are `null`, `null` is returned.
@@ -84,7 +79,7 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         """
         ...
 
-    def gt(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def gt(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Greater than.
 gt(x, y) := (x > y)
 If either/both of `x` and `y` are `null`, `null` is returned.
@@ -95,7 +90,7 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         """
         ...
 
-    def lte(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def lte(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Less than or equal to.
 lte(x, y) := (x <= y)
 If either/both of `x` and `y` are `null`, `null` is returned.
@@ -106,7 +101,7 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         """
         ...
 
-    def gte(self, x: SupportedExpressions, y: SupportedExpressions, /) -> SupportedExpressions:
+    def gte(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """Greater than or equal to.
 gte(x, y) := (x >= y)
 If either/both of `x` and `y` are `null`, `null` is returned.
@@ -117,7 +112,7 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         """
         ...
 
-    def between(self, x: SupportedExpressions, /, low: SupportedExpressions, high: SupportedExpressions) -> SupportedExpressions:
+    def between(self, x: ExpressionT, /, low: ExpressionT, high: ExpressionT) -> ExpressionT:
         """Whether the `expression` is greater than or equal to `low` and less than or equal to `high`.
 `expression` BETWEEN `low` AND `high`
 If `low`, `high`, or `expression` are `null`, `null` is returned.
@@ -127,7 +122,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_true(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_true(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is true.
 
         Substrait: is_true
@@ -135,7 +130,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_not_true(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_not_true(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is not true.
 
         Substrait: is_not_true
@@ -143,7 +138,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_false(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_false(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is false.
 
         Substrait: is_false
@@ -151,7 +146,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_not_false(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_not_false(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is not false.
 
         Substrait: is_not_false
@@ -159,7 +154,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_null(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_null(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is null. NaN is not null.
 
         Substrait: is_null
@@ -167,7 +162,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_not_null(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_not_null(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is not null. NaN is not null.
 
         Substrait: is_not_null
@@ -175,7 +170,7 @@ If `low`, `high`, or `expression` are `null`, `null` is returned.
         """
         ...
 
-    def is_nan(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_nan(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is not a number.
 If `x` is `null`, `null` is returned.
 
@@ -185,7 +180,7 @@ If `x` is `null`, `null` is returned.
         """
         ...
 
-    def is_finite(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_finite(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is finite (neither infinite nor NaN).
 If `x` is `null`, `null` is returned.
 
@@ -195,7 +190,7 @@ If `x` is `null`, `null` is returned.
         """
         ...
 
-    def is_infinite(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def is_infinite(self, x: ExpressionT, /) -> ExpressionT:
         """Whether a value is infinite.
 If `x` is `null`, `null` is returned.
 
@@ -205,7 +200,7 @@ If `x` is `null`, `null` is returned.
         """
         ...
 
-    def nullif(self, x: SupportedExpressions, y: Any, /) -> SupportedExpressions:
+    def nullif(self, x: ExpressionT, y: ExpressionT, /) -> ExpressionT:
         """If two values are equal, return null. Otherwise, return the first value.
 
         Substrait: nullif
@@ -213,7 +208,7 @@ If `x` is `null`, `null` is returned.
         """
         ...
 
-    def coalesce(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def coalesce(self, *args: ExpressionT) -> ExpressionT:
         """Evaluate arguments from left to right and return the first argument that is not null. Once a non-null argument is found, the remaining arguments are not evaluated.
 If all arguments are null, return null.
 
@@ -222,7 +217,7 @@ If all arguments are null, return null.
         """
         ...
 
-    def least(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def least(self, *args: ExpressionT) -> ExpressionT:
         """Evaluates each argument and returns the smallest one. The function will return null if any argument evaluates to null.
 
         Substrait: least
@@ -230,7 +225,7 @@ If all arguments are null, return null.
         """
         ...
 
-    def least_skip_null(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def least_skip_null(self, *args: ExpressionT) -> ExpressionT:
         """Evaluates each argument and returns the smallest one. The function will return null only if all arguments evaluate to null.
 
         Substrait: least_skip_null
@@ -238,7 +233,7 @@ If all arguments are null, return null.
         """
         ...
 
-    def greatest(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def greatest(self, *args: ExpressionT) -> ExpressionT:
         """Evaluates each argument and returns the largest one. The function will return null if any argument evaluates to null.
 
         Substrait: greatest
@@ -246,7 +241,7 @@ If all arguments are null, return null.
         """
         ...
 
-    def greatest_skip_null(self, *args: SupportedExpressions) -> SupportedExpressions:
+    def greatest_skip_null(self, *args: ExpressionT) -> ExpressionT:
         """Evaluates each argument and returns the largest one. The function will return null only if all arguments evaluate to null.
 
         Substrait: greatest_skip_null

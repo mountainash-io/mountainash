@@ -5,17 +5,14 @@ Implements aggregation operations for the Polars backend using split protocols.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
     SubstraitAggregateBooleanExpressionSystemProtocol,
-    SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +21,7 @@ if TYPE_CHECKING:
 
 class SubstraitPolarsAggregateBooleanExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateBooleanExpressionSystemProtocol
+    SubstraitAggregateBooleanExpressionSystemProtocol[pl.Expr]
 ):
     """Polars implementation of SubstraitAggregateBooleanExpressionSystemProtocol.
 

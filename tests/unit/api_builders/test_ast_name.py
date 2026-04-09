@@ -1,7 +1,7 @@
 """AST construction tests for name operations API builders."""
 import pytest
-import mountainash_expressions as ma
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
+import mountainash.expressions as ma
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
 
 class TestNameMethods:
@@ -10,24 +10,23 @@ class TestNameMethods:
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_MOUNTAINASH_NAME.ALIAS
-        assert len(node.arguments) == 2
+        assert len(node.arguments) == 1
         assert isinstance(node.arguments[0], FieldReferenceNode)
-        assert isinstance(node.arguments[1], LiteralNode)
-        assert node.arguments[1].value == "new_name"
+        assert node.options == {"name": "new_name"}
 
     def test_prefix(self):
         expr = ma.col("x").name.prefix("raw_")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_MOUNTAINASH_NAME.PREFIX
-        assert node.arguments[1].value == "raw_"
+        assert node.options == {"prefix": "raw_"}
 
     def test_suffix(self):
         expr = ma.col("x").name.suffix("_v2")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_MOUNTAINASH_NAME.SUFFIX
-        assert node.arguments[1].value == "_v2"
+        assert node.options == {"suffix": "_v2"}
 
     def test_name_to_upper(self):
         expr = ma.col("x").name.name_to_upper()

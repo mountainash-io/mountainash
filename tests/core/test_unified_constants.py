@@ -105,27 +105,6 @@ class TestConstIbisInmemoryBackend:
 class TestShimImports:
     """Tests that old import paths resolve to the unified enums."""
 
-    def test_dataframes_constants_dataframe_type(self):
-        from mountainash.dataframes.constants import CONST_DATAFRAME_TYPE as df_type
-        from mountainash.core.constants import CONST_DATAFRAME_TYPE as core_type
-        assert df_type is core_type
-
-    def test_dataframes_constants_framework_is_backend(self):
-        from mountainash.dataframes.constants import CONST_DATAFRAME_FRAMEWORK
-        assert CONST_DATAFRAME_FRAMEWORK is CONST_BACKEND
-
-    def test_dataframes_core_backend_is_const_backend(self):
-        from mountainash.dataframes.core.constants import Backend
-        assert Backend is CONST_BACKEND
-
-    def test_dataframes_core_system_is_const_backend_system(self):
-        from mountainash.dataframes.core.constants import DataFrameSystemBackend
-        assert DataFrameSystemBackend is CONST_BACKEND_SYSTEM
-
-    def test_dataframe_system_backend_is_const_backend_system(self):
-        from mountainash.dataframes.core.dataframe_system.constants import CONST_DATAFRAME_BACKEND
-        assert CONST_DATAFRAME_BACKEND is CONST_BACKEND_SYSTEM
-
     def test_expressions_visitor_backends(self):
         from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
         assert CONST_VISITOR_BACKENDS is CONST_BACKEND

@@ -6,7 +6,6 @@ Implements set membership operations for the Polars backend.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Optional, Any
 
 import polars as pl
 
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-class SubstraitPolarsScalarSetExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol):
+class SubstraitPolarsScalarSetExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarSetExpressionProtocol.
 
     Implements set membership operations:

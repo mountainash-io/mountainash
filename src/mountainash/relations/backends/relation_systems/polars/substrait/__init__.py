@@ -1,4 +1,5 @@
 """Polars implementations of Substrait-aligned relation system protocols."""
+from __future__ import annotations
 
 from .relsys_pl_read import SubstraitPolarsReadRelationSystem
 from .relsys_pl_project import SubstraitPolarsProjectRelationSystem

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-import ibis
 import ibis.expr.datatypes as dt
 
 from ..base import IbisBaseExpressionSystem
@@ -15,7 +14,7 @@ from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisValueExpr
 
 # Mapping from string type names to Ibis dtypes
 _IBIS_DTYPE_MAP = {
@@ -49,13 +48,31 @@ _IBIS_DTYPE_MAP = {
     "int": "int64",
     "float": "float64",
     "str": "string",
+    # Unsigned integers
+    "u8": "uint8",
+    "u16": "uint16",
+    "u32": "uint32",
+    "u64": "uint64",
+    "UInt8": "uint8",
+    "UInt16": "uint16",
+    "UInt32": "uint32",
+    "UInt64": "uint64",
+    "uint8": "uint8",
+    "uint16": "uint16",
+    "uint32": "uint32",
+    "uint64": "uint64",
+    # Missing canonical names
+    "binary": "binary",
+    "Binary": "binary",
+    "time": "time",
+    "Time": "time",
 }
 
 
-class SubstraitIbisCastExpressionSystem(IbisBaseExpressionSystem, SubstraitCastExpressionSystemProtocol):
+class SubstraitIbisCastExpressionSystem(IbisBaseExpressionSystem, SubstraitCastExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of CastExpressionProtocol."""
 
-    def cast(self, x: IbisExpr, /, dtype: Any) -> IbisExpr:
+    def cast(self, x: IbisValueExpr, /, dtype: Any) -> IbisValueExpr:
         """Cast an expression to a target data type.
 
         Args:
@@ -65,6 +82,13 @@ class SubstraitIbisCastExpressionSystem(IbisBaseExpressionSystem, SubstraitCastE
         Returns:
             An Ibis expression cast to the specified type.
         """
+        # Try canonical resolution first
+        try:
+            from mountainash.core.dtypes import resolve_dtype
+            dtype = resolve_dtype(dtype)
+        except ValueError:
+            pass  # Fall through to backend-specific handling
+
         # If already an Ibis DataType, use directly
         if isinstance(dtype, dt.DataType):
             return x.cast(dtype)

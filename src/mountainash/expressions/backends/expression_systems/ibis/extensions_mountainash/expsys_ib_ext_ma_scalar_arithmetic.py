@@ -5,20 +5,19 @@ Implements arithmetic operations for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-import ibis
 
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarArithmeticExpressionSystemProtocol
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisNumericExpr
 
 
 
-class MountainAshIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
+class MountainAshIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol["IbisNumericExpr"]):
     """Ibis implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:
@@ -33,10 +32,10 @@ class MountainAshIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, 
 
     def floor_divide(
         self,
-        x: IbisExpr,
-        y: IbisExpr,
+        x: IbisNumericExpr,
+        y: IbisNumericExpr,
         /,
-    ) -> IbisExpr:
+    ) -> IbisNumericExpr:
         """Floor division: x // y.
 
         Divides x by y and returns the floor of the result.

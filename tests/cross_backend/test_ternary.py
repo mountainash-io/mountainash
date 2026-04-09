@@ -21,7 +21,7 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # Ternary constant values for assertions (internal sentinels)
@@ -37,7 +37,7 @@ T_FALSE = -1
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -117,7 +117,7 @@ class TestTernaryComparisons:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -211,7 +211,7 @@ class TestTernaryLogicalOperations:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -294,7 +294,7 @@ class TestTernaryToBooleanConversions:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -327,7 +327,7 @@ class TestBooleanToTernaryConversions:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -384,7 +384,7 @@ class TestTernaryConstants:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])

@@ -5,7 +5,7 @@ Implements arithmetic operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class MountainAshNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol):
+class MountainAshNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarArithmeticExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarArithmeticExpressionProtocol.
 
     Implements 7 arithmetic methods:

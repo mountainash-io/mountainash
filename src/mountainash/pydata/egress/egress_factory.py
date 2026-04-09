@@ -9,18 +9,24 @@ all dataframe libraries at module load time.
 from __future__ import annotations
 
 import logging
-
-from mountainash.core.types import SupportedDataFrames
+from typing import TYPE_CHECKING, Any
 
 from mountainash.core.constants import CONST_DATAFRAME_TYPE
 
 from .base_egress_strategy import BaseEgressDataFrame as BaseCastDataFrame
 from mountainash.core.factories import DataFrameTypeFactoryMixin, BaseStrategyFactory
 
+if TYPE_CHECKING:
+    from mountainash.core.types import SupportedDataFrames
+
+    _EgressFactoryBase = BaseStrategyFactory[SupportedDataFrames, BaseCastDataFrame]
+else:
+    _EgressFactoryBase = BaseStrategyFactory[Any, BaseCastDataFrame]
+
 logger = logging.getLogger(__name__)
 
 
-class DataFrameEgressFactory(DataFrameTypeFactoryMixin, BaseStrategyFactory[SupportedDataFrames, BaseCastDataFrame]):
+class DataFrameEgressFactory(DataFrameTypeFactoryMixin, _EgressFactoryBase):
     """Factory for selecting appropriate DataFrame casting strategies with lazy loading."""
 
     @classmethod

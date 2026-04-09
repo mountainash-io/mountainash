@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Import our definitions
 try:
-    from mountainash_expressions.core.functions.definitions import (
+    from mountainash.expressions.core.functions.definitions import (
         COMPARISON_FUNCTIONS,
         BOOLEAN_FUNCTIONS,
         ARITHMETIC_FUNCTIONS,
@@ -37,7 +37,7 @@ try:
         CONSTANT_FUNCTIONS,
         TERNARY_FUNCTIONS,
     )
-    from mountainash_expressions.core.functions.registry import FunctionDef
+    from mountainash.expressions.core.functions.registry import FunctionDef
     HAS_DEFINITIONS = True
 except ImportError as e:
     print(f"Warning: Could not import definitions: {e}")

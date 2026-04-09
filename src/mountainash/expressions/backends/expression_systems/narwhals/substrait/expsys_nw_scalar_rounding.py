@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol):
+class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarRoundingExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarRoundingExpressionProtocol.
 
     Implements 3 rounding methods:
@@ -55,18 +55,17 @@ class SubstraitNarwhalsScalarRoundingExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        s: int,
+        s: int = 0,
         rounding: Any = None,
     ) -> NarwhalsExpr:
         """Round to s decimal places.
 
         Args:
             x: Value to round.
-            s: Number of decimal places (as expression or int).
+            s: Number of decimal places (raw int option).
             rounding: Rounding mode (ignored in Narwhals, uses backend default).
 
         Returns:
             Rounded value.
         """
-        s_val = self._extract_literal_value(s)
-        return x.round(int(s_val))
+        return x.round(s)

@@ -1,13 +1,13 @@
 """Cross-backend tests for ternary fluent composition."""
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # Ternary tests use reduced backend set — same as test_ternary.py
 TERNARY_BACKENDS = [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ]

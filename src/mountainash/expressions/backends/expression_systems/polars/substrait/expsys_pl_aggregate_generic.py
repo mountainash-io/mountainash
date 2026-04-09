@@ -12,10 +12,7 @@ import polars as pl
 from ..base import PolarsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
-    SubstraitAggregateStringExpressionSystemProtocol,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +21,7 @@ if TYPE_CHECKING:
 
 class SubstraitPolarsAggregateGenericExpressionSystem(
     PolarsBaseExpressionSystem,
-    SubstraitAggregateGenericExpressionSystemProtocol
+    SubstraitAggregateGenericExpressionSystemProtocol[pl.Expr]
 ):
     """Polars implementation of SubstraitAggregateGenericExpressionSystemProtocol.
 
@@ -50,21 +47,20 @@ class SubstraitPolarsAggregateGenericExpressionSystem(
         """
         return x.count()
 
-    # def count_all(
-    #     self,
-    #     overflow: Any = None,
-    # ) -> PolarsExpr:
-    #     """Count a set of records (not field referenced).
+    def count_records(
+        self,
+        /,
+        overflow: Any = None,
+    ) -> PolarsExpr:
+        """Substrait count_records() — counts all rows including nulls.
 
-    #     Counts all rows including nulls.
+        Args:
+            overflow: Overflow handling (ignored in Polars).
 
-    #     Args:
-    #         overflow: Overflow handling (ignored in Polars).
-
-    #     Returns:
-    #         Count expression.
-    #     """
-    #     return pl.count()
+        Returns:
+            A Polars expression that resolves to the row count.
+        """
+        return pl.len()
 
     def any_value(
         self,

@@ -13,7 +13,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 from typing import Any, List
 
 

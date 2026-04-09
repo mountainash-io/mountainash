@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Protocol, Optional
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitScalarRoundingExpressionSystemProtocol(Protocol):
+class SubstraitScalarRoundingExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for scalar rounding operations.
 
     Auto-generated from Substrait rounding extension.
     Function type: scalar
     """
 
-    def ceil(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def ceil(self, x: ExpressionT, /) -> ExpressionT:
         """Rounding to the ceiling of the value `x`.
 
 
@@ -33,7 +29,7 @@ class SubstraitScalarRoundingExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def floor(self, x: SupportedExpressions, /) -> SupportedExpressions:
+    def floor(self, x: ExpressionT, /) -> ExpressionT:
         """Rounding to the floor of the value `x`.
 
 
@@ -42,7 +38,7 @@ class SubstraitScalarRoundingExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def round(self, x: SupportedExpressions, /, s: int, rounding: Any = None) -> SupportedExpressions:
+    def round(self, x: ExpressionT, /, s: int, rounding: Optional[str] = None) -> ExpressionT:
         """Rounding the value `x` to `s` decimal places.
 
 

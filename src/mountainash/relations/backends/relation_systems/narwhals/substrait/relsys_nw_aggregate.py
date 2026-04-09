@@ -9,6 +9,11 @@ class SubstraitNarwhalsAggregateRelationSystem:
     """Aggregation operations on Narwhals DataFrames."""
 
     def aggregate(self, relation: Any, keys: list[Any], measures: list[Any], /) -> Any:
+        if not keys:
+            # Global aggregate (no group-by keys): use select() to get a
+            # single-row scalar result.  group_by([]) is not portable across
+            # Narwhals-backed libraries.
+            return relation.select(measures)
         return relation.group_by(keys).agg(measures)
 
     def distinct(self, relation: Any, columns: list[Any], /) -> Any:

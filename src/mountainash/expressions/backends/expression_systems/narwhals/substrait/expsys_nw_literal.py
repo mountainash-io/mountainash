@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 
-class SubstraitNarwhalsLiteralExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol):
+class SubstraitNarwhalsLiteralExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of LiteralExpressionProtocol."""
 
     def lit(self, x: Any, /) -> NarwhalsExpr:

@@ -9,7 +9,11 @@ from typing import Any
 
 import polars as pl
 
+from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
@@ -19,6 +23,16 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
     Provides common functionality and backend identification for all
     Polars protocol implementations.
     """
+
+    BACKEND_NAME: str = "polars"
+
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
+        (FK_STR.REPLACE, "substring"): KnownLimitation(
+            message="Polars does not support dynamic column patterns in str.replace",
+            native_errors=(pl.exceptions.ComputeError,),
+            workaround="Use a literal string substring; replacement can be a column reference",
+        ),
+    }
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
@@ -36,32 +50,14 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
         """
         return isinstance(expr, pl.Expr)
 
-    def _extract_literal_value(self, expr: Any) -> Any:
-        """Extract the literal value from a Polars literal expression.
-
-        Some operations (like string slice/substring) work better with raw
-        Python values than Expr objects. This helper extracts the underlying
-        value from pl.lit() expressions.
-
-        Args:
-            expr: A Polars expression or literal value.
-
-        Returns:
-            The underlying Python value if it's a literal expression,
-            otherwise returns the expr unchanged.
-        """
-        # If it's already a raw Python value, return as-is
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Extract literal value from a Polars expression."""
         if isinstance(expr, (str, int, float, bool, type(None))):
             return expr
-
-        # If it's a Polars Expr, try to extract the literal value
         if isinstance(expr, pl.Expr):
             try:
-                # Create a tiny DataFrame to evaluate the literal
                 result = pl.select(expr).item()
                 return result
             except Exception:
                 pass
-
-        # If extraction fails, return the original expr
         return expr

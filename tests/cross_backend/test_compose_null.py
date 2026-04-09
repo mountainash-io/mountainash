@@ -1,7 +1,7 @@
 """Cross-backend tests for null handling fluent composition."""
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -19,13 +19,13 @@ ALL_BACKENDS = [
 class TestComposeNull:
     """Test null handling composed with other operations."""
 
-    def test_fill_null_then_arithmetic(self, backend_name, backend_factory, select_and_extract):
+    def test_fill_null_then_arithmetic(self, backend_name, backend_factory, collect_expr):
         """Fill nulls then add: fill_null(0) + tax."""
         data = {"price": [100, None, 300], "tax": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("price").fill_null(0) + ma.col("tax")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert actual == [110, 20, 330], f"[{backend_name}] Expected [110, 20, 330], got {actual}"
 
@@ -53,13 +53,13 @@ class TestComposeNull:
         # Row 1: null -> yes, Row 2: -5 < 0 -> yes, Row 4: null -> yes
         assert count == 3, f"[{backend_name}] Expected 3, got {count}"
 
-    def test_cascading_fill_null(self, backend_name, backend_factory, select_and_extract):
+    def test_cascading_fill_null(self, backend_name, backend_factory, collect_expr):
         """Cascading fill: fill_null(col_b).fill_null(0)."""
         data = {"a": [1, None, None], "b": [10, None, 30]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("a").fill_null(ma.col("b")).fill_null(0)
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Row 0: a=1 -> 1
         # Row 1: a=None, b=None -> fill with b=None, then fill with 0 -> 0

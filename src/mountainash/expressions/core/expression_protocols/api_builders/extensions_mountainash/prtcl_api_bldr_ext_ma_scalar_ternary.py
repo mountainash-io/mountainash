@@ -13,7 +13,7 @@ where comparisons involving NULL return UNKNOWN instead of FALSE.
 """
 
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING, Union, Optional, Set, FrozenSet
+from typing import Any, TYPE_CHECKING, Union
 from typing import Protocol
 
 if TYPE_CHECKING:

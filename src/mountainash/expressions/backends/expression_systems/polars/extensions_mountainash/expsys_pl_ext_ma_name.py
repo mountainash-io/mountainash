@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 
-class MountainAshPolarsNameExpressionSystem(PolarsBaseExpressionSystem, MountainAshNameExpressionSystemProtocol):
+class MountainAshPolarsNameExpressionSystem(PolarsBaseExpressionSystem, MountainAshNameExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of MountainashNameExpressionProtocol."""
 
     def alias(self, input: PolarsExpr, /, name: str) -> PolarsExpr:
@@ -31,9 +31,7 @@ class MountainAshPolarsNameExpressionSystem(PolarsBaseExpressionSystem, Mountain
         Returns:
             The expression with the new name.
         """
-        # Extract literal value if needed
-        name_val = self._extract_literal_value(name)
-        return input.alias(name_val)
+        return input.alias(name)
 
     def prefix(self, input: PolarsExpr, /, prefix: str) -> PolarsExpr:
         """Add a prefix to the column name.
@@ -45,8 +43,7 @@ class MountainAshPolarsNameExpressionSystem(PolarsBaseExpressionSystem, Mountain
         Returns:
             The expression with prefixed name.
         """
-        prefix_val = self._extract_literal_value(prefix)
-        return input.name.prefix(prefix_val)
+        return input.name.prefix(prefix)
 
     def suffix(self, input: PolarsExpr, /, suffix: str) -> PolarsExpr:
         """Add a suffix to the column name.
@@ -58,8 +55,7 @@ class MountainAshPolarsNameExpressionSystem(PolarsBaseExpressionSystem, Mountain
         Returns:
             The expression with suffixed name.
         """
-        suffix_val = self._extract_literal_value(suffix)
-        return input.name.suffix(suffix_val)
+        return input.name.suffix(suffix)
 
     def name_to_upper(self, input: PolarsExpr, /) -> PolarsExpr:
         """Convert column name to uppercase.

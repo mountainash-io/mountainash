@@ -1,12 +1,12 @@
 """Cross-backend tests for extended ternary operations coverage."""
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 TERNARY_BACKENDS = [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ]

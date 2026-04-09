@@ -1,4 +1,5 @@
 """Mountainash Relations — Substrait-aligned relational AST."""
+from __future__ import annotations
 
 from .core.relation_api import Relation, relation, concat, GroupedRelation
 

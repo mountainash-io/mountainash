@@ -15,7 +15,7 @@ expressions work correctly when the backend matches.
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 import polars as pl
 import narwhals as nw
 import ibis

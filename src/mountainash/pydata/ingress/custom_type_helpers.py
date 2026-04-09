@@ -7,19 +7,69 @@ Implements the hybrid strategy for optimal performance:
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import logging
 
 if TYPE_CHECKING:
-    from mountainash.schema.config import SchemaConfig
     from mountainash.core.types import PolarsFrame
+    from mountainash.typespec.spec import TypeSpec, FieldSpec
 
 logger = logging.getLogger(__name__)
 
 
+def separate_conversions(
+    spec: "TypeSpec",
+) -> Tuple[Dict[str, "FieldSpec"], Dict[str, "FieldSpec"], Dict[str, "FieldSpec"]]:
+    """
+    Separate a TypeSpec into three conversion tiers.
+
+    This is a standalone replacement for SchemaConfig.separate_conversions() that
+    operates on TypeSpec/FieldSpec instead of raw dicts.
+
+    Returns:
+        (python_only, narwhals, native) — three dicts keyed by source_name:
+
+        - python_only: Fields with a custom_cast that has no Narwhals implementation
+          (row-by-row Python conversion required)
+        - narwhals: Fields with a custom_cast that has a vectorized Narwhals implementation
+        - native: All other fields (no custom cast — handled by compile_conform)
+
+    Example:
+        >>> spec = TypeSpec(fields=[
+        ...     FieldSpec(name="amount", custom_cast="safe_float"),  # → narwhals
+        ...     FieldSpec(name="id", type=UniversalType.INTEGER),    # → native
+        ... ])
+        >>> python_only, narwhals, native = separate_conversions(spec)
+    """
+    from mountainash.typespec.custom_types import CustomTypeRegistry
+
+    python_only: Dict[str, "FieldSpec"] = {}
+    narwhals: Dict[str, "FieldSpec"] = {}
+    native: Dict[str, "FieldSpec"] = {}
+
+    for field in spec.fields:
+        cast_type = field.custom_cast
+
+        if cast_type is None:
+            # No custom cast — route to native (compile_conform handles type + rename)
+            native[field.source_name] = field
+            continue
+
+        if CustomTypeRegistry.has_converter(cast_type):
+            if CustomTypeRegistry.is_vectorized(cast_type):
+                narwhals[field.source_name] = field
+            else:
+                python_only[field.source_name] = field
+        else:
+            # Unknown custom_cast — treat as native and let compile_conform handle it
+            native[field.source_name] = field
+
+    return python_only, narwhals, native
+
+
 def apply_custom_converters_to_dict(
     data_dict: Dict[str, Any],
-    custom_conversions: Dict[str, Dict[str, Any]]
+    custom_conversions: Dict[str, "FieldSpec"],
 ) -> Dict[str, Any]:
     """
     Apply custom type converters to a single dictionary.
@@ -30,37 +80,34 @@ def apply_custom_converters_to_dict(
 
     Args:
         data_dict: Dictionary of field_name -> value
-        custom_conversions: Dict of columns with custom type converters
-                           (from SchemaConfig.separate_conversions())
+        custom_conversions: Dict of columns (keyed by source_name) with FieldSpec
+                           containing custom_cast. Returned by separate_conversions().
 
     Returns:
         Dictionary with custom conversions applied
 
     Example:
-        >>> custom_convs = {"amount": {"cast": "safe_float"}}
-        >>> data = {"amount": "42.5", "id": "123"}
-        >>> result = apply_custom_converters_to_dict(data, custom_convs)
-        >>> result
-        {'amount': 42.5, 'id': '123'}  # Only amount was converted
+        >>> field = FieldSpec(name="amount", custom_cast="safe_float")
+        >>> result = apply_custom_converters_to_dict({"amount": "42.5"}, {"amount": field})
+        >>> result["amount"]
+        42.5
     """
-    from mountainash.schema.config.custom_types import CustomTypeRegistry
+    from mountainash.typespec.custom_types import CustomTypeRegistry
 
     converted_dict = {}
 
     for field_name, value in data_dict.items():
-        # Check if this field has a custom converter
         if field_name in custom_conversions:
-            spec = custom_conversions[field_name]
+            field_spec = custom_conversions[field_name]
+            cast_type = field_spec.custom_cast
 
-            # Apply custom converter if configured
-            if "cast" in spec:
-                cast_type = spec["cast"]
+            if cast_type is not None:
                 try:
                     value = CustomTypeRegistry.convert(
                         value,
                         cast_type,
                         field_name=field_name,
-                        raise_on_error=False  # Don't fail on conversion errors
+                        raise_on_error=False,
                     )
                 except Exception as e:
                     logger.warning(
@@ -75,7 +122,7 @@ def apply_custom_converters_to_dict(
 
 def apply_custom_converters_to_dicts(
     data_dicts: List[Dict[str, Any]],
-    custom_conversions: Dict[str, Dict[str, Any]]
+    custom_conversions: Dict[str, "FieldSpec"],
 ) -> List[Dict[str, Any]]:
     """
     Apply custom type converters to a list of dictionaries.
@@ -84,20 +131,13 @@ def apply_custom_converters_to_dicts(
 
     Args:
         data_dicts: List of dictionaries
-        custom_conversions: Dict of columns with custom type converters
+        custom_conversions: Dict of columns (keyed by source_name) with FieldSpec
+                           containing custom_cast.
 
     Returns:
         List of dictionaries with custom conversions applied
-
-    Example:
-        >>> custom_convs = {"amount": {"cast": "safe_float"}}
-        >>> data = [{"amount": "42.5"}, {"amount": "99.9"}]
-        >>> result = apply_custom_converters_to_dicts(data, custom_convs)
-        >>> result
-        [{'amount': 42.5}, {'amount': 99.9}]
     """
     if not custom_conversions:
-        # No custom conversions to apply
         return data_dicts
 
     return [
@@ -107,56 +147,47 @@ def apply_custom_converters_to_dicts(
 
 
 def apply_native_conversions_to_dataframe(
-    df: 'PolarsFrame',
-    native_conversions: Dict[str, Dict[str, Any]],
-    schema_config: Optional['SchemaConfig'] = None
-) -> 'PolarsFrame':
+    df: "PolarsFrame",
+    native_conversions: Dict[str, "FieldSpec"],
+) -> "PolarsFrame":
     """
     Apply native type conversions to a DataFrame using vectorized operations.
 
     This is TIER 1 (DataFrame layer) of the hybrid strategy:
     - Apply ONLY native conversions (string→int, float→bool)
     - Use vectorized operations (MUCH FASTER - 12x!)
-    - Apply other native operations (rename, null_fill)
+    - Apply other native operations (rename, null_fill) via compile_conform
 
     Args:
         df: Polars DataFrame
-        native_conversions: Dict of columns with native type conversions
-                           (from SchemaConfig.separate_conversions())
-        schema_config: Optional full SchemaConfig for applying other operations
+        native_conversions: Dict of columns (keyed by source_name) with FieldSpec.
+                           Returned by separate_conversions().
 
     Returns:
         DataFrame with native conversions applied
-
-    Example:
-        >>> native_convs = {"id": {"cast": "integer"}}
-        >>> df = pl.DataFrame({"id": ["1", "2", "3"]})
-        >>> result = apply_native_conversions_to_dataframe(df, native_convs)
-        >>> result.schema
-        {'id': Int64}  # Vectorized cast to integer!
     """
     from mountainash.core.lazy_imports import import_polars
-    from mountainash.schema.config.types import get_polars_type
+    from mountainash.typespec.universal_types import get_polars_type, UniversalType
 
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for this operation")
 
     if not native_conversions:
-        # No native conversions to apply
         return df
 
     # Build cast dictionary for vectorized casting
     cast_dict = {}
-    for col_name, spec in native_conversions.items():
-        if "cast" in spec and col_name in df.columns:
-            cast_type = spec["cast"]
+    for col_name, field_spec in native_conversions.items():
+        # Only cast if there's a non-ANY type declared and column exists
+        if field_spec.type and field_spec.type != UniversalType.ANY and col_name in df.columns:
+            cast_type_str = field_spec.type.value
             try:
-                polars_type = get_polars_type(cast_type)
+                polars_type = get_polars_type(cast_type_str)
                 cast_dict[col_name] = polars_type
             except (KeyError, ImportError) as e:
                 logger.warning(
-                    f"Could not get Polars type for '{cast_type}' "
+                    f"Could not get Polars type for '{cast_type_str}' "
                     f"(column '{col_name}'): {e}. Skipping cast."
                 )
 
@@ -170,47 +201,40 @@ def apply_native_conversions_to_dataframe(
         except Exception as e:
             logger.warning(
                 f"Vectorized cast failed: {e}. "
-                f"Falling back to column-by-column casting."
+                "Falling back to column-by-column casting."
             )
-            # Fallback: cast columns one by one
             for col_name, dtype in cast_dict.items():
                 try:
                     df = df.with_columns(pl.col(col_name).cast(dtype))
                 except Exception as col_error:
                     logger.warning(
                         f"Cast failed for column '{col_name}': {col_error}. "
-                        f"Keeping original type."
+                        "Keeping original type."
                     )
 
-    # Apply other native operations (rename, null_fill, etc.)
-    # Create a temporary SchemaConfig with only native conversions
-    if native_conversions:
-        from mountainash.schema.config import SchemaConfig
+    # Apply other native operations (rename, null_fill) via compile_conform
+    from mountainash.typespec.spec import TypeSpec
+    from mountainash.conform.compiler import compile_conform
 
-        # Create config with only native conversions
-        native_config = SchemaConfig(
-            columns=native_conversions,
-            keep_only_mapped=False,
-            strict=False
+    native_spec = TypeSpec(
+        fields=[f for f in native_conversions.values()],
+        keep_only_mapped=False,
+    )
+    try:
+        df = compile_conform(native_spec, df)
+    except Exception as e:
+        logger.warning(
+            f"Error applying native operations via compile_conform: {e}. "
+            "DataFrame may not have all operations applied."
         )
-
-        # Apply non-cast operations (rename, null_fill, default, etc.)
-        # Note: We've already done casting above, so this will handle the rest
-        try:
-            df = native_config.apply(df)
-        except Exception as e:
-            logger.warning(
-                f"Error applying native operations: {e}. "
-                f"DataFrame may not have all operations applied."
-            )
 
     return df
 
 
 def _apply_narwhals_custom_converters(
-    df: 'PolarsFrame',
-    narwhals_custom: Dict[str, Dict[str, Any]]
-) -> 'PolarsFrame':
+    df: "PolarsFrame",
+    narwhals_custom: Dict[str, "FieldSpec"],
+) -> "PolarsFrame":
     """
     Apply Narwhals-vectorized custom converters to DataFrame.
 
@@ -221,50 +245,40 @@ def _apply_narwhals_custom_converters(
 
     Args:
         df: DataFrame to transform
-        narwhals_custom: Dict of column specs with Narwhals custom converters
+        narwhals_custom: Dict of column specs (keyed by source_name) with FieldSpec
+                        containing custom_cast.
 
     Returns:
         DataFrame with Narwhals custom conversions applied
-
-    Example:
-        >>> narwhals_custom = {
-        ...     "amount": {"cast": "safe_float"},
-        ...     "status": {"cast": "rich_boolean"}
-        ... }
-        >>> df = _apply_narwhals_custom_converters(df, narwhals_custom)
     """
     from mountainash.core.lazy_imports import import_narwhals
-    from mountainash.schema.config.custom_types import CustomTypeRegistry
+    from mountainash.typespec.custom_types import CustomTypeRegistry
 
     nw = import_narwhals()
     if nw is None:
         raise ImportError("narwhals is required for vectorized custom type conversion")
 
-    # Convert to Narwhals if not already narwhals DataFrame
-    was_native = not isinstance(df, (nw.DataFrame, nw.LazyFrame))
+    from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
+    was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
     nw_df = nw.from_native(df) if was_native else df
 
-    # Apply each Narwhals custom converter as a vectorized expression
-    for col_name, spec in narwhals_custom.items():
-        cast_type = spec["cast"]
+    for col_name, field_spec in narwhals_custom.items():
+        cast_type = field_spec.custom_cast
 
-        # Get the Narwhals converter for this custom type
         narwhals_converter = CustomTypeRegistry.get_narwhals_converter(cast_type)
         if narwhals_converter is None:
             logger.warning(
                 f"Column '{col_name}' marked as Narwhals custom type '{cast_type}' "
-                f"but no Narwhals converter found - skipping"
+                "but no Narwhals converter found - skipping"
             )
             continue
 
-        # Build the expression for this column
         expr_builder = narwhals_converter(col_name)
         col_expr = expr_builder(nw_df)
 
-        # Determine target column name (use 'rename' if specified, else keep original)
-        target_name = spec.get("rename", col_name)
+        # Use field.name as target (handles rename_from aliasing)
+        target_name = field_spec.name
 
-        # Apply the expression using with_columns
         nw_df = nw_df.with_columns(col_expr.alias(target_name))
 
         logger.debug(
@@ -272,16 +286,14 @@ def _apply_narwhals_custom_converters(
             f"→ '{target_name}' (vectorized)"
         )
 
-    # Convert back to native format if it was originally native
     result = nw_df.to_native() if was_native else nw_df
-
     return result
 
 
 def apply_hybrid_conversion(
     data_dicts: List[Dict[str, Any]],
-    schema_config: Optional['SchemaConfig'] = None
-) -> 'PolarsFrame':
+    spec: Optional["TypeSpec"] = None,
+) -> "PolarsFrame":
     """
     Apply THREE-TIER hybrid conversion strategy with Narwhals vectorization.
 
@@ -292,103 +304,76 @@ def apply_hybrid_conversion(
         - Apply PYTHON-ONLY custom converters (no Narwhals implementation)
         - Leave vectorizable conversions for DataFrame
 
-    TIER 1 (DataFrame Layer - CENTER):
-        - Create DataFrame with partially converted data
+    TIER 2 (Narwhals Layer - CENTER):
         - Apply NARWHALS CUSTOM converters (vectorized expressions, 2.5-10x faster!)
-        - Apply NATIVE conversions (string→int, vectorized!)
-        - Apply other native operations (rename, null_fill)
 
-    Performance characteristics:
-    - Python-only custom: ~1,000 rows/sec (row-by-row)
-    - Narwhals custom: ~10,000 rows/sec (vectorized expressions)
-    - Native operations: Already vectorized
+    TIER 1 (DataFrame Layer - CENTER):
+        - Apply NATIVE conversions (string→int, vectorized via compile_conform)
+        - Apply other native operations (rename, null_fill)
 
     Args:
         data_dicts: List of dictionaries to convert
-        schema_config: Optional SchemaConfig with conversion specifications
+        spec: Optional TypeSpec with field specifications
 
     Returns:
         Polars DataFrame with hybrid conversions applied
-
-    Example:
-        >>> config = SchemaConfig(columns={
-        ...     "id": {"cast": "integer"},           # Native (vectorized)
-        ...     "amount": {"cast": "safe_float"},    # Narwhals custom (vectorized!)
-        ...     "custom": {"cast": "python_only"},   # Python-only (row-by-row)
-        ... })
-        >>> data = [{"id": "1", "amount": "42.5", "custom": "value"}]
-        >>> df = apply_hybrid_conversion(data, config)
-        >>> # Python-only custom applied at edges
-        >>> # Narwhals custom + native applied in DataFrame (vectorized!)
     """
-    from mountainash.core.lazy_imports import import_polars, import_narwhals
+    from mountainash.core.lazy_imports import import_polars
 
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for this operation")
 
-    # If no schema config, just create DataFrame
-    if schema_config is None:
+    if spec is None:
         return pl.DataFrame(data_dicts, strict=False)
 
     # STEP 1: Separate conversions into THREE tiers
-    python_only_custom, narwhals_custom, native_convs = schema_config.separate_conversions()
+    python_only, narwhals_custom, native = separate_conversions(spec)
 
     logger.info(
-        f"Three-tier conversion: {len(python_only_custom)} Python-only custom, "
+        f"Three-tier conversion: {len(python_only)} Python-only custom, "
         f"{len(narwhals_custom)} Narwhals custom (vectorized), "
-        f"{len(native_convs)} native conversions"
+        f"{len(native)} native conversions"
     )
 
     # STEP 2: Apply PYTHON-ONLY custom converters at edges (TIER 3)
-    if python_only_custom:
-        data_dicts = apply_custom_converters_to_dicts(data_dicts, python_only_custom)
+    if python_only:
+        data_dicts = apply_custom_converters_to_dicts(data_dicts, python_only)
         logger.debug(f"Applied Python-only custom converters to {len(data_dicts)} records")
 
-    # STEP 3: Create DataFrame (let it infer types from converted data)
+    # STEP 3: Create DataFrame
     df = pl.DataFrame(data_dicts, strict=False)
 
-    # STEP 4: Apply NARWHALS CUSTOM converters (vectorized expressions!)
+    # STEP 4: Apply NARWHALS CUSTOM converters (TIER 2 — vectorized expressions)
     if narwhals_custom:
         df = _apply_narwhals_custom_converters(df, narwhals_custom)
         logger.debug(f"Applied {len(narwhals_custom)} Narwhals custom converters (vectorized)")
 
-    # STEP 5: Apply NATIVE operations only
-    # Create a modified config that removes custom casts but keeps other operations
-    # (rename, null_fill, default, etc.)
-    native_only_columns = {}
-    for col_name, spec in schema_config.columns.items():
-        # Copy the spec
-        native_spec = spec.copy()
+    # STEP 5: Apply NATIVE operations via compile_conform (TIER 1)
+    if native:
+        from mountainash.typespec.spec import TypeSpec
+        from mountainash.conform.compiler import compile_conform
 
-        # If this column has a custom cast (either type), remove it from the spec
-        all_custom = {**python_only_custom, **narwhals_custom}
-        if "cast" in native_spec and col_name in all_custom:
-            # Custom cast was already applied - remove it from spec
-            del native_spec["cast"]
-
-        # Only include if there are remaining operations to perform
-        if native_spec:
-            native_only_columns[col_name] = native_spec
-
-    # Apply native operations if any
-    if native_only_columns:
-        from mountainash.schema.config import SchemaConfig
-
-        native_config = SchemaConfig(
-            columns=native_only_columns,
-            keep_only_mapped=schema_config.keep_only_mapped,
-            strict=schema_config.strict
+        native_spec = TypeSpec(
+            fields=[f for f in native.values()],
+            keep_only_mapped=False,
         )
-        df = native_config.apply(df)
-        logger.debug(f"Applied native operations to DataFrame")
+        try:
+            df = compile_conform(native_spec, df)
+        except Exception as e:
+            logger.warning(
+                f"Error applying native operations via compile_conform: {e}. "
+                "DataFrame may not have all operations applied."
+            )
 
     return df
 
 
 __all__ = [
+    "separate_conversions",
     "apply_custom_converters_to_dict",
     "apply_custom_converters_to_dicts",
     "apply_native_conversions_to_dataframe",
+    "_apply_narwhals_custom_converters",
     "apply_hybrid_conversion",
 ]

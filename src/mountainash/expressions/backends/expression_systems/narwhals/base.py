@@ -9,7 +9,14 @@ from typing import Any
 
 import narwhals as nw
 
+from mountainash.core.types import KnownLimitation
 from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+    FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
+    FKEY_MOUNTAINASH_SCALAR_TERNARY as FK_MA_TERN,
+)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 
@@ -19,6 +26,66 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     Provides common functionality and backend identification for all
     Narwhals protocol implementations.
     """
+
+    BACKEND_NAME: str = "narwhals"
+
+    _NW_STRING_LITERAL_ONLY = KnownLimitation(
+        message="Narwhals string methods require literal values, not column references",
+        native_errors=(TypeError,),
+        workaround="Use a literal string value instead of a column reference",
+    )
+
+    _NW_DATETIME_OFFSET_LITERAL_ONLY = KnownLimitation(
+        message="Narwhals datetime offset operations require literal integer values",
+        native_errors=(TypeError,),
+        workaround="Use a literal integer for the offset amount",
+    )
+
+    _NW_LIST_CONTAINS_LIMITED = KnownLimitation(
+        message=(
+            "Narwhals (as of 2.19.0) does not accept expression arguments for "
+            "list.contains on any native backend — its `item` parameter is typed "
+            "`NonNestedLiteral` and rejects Expr. Use the polars or an ibis "
+            "backend directly, or pass a literal list/tuple/set as the argument."
+        ),
+        native_errors=(TypeError, AttributeError),
+        workaround="Use a literal collection, the polars backend, or an ibis backend",
+    )
+
+    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
+        (FK_STR.STARTS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.ENDS_WITH, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.CONTAINS, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REPLACE, "substring"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LIKE, "match"): _NW_STRING_LITERAL_ONLY,
+        # Mountainash extension — regex_contains pattern is literal-only
+        # on every backend (per arguments-vs-options.md). Defensive entry:
+        # the API builder rejects non-str patterns at build time, so this
+        # lookup should never actually fire — but if a future caller routes
+        # around the builder this surfaces an enriched error instead of the
+        # raw `TypeError: unhashable type: 'Expr'` from re.compile.
+        (FK_MA_STR.REGEX_CONTAINS, "pattern"): _NW_STRING_LITERAL_ONLY,
+        (FK_MA_TERN.T_IS_IN, "collection"): _NW_LIST_CONTAINS_LIMITED,
+        (FK_MA_TERN.T_IS_NOT_IN, "collection"): _NW_LIST_CONTAINS_LIMITED,
+        (FK_STR.REGEXP_REPLACE, "pattern"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.REGEXP_REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.SUBSTRING, "start"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.SUBSTRING, "length"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LEFT, "count"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.RIGHT, "count"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.TRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LTRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.RTRIM, "characters"): _NW_STRING_LITERAL_ONLY,
+        (FK_DT.ADD_YEARS, "years"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MONTHS, "months"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_DAYS, "days"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_HOURS, "hours"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MINUTES, "minutes"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_SECONDS, "seconds"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MILLISECONDS, "milliseconds"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+        (FK_DT.ADD_MICROSECONDS, "microseconds"): _NW_DATETIME_OFFSET_LITERAL_ONLY,
+    }
 
     @property
     def backend_type(self) -> CONST_VISITOR_BACKENDS:
@@ -36,43 +103,24 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         """
         return isinstance(expr, nw.Expr)
 
-    def _extract_literal_value(self, expr: Any) -> Any:
-        """Extract the literal value from a Narwhals literal expression.
+    def _extract_literal_if_possible(self, expr: Any) -> Any:
+        """Extract literal value from a Narwhals expression.
 
-        Narwhals wrapping Pandas doesn't support Expr patterns in string
-        operations like contains(), starts_with(), ends_with(). This helper
-        extracts the underlying value from nw.lit() expressions.
-
-        Args:
-            expr: A Narwhals expression or literal value.
-
-        Returns:
-            The underlying Python value if it's a literal expression,
-            otherwise returns the expr unchanged.
+        Narwhals/Pandas string methods require raw Python values -- they reject
+        even nw.lit("hello"). This unwraps literal expressions back to raw
+        values while letting column references pass through unchanged.
         """
-        # If it's already a raw Python value, return as-is
         if isinstance(expr, (str, int, float, bool, type(None))):
             return expr
-
-        # If it's a Narwhals Expr, try to extract the literal value
         if isinstance(expr, nw.Expr):
-            # Check if this is a literal expression by looking at the repr
-            # Narwhals literals have a recognizable pattern
             expr_repr = repr(expr)
             if "lit(" in expr_repr.lower() or "literal" in expr_repr.lower():
-                # Try to extract from the internal representation
-                # The underlying value is typically stored in the expression
                 try:
-                    # For Narwhals, we can try to access the underlying call
-                    # This is backend-dependent, so we need a workaround
-                    # Create a tiny DataFrame to evaluate the literal
                     import pandas as pd
+
                     tiny_df = nw.from_native(pd.DataFrame({"_": [0]}))
                     result = tiny_df.select(expr.alias("_val"))["_val"].to_list()[0]
                     return result
                 except Exception:
                     pass
-
-        # If extraction fails, return the original expr
-        # This will work for Polars-backed Narwhals but may fail for Pandas
         return expr

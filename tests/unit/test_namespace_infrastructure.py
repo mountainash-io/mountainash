@@ -343,27 +343,27 @@ class TestInfrastructureIntegration:
 
     def test_col_returns_boolean_expression_api(self):
         """col() factory returns BooleanExpressionAPI."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
 
         expr = col("test_column")
         assert isinstance(expr, BooleanExpressionAPI)
 
     def test_lit_returns_boolean_expression_api(self):
         """lit() factory returns BooleanExpressionAPI."""
-        from mountainash_expressions import lit
+        from mountainash.expressions import lit
 
         expr = lit(42)
         assert isinstance(expr, BooleanExpressionAPI)
 
     # def test_expression_builder_alias(self):
     #     """ExpressionBuilder is alias for BooleanExpressionAPI."""
-    #     from mountainash_expressions import ExpressionBuilder
+    #     from mountainash.expressions import ExpressionBuilder
 
     #     assert ExpressionBuilder is BooleanExpressionAPI
 
     def test_col_creates_column_node(self):
         """col() creates a FieldReferenceNode."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
 
         expr = col("my_column")
         assert isinstance(expr._node, FieldReferenceNode)
@@ -379,7 +379,7 @@ class TestRealNamespaces:
 
     def test_comparison_namespace_eq(self):
         """ScalarBooleanNamespace.eq creates correct node."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
 
@@ -395,7 +395,7 @@ class TestRealNamespaces:
 
     def test_logical_namespace_and_(self):
         """ScalarBooleanNamespace.and_ creates correct node."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_BOOLEAN
 
@@ -409,7 +409,7 @@ class TestRealNamespaces:
 
     def test_arithmetic_namespace_add(self):
         """ScalarArithmeticNamespace.add creates correct node."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
@@ -421,7 +421,7 @@ class TestRealNamespaces:
 
     def test_null_namespace_is_null(self):
         """is_null creates correct node (now in ScalarComparisonNamespace)."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
 
@@ -433,18 +433,18 @@ class TestRealNamespaces:
 
     def test_type_namespace_cast(self):
         """CastNamespace.cast creates correct node."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import CastNode
 
         expr = col("value").cast("int64")
 
         # Verify node structure - now uses CastNode with target_type
         assert isinstance(expr._node, CastNode)
-        assert expr._node.target_type == "int64"
+        assert expr._node.target_type == "i64"
 
     def test_chained_operations_preserve_type(self):
         """Chained operations preserve BooleanExpressionAPI type."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
 
         expr = col("age").gt(18).and_(col("score").ge(80)).or_(col("premium").eq(True))
 
@@ -489,7 +489,7 @@ class TestExplicitNamespaces:
 
     def test_str_namespace_access(self):
         """Accessing .str returns StringNamespace."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_api.api_builders.substrait import SubstraitScalarStringAPIBuilder as StringNamespace
 
         expr = col("text")
@@ -497,7 +497,7 @@ class TestExplicitNamespaces:
 
     def test_str_upper_creates_correct_node(self):
         """col('x').str.upper() creates ScalarFunctionNode."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 
@@ -508,7 +508,7 @@ class TestExplicitNamespaces:
 
     def test_str_contains_creates_correct_node(self):
         """col('x').str.contains('y') creates ScalarFunctionNode."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 
@@ -519,7 +519,7 @@ class TestExplicitNamespaces:
 
     def test_dt_namespace_access(self):
         """Accessing .dt returns DateTimeNamespace."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_api.api_builders.substrait import SubstraitScalarDatetimeAPIBuilder as DateTimeNamespace
 
         expr = col("timestamp")
@@ -527,7 +527,7 @@ class TestExplicitNamespaces:
 
     def test_dt_year_creates_correct_node(self):
         """col('x').dt.year() creates ScalarFunctionNode."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
 
@@ -538,7 +538,7 @@ class TestExplicitNamespaces:
 
     def test_dt_add_days_creates_correct_node(self):
         """col('x').dt.add_days(7) creates ScalarFunctionNode."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
 
@@ -549,7 +549,7 @@ class TestExplicitNamespaces:
 
     def test_name_namespace_access(self):
         """Accessing .name returns NameNamespace."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash import MountainAshNameAPIBuilder as NameNamespace
 
         expr = col("x")
@@ -557,7 +557,7 @@ class TestExplicitNamespaces:
 
     def test_name_alias_creates_correct_node(self):
         """col('x').name.alias('y') creates ScalarFunctionNode."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
 
@@ -568,7 +568,7 @@ class TestExplicitNamespaces:
 
     def test_chaining_explicit_namespaces(self):
         """Can chain explicit namespace operations."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
 
         # Chain string operations
         expr = col("text").str.upper().str.trim()
@@ -576,7 +576,7 @@ class TestExplicitNamespaces:
 
     def test_mixing_explicit_and_flat_namespaces(self):
         """Can mix explicit namespace access with flat namespace methods."""
-        from mountainash_expressions import col
+        from mountainash.expressions import col
 
         # Use .str namespace then flat namespace method
         expr = col("text").str.upper().eq("HELLO")

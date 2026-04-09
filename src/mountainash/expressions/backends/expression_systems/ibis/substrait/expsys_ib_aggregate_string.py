@@ -5,26 +5,22 @@ Implements aggregation operations for the Ibis backend using split protocols.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-import ibis
 
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
-    SubstraitAggregateArithmeticExpressionSystemProtocol,
-    SubstraitAggregateBooleanExpressionSystemProtocol,
-    SubstraitAggregateGenericExpressionSystemProtocol,
     SubstraitAggregateStringExpressionSystemProtocol,
 )
 
 if TYPE_CHECKING:
-    from mountainash.expressions.types import IbisExpr
+    from mountainash.core.types import IbisStringColumnExpr, IbisValueExpr
 
 
 class SubstraitIbisAggregateStringExpressionSystem(
     IbisBaseExpressionSystem,
-    SubstraitAggregateStringExpressionSystemProtocol
+    SubstraitAggregateStringExpressionSystemProtocol["IbisValueExpr"]
 ):
     """Ibis implementation of SubstraitAggregateStringExpressionSystemProtocol.
 
@@ -37,10 +33,10 @@ class SubstraitIbisAggregateStringExpressionSystem(
 
     def string_agg(
         self,
-        input: IbisExpr,
+        input: IbisStringColumnExpr,
         /,
         separator: str = ",",
-    ) -> IbisExpr:
+    ) -> IbisValueExpr:
         """Concatenate strings with a separator.
 
         Args:

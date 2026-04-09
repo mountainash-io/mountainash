@@ -8,23 +8,19 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Union, TYPE_CHECKING
+from typing import Protocol, Optional
+
+from mountainash.core.types import ExpressionT
 
 
-if TYPE_CHECKING:
-    from mountainash.expressions.types import SupportedExpressions
-
-
-
-
-class SubstraitAggregateArithmeticExpressionSystemProtocol(Protocol):
+class SubstraitAggregateArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for aggregate arithmetic operations.
 
     Auto-generated from Substrait arithmetic extension.
     Function type: aggregate
     """
 
-    def sum(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+    def sum(self, x: ExpressionT, overflow: Optional[str] = None) -> ExpressionT:
         """Sum a set of values. The sum of zero elements yields null.
 
         Substrait: sum
@@ -32,7 +28,7 @@ class SubstraitAggregateArithmeticExpressionSystemProtocol(Protocol):
         """
         ...
 
-    def sum0(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+    def sum0(self, x: ExpressionT, overflow: Optional[str] = None) -> ExpressionT:
         """Sum a set of values. The sum of zero elements yields zero.
 Null values are ignored.
 
@@ -42,7 +38,7 @@ Null values are ignored.
         """
         ...
 
-    def avg(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+    def avg(self, x: ExpressionT, overflow: Optional[str] = None) -> ExpressionT:
         """Average a set of values. For integral types, this truncates partial values.
 
         Substrait: avg
@@ -50,7 +46,7 @@ Null values are ignored.
         """
         ...
 
-    def min(self, x: SupportedExpressions) -> SupportedExpressions:
+    def min(self, x: ExpressionT) -> ExpressionT:
         """Min a set of values.
 
         Substrait: min
@@ -58,7 +54,7 @@ Null values are ignored.
         """
         ...
 
-    def max(self, x: SupportedExpressions) -> SupportedExpressions:
+    def max(self, x: ExpressionT) -> ExpressionT:
         """Max a set of values.
 
         Substrait: max
@@ -66,7 +62,7 @@ Null values are ignored.
         """
         ...
 
-    def product(self, x: SupportedExpressions, overflow: Any = None) -> SupportedExpressions:
+    def product(self, x: ExpressionT, overflow: Optional[str] = None) -> ExpressionT:
         """Product of a set of values. Returns 1 for empty input.
 
         Substrait: product
@@ -74,7 +70,7 @@ Null values are ignored.
         """
         ...
 
-    def std_dev(self, x: SupportedExpressions, rounding: Any = None, distribution: Any = None) -> SupportedExpressions:
+    def std_dev(self, x: ExpressionT, rounding: Optional[str] = None, distribution: Optional[str] = None) -> ExpressionT:
         """Calculates standard-deviation for a set of values.
 
         Substrait: std_dev
@@ -82,7 +78,7 @@ Null values are ignored.
         """
         ...
 
-    def variance(self, x: SupportedExpressions, rounding: Any = None, distribution: Any = None) -> SupportedExpressions:
+    def variance(self, x: ExpressionT, rounding: Optional[str] = None, distribution: Optional[str] = None) -> ExpressionT:
         """Calculates variance for a set of values.
 
         Substrait: variance
@@ -90,7 +86,7 @@ Null values are ignored.
         """
         ...
 
-    def corr(self, x: SupportedExpressions, y: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+    def corr(self, x: ExpressionT, y: ExpressionT, rounding: Optional[str] = None) -> ExpressionT:
         """Calculates the value of Pearson's correlation coefficient between `x` and `y`. If there is no input, null is returned.
 
 
@@ -99,7 +95,7 @@ Null values are ignored.
         """
         ...
 
-    def mode(self, x: SupportedExpressions) -> SupportedExpressions:
+    def mode(self, x: ExpressionT) -> ExpressionT:
         """Calculates mode for a set of values. If there is no input, null is returned.
 
 
@@ -108,7 +104,7 @@ Null values are ignored.
         """
         ...
 
-    def median(self, precision: SupportedExpressions, x: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+    def median(self, precision: ExpressionT, x: ExpressionT, rounding: Optional[str] = None) -> ExpressionT:
         """Calculate the median for a set of values.
 Returns null if applied to zero records. For the integer implementations, the rounding option determines how the median should be rounded if it ends up midway between two values. For the floating point implementations, they specify the usual floating point rounding mode.
 
@@ -118,7 +114,7 @@ Returns null if applied to zero records. For the integer implementations, the ro
         """
         ...
 
-    def quantile(self, boundaries: SupportedExpressions, precision: SupportedExpressions, n: SupportedExpressions, distribution: SupportedExpressions, rounding: Any = None) -> SupportedExpressions:
+    def quantile(self, boundaries: ExpressionT, precision: ExpressionT, n: ExpressionT, distribution: ExpressionT, rounding: Optional[str] = None) -> ExpressionT:
         """Calculates quantiles for a set of values.
 This function will divide the aggregated values (passed via the distribution argument) over N equally-sized bins, where N is passed via a constant argument. It will then return the values at the boundaries of these bins in list form. If the input is appropriately sorted, this computes the quantiles of the distribution.
 The function can optionally return the first and/or last element of the input, as specified by the `boundaries` argument. If the input is appropriately sorted, this will thus be the minimum and/or maximum values of the distribution.

@@ -34,9 +34,9 @@ moving on. Fix any type errors or missing imports immediately.
 This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
 
 **Principles location:**
-`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expresions/`
+`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expressions/`
 
-See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
+See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
 
 ### a. Architecture
 
@@ -50,6 +50,8 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 | relation-visitor-composition.md | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
 | wiring-matrix.md | ADOPTED | Every operation must be wired through all six architecture layers |
 | unified-package-roadmap.md | ADOPTED | Prioritized roadmap: wiring → shared infra → operations → alignment → release |
+| relation-dag-orchestrator.md | ADOPTED | RelationDAG is a thin orchestrator over the existing visitor (+1 ref_resolver param, +2 leaf nodes); not a parallel visitor stack |
+| two-edge-graph-model.md | ENFORCED | RelationDAG keeps `dependency_edges` (drive collect order) and `constraint_edges` (FK metadata) sharply separate; no `dag.edges` shortcut |
 
 ### b. Type System
 
@@ -57,7 +59,10 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | function-key-enums.md | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
 | protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
+| expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
 | node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
+| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types; ForeignKey/ForeignKeyReference for cross-table relationships; enum_weights for weighted enums |
+| lossless-frictionless-storage.md | ADOPTED | `DataResource.table_schema` stores raw Frictionless schema dicts (not TypeSpec) so byte-equivalent round-trip is preserved; conversion to TypeSpec is lazy at consumer site |
 
 ### c. API Design
 
@@ -65,9 +70,12 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
 | build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
+| build-then-conform.md | ENFORCED | ma.conform({...}).apply(df) compiles TypeSpec to relation operations; replaces old schema backend strategies |
 | fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
 | operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
 | short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
+| scalar-terminal-composition.md | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions; no per-backend dispatch |
+| free-function-entrypoints.md | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
 
 ### d. Ternary Logic
 
@@ -84,9 +92,9 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | backend-detection.md | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
 | consistency-guarantees.md | ENFORCED | Same expression must produce same logical result across all backends |
-| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps |
+| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries |
 | cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
-| arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals |
+| arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
 
 ### f. Extension Model
 
@@ -102,37 +110,63 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expresions/
 |----------|--------|---------|
 | naming-conventions.md | ENFORCED | File prefixes (exn_, prtcl_, api_bldr_, expsys_), backend prefixes (pl_, ib_, nw_) |
 | testing-philosophy.md | ENFORCED | Cross-backend parametrized tests; xfail for known quirks; never skip or disable |
-| file-organisation.md | ADOPTED | Mirror directory structure across layers; every substrait/ has a parallel extensions_mountainash/ |
+| file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
+| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
 
 ### h. Backlog
 
 | Document | Summary |
 |----------|---------|
 | polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
+| frictionless-typespec-gaps-deferred.md | 5 Low-severity FieldSpec round-trip gaps deferred from the 2026-04-07 DataPackage work (`$schema`, `example`, `rdfType`, `categoriesOrdered`, type-specific number/integer/list parsing properties) |
+
+### i. Competitor Analysis
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| competitive-positioning.md | ADOPTED | Market landscape, Socratic strengths/weaknesses, feature gaps, positioning as "abstract data products" alongside Ibis/Narwhals/Pandera |
 
 
 ## Package Structure
 
 ```
 src/mountainash/
-├── __init__.py                  # Top-level re-exports (col, lit, when, relation, concat, etc.)
-├── core/                        # Shared infrastructure (constants, types, enums)
+├── __init__.py                  # Top-level re-exports (col, lit, when, relation, conform, typespec, etc.)
+├── core/                        # Shared infrastructure (constants, types, enums, factories)
 ├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
 │   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
-├── relations/                   # Relational AST (new, ~60 files, 290 tests)
+├── relations/                   # Relational AST (~60 files, 290 tests)
 │   ├── core/
-│   │   ├── relation_nodes/     # 10 Substrait-aligned node types (reln_*)
+│   │   ├── relation_nodes/     # 10 Substrait-aligned + extension node types (reln_*)
+│   │   │   ├── substrait/      # Substrait-aligned nodes
+│   │   │   └── extensions_mountainash/  # SourceRelNode, RefRelNode, ResourceReadRelNode, util ops
 │   │   ├── relation_protocols/ # 9 protocol files + RelationSystem base (prtcl_relsys_*)
 │   │   ├── relation_api/       # Relation fluent API, GroupedRelation
-│   │   └── unified_visitor/    # UnifiedRelationVisitor
+│   │   └── unified_visitor/    # UnifiedRelationVisitor (with optional ref_resolver kwarg)
+│   ├── dag/                    # NEW: RelationDAG orchestrator
+│   │   ├── dag.py              # RelationDAG, dependency_edges, constraint_edges, collect()
+│   │   ├── resource_ref.py     # ResourceRef wrapper (tabular + non-tabular)
+│   │   ├── errors.py           # RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat
+│   │   └── readers/            # csv / json / parquet / inline format dispatch + storage facade routing
 │   └── backends/
 │       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
-├── dataframes/                  # DEPRECATED — superseded by relations/
-├── schema/                      # Schema definitions (ported, partial wiring)
-└── pydata/                      # PyData integrations (ported, partial wiring)
-
-src/mountainash_expressions/     # Backwards-compat shim (import hook → mountainash.expressions)
+├── typespec/                    # Type metadata — serializable Frictionless-aligned specs
+│   ├── spec.py                 # TypeSpec, FieldSpec, FieldConstraints
+│   ├── universal_types.py      # UniversalType enum, backend type mappings
+│   ├── type_bridge.py          # UniversalType <-> MountainashDtype interim bridge
+│   ├── frictionless.py         # Frictionless Table Schema import/export
+│   ├── datapackage.py          # NEW: TableDialect, DataResource, DataPackage (multi-resource container)
+│   ├── extraction.py           # Extract TypeSpec from DataFrames, dataclasses, Pydantic
+│   ├── validation.py           # Validate DataFrames against a TypeSpec
+│   ├── converters.py           # UniversalType -> backend-specific types
+│   └── custom_types.py         # CustomTypeRegistry, semantic type converters
+├── conform/                     # Data conformance — compiles TypeSpec to relation operations
+│   ├── builder.py              # ConformBuilder — user-facing DSL (ma.conform)
+│   └── compiler.py             # compile_conform() — ~130 lines replacing ~1,400 lines of backend strategies
+└── pydata/                      # Python data ingress/egress with three-tier hybrid conversion
+    ├── ingress/                # Python data -> Polars DataFrame (11 handlers)
+    └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
 ```
 
 For detailed file organisation see principle: `g.development-practices/file-organisation.md`
@@ -147,6 +181,8 @@ ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "s
 ```
 
 All other dependencies are in `pyproject.toml`.
+
+**Workspace dependency for DataPackage I/O:** `mountainash-utils-files` (sibling package) provides the `storage_facade` used by `relations/dag/readers/` to load remote `DataResource` paths (`http://`, `https://`, `s3://`, `r2://`, `minio://`). Local paths bypass the facade and use Polars directly. The import is lazy inside each reader so a local-only test run never touches `mountainash_utils_files`.
 
 
 ## Development Commands
@@ -178,6 +214,12 @@ from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
 
 # Relations API
 from mountainash import relation, concat    # or ma.relation(df), ma.concat([r1, r2])
+
+# Data Package + Relation DAG (Frictionless integration)
+from mountainash import (
+    DataPackage, DataResource, TableDialect,    # Frictionless metadata types
+    RelationDAG, ResourceRef,                    # DAG orchestrator + resource wrapper
+)
 
 # Constants (shared core)
 from mountainash.core.constants import (
@@ -226,6 +268,43 @@ result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
 - `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
 
 **Spec:** `docs/superpowers/specs/2026-03-28-relational-ast-design.md`
+
+### Relation DAG (Frictionless Data Package integration)
+
+Named relations can be grouped into a `RelationDAG` that lets one relation reference another via `dag.ref(name)`. The DAG holds two distinct edge sets: `dependency_edges` (drive `collect()` execution order) and `constraint_edges` (foreign-key metadata, never executed). `dag.collect(name)` topologically walks dependencies, materialises each upstream once into a per-call cache, then compiles the target via the existing `UnifiedRelationVisitor` with a `ref_resolver` closing over that cache.
+
+A `DataPackage` (Frictionless multi-resource container) bridges in both directions:
+
+```python
+import mountainash as ma
+
+# Read a Frictionless descriptor → DAG → collect a resource
+pkg = ma.DataPackage.from_descriptor("datapackage.json")
+dag = pkg.to_relation_dag()
+df  = dag.collect("orders")
+
+# Override a single resource for testing
+dag = pkg.to_relation_dag(overrides={"orders": local_df})
+
+# Build extra named relations on top
+dag.add(
+    "active_orders",
+    dag.ref("orders").filter(ma.col("status").eq("active"))
+)
+
+# Reverse direction — export the DAG back to a descriptor
+pkg2 = dag.to_package()
+pkg2.write("./out/datapackage.json")
+```
+
+**Architectural notes:**
+- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/relation-dag-orchestrator.md`.
+- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/lossless-frictionless-storage.md`.
+- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/two-edge-graph-model.md`.
+- **Caveat:** conform application is currently Polars-only on the materialisation path. Narwhals and Ibis backends pass through unchanged with a TODO marker; this is the only known gap in the relation-DAG wiring matrix.
+
+**Spec:** `docs/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`
+**Plan:** `docs/superpowers/plans/2026-04-07-frictionless-datapackage.md`
 
 
 ## Documentation Corpora

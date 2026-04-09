@@ -17,7 +17,7 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 # Ternary constant values for raw sentinel assertions
@@ -33,7 +33,7 @@ T_FALSE = -1
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -75,7 +75,7 @@ class TestTColDefaultBehavior:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -135,7 +135,7 @@ class TestTColCustomSentinels:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -193,7 +193,7 @@ class TestTColMultipleSentinels:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -282,7 +282,7 @@ class TestTColWithAllComparisons:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -360,7 +360,7 @@ class TestTColWithLogicalOperators:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -401,7 +401,7 @@ class TestTColWithCollections:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -513,7 +513,7 @@ class TestTColRealWorldUseCases:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])
@@ -572,7 +572,7 @@ class TestTColWithAutoBooleanization:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
 ])

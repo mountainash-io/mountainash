@@ -1,7 +1,7 @@
 """Cross-backend tests for entrypoint fluent composition."""
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -19,7 +19,7 @@ ALL_BACKENDS = [
 class TestComposeEntrypoints:
     """Test coalesce/greatest/least with composed expressions."""
 
-    def test_coalesce_with_string_transform(self, backend_name, backend_factory, select_and_extract):
+    def test_coalesce_with_string_transform(self, backend_name, backend_factory, collect_expr):
         """coalesce(trimmed phone, email, default)."""
         data = {
             "phone": ["  555-1234  ", None, "  ", None],
@@ -28,7 +28,7 @@ class TestComposeEntrypoints:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.coalesce(ma.col("phone").str.trim(), ma.col("email"), ma.lit("N/A"))
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Row 0: trimmed phone "555-1234" (non-null) -> "555-1234"
         # Row 1: phone is None, email "a@b.com" -> "a@b.com"
@@ -39,26 +39,26 @@ class TestComposeEntrypoints:
         assert actual[2] == "", f"[{backend_name}] Row 2: trimmed empty string is non-null: {actual[2]}"
         assert actual[3] == "c@d.com", f"[{backend_name}] Row 3: {actual[3]}"
 
-    def test_greatest_with_arithmetic(self, backend_name, backend_factory, select_and_extract):
+    def test_greatest_with_arithmetic(self, backend_name, backend_factory, collect_expr):
         """greatest(a + 1, b * 2)."""
         data = {"a": [10, 1, 5], "b": [3, 20, 2]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.greatest(ma.col("a") + 1, ma.col("b") * 2)
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Row 0: max(11, 6) = 11
         # Row 1: max(2, 40) = 40
         # Row 2: max(6, 4) = 6
         assert actual == [11, 40, 6], f"[{backend_name}] got {actual}"
 
-    def test_least_with_null_handling(self, backend_name, backend_factory, select_and_extract):
+    def test_least_with_null_handling(self, backend_name, backend_factory, collect_expr):
         """least(x, y.fill_null(999))."""
         data = {"x": [10, 50, 30], "y": [5, None, 20]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.least(ma.col("x"), ma.col("y").fill_null(ma.lit(999)))
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Row 0: min(10, 5) = 5
         # Row 1: min(50, 999) = 50

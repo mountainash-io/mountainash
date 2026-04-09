@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import narwhals as nw
+
 from ..base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarGeometryExpressionSystemProtocol
 
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsScalarGeometryExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol):
+class SubstraitNarwhalsScalarGeometryExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarGeometryExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarGeometryExpressionProtocol.
 
     Note: Geometry operations are not supported by Narwhals.

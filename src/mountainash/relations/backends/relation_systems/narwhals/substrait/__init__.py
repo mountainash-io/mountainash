@@ -1,4 +1,5 @@
 """Narwhals implementations of Substrait relation operations."""
+from __future__ import annotations
 
 from .relsys_nw_read import SubstraitNarwhalsReadRelationSystem
 from .relsys_nw_project import SubstraitNarwhalsProjectRelationSystem

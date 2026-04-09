@@ -1,4 +1,5 @@
 """Substrait-aligned relation system protocols."""
+from __future__ import annotations
 
 from .prtcl_relsys_read import SubstraitReadRelationSystemProtocol
 from .prtcl_relsys_project import SubstraitProjectRelationSystemProtocol

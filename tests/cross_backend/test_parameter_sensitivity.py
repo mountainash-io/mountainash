@@ -11,7 +11,7 @@ import math
 import pytest
 from datetime import datetime
 
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 
 
 ALL_BACKENDS = [
@@ -51,13 +51,13 @@ TEMPORAL_BACKENDS = [
 class TestRoundParameterSensitivity:
     """round(decimals) must produce different results for different decimals."""
 
-    def test_round_value_correctness(self, backend_name, backend_factory, select_and_extract):
+    def test_round_value_correctness(self, backend_name, backend_factory, collect_expr):
         """round(2) produces correct 2-decimal values."""
         data = {"val": [1.555, 2.345, 3.789]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").round(2)
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # 1.555 → 1.56 (or 1.55 with banker's rounding — both differ from round(0)=2)
         # Key: none of these should be whole numbers
@@ -90,13 +90,13 @@ class TestRoundParameterSensitivity:
 class TestLogParameterSensitivity:
     """log(base) must use the base parameter."""
 
-    def test_log_base10_value_correctness(self, backend_name, backend_factory, select_and_extract):
+    def test_log_base10_value_correctness(self, backend_name, backend_factory, collect_expr):
         """log(10) of powers of 10 produces exact integers."""
         data = {"val": [10.0, 100.0, 1000.0]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").log(10)
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         for got, expected in zip(actual, [1.0, 2.0, 3.0]):
             assert math.isclose(got, expected, abs_tol=1e-9), (
@@ -146,35 +146,35 @@ class TestTrimParameterSensitivity:
     """trim/ltrim/rtrim with custom characters must actually strip those chars."""
 
     @pytest.mark.parametrize("backend_name", TRIM_CUSTOM_CHARS_BACKENDS)
-    def test_trim_custom_chars_value(self, backend_name, backend_factory, select_and_extract):
+    def test_trim_custom_chars_value(self, backend_name, backend_factory, collect_expr):
         """trim('x') strips x chars, not whitespace."""
         data = {"val": ["xxhelloxx", "xworldx"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.trim("x")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert actual == ["hello", "world"], f"[{backend_name}] got {actual}"
 
     @pytest.mark.parametrize("backend_name", LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS)
-    def test_ltrim_custom_chars_value(self, backend_name, backend_factory, select_and_extract):
+    def test_ltrim_custom_chars_value(self, backend_name, backend_factory, collect_expr):
         """ltrim('.') strips leading dots."""
         data = {"val": ["..hello", "...world"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.ltrim(".")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert actual == ["hello", "world"], f"[{backend_name}] got {actual}"
 
     @pytest.mark.parametrize("backend_name", LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS)
-    def test_rtrim_custom_chars_value(self, backend_name, backend_factory, select_and_extract):
+    def test_rtrim_custom_chars_value(self, backend_name, backend_factory, collect_expr):
         """rtrim('#') strips trailing hashes."""
         data = {"val": ["hello##", "world#"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.rtrim("#")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         assert actual == ["hello", "world"], f"[{backend_name}] got {actual}"
 
@@ -373,13 +373,13 @@ class TestDatetimeParameterSensitivity:
 class TestCenterParameterSensitivity:
     """center(width, char) parameters must reach the backend."""
 
-    def test_center_value_correctness(self, backend_name, backend_factory, select_and_extract):
+    def test_center_value_correctness(self, backend_name, backend_factory, collect_expr):
         """center(7, '*') pads both sides."""
         data = {"val": ["hi", "hey"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.center(7, "*")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # "hi" centered in 7 with '*' → "**hi***" or "***hi**" (implementation may vary)
         assert all(len(s) == 7 for s in actual), f"[{backend_name}] widths: {[len(s) for s in actual]}"
@@ -415,13 +415,13 @@ class TestCenterParameterSensitivity:
 class TestReplaceSliceParameterSensitivity:
     """replace_slice(start, length, replacement) parameters must reach backend."""
 
-    def test_replace_slice_value_correctness(self, backend_name, backend_factory, select_and_extract):
+    def test_replace_slice_value_correctness(self, backend_name, backend_factory, collect_expr):
         """replace_slice(1, 3, 'XY') replaces characters 1-3."""
         data = {"val": ["hello", "world"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.replace_slice(1, 3, "XY")
-        actual = select_and_extract(df, expr.compile(df), "result", backend_name)
+        actual = collect_expr(df, expr)
 
         # Key assertion: the result is NOT "hello" (parameter was used)
         assert actual[0] != "hello", f"[{backend_name}] replace_slice had no effect: {actual}"

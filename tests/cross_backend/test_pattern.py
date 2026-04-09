@@ -15,7 +15,8 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
+import mountainash as ma_top
 
 
 # =============================================================================
@@ -26,7 +27,7 @@ import mountainash_expressions as ma
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",  # Not implemented yet
     "ibis-duckdb",  # External dependency issue
     "ibis-sqlite",  # Limited temporal support
@@ -35,7 +36,7 @@ import mountainash_expressions as ma
 class TestSQLLikePatterns:
     """Test SQL LIKE pattern matching."""
 
-    def test_like_starts_with(self, backend_name, backend_factory, get_column_values):
+    def test_like_starts_with(self, backend_name, backend_factory):
         """Test LIKE pattern: starts with."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
         if backend_name == "ibis-polars":
@@ -48,16 +49,13 @@ class TestSQLLikePatterns:
 
         # Pattern: starts with "John"
         expr = ma.col("name").str.like("John%")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "name", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["John Doe", "John Smith"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_like_ends_with(self, backend_name, backend_factory, get_column_values):
+    def test_like_ends_with(self, backend_name, backend_factory):
         """Test LIKE pattern: ends with."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
         if backend_name == "ibis-polars":
@@ -70,16 +68,13 @@ class TestSQLLikePatterns:
 
         # Pattern: ends with "Smith"
         expr = ma.col("name").str.like("%Smith")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "name", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["Jane Smith", "John Smith"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_like_contains(self, backend_name, backend_factory, get_column_values):
+    def test_like_contains(self, backend_name, backend_factory):
         """Test LIKE pattern: contains."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
         if backend_name == "ibis-polars":
@@ -92,10 +87,7 @@ class TestSQLLikePatterns:
 
         # Pattern: contains "oh"
         expr = ma.col("name").str.like("%oh%")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "name", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["John Doe", "John Smith", "Bob Johnson"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
@@ -110,7 +102,7 @@ class TestSQLLikePatterns:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -119,7 +111,7 @@ class TestSQLLikePatterns:
 class TestRegexMatch:
     """Test full regex matching."""
 
-    def test_regex_match_phone_format(self, backend_name, backend_factory, get_column_values):
+    def test_regex_match_phone_format(self, backend_name, backend_factory):
         """Test regex match for specific phone format NNN-NNN-NNNN."""
         data = {
             "phone": ["123-456-7890", "555-1234", "123-456-789", "(555) 123-4567", "1234567890"]
@@ -128,16 +120,13 @@ class TestRegexMatch:
 
         # Match exactly NNN-NNN-NNNN format
         expr = ma.col("phone").str.regex_match(r"\d{3}-\d{3}-\d{4}")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "phone", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["phone"]
         expected = ["123-456-7890"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_regex_match_digits_only(self, backend_name, backend_factory, get_column_values):
+    def test_regex_match_digits_only(self, backend_name, backend_factory):
         """Test regex match for 10 consecutive digits."""
         data = {
             "phone": ["123-456-7890", "555-1234", "123-456-789", "(555) 123-4567", "1234567890"]
@@ -146,10 +135,7 @@ class TestRegexMatch:
 
         # Match 10 consecutive digits
         expr = ma.col("phone").str.regex_match(r"\d{10}")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "phone", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["phone"]
         expected = ["1234567890"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
@@ -164,7 +150,7 @@ class TestRegexMatch:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -173,7 +159,7 @@ class TestRegexMatch:
 class TestRegexContains:
     """Test regex contains (partial matching)."""
 
-    def test_regex_contains_digits(self, backend_name, backend_factory, get_column_values):
+    def test_regex_contains_digits(self, backend_name, backend_factory):
         """Test regex contains for any digits."""
         data = {
             "text": ["hello123world", "no digits here", "456", "mix42ed", ""]
@@ -182,16 +168,13 @@ class TestRegexContains:
 
         # Contains any digits
         expr = ma.col("text").str.regex_contains(r"\d+")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "text", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["hello123world", "456", "mix42ed"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_regex_contains_word(self, backend_name, backend_factory, get_column_values):
+    def test_regex_contains_word(self, backend_name, backend_factory):
         """Test regex contains for specific word."""
         data = {
             "text": ["hello123world", "no digits here", "456", "mix42ed", ""]
@@ -200,10 +183,7 @@ class TestRegexContains:
 
         # Contains word "hello"
         expr = ma.col("text").str.regex_contains(r"hello")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "text", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["hello123world"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
@@ -218,7 +198,7 @@ class TestRegexContains:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -227,7 +207,7 @@ class TestRegexContains:
 class TestRegexReplace:
     """Test regex replacement."""
 
-    def test_regex_replace_digits(self, backend_name, backend_factory, select_and_extract):
+    def test_regex_replace_digits(self, backend_name, backend_factory, collect_expr):
         """Test replacing all digits with X."""
         data = {
             "text": ["hello123world", "456", "mix42ed", "no digits"]
@@ -236,16 +216,14 @@ class TestRegexReplace:
 
         # Replace all digits with X
         expr = ma.col("text").str.regex_replace(r"\d+", "X")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "replaced", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["helloXworld", "X", "mixXed", "no digits"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_regex_replace_word(self, backend_name, backend_factory, select_and_extract):
+    def test_regex_replace_word(self, backend_name, backend_factory, collect_expr):
         """Test replacing specific word."""
         data = {
             "text": ["hello world", "world hello", "hello"]
@@ -254,9 +232,7 @@ class TestRegexReplace:
 
         # Replace "hello" with "hi"
         expr = ma.col("text").str.regex_replace(r"hello", "hi")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "replaced", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["hi world", "world hi", "hi"]
         assert actual == expected, (
@@ -272,7 +248,7 @@ class TestRegexReplace:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -281,7 +257,7 @@ class TestRegexReplace:
 class TestPatternWithBooleanLogic:
     """Test combining pattern operations with boolean filters."""
 
-    def test_pattern_and_numeric_filter(self, backend_name, backend_factory, get_column_values):
+    def test_pattern_and_numeric_filter(self, backend_name, backend_factory):
         """Test pattern AND numeric comparison."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
         if backend_name == "ibis-polars":
@@ -296,16 +272,13 @@ class TestPatternWithBooleanLogic:
 
         # Filter: age > 28 AND name starts with "J"
         expr = (ma.col("age") > 28) & ma.col("name").str.like("J%")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "name", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["Jane Smith", "John Smith"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_regex_and_numeric_filter(self, backend_name, backend_factory, get_column_values):
+    def test_regex_and_numeric_filter(self, backend_name, backend_factory):
         """Test regex AND numeric comparison."""
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson"],
@@ -316,10 +289,7 @@ class TestPatternWithBooleanLogic:
 
         # Filter: age < 40 AND email contains "example"
         expr = (ma.col("age") < 40) & ma.col("email").str.regex_contains(r"example")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "name", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["John Doe", "John Smith"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
@@ -334,7 +304,7 @@ class TestPatternWithBooleanLogic:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -343,7 +313,7 @@ class TestPatternWithBooleanLogic:
 class TestChainedPatternOperations:
     """Test chaining pattern operations with string operations."""
 
-    def test_regex_replace_then_uppercase(self, backend_name, backend_factory, select_and_extract):
+    def test_regex_replace_then_uppercase(self, backend_name, backend_factory, collect_expr):
         """Test chaining regex replace and uppercase."""
         data = {
             "text": ["HELLO123", "world456", "TEST789"]
@@ -352,16 +322,14 @@ class TestChainedPatternOperations:
 
         # Replace digits, then uppercase
         expr = ma.col("text").str.regex_replace(r"\d+", "").str.upper()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["HELLO", "WORLD", "TEST"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_trim_replace_uppercase(self, backend_name, backend_factory, select_and_extract):
+    def test_trim_replace_uppercase(self, backend_name, backend_factory, collect_expr):
         """Test chaining trim, replace, and uppercase."""
         data = {
             "text": ["  hello123  ", "  WORLD456  ", "  test789  "]
@@ -370,9 +338,7 @@ class TestChainedPatternOperations:
 
         # Trim, then replace digits, then uppercase
         expr = ma.col("text").str.trim().str.regex_replace(r"\d+", "").str.upper()
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["HELLO", "WORLD", "TEST"]
         assert actual == expected, (
@@ -388,7 +354,7 @@ class TestChainedPatternOperations:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -397,7 +363,7 @@ class TestChainedPatternOperations:
 class TestRealWorldPatterns:
     """Test real-world pattern matching use cases."""
 
-    def test_email_validation(self, backend_name, backend_factory, get_column_values):
+    def test_email_validation(self, backend_name, backend_factory):
         """Test pattern matching for email validation."""
         data = {
             "email": ["user@example.com", "invalid.email", "test@domain.co.uk", "bad@", "@bad.com", "good@test.org"]
@@ -406,16 +372,13 @@ class TestRealWorldPatterns:
 
         # Simple email pattern: something@something.something
         expr = ma.col("email").str.regex_match(r"[^@]+@[^@]+\.[^@]+")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "email", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["email"]
         expected_set = {"user@example.com", "test@domain.co.uk", "good@test.org"}
         assert set(actual) == expected_set, (
             f"[{backend_name}] Expected {expected_set}, got {set(actual)}"
         )
 
-    def test_phone_number_formatting(self, backend_name, backend_factory, select_and_extract):
+    def test_phone_number_formatting(self, backend_name, backend_factory, collect_expr):
         """Test pattern matching and replacement for phone numbers."""
         data = {
             "phone": ["1234567890", "5551234567", "9876543210"]
@@ -424,9 +387,7 @@ class TestRealWorldPatterns:
 
         # Format as XXX-XXX-XXXX
         expr = ma.col("phone").str.regex_replace(r"(\d{3})(\d{3})(\d{4})", r"\1-\2-\3")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "formatted", backend_name)
+        actual = collect_expr(df, expr)
 
         # Just check that we got 3 results (exact format may vary by backend)
         assert len(actual) == 3, (
@@ -442,7 +403,7 @@ class TestRealWorldPatterns:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -451,7 +412,7 @@ class TestRealWorldPatterns:
 class TestComplexRegexPatterns:
     """Test more complex regex patterns."""
 
-    def test_pattern_starts_with_letters_then_digits(self, backend_name, backend_factory, get_column_values):
+    def test_pattern_starts_with_letters_then_digits(self, backend_name, backend_factory):
         """Test pattern: starts with letters, then digits."""
         data = {
             "text": ["abc123def", "xyz", "123", "abc", "123abc456def"]
@@ -460,16 +421,13 @@ class TestComplexRegexPatterns:
 
         # Pattern: starts with letters, then digits
         expr = ma.col("text").str.regex_contains(r"^[a-z]+\d+")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "text", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["abc123def"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_pattern_only_digits(self, backend_name, backend_factory, get_column_values):
+    def test_pattern_only_digits(self, backend_name, backend_factory):
         """Test pattern: only digits."""
         data = {
             "text": ["abc123def", "xyz", "123", "abc", "123abc456def"]
@@ -478,10 +436,7 @@ class TestComplexRegexPatterns:
 
         # Pattern: only digits
         expr = ma.col("text").str.regex_match(r"\d+")
-        backend_expr = expr.compile(df)
-        result = df.filter(backend_expr)
-
-        actual = get_column_values(result, "text", backend_name)
+        actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["123"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
@@ -499,7 +454,7 @@ class TestPatternEdgeCases:
     @pytest.mark.parametrize("backend_name", [
         "polars",
         "pandas",
-        "narwhals",
+        "narwhals-polars",
         "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
@@ -528,7 +483,7 @@ class TestPatternEdgeCases:
     @pytest.mark.parametrize("backend_name", [
         "polars",
         "pandas",
-        "narwhals",
+        "narwhals-polars",
         "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
@@ -552,13 +507,13 @@ class TestPatternEdgeCases:
     @pytest.mark.parametrize("backend_name", [
         "polars",
         "pandas",
-        "narwhals",
+        "narwhals-polars",
         "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
 
     ])
-    def test_regex_replace_no_match(self, backend_name, backend_factory, select_and_extract):
+    def test_regex_replace_no_match(self, backend_name, backend_factory, collect_expr):
         """Test regex replace when pattern doesn't match."""
         data = {
             "text": ["hello", "world", "test"]
@@ -567,9 +522,7 @@ class TestPatternEdgeCases:
 
         # Replace pattern that doesn't exist - should return original
         expr = ma.col("text").str.regex_replace(r"\d+", "X")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "replaced", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = ["hello", "world", "test"]
         assert actual == expected, (

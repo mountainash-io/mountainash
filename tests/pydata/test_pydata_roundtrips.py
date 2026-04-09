@@ -16,12 +16,6 @@ from mountainash.pydata.egress.egress_pydata_from_polars import EgressFromPolars
 # ---------------------------------------------------------------------------
 
 try:
-    from mountainash_utils_dataclasses import DataclassUtils  # noqa: F401
-    HAS_UTILS_DATACLASSES = True
-except ImportError:
-    HAS_UTILS_DATACLASSES = False
-
-try:
     from pydantic import BaseModel
     HAS_PYDANTIC = True
 except ImportError:
@@ -110,10 +104,6 @@ class TestRoundTripListOfDicts:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not HAS_UTILS_DATACLASSES,
-    reason="mountainash-utils-dataclasses not installed"
-)
 class TestRoundTripDataclass:
     def test_dataclass_roundtrip(self):
         """Dataclass → DataFrame → list of dataclasses, field values match."""
@@ -133,10 +123,7 @@ class TestRoundTripDataclass:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not HAS_PYDANTIC or not HAS_UTILS_DATACLASSES,
-    reason="pydantic or mountainash-utils-dataclasses not installed"
-)
+@pytest.mark.skipif(not HAS_PYDANTIC, reason="pydantic not available")
 class TestRoundTripPydantic:
     def test_pydantic_roundtrip(self):
         """Pydantic model → DataFrame → list of pydantic models, field values match."""

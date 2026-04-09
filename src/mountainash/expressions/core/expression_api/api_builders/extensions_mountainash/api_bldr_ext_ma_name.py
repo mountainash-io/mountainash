@@ -6,14 +6,15 @@ Provides column renaming and name transformation operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ...api_base import BaseExpressionAPI
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, LiteralNode
-from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNameAPIBuilderProtocol
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...api_base import BaseExpressionAPI
 
 
 
@@ -45,9 +46,15 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
         Example:
             >>> expr = col("user_id").name.alias("id")
         """
+        if not isinstance(name, str):
+            raise TypeError(
+                f"name.alias(name=...) requires a literal str, got {type(name).__name__}. "
+                f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+            )
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NAME.ALIAS,
-            arguments=[self._node, LiteralNode(value=name)],
+            arguments=[self._node],
+            options={"name": name},
         )
         return self._build(node)
 
@@ -65,9 +72,15 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> expr = col("score").name.prefix("raw_")
             >>> # Column name becomes "raw_score"
         """
+        if not isinstance(prefix, str):
+            raise TypeError(
+                f"name.prefix(prefix=...) requires a literal str, got {type(prefix).__name__}. "
+                f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+            )
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NAME.PREFIX,
-            arguments=[self._node, LiteralNode(value=prefix)],
+            arguments=[self._node],
+            options={"prefix": prefix},
         )
         return self._build(node)
 
@@ -85,9 +98,15 @@ class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
             >>> expr = col("score").name.suffix("_normalized")
             >>> # Column name becomes "score_normalized"
         """
+        if not isinstance(suffix, str):
+            raise TypeError(
+                f"name.suffix(suffix=...) requires a literal str, got {type(suffix).__name__}. "
+                f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+            )
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_NAME.SUFFIX,
-            arguments=[self._node, LiteralNode(value=suffix)],
+            arguments=[self._node],
+            options={"suffix": suffix},
         )
         return self._build(node)
 

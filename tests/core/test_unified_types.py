@@ -1,29 +1,15 @@
 """Tests for unified type aliases in mountainash.core.types."""
 
+from __future__ import annotations
+
 import pytest
+from typing import TYPE_CHECKING
 
 from mountainash.core.types import (
-    # DataFrame types
-    PandasFrame,
-    PolarsFrame,
-    PolarsLazyFrame,
-    PyArrowTable,
-    IbisTable,
-    NarwhalsFrame,
-    NarwhalsLazyFrame,
-    # Expression types
-    PolarsExpr,
-    IbisExpr,
-    NarwhalsExpr,
-    # Series types
-    PandasSeries,
-    PolarsSeries,
-    NarwhalsSeries,
-    PyArrowArray,
-    # Unions
-    SupportedDataFrames,
-    SupportedExpressions,
-    SupportedSeries,
+    # TypeVars (runtime-available)
+    DataFrameT,
+    ExpressionT,
+    SeriesT,
     # Protocols
     DataFrameLike,
     LazyFrameLike,
@@ -35,29 +21,35 @@ from mountainash.core.types import (
     detect_dataframe_backend_type,
 )
 
+if TYPE_CHECKING:
+    from mountainash.core.types import (
+        PandasFrame,
+        PolarsFrame,
+        PolarsLazyFrame,
+        PyArrowTable,
+        IbisTable,
+        NarwhalsFrame,
+        NarwhalsLazyFrame,
+        PolarsExpr,
+        IbisExpr,
+        NarwhalsExpr,
+        PandasSeries,
+        PolarsSeries,
+        NarwhalsSeries,
+        PyArrowArray,
+        SupportedDataFrames,
+        SupportedExpressions,
+        SupportedSeries,
+    )
+
 
 class TestCoreTypesImportable:
-    """All shared types are importable from core."""
+    """Runtime-available types are importable from core."""
 
-    def test_dataframe_types(self):
-        assert PandasFrame is not None
-        assert PolarsFrame is not None
-        assert PolarsLazyFrame is not None
-        assert PyArrowTable is not None
-        assert IbisTable is not None
-        assert NarwhalsFrame is not None
-        assert NarwhalsLazyFrame is not None
-
-    def test_expression_types(self):
-        assert PolarsExpr is not None
-        assert IbisExpr is not None
-        assert NarwhalsExpr is not None
-
-    def test_series_types(self):
-        assert PandasSeries is not None
-        assert PolarsSeries is not None
-        assert NarwhalsSeries is not None
-        assert PyArrowArray is not None
+    def test_typevars(self):
+        assert DataFrameT is not None
+        assert ExpressionT is not None
+        assert SeriesT is not None
 
     def test_protocols(self):
         assert DataFrameLike is not None
@@ -70,37 +62,13 @@ class TestCoreTypesImportable:
         assert callable(is_polars_expression)
         assert callable(detect_dataframe_backend_type)
 
-
-class TestShimIdentity:
-    """Types from old import paths are identical to core types."""
-
-    def test_dataframes_typing_polars_expr(self):
-        from mountainash.dataframes.core.typing import PolarsExpr as df_PolarsExpr
-        assert df_PolarsExpr is PolarsExpr
-
-    def test_dataframes_typing_supported_dataframes(self):
-        from mountainash.dataframes.core.typing import SupportedDataFrames as df_SD
-        assert df_SD is SupportedDataFrames
-
-    def test_dataframes_typing_supported_expressions(self):
-        from mountainash.dataframes.core.typing import SupportedExpressions as df_SE
-        assert df_SE is SupportedExpressions
-
-    def test_dataframes_typing_polars_frame(self):
-        from mountainash.dataframes.core.typing import PolarsFrame as df_PF
-        assert df_PF is PolarsFrame
-
-    def test_dataframes_typing_pandas_series(self):
-        from mountainash.dataframes.core.typing import PandasSeries as df_PS
-        assert df_PS is PandasSeries
-
-    def test_expressions_types_polars_expr(self):
-        from mountainash.expressions.types import PolarsExpr as expr_PolarsExpr
-        assert expr_PolarsExpr is PolarsExpr
-
-    def test_expressions_types_supported_expressions(self):
-        from mountainash.expressions.types import SupportedExpressions as expr_SE
-        assert expr_SE is SupportedExpressions
+    def test_type_aliases_are_type_checking_only(self):
+        """Type aliases are only available under TYPE_CHECKING, not at runtime."""
+        import mountainash.core.types as types_mod
+        # These should NOT be in the module namespace at runtime
+        assert not hasattr(types_mod, 'PandasFrame')
+        assert not hasattr(types_mod, 'PolarsFrame')
+        assert not hasattr(types_mod, 'SupportedDataFrames')
 
 
 class TestTypeGuardsWithRealObjects:

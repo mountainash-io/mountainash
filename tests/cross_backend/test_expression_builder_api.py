@@ -19,7 +19,7 @@ across all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite)
 """
 
 import pytest
-import mountainash_expressions as ma
+import mountainash.expressions as ma
 from ibis.common.exceptions import InputTypeError
 
 
@@ -220,100 +220,86 @@ class TestDunderLogicalOperators:
 class TestDunderArithmeticOperators:
     """Test magic methods for arithmetic operators."""
 
-    def test_dunder_add(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_add(self, backend_name, backend_factory, collect_expr):
         """Test __add__ (+) operator."""
         data = {"a": [10, 20, 30], "b": [5, 10, 15]}
         df = backend_factory.create(data, backend_name)
 
         # Using + operator (calls __add__)
         expr = ma.col("a") + ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [15, 30, 45]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_dunder_sub(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_sub(self, backend_name, backend_factory, collect_expr):
         """Test __sub__ (-) operator."""
         data = {"a": [10, 20, 30], "b": [5, 10, 15]}
         df = backend_factory.create(data, backend_name)
 
         # Using - operator (calls __sub__)
         expr = ma.col("a") - ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [5, 10, 15]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_dunder_mul(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_mul(self, backend_name, backend_factory, collect_expr):
         """Test __mul__ (*) operator."""
         data = {"a": [10, 20, 30], "b": [2, 3, 4]}
         df = backend_factory.create(data, backend_name)
 
         # Using * operator (calls __mul__)
         expr = ma.col("a") * ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [20, 60, 120]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_dunder_truediv(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_truediv(self, backend_name, backend_factory, collect_expr):
         """Test __truediv__ (/) operator."""
         data = {"a": [10, 20, 30], "b": [2, 4, 5]}
         df = backend_factory.create(data, backend_name)
 
         # Using / operator (calls __truediv__)
         expr = ma.col("a") / ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [5.0, 5.0, 6.0]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_dunder_mod(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_mod(self, backend_name, backend_factory, collect_expr):
         """Test __mod__ (%) operator."""
         data = {"a": [10, 21, 35], "b": [3, 5, 7]}
         df = backend_factory.create(data, backend_name)
 
         # Using % operator (calls __mod__)
         expr = ma.col("a") % ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [1, 1, 0]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_dunder_pow(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_pow(self, backend_name, backend_factory, collect_expr):
         """Test __pow__ (**) operator."""
         data = {"a": [2, 3, 4], "b": [2, 2, 2]}
         df = backend_factory.create(data, backend_name)
 
         # Using ** operator (calls __pow__)
         expr = ma.col("a") ** ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [4, 9, 16]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_dunder_floordiv(self, backend_name, backend_factory, select_and_extract):
+    def test_dunder_floordiv(self, backend_name, backend_factory, collect_expr):
         """Test __floordiv__ (//) operator."""
         data = {"a": [10, 21, 35], "b": [3, 5, 7]}
         df = backend_factory.create(data, backend_name)
 
         # Using // operator (calls __floordiv__)
         expr = ma.col("a") // ma.col("b")
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [3, 4, 5]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
@@ -336,7 +322,7 @@ class TestDunderArithmeticOperators:
 class TestReverseArithmeticOperators:
     """Test reverse arithmetic operators (when left operand is not ExpressionBuilder)."""
 
-    def test_radd(self, backend_name, backend_factory, select_and_extract):
+    def test_radd(self, backend_name, backend_factory, collect_expr):
         """Test __radd__ (other + self)."""
         data = {"a": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
@@ -349,13 +335,11 @@ class TestReverseArithmeticOperators:
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
-        backend_expr = expr.compile(df)
-        # result = df.select(backend_expr.name.alias("result"))
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
         expected = [15, 25, 35]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_rsub(self, backend_name, backend_factory, select_and_extract):
+    def test_rsub(self, backend_name, backend_factory, collect_expr):
         """Test __rsub__ (other - self)."""
         data = {"a": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
@@ -368,13 +352,12 @@ class TestReverseArithmeticOperators:
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
-        backend_expr = expr.compile(df)
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [90, 80, 70]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_rmul(self, backend_name, backend_factory, select_and_extract):
+    def test_rmul(self, backend_name, backend_factory, collect_expr):
         """Test __rmul__ (other * self)."""
         data = {"a": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
@@ -387,12 +370,11 @@ class TestReverseArithmeticOperators:
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
-        backend_expr = expr.compile(df)
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
         expected = [50, 100, 150]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_rtruediv(self, backend_name, backend_factory, select_and_extract):
+    def test_rtruediv(self, backend_name, backend_factory, collect_expr):
         """Test __rtruediv__ (other / self)."""
         data = {"a": [2, 4, 5]}
         df = backend_factory.create(data, backend_name)
@@ -405,12 +387,11 @@ class TestReverseArithmeticOperators:
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
-        backend_expr = expr.compile(df)
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
         expected = [50.0, 25.0, 20.0]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_rmod(self, backend_name, backend_factory, select_and_extract):
+    def test_rmod(self, backend_name, backend_factory, collect_expr):
         """Test __rmod__ (other % self)."""
         data = {"a": [3, 5, 7]}
         df = backend_factory.create(data, backend_name)
@@ -424,12 +405,11 @@ class TestReverseArithmeticOperators:
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
 
-        backend_expr = expr.compile(df)
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
         expected = [1, 0, 2]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_rpow(self, backend_name, backend_factory, select_and_extract):
+    def test_rpow(self, backend_name, backend_factory, collect_expr):
         """Test __rpow__ (other ** self)."""
         data = {"a": [2, 3, 4]}
         df = backend_factory.create(data, backend_name)
@@ -442,12 +422,11 @@ class TestReverseArithmeticOperators:
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
-        backend_expr = expr.compile(df)
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
         expected = [4, 8, 16]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
-    def test_rfloordiv(self, backend_name, backend_factory, select_and_extract):
+    def test_rfloordiv(self, backend_name, backend_factory, collect_expr):
         """Test __rfloordiv__ (other // self)."""
         data = {"a": [3, 5, 7]}
         df = backend_factory.create(data, backend_name)
@@ -460,8 +439,7 @@ class TestReverseArithmeticOperators:
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
-        backend_expr = expr.compile(df)
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [33, 20, 14]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
@@ -574,7 +552,7 @@ class TestMethodBasedComparison:
 class TestPropertiesAndHelpers:
     """Test properties and helper methods of ExpressionBuilder."""
 
-    def test_node_property(self, backend_name, backend_factory, select_and_extract):
+    def test_node_property(self, backend_name, backend_factory, collect_expr):
         """Test node property returns underlying expression node."""
         data = {"age": [25, 30, 35]}
         df = backend_factory.create(data, backend_name)
@@ -585,7 +563,7 @@ class TestPropertiesAndHelpers:
         assert expr.node is not None, f"[{backend_name}] node property should not be None"
 
 
-    def test_repr_method(self, backend_name, backend_factory, select_and_extract):
+    def test_repr_method(self, backend_name, backend_factory, collect_expr):
         """Test __repr__ method returns string representation."""
         data = {"age": [25, 30, 35]}
         df = backend_factory.create(data, backend_name)
@@ -616,16 +594,14 @@ class TestPropertiesAndHelpers:
 class TestOperatorChainingAndPrecedence:
     """Test complex operator chaining and precedence."""
 
-    def test_arithmetic_chaining(self, backend_name, backend_factory, select_and_extract):
+    def test_arithmetic_chaining(self, backend_name, backend_factory, collect_expr):
         """Test chaining multiple arithmetic operators."""
         data = {"a": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
 
         # (a + 5) * 2 - 10
         expr = ((ma.col("a") + 5) * 2) - 10
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [20, 40, 60]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
@@ -711,7 +687,7 @@ class TestRealWorldAPIPatterns:
         count = get_result_count(result, backend_name)
         assert count == 2, f"[{backend_name}] Expected 2 rows"
 
-    def test_calculated_column_with_operators(self, backend_name, backend_factory, select_and_extract):
+    def test_calculated_column_with_operators(self, backend_name, backend_factory, collect_expr):
         """Test creating calculated column using operators."""
         data = {
             "price": [100, 200, 300],
@@ -758,7 +734,7 @@ class TestRealWorldAPIPatterns:
         count = get_result_count(result, backend_name)
         assert count == 3, f"[{backend_name}] Expected 3 rows where 60 <= score <= 90"
 
-    def test_null_safe_calculation(self, backend_name, backend_factory, select_and_extract):
+    def test_null_safe_calculation(self, backend_name, backend_factory, collect_expr):
         """Test null-safe calculation pattern."""
         data = {
             "value": [10, None, 30, None, 50]
@@ -767,9 +743,7 @@ class TestRealWorldAPIPatterns:
 
         # Calculate with null replacement: value.fill_null(0) * 2
         expr = ma.col("value").fill_null(0) * 2
-        backend_expr = expr.compile(df)
-
-        actual = select_and_extract(df, backend_expr, "result", backend_name)
+        actual = collect_expr(df, expr)
 
         expected = [20, 0, 60, 0, 100]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"

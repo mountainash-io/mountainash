@@ -8,12 +8,11 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol, Union, TYPE_CHECKING
+from typing import Optional, Protocol, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
-    from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 
 
@@ -40,7 +39,7 @@ class SubstraitScalarRoundingAPIBuilderProtocol(Protocol):
 
     def round(
         self,
-        decimals: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        decimals: Optional[int] = None,
     ) -> BaseExpressionAPI:
         """Round to the specified number of decimal places.
 
