@@ -1,14 +1,11 @@
-"""
-Unified typing system for the mountainash package.
-
-Single source of truth for all shared type aliases, runtime fallback imports,
-type guards, and protocols used across expressions, dataframes, schema, and pydata.
-"""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
+
+from dataclasses import dataclass
+
+
 
 if TYPE_CHECKING:
     from collections.abc import Sequence, Mapping
@@ -94,6 +91,14 @@ if TYPE_CHECKING:
 DataFrameT = TypeVar("DataFrameT", bound="SupportedDataFrames")
 ExpressionT = TypeVar("ExpressionT", bound="SupportedExpressions")
 SeriesT = TypeVar("SeriesT", bound="SupportedSeries")
+
+
+"""
+Unified typing system for the mountainash package.
+
+Single source of truth for all shared type aliases, runtime fallback imports,
+type guards, and protocols used across expressions, dataframes, schema, and pydata.
+"""
 
 # ============================================================================
 # Protocols for Structural Typing
@@ -254,8 +259,6 @@ def is_pyarrow_array(obj: Any) -> TypeGuard['PyArrowArray']:
 # ============================================================================
 # Backend Capability — Known Limitations
 # ============================================================================
-
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

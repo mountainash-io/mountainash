@@ -1,11 +1,15 @@
-"""Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
+if TYPE_CHECKING:
+    from pathlib import Path
+    # from upath import Path
+
+
+"""Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
 
 class TableDialect(BaseModel):
     """Frictionless Table Dialect spec — closed schema, unknown keys are dropped."""

@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
-from ....expression_nodes import ScalarFunctionNode, LiteralNode
+from ....expression_nodes import ExpressionNode, ScalarFunctionNode, LiteralNode
+# from ....expression_nodes import ScalarFunctionNode, LiteralNode
 from ....expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
@@ -17,13 +18,12 @@ from ....expression_system.function_keys.enums import (
 )
 
 # from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_BOOLEAN
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
-from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarBooleanAPIBuilderProtocol
+# from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
+from ....expression_protocols.api_builders.extensions_mountainash import MountainAshScalarBooleanAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-    from ....expression_nodes import ExpressionNode
 
 
 class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarBooleanAPIBuilderProtocol):
