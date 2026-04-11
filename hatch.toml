@@ -58,6 +58,10 @@ dependencies = [
     "pytest==8.3.5",
     "pytest-check==2.5.3",
     "pytest-cov==6.1.1",
+    # Optional backends required by cross-backend tests
+    "pandas>=2.2.0",
+    "ibis-framework[duckdb,sqlite]>=9.0.0",
+    "pyarrow>=15.0.0",
 ]
 [envs.test_github.scripts]
 test = "pytest"
