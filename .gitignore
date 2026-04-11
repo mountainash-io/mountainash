@@ -181,3 +181,4 @@ coverage.*
 .hiivmind/github/log/
 .ruff_cache/
 .substrait_cache/
+.benchmarks/
