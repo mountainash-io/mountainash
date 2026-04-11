@@ -216,7 +216,7 @@ Our GitHub Actions workflow automatically runs tests on pull requests and pushes
 
 Key points:
 - Tests are run on Ubuntu 24.04 with Python 3.12
-- The workflow is triggered on pull requests that modify `src/mountainash_expressions/**` files
+- The workflow is triggered on pull requests that modify `src/mountainash/**` files
 - Uses the `test_github` environment defined in `hatch.toml`
 - Automatically uploads coverage to Codecov
 
@@ -246,7 +246,7 @@ This allows you to test integrated changes across multiple packages before mergi
 We use [Codecov](https://codecov.io/) to track code coverage across commits and pull requests. Coverage reports are automatically uploaded after successful test runs in GitHub Actions.
 
 To view online coverage reports:
-1. Go to the [Codecov dashboard](https://codecov.io/github/mountainash-io/mountainash-expressions) for this repository
+1. Go to the [Codecov dashboard](https://codecov.io/github/mountainash-io/mountainash) for this repository
 2. Navigate through files to see detailed coverage information
 3. View coverage trends over time and across branches
 4. Review coverage changes in pull requests
@@ -308,7 +308,7 @@ Example test structure:
 
 ```python
 import pytest
-from mountainash_expressions.logic.ternary import TernaryExpressionBuilder
+from mountainash.logic.ternary import TernaryExpressionBuilder
 
 class TestTernaryExpressionBuilder:
     

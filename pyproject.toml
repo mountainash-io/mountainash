@@ -59,9 +59,9 @@ omit = ["src/mountainash/__version__.py", "src/mountainash/expressions/__version
 [tool.coverage.paths]
 mountainash_data = [
     "src/mountainash",
-    "*/mountainash-expressions/src/mountainash",
+    "*/mountainash/src/mountainash",
 ]
-tests = ["tests", "*/mountainash-expressions/tests"]
+tests = ["tests", "*/mountainash/tests"]
 
 [tool.coverage.report]
 exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]

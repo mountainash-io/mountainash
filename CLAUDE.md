@@ -34,9 +34,9 @@ moving on. Fix any type errors or missing imports immediately.
 This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
 
 **Principles location:**
-`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expressions/`
+`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash/`
 
-See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
+See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
 
 ### a. Architecture
 
@@ -209,7 +209,6 @@ hatch build
 ```python
 # Public API (both work identically)
 import mountainash as ma                    # Canonical
-import mountainash_expressions as ma        # Deprecated, works via shim
 from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
 
 # Relations API

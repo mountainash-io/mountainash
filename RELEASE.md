@@ -1,6 +1,6 @@
 # Release Procedure
 
-This document outlines the process for creating a new release of the mountainash-expressions package.
+This document outlines the process for creating a new release of the mountainash package.
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ This document outlines the process for creating a new release of the mountainash
 ## Release Process
 
 1. **Update Version**
-   - Navigate to `src/mountainash_expressions/__version__.py`
+   - Navigate to `src/mountainash/__version__.py`
    - Update the `__version__` variable with the new version number
    - Ensure the version number follows the specified CalVer format:
      - Year and month: `YYYYMM`
@@ -52,10 +52,10 @@ This document outlines the process for creating a new release of the mountainash
    - Once the workflow completes successfully, go to the "Releases" section of the repository
    - You should see a new release created with the version number you specified
    - Verify that the following assets are attached to the release:
-     - Wheel file (`mountainash_expressions-{version}-py3-none-any.whl`)
-     - Source distribution (`mountainash_expressions-{version}.tar.gz`)
-     - Full SBOM (`mountainash-expressions-{version}-sbom-full.xml`)
-     - Direct dependencies SBOM (`mountainash-expressions-{version}-sbom-direct.xml`)
+     - Wheel file (`mountainash-{version}-py3-none-any.whl`)
+     - Source distribution (`mountainash-{version}.tar.gz`)
+     - Full SBOM (`mountainash-{version}-sbom-full.xml`)
+     - Direct dependencies SBOM (`mountainash-{version}-sbom-direct.xml`)
 
 7. **Release Branch**
    - The workflow will create a new `release-{version}` branch
@@ -243,7 +243,7 @@ If the release workflow fails:
    hatch build
    
    # Check for import issues
-   hatch run python -c "import mountainash_expressions; print('Success')"
+   hatch run python -c "import mountainash; print('Success')"
    ```
 
 4. **Permission Issues**
