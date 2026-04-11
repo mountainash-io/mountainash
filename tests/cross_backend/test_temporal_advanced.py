@@ -12,9 +12,18 @@ These tests validate that temporal arithmetic works consistently across
 all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
+import sqlite3
 import pytest
 from datetime import datetime, timedelta
 import mountainash.expressions as ma
+
+
+def _xfail_sqlite_time_shift(backend_name: str) -> None:
+    """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
+    if backend_name == "ibis-sqlite" and sqlite3.sqlite_version_info < (3, 46):
+        pytest.xfail(
+            f"SQLite {sqlite3.sqlite_version} < 3.46: no time shift modifier support"
+        )
 
 
 # =============================================================================
@@ -269,6 +278,7 @@ class TestFlexibleOffsetBy:
 
     def test_offset_add_days_and_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding combined duration (1 day 2 hours)."""
+        _xfail_sqlite_time_shift(backend_name)
         data = {
             "timestamp": [
                 datetime(2024, 1, 1, 10, 0, 0),
@@ -365,6 +375,7 @@ class TestChainingTimeOperations:
 
     def test_chain_multiple_additions(self, backend_name, backend_factory, collect_expr):
         """Test chaining multiple time additions."""
+        _xfail_sqlite_time_shift(backend_name)
         data = {
             "timestamp": [datetime(2024, 1, 1, 10, 0, 0)]
         }
