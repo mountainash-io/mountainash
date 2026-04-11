@@ -4,9 +4,18 @@ date(), time(), month_start(), month_end(), days_in_month().
 """
 
 from datetime import date, datetime
+import sqlite3
 
 import pytest
 import mountainash.expressions as ma
+
+
+def _xfail_sqlite_time_shift(backend_name: str) -> None:
+    """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
+    if backend_name == "ibis-sqlite" and sqlite3.sqlite_version_info < (3, 46):
+        pytest.xfail(
+            f"SQLite {sqlite3.sqlite_version} < 3.46: no time shift modifier support"
+        )
 
 POLARS_NARWHALS_IBIS = [
     "polars",
@@ -77,6 +86,7 @@ class TestMonthStart:
 @pytest.mark.parametrize("backend_name", POLARS_IBIS_DUCKDB_SQLITE)
 class TestMonthEnd:
     def test_month_end(self, backend_name, backend_factory, collect_expr):
+        _xfail_sqlite_time_shift(backend_name)
         data = {"ts": [datetime(2024, 2, 15), datetime(2024, 3, 15)]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("ts").dt.month_end().dt.day()
@@ -88,6 +98,7 @@ class TestMonthEnd:
 @pytest.mark.parametrize("backend_name", POLARS_IBIS_DUCKDB_SQLITE)
 class TestDaysInMonth:
     def test_days_in_month(self, backend_name, backend_factory, collect_expr):
+        _xfail_sqlite_time_shift(backend_name)
         data = {"ts": [datetime(2024, 2, 15), datetime(2024, 3, 15)]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("ts").dt.days_in_month()

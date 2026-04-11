@@ -1,3 +1,17 @@
+
+from __future__ import annotations
+
+from collections import defaultdict
+from typing import Any, Optional, TYPE_CHECKING
+
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+    RefRelNode,
+)
+
+if TYPE_CHECKING:
+    from .resource_ref import ResourceRef
+
 """RelationDAG — orchestrator over named Relations.
 
 This is a thin container around the existing relations AST + visitor — not
@@ -5,17 +19,6 @@ a new visitor stack. The DAG walks each named relation's tree once at add()
 time to derive dependency edges (from RefRelNode instances), then defers
 materialization to ``collect()`` (added in Task 17).
 """
-from __future__ import annotations
-
-from collections import defaultdict
-from typing import Any, Optional
-
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.relations.core.relation_nodes.extensions_mountainash import (
-    RefRelNode,
-)
-from .resource_ref import ResourceRef
-
 
 def _walk_refs(node: Any) -> set[str]:
     """Recursively collect names of all RefRelNode descendants under ``node``."""

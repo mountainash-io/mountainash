@@ -45,6 +45,12 @@ from .api_builders.extensions_mountainash import (
     MountainAshScalarTernaryAPIBuilder,
 )
 
+# Import descriptor for explicit namespaces
+from .descriptor import NamespaceDescriptor
+
+if TYPE_CHECKING:
+    from .api_builders.api_builder_base import BaseExpressionAPIBuilder
+    from ..expression_nodes import ExpressionNode
 
 # Composed datetime builder exposing both Substrait and extension methods
 class DatetimeAPIBuilder(
@@ -66,12 +72,7 @@ class StringAPIBuilder(
 
 # Import base namespace type for type hints
 
-# Import descriptor for explicit namespaces
-from .descriptor import NamespaceDescriptor
 
-if TYPE_CHECKING:
-    from .api_builders.api_builder_base import BaseExpressionAPIBuilder
-    from ..expression_nodes import ExpressionNode
 
 
 class BooleanExpressionAPI(BaseExpressionAPI):

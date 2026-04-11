@@ -1,12 +1,8 @@
-"""Format dispatch for DataResource → Polars LazyFrame.
 
-Entry point: :func:`read_resource_to_polars`.
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import polars as pl
 
 from mountainash.relations.dag.errors import UnsupportedResourceFormat
 
@@ -17,7 +13,12 @@ from .parquet import read_parquet
 
 if TYPE_CHECKING:
     from mountainash.typespec.datapackage import DataResource
+    import polars as pl
 
+"""Format dispatch for DataResource → Polars LazyFrame.
+
+Entry point: :func:`read_resource_to_polars`.
+"""
 
 def _detect_format(res: DataResource) -> str:
     """Infer format from declared format, mediatype, or path extension."""
