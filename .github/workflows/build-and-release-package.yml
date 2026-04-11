@@ -302,7 +302,7 @@ jobs:
       - name: Build Package
         id: build
         run: |
-          hatch -e ${{ env.BUILD_ENV }} build
+          hatch build
           echo "WHEEL_FILE=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
           echo "WHEEL_FILENAME=$(basename $(ls dist/*.whl))" >> $GITHUB_OUTPUT
 

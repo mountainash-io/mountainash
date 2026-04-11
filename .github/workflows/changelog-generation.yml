@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Setup Environment Variables
         run: |
-          echo "PACKAGE_NAME=mountainash-dataframes" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=mountainash" >> $GITHUB_ENV
           echo "ORGNAME=mountainash-io" >> $GITHUB_ENV
 
       - name: Checkout Repository
@@ -25,11 +25,12 @@ jobs:
 
       - name: Extract PR Information
         id: pr_info
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # Get PR details
+          # Get PR details — title and body passed via env to avoid shell injection
           PR_NUMBER="${{ github.event.pull_request.number }}"
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
           SOURCE_BRANCH="${{ github.event.pull_request.head.ref }}"
           MERGE_COMMIT="${{ github.event.pull_request.merge_commit_sha }}"
@@ -49,17 +50,22 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" | \
             jq -r '"Files changed: \(.changed_files), Additions: +\(.additions), Deletions: -\(.deletions)"')
 
-          # Export variables for next step
+          # Export scalar variables
           {
             echo "PR_NUMBER=${PR_NUMBER}"
-            echo "PR_TITLE=${PR_TITLE}"
             echo "PR_AUTHOR=${PR_AUTHOR}"
             echo "SOURCE_BRANCH=${SOURCE_BRANCH}"
             echo "MERGE_COMMIT=${MERGE_COMMIT}"
             echo "DIFF_STATS=${DIFF_STATS}"
           } >> $GITHUB_OUTPUT
 
-          # Multi-line variables need special handling
+          # Multi-line variables use heredoc delimiters
+          {
+            echo "PR_TITLE<<EOF"
+            echo "${PR_TITLE}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
           {
             echo "PR_BODY<<EOF"
             echo "${PR_BODY}"
