@@ -2,8 +2,8 @@
 
 # Private Package Dependencies
 dependencies:
-  - name: mountainash-constants
-    org-name: mountainash-io
+  # - name: mountainash-constants
+  #   org-name: mountainash-io
   # - name: mountainash-data
   #   org-name: mountainash-io
   # - name: mountainash-settings

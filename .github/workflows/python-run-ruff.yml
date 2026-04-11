@@ -3,7 +3,7 @@ name: Ruff Linting Check
 on:
   pull_request_target:
     paths:
-      - "src/mountainash_expressions/**"
+      - "src/mountainash/**"
   workflow_dispatch:
 
 jobs:

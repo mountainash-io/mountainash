@@ -95,4 +95,3 @@ select = [
 "src/mountainash/relations/core/relation_nodes/**" = ["TCH001", "TCH002", "TCH003"]
 # Relation protocol files use types in Protocol definitions (Pydantic-based)
 "src/mountainash/relations/core/relation_protocols/**" = ["TCH001", "TCH002"]
-

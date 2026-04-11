@@ -58,8 +58,8 @@ jobs:
 
       - name: Setup Environment Variables
         run: |
-          echo "PACKAGE_SRCDIR=mountainash_expressions" >> $GITHUB_ENV
-          echo "PACKAGE_NAME=mountainash-expressions" >> $GITHUB_ENV
+          echo "PACKAGE_SRCDIR=mountainash" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=mountainash" >> $GITHUB_ENV
           echo "ORGNAME=mountainash-io" >> $GITHUB_ENV
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -107,24 +107,24 @@ jobs:
 
       - name: Python Dependencies
         run: |
-          pip install hatchling==1.25.0
-          pip install hatch==1.14.2
+          pip install hatchling==1.29.0
+          pip install hatch==1.16.5
 
       # Checkout Mountain Ash Dependencies
-      - name: Load Dependencies
-        id: deps
-        uses: ./.github/actions/load-dependencies
-        with:
-          config-path: .github/config/mountainash_dependencies.yml
+      # - name: Load Dependencies
+      #   id: deps
+      #   uses: ./.github/actions/load-dependencies
+      #   with:
+      #     config-path: .github/config/mountainash_dependencies.yml
 
-      - name: Checkout Dependencies
-        uses: ./.github/actions/checkout-dependencies
-        with:
-          dependencies: ${{ steps.deps.outputs.dependencies }}
-          target-branch: ${{ env.TARGET_BRANCH }}
-          default-branch: ${{ env.FALLBACK_BRANCH }}
-          token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
-          org-name: ${{ env.ORGNAME }}
+      # - name: Checkout Dependencies
+      #   uses: ./.github/actions/checkout-dependencies
+      #   with:
+      #     dependencies: ${{ steps.deps.outputs.dependencies }}
+      #     target-branch: ${{ env.TARGET_BRANCH }}
+      #     default-branch: ${{ env.FALLBACK_BRANCH }}
+      #     token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
+      #     org-name: ${{ env.ORGNAME }}
 
       # ======================================================
       # CONFIGURE RELEASE

@@ -3,7 +3,7 @@ name: Pytest
 on:
   pull_request_target:
     paths:
-      - "src/mountainash_expressions/**"
+      - "src/mountainash/**"
   workflow_dispatch:
     inputs:
       fallback_branch:
@@ -57,20 +57,20 @@ jobs:
           python -c "import sqlite3; print(f'SQLite version: {sqlite3.sqlite_version}')"
 
       # Checkout Mountain Ash Dependencies
-      - name: Load Dependencies
-        id: deps
-        uses: ./.github/actions/load-dependencies
-        with:
-          config-path: .github/config/mountainash_dependencies.yml
+      # - name: Load Dependencies
+      #   id: deps
+      #   uses: ./.github/actions/load-dependencies
+      #   with:
+      #     config-path: .github/config/mountainash_dependencies.yml
 
-      - name: Checkout Dependencies
-        uses: ./.github/actions/checkout-dependencies
-        with:
-          dependencies: ${{ steps.deps.outputs.dependencies }}
-          target-branch: ${{ env.BRANCH_NAME }}
-          default-branch: ${{ env.FALLBACK_BRANCH }}
-          token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
-          org-name: ${{ env.ORGNAME }}
+      # - name: Checkout Dependencies
+      #   uses: ./.github/actions/checkout-dependencies
+      #   with:
+      #     dependencies: ${{ steps.deps.outputs.dependencies }}
+      #     target-branch: ${{ env.BRANCH_NAME }}
+      #     default-branch: ${{ env.FALLBACK_BRANCH }}
+      #     token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
+      #     org-name: ${{ env.ORGNAME }}
 
       # Install Hatch
       - name: Install Hatch
