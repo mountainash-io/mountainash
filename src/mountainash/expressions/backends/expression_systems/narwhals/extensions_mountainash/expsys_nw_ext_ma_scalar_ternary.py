@@ -254,12 +254,20 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     # ========================================
 
     def t_and(self, left: NarwhalsExpr, right: NarwhalsExpr) -> NarwhalsExpr:
-        """Ternary AND - minimum of operands."""
-        return nw.min_horizontal(left, right)
+        """Ternary AND - minimum of operands.
+
+        Uses when/then instead of nw.min_horizontal to avoid narwhals-pandas
+        DuplicateError on intermediate 'literal' column names (#77).
+        """
+        return nw.when(left < right).then(left).otherwise(right)
 
     def t_or(self, left: NarwhalsExpr, right: NarwhalsExpr) -> NarwhalsExpr:
-        """Ternary OR - maximum of operands."""
-        return nw.max_horizontal(left, right)
+        """Ternary OR - maximum of operands.
+
+        Uses when/then instead of nw.max_horizontal to avoid narwhals-pandas
+        DuplicateError on intermediate 'literal' column names (#77).
+        """
+        return nw.when(left > right).then(left).otherwise(right)
 
     def t_not(self, operand: NarwhalsExpr) -> NarwhalsExpr:
         """Ternary NOT - sign flip (TRUE↔FALSE, UNKNOWN stays)."""
