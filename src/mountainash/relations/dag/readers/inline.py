@@ -1,13 +1,14 @@
-"""Inline data reader for DataResource.data — uses pydata ingress machinery."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import polars as pl
 
 if TYPE_CHECKING:
     from mountainash.typespec.datapackage import DataResource
+    import polars as pl
 
+"""Inline data reader for DataResource.data — uses pydata ingress machinery."""
 
 def read_inline(res: DataResource) -> pl.LazyFrame:
     """Convert inline DataResource.data to a Polars LazyFrame via pydata ingress."""

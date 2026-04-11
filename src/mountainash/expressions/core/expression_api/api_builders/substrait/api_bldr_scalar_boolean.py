@@ -10,10 +10,9 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_BOOLEAN, FKEY_MOUNTAINASH_SCALAR_TERNARY
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
-from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarBooleanAPIBuilderProtocol
-from ....expression_nodes import ScalarFunctionNode
+from .....core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_BOOLEAN, FKEY_MOUNTAINASH_SCALAR_TERNARY
+from .....core.expression_nodes import ScalarFunctionNode, ExpressionNode
+from .....core.expression_protocols.api_builders.substrait import SubstraitScalarBooleanAPIBuilderProtocol
 
 
 if TYPE_CHECKING:

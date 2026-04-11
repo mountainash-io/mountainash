@@ -8,10 +8,19 @@ See: g.development-practices/testing-philosophy.md § Discriminating Test Data
 """
 
 import math
+import sqlite3
 import pytest
 from datetime import datetime
 
 import mountainash.expressions as ma
+
+
+def _xfail_sqlite_time_shift(backend_name: str) -> None:
+    """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
+    if backend_name == "ibis-sqlite" and sqlite3.sqlite_version_info < (3, 46):
+        pytest.xfail(
+            f"SQLite {sqlite3.sqlite_version} < 3.46: no time shift modifier support"
+        )
 
 
 ALL_BACKENDS = [
@@ -333,6 +342,7 @@ class TestDatetimeParameterSensitivity:
 
     def test_add_days_sensitivity(self, backend_name, backend_factory, assert_parameter_sensitivity):
         """add_days(1) and add_days(5) must produce different results."""
+        _xfail_sqlite_time_shift(backend_name)
         data = {"ts": [datetime(2024, 1, 15, 10, 0, 0)]}
         df = backend_factory.create(data, backend_name)
 

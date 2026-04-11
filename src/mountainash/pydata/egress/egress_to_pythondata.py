@@ -1,13 +1,4 @@
-"""
-Mixin for casting DataFrames to Python data structures.
 
-Provides backend-agnostic implementation for converting DataFrames to:
-- Python collections (tuples, dicts, named tuples) - delegates to EgressPydataFromPolars
-- Dataclass/Pydantic instances with schema-aware transformations - full implementation
-
-All collection methods delegate through Polars eager for consistency and efficiency.
-Schema-aware conversions (dataclass/Pydantic) contain full implementation.
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type
@@ -29,12 +20,24 @@ from .egress_helpers import (
     apply_native_conversions_for_egress,
     apply_custom_converters_to_python_data
 )
-import logging
-logger = logging.getLogger(__name__)
 
 from .egress_pydata_from_polars import EgressPydataFromPolars
 import mountainash as ma
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+"""
+Mixin for casting DataFrames to Python data structures.
+
+Provides backend-agnostic implementation for converting DataFrames to:
+- Python collections (tuples, dicts, named tuples) - delegates to EgressPydataFromPolars
+- Dataclass/Pydantic instances with schema-aware transformations - full implementation
+
+All collection methods delegate through Polars eager for consistency and efficiency.
+Schema-aware conversions (dataclass/Pydantic) contain full implementation.
+"""
 
 class EgressToPythonData:
     """
