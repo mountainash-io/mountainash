@@ -59,7 +59,7 @@ Architecture:
 - ExpressionNode AST that compiles to backend-native expressions
 
 Quick Start:
-    >>> import mountainash_expressions as ma
+    >>> import mountainash as ma
     >>>
     >>> # Build expression (backend-agnostic AST)
     >>> expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))

@@ -1,4 +1,4 @@
-"""Core module for mountainash-expressions.
+"""Core module for mountainash expressions.
 
 This module contains the core logic, visitor patterns, and infrastructure
 for expression nodes and their evaluation across different backends.

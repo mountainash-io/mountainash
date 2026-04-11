@@ -1,6 +1,6 @@
 """Cross-backend regression pin for `Relation.with_row_index`.
 
-Tracks mountainash-expressions#78 and the upstream gap
+Tracks mountainash#78 and the upstream gap
 https://github.com/ibis-project/ibis/issues/10513 — the Ibis Polars
 backend has no translator for `WindowFunction`, so `ibis.row_number()`
 (which our `with_row_index` lowers to) cannot compile on `ibis-polars`.

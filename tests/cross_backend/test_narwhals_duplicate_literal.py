@@ -1,6 +1,6 @@
 """Cross-backend regression pin for narwhals duplicate 'literal' column names.
 
-Tracks mountainash-expressions#77. narwhals' pandas path materialises
+Tracks mountainash#77. narwhals' pandas path materialises
 ``nw.min_horizontal`` / ``nw.max_horizontal`` arguments as intermediate
 columns all named ``literal``, then hits ``check_column_names_are_unique``
 before the outer aliases resolve — raising ``DuplicateError``.
@@ -100,7 +100,7 @@ class TestMinHorizontalUpstreamBug:
         reason=(
             "narwhals-pandas: nw.min_horizontal materialises arguments as "
             "intermediate columns all named 'literal' — "
-            "mountainash-io/mountainash-expressions#77"
+            "mountainash-io/mountainash#77"
         ),
     )
     def test_min_horizontal_duplicate_literal_on_narwhals_pandas(self):

@@ -1,6 +1,6 @@
 """Cross-backend tests: t_is_in / t_is_not_in accept list-typed column argument.
 
-Tracks mountainash-expressions#75. See spec at
+Tracks mountainash#75. See spec at
 docs/superpowers/specs/2026-04-08-ternary-is-in-list-column-design.md
 """
 from __future__ import annotations
