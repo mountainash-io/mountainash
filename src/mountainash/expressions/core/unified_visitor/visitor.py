@@ -26,7 +26,7 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
+from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY, SUBSTRAIT_ARITHMETIC_WINDOW
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
@@ -494,7 +494,21 @@ class UnifiedExpressionVisitor:
 
         # Call backend method
         method = getattr(self.backend, method_name)
-        options = node.options or {}
+        options = dict(node.options) if node.options else {}
+
+        # Inject order_by_col and descending for ranking functions so backends
+        # can use native rank implementations instead of sequential numbering.
+        _RANKING_KEYS = {
+            SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
+            SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+            SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
+        }
+        if node.function_key in _RANKING_KEYS and node.window_spec and node.window_spec.order_by:
+            first_sort = node.window_spec.order_by[0]
+            order_col = self.visit(FieldReferenceNode(field=first_sort.column))
+            options["order_by_col"] = order_col
+            options["descending"] = first_sort.descending
+
         if options:
             result = method(*compiled_args, **options)
         else:
