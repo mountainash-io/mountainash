@@ -139,11 +139,10 @@ TRIM_CUSTOM_CHARS_BACKENDS = [
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
 ]
 
-# ltrim/rtrim custom chars only works on Polars; narwhals/pandas/ibis silently ignore the parameter
 LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS = [
     "polars",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas ltrim/rtrim ignores custom chars")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals ltrim/rtrim ignores custom chars")),
+    "pandas",
+    "narwhals",
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),

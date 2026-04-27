@@ -9,11 +9,11 @@
     "**/build",
     "**/dist",
     "**/node_modules",
-    "docs/superpowers"
+    "docs/superpowers",
   ],
   "extraPaths": ["src"],
 
-  "pythonVersion": "3.10",
+  "pythonVersion": "3.12",
   "pythonPlatform": "Linux",
 
   "typeCheckingMode": "basic",
@@ -48,7 +48,7 @@
       "root": "tests",
       "reportPrivateUsage": "none",
       "reportMissingTypeStubs": "none",
-      "reportUntypedFunctionDecorator": "none"
-    }
-  ]
+      "reportUntypedFunctionDecorator": "none",
+    },
+  ],
 }
