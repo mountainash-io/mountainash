@@ -76,6 +76,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
 | scalar-terminal-composition.md | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions; no per-backend dispatch |
 | free-function-entrypoints.md | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
+| polars-api-substrait-ast.md | ADOPTED | Public API mirrors Polars conventions; internal AST stays Substrait-aligned; API builder is the translation boundary |
 
 ### d. Ternary Logic
 
@@ -92,7 +93,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 |----------|--------|---------|
 | backend-detection.md | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
 | consistency-guarantees.md | ENFORCED | Same expression must produce same logical result across all backends |
-| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries |
+| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries; Narwhals diff(n>1), Polars .over() frame bounds, Narwhals cumulative in .over(), rank(method="average") on Ibis |
 | cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
 | arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
 
