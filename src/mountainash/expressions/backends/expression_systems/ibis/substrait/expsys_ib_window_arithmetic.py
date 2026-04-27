@@ -36,24 +36,36 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self) -> IbisNumericExpr:
+    def row_number(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
         """The number of the current row within its partition, starting at 1.
+
+        Args:
+            order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
+            descending: Ignored — Ibis ranking gets ordering from apply_window.
 
         Returns:
             Row number expression (requires .over() for partition context).
         """
         return ibis.row_number()
 
-    def rank(self) -> IbisNumericExpr:
+    def rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
         """The rank of the current row, with gaps.
+
+        Args:
+            order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
+            descending: Ignored — Ibis ranking gets ordering from apply_window.
 
         Returns:
             Rank expression (requires .over() for partition context).
         """
         return ibis.rank()
 
-    def dense_rank(self) -> IbisNumericExpr:
+    def dense_rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
         """The rank of the current row, without gaps.
+
+        Args:
+            order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
+            descending: Ignored — Ibis ranking gets ordering from apply_window.
 
         Returns:
             Dense rank expression (requires .over() for partition context).

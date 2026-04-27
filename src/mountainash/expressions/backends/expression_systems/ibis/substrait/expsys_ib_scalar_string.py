@@ -379,6 +379,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether the input string contains the substring."""
+        if case_sensitivity == "CASE_INSENSITIVE":
+            return self._call_with_expr_support(
+                lambda: input.lower().contains(substring.lower()),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.contains(substring),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
@@ -393,6 +399,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether input string starts with the substring."""
+        if case_sensitivity == "CASE_INSENSITIVE":
+            return self._call_with_expr_support(
+                lambda: input.lower().startswith(substring.lower()),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.startswith(substring),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
@@ -407,6 +419,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether input string ends with the substring."""
+        if case_sensitivity == "CASE_INSENSITIVE":
+            return self._call_with_expr_support(
+                lambda: input.lower().endswith(substring.lower()),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.endswith(substring),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,

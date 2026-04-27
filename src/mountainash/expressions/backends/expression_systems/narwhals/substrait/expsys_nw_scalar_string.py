@@ -437,6 +437,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         # Unwrap nw.lit("...") to a raw value; column refs pass through and
         # will be caught by _call_with_expr_support with an enriched error.
         pattern = self._extract_literal_if_possible(substring)
+        if case_sensitivity == "CASE_INSENSITIVE":
+            lowered = pattern.lower() if isinstance(pattern, str) else pattern
+            return self._call_with_expr_support(
+                lambda: input.str.to_lowercase().str.contains(lowered),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.str.contains(pattern),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
@@ -464,6 +471,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         # Unwrap nw.lit("...") to a raw value; column refs pass through and
         # will be caught by _call_with_expr_support with an enriched error.
         prefix = self._extract_literal_if_possible(substring)
+        if case_sensitivity == "CASE_INSENSITIVE":
+            lowered = prefix.lower() if isinstance(prefix, str) else prefix
+            return self._call_with_expr_support(
+                lambda: input.str.to_lowercase().str.starts_with(lowered),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.str.starts_with(prefix),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
@@ -491,6 +505,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         # Unwrap nw.lit("...") to a raw value; column refs pass through and
         # will be caught by _call_with_expr_support with an enriched error.
         suffix = self._extract_literal_if_possible(substring)
+        if case_sensitivity == "CASE_INSENSITIVE":
+            lowered = suffix.lower() if isinstance(suffix, str) else suffix
+            return self._call_with_expr_support(
+                lambda: input.str.to_lowercase().str.ends_with(lowered),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.str.ends_with(suffix),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,

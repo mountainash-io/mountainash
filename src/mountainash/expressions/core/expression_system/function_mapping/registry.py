@@ -54,8 +54,8 @@ class ExpressionFunctionDef:
     """
 
     function_key: Enum
-    substrait_uri: str
-    substrait_name: str
+    substrait_uri: str | None
+    substrait_name: str | None
     # backend_method: str
     # category: str
     is_extension: bool = False
@@ -146,7 +146,7 @@ class ExpressionFunctionRegistry:
         return cls._functions[function_key]
 
     @classmethod
-    def get_substrait_uri(cls, function_key: Enum) -> str:
+    def get_substrait_uri(cls, function_key: Enum) -> str | None:
         """Get the Substrait extension URI for a function.
 
         Args:
@@ -158,7 +158,7 @@ class ExpressionFunctionRegistry:
         return cls.get(function_key).substrait_uri
 
     @classmethod
-    def get_substrait_name(cls, function_key: Enum) -> str:
+    def get_substrait_name(cls, function_key: Enum) -> str | None:
         """Get the Substrait function name.
 
         Args:

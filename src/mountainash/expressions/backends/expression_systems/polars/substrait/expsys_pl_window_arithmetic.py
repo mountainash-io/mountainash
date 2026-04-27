@@ -35,50 +35,64 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self) -> PolarsExpr:
+    def row_number(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, **kwargs: Any) -> PolarsExpr:
         """The number of the current row within its partition, starting at 1.
+
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
 
         Returns:
             Row number expression (requires .over() for partition context).
         """
+        if order_by_col is not None:
+            return order_by_col.rank(method="ordinal", descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def rank(self) -> PolarsExpr:
-        """The rank of the current row, with gaps.
+    def rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> PolarsExpr:
+        """The rank of the current row.
+
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
+            rank_method: Polars rank method — 'average', 'min', 'max',
+                        'dense', 'ordinal'.
 
         Returns:
             Rank expression (requires .over() for partition context).
-
-        Note:
-            Polars doesn't have a direct rank() function.
-            Falls back to row_number() approximation.
         """
-        # Polars rank needs to be applied in a sorted/grouped context
-        # This is an approximation - true rank with gaps needs sorting context
+        if order_by_col is not None:
+            return order_by_col.rank(method=rank_method, descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def dense_rank(self) -> PolarsExpr:
+    def dense_rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, **kwargs: Any) -> PolarsExpr:
         """The rank of the current row, without gaps.
+
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
 
         Returns:
             Dense rank expression (requires .over() for partition context).
-
-        Note:
-            Polars doesn't have a direct dense_rank() function.
-            Falls back to row_number() approximation.
         """
-        # Similar to rank - needs proper sorting context
+        if order_by_col is not None:
+            return order_by_col.rank(method="dense", descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def percent_rank(self) -> PolarsExpr:
+    def percent_rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False) -> PolarsExpr:
         """The relative rank of the current row.
+
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
 
         Returns:
             Percent rank expression (0 to 1).
-
-        Note:
-            Calculated as (rank - 1) / (total_rows - 1).
         """
+        if order_by_col is not None:
+            r = order_by_col.rank(method="min", descending=descending)
+            n = pl.len()
+            return (r.cast(pl.Float64) - 1) / (n - 1).cast(pl.Float64)
         n = pl.len()
         return (pl.int_range(0, n).cast(pl.Float64)) / (n - 1).cast(pl.Float64)
 
@@ -226,6 +240,16 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Expression with window context applied via .over().
         """
-        if not partition_by:
+        if not partition_by and not order_by:
             return expr
-        return expr.over(partition_by)
+        over_kwargs: dict[str, Any] = {}
+        if order_by:
+            order_cols = [col for col, _ in order_by]
+            desc_flags = [desc for _, desc in order_by]
+            over_kwargs["order_by"] = order_cols if len(order_cols) > 1 else order_cols[0]
+            # Polars .over() accepts descending as a single bool
+            if any(desc_flags):
+                over_kwargs["descending"] = True
+        if partition_by:
+            return expr.over(*partition_by, **over_kwargs)
+        return expr.over(**over_kwargs)

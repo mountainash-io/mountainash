@@ -36,34 +36,52 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self) -> NarwhalsExpr:
+    def row_number(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False) -> NarwhalsExpr:
         """The number of the current row within its partition, starting at 1.
 
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
+
         Raises:
-            NotImplementedError: Narwhals doesn't support row_number.
+            NotImplementedError: When no order_by_col is provided.
         """
+        if order_by_col is not None:
+            return order_by_col.rank(method="ordinal", descending=descending)
         raise NotImplementedError(
-            "row_number() is not supported by the Narwhals backend."
+            "row_number() is not supported by the Narwhals backend without order_by."
         )
 
-    def rank(self) -> NarwhalsExpr:
+    def rank(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False) -> NarwhalsExpr:
         """The rank of the current row, with gaps.
 
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
+
         Raises:
-            NotImplementedError: Narwhals doesn't support rank.
+            NotImplementedError: When no order_by_col is provided.
         """
+        if order_by_col is not None:
+            return order_by_col.rank(method="min", descending=descending)
         raise NotImplementedError(
-            "rank() is not supported by the Narwhals backend."
+            "rank() is not supported by the Narwhals backend without order_by."
         )
 
-    def dense_rank(self) -> NarwhalsExpr:
+    def dense_rank(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False) -> NarwhalsExpr:
         """The rank of the current row, without gaps.
 
+        Args:
+            order_by_col: Optional ordering column for rank computation.
+            descending: Whether to rank in descending order.
+
         Raises:
-            NotImplementedError: Narwhals doesn't support dense_rank.
+            NotImplementedError: When no order_by_col is provided.
         """
+        if order_by_col is not None:
+            return order_by_col.rank(method="dense", descending=descending)
         raise NotImplementedError(
-            "dense_rank() is not supported by the Narwhals backend."
+            "dense_rank() is not supported by the Narwhals backend without order_by."
         )
 
     def percent_rank(self) -> NarwhalsExpr:

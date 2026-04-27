@@ -371,10 +371,26 @@ class BaseExpressionAPI(ABC):
             upper_bound=upper_bound,
         )
 
-        # If inner node is a WindowFunctionNode with no spec, populate it
-        if isinstance(self._node, WindowFunctionNode) and self._node.window_spec is None:
-            updated_node = self._node.model_copy(update={"window_spec": spec})
-            return self.create(updated_node)
+        # If inner node is a WindowFunctionNode, either populate or merge
+        if isinstance(self._node, WindowFunctionNode):
+            if self._node.window_spec is None:
+                updated_node = self._node.model_copy(update={"window_spec": spec})
+                return self.create(updated_node)
+            else:
+                # Merge: add partition_by from .over() into existing spec
+                # Preserve existing order_by (from rank()) and bounds (from cum_sum())
+                existing = self._node.window_spec
+                merged_order_by = existing.order_by if existing.order_by else sort_fields
+                merged_lower = existing.lower_bound if existing.lower_bound is not None else lower_bound
+                merged_upper = existing.upper_bound if existing.upper_bound is not None else upper_bound
+                merged_spec = WindowSpec(
+                    partition_by=partition_nodes,
+                    order_by=merged_order_by,
+                    lower_bound=merged_lower,
+                    upper_bound=merged_upper,
+                )
+                updated_node = self._node.model_copy(update={"window_spec": merged_spec})
+                return self.create(updated_node)
 
         # Otherwise, wrap in an OverNode
         over_node = OverNode(expression=self._node, window_spec=spec)

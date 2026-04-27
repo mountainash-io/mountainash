@@ -20,7 +20,7 @@ class SubstraitWindowArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: window
     """
 
-    def row_number(self) -> ExpressionT:
+    def row_number(self, *, order_by_col: ExpressionT | None = None, descending: bool = False) -> ExpressionT:
         """the number of the current row within its partition, starting at 1
 
         Substrait: row_number
@@ -28,7 +28,7 @@ class SubstraitWindowArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def rank(self) -> ExpressionT:
+    def rank(self, *, order_by_col: ExpressionT | None = None, descending: bool = False) -> ExpressionT:
         """the rank of the current row, with gaps.
 
         Substrait: rank
@@ -36,7 +36,7 @@ class SubstraitWindowArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def dense_rank(self) -> ExpressionT:
+    def dense_rank(self, *, order_by_col: ExpressionT | None = None, descending: bool = False) -> ExpressionT:
         """the rank of the current row, without gaps.
 
         Substrait: dense_rank

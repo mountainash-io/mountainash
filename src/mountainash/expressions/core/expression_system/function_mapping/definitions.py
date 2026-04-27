@@ -30,6 +30,7 @@ from ..function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_SET,
     FKEY_SUBSTRAIT_SCALAR_STRING,
     SUBSTRAIT_ARITHMETIC_WINDOW,
+    FKEY_MOUNTAINASH_WINDOW,
 
     # Mountainash extension enums
     FKEY_MOUNTAINASH_NAME,
@@ -72,6 +73,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
+    MountainashWindowExpressionSystemProtocol,
 )
 
 
@@ -1894,6 +1896,55 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Window Functions (Mountainash extension)
+    # ========================================
+
+    MOUNTAINASH_WINDOW_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.RANK_MAX,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.DIFF,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.diff,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_SUM,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_sum,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MAX,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_max,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MIN,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_min,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_COUNT,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_count,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -1908,6 +1959,7 @@ def register_all_functions() -> None:
         + SCALAR_LOGARITHMIC_FUNCTIONS
         + SCALAR_AGGREGATE_FUNCTIONS
         + WINDOW_ARITHMETIC_FUNCTIONS  # Substrait window functions
+        + MOUNTAINASH_WINDOW_FUNCTIONS  # Mountainash extension window functions
         + CAST_FUNCTIONS
         + CONDITIONAL_FUNCTIONS
         # + NULL_FUNCTIONS
