@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import polars as pl
 from polars import Expr as PolarsExpr
 
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
