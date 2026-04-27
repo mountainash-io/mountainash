@@ -17,9 +17,9 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import ScalarFunctionNode
 from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import WindowFunctionNode
-from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowSpec
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowSpec, WindowBound
 from mountainash.expressions.core.expression_nodes import LiteralNode, FieldReferenceNode
-from mountainash.core.constants import SortField
+from mountainash.core.constants import SortField, WindowBoundType
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
@@ -261,6 +261,102 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
     # ========================================
     # Cumulative / Diff Functions
     # ========================================
+
+    def cum_sum(self, *, reverse: bool = False) -> BaseExpressionAPI:
+        """Cumulative sum. Use .over() to partition.
+
+        Args:
+            reverse: If True, compute from bottom to top.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        if reverse:
+            lower = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            upper = WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING)
+        else:
+            lower = WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING)
+            upper = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_SUM,
+            arguments=[self._node],
+            options={"reverse": True} if reverse else {},
+            window_spec=WindowSpec(lower_bound=lower, upper_bound=upper),
+        )
+        return self._build(node)
+
+    def cum_max(self, *, reverse: bool = False) -> BaseExpressionAPI:
+        """Cumulative maximum. Use .over() to partition.
+
+        Args:
+            reverse: If True, compute from bottom to top.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        if reverse:
+            lower = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            upper = WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING)
+        else:
+            lower = WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING)
+            upper = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MAX,
+            arguments=[self._node],
+            options={"reverse": True} if reverse else {},
+            window_spec=WindowSpec(lower_bound=lower, upper_bound=upper),
+        )
+        return self._build(node)
+
+    def cum_min(self, *, reverse: bool = False) -> BaseExpressionAPI:
+        """Cumulative minimum. Use .over() to partition.
+
+        Args:
+            reverse: If True, compute from bottom to top.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        if reverse:
+            lower = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            upper = WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING)
+        else:
+            lower = WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING)
+            upper = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MIN,
+            arguments=[self._node],
+            options={"reverse": True} if reverse else {},
+            window_spec=WindowSpec(lower_bound=lower, upper_bound=upper),
+        )
+        return self._build(node)
+
+    def cum_count(self, *, reverse: bool = False) -> BaseExpressionAPI:
+        """Cumulative count. Use .over() to partition.
+
+        Args:
+            reverse: If True, compute from bottom to top.
+
+        Returns:
+            New ExpressionAPI with WindowFunctionNode.
+        """
+        if reverse:
+            lower = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            upper = WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING)
+        else:
+            lower = WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING)
+            upper = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_COUNT,
+            arguments=[self._node],
+            options={"reverse": True} if reverse else {},
+            window_spec=WindowSpec(lower_bound=lower, upper_bound=upper),
+        )
+        return self._build(node)
 
     def diff(self, n: int = 1) -> BaseExpressionAPI:
         """Consecutive difference: value[i] - value[i-n].

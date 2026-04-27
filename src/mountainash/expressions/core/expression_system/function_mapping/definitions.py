@@ -1918,6 +1918,30 @@ def register_all_functions() -> None:
             substrait_name=None,
             protocol_method=MountainashWindowExpressionSystemProtocol.diff,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_SUM,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_sum,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MAX,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_max,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MIN,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_min,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_COUNT,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_count,
+        ),
     ]
 
     # ========================================
