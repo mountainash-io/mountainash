@@ -226,6 +226,14 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Expression with window context applied via .over().
         """
-        if not partition_by:
+        if not partition_by and not order_by:
             return expr
-        return expr.over(partition_by)
+        over_kwargs: dict[str, Any] = {}
+        if order_by:
+            over_kwargs["order_by"] = [col for col, _ in order_by]
+            descending = [desc for _, desc in order_by]
+            if any(descending):
+                over_kwargs["descending"] = descending
+        if partition_by:
+            return expr.over(*partition_by, **over_kwargs)
+        return expr.over(**over_kwargs)
