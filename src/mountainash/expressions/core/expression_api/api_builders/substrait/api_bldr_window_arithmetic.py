@@ -15,6 +15,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     SUBSTRAIT_ARITHMETIC_WINDOW,
     FKEY_MOUNTAINASH_WINDOW,
 )
+from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import ScalarFunctionNode
 from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import WindowFunctionNode
 from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import WindowSpec
 from mountainash.expressions.core.expression_nodes import LiteralNode, FieldReferenceNode
@@ -254,5 +255,27 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE,
             arguments=[self._node],
             options={"window_offset": n},
+        )
+        return self._build(node)
+
+    # ========================================
+    # Cumulative / Diff Functions
+    # ========================================
+
+    def diff(self, n: int = 1) -> BaseExpressionAPI:
+        """Consecutive difference: value[i] - value[i-n].
+
+        First n elements are null. Works standalone or with .over().
+
+        Args:
+            n: Number of slots to shift (default 1).
+
+        Returns:
+            New ExpressionAPI with ScalarFunctionNode.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.DIFF,
+            arguments=[self._node],
+            options={"n": n} if n != 1 else {},
         )
         return self._build(node)

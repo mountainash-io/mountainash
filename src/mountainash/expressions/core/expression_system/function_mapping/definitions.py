@@ -73,6 +73,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
+    MountainashWindowExpressionSystemProtocol,
 )
 
 
@@ -1910,6 +1911,12 @@ def register_all_functions() -> None:
             substrait_uri=None,
             substrait_name=None,
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.DIFF,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.diff,
         ),
     ]
 
