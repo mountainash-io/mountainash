@@ -30,7 +30,12 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     BACKEND_NAME: str = "narwhals"
 
     _NW_STRING_LITERAL_ONLY = KnownLimitation(
-        message="Narwhals string methods require literal values, not column references",
+        message=(
+            "Narwhals string methods require literal values, not column references, "
+            "on the pandas backend. The polars-backed narwhals path supports "
+            "expression arguments for str.contains (since narwhals 2.19.0) but "
+            "other string methods remain literal-only on all narwhals sub-backends."
+        ),
         native_errors=(TypeError,),
         workaround="Use a literal string value instead of a column reference",
     )
