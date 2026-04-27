@@ -403,6 +403,21 @@ class SUBSTRAIT_ARITHMETIC_WINDOW(Enum):
     LAG = auto()
 
 
+class FKEY_MOUNTAINASH_WINDOW(Enum):
+    """mountainash extension window functions.
+
+    Not part of the Substrait spec — mountainash-specific operations.
+    """
+
+    RANK_AVERAGE = auto()
+    RANK_MAX = auto()
+    CUM_SUM = auto()
+    CUM_MAX = auto()
+    CUM_MIN = auto()
+    CUM_COUNT = auto()
+    DIFF = auto()
+
+
 class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     """Substrait datetime functions.
 

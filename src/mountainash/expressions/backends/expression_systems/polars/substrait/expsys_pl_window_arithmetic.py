@@ -35,7 +35,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False) -> PolarsExpr:
+    def row_number(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, **kwargs: Any) -> PolarsExpr:
         """The number of the current row within its partition, starting at 1.
 
         Args:
@@ -49,21 +49,23 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
             return order_by_col.rank(method="ordinal", descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False) -> PolarsExpr:
-        """The rank of the current row, with gaps.
+    def rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> PolarsExpr:
+        """The rank of the current row.
 
         Args:
             order_by_col: Optional ordering column for rank computation.
             descending: Whether to rank in descending order.
+            rank_method: Polars rank method — 'average', 'min', 'max',
+                        'dense', 'ordinal'.
 
         Returns:
             Rank expression (requires .over() for partition context).
         """
         if order_by_col is not None:
-            return order_by_col.rank(method="min", descending=descending)
+            return order_by_col.rank(method=rank_method, descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def dense_rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False) -> PolarsExpr:
+    def dense_rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, **kwargs: Any) -> PolarsExpr:
         """The rank of the current row, without gaps.
 
         Args:

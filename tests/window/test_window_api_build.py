@@ -29,6 +29,7 @@ from mountainash.expressions.core.expression_nodes.mountainash_extensions.exn_ex
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     SUBSTRAIT_ARITHMETIC_WINDOW,
+    FKEY_MOUNTAINASH_WINDOW,
 )
 from mountainash.core.constants import SortField, WindowBoundType
 
@@ -56,15 +57,33 @@ class TestWindowBuilderMethods:
         assert isinstance(node, WindowFunctionNode)
         assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER
         assert node.arguments == []
-        assert node.window_spec is None
+        # rank() family now pre-populates window_spec with order_by
+        assert node.window_spec is not None
+        assert len(node.window_spec.order_by) == 1
+        assert node.window_spec.order_by[0].column == "x"
 
     def test_rank(self):
         api = _col("x").rank()
         node = api._node
         assert isinstance(node, WindowFunctionNode)
-        assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.RANK
+        # Default method="average" maps to FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE
+        assert node.function_key == FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE
         assert node.arguments == []
-        assert node.window_spec is None
+        assert node.window_spec is not None
+        assert node.window_spec.order_by[0].column == "x"
+
+    def test_rank_method_min(self):
+        api = _col("x").rank(method="min")
+        node = api._node
+        assert isinstance(node, WindowFunctionNode)
+        assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.RANK
+        assert node.options["rank_method"] == "min"
+
+    def test_rank_method_max(self):
+        api = _col("x").rank(method="max")
+        node = api._node
+        assert isinstance(node, WindowFunctionNode)
+        assert node.function_key == FKEY_MOUNTAINASH_WINDOW.RANK_MAX
 
     def test_dense_rank(self):
         api = _col("x").dense_rank()
@@ -72,7 +91,8 @@ class TestWindowBuilderMethods:
         assert isinstance(node, WindowFunctionNode)
         assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK
         assert node.arguments == []
-        assert node.window_spec is None
+        assert node.window_spec is not None
+        assert node.window_spec.order_by[0].column == "x"
 
     def test_percent_rank(self):
         api = _col("x").percent_rank()
@@ -178,15 +198,20 @@ class TestWindowBuilderMethods:
 class TestOverMethodWindowFunctionNode:
     """.over() on WindowFunctionNode should populate window_spec."""
 
-    def test_over_populates_window_spec(self):
+    def test_over_merges_window_spec(self):
+        """rank() pre-populates order_by; .over() merges partition_by."""
         api = _col("x").rank().over("dept")
         node = api._node
         assert isinstance(node, WindowFunctionNode)
-        assert node.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.RANK
+        assert node.function_key == FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE
         assert node.window_spec is not None
+        # partition_by comes from .over()
         assert len(node.window_spec.partition_by) == 1
         assert isinstance(node.window_spec.partition_by[0], FieldReferenceNode)
         assert node.window_spec.partition_by[0].field == "dept"
+        # order_by preserved from rank()
+        assert len(node.window_spec.order_by) == 1
+        assert node.window_spec.order_by[0].column == "x"
 
     def test_over_multiple_partition_by(self):
         api = _col("x").row_number().over("dept", "team")
@@ -197,23 +222,27 @@ class TestOverMethodWindowFunctionNode:
         assert node.window_spec.partition_by[0].field == "dept"
         assert node.window_spec.partition_by[1].field == "team"
 
-    def test_over_order_by_string(self):
+    def test_over_order_by_preserved_from_rank(self):
+        """rank()'s order_by takes precedence over .over()'s order_by."""
         api = _col("x").rank().over("dept", order_by="salary")
+        node = api._node
+        assert isinstance(node, WindowFunctionNode)
+        # rank()'s order_by ("x") wins over .over()'s ("salary")
+        assert len(node.window_spec.order_by) == 1
+        assert node.window_spec.order_by[0].column == "x"
+
+    def test_over_order_by_on_non_ranking_window(self):
+        """For non-ranking windows (no pre-populated spec), .over() sets order_by."""
+        api = _col("x").first_value().over("dept", order_by="-salary")
         node = api._node
         assert isinstance(node, WindowFunctionNode)
         assert len(node.window_spec.order_by) == 1
         assert node.window_spec.order_by[0].column == "salary"
-        assert node.window_spec.order_by[0].descending is False
-
-    def test_over_order_by_descending(self):
-        api = _col("x").rank().over("dept", order_by="-salary")
-        node = api._node
-        assert len(node.window_spec.order_by) == 1
-        assert node.window_spec.order_by[0].column == "salary"
         assert node.window_spec.order_by[0].descending is True
 
-    def test_over_order_by_list(self):
-        api = _col("x").rank().over("dept", order_by=["salary", "-name"])
+    def test_over_order_by_list_on_non_ranking_window(self):
+        """For non-ranking windows, .over() order_by list works."""
+        api = _col("x").first_value().over("dept", order_by=["salary", "-name"])
         node = api._node
         assert len(node.window_spec.order_by) == 2
         assert node.window_spec.order_by[0].column == "salary"
@@ -290,4 +319,6 @@ class TestOverNoPartition:
         node = api._node
         assert isinstance(node, WindowFunctionNode)
         assert node.window_spec.partition_by == []
+        # rank()'s order_by ("x") takes precedence
         assert len(node.window_spec.order_by) == 1
+        assert node.window_spec.order_by[0].column == "x"

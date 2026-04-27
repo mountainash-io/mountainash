@@ -26,7 +26,7 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY, SUBSTRAIT_ARITHMETIC_WINDOW
+from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY, SUBSTRAIT_ARITHMETIC_WINDOW, FKEY_MOUNTAINASH_WINDOW
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
@@ -502,6 +502,8 @@ class UnifiedExpressionVisitor:
             SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
             SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
             SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
+            FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE,
+            FKEY_MOUNTAINASH_WINDOW.RANK_MAX,
         }
         if node.function_key in _RANKING_KEYS and node.window_spec and node.window_spec.order_by:
             first_sort = node.window_spec.order_by[0]

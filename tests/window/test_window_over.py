@@ -31,8 +31,13 @@ class TestOverModifier:
         assert "windowed" in result.columns
 
     def test_window_function_without_over_raises(self, dept_df):
-        """Compiling rank() without .over() should raise ValueError."""
-        expr = ma.col("salary").rank()
+        """Compiling a window function without .over() should raise ValueError.
+
+        Note: rank()/dense_rank()/row_number() pre-populate window_spec so they
+        work without explicit .over(). Use percent_rank() which does NOT
+        pre-populate its spec.
+        """
+        expr = ma.col("salary").percent_rank()
         with pytest.raises(ValueError, match=r"\.over\(\)"):
             expr.compile(dept_df)
 
