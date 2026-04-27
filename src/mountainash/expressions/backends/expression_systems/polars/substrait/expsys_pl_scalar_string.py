@@ -423,6 +423,14 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
+        if case_sensitivity == "CASE_INSENSITIVE":
+            return self._call_with_expr_support(
+                lambda: input.str.to_lowercase().str.contains(
+                    substring.str.to_lowercase(), literal=True
+                ),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+                substring=substring,
+            )
         return self._call_with_expr_support(
             lambda: input.str.contains(substring, literal=True),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
@@ -446,6 +454,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
+        if case_sensitivity == "CASE_INSENSITIVE":
+            return input.str.to_lowercase().str.starts_with(substring.str.to_lowercase())
         return input.str.starts_with(substring)
 
     def ends_with(
@@ -465,6 +475,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
+        if case_sensitivity == "CASE_INSENSITIVE":
+            return input.str.to_lowercase().str.ends_with(substring.str.to_lowercase())
         return input.str.ends_with(substring)
 
     def strpos(
