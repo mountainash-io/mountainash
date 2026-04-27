@@ -54,7 +54,7 @@ Source = "https://github.com/mountainash-io/mountainash"
 source_pkgs = ["mountainash", "tests"]
 branch = true
 parallel = true
-omit = ["src/mountainash/__version__.py", "src/mountainash/expressions/__version__.py"]
+omit = ["src/mountainash/__version__.py", "src/mountainash/__version__.py"]
 
 [tool.coverage.paths]
 mountainash_data = [
