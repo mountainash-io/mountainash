@@ -515,3 +515,23 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def days_in_month(self, input: ExpressionT, /) -> ExpressionT:
         """Return the number of days in the month of the datetime."""
         ...
+
+    # =========================================================================
+    # Duration Extraction
+    # =========================================================================
+
+    def total_seconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total seconds in a duration."""
+        ...
+
+    def total_minutes(self, x: ExpressionT, /) -> ExpressionT:
+        """Total minutes in a duration."""
+        ...
+
+    def total_milliseconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total milliseconds in a duration."""
+        ...
+
+    def total_microseconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total microseconds in a duration."""
+        ...

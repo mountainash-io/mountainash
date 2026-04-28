@@ -1824,6 +1824,34 @@ def register_all_functions() -> None:
             is_extension=True,
             protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.days_in_month,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_seconds",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_seconds,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MINUTES,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_minutes",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_minutes,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MILLISECONDS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_milliseconds",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_milliseconds,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MICROSECONDS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_microseconds",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_microseconds,
+        ),
     ]
 
     # ========================================

@@ -515,6 +515,12 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     # Legacy
     OFFSET_BY = auto()
 
+    # Duration extraction (total elapsed)
+    TOTAL_SECONDS = auto()
+    TOTAL_MINUTES = auto()
+    TOTAL_MILLISECONDS = auto()
+    TOTAL_MICROSECONDS = auto()
+
 
 # =============================================================================
 # Mountainash Custom Extensions
