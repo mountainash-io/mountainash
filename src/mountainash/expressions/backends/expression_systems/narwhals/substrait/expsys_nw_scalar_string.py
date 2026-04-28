@@ -253,21 +253,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         length: NarwhalsExpr,
         characters: NarwhalsExpr = None,
     ) -> NarwhalsExpr:
-        """Left-pad the input string to specified length.
-
-        Args:
-            input: String expression.
-            length: Target length.
-            characters: Padding characters (default: space).
-
-        Returns:
-            Left-padded string.
-
-        Note:
-            Narwhals may not have pad_start. Returns input as fallback.
-        """
-        # Narwhals doesn't have pad_start - fallback
-        return input
+        """Left-pad the input string to specified length."""
+        length_raw = self._extract_literal_if_possible(length)
+        fill_raw = " " if characters is None else self._extract_literal_if_possible(characters)
+        return self._call_with_expr_support(
+            lambda: input.str.pad_start(int(length_raw), str(fill_raw)),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            length=length,
+        )
 
     def rpad(
         self,
@@ -276,21 +269,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         length: NarwhalsExpr,
         characters: NarwhalsExpr = None,
     ) -> NarwhalsExpr:
-        """Right-pad the input string to specified length.
-
-        Args:
-            input: String expression.
-            length: Target length.
-            characters: Padding characters (default: space).
-
-        Returns:
-            Right-padded string.
-
-        Note:
-            Narwhals may not have pad_end. Returns input as fallback.
-        """
-        # Narwhals doesn't have pad_end - fallback
-        return input
+        """Right-pad the input string to specified length."""
+        length_raw = self._extract_literal_if_possible(length)
+        fill_raw = " " if characters is None else self._extract_literal_if_possible(characters)
+        return self._call_with_expr_support(
+            lambda: input.str.pad_end(int(length_raw), str(fill_raw)),
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+            length=length,
+        )
 
     def center(
         self,
@@ -366,9 +352,9 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
         """Extract count characters from the left."""
-        count_val = self._extract_literal_if_possible(count)
+        count_raw = self._extract_literal_if_possible(count)
         return self._call_with_expr_support(
-            lambda: input.str.slice(0, int(count_val)),
+            lambda: input.str.head(int(count_raw)),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
             count=count,
         )
@@ -380,9 +366,9 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
         """Extract count characters from the right."""
-        count_val = self._extract_literal_if_possible(count)
+        count_raw = self._extract_literal_if_possible(count)
         return self._call_with_expr_support(
-            lambda: input.str.slice(-int(count_val)),
+            lambda: input.str.tail(int(count_raw)),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
             count=count,
         )
@@ -686,20 +672,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         count: NarwhalsExpr,
     ) -> NarwhalsExpr:
-        """Repeat a string count number of times.
+        """Repeat a string count number of times."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            count: Number of repetitions.
-
-        Returns:
-            Repeated string.
-
-        Note:
-            Narwhals doesn't have repeat. Returns input as fallback.
-        """
-        # Narwhals doesn't have repeat - fallback
-        return input
+        raise BackendCapabilityError(
+            "Narwhals does not support str.repeat(). Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
+        )
 
     def reverse(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
         """Return the string in reverse order.

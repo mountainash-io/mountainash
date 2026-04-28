@@ -1,8 +1,7 @@
 """Cross-backend tests for extended comparison, rounding, and logarithmic coverage.
 
-Note: between() has a known bug where `closed` kwarg is passed to backends that
-don't accept it — tested but xfailed. is_false/is_not_false from the comparison
-builder conflict with ternary builder priority in _FLAT_NAMESPACES.
+is_false/is_not_false from the comparison builder are intentionally shadowed by
+ternary builder priority in _FLAT_NAMESPACES (ternary-first design).
 least() method has a typo in the builder (LTEAST vs LEAST) — xfailed.
 """
 
@@ -56,6 +55,55 @@ class TestComposeComparisonTruth:
         result = df.filter(expr.compile(df))
         count = get_result_count(result, backend_name)
         assert count == 3, f"[{backend_name}] is_not_false: expected 3 (True + True + None), got {count}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestBetween:
+    """Test between() with all closed variants across backends."""
+
+    def test_between_default(self, backend_name, backend_factory, collect_expr):
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15)
+        result = collect_expr(df, expr)
+        assert result == [False, True, True, True, False], f"[{backend_name}] got {result}"
+
+    def test_between_closed_both(self, backend_name, backend_factory, collect_expr):
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15, closed="both")
+        result = collect_expr(df, expr)
+        assert result == [False, True, True, True, False], f"[{backend_name}] got {result}"
+
+    def test_between_closed_left(self, backend_name, backend_factory, collect_expr):
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15, closed="left")
+        result = collect_expr(df, expr)
+        assert result == [False, True, True, False, False], f"[{backend_name}] got {result}"
+
+    def test_between_closed_right(self, backend_name, backend_factory, collect_expr):
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15, closed="right")
+        result = collect_expr(df, expr)
+        assert result == [False, False, True, True, False], f"[{backend_name}] got {result}"
+
+    def test_between_closed_neither(self, backend_name, backend_factory, collect_expr):
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15, closed="neither")
+        result = collect_expr(df, expr)
+        assert result == [False, False, True, False, False], f"[{backend_name}] got {result}"
+
+    def test_between_closed_none(self, backend_name, backend_factory, collect_expr):
+        """'none' is a synonym for 'neither' (matches Polars convention)."""
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15, closed="none")
+        result = collect_expr(df, expr)
+        assert result == [False, False, True, False, False], f"[{backend_name}] got {result}"
 
 
 @pytest.mark.cross_backend

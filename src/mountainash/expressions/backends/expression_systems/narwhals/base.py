@@ -77,6 +77,8 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         (FK_STR.REGEXP_REPLACE, "replacement"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.SUBSTRING, "start"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.SUBSTRING, "length"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LPAD, "length"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.RPAD, "length"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.LEFT, "count"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.RIGHT, "count"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.TRIM, "characters"): _NW_STRING_LITERAL_ONLY,

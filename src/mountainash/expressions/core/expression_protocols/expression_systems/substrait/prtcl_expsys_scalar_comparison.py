@@ -112,7 +112,9 @@ If either/both of `x` and `y` are `null`, `null` is returned.
         """
         ...
 
-    def between(self, x: ExpressionT, /, low: ExpressionT, high: ExpressionT) -> ExpressionT:
+    def between(
+        self, x: ExpressionT, /, low: ExpressionT, high: ExpressionT, *, closed: str = "both"
+    ) -> ExpressionT:
         """Whether the `expression` is greater than or equal to `low` and less than or equal to `high`.
 `expression` BETWEEN `low` AND `high`
 If `low`, `high`, or `expression` are `null`, `null` is returned.

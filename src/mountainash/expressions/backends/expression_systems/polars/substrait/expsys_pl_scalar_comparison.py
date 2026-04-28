@@ -99,12 +99,15 @@ class SubstraitPolarsScalarComparisonExpressionSystem(PolarsBaseExpressionSystem
         /,
         low: PolarsExpr,
         high: PolarsExpr,
+        *,
+        closed: str = "both",
     ) -> PolarsExpr:
-        """Whether x is between low and high (inclusive).
+        """Whether x is between low and high.
 
         Returns null if any of x, low, or high is null.
         """
-        return x.is_between(low, high, closed="both")
+        pl_closed = "none" if closed == "neither" else closed
+        return x.is_between(low, high, closed=pl_closed)
 
     # =========================================================================
     # Boolean Check Operations

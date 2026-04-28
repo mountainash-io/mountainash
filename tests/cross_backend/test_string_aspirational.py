@@ -87,7 +87,7 @@ class TestSwapcase:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_IBIS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestPadding:
     def test_lpad(self, backend_name, backend_factory, collect_expr):
         data = {"val": ["hi", "hey"]}
@@ -156,7 +156,18 @@ class TestLengthVariants:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_IBIS)
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    pytest.param("pandas", marks=pytest.mark.xfail(
+        strict=True, reason="Narwhals has no str.repeat() — raises BackendCapabilityError",
+    )),
+    pytest.param("narwhals", marks=pytest.mark.xfail(
+        strict=True, reason="Narwhals has no str.repeat() — raises BackendCapabilityError",
+    )),
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+])
 class TestRepeat:
     def test_repeat(self, backend_name, backend_factory, collect_expr):
         data = {"val": ["ab", "cd"]}

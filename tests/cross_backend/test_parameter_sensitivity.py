@@ -206,7 +206,7 @@ class TestTrimParameterSensitivity:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_IBIS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestPadParameterSensitivity:
     """lpad/rpad width parameter must reach the backend."""
 

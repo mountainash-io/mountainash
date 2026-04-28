@@ -100,12 +100,24 @@ class SubstraitIbisScalarComparisonExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         low: IbisValueExpr,
         high: IbisValueExpr,
+        *,
+        closed: str = "both",
     ) -> IbisValueExpr:
-        """Whether x is between low and high (inclusive).
+        """Whether x is between low and high.
 
         Returns null if any of x, low, or high is null.
         """
-        return x.between(low, high)
+        if closed == "both":
+            return x.between(low, high)
+        elif closed == "left":
+            return (x >= low) & (x < high)
+        elif closed == "right":
+            return (x > low) & (x <= high)
+        elif closed in ("none", "neither"):
+            return (x > low) & (x < high)
+        else:
+            msg = f"`closed` must be one of {{'both', 'left', 'right', 'none', 'neither'}}, got {closed}"
+            raise ValueError(msg)
 
     # =========================================================================
     # Boolean Check Operations
