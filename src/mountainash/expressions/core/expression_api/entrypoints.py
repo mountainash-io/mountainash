@@ -13,6 +13,7 @@ The api/ layer re-exports these for user convenience.
 """
 
 from __future__ import annotations
+from builtins import len as _builtin_len
 from typing import Any, Optional, Union, TYPE_CHECKING
 
 from ..expression_nodes import (
@@ -20,7 +21,10 @@ from ..expression_nodes import (
     LiteralNode,
     ScalarFunctionNode,
 )
-from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
+from ..expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+    FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+)
 from .api_builders.substrait.api_bldr_conditional import SubstraitWhenAPIBuilder
 
 if TYPE_CHECKING:
@@ -157,7 +161,7 @@ def coalesce(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
         >>> expr = coalesce(col("phone_mobile"), col("phone_home"), col("phone_work"))
         >>> expr = coalesce(col("nickname"), col("name"), lit("Anonymous"))
     """
-    if len(exprs) < 2:
+    if _builtin_len(exprs) < 2:
         raise ValueError("coalesce requires at least 2 arguments")
 
     from ..expression_api import BooleanExpressionAPI
@@ -187,7 +191,7 @@ def greatest(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
         >>> expr = greatest(col("a"), col("b"), col("c"))
         >>> expr = greatest(col("price"), lit(0))  # Ensure non-negative
     """
-    if len(exprs) < 2:
+    if _builtin_len(exprs) < 2:
         raise ValueError("greatest requires at least 2 arguments")
 
     from ..expression_api import BooleanExpressionAPI
@@ -217,7 +221,7 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
         >>> expr = least(col("a"), col("b"), col("c"))
         >>> expr = least(col("price"), lit(100))  # Cap at 100
     """
-    if len(exprs) < 2:
+    if _builtin_len(exprs) < 2:
         raise ValueError("least requires at least 2 arguments")
 
     from ..expression_api import BooleanExpressionAPI
@@ -228,6 +232,53 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
         arguments=operands,
     )
     return BooleanExpressionAPI(node)
+
+
+# ============================================================================
+# Polars-compatible horizontal aliases
+# ============================================================================
+
+def min_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """Return the minimum value across expressions (element-wise). Polars-compatible alias for least()."""
+    return least(*exprs)
+
+
+def max_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """Return the maximum value across expressions (element-wise). Polars-compatible alias for greatest()."""
+    return greatest(*exprs)
+
+
+def all_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """True where all expressions are true (element-wise). Polars-compatible horizontal AND."""
+    if _builtin_len(exprs) < 2:
+        raise ValueError("all_horizontal requires at least 2 arguments")
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [_to_substrait_node(e) for e in exprs]
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND,
+        arguments=operands,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def any_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """True where any expression is true (element-wise). Polars-compatible horizontal OR."""
+    if _builtin_len(exprs) < 2:
+        raise ValueError("any_horizontal requires at least 2 arguments")
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [_to_substrait_node(e) for e in exprs]
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.OR,
+        arguments=operands,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def len() -> BaseExpressionAPI:
+    """Count all rows including nulls. Polars-compatible alias for count_records()."""
+    return count_records()
 
 
 # ============================================================================
@@ -540,6 +591,12 @@ __all__ = [
     "coalesce",
     "greatest",
     "least",
+    # Polars-compatible horizontal aliases
+    "min_horizontal",
+    "max_horizontal",
+    "all_horizontal",
+    "any_horizontal",
+    "len",
     # Aggregate
     "count_records",
     "corr",
