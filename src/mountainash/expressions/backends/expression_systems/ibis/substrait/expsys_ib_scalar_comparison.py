@@ -113,8 +113,11 @@ class SubstraitIbisScalarComparisonExpressionSystem(IbisBaseExpressionSystem, Su
             return (x >= low) & (x < high)
         elif closed == "right":
             return (x > low) & (x <= high)
-        else:
+        elif closed in ("none", "neither"):
             return (x > low) & (x < high)
+        else:
+            msg = f"`closed` must be one of {{'both', 'left', 'right', 'none', 'neither'}}, got {closed}"
+            raise ValueError(msg)
 
     # =========================================================================
     # Boolean Check Operations

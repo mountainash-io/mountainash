@@ -97,6 +97,14 @@ class TestBetween:
         result = collect_expr(df, expr)
         assert result == [False, False, True, False, False], f"[{backend_name}] got {result}"
 
+    def test_between_closed_none(self, backend_name, backend_factory, collect_expr):
+        """'none' is a synonym for 'neither' (matches Polars convention)."""
+        data = {"x": [1, 5, 10, 15, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("x").between(5, 15, closed="none")
+        result = collect_expr(df, expr)
+        assert result == [False, False, True, False, False], f"[{backend_name}] got {result}"
+
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

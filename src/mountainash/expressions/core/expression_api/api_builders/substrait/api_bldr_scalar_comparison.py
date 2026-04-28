@@ -196,7 +196,8 @@ class SubstraitScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         Args:
             low: Lower bound.
             high: Upper bound.
-            closed: Which bounds are inclusive ("left", "right", "both", "neither").
+            closed: Which bounds are inclusive ("both", "left", "right",
+                "none"/"neither").
 
         Returns:
             New ExpressionAPI with between node.
