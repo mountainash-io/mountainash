@@ -47,6 +47,7 @@ from .extensions_mountainash.expsys_nw_ext_ma_scalar_string import SubstraitNarw
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_window import MountainAshNarwhalsWindowExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_struct import MountainAshNarwhalsScalarStructExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_list import MountainAshNarwhalsScalarListExpressionSystem
 
 
 
@@ -86,6 +87,7 @@ class NarwhalsExpressionSystem(
     MountainAshNarwhalsScalarTernaryExpressionSystem,
     MountainAshNarwhalsWindowExpressionSystem,
     MountainAshNarwhalsScalarStructExpressionSystem,
+    MountainAshNarwhalsScalarListExpressionSystem,
 
 ):
     """Complete Narwhals backend expression system.
