@@ -226,7 +226,7 @@ class TestTernaryToBooleanConversions:
         df = backend_factory.create(data, backend_name)
 
         # score > 70, then is_true (strict - only definite passes)
-        expr = ma.col("score").t_gt(70).is_true()
+        expr = ma.col("score").t_gt(70).t_is_true()
         backend_expr = expr.compile(df)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -243,7 +243,7 @@ class TestTernaryToBooleanConversions:
         df = backend_factory.create(data, backend_name)
 
         # Find rows where score > 70 is UNKNOWN (i.e., score is NULL)
-        expr = ma.col("score").t_gt(70).is_unknown()
+        expr = ma.col("score").t_gt(70).t_is_unknown()
         backend_expr = expr.compile(df)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -260,7 +260,7 @@ class TestTernaryToBooleanConversions:
         df = backend_factory.create(data, backend_name)
 
         # score > 70, maybe_true (includes uncertain cases)
-        expr = ma.col("score").t_gt(70).maybe_true()
+        expr = ma.col("score").t_gt(70).t_maybe_true()
         backend_expr = expr.compile(df)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -277,7 +277,7 @@ class TestTernaryToBooleanConversions:
         df = backend_factory.create(data, backend_name)
 
         # Find rows where we can make a definite determination
-        expr = ma.col("score").t_gt(70).is_known()
+        expr = ma.col("score").t_gt(70).t_is_known()
         backend_expr = expr.compile(df)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -402,7 +402,7 @@ class TestRealWorldScenarios:
         df = backend_factory.create(data, backend_name)
 
         # Filter where score > 70, using is_true (strict - exclude unknowns)
-        expr = ma.col("score").t_gt(70).is_true()
+        expr = ma.col("score").t_gt(70).t_is_true()
         result = df.filter(expr.compile(df))
 
         count = get_result_count(result, backend_name)
@@ -420,7 +420,7 @@ class TestRealWorldScenarios:
         df = backend_factory.create(data, backend_name)
 
         # Filter where score > 70 OR unknown (benefit of doubt)
-        expr = ma.col("score").t_gt(70).maybe_true()
+        expr = ma.col("score").t_gt(70).t_maybe_true()
         result = df.filter(expr.compile(df))
 
         count = get_result_count(result, backend_name)
@@ -442,7 +442,7 @@ class TestRealWorldScenarios:
         expr = (
             ma.col("income").t_gt(70000)
             .t_and(ma.col("credit_score").t_ge(700))
-            .is_true()
+            .t_is_true()
         )
         result = df.filter(expr.compile(df))
 

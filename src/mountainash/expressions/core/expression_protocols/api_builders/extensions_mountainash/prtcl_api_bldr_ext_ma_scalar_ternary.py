@@ -142,27 +142,27 @@ class MountainAshScalarTernaryAPIBuilderProtocol(Protocol):
     # Conversions (Ternary -> Boolean)
     # ========================================
 
-    def is_true(self) -> BaseExpressionAPI:
+    def t_is_true(self) -> BaseExpressionAPI:
         """TRUE(1) -> True, else -> False."""
         ...
 
-    def is_false(self) -> BaseExpressionAPI:
+    def t_is_false(self) -> BaseExpressionAPI:
         """FALSE(-1) -> True, else -> False."""
         ...
 
-    def is_unknown(self) -> BaseExpressionAPI:
+    def t_is_unknown(self) -> BaseExpressionAPI:
         """UNKNOWN(0) -> True, else -> False."""
         ...
 
-    def is_known(self) -> BaseExpressionAPI:
+    def t_is_known(self) -> BaseExpressionAPI:
         """TRUE or FALSE -> True, UNKNOWN -> False."""
         ...
 
-    def maybe_true(self) -> BaseExpressionAPI:
+    def t_maybe_true(self) -> BaseExpressionAPI:
         """TRUE or UNKNOWN -> True, FALSE -> False."""
         ...
 
-    def maybe_false(self) -> BaseExpressionAPI:
+    def t_maybe_false(self) -> BaseExpressionAPI:
         """FALSE or UNKNOWN -> True, TRUE -> False."""
         ...
 

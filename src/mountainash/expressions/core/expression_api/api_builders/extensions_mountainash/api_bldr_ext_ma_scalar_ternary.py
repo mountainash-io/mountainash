@@ -376,7 +376,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     # Booleanizers
     # ========================================
 
-    def is_true(self) -> BaseExpressionAPI:
+    def t_is_true(self) -> BaseExpressionAPI:
         """TRUE (1) → True, else → False."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
@@ -384,7 +384,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         )
         return self._build(node)
 
-    def is_false(self) -> BaseExpressionAPI:
+    def t_is_false(self) -> BaseExpressionAPI:
         """FALSE (-1) → True, else → False."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE,
@@ -392,7 +392,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         )
         return self._build(node)
 
-    def is_unknown(self) -> BaseExpressionAPI:
+    def t_is_unknown(self) -> BaseExpressionAPI:
         """UNKNOWN (0) → True, else → False."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN,
@@ -400,7 +400,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         )
         return self._build(node)
 
-    def is_known(self) -> BaseExpressionAPI:
+    def t_is_known(self) -> BaseExpressionAPI:
         """TRUE or FALSE → True, UNKNOWN → False."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN,
@@ -408,7 +408,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         )
         return self._build(node)
 
-    def maybe_true(self) -> BaseExpressionAPI:
+    def t_maybe_true(self) -> BaseExpressionAPI:
         """TRUE or UNKNOWN → True, FALSE → False."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE,
@@ -416,7 +416,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         )
         return self._build(node)
 
-    def maybe_false(self) -> BaseExpressionAPI:
+    def t_maybe_false(self) -> BaseExpressionAPI:
         """FALSE or UNKNOWN → True, TRUE → False."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE,

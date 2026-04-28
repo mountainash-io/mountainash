@@ -48,7 +48,7 @@ class TestAutoBooleanizeOnCompile:
 
         # Ternary comparison without explicit booleanizer
         expr = ma.col("score").t_gt(70)
-        backend_expr = expr.compile(df)  # Default: booleanizer="is_true"
+        backend_expr = expr.compile(df)  # Default: booleanizer="t_is_true"
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
@@ -65,7 +65,7 @@ class TestAutoBooleanizeOnCompile:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("score").t_gt(70)
-        backend_expr = expr.compile(df, booleanizer="maybe_true")
+        backend_expr = expr.compile(df, booleanizer="t_maybe_true")
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
@@ -82,7 +82,7 @@ class TestAutoBooleanizeOnCompile:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("score").t_gt(70)
-        backend_expr = expr.compile(df, booleanizer="is_false")
+        backend_expr = expr.compile(df, booleanizer="t_is_false")
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
@@ -99,7 +99,7 @@ class TestAutoBooleanizeOnCompile:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("score").t_gt(70)
-        backend_expr = expr.compile(df, booleanizer="is_unknown")
+        backend_expr = expr.compile(df, booleanizer="t_is_unknown")
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
@@ -116,7 +116,7 @@ class TestAutoBooleanizeOnCompile:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("score").t_gt(70)
-        backend_expr = expr.compile(df, booleanizer="is_known")
+        backend_expr = expr.compile(df, booleanizer="t_is_known")
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
@@ -133,7 +133,7 @@ class TestAutoBooleanizeOnCompile:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("score").t_gt(70)
-        backend_expr = expr.compile(df, booleanizer="maybe_false")
+        backend_expr = expr.compile(df, booleanizer="t_maybe_false")
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
@@ -160,14 +160,14 @@ class TestAutoBooleanizeOnCompile:
         assert values[2] == T_FALSE, f"[{backend_name}] 60 > 70 should be -1 (FALSE)"
 
     def test_explicit_booleanizer_not_double_wrapped(self, backend_name, backend_factory, select_and_extract):
-        """Test that explicit .is_true() is not double-wrapped."""
+        """Test that explicit .t_is_true() is not double-wrapped."""
         data = {
             "score": [80, None, 60],
         }
         df = backend_factory.create(data, backend_name)
 
         # User explicitly calls is_true() - should not be wrapped again
-        expr = ma.col("score").t_gt(70).is_true()
+        expr = ma.col("score").t_gt(70).t_is_true()
         backend_expr = expr.compile(df)  # Already terminal, no wrapping
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -337,7 +337,7 @@ class TestEdgeCases:
 
         # Custom booleanizer that uses maybe_true
         def custom_booleanizer(api):
-            return api.maybe_true()
+            return api.t_maybe_true()
 
         expr = ma.col("score").t_gt(70)
         backend_expr = expr.compile(df, booleanizer=custom_booleanizer)
@@ -680,7 +680,7 @@ class TestFilteringWithAutoBooleanization:
 
         # Filter using ternary with maybe_true (lenient)
         expr = ma.col("score").t_gt(70)
-        result = df.filter(expr.compile(df, booleanizer="maybe_true"))
+        result = df.filter(expr.compile(df, booleanizer="t_maybe_true"))
 
         count = get_result_count(result, backend_name)
         # TRUE and UNKNOWN: 80, None, 90, None = 4 rows
@@ -825,7 +825,7 @@ class TestTernaryConstantsAutoBooleanization:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.always_unknown()
-        values = select_and_extract(df, expr.compile(df, booleanizer="maybe_true"), "result", backend_name)
+        values = select_and_extract(df, expr.compile(df, booleanizer="t_maybe_true"), "result", backend_name)
 
         for val in values:
             assert val is True, f"[{backend_name}] always_unknown should become True with maybe_true"

@@ -67,12 +67,12 @@ class TestTernaryLogic:
 
 class TestTernaryBooleanizers:
     @pytest.mark.parametrize("method,fkey", [
-        ("is_true", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE),
-        ("is_false", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE),
-        ("is_unknown", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN),
-        ("is_known", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN),
-        ("maybe_true", FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE),
-        ("maybe_false", FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE),
+        ("t_is_true", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE),
+        ("t_is_false", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE),
+        ("t_is_unknown", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN),
+        ("t_is_known", FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN),
+        ("t_maybe_true", FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE),
+        ("t_maybe_false", FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE),
     ])
     def test_booleanizer(self, method, fkey):
         ternary_expr = ma.col("x").t_gt(10)
