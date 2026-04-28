@@ -14,6 +14,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
 )
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 
@@ -190,6 +191,34 @@ class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder):
             arguments=[eq_missing],
         )
         return self._build(result)
+
+    def null_count(self) -> BaseExpressionAPI:
+        """Count of null values. Equivalent to is_null().sum()."""
+        is_null_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL,
+            arguments=[self._node],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM,
+            arguments=[is_null_node],
+        )
+        return self._build(node)
+
+    def has_nulls(self) -> BaseExpressionAPI:
+        """Whether any values are null. Equivalent to is_null().sum().gt(0)."""
+        is_null_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL,
+            arguments=[self._node],
+        )
+        sum_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM,
+            arguments=[is_null_node],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GT,
+            arguments=[sum_node, LiteralNode(value=0)],
+        )
+        return self._build(node)
 
     def is_close(self, other, abs_tol: float = 1e-8, rel_tol: float = 1e-5) -> BaseExpressionAPI:
         """Whether two values are approximately equal.
