@@ -129,31 +129,13 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
         Args:
             suffix: The suffix string to remove.
         """
-        suffix_node = LiteralNode(value=suffix)
-        ends_cond = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
-            arguments=[self._node, suffix_node],
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_STRING,
         )
-        # Use negative offset to slice from end: substring(0, char_length - suffix_len)
-        # Since char_length varies per row, we need to compute it dynamically.
-        # Use REPLACE to remove the suffix (replace last occurrence).
-        # Simpler: use substring with computed length.
-        str_len = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,
             arguments=[self._node],
-        )
-        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-        new_len = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
-            arguments=[str_len, LiteralNode(value=len(suffix))],
-        )
-        start_node = LiteralNode(value=0)
-        stripped = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-            arguments=[self._node, start_node, new_len],
-        )
-        node = IfThenNode(
-            conditions=[(ends_cond, stripped)],
-            else_clause=self._node,
+            options={"suffix": suffix},
         )
         return self._build(node)

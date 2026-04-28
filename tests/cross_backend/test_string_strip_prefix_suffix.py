@@ -1,9 +1,8 @@
 """Cross-backend tests for strip_prefix() and strip_suffix() (Batch 5).
 
-These are AST-level composition methods using IfThenNode.
-strip_prefix works on all backends (simple starts_with + substring).
-strip_suffix requires cross-category AST (char_length + subtract + substring)
-which only Polars handles correctly.
+strip_prefix uses AST-level composition (IfThenNode with starts_with + substring).
+strip_suffix is wired as a dedicated backend method (regex-based on Narwhals/Ibis,
+native str.strip_suffix on Polars).
 """
 
 import pytest
@@ -14,15 +13,6 @@ ALL_BACKENDS = [
     "pandas",
     "narwhals",
     "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
-POLARS_AND_IBIS = [
-    "polars",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="narwhals str.slice does not accept expression-typed length")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals str.slice does not accept expression-typed length")),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis Polars backend does not support columnar substr args")),
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -47,7 +37,7 @@ class TestStripPrefix:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_AND_IBIS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStripSuffix:
     def test_strip_suffix_present(self, backend_name, backend_factory, collect_expr):
         data = {"val": ["hello_suffix", "world_suffix"]}
