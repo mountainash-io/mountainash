@@ -9,29 +9,13 @@ import mountainash as ma
 
 BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
-# Ibis cumulative ops (cumsum, cummax, cummin) compile to .cumsum().over(...)
-# which Ibis rejects at execution time because cumsum() is already a window
-# function and cannot be wrapped in a second .over() frame expression.
-# This is a pre-existing backend limitation — not introduced by PR #84.
-_IBIS_CUM_XFAIL = pytest.mark.xfail(
-    reason=(
-        "Ibis cumulative ops compile to .cumsum().over(...) which Ibis rejects: "
-        "'No reduction or analytic function found to construct a window expression'. "
-        "Pre-existing backend limitation."
-    )
-)
-
 
 # =============================================================================
 # Cross-backend: cum_sum basic
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    pytest.param("ibis-duckdb", marks=_IBIS_CUM_XFAIL),
-])
+@pytest.mark.parametrize("backend_name", BACKENDS)
 class TestCumSum:
     def test_cum_sum_basic(self, backend_name, backend_factory, collect_expr):
         """cum_sum() computes running total."""
@@ -55,11 +39,7 @@ class TestCumSum:
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    pytest.param("ibis-duckdb", marks=_IBIS_CUM_XFAIL),
-])
+@pytest.mark.parametrize("backend_name", BACKENDS)
 class TestCumMax:
     def test_cum_max_basic(self, backend_name, backend_factory, collect_expr):
         """cum_max() computes running maximum."""
@@ -75,11 +55,7 @@ class TestCumMax:
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    pytest.param("ibis-duckdb", marks=_IBIS_CUM_XFAIL),
-])
+@pytest.mark.parametrize("backend_name", BACKENDS)
 class TestCumMin:
     def test_cum_min_basic(self, backend_name, backend_factory, collect_expr):
         """cum_min() computes running minimum."""

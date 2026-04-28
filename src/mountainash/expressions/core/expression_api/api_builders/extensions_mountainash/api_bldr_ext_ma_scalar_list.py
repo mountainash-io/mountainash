@@ -87,3 +87,45 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder):
             arguments=[self._node],
         )
         return self._build(node)
+
+    def explode(self) -> BaseExpressionAPI:
+        """Expand each list element into a separate row."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def join(self, separator: str = ",") -> BaseExpressionAPI:
+        """Concatenate list elements into a single string.
+
+        Args:
+            separator: String to place between elements.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.JOIN,
+            arguments=[self._node],
+            options={"separator": separator},
+        )
+        return self._build(node)
+
+    def get(self, index: int) -> BaseExpressionAPI:
+        """Get element at the given index.
+
+        Args:
+            index: Zero-based index. Negative indices count from the end.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GET,
+            arguments=[self._node],
+            options={"index": index},
+        )
+        return self._build(node)
+
+    def first(self) -> BaseExpressionAPI:
+        """First element of each list."""
+        return self.get(0)
+
+    def last(self) -> BaseExpressionAPI:
+        """Last element of each list."""
+        return self.get(-1)

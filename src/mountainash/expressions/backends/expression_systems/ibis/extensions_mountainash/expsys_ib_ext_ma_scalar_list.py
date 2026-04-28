@@ -39,3 +39,12 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem):
 
     def list_unique(self, x, /):
         return x.unique()
+
+    def list_explode(self, x, /):
+        return x.unnest()
+
+    def list_join(self, x, /, *, separator: str = ","):
+        return x.join(separator)
+
+    def list_get(self, x, /, *, index: int = 0):
+        return x[index]

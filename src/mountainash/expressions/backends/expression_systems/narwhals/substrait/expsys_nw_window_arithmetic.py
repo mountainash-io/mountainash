@@ -52,18 +52,19 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             "row_number() is not supported by the Narwhals backend without order_by."
         )
 
-    def rank(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False) -> NarwhalsExpr:
+    def rank(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> NarwhalsExpr:
         """The rank of the current row, with gaps.
 
         Args:
             order_by_col: Optional ordering column for rank computation.
             descending: Whether to rank in descending order.
+            rank_method: Rank method — 'average', 'min', 'max', 'dense', 'ordinal'.
 
         Raises:
             NotImplementedError: When no order_by_col is provided.
         """
         if order_by_col is not None:
-            return order_by_col.rank(method="min", descending=descending)
+            return order_by_col.rank(method=rank_method, descending=descending)
         raise NotImplementedError(
             "rank() is not supported by the Narwhals backend without order_by."
         )

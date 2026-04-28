@@ -48,16 +48,32 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return ibis.row_number()
 
-    def rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
+    def rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> IbisNumericExpr:
         """The rank of the current row, with gaps.
 
         Args:
             order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
             descending: Ignored — Ibis ranking gets ordering from apply_window.
+            rank_method: Rank method — only 'min' is supported (SQL RANK).
+                'average' and 'max' have no SQL equivalent.
 
         Returns:
             Rank expression (requires .over() for partition context).
+
+        Raises:
+            BackendCapabilityError: For rank methods without SQL equivalents.
         """
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_WINDOW
+
+        if rank_method in ("average", "max"):
+            raise BackendCapabilityError(
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE if rank_method == "average" else FKEY_MOUNTAINASH_WINDOW.RANK_MAX,
+                message=f"Ibis has no SQL equivalent for rank(method='{rank_method}'). "
+                f"SQL only supports RANK (method='min'), DENSE_RANK (method='dense'), "
+                f"and ROW_NUMBER (method='ordinal').",
+            )
         return ibis.rank()
 
     def dense_rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
@@ -225,26 +241,27 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             window_kwargs["group_by"] = partition_by
         if ibis_order:
             window_kwargs["order_by"] = ibis_order
-        if lower_bound is not None:
-            window_kwargs["preceding"] = self._bound_to_ibis(lower_bound)
-        if upper_bound is not None:
-            window_kwargs["following"] = self._bound_to_ibis(upper_bound)
+        if lower_bound is not None or upper_bound is not None:
+            lower = self._bound_to_rows(lower_bound)
+            upper = self._bound_to_rows(upper_bound)
+            window_kwargs["rows"] = (lower, upper)
 
         window = ibis.window(**window_kwargs)
         return expr.over(window)
 
     @staticmethod
-    def _bound_to_ibis(bound: WindowBound) -> Any:
-        """Convert a WindowBound to an Ibis-compatible value.
+    def _bound_to_rows(bound: Optional[WindowBound]) -> Any:
+        """Convert a WindowBound to an Ibis rows-tuple value.
 
-        Args:
-            bound: The window bound to convert.
-
-        Returns:
-            Ibis-compatible bound value.
+        Uses the rows=(lower, upper) convention where:
+        - None = unbounded
+        - 0 = current row
+        - positive int = offset (sign is determined by position in tuple)
         """
+        if bound is None:
+            return None
         if bound.bound_type == WindowBoundType.CURRENT_ROW:
             return 0
         elif bound.bound_type in (WindowBoundType.PRECEDING, WindowBoundType.FOLLOWING):
             return bound.offset
-        return None  # unbounded
+        return None  # UNBOUNDED_PRECEDING or UNBOUNDED_FOLLOWING
