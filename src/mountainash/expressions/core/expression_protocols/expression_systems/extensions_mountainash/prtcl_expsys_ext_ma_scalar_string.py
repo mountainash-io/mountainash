@@ -46,3 +46,7 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
             null when input is null (backend-dependent for narwhals).
         """
         ...
+
+    def strip_suffix(self, x: ExpressionT, /, *, suffix: str) -> ExpressionT:
+        """Remove suffix from end of string if present."""
+        ...

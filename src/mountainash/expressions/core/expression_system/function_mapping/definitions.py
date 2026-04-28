@@ -685,6 +685,13 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.regex_contains,
             options=("pattern",),
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="strip_suffix",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.strip_suffix,
+            options=("suffix",),
+        ),
     ]
 
     # ========================================

@@ -70,7 +70,7 @@ class TestComposeTernary:
         expr = ma.t_col("value", unknown={-999}).t_gt(ma.lit(60)).t_and(
             ma.col("active").t_eq(ma.lit(True))
         )
-        result = df.filter(expr.compile(df, booleanizer="is_true"))
+        result = df.filter(expr.compile(df, booleanizer="t_is_true"))
 
         count = get_result_count(result, backend_name)
         # Row 0: 100 > 60 = T AND active=T -> T (pass is_true)
@@ -88,7 +88,7 @@ class TestComposeTernary:
         expr = ma.t_col("value", unknown={-999}).t_gt(ma.lit(60)).t_and(
             ma.col("active").t_eq(ma.lit(True))
         )
-        result = df.filter(expr.compile(df, booleanizer="maybe_true"))
+        result = df.filter(expr.compile(df, booleanizer="t_maybe_true"))
 
         count = get_result_count(result, backend_name)
         # maybe_true: TRUE and UNKNOWN pass

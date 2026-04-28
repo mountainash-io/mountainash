@@ -447,7 +447,7 @@ class TestTColRealWorldUseCases:
 
         # Find satisfied or potentially satisfied
         expr = ma.t_col("satisfaction", unknown={-1}).t_ge(4)
-        result = df.filter(expr.compile(df, booleanizer="maybe_true"))
+        result = df.filter(expr.compile(df, booleanizer="t_maybe_true"))
 
         count = get_result_count(result, backend_name)
         # Customers 1, 2, 4, 5: TRUE or UNKNOWN (included by maybe_true)
@@ -498,7 +498,7 @@ class TestTColRealWorldUseCases:
         df = backend_factory.create(data, backend_name)
 
         # Find records needing review (UNKNOWN quality)
-        expr = ma.t_col("quality_score", unknown={-1}).t_gt(0).is_unknown()
+        expr = ma.t_col("quality_score", unknown={-1}).t_gt(0).t_is_unknown()
         result = df.filter(expr.compile(df))
 
         count = get_result_count(result, backend_name)
@@ -539,7 +539,7 @@ class TestTColWithAutoBooleanization:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.t_col("score", unknown={-99999}).t_gt(70)
-        values = select_and_extract(df, expr.compile(df, booleanizer="maybe_true"), "result", backend_name)
+        values = select_and_extract(df, expr.compile(df, booleanizer="t_maybe_true"), "result", backend_name)
 
         assert values[0] is True   # TRUE -> True
         assert values[1] is True   # UNKNOWN -> True (maybe_true)

@@ -556,6 +556,7 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
     """
 
     REGEX_CONTAINS = "regex_contains"
+    STRIP_SUFFIX = "strip_suffix"
 
 
 class FKEY_MOUNTAINASH_NULL(Enum):

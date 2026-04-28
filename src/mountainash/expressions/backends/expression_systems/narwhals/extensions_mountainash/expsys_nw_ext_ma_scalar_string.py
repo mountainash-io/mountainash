@@ -5,6 +5,7 @@ Implements regex_contains natively using Narwhals str.contains (regex by default
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
@@ -32,3 +33,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Note: narwhals/pandas may return False (not None) for null input.
         """
         return input.str.contains(pattern)
+
+    def strip_suffix(self, x, /, *, suffix: str):
+        pattern = re.escape(suffix) + "$"
+        return x.str.replace(pattern, "")

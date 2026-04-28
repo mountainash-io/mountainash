@@ -55,7 +55,6 @@ class TestUnaryStateChecks:
         assert len(node.arguments) == 1
         assert isinstance(node.arguments[0], FieldReferenceNode)
 
-    @pytest.mark.xfail(reason="is_true shadowed by ternary booleanizer — needs t_ prefix or context-based dispatch")
     def test_is_true(self):
         """On a boolean expression, is_true() should use Substrait comparison, not ternary."""
         expr = ma.col("x").is_true()
@@ -63,7 +62,6 @@ class TestUnaryStateChecks:
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_TRUE
 
-    @pytest.mark.xfail(reason="is_false shadowed by ternary booleanizer — needs t_ prefix or context-based dispatch")
     def test_is_false(self):
         """On a boolean expression, is_false() should use Substrait comparison, not ternary."""
         expr = ma.col("x").is_false()

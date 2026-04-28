@@ -5,6 +5,7 @@ Implements regex_contains natively using Ibis re_search.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..base import IbisBaseExpressionSystem
@@ -28,3 +29,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         re_search returns a true boolean and propagates null on null input.
         """
         return input.re_search(pattern)
+
+    def strip_suffix(self, x, /, *, suffix: str):
+        pattern = re.escape(suffix) + "$"
+        return x.re_replace(pattern, "")

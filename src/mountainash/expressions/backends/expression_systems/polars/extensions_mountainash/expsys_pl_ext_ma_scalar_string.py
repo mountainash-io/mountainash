@@ -33,3 +33,6 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         true boolean (no extract/null-mismatch hack needed).
         """
         return input.str.contains(pattern, literal=False)
+
+    def strip_suffix(self, x, /, *, suffix: str):
+        return x.str.strip_suffix(suffix)

@@ -98,7 +98,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     Uses namespace-based composition for clean, organized method access.
 
     Flat namespaces (methods accessed directly):
-    - Ternary: t_eq, t_ne, t_gt, t_lt, t_and, t_or, is_true, is_false, etc.
+    - Ternary: t_eq, t_ne, t_gt, t_lt, t_and, t_or, t_is_true, t_is_false, etc.
     - Comparison: eq, ne, gt, lt, ge, le, is_close, between
     - Logical: and_, or_, xor_, not_, is_in, is_not_in, always_true, always_false
     - Null checks: is_null, is_not_null, coalesce, greatest, least
@@ -121,10 +121,10 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     """
 
     # Flat namespaces - methods dispatched via __getattr__
-    # TernaryNamespace first so ternary-specific methods (is_true, is_false, etc.)
-    # take priority when there are conflicts with ScalarComparisonNamespace
+    # TernaryNamespace first so ternary-specific methods (t_is_true, t_is_false, etc.)
+    # are found before Substrait comparison methods
     _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionAPIBuilder], ...]] = (
-        # Mountainash extensions first (ternary takes priority for is_true etc.)
+        # Mountainash extensions first
         MountainAshScalarTernaryAPIBuilder,
         MountainAshNullAPIBuilder,
         MountainAshNameAPIBuilder,

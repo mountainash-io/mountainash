@@ -234,6 +234,6 @@ class TestStringAliases:
         assert isinstance(expr._node, IfThenNode)
 
     def test_strip_suffix(self):
-        # strip_suffix creates an IfThenNode (conditional AST composition)
         expr = ma.col("x").str.strip_suffix("_suf")
-        assert isinstance(expr._node, IfThenNode)
+        assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.options == {"suffix": "_suf"}
