@@ -798,6 +798,12 @@ def register_all_functions() -> None:
             substrait_name="logb",
             protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.logb,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG1P,
+            substrait_uri=SubstraitExtension.SCALAR_LOGARITHMIC,
+            substrait_name="log1p",
+            protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.log1p,
+        ),
     ]
 
     # ========================================

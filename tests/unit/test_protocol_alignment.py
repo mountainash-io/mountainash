@@ -671,8 +671,6 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
     (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_timestamp"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): "No function mapping registered",
-    # Substrait Scalar Logarithmic
-    (SubstraitScalarLogarithmicExpressionSystemProtocol, "log1p"): "No ENUM, no function mapping",
     # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode
     (SubstraitFieldReferenceExpressionSystemProtocol, "col"): "Special node type (FieldReferenceNode), not dispatched via function registry",
     (SubstraitLiteralExpressionSystemProtocol, "lit"): "Special node type (LiteralNode), not dispatched via function registry",

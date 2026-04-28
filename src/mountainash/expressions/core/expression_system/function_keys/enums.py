@@ -343,6 +343,7 @@ class FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC(Enum):
     LOG10 = auto()
     LOG2 = auto()
     LOGB = auto()
+    LOG1P = auto()
 
 # =============================================================================
 # Datetime Functions (Substrait-aligned)
