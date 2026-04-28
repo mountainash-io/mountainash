@@ -40,6 +40,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
+    FKEY_MOUNTAINASH_SCALAR_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -72,6 +73,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarStringExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
+    MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
 )
@@ -1945,6 +1947,21 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Mountainash Struct Extensions
+    # ========================================
+
+    MOUNTAINASH_STRUCT_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD,
+            substrait_uri=None,
+            substrait_name=None,
+            is_extension=True,
+            options=("field_name",),
+            protocol_method=MountainAshScalarStructExpressionSystemProtocol.struct_field,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -1971,6 +1988,7 @@ def register_all_functions() -> None:
         + MOUNTAINASH_DATETIME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
+        + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
     )
 
     for func in all_functions:

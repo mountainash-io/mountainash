@@ -582,6 +582,12 @@ class FKEY_MOUNTAINASH_SCALAR_SET(Enum):
     IS_NOT_IN = "is_not_in"
 
 
+class FKEY_MOUNTAINASH_SCALAR_STRUCT(Enum):
+    """Mountainash struct field operations."""
+
+    FIELD = auto()
+
+
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
     """Mountainash ternary logic operations.
 
