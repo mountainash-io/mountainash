@@ -79,3 +79,35 @@ class TestDurationComparison:
         expr = ma.col("gap") > ma.duration(hours=4)
         result = df.with_columns(expr.compile(df).alias("long_gap"))
         assert result["long_gap"].to_list() == [False, True, True]
+
+
+class TestDurationExtraction:
+    @pytest.fixture
+    def duration_df(self):
+        return pl.DataFrame({
+            "gap": [
+                timedelta(hours=1, minutes=30),
+                timedelta(hours=2, seconds=45),
+                timedelta(days=1, hours=12),
+            ],
+        })
+
+    def test_total_seconds(self, duration_df):
+        expr = ma.col("gap").dt.total_seconds()
+        result = duration_df.with_columns(expr.compile(duration_df).alias("secs"))
+        assert result["secs"].to_list() == [5400, 7245, 129600]
+
+    def test_total_minutes(self, duration_df):
+        expr = ma.col("gap").dt.total_minutes()
+        result = duration_df.with_columns(expr.compile(duration_df).alias("mins"))
+        assert result["mins"].to_list() == [90, 120, 2160]
+
+    def test_total_milliseconds(self, duration_df):
+        expr = ma.col("gap").dt.total_milliseconds()
+        result = duration_df.with_columns(expr.compile(duration_df).alias("ms"))
+        assert result["ms"].to_list() == [5400000, 7245000, 129600000]
+
+    def test_total_microseconds(self, duration_df):
+        expr = ma.col("gap").dt.total_microseconds()
+        result = duration_df.with_columns(expr.compile(duration_df).alias("us"))
+        assert result["us"].to_list() == [5400000000, 7245000000, 129600000000]
