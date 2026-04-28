@@ -134,3 +134,125 @@ class TestIbisDescendingSortGuard:
         expr = ma.col("scores").list.sort(descending=True)
         with pytest.raises(BackendCapabilityError, match="descending"):
             expr.compile(t)
+
+
+# =============================================================================
+# D6: list.explode()
+# =============================================================================
+
+
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
+        strict=True,
+        reason="Narwhals has no list.explode() equivalent (known-divergences.md)",
+    )),
+    "ibis-duckdb",
+])
+class TestListExplode:
+    def test_explode_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3], [4, 5]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.explode()
+        result = collect_expr(df, expr)
+        assert result == [1, 2, 3, 4, 5]
+
+
+# =============================================================================
+# D7: list.join(separator)
+# =============================================================================
+
+
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
+        strict=True,
+        reason="Narwhals has no list.join() equivalent (known-divergences.md)",
+    )),
+    "ibis-duckdb",
+])
+class TestListJoin:
+    def test_join_comma(self, backend_name, backend_factory, collect_expr):
+        data = {"tags": [["a", "b", "c"], ["x", "y"]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("tags").list.join(",")
+        result = collect_expr(df, expr)
+        assert result == ["a,b,c", "x,y"]
+
+    def test_join_space(self, backend_name, backend_factory, collect_expr):
+        data = {"words": [["hello", "world"], ["foo"]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("words").list.join(" ")
+        result = collect_expr(df, expr)
+        assert result == ["hello world", "foo"]
+
+
+# =============================================================================
+# D8: list.get(index), list.first(), list.last()
+# =============================================================================
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListGet:
+    def test_get_first(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30], [40, 50]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.get(0)
+        result = collect_expr(df, expr)
+        assert result == [10, 40]
+
+    def test_get_middle(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30], [40, 50, 60]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.get(1)
+        result = collect_expr(df, expr)
+        assert result == [20, 50]
+
+    def test_first_sugar(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30], [40, 50]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.first()
+        result = collect_expr(df, expr)
+        assert result == [10, 40]
+
+
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
+        strict=True,
+        reason="Narwhals list.get() does not support negative indices",
+    )),
+    "ibis-duckdb",
+])
+class TestListGetNegative:
+    def test_get_last(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30], [40, 50]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.get(-1)
+        result = collect_expr(df, expr)
+        assert result == [30, 50]
+
+    def test_last_sugar(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30], [40, 50]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.last()
+        result = collect_expr(df, expr)
+        assert result == [30, 50]
+
+
+class TestNarwhalsExplodeJoinGuard:
+    """Narwhals must raise BackendCapabilityError for unsupported list ops."""
+
+    def test_narwhals_explode_raises(self):
+        import narwhals as nw
+        df = nw.from_native(pl.DataFrame({"vals": [[1, 2]]}), eager_only=True)
+        expr = ma.col("vals").list.explode()
+        with pytest.raises(BackendCapabilityError, match="explode"):
+            expr.compile(df)
+
+    def test_narwhals_join_raises(self):
+        import narwhals as nw
+        df = nw.from_native(pl.DataFrame({"tags": [["a", "b"]]}), eager_only=True)
+        expr = ma.col("tags").list.join(",")
+        with pytest.raises(BackendCapabilityError, match="join"):
+            expr.compile(df)

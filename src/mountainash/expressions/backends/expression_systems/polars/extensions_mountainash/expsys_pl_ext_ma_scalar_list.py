@@ -30,3 +30,12 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem):
 
     def list_unique(self, x, /):
         return x.list.unique()
+
+    def list_explode(self, x, /):
+        return x.list.explode()
+
+    def list_join(self, x, /, *, separator: str = ","):
+        return x.list.join(separator)
+
+    def list_get(self, x, /, *, index: int = 0):
+        return x.list.get(index, null_on_oob=True)

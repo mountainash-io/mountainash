@@ -13,29 +13,17 @@ class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem):
         return x - x.lag(offset=n)
 
     def cum_sum(self, x, /, *, reverse: bool = False):
-        """Cumulative sum."""
-        import ibis
-        if reverse:
-            return x.sum().over(ibis.window(rows=(0, None)))
-        return x.cumsum()
+        """Cumulative sum — returns reduction; apply_window adds frame bounds."""
+        return x.sum()
 
     def cum_max(self, x, /, *, reverse: bool = False):
-        """Cumulative maximum."""
-        import ibis
-        if reverse:
-            return x.max().over(ibis.window(rows=(0, None)))
-        return x.cummax()
+        """Cumulative maximum — returns reduction; apply_window adds frame bounds."""
+        return x.max()
 
     def cum_min(self, x, /, *, reverse: bool = False):
-        """Cumulative minimum."""
-        import ibis
-        if reverse:
-            return x.min().over(ibis.window(rows=(0, None)))
-        return x.cummin()
+        """Cumulative minimum — returns reduction; apply_window adds frame bounds."""
+        return x.min()
 
     def cum_count(self, x, /, *, reverse: bool = False):
-        """Cumulative count."""
-        import ibis
-        if reverse:
-            return x.count().over(ibis.window(rows=(0, None)))
-        return x.count().over(ibis.cumulative_window())
+        """Cumulative count — returns reduction; apply_window adds frame bounds."""
+        return x.count()

@@ -1,9 +1,9 @@
 """Tests that ranking functions produce correct rank values, not sequential numbers.
 
 All tests use `.over()` for partitioned ranking, which requires Polars-specific
-.over() execution. Additionally, narwhals and ibis backends do not yet accept
-the `rank_method` option passed by `dense_rank()` / `rank()` API builder options,
-so all ranking tests are Polars-only.
+.over() execution — Narwhals and Ibis `.over()` is not yet wired through the
+relation API. The rank_method kwarg IS wired to all backends, but can only be
+tested end-to-end with `.over()`, which currently means Polars-only.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 
 
 @pytest.fixture
@@ -133,3 +134,23 @@ class TestRankingCorrectness:
         team_a = result.filter(pl.col("team") == "A").sort("score")
         # rank()'s ascending order_by wins, so [10, 20, 30, 30] → [1, 2, 3, 3]
         assert team_a["rnk"].to_list() == [1, 2, 3, 3]
+
+
+class TestIbisRankMethodGuard:
+    """Ibis must raise BackendCapabilityError for rank methods without SQL equivalents."""
+
+    def test_ibis_rank_average_raises(self):
+        import ibis
+        con = ibis.duckdb.connect()
+        t = con.create_table("_test_rank_avg", {"score": [10, 20, 30, 30]})
+        expr = ma.col("score").rank(method="average").over("score")
+        with pytest.raises(BackendCapabilityError, match="average"):
+            expr.compile(t)
+
+    def test_ibis_rank_max_raises(self):
+        import ibis
+        con = ibis.duckdb.connect()
+        t = con.create_table("_test_rank_max", {"score": [10, 20, 30, 30]})
+        expr = ma.col("score").rank(method="max").over("score")
+        with pytest.raises(BackendCapabilityError, match="max"):
+            expr.compile(t)

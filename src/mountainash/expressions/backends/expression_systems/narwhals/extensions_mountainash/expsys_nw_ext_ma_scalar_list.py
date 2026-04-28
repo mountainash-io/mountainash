@@ -30,3 +30,26 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
 
     def list_unique(self, x, /):
         return x.list.unique()
+
+    def list_explode(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.explode(). "
+            "Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE,
+        )
+
+    def list_join(self, x, /, *, separator: str = ","):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.join(). "
+            "Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.JOIN,
+        )
+
+    def list_get(self, x, /, *, index: int = 0):
+        return x.list.get(index)

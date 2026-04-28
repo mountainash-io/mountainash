@@ -2037,6 +2037,23 @@ def register_all_functions() -> None:
             substrait_uri=None, substrait_name=None, is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_unique,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_explode,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.JOIN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("separator",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_join,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GET,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("index",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_get,
+        ),
     ]
 
     # ========================================

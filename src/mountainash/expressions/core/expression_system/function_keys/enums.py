@@ -605,6 +605,9 @@ class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     CONTAINS = auto()
     SORT = auto()
     UNIQUE = auto()
+    EXPLODE = auto()
+    JOIN = auto()
+    GET = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
