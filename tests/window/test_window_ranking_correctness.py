@@ -1,4 +1,10 @@
-"""Tests that ranking functions produce correct rank values, not sequential numbers."""
+"""Tests that ranking functions produce correct rank values, not sequential numbers.
+
+All tests use `.over()` for partitioned ranking, which requires Polars-specific
+.over() execution. Additionally, narwhals and ibis backends do not yet accept
+the `rank_method` option passed by `dense_rank()` / `rank()` API builder options,
+so all ranking tests are Polars-only.
+"""
 
 from __future__ import annotations
 
