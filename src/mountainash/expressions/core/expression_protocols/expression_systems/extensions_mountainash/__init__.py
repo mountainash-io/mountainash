@@ -23,6 +23,8 @@ from .prtcl_expsys_ext_ma_scalar_ternary import MountainAshScalarTernaryExpressi
 from .prtcl_expsys_ext_ma_null import MountainAshNullExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_name import MountainAshNameExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_set import SubstraitScalarSetExpressionSystemProtocol as MountainAshScalarSetExpressionSystemProtocol
+from .prtcl_expsys_ext_ma_scalar_struct import MountainAshScalarStructExpressionSystemProtocol
+from .prtcl_expsys_ext_ma_scalar_list import MountainAshScalarListExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_window import MountainashWindowExpressionSystemProtocol
 
 __all__ = [
@@ -35,5 +37,7 @@ __all__ = [
     "MountainAshScalarTernaryExpressionSystemProtocol",
     "MountainAshNullExpressionSystemProtocol",
     "MountainAshNameExpressionSystemProtocol",
+    "MountainAshScalarStructExpressionSystemProtocol",
+    "MountainAshScalarListExpressionSystemProtocol",
     "MountainashWindowExpressionSystemProtocol",
 ]

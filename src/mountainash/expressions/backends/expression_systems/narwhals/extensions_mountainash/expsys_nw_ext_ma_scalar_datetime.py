@@ -767,3 +767,19 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
     def days_in_month(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
         raise NotImplementedError("Narwhals does not support days_in_month()")
+
+    # =========================================================================
+    # Duration Extraction Methods
+    # =========================================================================
+
+    def total_seconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_seconds()
+
+    def total_minutes(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_minutes()
+
+    def total_milliseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_milliseconds()
+
+    def total_microseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_microseconds()

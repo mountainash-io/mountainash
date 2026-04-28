@@ -747,3 +747,19 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
     def days_in_month(self, input: PolarsExpr, /) -> PolarsExpr:
         return input.dt.month_end().dt.day()
+
+    # =========================================================================
+    # Duration Extraction Methods
+    # =========================================================================
+
+    def total_seconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_seconds()
+
+    def total_minutes(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_minutes()
+
+    def total_milliseconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_milliseconds()
+
+    def total_microseconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_microseconds()

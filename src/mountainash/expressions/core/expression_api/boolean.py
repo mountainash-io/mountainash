@@ -42,6 +42,8 @@ from .api_builders.extensions_mountainash import (
     MountainAshScalarDatetimeAPIBuilder,
     MountainAshScalarSetAPIBuilder,
     MountainAshScalarStringAPIBuilder,
+    MountainAshScalarStructAPIBuilder,
+    MountainAshScalarListAPIBuilder,
     MountainAshScalarTernaryAPIBuilder,
 )
 
@@ -67,6 +69,16 @@ class StringAPIBuilder(
     SubstraitScalarStringAPIBuilder,        # Standard Substrait string methods
 ):
     """Unified string builder for the .str namespace."""
+    pass
+
+
+class StructAPIBuilder(MountainAshScalarStructAPIBuilder):
+    """Unified struct builder for the .struct namespace."""
+    pass
+
+
+class ListAPIBuilder(MountainAshScalarListAPIBuilder):
+    """Unified list builder for the .list namespace."""
     pass
 
 
@@ -136,10 +148,12 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         SubstraitWindowArithmeticAPIBuilder,
     )
 
-    # Explicit namespace descriptors - accessed via .str, .dt, .name
+    # Explicit namespace descriptors - accessed via .str, .dt, .name, .struct, .list
     str = NamespaceDescriptor(StringAPIBuilder)
     dt = NamespaceDescriptor(DatetimeAPIBuilder)
     name = NamespaceDescriptor(MountainAshNameAPIBuilder)
+    struct = NamespaceDescriptor(StructAPIBuilder)
+    list = NamespaceDescriptor(ListAPIBuilder)
 
     @classmethod
     def create(cls, node: ExpressionNode) -> BooleanExpressionAPI:

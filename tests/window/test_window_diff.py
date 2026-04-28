@@ -7,23 +7,40 @@ import pytest
 
 import mountainash as ma
 
-
-@pytest.fixture
-def diff_df():
-    return pl.DataFrame({
-        "group": ["A", "A", "A", "B", "B"],
-        "value": [10, 30, 25, 100, 80],
-        "ts": [1, 2, 3, 1, 2],
-    })
+BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
 
+# =============================================================================
+# Cross-backend: basic diff (no .over())
+# =============================================================================
+
+
+@pytest.mark.parametrize("backend_name", BACKENDS)
 class TestDiff:
-    def test_diff_basic(self, diff_df):
+    def test_diff_basic(self, backend_name, backend_factory, collect_expr):
         """diff() computes consecutive differences."""
+        data = {"value": [10, 30, 25, 100, 80]}
+        df = backend_factory.create(data, backend_name)
         expr = ma.col("value").diff()
-        result = diff_df.with_columns(expr.compile(diff_df).alias("d"))
-        diffs = result["d"].to_list()
-        assert diffs == [None, 20, -5, 75, -20]
+        result = collect_expr(df, expr)
+        assert result == [None, 20, -5, 75, -20], f"[{backend_name}] got {result}"
+
+
+# =============================================================================
+# Polars-only: .over() path
+# =============================================================================
+
+
+class TestDiffOverPartition:
+    """Tests Polars-specific .over() execution path — no cross-backend equivalent via relation API."""
+
+    @pytest.fixture
+    def diff_df(self):
+        return pl.DataFrame({
+            "group": ["A", "A", "A", "B", "B"],
+            "value": [10, 30, 25, 100, 80],
+            "ts": [1, 2, 3, 1, 2],
+        })
 
     def test_diff_over_partition(self, diff_df):
         """diff().over() computes differences within each partition."""

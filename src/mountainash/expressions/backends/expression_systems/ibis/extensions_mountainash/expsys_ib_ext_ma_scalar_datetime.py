@@ -812,3 +812,31 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         next_month = input.truncate("M") + ibis.interval(months=1)
         end_of_month = next_month - ibis.interval(days=1)
         return end_of_month.day()
+
+    # =========================================================================
+    # Duration Extraction Methods
+    # =========================================================================
+
+    def total_seconds(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_seconds() method. "
+            "Use dt.diff_seconds() for integer-based extraction."
+        )
+
+    def total_minutes(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_minutes() method. "
+            "Use dt.diff_minutes() for integer-based extraction."
+        )
+
+    def total_milliseconds(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_milliseconds() method. "
+            "Use dt.diff_milliseconds() for integer-based extraction."
+        )
+
+    def total_microseconds(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_microseconds() method. "
+            "Use integer arithmetic on dt.diff_seconds() for sub-second extraction."
+        )

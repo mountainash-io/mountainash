@@ -1,0 +1,26 @@
+"""Protocol for mountainash list operations."""
+from __future__ import annotations
+
+from typing import Protocol
+
+from mountainash.core.types import ExpressionT
+
+
+class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):
+    """Protocol for list operations across backends."""
+
+    def list_sum(self, x: ExpressionT, /) -> ExpressionT: ...
+
+    def list_min(self, x: ExpressionT, /) -> ExpressionT: ...
+
+    def list_max(self, x: ExpressionT, /) -> ExpressionT: ...
+
+    def list_mean(self, x: ExpressionT, /) -> ExpressionT: ...
+
+    def list_len(self, x: ExpressionT, /) -> ExpressionT: ...
+
+    def list_contains(self, x: ExpressionT, /, item: ExpressionT) -> ExpressionT: ...
+
+    def list_sort(self, x: ExpressionT, /, *, descending: bool = False) -> ExpressionT: ...
+
+    def list_unique(self, x: ExpressionT, /) -> ExpressionT: ...

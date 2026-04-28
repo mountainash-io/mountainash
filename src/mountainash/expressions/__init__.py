@@ -21,6 +21,7 @@ from .core.expression_api.entrypoints import (
     # Entry point functions (from expression_api)
     col,
     lit,
+    duration,
     coalesce,
     greatest,
     least,
@@ -98,6 +99,7 @@ __all__ = [
     # Factory functions (PRIMARY API)
     "col",
     "lit",
+    "duration",
     "native",
 
     # Conditional functions

@@ -515,6 +515,12 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     # Legacy
     OFFSET_BY = auto()
 
+    # Duration extraction (total elapsed)
+    TOTAL_SECONDS = auto()
+    TOTAL_MINUTES = auto()
+    TOTAL_MILLISECONDS = auto()
+    TOTAL_MICROSECONDS = auto()
+
 
 # =============================================================================
 # Mountainash Custom Extensions
@@ -580,6 +586,25 @@ class FKEY_MOUNTAINASH_SCALAR_SET(Enum):
 
     IS_IN = "is_in"
     IS_NOT_IN = "is_not_in"
+
+
+class FKEY_MOUNTAINASH_SCALAR_STRUCT(Enum):
+    """Mountainash struct field operations."""
+
+    FIELD = auto()
+
+
+class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
+    """Mountainash list operations."""
+
+    SUM = auto()
+    MIN = auto()
+    MAX = auto()
+    MEAN = auto()
+    LEN = auto()
+    CONTAINS = auto()
+    SORT = auto()
+    UNIQUE = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):

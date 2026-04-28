@@ -1058,6 +1058,42 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         )
         return self._build(node)
 
+    # ========================================
+    # Duration Extraction
+    # ========================================
+
+    def total_seconds(self) -> BaseExpressionAPI:
+        """Total seconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_minutes(self) -> BaseExpressionAPI:
+        """Total minutes in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MINUTES,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_milliseconds(self) -> BaseExpressionAPI:
+        """Total milliseconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MILLISECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_microseconds(self) -> BaseExpressionAPI:
+        """Total microseconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MICROSECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
     # Polars-compatible aliases
     week = week_of_year
     weekday = day_of_week

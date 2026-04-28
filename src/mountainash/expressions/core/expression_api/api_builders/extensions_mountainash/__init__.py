@@ -15,6 +15,8 @@ from .api_bldr_ext_ma_scalar_string import MountainAshScalarStringAPIBuilder
 from .api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
 from .api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilder
 from .api_bldr_ext_ma_scalar_set import MountainashScalarSetAPIBuilder as MountainAshScalarSetAPIBuilder
+from .api_bldr_ext_ma_scalar_struct import MountainAshScalarStructAPIBuilder
+from .api_bldr_ext_ma_scalar_list import MountainAshScalarListAPIBuilder
 
 __all__ = [
     "MountainAshNameAPIBuilder",
@@ -26,5 +28,7 @@ __all__ = [
     "MountainAshScalarComparisonAPIBuilder",
     "MountainAshScalarDatetimeAPIBuilder",
     "MountainAshScalarStringAPIBuilder",
+    "MountainAshScalarStructAPIBuilder",
+    "MountainAshScalarListAPIBuilder",
     "MountainAshScalarTernaryAPIBuilder",
 ]

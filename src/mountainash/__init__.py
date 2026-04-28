@@ -6,6 +6,7 @@ from mountainash.expressions import (
     BooleanExpressionAPI,
     col,
     lit,
+    duration,
     native,
     coalesce,
     greatest,

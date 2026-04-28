@@ -1,4 +1,7 @@
-"""Tests that Polars apply_window passes order_by through to .over()."""
+"""Tests that Polars apply_window passes order_by through to .over().
+
+Tests Polars-specific .over() kwarg plumbing — no cross-backend equivalent.
+"""
 
 from __future__ import annotations
 

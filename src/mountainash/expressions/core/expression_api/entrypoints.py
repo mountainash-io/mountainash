@@ -81,6 +81,46 @@ def lit(value: Any) -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
+def duration(
+    *,
+    weeks: int = 0,
+    days: int = 0,
+    hours: int = 0,
+    minutes: int = 0,
+    seconds: int = 0,
+    milliseconds: int = 0,
+    microseconds: int = 0,
+) -> BaseExpressionAPI:
+    """Create a duration literal expression.
+
+    All parameters are keyword-only and literal-only (int, not Expr).
+
+    Args:
+        weeks: Number of weeks.
+        days: Number of days.
+        hours: Number of hours.
+        minutes: Number of minutes.
+        seconds: Number of seconds.
+        milliseconds: Number of milliseconds.
+        microseconds: Number of microseconds.
+
+    Returns:
+        Expression wrapping a timedelta literal.
+    """
+    from datetime import timedelta
+
+    td = timedelta(
+        weeks=weeks,
+        days=days,
+        hours=hours,
+        minutes=minutes,
+        seconds=seconds,
+        milliseconds=milliseconds,
+        microseconds=microseconds,
+    )
+    return lit(td)
+
+
 # ============================================================================
 # Horizontal Entry Points (Substrait-aligned)
 # ============================================================================
@@ -495,6 +535,7 @@ __all__ = [
     # Core
     "col",
     "lit",
+    "duration",
     # Horizontal
     "coalesce",
     "greatest",
