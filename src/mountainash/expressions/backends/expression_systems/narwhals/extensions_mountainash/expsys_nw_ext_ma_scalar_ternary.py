@@ -17,7 +17,9 @@ import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
-
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_TERNARY,
+)
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarTernaryExpressionSystemProtocol
 
@@ -208,7 +210,11 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
         is_unknown = self._check_unknown(element, unknown_values)
 
         if isinstance(collection, nw.Expr):
-            membership = collection.list.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
+            membership = self._call_with_expr_support(
+                lambda: collection.list.contains(element),  # pyright: ignore[reportAttributeAccessIssue]
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
+                collection=collection,
+            )
         else:
             membership = element.is_in(collection)
 
@@ -235,7 +241,11 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
         is_unknown = self._check_unknown(element, unknown_values)
 
         if isinstance(collection, nw.Expr):
-            membership = collection.list.contains(element)  # pyright: ignore[reportAttributeAccessIssue]
+            membership = self._call_with_expr_support(
+                lambda: collection.list.contains(element),  # pyright: ignore[reportAttributeAccessIssue]
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
+                collection=collection,
+            )
         else:
             membership = element.is_in(collection)
 

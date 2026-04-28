@@ -32,6 +32,11 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
             native_errors=(pl.exceptions.ComputeError,),
             workaround="Use a literal string substring; replacement can be a column reference",
         ),
+        (FK_STR.REGEXP_REPLACE, "pattern"): KnownLimitation(
+            message="Polars does not support dynamic column patterns in str.replace_all/str.replace with regex",
+            native_errors=(pl.exceptions.ComputeError,),
+            workaround="Use a literal string regex pattern; replacement can be a column reference",
+        ),
     }
 
     @property

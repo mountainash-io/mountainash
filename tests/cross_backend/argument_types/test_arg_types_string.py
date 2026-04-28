@@ -64,12 +64,6 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.TRIM, "characters"),
 ]
 
-# OP_SPECS exercise the (op × backend × input_type) matrix for representative
-# operations. String ops are intentionally empty: registry-tracked limitations
-# (CONTAINS/STARTS_WITH/ENDS_WITH/REPLACE substring, LPAD length) do not fire
-# at compile time — they raise on execution as TypeError outside the
-# _call_with_expr_support wrapper, so xfail(strict, raises=BackendCapabilityError)
-# cannot trap them. Use compile-only OP_SPECS once the wrapper covers these.
 OP_SPECS: list[OpSpec] = [
     OpSpec(
         function_key=FK_STR.CONTAINS,
@@ -129,6 +123,150 @@ OP_SPECS: list[OpSpec] = [
         data={
             "text": ["a", "bb", "ccc"],
             "length": [5, 5, 5],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RPAD,
+        op_name="rpad",
+        build=lambda col, arg: col.str.rpad(arg, "*"),
+        raw_arg=5,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "length": [5, 5, 5],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.SUBSTRING,
+        op_name="substring_start",
+        build=lambda col, arg: col.str.substring(arg),
+        raw_arg=1,
+        arg_col_name="start",
+        param_name="start",
+        data={
+            "text": ["hello", "world", "test"],
+            "start": [1, 2, 0],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.SUBSTRING,
+        op_name="substring_length",
+        build=lambda col, arg: col.str.substring(0, arg),
+        raw_arg=3,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["hello", "world", "test"],
+            "length": [3, 4, 2],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LEFT,
+        op_name="left",
+        build=lambda col, arg: col.str.left(arg),
+        raw_arg=3,
+        arg_col_name="count",
+        param_name="count",
+        data={
+            "text": ["hello", "world", "test"],
+            "count": [3, 2, 4],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RIGHT,
+        op_name="right",
+        build=lambda col, arg: col.str.right(arg),
+        raw_arg=3,
+        arg_col_name="count",
+        param_name="count",
+        data={
+            "text": ["hello", "world", "test"],
+            "count": [3, 2, 4],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.TRIM,
+        op_name="trim",
+        build=lambda col, arg: col.str.trim(arg),
+        raw_arg="x",
+        arg_col_name="chars",
+        param_name="characters",
+        data={
+            "text": ["xhellox", "xworldx", "xtestx"],
+            "chars": ["x", "x", "x"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LTRIM,
+        op_name="ltrim",
+        build=lambda col, arg: col.str.ltrim(arg),
+        raw_arg="x",
+        arg_col_name="chars",
+        param_name="characters",
+        data={
+            "text": ["xhello", "xworld", "xtest"],
+            "chars": ["x", "x", "x"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RTRIM,
+        op_name="rtrim",
+        build=lambda col, arg: col.str.rtrim(arg),
+        raw_arg="x",
+        arg_col_name="chars",
+        param_name="characters",
+        data={
+            "text": ["hellox", "worldx", "testx"],
+            "chars": ["x", "x", "x"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LIKE,
+        op_name="like",
+        build=lambda col, arg: col.str.like(arg),
+        raw_arg="%ello%",
+        arg_col_name="pattern",
+        param_name="match",
+        data={
+            "text": ["hello", "world", "jello"],
+            "pattern": ["%ello%", "%orl%", "%ell%"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE,
+        op_name="replace_replacement",
+        build=lambda col, arg: col.str.replace("o", arg),
+        raw_arg="X",
+        arg_col_name="replacement",
+        param_name="replacement",
+        data={
+            "text": ["hello", "foo", "world"],
+            "replacement": ["X", "Y", "Z"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_REPLACE,
+        op_name="regexp_replace_pattern",
+        build=lambda col, arg: col.str.regexp_replace(arg, "X"),
+        raw_arg="o+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello", "foooo", "world"],
+            "pattern": ["o+", "o+", "o+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_REPLACE,
+        op_name="regexp_replace_replacement",
+        build=lambda col, arg: col.str.regexp_replace("o+", arg),
+        raw_arg="X",
+        arg_col_name="replacement",
+        param_name="replacement",
+        data={
+            "text": ["hello", "foooo", "world"],
+            "replacement": ["X", "Y", "Z"],
         },
     ),
 ]
