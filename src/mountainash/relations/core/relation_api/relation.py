@@ -370,6 +370,51 @@ class Relation(RelationBase):
             )
         )
 
+    # --- Polars-compatible aliases ---
+
+    def limit(self, n: int = 5) -> Relation:
+        """Return the first *n* rows. Polars-compatible alias for head()."""
+        return self.head(n)
+
+    def melt(
+        self,
+        *,
+        on: Union[str, list[str]],
+        index: Optional[Union[str, list[str]]] = None,
+        variable_name: str = "variable",
+        value_name: str = "value",
+    ) -> Relation:
+        """Unpivot from wide to long format. Polars-compatible alias for unpivot()."""
+        return self.unpivot(
+            on=on, index=index, variable_name=variable_name, value_name=value_name,
+        )
+
+    def bottom_k(
+        self,
+        k: int,
+        *,
+        by: Union[str, list[str]],
+    ) -> Relation:
+        """Return the bottom *k* rows. Polars-compatible alias for top_k(descending=False)."""
+        return self.top_k(k, by=by, descending=False)
+
+    def cross_join(self, other: Any) -> Relation:
+        """Cartesian product. Polars-compatible alias for join(how='cross')."""
+        return self.join(other, how="cross")
+
+    def first(self) -> Relation:
+        """Return the first row. Polars-compatible alias for head(1)."""
+        return self.head(1)
+
+    def last(self) -> Relation:
+        """Return the last row. Polars-compatible alias for tail(1)."""
+        return self.tail(1)
+
+    def remove(self, predicate: Any) -> Relation:
+        """Remove rows matching predicate. Polars-compatible inverse of filter()."""
+        inverted = predicate.not_()
+        return self.filter(inverted)
+
     # --- Pipe ---
 
     def pipe(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
