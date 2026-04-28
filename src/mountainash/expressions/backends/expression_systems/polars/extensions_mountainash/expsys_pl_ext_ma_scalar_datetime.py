@@ -752,14 +752,14 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     # Duration Extraction Methods
     # =========================================================================
 
-    def total_seconds(self, input: PolarsExpr, /) -> PolarsExpr:
-        return input.dt.total_seconds()
+    def total_seconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_seconds()
 
-    def total_minutes(self, input: PolarsExpr, /) -> PolarsExpr:
-        return input.dt.total_minutes()
+    def total_minutes(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_minutes()
 
-    def total_milliseconds(self, input: PolarsExpr, /) -> PolarsExpr:
-        return input.dt.total_milliseconds()
+    def total_milliseconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_milliseconds()
 
-    def total_microseconds(self, input: PolarsExpr, /) -> PolarsExpr:
-        return input.dt.total_microseconds()
+    def total_microseconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_microseconds()

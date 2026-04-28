@@ -536,3 +536,20 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def days_in_month(self) -> BaseExpressionAPI:
         """Return the number of days in the month of the datetime."""
         ...
+
+    # Duration extraction
+    def total_seconds(self) -> BaseExpressionAPI:
+        """Total seconds in a duration."""
+        ...
+
+    def total_minutes(self) -> BaseExpressionAPI:
+        """Total minutes in a duration."""
+        ...
+
+    def total_milliseconds(self) -> BaseExpressionAPI:
+        """Total milliseconds in a duration."""
+        ...
+
+    def total_microseconds(self) -> BaseExpressionAPI:
+        """Total microseconds in a duration."""
+        ...

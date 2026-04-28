@@ -121,6 +121,10 @@ TESTED_PARAMS: list[tuple] = [
     ("unix_timestamp", "x"),
     ("week_of_year", "x"),
     ("year", "x"),
+    (FK_MA_DT.TOTAL_SECONDS, "x"),
+    (FK_MA_DT.TOTAL_MINUTES, "x"),
+    (FK_MA_DT.TOTAL_MILLISECONDS, "x"),
+    (FK_MA_DT.TOTAL_MICROSECONDS, "x"),
 ]
 
 OP_SPECS: list[OpSpec] = []
