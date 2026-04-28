@@ -41,6 +41,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -74,6 +75,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarStructExpressionSystemProtocol,
+    MountainAshScalarListExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
 )
@@ -1962,6 +1964,54 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Mountainash List Extensions
+    # ========================================
+
+    MOUNTAINASH_LIST_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sum,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MIN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_min,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MAX,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_max,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEAN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_mean,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.LEN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_len,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONTAINS,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_contains,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SORT,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("descending",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sort,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.UNIQUE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_unique,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -1989,6 +2039,7 @@ def register_all_functions() -> None:
         + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
+        + MOUNTAINASH_LIST_FUNCTIONS  # Mountainash extension
     )
 
     for func in all_functions:

@@ -588,6 +588,19 @@ class FKEY_MOUNTAINASH_SCALAR_STRUCT(Enum):
     FIELD = auto()
 
 
+class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
+    """Mountainash list operations."""
+
+    SUM = auto()
+    MIN = auto()
+    MAX = auto()
+    MEAN = auto()
+    LEN = auto()
+    CONTAINS = auto()
+    SORT = auto()
+    UNIQUE = auto()
+
+
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
     """Mountainash ternary logic operations.
 
