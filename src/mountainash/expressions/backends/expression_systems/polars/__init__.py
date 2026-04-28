@@ -46,6 +46,7 @@ from .extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import SubstraitPol
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_string import SubstraitPolarsScalarStringExpressionSystem as MountainAshPolarsScalarStringExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_window import MountainAshPolarsWindowExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_struct import MountainAshPolarsScalarStructExpressionSystem
 
 
 
@@ -84,6 +85,7 @@ class PolarsExpressionSystem(
     MountainAshPolarsScalarSetExpressionSystem,
     MountainAshPolarsScalarTernaryExpressionSystem,
     MountainAshPolarsWindowExpressionSystem,
+    MountainAshPolarsScalarStructExpressionSystem,
 
 ):
     """Complete Polars backend expression system.
