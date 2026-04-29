@@ -69,3 +69,11 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
     def strip_suffix(self, suffix: str) -> BaseExpressionAPI:
         """Remove suffix from string if present."""
         ...
+
+    def to_date(self, format: str) -> BaseExpressionAPI:
+        """Parse string to date using format string."""
+        ...
+
+    def to_datetime(self, format: str) -> BaseExpressionAPI:
+        """Parse string to datetime using format string."""
+        ...

@@ -567,6 +567,8 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
 
     REGEX_CONTAINS = "regex_contains"
     STRIP_SUFFIX = "strip_suffix"
+    TO_DATE = "to_date"
+    TO_DATETIME = "to_datetime"
 
 
 class FKEY_MOUNTAINASH_NULL(Enum):

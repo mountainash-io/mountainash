@@ -695,6 +695,20 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.strip_suffix,
             options=("suffix",),
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_date,
+            options=("format",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
+            options=("format",),
+        ),
     ]
 
     # ========================================
