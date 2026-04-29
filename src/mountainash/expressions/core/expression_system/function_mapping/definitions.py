@@ -709,6 +709,55 @@ def register_all_functions() -> None:
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
             options=("format",),
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="to_time",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.to_time,
+            options=("format",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="to_integer",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.to_integer,
+            options=("base",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="json_decode",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.json_decode,
+            options=("dtype",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="json_path_match",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.json_path_match,
+            options=("json_path",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="encode",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.encode,
+            options=("encoding",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.DECODE,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="decode",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.decode,
+            options=("encoding", "strict"),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS,
+            substrait_uri=MountainashExtension.STRING,
+            substrait_name="extract_groups",
+            protocol_method=MountainAshScalarStringExpressionSystemProtocol.extract_groups,
+            options=("pattern",),
+        ),
     ]
 
     # ========================================

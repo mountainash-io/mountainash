@@ -569,6 +569,13 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
     STRIP_SUFFIX = "strip_suffix"
     TO_DATE = "to_date"
     TO_DATETIME = "to_datetime"
+    TO_TIME = "to_time"
+    TO_INTEGER = "to_integer"
+    JSON_DECODE = "json_decode"
+    JSON_PATH_MATCH = "json_path_match"
+    ENCODE = "encode"
+    DECODE = "decode"
+    EXTRACT_GROUPS = "extract_groups"
 
 
 class FKEY_MOUNTAINASH_NULL(Enum):
