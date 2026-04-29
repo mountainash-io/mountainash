@@ -2009,6 +2009,18 @@ def register_all_functions() -> None:
             substrait_name=None,
             protocol_method=MountainashWindowExpressionSystemProtocol.cum_prod,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.forward_fill,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.backward_fill,
+        ),
     ]
 
     # ========================================

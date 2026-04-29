@@ -419,6 +419,24 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(node)
 
+    def forward_fill(self, limit: Optional[int] = None) -> BaseExpressionAPI:
+        """Forward fill null values. Propagates last valid value forward."""
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL,
+            arguments=[self._node],
+            options={"limit": limit} if limit is not None else {},
+        )
+        return self._build(node)
+
+    def backward_fill(self, limit: Optional[int] = None) -> BaseExpressionAPI:
+        """Backward fill null values. Propagates next valid value backward."""
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL,
+            arguments=[self._node],
+            options={"limit": limit} if limit is not None else {},
+        )
+        return self._build(node)
+
     def diff(self, n: int = 1) -> BaseExpressionAPI:
         """Consecutive difference: value[i] - value[i-n].
 

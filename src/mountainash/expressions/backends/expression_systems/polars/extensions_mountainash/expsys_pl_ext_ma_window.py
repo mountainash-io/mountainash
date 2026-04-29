@@ -33,3 +33,11 @@ class MountainAshPolarsWindowExpressionSystem(PolarsBaseExpressionSystem):
     def cum_prod(self, x: PolarsExpr, /, *, reverse: bool = False) -> PolarsExpr:
         """Cumulative product."""
         return x.cum_prod(reverse=reverse)
+
+    def forward_fill(self, x: PolarsExpr, /, *, limit: int | None = None) -> PolarsExpr:
+        """Forward fill null values."""
+        return x.forward_fill(limit=limit)
+
+    def backward_fill(self, x: PolarsExpr, /, *, limit: int | None = None) -> PolarsExpr:
+        """Backward fill null values."""
+        return x.backward_fill(limit=limit)

@@ -36,3 +36,15 @@ class MountainAshNarwhalsWindowExpressionSystem(NarwhalsBaseExpressionSystem):
     def cum_prod(self, x, /, *, reverse: bool = False):
         """Cumulative product."""
         return x.cum_prod(reverse=reverse)
+
+    def forward_fill(self, x, /, *, limit: int | None = None):
+        """Forward fill null values."""
+        if limit is not None:
+            return x.forward_fill(limit=limit)
+        return x.forward_fill()
+
+    def backward_fill(self, x, /, *, limit: int | None = None):
+        """Backward fill null values."""
+        if limit is not None:
+            return x.backward_fill(limit=limit)
+        return x.backward_fill()

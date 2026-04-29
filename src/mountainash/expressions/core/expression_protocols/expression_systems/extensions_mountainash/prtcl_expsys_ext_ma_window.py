@@ -48,3 +48,11 @@ class MountainashWindowExpressionSystemProtocol(Protocol[ExpressionT]):
     def cum_prod(self, x: ExpressionT, /, *, reverse: bool = False) -> ExpressionT:
         """Cumulative product."""
         ...
+
+    def forward_fill(self, x: ExpressionT, /, *, limit: int | None = None) -> ExpressionT:
+        """Forward fill null values."""
+        ...
+
+    def backward_fill(self, x: ExpressionT, /, *, limit: int | None = None) -> ExpressionT:
+        """Backward fill null values."""
+        ...

@@ -418,6 +418,8 @@ class FKEY_MOUNTAINASH_WINDOW(Enum):
     CUM_COUNT = auto()
     CUM_PROD = auto()
     DIFF = auto()
+    FORWARD_FILL = auto()
+    BACKWARD_FILL = auto()
 
 
 class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
