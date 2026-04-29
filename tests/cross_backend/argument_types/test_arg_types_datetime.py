@@ -1,12 +1,13 @@
 """Argument channel tests for datetime operations.
 
-OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
-which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
-apply to lazy backends), causing strict-xfail XPASS noise. The full
-TESTED_PARAMS list still satisfies the coverage guard. Once the test
-infrastructure can route through lazy backends, OP_SPECS can be filled in.
+The add_* operations (add_days, add_hours, etc.) have KNOWN_EXPR_LIMITATIONS
+on narwhals (literal-only offset) and ibis (ibis.interval rejects expressions).
+On ibis, the TypeError fires at execution time (not compile time), so the test
+template fallback catch in _test_template.py:137-145 handles error enrichment.
 """
 from __future__ import annotations
+
+from datetime import datetime
 
 import pytest
 
@@ -127,7 +128,112 @@ TESTED_PARAMS: list[tuple] = [
     (FK_MA_DT.TOTAL_MICROSECONDS, "x"),
 ]
 
-OP_SPECS: list[OpSpec] = []
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key=FK_MA_DT.ADD_DAYS,
+        op_name="add_days",
+        build=lambda col, arg: col.dt.add_days(arg),
+        raw_arg=5,
+        arg_col_name="days",
+        param_name="days",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "days": [5, 10, 3],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_HOURS,
+        op_name="add_hours",
+        build=lambda col, arg: col.dt.add_hours(arg),
+        raw_arg=12,
+        arg_col_name="hours",
+        param_name="hours",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "hours": [12, 6, 24],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_MINUTES,
+        op_name="add_minutes",
+        build=lambda col, arg: col.dt.add_minutes(arg),
+        raw_arg=30,
+        arg_col_name="minutes",
+        param_name="minutes",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "minutes": [30, 45, 15],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_SECONDS,
+        op_name="add_seconds",
+        build=lambda col, arg: col.dt.add_seconds(arg),
+        raw_arg=90,
+        arg_col_name="seconds",
+        param_name="seconds",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "seconds": [90, 120, 60],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_MILLISECONDS,
+        op_name="add_milliseconds",
+        build=lambda col, arg: col.dt.add_milliseconds(arg),
+        raw_arg=500,
+        arg_col_name="milliseconds",
+        param_name="milliseconds",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "milliseconds": [500, 250, 1000],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_MICROSECONDS,
+        op_name="add_microseconds",
+        build=lambda col, arg: col.dt.add_microseconds(arg),
+        raw_arg=1000,
+        arg_col_name="microseconds",
+        param_name="microseconds",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "microseconds": [1000, 500, 2000],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_MONTHS,
+        op_name="add_months",
+        build=lambda col, arg: col.dt.add_months(arg),
+        raw_arg=3,
+        arg_col_name="months",
+        param_name="months",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "months": [3, 1, 6],
+        },
+        input_col="dt",
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.ADD_YEARS,
+        op_name="add_years",
+        build=lambda col, arg: col.dt.add_years(arg),
+        raw_arg=1,
+        arg_col_name="years",
+        param_name="years",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "years": [1, 2, 5],
+        },
+        input_col="dt",
+    ),
+]
 
 
 def _params():

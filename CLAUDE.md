@@ -22,6 +22,16 @@ After writing or editing code, check LSP diagnostics before
 moving on. Fix any type errors or missing imports immediately.
 
 
+## Superpowers Specs & Plans Location
+
+Save all superpowers specs and plans to the **mountainash-central** repo, not this repo:
+
+- **Specs:** `mountainash-central/04.planning/mountainash/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+- **Plans:** `mountainash-central/04.planning/mountainash/superpowers/plans/YYYY-MM-DD-<topic>.md`
+
+Never save specs or plans under `docs/superpowers/` in this repo. The central repo is the single source of truth for all planning documents.
+
+
 ## Design Principles (MANDATORY)
 
 **You MUST read the relevant principle documents before:**
@@ -268,7 +278,7 @@ result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
 - Cross-type joins: `relation(polars_df).join(pandas_df, on="id")` — automatic coercion
 - `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
 
-**Spec:** `docs/superpowers/specs/2026-03-28-relational-ast-design.md`
+**Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-03-28-relational-ast-design.md`
 
 ### Relation DAG (Frictionless Data Package integration)
 
@@ -304,8 +314,8 @@ pkg2.write("./out/datapackage.json")
 - Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/two-edge-graph-model.md`.
 - **Caveat:** conform application is currently Polars-only on the materialisation path. Narwhals and Ibis backends pass through unchanged with a TODO marker; this is the only known gap in the relation-DAG wiring matrix.
 
-**Spec:** `docs/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`
-**Plan:** `docs/superpowers/plans/2026-04-07-frictionless-datapackage.md`
+**Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`
+**Plan:** `mountainash-central/04.planning/mountainash/superpowers/plans/2026-04-07-frictionless-datapackage.md`
 
 
 ## Documentation Corpora

@@ -53,7 +53,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             "`NonNestedLiteral` and rejects Expr. Use the polars or an ibis "
             "backend directly, or pass a literal list/tuple/set as the argument."
         ),
-        native_errors=(TypeError, AttributeError),
+        native_errors=(TypeError, AttributeError, ValueError),
         workaround="Use a literal collection, the polars backend, or an ibis backend",
     )
 
