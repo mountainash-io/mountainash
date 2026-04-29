@@ -665,6 +665,33 @@ class Relation(RelationBase):
         result = self._compile_and_execute()
         return list(result.columns)
 
+    @property
+    def schema(self) -> dict:
+        """Output schema as {column_name: dtype} dict.
+
+        Compiles the plan to determine the output schema accurately,
+        including derived columns from select/with_columns/rename/join/agg.
+        """
+        result = self._compile_and_execute()
+        from mountainash.core.types import is_polars_lazyframe
+        if is_polars_lazyframe(result):
+            return dict(result.collect_schema())
+        if hasattr(result, "schema"):
+            return dict(result.schema)
+        if hasattr(result, "dtypes"):
+            return dict(zip(result.columns, result.dtypes))
+        return {}
+
+    @property
+    def dtypes(self) -> list:
+        """List of column data types in the output schema."""
+        return list(self.schema.values())
+
+    @property
+    def width(self) -> int:
+        """Number of columns in the output schema."""
+        return len(self.columns)
+
 
 # ---------------------------------------------------------------------------
 # Module-level factory functions
