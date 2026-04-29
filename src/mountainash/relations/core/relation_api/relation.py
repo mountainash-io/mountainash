@@ -266,6 +266,22 @@ class Relation(RelationBase):
             )
         )
 
+    def drop_nans(self, *, subset: Optional[list[str]] = None) -> Relation:
+        """Drop rows containing NaN values.
+
+        When subset is None, only float columns are checked.
+        """
+        options: dict[str, Any] = {}
+        if subset is not None:
+            options["subset"] = subset
+        return Relation(
+            ExtensionRelNode(
+                input=self._node,
+                operation=ExtensionRelOperation.DROP_NANS,
+                options=options,
+            )
+        )
+
     def with_row_index(self, *, name: str = "index") -> Relation:
         """Add a row-index column."""
         return Relation(
@@ -648,6 +664,45 @@ class Relation(RelationBase):
         """Execute and return column names."""
         result = self._compile_and_execute()
         return list(result.columns)
+
+    @property
+    def schema(self) -> dict:
+        """Output schema as {column_name: dtype} dict.
+
+        Compiles the plan to determine the output schema accurately,
+        including derived columns from select/with_columns/rename/join/agg.
+        """
+        result = self._compile_and_execute()
+        from mountainash.core.types import is_polars_lazyframe
+        if is_polars_lazyframe(result):
+            return dict(result.collect_schema())
+        if hasattr(result, "schema"):
+            return dict(result.schema)
+        if hasattr(result, "dtypes"):
+            return dict(zip(result.columns, result.dtypes))
+        return {}
+
+    @property
+    def dtypes(self) -> list:
+        """List of column data types in the output schema."""
+        return list(self.schema.values())
+
+    @property
+    def width(self) -> int:
+        """Number of columns in the output schema."""
+        return len(self.columns)
+
+    def describe(self) -> Any:
+        """Compute summary statistics (count, null_count, mean, std, min, max).
+
+        Returns a materialised DataFrame. Polars backend only.
+        """
+        collected = self.collect()
+        if hasattr(collected, "describe"):
+            return collected.describe()
+        raise NotImplementedError(
+            "describe() is currently only supported for the Polars backend."
+        )
 
 
 # ---------------------------------------------------------------------------

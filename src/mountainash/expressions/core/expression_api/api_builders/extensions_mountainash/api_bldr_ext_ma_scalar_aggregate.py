@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Optional
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
 )
 
 from ..api_builder_base import BaseExpressionAPIBuilder
@@ -31,5 +32,14 @@ class MountainAshScalarAggregateAPIBuilder(BaseExpressionAPIBuilder):
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.AVG,
             arguments=[self._node],
             options={"overflow": overflow} if overflow is not None else {},
+        )
+        return self._build(node)
+
+    def n_unique(self) -> "BaseExpressionAPI":
+        """Count distinct values. Polars-compatible ``n_unique()``."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_AGGREGATE.COUNT_DISTINCT,
+            arguments=[self._node],
+            options={},
         )
         return self._build(node)

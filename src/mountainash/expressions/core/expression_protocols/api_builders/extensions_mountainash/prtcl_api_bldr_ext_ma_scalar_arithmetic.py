@@ -97,6 +97,10 @@ class MountainAshScalarArithmeticAPIBuilderProtocol(Protocol):
         """Cube root. Equivalent to power(1/3)."""
         ...
 
+    def pct_change(self, n: int = 1) -> BaseExpressionAPI:
+        """Percentage change. Equivalent to diff(n) / lag(n)."""
+        ...
+
 
 #     def sqrt(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
 #         """Square root of the value

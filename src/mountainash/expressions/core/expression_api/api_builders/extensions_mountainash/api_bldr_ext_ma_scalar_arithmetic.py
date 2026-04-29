@@ -10,8 +10,14 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_ARITHMETIC, FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_MOUNTAINASH_WINDOW,
+    SUBSTRAIT_ARITHMETIC_WINDOW,
+)
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode, LiteralNode
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import WindowFunctionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarArithmeticAPIBuilderProtocol
 
 
@@ -177,5 +183,22 @@ class MountainAshScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, MountainAs
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
             arguments=[self._node, exponent],
+        )
+        return self._build(node)
+
+    def pct_change(self, n: int = 1) -> BaseExpressionAPI:
+        """Percentage change. Equivalent to diff(n) / lag(n)."""
+        diff_node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.DIFF,
+            arguments=[self._node],
+            options={"n": n} if n != 1 else {},
+        )
+        lag_node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+            arguments=[self._node, LiteralNode(value=n)],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            arguments=[diff_node, lag_node],
         )
         return self._build(node)

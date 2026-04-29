@@ -58,10 +58,22 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
         ...
 
     # Convenience methods (AST-level composition)
+    def zfill(self, length: int) -> BaseExpressionAPI:
+        """Left-pad with zeros."""
+        ...
+
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
         """Remove prefix from string if present."""
         ...
 
     def strip_suffix(self, suffix: str) -> BaseExpressionAPI:
         """Remove suffix from string if present."""
+        ...
+
+    def to_date(self, format: str) -> BaseExpressionAPI:
+        """Parse string to date using format string."""
+        ...
+
+    def to_datetime(self, format: str) -> BaseExpressionAPI:
+        """Parse string to datetime using format string."""
         ...

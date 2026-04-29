@@ -30,6 +30,7 @@ from .core.expression_api.entrypoints import (
     all_horizontal,
     any_horizontal,
     len,
+    sum_horizontal,
     # Aggregate entry points
     count_records,
     corr,
@@ -116,6 +117,7 @@ __all__ = [
     "all_horizontal",
     "any_horizontal",
     "len",
+    "sum_horizontal",
     "when",
 
     # Aggregate functions

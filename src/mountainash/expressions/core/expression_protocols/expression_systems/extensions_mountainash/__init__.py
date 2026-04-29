@@ -14,7 +14,7 @@ Extension URIs are stored in /extensions/ directory at repository root.
 """
 from __future__ import annotations
 
-# from .prtcl_expsys_ext_ma_scalar_aggregate import  MountainAshScalarAggregateExpressionSystemProtocol
+from .prtcl_expsys_ext_ma_scalar_aggregate import MountainashExtensionAggregateExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_boolean import   MountainAshScalarBooleanExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_string import MountainAshScalarStringExpressionSystemProtocol
@@ -28,8 +28,7 @@ from .prtcl_expsys_ext_ma_scalar_list import MountainAshScalarListExpressionSyst
 from .prtcl_expsys_ext_ma_window import MountainashWindowExpressionSystemProtocol
 
 __all__ = [
-    # Ternary
-    # "MountainAshScalarAggregateExpressionSystemProtocol",
+    "MountainashExtensionAggregateExpressionSystemProtocol",
     "MountainAshScalarArithmeticExpressionSystemProtocol",
     "MountainAshScalarBooleanExpressionSystemProtocol",
     "MountainAshScalarStringExpressionSystemProtocol",

@@ -33,6 +33,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_WINDOW,
 
     # Mountainash extension enums
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_NAME,
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
@@ -52,6 +53,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
     SubstraitConditionalExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
     SubstraitAggregateArithmeticExpressionSystemProtocol,   # NEW
+    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitScalarArithmeticExpressionSystemProtocol,
     SubstraitScalarBooleanExpressionSystemProtocol,
     SubstraitScalarComparisonExpressionSystemProtocol,
@@ -67,6 +69,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 # Import Mountainash extension protocols
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
 
+    MountainashExtensionAggregateExpressionSystemProtocol,
     MountainAshNameExpressionSystemProtocol,
     MountainAshNullExpressionSystemProtocol,
     MountainAshScalarArithmeticExpressionSystemProtocol,
@@ -692,6 +695,20 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.strip_suffix,
             options=("suffix",),
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_date,
+            options=("format",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
+            options=("format",),
+        ),
     ]
 
     # ========================================
@@ -909,6 +926,19 @@ def register_all_functions() -> None:
             substrait_name="quantile",
             options=("rounding",),
             protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.quantile,
+        ),
+        # --- boolean ---
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND,
+            substrait_uri="https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml",
+            substrait_name="bool_and",
+            protocol_method=SubstraitAggregateBooleanExpressionSystemProtocol.bool_and,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR,
+            substrait_uri="https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml",
+            substrait_name="bool_or",
+            protocol_method=SubstraitAggregateBooleanExpressionSystemProtocol.bool_or,
         ),
     ]
 
@@ -1987,6 +2017,24 @@ def register_all_functions() -> None:
             substrait_name=None,
             protocol_method=MountainashWindowExpressionSystemProtocol.cum_count,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_PROD,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_prod,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.forward_fill,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.backward_fill,
+        ),
     ]
 
     # ========================================
@@ -2070,6 +2118,19 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Mountainash Aggregate Extensions
+    # ========================================
+
+    MOUNTAINASH_AGGREGATE_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_AGGREGATE.COUNT_DISTINCT,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashExtensionAggregateExpressionSystemProtocol.n_unique,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -2098,6 +2159,7 @@ def register_all_functions() -> None:
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_LIST_FUNCTIONS  # Mountainash extension
+        + MOUNTAINASH_AGGREGATE_FUNCTIONS  # Mountainash aggregate extensions
     )
 
     for func in all_functions:

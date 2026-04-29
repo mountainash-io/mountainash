@@ -667,8 +667,6 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
     (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): "Datetime comparisons handled by scalar_comparison",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): "No function mapping registered",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_date"): "No function mapping registered",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_timestamp"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): "No function mapping registered",
     # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode

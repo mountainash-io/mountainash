@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING, Optional
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+    FKEY_MOUNTAINASH_SCALAR_STRING,
+)
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 
 
@@ -101,6 +104,16 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
 
     # Convenience methods (AST-level composition)
 
+    def zfill(self, length: int) -> BaseExpressionAPI:
+        """Left-pad with zeros. Equivalent to lpad(length, "0")."""
+        length_node = LiteralNode(value=length)
+        zero_node = LiteralNode(value="0")
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            arguments=[self._node, length_node, zero_node],
+        )
+        return self._build(node)
+
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
         """Remove prefix from string if present.
 
@@ -129,13 +142,27 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
         Args:
             suffix: The suffix string to remove.
         """
-        from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_MOUNTAINASH_SCALAR_STRING,
-        )
-
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,
             arguments=[self._node],
             options={"suffix": suffix},
+        )
+        return self._build(node)
+
+    def to_date(self, format: str) -> BaseExpressionAPI:
+        """Parse string to date using format string."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE,
+            arguments=[self._node],
+            options={"format": format},
+        )
+        return self._build(node)
+
+    def to_datetime(self, format: str) -> BaseExpressionAPI:
+        """Parse string to datetime using format string."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME,
+            arguments=[self._node],
+            options={"format": format},
         )
         return self._build(node)

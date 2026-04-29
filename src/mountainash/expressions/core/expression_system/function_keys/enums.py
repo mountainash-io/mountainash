@@ -416,7 +416,10 @@ class FKEY_MOUNTAINASH_WINDOW(Enum):
     CUM_MAX = auto()
     CUM_MIN = auto()
     CUM_COUNT = auto()
+    CUM_PROD = auto()
     DIFF = auto()
+    FORWARD_FILL = auto()
+    BACKWARD_FILL = auto()
 
 
 class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
@@ -547,6 +550,12 @@ class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
     XOR_PARITY = "xor_parity"
 
 
+class FKEY_MOUNTAINASH_SCALAR_AGGREGATE(Enum):
+    """Mountainash aggregate extensions not in Substrait."""
+
+    COUNT_DISTINCT = auto()
+
+
 class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
     """Mountainash string extensions not in Substrait.
 
@@ -558,6 +567,8 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
 
     REGEX_CONTAINS = "regex_contains"
     STRIP_SUFFIX = "strip_suffix"
+    TO_DATE = "to_date"
+    TO_DATETIME = "to_datetime"
 
 
 class FKEY_MOUNTAINASH_NULL(Enum):
@@ -712,6 +723,7 @@ SubstraitFunction = Union[
 MountainashFunction = Union[
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_NAME,
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_STRING,
@@ -748,6 +760,7 @@ __all__ = [
     "FKEY_SUBSTRAIT_SCALAR_STRING",
     "SUBSTRAIT_ARITHMETIC_WINDOW",
     # Mountainash extensions
+    "FKEY_MOUNTAINASH_SCALAR_AGGREGATE",
     "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
     "FKEY_MOUNTAINASH_SCALAR_BOOLEAN",
     "FKEY_MOUNTAINASH_SCALAR_STRING",

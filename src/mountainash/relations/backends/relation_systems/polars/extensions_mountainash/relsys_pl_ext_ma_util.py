@@ -17,6 +17,13 @@ class MountainashPolarsExtensionRelationSystem:
             return relation.drop_nulls(subset=subset)
         return relation.drop_nulls()
 
+    def drop_nans(
+        self, relation: pl.LazyFrame, /, *, subset: Optional[list[str]] = None
+    ) -> pl.LazyFrame:
+        if subset:
+            return relation.drop_nans(subset=subset)
+        return relation.drop_nans()
+
     def with_row_index(
         self, relation: pl.LazyFrame, /, *, name: str = "index"
     ) -> pl.LazyFrame:

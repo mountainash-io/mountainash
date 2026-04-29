@@ -27,3 +27,15 @@ class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem):
     def cum_count(self, x, /, *, reverse: bool = False):
         """Cumulative count — returns reduction; apply_window adds frame bounds."""
         return x.count()
+
+    def cum_prod(self, x, /, *, reverse: bool = False):
+        """Cumulative product — returns reduction; apply_window adds frame bounds."""
+        return x.prod()
+
+    def forward_fill(self, x, /, *, limit: int | None = None):
+        """Forward fill null values."""
+        return x.fill_null(method="ffill")
+
+    def backward_fill(self, x, /, *, limit: int | None = None):
+        """Backward fill null values."""
+        return x.fill_null(method="bfill")
