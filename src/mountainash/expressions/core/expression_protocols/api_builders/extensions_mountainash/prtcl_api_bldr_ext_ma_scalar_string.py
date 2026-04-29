@@ -58,6 +58,10 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
         ...
 
     # Convenience methods (AST-level composition)
+    def zfill(self, length: int) -> BaseExpressionAPI:
+        """Left-pad with zeros."""
+        ...
+
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
         """Remove prefix from string if present."""
         ...

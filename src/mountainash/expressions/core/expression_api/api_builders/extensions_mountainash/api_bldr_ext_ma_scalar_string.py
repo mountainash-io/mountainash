@@ -101,6 +101,16 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
 
     # Convenience methods (AST-level composition)
 
+    def zfill(self, length: int) -> BaseExpressionAPI:
+        """Left-pad with zeros. Equivalent to lpad(length, "0")."""
+        length_node = LiteralNode(value=length)
+        zero_node = LiteralNode(value="0")
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            arguments=[self._node, length_node, zero_node],
+        )
+        return self._build(node)
+
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
         """Remove prefix from string if present.
 

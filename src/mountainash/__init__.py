@@ -16,6 +16,7 @@ from mountainash.expressions import (
     all_horizontal,
     any_horizontal,
     len,
+    sum_horizontal,
     count_records,
     corr,
     median,

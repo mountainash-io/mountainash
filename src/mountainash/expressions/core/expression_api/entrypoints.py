@@ -24,6 +24,7 @@ from ..expression_nodes import (
 from ..expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
 )
 from .api_builders.substrait.api_bldr_conditional import SubstraitWhenAPIBuilder
 
@@ -279,6 +280,23 @@ def any_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> Bas
 def len() -> BaseExpressionAPI:
     """Count all rows including nulls. Polars-compatible alias for count_records()."""
     return count_records()
+
+
+def sum_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """Element-wise sum across expressions. Polars-compatible horizontal sum."""
+    if _builtin_len(exprs) < 2:
+        raise ValueError("sum_horizontal requires at least 2 arguments")
+    from ..expression_api import BaseExpressionAPI as _BaseAPI
+
+    operands = [_to_substrait_node(e) for e in exprs]
+    # Left-fold into nested binary ADD nodes
+    result = operands[0]
+    for operand in operands[1:]:
+        result = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            arguments=[result, operand],
+        )
+    return _BaseAPI(result)
 
 
 # ============================================================================
@@ -597,6 +615,7 @@ __all__ = [
     "all_horizontal",
     "any_horizontal",
     "len",
+    "sum_horizontal",
     # Aggregate
     "count_records",
     "corr",
