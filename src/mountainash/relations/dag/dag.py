@@ -182,8 +182,22 @@ class RelationDAG:
                 if ref_node is not None:
                     pending |= _walk_refs(ref_node) - all_refs
 
-        # Pick a backend target name for detection (first ref alphabetically)
+        # Pick a backend target name for detection (first ref alphabetically).
+        # If no refs, detect backend from the relation's own leaf nodes.
         target_name = sorted(all_refs)[0] if all_refs else None
+        if target_name is None and backend is None:
+            from mountainash.relations.core.relation_api.relation_base import (
+                RelationBase,
+            )
+            from mountainash.expressions.core.expression_system.expsys_base import (
+                identify_backend,
+            )
+            try:
+                leaf = RelationBase._find_leaf_read_node(node)
+                if leaf is not None:
+                    backend = identify_backend(leaf.dataframe).value
+            except Exception:
+                pass
 
         return self._compile_with_refs(
             node,
