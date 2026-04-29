@@ -48,6 +48,7 @@ from .extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshI
 from .extensions_mountainash.expsys_ib_ext_ma_window import MountainAshIbisWindowExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_struct import MountainAshIbisScalarStructExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_list import MountainAshIbisScalarListExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_aggregate import MountainAshIbisScalarAggregateExpressionSystem
 
 
 
@@ -88,6 +89,7 @@ class IbisExpressionSystem(
     MountainAshIbisWindowExpressionSystem,
     MountainAshIbisScalarStructExpressionSystem,
     MountainAshIbisScalarListExpressionSystem,
+    MountainAshIbisScalarAggregateExpressionSystem,
 
 ):
     """Complete Ibis backend expression system.

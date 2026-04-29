@@ -17,7 +17,7 @@ from __future__ import annotations
 from .prtcl_api_bldr_ext_ma_name import MountainAshNameAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_native import MountainAshNativeAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_null import MountainAshNullAPIBuilderProtocol
-# from .prtcl_api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_comparison import MountainAshScalarComparisonAPIBuilderProtocol
@@ -31,7 +31,7 @@ __all__ = [
     "MountainAshNameAPIBuilderProtocol",
     "MountainAshNativeAPIBuilderProtocol",
     "MountainAshNullAPIBuilderProtocol",
-    # "MountainAshScalarAggregateAPIBuilderProtocol",
+    "MountainAshScalarAggregateAPIBuilderProtocol",
     "MountainAshScalarArithmeticAPIBuilderProtocol",
     "MountainAshScalarBooleanAPIBuilderProtocol",
     "MountainAshScalarComparisonAPIBuilderProtocol",

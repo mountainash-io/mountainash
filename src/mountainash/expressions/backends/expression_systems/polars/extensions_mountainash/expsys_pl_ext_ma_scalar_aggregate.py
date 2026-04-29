@@ -10,14 +10,17 @@ from typing import Any, TYPE_CHECKING
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
-from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarAggregateExpressionSystemProtocol
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainashExtensionAggregateExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 # Type alias for expression type
 
-class SubstraitPolarsScalarAggregateExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarAggregateExpressionSystemProtocol[pl.Expr]):
+class SubstraitPolarsScalarAggregateExpressionSystem(
+    PolarsBaseExpressionSystem,
+    MountainashExtensionAggregateExpressionSystemProtocol[pl.Expr],
+):
     """Polars implementation of ScalarAggregateExpressionProtocol.
 
     Implements aggregation methods:

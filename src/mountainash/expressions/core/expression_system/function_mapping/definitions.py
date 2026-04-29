@@ -33,6 +33,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_WINDOW,
 
     # Mountainash extension enums
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_NAME,
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
@@ -68,6 +69,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 # Import Mountainash extension protocols
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
 
+    MountainashExtensionAggregateExpressionSystemProtocol,
     MountainAshNameExpressionSystemProtocol,
     MountainAshNullExpressionSystemProtocol,
     MountainAshScalarArithmeticExpressionSystemProtocol,
@@ -2084,6 +2086,19 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Mountainash Aggregate Extensions
+    # ========================================
+
+    MOUNTAINASH_AGGREGATE_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_AGGREGATE.COUNT_DISTINCT,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashExtensionAggregateExpressionSystemProtocol.n_unique,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -2112,6 +2127,7 @@ def register_all_functions() -> None:
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_LIST_FUNCTIONS  # Mountainash extension
+        + MOUNTAINASH_AGGREGATE_FUNCTIONS  # Mountainash aggregate extensions
     )
 
     for func in all_functions:

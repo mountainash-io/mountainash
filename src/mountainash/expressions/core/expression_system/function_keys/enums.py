@@ -547,6 +547,12 @@ class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
     XOR_PARITY = "xor_parity"
 
 
+class FKEY_MOUNTAINASH_SCALAR_AGGREGATE(Enum):
+    """Mountainash aggregate extensions not in Substrait."""
+
+    COUNT_DISTINCT = auto()
+
+
 class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
     """Mountainash string extensions not in Substrait.
 
@@ -712,6 +718,7 @@ SubstraitFunction = Union[
 MountainashFunction = Union[
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_NAME,
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
     FKEY_MOUNTAINASH_SCALAR_STRING,
@@ -748,6 +755,7 @@ __all__ = [
     "FKEY_SUBSTRAIT_SCALAR_STRING",
     "SUBSTRAIT_ARITHMETIC_WINDOW",
     # Mountainash extensions
+    "FKEY_MOUNTAINASH_SCALAR_AGGREGATE",
     "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
     "FKEY_MOUNTAINASH_SCALAR_BOOLEAN",
     "FKEY_MOUNTAINASH_SCALAR_STRING",
