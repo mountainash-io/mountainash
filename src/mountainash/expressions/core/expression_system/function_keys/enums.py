@@ -416,6 +416,7 @@ class FKEY_MOUNTAINASH_WINDOW(Enum):
     CUM_MAX = auto()
     CUM_MIN = auto()
     CUM_COUNT = auto()
+    CUM_PROD = auto()
     DIFF = auto()
 
 

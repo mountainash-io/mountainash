@@ -29,3 +29,7 @@ class MountainAshPolarsWindowExpressionSystem(PolarsBaseExpressionSystem):
     def cum_count(self, x: PolarsExpr, /, *, reverse: bool = False) -> PolarsExpr:
         """Cumulative count."""
         return x.cum_count(reverse=reverse)
+
+    def cum_prod(self, x: PolarsExpr, /, *, reverse: bool = False) -> PolarsExpr:
+        """Cumulative product."""
+        return x.cum_prod(reverse=reverse)

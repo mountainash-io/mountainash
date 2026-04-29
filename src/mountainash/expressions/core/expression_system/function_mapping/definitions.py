@@ -2003,6 +2003,12 @@ def register_all_functions() -> None:
             substrait_name=None,
             protocol_method=MountainashWindowExpressionSystemProtocol.cum_count,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_PROD,
+            substrait_uri=None,
+            substrait_name=None,
+            protocol_method=MountainashWindowExpressionSystemProtocol.cum_prod,
+        ),
     ]
 
     # ========================================

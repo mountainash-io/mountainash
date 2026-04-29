@@ -27,3 +27,7 @@ class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem):
     def cum_count(self, x, /, *, reverse: bool = False):
         """Cumulative count — returns reduction; apply_window adds frame bounds."""
         return x.count()
+
+    def cum_prod(self, x, /, *, reverse: bool = False):
+        """Cumulative product — returns reduction; apply_window adds frame bounds."""
+        return x.prod()

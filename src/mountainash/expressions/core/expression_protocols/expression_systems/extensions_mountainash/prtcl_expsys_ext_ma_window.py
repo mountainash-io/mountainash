@@ -44,3 +44,7 @@ class MountainashWindowExpressionSystemProtocol(Protocol[ExpressionT]):
     def cum_count(self, x: ExpressionT, /, *, reverse: bool = False) -> ExpressionT:
         """Cumulative count."""
         ...
+
+    def cum_prod(self, x: ExpressionT, /, *, reverse: bool = False) -> ExpressionT:
+        """Cumulative product."""
+        ...

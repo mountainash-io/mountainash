@@ -358,6 +358,23 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(node)
 
+    def cum_prod(self, *, reverse: bool = False) -> BaseExpressionAPI:
+        """Cumulative product. Use .over() to partition."""
+        if reverse:
+            lower = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+            upper = WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING)
+        else:
+            lower = WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING)
+            upper = WindowBound(bound_type=WindowBoundType.CURRENT_ROW)
+
+        node = WindowFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.CUM_PROD,
+            arguments=[self._node],
+            options={"reverse": True} if reverse else {},
+            window_spec=WindowSpec(lower_bound=lower, upper_bound=upper),
+        )
+        return self._build(node)
+
     def shift(
         self,
         n: int = 1,

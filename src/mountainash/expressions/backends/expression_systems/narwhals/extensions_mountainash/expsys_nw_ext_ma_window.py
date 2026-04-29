@@ -32,3 +32,7 @@ class MountainAshNarwhalsWindowExpressionSystem(NarwhalsBaseExpressionSystem):
     def cum_count(self, x, /, *, reverse: bool = False):
         """Cumulative count."""
         return x.cum_count(reverse=reverse)
+
+    def cum_prod(self, x, /, *, reverse: bool = False):
+        """Cumulative product."""
+        return x.cum_prod(reverse=reverse)
