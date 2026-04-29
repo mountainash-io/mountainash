@@ -692,6 +692,18 @@ class Relation(RelationBase):
         """Number of columns in the output schema."""
         return len(self.columns)
 
+    def describe(self) -> Any:
+        """Compute summary statistics (count, null_count, mean, std, min, max).
+
+        Returns a materialised DataFrame. Polars backend only.
+        """
+        collected = self.collect()
+        if hasattr(collected, "describe"):
+            return collected.describe()
+        raise NotImplementedError(
+            "describe() is currently only supported for the Polars backend."
+        )
+
 
 # ---------------------------------------------------------------------------
 # Module-level factory functions
