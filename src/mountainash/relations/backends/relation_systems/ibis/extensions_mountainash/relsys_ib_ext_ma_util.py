@@ -14,6 +14,23 @@ class MountainashIbisExtensionRelationSystem:
     def drop_nulls(self, relation: ir.Table, /, *, subset: Optional[list[str]] = None) -> ir.Table:
         return relation.dropna(subset=subset)
 
+    def drop_nans(
+        self, relation: ir.Table, /, *, subset: Optional[list[str]] = None
+    ) -> ir.Table:
+        if subset is None:
+            schema = relation.schema()
+            subset = [
+                name for name, dtype in schema.items()
+                if dtype.is_floating()
+            ]
+        if not subset:
+            return relation
+        import functools
+        import operator
+        predicates = [~relation[c].isnan() for c in subset]
+        combined = functools.reduce(operator.and_, predicates)
+        return relation.filter(combined)
+
     def with_row_index(self, relation: ir.Table, /, *, name: str = "index") -> ir.Table:
         return relation.mutate(**{name: ibis.row_number()})
 

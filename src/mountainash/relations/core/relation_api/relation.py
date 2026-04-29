@@ -266,6 +266,22 @@ class Relation(RelationBase):
             )
         )
 
+    def drop_nans(self, *, subset: Optional[list[str]] = None) -> Relation:
+        """Drop rows containing NaN values.
+
+        When subset is None, only float columns are checked.
+        """
+        options: dict[str, Any] = {}
+        if subset is not None:
+            options["subset"] = subset
+        return Relation(
+            ExtensionRelNode(
+                input=self._node,
+                operation=ExtensionRelOperation.DROP_NANS,
+                options=options,
+            )
+        )
+
     def with_row_index(self, *, name: str = "index") -> Relation:
         """Add a row-index column."""
         return Relation(

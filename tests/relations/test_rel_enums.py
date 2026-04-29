@@ -53,8 +53,9 @@ class TestExtensionRelOperation:
         assert ExtensionRelOperation.TOP_K is not None
         assert ExtensionRelOperation.REF is not None
         assert ExtensionRelOperation.READ_RESOURCE is not None
+        assert ExtensionRelOperation.DROP_NANS is not None
     def test_member_count(self):
-        assert len(ExtensionRelOperation) == 9
+        assert len(ExtensionRelOperation) == 10
 
 class TestSortField:
     def test_creation(self):

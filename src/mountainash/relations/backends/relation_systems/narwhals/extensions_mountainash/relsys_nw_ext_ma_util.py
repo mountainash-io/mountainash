@@ -15,6 +15,21 @@ class MountainashNarwhalsExtensionRelationSystem:
             return relation.drop_nulls(subset=subset)
         return relation.drop_nulls()
 
+    def drop_nans(
+        self, relation: Any, /, *, subset: Optional[list[str]] = None
+    ) -> Any:
+        import narwhals as nw
+        if subset is None:
+            schema = relation.schema
+            subset = [
+                name for name, dtype in schema.items()
+                if dtype in (nw.Float32, nw.Float64)
+            ]
+        if not subset:
+            return relation
+        mask = nw.all_horizontal(*[~nw.col(c).is_nan() for c in subset])
+        return relation.filter(mask)
+
     def with_row_index(self, relation: Any, /, *, name: str = "index") -> Any:
         return relation.with_row_index(name=name)
 
