@@ -6,7 +6,7 @@ Standard string operations are handled by SubstraitScalarStringAPIBuilder.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
@@ -164,5 +164,68 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME,
             arguments=[self._node],
             options={"format": format},
+        )
+        return self._build(node)
+
+    def to_time(self, format: str) -> "BaseExpressionAPI":
+        """Parse string to time using format string."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
+            arguments=[self._node],
+            options={"format": format},
+        )
+        return self._build(node)
+
+    def to_integer(self, base: int = 10) -> "BaseExpressionAPI":
+        """Parse string to integer with given base."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,
+            arguments=[self._node],
+            options={"base": base},
+        )
+        return self._build(node)
+
+    def json_decode(self, dtype: Any = None) -> "BaseExpressionAPI":
+        """Parse JSON string into structured data."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE,
+            arguments=[self._node],
+            options={"dtype": dtype},
+        )
+        return self._build(node)
+
+    def json_path_match(self, json_path: str) -> "BaseExpressionAPI":
+        """Extract value from JSON string via JSONPath."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH,
+            arguments=[self._node],
+            options={"json_path": json_path},
+        )
+        return self._build(node)
+
+    def encode(self, encoding: str) -> "BaseExpressionAPI":
+        """Encode string to hex or base64."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE,
+            arguments=[self._node],
+            options={"encoding": encoding},
+        )
+        return self._build(node)
+
+    def decode(self, encoding: str, *, strict: bool = True) -> "BaseExpressionAPI":
+        """Decode hex or base64 string to binary."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.DECODE,
+            arguments=[self._node],
+            options={"encoding": encoding, "strict": strict},
+        )
+        return self._build(node)
+
+    def extract_groups(self, pattern: str) -> "BaseExpressionAPI":
+        """Extract named capture groups into struct column."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS,
+            arguments=[self._node],
+            options={"pattern": pattern},
         )
         return self._build(node)
