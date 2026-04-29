@@ -1,6 +1,4 @@
 """AST construction tests for scalar logarithmic API builders."""
-
-import pytest
 import mountainash.expressions as ma
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC
@@ -39,3 +37,11 @@ class TestLogarithmicMethods:
         assert len(node.arguments) == 2
         assert isinstance(node.arguments[1], LiteralNode)
         assert node.arguments[1].value == 10
+
+    def test_log1p(self):
+        expr = ma.col("x").log1p()
+        node = expr._node
+        assert isinstance(node, ScalarFunctionNode)
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG1P
+        assert len(node.arguments) == 1
+        assert isinstance(node.arguments[0], FieldReferenceNode)

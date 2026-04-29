@@ -358,6 +358,50 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(node)
 
+    def shift(
+        self,
+        n: int = 1,
+        *,
+        fill_value: Optional[Union[BaseExpressionAPI, Any]] = None,
+    ) -> BaseExpressionAPI:
+        """Shift values by n positions. Positive n shifts down (lag), negative shifts up (lead).
+
+        Polars-compatible alias for lag(n)/lead(-n).
+        """
+        if n >= 0:
+            arguments: list[Any] = [self._node, LiteralNode(value=n)]
+            if fill_value is not None:
+                arguments.append(self._to_substrait_node(fill_value))
+            node = WindowFunctionNode(
+                function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+                arguments=arguments,
+            )
+        else:
+            arguments = [self._node, LiteralNode(value=-n)]
+            if fill_value is not None:
+                arguments.append(self._to_substrait_node(fill_value))
+            node = WindowFunctionNode(
+                function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LEAD,
+                arguments=arguments,
+            )
+        return self._build(node)
+
+    def first(self) -> BaseExpressionAPI:
+        """First value in the window frame. Polars-compatible alias for first_value()."""
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def last(self) -> BaseExpressionAPI:
+        """Last value in the window frame. Polars-compatible alias for last_value()."""
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
     def diff(self, n: int = 1) -> BaseExpressionAPI:
         """Consecutive difference: value[i] - value[i-n].
 

@@ -77,3 +77,12 @@ class MountainAshScalarComparisonAPIBuilderProtocol(Protocol):
     def is_close(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], abs_tol: float = 1e-8, rel_tol: float = 1e-5) -> BaseExpressionAPI:
         """Whether two values are approximately equal."""
         ...
+
+    # Null convenience methods (AST-level composition)
+    def null_count(self) -> BaseExpressionAPI:
+        """Count of null values. Equivalent to is_null().sum()."""
+        ...
+
+    def has_nulls(self) -> BaseExpressionAPI:
+        """Whether any values are null. Equivalent to is_null().sum().gt(0)."""
+        ...

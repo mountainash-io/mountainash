@@ -25,6 +25,11 @@ from .core.expression_api.entrypoints import (
     coalesce,
     greatest,
     least,
+    min_horizontal,
+    max_horizontal,
+    all_horizontal,
+    any_horizontal,
+    len,
     # Aggregate entry points
     count_records,
     corr,
@@ -106,6 +111,11 @@ __all__ = [
     "coalesce",
     "greatest",
     "least",
+    "min_horizontal",
+    "max_horizontal",
+    "all_horizontal",
+    "any_horizontal",
+    "len",
     "when",
 
     # Aggregate functions
