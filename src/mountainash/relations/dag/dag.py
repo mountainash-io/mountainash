@@ -135,6 +135,38 @@ class RelationDAG:
         if name not in self.relations:
             raise KeyError(f"relation {name!r} not in DAG")
 
+        rel = self.relations[name]
+        root = getattr(rel, "_node", None)
+        if root is None:
+            raise ValueError(f"relation {name!r} has no _node attribute")
+
+        # All refs reachable via dependency_edges for this name
+        order = self.topological_order(target=name)
+        ref_names = {n for n in order if n != name}
+
+        return self._compile_with_refs(
+            root,
+            ref_names,
+            backend=backend,
+            backend_target_name=name,
+        )
+
+    def _compile_with_refs(
+        self,
+        node: Any,
+        ref_names: set[str],
+        *,
+        backend: Optional[str] = None,
+        backend_target_name: Optional[str] = None,
+    ) -> Any:
+        """Compile ``node`` after materialising all relations in ``ref_names``.
+
+        This is the shared compilation core used by both ``collect()`` and
+        ``execute()``.  It builds a visitor with a ``ref_resolver`` closure
+        over a per-call cache, compiles every relation named in ``ref_names``
+        in topological order, then compiles ``node`` itself and returns the
+        result.
+        """
         from mountainash.relations.core.relation_protocols.relsys_base import (
             get_relation_system,
         )
@@ -148,7 +180,23 @@ class RelationDAG:
             UnifiedRelationVisitor,
         )
 
-        resolved_backend = self._resolve_backend_const(backend, name)
+        # Resolve backend
+        if backend_target_name is not None:
+            resolved_backend = self._resolve_backend_const(
+                backend, backend_target_name
+            )
+        elif ref_names:
+            # Use the first ref (alphabetically, for determinism) for detection
+            resolved_backend = self._resolve_backend_const(
+                backend, sorted(ref_names)[0]
+            )
+        else:
+            # No refs and no target name — fall back to Polars
+            from mountainash.core.constants import CONST_BACKEND as _CB
+            resolved_backend = (
+                _CB(backend.lower()) if backend else _CB.POLARS
+            )
+
         relation_system_cls = get_relation_system(resolved_backend)
         relation_system = relation_system_cls()
         expression_system_cls = get_expression_system(resolved_backend)
@@ -166,14 +214,21 @@ class RelationDAG:
             ref_resolver=resolver,
         )
 
-        order = self.topological_order(target=name)
-        for n in order:
-            rel = self.relations[n]
-            root = getattr(rel, "_node", None)
-            if root is None:
-                raise ValueError(f"relation {n!r} has no _node attribute")
-            cache[n] = root.accept(visitor)
-        return cache[name]
+        # Compile refs in topological order
+        if ref_names:
+            # Get full topological order and filter to only the needed refs
+            full_order = self.topological_order(target=None)
+            for n in full_order:
+                if n not in ref_names:
+                    continue
+                rel = self.relations[n]
+                root = getattr(rel, "_node", None)
+                if root is None:
+                    raise ValueError(f"relation {n!r} has no _node attribute")
+                cache[n] = root.accept(visitor)
+
+        # Compile the target node itself
+        return node.accept(visitor)
 
     def to_package(self) -> Any:
         """Export this DAG as a Frictionless DataPackage descriptor.
