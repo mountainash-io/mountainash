@@ -9,7 +9,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -49,4 +49,32 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def strip_suffix(self, x: ExpressionT, /, *, suffix: str) -> ExpressionT:
         """Remove suffix from end of string if present."""
+        ...
+
+    def to_time(self, x: ExpressionT, /, format: str) -> ExpressionT:
+        """Parse string to time using format string."""
+        ...
+
+    def to_integer(self, x: ExpressionT, /, base: int = 10) -> ExpressionT:
+        """Parse string to integer with given base."""
+        ...
+
+    def json_decode(self, x: ExpressionT, /, dtype: Any = None) -> ExpressionT:
+        """Parse JSON string into structured data."""
+        ...
+
+    def json_path_match(self, x: ExpressionT, /, json_path: str) -> ExpressionT:
+        """Extract value from JSON string via JSONPath."""
+        ...
+
+    def encode(self, x: ExpressionT, /, encoding: str) -> ExpressionT:
+        """Encode string to hex or base64."""
+        ...
+
+    def decode(self, x: ExpressionT, /, encoding: str, strict: bool = True) -> ExpressionT:
+        """Decode hex or base64 string to binary."""
+        ...
+
+    def extract_groups(self, x: ExpressionT, /, pattern: str) -> ExpressionT:
+        """Extract named capture groups into struct column."""
         ...

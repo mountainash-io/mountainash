@@ -10,7 +10,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Optional, Protocol, TYPE_CHECKING
+from typing import Any, Optional, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
@@ -76,4 +76,32 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
 
     def to_datetime(self, format: str) -> BaseExpressionAPI:
         """Parse string to datetime using format string."""
+        ...
+
+    def to_time(self, format: str) -> BaseExpressionAPI:
+        """Parse string to time using format string."""
+        ...
+
+    def to_integer(self, base: int = 10) -> BaseExpressionAPI:
+        """Parse string to integer with given base."""
+        ...
+
+    def json_decode(self, dtype: Any = None) -> BaseExpressionAPI:
+        """Parse JSON string into structured data."""
+        ...
+
+    def json_path_match(self, json_path: str) -> BaseExpressionAPI:
+        """Extract value from JSON string via JSONPath."""
+        ...
+
+    def encode(self, encoding: str) -> BaseExpressionAPI:
+        """Encode string to hex or base64."""
+        ...
+
+    def decode(self, encoding: str, *, strict: bool = True) -> BaseExpressionAPI:
+        """Decode hex or base64 string to binary."""
+        ...
+
+    def extract_groups(self, pattern: str) -> BaseExpressionAPI:
+        """Extract named capture groups into struct column."""
         ...
