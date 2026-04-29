@@ -52,6 +52,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
     SubstraitConditionalExpressionSystemProtocol,
     SubstraitAggregateGenericExpressionSystemProtocol,
     SubstraitAggregateArithmeticExpressionSystemProtocol,   # NEW
+    SubstraitAggregateBooleanExpressionSystemProtocol,
     SubstraitScalarArithmeticExpressionSystemProtocol,
     SubstraitScalarBooleanExpressionSystemProtocol,
     SubstraitScalarComparisonExpressionSystemProtocol,
@@ -909,6 +910,19 @@ def register_all_functions() -> None:
             substrait_name="quantile",
             options=("rounding",),
             protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.quantile,
+        ),
+        # --- boolean ---
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND,
+            substrait_uri="https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml",
+            substrait_name="bool_and",
+            protocol_method=SubstraitAggregateBooleanExpressionSystemProtocol.bool_and,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR,
+            substrait_uri="https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml",
+            substrait_name="bool_or",
+            protocol_method=SubstraitAggregateBooleanExpressionSystemProtocol.bool_or,
         ),
     ]
 
