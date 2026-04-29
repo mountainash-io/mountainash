@@ -151,6 +151,47 @@ class RelationDAG:
             backend_target_name=name,
         )
 
+    def execute(self, relation: Any, *, backend: Optional[str] = None) -> Any:
+        """Compile an ad-hoc relation against this DAG without registering it.
+
+        Any ``RefRelNode`` leaves in the relation's AST are resolved from
+        ``self.relations`` (transitively), but the relation itself is never
+        added to the DAG — no mutations to ``self.relations`` or
+        ``self.dependency_edges``.
+
+        Raises ``ValueError`` if the relation has no ``_node`` attribute.
+        Raises ``KeyError`` if a referenced name is not in the DAG.
+        """
+        node = getattr(relation, "_node", None)
+        if node is None:
+            raise ValueError("relation has no _node attribute")
+
+        # Collect all transitive ref names
+        all_refs: set[str] = set()
+        pending = _walk_refs(node)
+        while pending:
+            name = pending.pop()
+            if name not in self.relations:
+                raise KeyError(
+                    f"relation {name!r} referenced but not in DAG"
+                )
+            if name not in all_refs:
+                all_refs.add(name)
+                # Walk the registered relation's node for further refs
+                ref_node = getattr(self.relations[name], "_node", None)
+                if ref_node is not None:
+                    pending |= _walk_refs(ref_node) - all_refs
+
+        # Pick a backend target name for detection (first ref alphabetically)
+        target_name = sorted(all_refs)[0] if all_refs else None
+
+        return self._compile_with_refs(
+            node,
+            all_refs,
+            backend=backend,
+            backend_target_name=target_name,
+        )
+
     def _compile_with_refs(
         self,
         node: Any,
