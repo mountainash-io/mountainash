@@ -285,6 +285,58 @@ class RelationDAG:
         # Compile the target node itself
         return node.accept(visitor)
 
+    def schema(self, name: str) -> dict[str, Any]:
+        """Return the inferred output schema for a named relation."""
+        if name not in self.relations:
+            raise KeyError(f"relation {name!r} not in DAG")
+        node = getattr(self.relations[name], "_node", None)
+        if node is None:
+            return {}
+
+        from mountainash.relations.schema_inference import infer_schema
+
+        def resolver(ref_name: str) -> dict[str, Any]:
+            return self.schema(ref_name)
+
+        return infer_schema(node, ref_resolver=resolver)
+
+    def describe(self) -> dict[str, dict]:
+        """Return a structural summary of every registered relation."""
+        result: dict[str, dict] = {}
+        for name in self.relations:
+            deps = sorted(u for u, d in self.dependency_edges if d == name)
+            constrained = sorted(u for u, d in self.constraint_edges if d == name)
+            try:
+                col_count = len(self.schema(name))
+            except Exception:
+                col_count = 0
+            result[name] = {
+                "columns": col_count,
+                "dependencies": deps,
+                "constrained_by": constrained,
+            }
+        return result
+
+    def to_dot(self) -> str:
+        """Return a Graphviz DOT string of the DAG structure."""
+        lines = ["digraph RelationDAG {", "    rankdir=BT;"]
+
+        for name in sorted(self.relations):
+            try:
+                col_count = len(self.schema(name))
+            except Exception:
+                col_count = 0
+            lines.append(f'    "{name}" [label="{name} ({col_count} cols)"];')
+
+        for u, d in sorted(self.dependency_edges):
+            lines.append(f'    "{u}" -> "{d}";')
+
+        for u, d in sorted(self.constraint_edges):
+            lines.append(f'    "{u}" -> "{d}" [style=dashed, label="FK"];')
+
+        lines.append("}")
+        return "\n".join(lines)
+
     def to_package(self) -> Any:
         """Export this DAG as a Frictionless DataPackage descriptor.
 
