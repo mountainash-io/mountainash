@@ -23,19 +23,15 @@ class MountainAshScalarBooleanExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def xor_parity(
         self,
-        *args: ExpressionT
+        a: ExpressionT,
+        b: ExpressionT,
+        /,
     ) -> ExpressionT:
-        """XOR parity check (odd number of TRUE values).
+        """Binary XOR parity check.
 
-        Returns TRUE if an odd number of operands are TRUE.
-        For two operands, this is equivalent to XOR.
+        Returns TRUE if exactly one operand is TRUE.
+        The API builder chains binary pairs for >2 operands.
 
         Returns null if either input is null.
-
-        Args:
-            a: boolean expressions.
-
-        Returns:
-            Boolean result of parity check.
         """
         ...

@@ -1,6 +1,6 @@
-"""Polars ScalarBooleanExpressionProtocol implementation.
+"""Polars MountainAsh boolean extension implementation.
 
-Implements boolean logical operations for the Polars backend.
+Implements xor_parity for the Polars backend.
 """
 
 from __future__ import annotations
@@ -10,24 +10,14 @@ from typing import TYPE_CHECKING
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
-from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-# Type alias for expression type
-
-class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol[pl.Expr]):
-    """Polars implementation of ScalarBooleanExpressionProtocol.
-
-    Implements 5 boolean methods using Kleene (three-valued) logic:
-    - and_: Boolean AND (returns false if any false, null if any null and no false)
-    - or_: Boolean OR (returns true if any true, null if any null and no true)
-    - not_: Boolean NOT (negation)
-    - xor: Boolean XOR (exclusive or)
-    - and_not: Boolean AND of first value with negation of second
-    """
+class MountainAshPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarBooleanExpressionSystemProtocol[pl.Expr]):
+    """Polars implementation of MountainAsh boolean extensions."""
 
 
     def xor_parity(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:

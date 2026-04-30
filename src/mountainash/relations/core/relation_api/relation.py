@@ -661,9 +661,8 @@ class Relation(RelationBase):
 
     @property
     def columns(self) -> list[str]:
-        """Execute and return column names."""
-        result = self._compile_and_execute()
-        return list(result.columns)
+        """Return column names from the compiled plan's schema."""
+        return list(self.schema.keys())
 
     @property
     def schema(self) -> dict:

@@ -1,6 +1,6 @@
-"""Narwhals ScalarBooleanExpressionProtocol implementation.
+"""Narwhals MountainAsh boolean extension implementation.
 
-Implements boolean logical operations for the Narwhals backend.
+Implements xor_parity for the Narwhals backend.
 """
 
 from __future__ import annotations
@@ -10,23 +10,14 @@ from typing import TYPE_CHECKING
 import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
-
-from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol[nw.Expr]):
-    """Narwhals implementation of ScalarBooleanExpressionProtocol.
-
-    Implements 5 boolean methods using Kleene (three-valued) logic:
-    - and_: Boolean AND (returns false if any false, null if any null and no false)
-    - or_: Boolean OR (returns true if any true, null if any null and no true)
-    - not_: Boolean NOT (negation)
-    - xor: Boolean XOR (exclusive or)
-    - and_not: Boolean AND of first value with negation of second
-    """
+class MountainAshNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarBooleanExpressionSystemProtocol[nw.Expr]):
+    """Narwhals implementation of MountainAsh boolean extensions."""
 
 
     def xor_parity(self, a: NarwhalsExpr, b: NarwhalsExpr, /) -> NarwhalsExpr:

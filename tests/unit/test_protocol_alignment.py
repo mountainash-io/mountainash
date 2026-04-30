@@ -317,6 +317,7 @@ from mountainash.expressions.backends.expression_systems.polars.extensions_mount
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_name import MountainAshPolarsNameExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import MountainAshPolarsScalarBooleanExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
 
 # =============================================================================
@@ -342,6 +343,7 @@ from mountainash.expressions.backends.expression_systems.ibis.extensions_mountai
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_name import MountainAshIbisNameExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_boolean import MountainAshIbisScalarBooleanExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
 
 # =============================================================================
@@ -366,6 +368,7 @@ from mountainash.expressions.backends.expression_systems.narwhals.substrait.exps
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNullExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_name import MountainAshNarwhalsNameExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_boolean import MountainAshNarwhalsScalarBooleanExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
 
@@ -530,6 +533,7 @@ POLARS_MOUNTAINASH_IMPLEMENTATIONS = {
     "null": MountainAshPolarsNullExpressionSystem,
     "name": MountainAshPolarsNameExpressionSystem,
     "scalar_arithmetic": MountainAshPolarsScalarArithmeticExpressionSystem,
+    "scalar_boolean": MountainAshPolarsScalarBooleanExpressionSystem,
     "scalar_datetime": MountainAshPolarsScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshPolarsScalarTernaryExpressionSystem,
 }
@@ -538,6 +542,7 @@ IBIS_MOUNTAINASH_IMPLEMENTATIONS = {
     "null": MountainAshIbisNullExpressionSystem,
     "name": MountainAshIbisNameExpressionSystem,
     "scalar_arithmetic": MountainAshIbisScalarArithmeticExpressionSystem,
+    "scalar_boolean": MountainAshIbisScalarBooleanExpressionSystem,
     "scalar_datetime": MountainAshIbisScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshIbisScalarTernaryExpressionSystem,
 }
@@ -546,6 +551,7 @@ NARWHALS_MOUNTAINASH_IMPLEMENTATIONS = {
     "null": MountainAshNarwhalsNullExpressionSystem,
     "name": MountainAshNarwhalsNameExpressionSystem,
     "scalar_arithmetic": MountainAshNarwhalsScalarArithmeticExpressionSystem,
+    "scalar_boolean": MountainAshNarwhalsScalarBooleanExpressionSystem,
     "scalar_datetime": MountainAshNarwhalsScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshNarwhalsScalarTernaryExpressionSystem,
 }

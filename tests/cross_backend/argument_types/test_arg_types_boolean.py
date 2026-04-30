@@ -63,7 +63,8 @@ TESTED_PARAMS: list[tuple] = [
     (FK_TERN.TO_TERNARY, "operand"),
     (FK_BOOL.XOR, "a"),
     (FK_BOOL.XOR, "b"),
-    (FK_MA_BOOL.XOR_PARITY, "args"),
+    (FK_MA_BOOL.XOR_PARITY, "a"),
+    (FK_MA_BOOL.XOR_PARITY, "b"),
 ]
 
 OP_SPECS: list[OpSpec] = []
