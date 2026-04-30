@@ -160,14 +160,12 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         x: PolarsExpr,
         /,
         window_offset: Any = 1,
-        on_domain_error: Any = None,
     ) -> PolarsExpr:
         """Returns a value from the nth row based on the window_offset.
 
         Args:
             x: Expression to evaluate.
-            window_offset: Position in window (1-indexed).
-            on_domain_error: Error handling mode.
+            window_offset: Position in window (1-indexed), as a visited expression.
 
         Returns:
             Value at specified position, or null if out of range.
@@ -178,7 +176,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> PolarsExpr:
         """Return a value from a following row based on physical offset.
@@ -186,6 +184,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Expression to evaluate.
             row_offset: Number of rows to look ahead (default 1).
+                Accepts pl.Expr (literal) or int.
             default: Default value if offset is out of range.
 
         Returns:
@@ -199,7 +198,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> PolarsExpr:
         """Return a value from a previous row based on physical offset.
@@ -207,6 +206,7 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Expression to evaluate.
             row_offset: Number of rows to look back (default 1).
+                Accepts pl.Expr (literal) or int.
             default: Default value if offset is out of range.
 
         Returns:

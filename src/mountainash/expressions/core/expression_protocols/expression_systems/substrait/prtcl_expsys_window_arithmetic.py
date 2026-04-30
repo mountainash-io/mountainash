@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Protocol, Optional
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -86,7 +86,7 @@ class SubstraitWindowArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def nth_value(self, x: ExpressionT, /, window_offset: ExpressionT, on_domain_error: Optional[str] = None) -> ExpressionT:
+    def nth_value(self, x: ExpressionT, /, window_offset: ExpressionT = 1) -> ExpressionT:  # type: ignore[assignment]
         """Returns a value from the nth row based on the `window_offset`. `window_offset` should be a positive integer. If the value of the `window_offset` is outside the range of the window, `null` is returned.
 The `on_domain_error` option governs behavior in cases where `window_offset` is not a positive integer or `null`.
 

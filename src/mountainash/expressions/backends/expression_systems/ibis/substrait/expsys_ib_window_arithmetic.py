@@ -151,15 +151,13 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         self,
         x: IbisNumericExpr,
         /,
-        window_offset: IbisNumericExpr,
-        on_domain_error: Any = None,
+        window_offset: Any = 1,
     ) -> IbisNumericExpr:
         """Returns a value from the nth row based on the window_offset.
 
         Args:
             x: Expression to evaluate.
-            window_offset: Position in window (1-indexed).
-            on_domain_error: Error handling mode.
+            window_offset: Position in window (1-indexed), as a visited expression.
 
         Returns:
             Value at specified position, or null if out of range.
@@ -170,7 +168,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         self,
         x: IbisNumericExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> IbisNumericExpr:
         """Return a value from a following row based on physical offset.
@@ -178,6 +176,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Args:
             x: Expression to evaluate.
             row_offset: Number of rows to look ahead (default 1).
+                Accepts Ibis expressions or int.
             default: Default value if offset is out of range.
 
         Returns:
@@ -191,7 +190,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         self,
         x: IbisNumericExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> IbisNumericExpr:
         """Return a value from a previous row based on physical offset.
@@ -199,6 +198,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Args:
             x: Expression to evaluate.
             row_offset: Number of rows to look back (default 1).
+                Accepts Ibis expressions or int.
             default: Default value if offset is out of range.
 
         Returns:

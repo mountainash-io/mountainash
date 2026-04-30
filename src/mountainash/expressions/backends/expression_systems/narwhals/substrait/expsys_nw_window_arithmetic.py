@@ -152,15 +152,9 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         /,
-        window_offset: NarwhalsExpr,
-        on_domain_error: Any = None,
+        window_offset: Any = 1,
     ) -> NarwhalsExpr:
         """Returns a value from the nth row based on the window_offset.
-
-        Args:
-            x: Expression to evaluate.
-            window_offset: Position in window (1-indexed).
-            on_domain_error: Error handling mode.
 
         Raises:
             NotImplementedError: Narwhals doesn't support nth_value.
@@ -169,11 +163,26 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             "nth_value() is not supported by the Narwhals backend."
         )
 
+    @staticmethod
+    def _coerce_int(value: Any) -> int:
+        """Extract plain int from a narwhals literal expression.
+
+        narwhals shift() requires int, but the visitor may pass nw.lit(n).
+        """
+        if isinstance(value, int):
+            return value
+        if isinstance(value, nw.Expr) and value._nodes:
+            node = value._nodes[0]
+            lit_value = getattr(node, "kwargs", {}).get("value")
+            if isinstance(lit_value, int):
+                return lit_value
+        raise TypeError(f"Expected int for row offset, got {type(value).__name__}")
+
     def lead(
         self,
         x: NarwhalsExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> NarwhalsExpr:
         """Return a value from a following row based on physical offset.
@@ -186,15 +195,16 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Value from following row.
         """
+        n = self._coerce_int(row_offset)
         if default is not None:
-            return x.shift(-row_offset).fill_null(nw.lit(default))
-        return x.shift(-row_offset)
+            return x.shift(-n).fill_null(nw.lit(default))
+        return x.shift(-n)
 
     def lag(
         self,
         x: NarwhalsExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> NarwhalsExpr:
         """Return a value from a previous row based on physical offset.
@@ -207,13 +217,33 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Value from previous row.
         """
+        n = self._coerce_int(row_offset)
         if default is not None:
-            return x.shift(row_offset).fill_null(nw.lit(default))
-        return x.shift(row_offset)
+            return x.shift(n).fill_null(nw.lit(default))
+        return x.shift(n)
 
     # =========================================================================
     # Window Application
     # =========================================================================
+
+    @staticmethod
+    def _expr_to_col_name(expr: Any) -> str:
+        """Extract column name from a narwhals Expr created via nw.col().
+
+        Narwhals .over() accepts strings, not Expr objects. The expression
+        visitor produces nw.Expr from FieldReferenceNode — convert back.
+        """
+        if isinstance(expr, str):
+            return expr
+        if isinstance(expr, nw.Expr) and expr._nodes:
+            node = expr._nodes[0]
+            names = getattr(node, "kwargs", {}).get("names")
+            if names:
+                return names[0]
+        raise TypeError(
+            f"Cannot extract column name from {type(expr).__name__} for narwhals .over(). "
+            f"Narwhals .over() only accepts string column names."
+        )
 
     def apply_window(
         self,
@@ -225,9 +255,12 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     ) -> NarwhalsExpr:
         """Apply window context to a Narwhals expression.
 
+        Narwhals .over() accepts string column names, not Expr objects.
+        Partition and order expressions are converted to column name strings.
+
         Args:
             expr: The native Narwhals expression to apply windowing to.
-            partition_by: List of native partition expressions.
+            partition_by: List of native partition expressions or column names.
             order_by: List of (expression, descending) tuples.
             lower_bound: Optional frame lower bound.
             upper_bound: Optional frame upper bound.
@@ -237,7 +270,8 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """
         if not partition_by:
             return expr
+        str_partition = [self._expr_to_col_name(p) for p in partition_by]
         over_kwargs: dict[str, Any] = {}
         if order_by:
-            over_kwargs["order_by"] = [col for col, _ in order_by]
-        return expr.over(*partition_by, **over_kwargs)
+            over_kwargs["order_by"] = [self._expr_to_col_name(col) for col, _ in order_by]
+        return expr.over(*str_partition, **over_kwargs)
