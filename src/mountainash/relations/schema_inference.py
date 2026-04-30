@@ -18,8 +18,15 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
 
     Returns the alias name if the expression is wrapped in an ALIAS node,
     the field name if it's a bare FieldReferenceNode, or None if the name
-    cannot be determined.
+    cannot be determined. Also handles plain strings (from select("a"))
+    and API wrapper objects (from with_columns(expr)).
     """
+    if isinstance(expr_node, str):
+        return expr_node
+
+    if hasattr(expr_node, "_node"):
+        return infer_expression_name(expr_node._node)
+
     from mountainash.expressions.core.expression_nodes import (
         FieldReferenceNode,
         ScalarFunctionNode,
