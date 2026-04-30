@@ -10,63 +10,76 @@ import mountainash as ma
 from mountainash.relations import relation
 
 
-@pytest.fixture
-def three_row_df() -> pl.DataFrame:
-    return pl.DataFrame({
-        "id": [10, 20, 30],
-        "name": ["alice", "bob", "carol"],
-        "score": [1.5, 2.5, 3.5],
-    })
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
 
 
-def test_item_first_row(three_row_df):
-    assert relation(three_row_df).item("id") == 10
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestItem:
+    def _three_row_df(self, backend_name, backend_factory):
+        return backend_factory.create(
+            {"id": [10, 20, 30], "name": ["alice", "bob", "carol"], "score": [1.5, 2.5, 3.5]},
+            backend_name,
+        )
+
+    def test_item_first_row(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        assert relation(df).item("id") == 10, f"[{backend_name}]"
+
+    def test_item_explicit_row_zero(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        assert relation(df).item("id", row=0) == 10, f"[{backend_name}]"
+
+    def test_item_string_column(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        assert relation(df).item("name") == "alice", f"[{backend_name}]"
+
+    def test_item_after_head_one(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        rel = relation(df).head(1)
+        assert rel.item("id") == 10, f"[{backend_name}]"
+        assert rel.item("name") == "alice", f"[{backend_name}]"
+
+    def test_item_after_filter_to_one_row(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        rel = relation(df).filter(ma.col("id").eq(ma.lit(20)))
+        assert rel.item("name") == "bob", f"[{backend_name}]"
+
+    def test_item_explicit_row_index(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        assert relation(df).item("id", row=2) == 30, f"[{backend_name}]"
+
+    def test_item_empty_relation_raises_index_error(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        rel = relation(df).filter(ma.col("id").eq(ma.lit(999)))
+        with pytest.raises(IndexError, match="row 0"):
+            rel.item("id")
+
+    def test_item_missing_column_raises_key_error(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        with pytest.raises(KeyError, match="nope"):
+            relation(df).item("nope")
+
+    def test_item_row_out_of_range_raises_index_error(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        with pytest.raises(IndexError, match="row 5"):
+            relation(df).item("id", row=5)
+
+    def test_item_negative_row_raises_index_error(self, backend_name, backend_factory):
+        df = self._three_row_df(backend_name, backend_factory)
+        with pytest.raises(IndexError):
+            relation(df).item("id", row=-1)
 
 
-def test_item_explicit_row_zero(three_row_df):
-    assert relation(three_row_df).item("id", row=0) == 10
-
-
-def test_item_string_column(three_row_df):
-    assert relation(three_row_df).item("name") == "alice"
-
-
-def test_item_after_head_one(three_row_df):
-    rel = relation(three_row_df).head(1)
-    assert rel.item("id") == 10
-    assert rel.item("name") == "alice"
-
-
-def test_item_after_filter_to_one_row(three_row_df):
-    rel = relation(three_row_df).filter(ma.col("id").eq(ma.lit(20)))
-    assert rel.item("name") == "bob"
-
-
-def test_item_explicit_row_index(three_row_df):
-    assert relation(three_row_df).item("id", row=2) == 30
-
-
-def test_item_empty_relation_raises_index_error(three_row_df):
-    rel = relation(three_row_df).filter(ma.col("id").eq(ma.lit(999)))
-    with pytest.raises(IndexError, match="row 0"):
-        rel.item("id")
-
-
-def test_item_missing_column_raises_key_error(three_row_df):
-    with pytest.raises(KeyError, match="nope"):
-        relation(three_row_df).item("nope")
-
-
-def test_item_row_out_of_range_raises_index_error(three_row_df):
-    with pytest.raises(IndexError, match="row 5"):
-        relation(three_row_df).item("id", row=5)
-
-
-def test_item_negative_row_raises_index_error(three_row_df):
-    with pytest.raises(IndexError):
-        relation(three_row_df).item("id", row=-1)
-
-
+# Polars-specific: datetime column type handling
 def test_item_datetime_column():
     df = pl.DataFrame({
         "ts": [datetime(2026, 4, 8, 12, 0), datetime(2026, 4, 9, 13, 0)],
