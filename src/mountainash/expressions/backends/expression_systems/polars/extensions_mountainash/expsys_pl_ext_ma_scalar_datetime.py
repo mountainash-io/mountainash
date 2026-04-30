@@ -699,7 +699,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         *,
-        offset: PolarsExpr,
+        offset: str,
     ) -> PolarsExpr:
         """Add/subtract flexible duration from datetime.
 
