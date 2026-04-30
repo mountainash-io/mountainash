@@ -378,3 +378,54 @@ class TestInferSchemaSet:
         node = SetRelNode(inputs=[first, second], set_type=SetType.UNION_ALL)
         schema = infer_schema(node)
         assert list(schema.keys()) == ["a", "b"]
+
+
+class TestInferSchemaChain:
+    def test_read_filter_project_chain(self):
+        """Schema propagates through Read -> Filter -> Project correctly."""
+        import polars as pl
+        import mountainash as ma
+
+        df = pl.LazyFrame({"a": [1, 2], "b": [3.0, 4.0], "c": ["x", "y"]})
+        r = ma.relation(df).filter(ma.col("a").gt(1)).select("a", "c")
+        schema = r.schema
+        assert list(schema.keys()) == ["a", "c"]
+        assert schema["a"] == pl.Int64
+        assert schema["c"] == pl.String
+
+    def test_read_with_columns_rename_chain(self):
+        """Schema propagates through Read -> WithColumns -> Rename."""
+        import polars as pl
+        import mountainash as ma
+
+        df = pl.LazyFrame({"a": [1, 2], "b": [3, 4]})
+        r = (
+            ma.relation(df)
+            .with_columns(ma.col("a").add(ma.col("b")).name.alias("c"))
+            .rename({"a": "x"})
+        )
+        schema = r.schema
+        assert "x" in schema
+        assert "b" in schema
+        assert "c" in schema
+        assert "a" not in schema
+
+    def test_schema_does_not_trigger_compilation(self):
+        """Accessing schema should not call _compile_and_execute."""
+        import polars as pl
+        import mountainash as ma
+
+        df = pl.LazyFrame({"a": [1], "b": [2]})
+        r = ma.relation(df).select("a")
+
+        call_count = 0
+        original = r._compile_and_execute
+
+        def counting_compile():
+            nonlocal call_count
+            call_count += 1
+            return original()
+
+        r._compile_and_execute = counting_compile
+        _ = r.schema
+        assert call_count == 0, "schema should not trigger compilation"
