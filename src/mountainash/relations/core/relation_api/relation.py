@@ -451,6 +451,24 @@ class Relation(RelationBase):
         """
         return self._compile_and_execute()
 
+    def explain(self) -> str:
+        """Return the backend's query plan as a string, without executing data.
+
+        For Polars, returns the optimized LazyFrame plan. For Ibis, returns
+        the SQL string. For other backends, returns repr() of the compiled plan.
+        """
+        result = self.compile()
+        from mountainash.core.types import is_polars_lazyframe
+        if is_polars_lazyframe(result):
+            return result.explain()
+        if hasattr(result, "compile") and callable(result.compile):
+            try:
+                import ibis
+                return ibis.to_sql(result)
+            except (ImportError, Exception):
+                pass
+        return repr(result)
+
     def collect(self) -> Any:
         """Execute the plan and return a fully materialized native result.
 
