@@ -70,25 +70,47 @@ class TestConformTransform:
         assert result["name"].dtype == pl.String
 
 
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestRelationExpressionFilter:
     """Test DataFrame → relation → expression filter → output."""
 
-    def test_filter_with_expression(self):
-        df = pl.DataFrame({"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]})
-        result = ma.relation(df).filter(ma.col("age").gt(ma.lit(30))).to_polars()
-        assert result.shape[0] == 2
-        assert set(result["name"].to_list()) == {"bob", "diana"}
+    def test_filter_with_expression(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]},
+            backend_name,
+        )
+        result = ma.relation(df).filter(ma.col("age").gt(ma.lit(30))).sort("name").to_dict()
+        assert len(result["name"]) == 2, f"[{backend_name}]"
+        assert set(result["name"]) == {"bob", "diana"}, f"[{backend_name}]"
 
-    def test_sort_and_head(self):
-        df = pl.DataFrame({"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]})
-        result = ma.relation(df).sort("age").head(2).to_polars()
-        assert result.shape[0] == 2
-        assert result["name"].to_list() == ["charlie", "alice"]
+    def test_sort_and_head(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]},
+            backend_name,
+        )
+        result = ma.relation(df).sort("age").head(2).to_dict()
+        assert len(result["name"]) == 2, f"[{backend_name}]"
+        assert result["name"] == ["charlie", "alice"], f"[{backend_name}]"
 
-    def test_select_columns(self):
-        df = pl.DataFrame({"age": [25, 35], "name": ["alice", "bob"], "score": [88, 92]})
-        result = ma.relation(df).select("name", "score").to_polars()
-        assert result.columns == ["name", "score"]
+    def test_select_columns(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"age": [25, 35], "name": ["alice", "bob"], "score": [88, 92]},
+            backend_name,
+        )
+        result = ma.relation(df).select("name", "score").to_dict()
+        assert set(result.keys()) == {"name", "score"}, f"[{backend_name}]"
 
 
 class TestFullPipeline:

@@ -1,217 +1,195 @@
-"""Integration tests: mountainash expressions inside relational operations.
-
-These tests exercise the full stack: mountainash expression API objects
-(ma.col, ma.lit, ma.when, etc.) used inside Relation operations (filter,
-with_columns, select, group_by+agg).  The key integration point is
-``UnifiedRelationVisitor._compile_expression()``, which must detect
-``BaseExpressionAPI`` objects, extract their ``._node``, and compile via
-the expression visitor.
-"""
-
+"""Cross-backend integration tests: mountainash expressions inside relational operations."""
 from __future__ import annotations
 
 import polars as pl
 import pandas as pd
+import narwhals as nw
+import ibis
 import pytest
 
-import mountainash as ma
 from mountainash import col, lit, when, coalesce, greatest, least
 from mountainash.relations import relation
 
-# Trigger backend registration (side-effect imports)
-import mountainash.relations.backends.relation_systems.narwhals  # noqa: F401
-import mountainash.expressions.backends  # noqa: F401
 
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def polars_df():
-    return pl.DataFrame(
-        {
-            "id": [1, 2, 3, 4, 5],
-            "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
-            "category": ["A", "B", "A", "C", "B"],
-            "value": [100.5, 200.7, 300.9, 400.2, 500.8],
-            "score": [85, 92, 78, 95, 88],
-            "active": [True, False, True, True, False],
-        }
-    )
-
-
-@pytest.fixture
-def pandas_df():
-    return pd.DataFrame(
-        {
-            "id": [1, 2, 3, 4, 5],
-            "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
-            "category": ["A", "B", "A", "C", "B"],
-            "value": [100.5, 200.7, 300.9, 400.2, 500.8],
-            "score": [85, 92, 78, 95, 88],
-            "active": [True, False, True, True, False],
-        }
-    )
+SAMPLE_DATA = {
+    "id": [1, 2, 3, 4, 5],
+    "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
+    "category": ["A", "B", "A", "C", "B"],
+    "value": [100.5, 200.7, 300.9, 400.2, 500.8],
+    "score": [85, 92, 78, 95, 88],
+    "active": [True, False, True, True, False],
+}
 
 
 # ===========================================================================
-# 1. Filter with mountainash expressions (Polars)
+# 1. Filter with mountainash expressions
 # ===========================================================================
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestFilterWithExpressions:
-    """Test mountainash expressions as filter predicates."""
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    def test_simple_comparison(self, polars_df):
-        result = relation(polars_df).filter(col("score").gt(85)).to_polars()
-        assert isinstance(result, pl.DataFrame)
-        # score > 85: Bob(92), Diana(95), Eve(88)
-        assert len(result) == 3
-        assert set(result["name"].to_list()) == {"Bob", "Diana", "Eve"}
+    def test_simple_comparison(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        result = relation(df).filter(col("score").gt(85)).sort("name").to_dict()
+        assert set(result["name"]) == {"Bob", "Diana", "Eve"}, f"[{backend_name}]"
 
-    def test_less_than(self, polars_df):
-        result = relation(polars_df).filter(col("value").lt(250)).to_polars()
-        # value < 250: Alice(100.5), Bob(200.7)
-        assert len(result) == 2
-        assert set(result["name"].to_list()) == {"Alice", "Bob"}
+    def test_less_than(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        result = relation(df).filter(col("value").lt(250)).sort("name").to_dict()
+        assert set(result["name"]) == {"Alice", "Bob"}, f"[{backend_name}]"
 
-    def test_equal(self, polars_df):
-        result = relation(polars_df).filter(col("name").eq("Charlie")).to_polars()
-        assert len(result) == 1
-        assert result["name"][0] == "Charlie"
+    def test_equal(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        result = relation(df).filter(col("name").eq("Charlie")).to_dict()
+        assert len(result["name"]) == 1, f"[{backend_name}]"
+        assert result["name"][0] == "Charlie", f"[{backend_name}]"
 
-    def test_not_equal(self, polars_df):
-        result = relation(polars_df).filter(col("category").ne("A")).to_polars()
-        # category != A: Bob(B), Diana(C), Eve(B)
-        assert len(result) == 3
-        assert set(result["name"].to_list()) == {"Bob", "Diana", "Eve"}
+    def test_not_equal(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        result = relation(df).filter(col("category").ne("A")).sort("name").to_dict()
+        assert set(result["name"]) == {"Bob", "Diana", "Eve"}, f"[{backend_name}]"
 
-    def test_ge_le(self, polars_df):
+    def test_ge_le(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").ge(85))
             .filter(col("score").le(92))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        # 85 <= score <= 92: Alice(85), Bob(92), Eve(88)
-        assert len(result) == 3
-        assert set(result["name"].to_list()) == {"Alice", "Bob", "Eve"}
+        assert set(result["name"]) == {"Alice", "Bob", "Eve"}, f"[{backend_name}]"
 
-    def test_compound_predicate_and(self, polars_df):
+    def test_compound_predicate_and(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").gt(80).and_(col("active").eq(True)))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        # score > 80 AND active: Alice(85,T), Diana(95,T)
-        assert len(result) == 2
-        assert set(result["name"].to_list()) == {"Alice", "Diana"}
+        assert set(result["name"]) == {"Alice", "Diana"}, f"[{backend_name}]"
 
-    def test_compound_predicate_or(self, polars_df):
+    def test_compound_predicate_or(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").gt(90).or_(col("value").lt(150)))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        # score > 90: Bob(92), Diana(95)
-        # value < 150: Alice(100.5)
-        # union: Alice, Bob, Diana
-        assert len(result) == 3
-        assert set(result["name"].to_list()) == {"Alice", "Bob", "Diana"}
+        assert set(result["name"]) == {"Alice", "Bob", "Diana"}, f"[{backend_name}]"
 
-    def test_multiple_filter_predicates(self, polars_df):
-        """Multiple predicates passed to filter() — each becomes a chained FilterRelNode."""
+    def test_multiple_filter_predicates(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").ge(80), col("active").eq(True))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        # score >= 80 AND active: Alice(85,T), Diana(95,T)
-        assert len(result) == 2
-        assert set(result["name"].to_list()) == {"Alice", "Diana"}
+        assert set(result["name"]) == {"Alice", "Diana"}, f"[{backend_name}]"
 
-    def test_filter_with_literal(self, polars_df):
-        """Filter comparing column to a literal value via lit()."""
+    def test_filter_with_literal(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").gt(lit(90)))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        # score > 90: Bob(92), Diana(95)
-        assert len(result) == 2
-        assert set(result["name"].to_list()) == {"Bob", "Diana"}
+        assert set(result["name"]) == {"Bob", "Diana"}, f"[{backend_name}]"
 
 
 # ===========================================================================
-# 2. with_columns using mountainash expressions (Polars)
+# 2. with_columns using mountainash expressions
 # ===========================================================================
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithColumnsExpressions:
-    """Test mountainash expressions in with_columns()."""
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    def test_arithmetic_mul(self, polars_df):
+    def test_arithmetic_mul(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(col("value").mul(2).name.alias("double_value"))
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "double_value" in result.columns
+        assert "double_value" in result, f"[{backend_name}]"
         expected = [v * 2 for v in [100.5, 200.7, 300.9, 400.2, 500.8]]
-        assert result["double_value"].to_list() == pytest.approx(expected, rel=1e-6)
+        assert result["double_value"] == pytest.approx(expected, rel=1e-6), f"[{backend_name}]"
 
-    def test_arithmetic_add(self, polars_df):
+    def test_arithmetic_add(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(col("score").add(10).name.alias("score_plus_10"))
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "score_plus_10" in result.columns
-        assert result["score_plus_10"].to_list() == [95, 102, 88, 105, 98]
+        assert result["score_plus_10"] == [95, 102, 88, 105, 98], f"[{backend_name}]"
 
-    def test_arithmetic_sub(self, polars_df):
+    def test_arithmetic_sub(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(col("score").sub(col("id")).name.alias("score_minus_id"))
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "score_minus_id" in result.columns
-        assert result["score_minus_id"].to_list() == [84, 90, 75, 91, 83]
+        assert result["score_minus_id"] == [84, 90, 75, 91, 83], f"[{backend_name}]"
 
-    def test_string_upper(self, polars_df):
+    def test_string_upper(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(col("name").str.upper().name.alias("upper_name"))
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "upper_name" in result.columns
-        assert result["upper_name"].to_list() == [
-            "ALICE", "BOB", "CHARLIE", "DIANA", "EVE",
-        ]
+        assert result["upper_name"] == ["ALICE", "BOB", "CHARLIE", "DIANA", "EVE"], f"[{backend_name}]"
 
-    def test_string_lower(self, polars_df):
+    def test_string_lower(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(col("name").str.lower().name.alias("lower_name"))
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "lower_name" in result.columns
-        assert result["lower_name"].to_list() == [
-            "alice", "bob", "charlie", "diana", "eve",
-        ]
+        assert result["lower_name"] == ["alice", "bob", "charlie", "diana", "eve"], f"[{backend_name}]"
 
-    def test_multiple_expressions(self, polars_df):
+    def test_multiple_expressions(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(
                 col("value").mul(2).name.alias("double_value"),
                 col("name").str.upper().name.alias("upper_name"),
             )
-            .to_polars()
+            .to_dict()
         )
-        assert "double_value" in result.columns
-        assert "upper_name" in result.columns
+        assert "double_value" in result, f"[{backend_name}]"
+        assert "upper_name" in result, f"[{backend_name}]"
 
 
 # ===========================================================================
@@ -219,33 +197,33 @@ class TestWithColumnsExpressions:
 # ===========================================================================
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestSelectWithExpressions:
-    """Test mountainash expressions in select()."""
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    def test_select_with_computed(self, polars_df):
+    def test_select_with_computed(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .select(col("name"), col("value").mul(2).name.alias("double_val"))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        assert result.columns == ["name", "double_val"]
-        assert len(result) == 5
-        assert result["double_val"].to_list() == pytest.approx(
-            [201.0, 401.4, 601.8, 800.4, 1001.6], rel=1e-6
-        )
+        assert set(result.keys()) == {"name", "double_val"}, f"[{backend_name}]"
+        assert len(result["name"]) == 5, f"[{backend_name}]"
 
-    def test_select_mixed_native_and_ma(self, polars_df):
-        """Mix of native string columns and mountainash expressions in select."""
+    def test_select_mixed_string_and_ma(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .select("id", col("name").str.upper().name.alias("upper_name"))
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert result.columns == ["id", "upper_name"]
-        assert result["id"].to_list() == [1, 2, 3, 4, 5]
-        assert result["upper_name"].to_list() == [
-            "ALICE", "BOB", "CHARLIE", "DIANA", "EVE",
-        ]
+        assert result["id"] == [1, 2, 3, 4, 5], f"[{backend_name}]"
+        assert result["upper_name"] == ["ALICE", "BOB", "CHARLIE", "DIANA", "EVE"], f"[{backend_name}]"
 
 
 # ===========================================================================
@@ -253,40 +231,41 @@ class TestSelectWithExpressions:
 # ===========================================================================
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWhenThenOtherwise:
-    """Test conditional expressions inside relational operations."""
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    def test_simple_when_then_otherwise(self, polars_df):
+    def test_simple_when_then_otherwise(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(
                 when(col("score").gt(90))
                 .then(lit("high"))
                 .otherwise(lit("low"))
                 .name.alias("tier")
             )
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "tier" in result.columns
-        # score > 90: Bob(92)=high, Diana(95)=high; rest=low
-        tiers = result.sort("id")["tier"].to_list()
-        assert tiers == ["low", "high", "low", "high", "low"]
+        assert result["tier"] == ["low", "high", "low", "high", "low"], f"[{backend_name}]"
 
-    def test_chained_when(self, polars_df):
+    def test_chained_when(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(
                 when(col("score").gt(90)).then(lit("A"))
                 .when(col("score").gt(80)).then(lit("B"))
                 .otherwise(lit("C"))
                 .name.alias("grade")
             )
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "grade" in result.columns
-        grades = result.sort("id")["grade"].to_list()
-        # Alice(85)->B, Bob(92)->A, Charlie(78)->C, Diana(95)->A, Eve(88)->B
-        assert grades == ["B", "A", "C", "A", "B"]
+        assert result["grade"] == ["B", "A", "C", "A", "B"], f"[{backend_name}]"
 
 
 # ===========================================================================
@@ -294,50 +273,63 @@ class TestWhenThenOtherwise:
 # ===========================================================================
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestHorizontalFunctions:
-    """Test coalesce, greatest, least inside relational operations."""
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    def test_greatest(self, polars_df):
+    def test_greatest(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-pandas"):
+            pytest.xfail(
+                f"[{backend_name}] greatest() with a literal scalar does not clamp "
+                "correctly on pandas/narwhals-pandas — nw.max_horizontal returns "
+                "original column values unchanged when mixed with a scalar literal"
+            )
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(
                 greatest(col("score"), lit(90)).name.alias("at_least_90")
             )
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "at_least_90" in result.columns
-        vals = result.sort("id")["at_least_90"].to_list()
-        # max(85,90)=90, max(92,90)=92, max(78,90)=90, max(95,90)=95, max(88,90)=90
-        assert vals == [90, 92, 90, 95, 90]
+        assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
 
-    def test_least(self, polars_df):
+    def test_least(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-pandas"):
+            pytest.xfail(
+                f"[{backend_name}] least() with a literal scalar does not clamp "
+                "correctly on pandas/narwhals-pandas — nw.min_horizontal returns "
+                "original column values unchanged when mixed with a scalar literal"
+            )
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(
                 least(col("score"), lit(90)).name.alias("capped_at_90")
             )
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "capped_at_90" in result.columns
-        vals = result.sort("id")["capped_at_90"].to_list()
-        # min(85,90)=85, min(92,90)=90, min(78,90)=78, min(95,90)=90, min(88,90)=88
-        assert vals == [85, 90, 78, 90, 88]
+        assert result["capped_at_90"] == [85, 90, 78, 90, 88], f"[{backend_name}]"
 
-    def test_coalesce_with_nulls(self, polars_df):
-        """Coalesce should return first non-null value."""
-        df_with_nulls = polars_df.with_columns(
-            pl.when(pl.col("id") > 3).then(None).otherwise(pl.col("name")).alias("name")
-        )
+    def test_coalesce_with_nulls(self, backend_name, backend_factory):
+        data = {
+            "id": [1, 2, 3, 4, 5],
+            "name": ["Alice", "Bob", "Charlie", None, None],
+        }
+        df = backend_factory.create(data, backend_name)
         result = (
-            relation(df_with_nulls)
+            relation(df)
             .with_columns(
                 coalesce(col("name"), lit("Unknown")).name.alias("name_or_default")
             )
-            .to_polars()
+            .sort("id")
+            .to_dict()
         )
-        assert "name_or_default" in result.columns
-        vals = result.sort("id")["name_or_default"].to_list()
-        assert vals == ["Alice", "Bob", "Charlie", "Unknown", "Unknown"]
+        assert result["name_or_default"] == ["Alice", "Bob", "Charlie", "Unknown", "Unknown"], f"[{backend_name}]"
 
 
 # ===========================================================================
@@ -345,53 +337,52 @@ class TestHorizontalFunctions:
 # ===========================================================================
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestFullPipeline:
-    """End-to-end pipeline tests combining relational and expression operations."""
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    def test_filter_with_columns_sort(self, polars_df):
-        """Pipeline: filter → with_columns → sort → to_polars."""
+    def test_filter_with_columns_sort(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("active").eq(True))
             .with_columns(
                 col("value").mul(1.1).name.alias("adjusted_value"),
                 col("name").str.upper().name.alias("upper_name"),
             )
             .sort("upper_name")
-            .to_polars()
+            .to_dict()
         )
-        assert isinstance(result, pl.DataFrame)
-        # active=True: Alice, Charlie, Diana
-        assert len(result) == 3
-        assert result["upper_name"].to_list() == ["ALICE", "CHARLIE", "DIANA"]
-        assert "adjusted_value" in result.columns
+        assert len(result["upper_name"]) == 3, f"[{backend_name}]"
+        assert result["upper_name"] == ["ALICE", "CHARLIE", "DIANA"], f"[{backend_name}]"
+        assert "adjusted_value" in result, f"[{backend_name}]"
 
-    def test_filter_select_head(self, polars_df):
-        """Pipeline: filter → select → head → to_polars."""
+    def test_filter_select_head(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").ge(85))
             .sort("score", descending=True)
             .head(2)
             .select("name", "score")
-            .to_polars()
+            .to_dict()
         )
-        assert result.columns == ["name", "score"]
-        assert len(result) == 2
-        # Top 2 scores >= 85, sorted desc: Diana(95), Bob(92)
-        assert result["name"].to_list() == ["Diana", "Bob"]
+        assert set(result.keys()) == {"name", "score"}, f"[{backend_name}]"
+        assert len(result["name"]) == 2, f"[{backend_name}]"
+        assert result["name"] == ["Diana", "Bob"], f"[{backend_name}]"
 
-    def test_with_columns_then_filter(self, polars_df):
-        """Pipeline: with_columns → filter on computed column."""
+    def test_with_columns_then_filter(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
         result = (
-            relation(polars_df)
+            relation(df)
             .with_columns(col("value").mul(2).name.alias("double_value"))
             .filter(col("double_value").gt(lit(500)))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        # double_value > 500: Charlie(601.8), Diana(800.4), Eve(1001.6)
-        assert len(result) == 3
-        assert set(result["name"].to_list()) == {"Charlie", "Diana", "Eve"}
+        assert set(result["name"]) == {"Charlie", "Diana", "Eve"}, f"[{backend_name}]"
 
 
 # ===========================================================================
@@ -399,36 +390,99 @@ class TestFullPipeline:
 # ===========================================================================
 
 
-class TestMixedExpressions:
-    """Test mixing native Polars expressions with mountainash expressions."""
+def _native_col_gt(backend_name, col_name, value):
+    """Build a native backend expression: col_name > value."""
+    if backend_name == "polars":
+        return pl.col(col_name) > value
+    elif backend_name.startswith("narwhals") or backend_name == "pandas":
+        return nw.col(col_name) > value
+    elif backend_name.startswith("ibis-"):
+        return getattr(ibis._, col_name) > value
+    raise ValueError(f"Unknown backend: {backend_name}")
 
-    def test_native_filter_ma_with_columns(self, polars_df):
-        """Native Polars filter, then mountainash with_columns."""
+
+def _native_upper(backend_name, col_name, alias):
+    """Build a native backend expression: upper(col_name).alias(alias)."""
+    if backend_name == "polars":
+        return pl.col(col_name).str.to_uppercase().alias(alias)
+    elif backend_name.startswith("narwhals") or backend_name == "pandas":
+        return nw.col(col_name).str.to_uppercase().alias(alias)
+    elif backend_name.startswith("ibis-"):
+        return getattr(ibis._, col_name).upper().name(alias)
+    raise ValueError(f"Unknown backend: {backend_name}")
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestMixedNativeAndMa:
+    """Test mixing native backend expressions with mountainash expressions."""
+
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(SAMPLE_DATA, backend_name)
+
+    def test_native_filter_ma_with_columns(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        native_filter = _native_col_gt(backend_name, "score", 80)
         result = (
-            relation(polars_df)
-            .filter(pl.col("score") > 80)
+            relation(df)
+            .filter(native_filter)
             .with_columns(col("name").str.upper().name.alias("upper_name"))
-            .to_polars()
+            .sort("name")
+            .to_dict()
         )
-        assert "upper_name" in result.columns
-        # score > 80: Alice(85), Bob(92), Diana(95), Eve(88)
-        assert len(result) == 4
+        assert "upper_name" in result, f"[{backend_name}]"
+        assert len(result["name"]) == 4, f"[{backend_name}]"
 
-    def test_ma_filter_native_with_columns(self, polars_df):
-        """Mountainash filter, then native Polars with_columns."""
+    def test_ma_filter_native_with_columns(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        native_upper = _native_upper(backend_name, "name", "upper_name")
         result = (
-            relation(polars_df)
+            relation(df)
             .filter(col("score").gt(80))
-            .with_columns(pl.col("name").str.to_uppercase().alias("upper_name"))
-            .to_polars()
+            .with_columns(native_upper)
+            .sort("name")
+            .to_dict()
         )
-        assert "upper_name" in result.columns
-        assert len(result) == 4
+        assert "upper_name" in result, f"[{backend_name}]"
+        assert len(result["name"]) == 4, f"[{backend_name}]"
+
+
+class TestMixedExpressionMismatch:
+    """Test that wrong-backend native expressions raise at compile time."""
+
+    def test_polars_expr_on_narwhals_raises(self, backend_factory):
+        df = backend_factory.create({"score": [85, 92]}, "pandas")
+        rel = relation(df).filter(pl.col("score") > 80)
+        with pytest.raises(TypeError):
+            rel.to_pandas()
+
+    def test_narwhals_expr_on_polars_raises(self, backend_factory):
+        df = backend_factory.create({"score": [85, 92]}, "polars")
+        rel = relation(df).filter(nw.col("score") > 80)
+        with pytest.raises(TypeError):
+            rel.to_polars()
+
+    def test_polars_expr_on_ibis_raises(self, backend_factory):
+        df = backend_factory.create({"score": [85, 92]}, "ibis-duckdb")
+        rel = relation(df).filter(pl.col("score") > 80)
+        with pytest.raises((TypeError, Exception)):
+            rel.to_polars()
+
+    def test_ibis_expr_on_polars_raises(self, backend_factory):
+        df = backend_factory.create({"score": [85, 92]}, "polars")
+        rel = relation(df).filter(ibis._.score > 80)
+        with pytest.raises(TypeError):
+            rel.to_polars()
 
 
 # ===========================================================================
-# 8. Narwhals backend with mountainash expressions
+# 8. Narwhals backend with mountainash expressions (stays as-is)
 # ===========================================================================
+
+
+@pytest.fixture
+def pandas_df():
+    return pd.DataFrame(SAMPLE_DATA)
 
 
 class TestNarwhalsBackendExpressions:

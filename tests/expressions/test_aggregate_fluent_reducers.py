@@ -1,136 +1,104 @@
 """Cross-backend tests for the 9 fluent aggregate reducers."""
 from __future__ import annotations
 
-import polars as pl
 import pytest
 
 import mountainash as ma
 from mountainash.relations import relation
 
 
-@pytest.fixture
-def df() -> pl.DataFrame:
-    return pl.DataFrame({
-        "g": ["a", "a", "a", "b", "b"],
-        "x": [1, 2, 3, 4, 6],
-    })
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
 
 
-def _agg_via_polars(df, expr_factory):
+def _agg(df, expr_factory):
+    """Group by 'g', aggregate 'x' with expr_factory, sort by 'g', return dict."""
     return (
         relation(df)
         .group_by("g")
         .agg(expr_factory(ma.col("x")).alias("v"))
-        .to_polars()
         .sort("g")
+        .to_dict()
     )
 
 
-def test_sum(df):
-    result = _agg_via_polars(df, lambda c: c.sum())
-    assert result["v"].to_list() == [6, 10]
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestFluentReducers:
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(
+            {"g": ["a", "a", "a", "b", "b"], "x": [1, 2, 3, 4, 6]},
+            backend_name,
+        )
 
+    def test_sum(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.sum())
+        assert result["v"] == [6, 10], f"[{backend_name}]"
 
-def test_avg(df):
-    result = _agg_via_polars(df, lambda c: c.avg())
-    assert result["v"].to_list() == [2.0, 5.0]
+    def test_avg(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.avg())
+        assert result["v"] == pytest.approx([2.0, 5.0]), f"[{backend_name}]"
 
+    def test_min(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.min())
+        assert result["v"] == [1, 4], f"[{backend_name}]"
 
-def test_min(df):
-    result = _agg_via_polars(df, lambda c: c.min())
-    assert result["v"].to_list() == [1, 4]
+    def test_max(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.max())
+        assert result["v"] == [3, 6], f"[{backend_name}]"
 
+    def test_product(self, backend_name, backend_factory):
+        if backend_name.startswith("ibis-"):
+            pytest.xfail("Ibis backends have no standard SQL product aggregate")
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.product())
+        # narwhals computes product via exp(sum(log(x))) which introduces float error
+        assert result["v"] == pytest.approx([6, 24]), f"[{backend_name}]"
 
-def test_max(df):
-    result = _agg_via_polars(df, lambda c: c.max())
-    assert result["v"].to_list() == [3, 6]
+    def test_std_dev(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.std_dev())
+        assert result["v"][0] == pytest.approx(1.0), f"[{backend_name}]"
+        assert result["v"][1] == pytest.approx(1.4142135623730951), f"[{backend_name}]"
 
+    def test_variance(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("Narwhals variance uses x.std().pow() which fails — nw.Expr has no .pow() method")
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.variance())
+        assert result["v"][0] == pytest.approx(1.0), f"[{backend_name}]"
+        assert result["v"][1] == pytest.approx(2.0), f"[{backend_name}]"
 
-def test_product(df):
-    result = _agg_via_polars(df, lambda c: c.product())
-    assert result["v"].to_list() == [6, 24]
+    def test_mode(self, backend_name, backend_factory):
+        if backend_name.startswith("ibis-"):
+            pytest.xfail("Ibis backends have no standard SQL mode aggregate")
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("Narwhals backend does not implement mode()")
+        df = backend_factory.create(
+            {"g": ["a", "a", "a", "b"], "x": [1, 1, 2, 5]},
+            backend_name,
+        )
+        result = _agg(df, lambda c: c.mode())
+        a_val = result["v"][0]
+        b_val = result["v"][1]
+        if isinstance(a_val, list):
+            assert 1 in a_val, f"[{backend_name}]"
+            assert 5 in b_val, f"[{backend_name}]"
+        else:
+            assert a_val == 1, f"[{backend_name}]"
+            assert b_val == 5, f"[{backend_name}]"
 
+    def test_any_value(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.any_value())
+        assert result["v"][0] in {1, 2, 3}, f"[{backend_name}]"
+        assert result["v"][1] in {4, 6}, f"[{backend_name}]"
 
-def test_std_dev(df):
-    result = _agg_via_polars(df, lambda c: c.std_dev())
-    # group a: [1,2,3] sample std_dev == 1.0; group b: [4,6] == sqrt(2) ≈ 1.414
-    assert result["v"].to_list()[0] == pytest.approx(1.0)
-    assert result["v"].to_list()[1] == pytest.approx(1.4142135623730951)
-
-
-def test_variance(df):
-    result = _agg_via_polars(df, lambda c: c.variance())
-    # group a: var=1.0; group b: var=2.0
-    assert result["v"].to_list()[0] == pytest.approx(1.0)
-    assert result["v"].to_list()[1] == pytest.approx(2.0)
-
-
-def test_mode(df):
-    # mode is not deterministic on uniform groups; use a group with a clear mode
-    df2 = pl.DataFrame({"g": ["a", "a", "a", "b"], "x": [1, 1, 2, 5]})
-    result = (
-        relation(df2)
-        .group_by("g")
-        .agg(ma.col("x").mode().alias("v"))
-        .to_polars()
-        .sort("g")
-    )
-    # mode of [1,1,2] = 1; mode of [5] = 5
-    # Some backends return a list, some a scalar — check membership
-    a_val = result.filter(pl.col("g") == "a")["v"].to_list()[0]
-    b_val = result.filter(pl.col("g") == "b")["v"].to_list()[0]
-    if isinstance(a_val, list):
-        assert 1 in a_val
-        assert 5 in b_val
-    else:
-        assert a_val == 1
-        assert b_val == 5
-
-
-def test_any_value(df):
-    result = _agg_via_polars(df, lambda c: c.any_value())
-    # Nondeterministic representative — just verify it's in the source set
-    a_val = result.filter(pl.col("g") == "a")["v"].to_list()[0]
-    b_val = result.filter(pl.col("g") == "b")["v"].to_list()[0]
-    assert a_val in {1, 2, 3}
-    assert b_val in {4, 6}
-
-
-def test_mean_alias_for_avg(df):
-    """ma.col('x').mean() is a short alias for .avg() — same numeric result."""
-    avg_result = _agg_via_polars(df, lambda c: c.avg())
-    mean_result = _agg_via_polars(df, lambda c: c.mean())
-    assert avg_result["v"].to_list() == mean_result["v"].to_list()
-
-
-# Cross-backend smoke tests for sum (representative of the wiring path)
-
-def test_sum_narwhals():
-    pytest.importorskip("narwhals")
-    import narwhals as nw
-    nw_df = nw.from_native(
-        pl.DataFrame({"g": ["a", "b", "b"], "x": [1, 2, 3]}),
-        eager_only=True,
-    )
-    result = (
-        relation(nw_df)
-        .group_by("g")
-        .agg(ma.col("x").sum().alias("v"))
-        .to_polars()
-        .sort("g")
-    )
-    assert result["v"].to_list() == [1, 5]
-
-
-def test_sum_ibis():
-    pytest.importorskip("ibis")
-    import ibis
-    t = ibis.memtable({"g": ["a", "b", "b"], "x": [1, 2, 3]})
-    result = (
-        relation(t)
-        .group_by("g")
-        .agg(ma.col("x").sum().alias("v"))
-        .to_polars()
-        .sort("g")
-    )
-    assert result["v"].to_list() == [1, 5]
+    def test_mean_alias_for_avg(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        avg_result = _agg(df, lambda c: c.avg())
+        mean_result = _agg(df, lambda c: c.mean())
+        assert avg_result["v"] == mean_result["v"], f"[{backend_name}]"

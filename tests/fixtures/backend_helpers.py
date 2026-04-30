@@ -330,3 +330,43 @@ def assert_backend_results_equal(
     if not BackendResultHelper.compare_with_tolerance(actual, expected, tolerance):
         error_msg = f"{message} [{backend_name}]: expected {expected}, got {actual}"
         raise AssertionError(error_msg)
+
+
+def extract_column(result: Any, col: str) -> list:
+    """Extract a column from a backend-native result as a plain list.
+
+    Detects the result type and extracts accordingly:
+    - Ibis Table: .execute() then pandas .tolist()
+    - Polars LazyFrame: .collect() then .to_list()
+    - Polars DataFrame / Narwhals: direct [col].to_list()
+    - Pandas: .tolist()
+    """
+    if hasattr(result, "execute"):
+        return result.execute()[col].tolist()
+    if hasattr(result, "collect") and not hasattr(result, "to_list"):
+        return result.collect()[col].to_list()
+    if hasattr(result, "to_list"):
+        return result[col].to_list()
+    return list(result[col])
+
+
+def extract_row_count(result: Any) -> int:
+    """Extract row count from a backend-native result."""
+    if hasattr(result, "execute"):
+        return len(result.execute())
+    if hasattr(result, "collect") and not hasattr(result, "shape"):
+        return len(result.collect())
+    if hasattr(result, "shape"):
+        return result.shape[0]
+    return len(result)
+
+
+def extract_scalar(result: Any, col: str):
+    """Extract a single scalar from a 1-row result."""
+    if hasattr(result, "execute"):
+        return result.execute()[col].tolist()[0]
+    if hasattr(result, "collect") and not hasattr(result, "to_list"):
+        return result.collect()[col].to_list()[0]
+    if hasattr(result, "to_list"):
+        return result[col].to_list()[0]
+    return list(result[col])[0]
