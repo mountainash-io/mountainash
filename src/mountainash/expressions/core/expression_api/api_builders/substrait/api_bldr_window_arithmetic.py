@@ -95,7 +95,7 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         return self._build(node)
 
     def dense_rank(self, *, descending: bool = False) -> BaseExpressionAPI:
-        """Alias for rank(method="dense").
+        """Dense rank (no gaps) within a partition.
 
         Args:
             descending: If True, highest values get rank 1.
@@ -103,10 +103,24 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         Returns:
             New ExpressionAPI with WindowFunctionNode.
         """
-        return self.rank(method="dense", descending=descending)
+        if isinstance(self._node, FieldReferenceNode):
+            col_name = self._node.field
+        else:
+            raise ValueError(
+                "dense_rank() must be called on a column reference, e.g. ma.col('x').dense_rank()"
+            )
+
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
+            arguments=[],
+            window_spec=WindowSpec(
+                order_by=[SortField(column=col_name, descending=descending)],
+            ),
+        )
+        return self._build(node)
 
     def row_number(self, *, descending: bool = False) -> BaseExpressionAPI:
-        """Alias for rank(method="ordinal").
+        """Row number (unique sequential) within a partition.
 
         Args:
             descending: If True, highest values get rank 1.
@@ -114,7 +128,21 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         Returns:
             New ExpressionAPI with WindowFunctionNode.
         """
-        return self.rank(method="ordinal", descending=descending)
+        if isinstance(self._node, FieldReferenceNode):
+            col_name = self._node.field
+        else:
+            raise ValueError(
+                "row_number() must be called on a column reference, e.g. ma.col('x').row_number()"
+            )
+
+        node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
+            arguments=[],
+            window_spec=WindowSpec(
+                order_by=[SortField(column=col_name, descending=descending)],
+            ),
+        )
+        return self._build(node)
 
     def percent_rank(self) -> BaseExpressionAPI:
         """Relative rank within the partition (0..1).
@@ -169,7 +197,7 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
 
     def lead(
         self,
-        offset: int = 1,
+        offset: Union[BaseExpressionAPI, int] = 1,
         default: Optional[Union[BaseExpressionAPI, Any]] = None,
     ) -> BaseExpressionAPI:
         """Value at offset rows after current row.
@@ -177,13 +205,14 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         Substrait: lead
 
         Args:
-            offset: Number of rows ahead (default 1).
+            offset: Number of rows ahead (default 1). Ibis backends
+                accept column expressions; Polars/narwhals require scalars.
             default: Default value if offset is out of bounds.
 
         Returns:
             New ExpressionAPI with WindowFunctionNode.
         """
-        arguments: list[Any] = [self._node, LiteralNode(value=offset)]
+        arguments: list[Any] = [self._node, self._to_substrait_node(offset)]
         if default is not None:
             arguments.append(self._to_substrait_node(default))
         node = WindowFunctionNode(
@@ -194,7 +223,7 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
 
     def lag(
         self,
-        offset: int = 1,
+        offset: Union[BaseExpressionAPI, int] = 1,
         default: Optional[Union[BaseExpressionAPI, Any]] = None,
     ) -> BaseExpressionAPI:
         """Value at offset rows before current row.
@@ -202,13 +231,14 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         Substrait: lag
 
         Args:
-            offset: Number of rows behind (default 1).
+            offset: Number of rows behind (default 1). Ibis backends
+                accept column expressions; Polars/narwhals require scalars.
             default: Default value if offset is out of bounds.
 
         Returns:
             New ExpressionAPI with WindowFunctionNode.
         """
-        arguments: list[Any] = [self._node, LiteralNode(value=offset)]
+        arguments: list[Any] = [self._node, self._to_substrait_node(offset)]
         if default is not None:
             arguments.append(self._to_substrait_node(default))
         node = WindowFunctionNode(
@@ -249,12 +279,16 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(node)
 
-    def nth_value(self, n: int) -> BaseExpressionAPI:
-        """Nth value in the window frame (1-based)."""
+    def nth_value(self, n: Union[BaseExpressionAPI, int] = 1) -> BaseExpressionAPI:
+        """Nth value in the window frame (1-based).
+
+        Args:
+            n: Position in the window (1-based). Ibis backends accept
+                column expressions; Polars/narwhals require scalars.
+        """
         node = WindowFunctionNode(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE,
-            arguments=[self._node],
-            options={"window_offset": n},
+            arguments=[self._node, self._to_substrait_node(n)],
         )
         return self._build(node)
 
@@ -377,7 +411,7 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
 
     def shift(
         self,
-        n: int = 1,
+        n: Union[BaseExpressionAPI, int] = 1,
         *,
         fill_value: Optional[Union[BaseExpressionAPI, Any]] = None,
     ) -> BaseExpressionAPI:
@@ -385,20 +419,20 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
 
         Polars-compatible alias for lag(n)/lead(-n).
         """
-        if n >= 0:
-            arguments: list[Any] = [self._node, LiteralNode(value=n)]
-            if fill_value is not None:
-                arguments.append(self._to_substrait_node(fill_value))
-            node = WindowFunctionNode(
-                function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
-                arguments=arguments,
-            )
-        else:
-            arguments = [self._node, LiteralNode(value=-n)]
+        if isinstance(n, int) and n < 0:
+            arguments: list[Any] = [self._node, self._to_substrait_node(-n)]
             if fill_value is not None:
                 arguments.append(self._to_substrait_node(fill_value))
             node = WindowFunctionNode(
                 function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LEAD,
+                arguments=arguments,
+            )
+        else:
+            arguments = [self._node, self._to_substrait_node(n)]
+            if fill_value is not None:
+                arguments.append(self._to_substrait_node(fill_value))
+            node = WindowFunctionNode(
+                function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
                 arguments=arguments,
             )
         return self._build(node)
