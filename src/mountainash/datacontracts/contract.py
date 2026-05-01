@@ -23,15 +23,11 @@ class BaseDataContract(pa.DataFrameModel):
             return data
         if isinstance(data, pl.LazyFrame):
             return data.collect()
-        # pandas
-        try:
-            import pandas as pd
-
-            if isinstance(data, pd.DataFrame):
-                return pl.from_pandas(data)
-        except ImportError:
-            pass
-        raise TypeError(f"Unsupported data type: {type(data)}")
+        from mountainash.relations import relation
+        result = relation(data).collect()
+        if isinstance(result, pl.DataFrame):
+            return result
+        return pl.from_pandas(result.to_pandas())
 
     @classmethod
     def validate_datacontract(

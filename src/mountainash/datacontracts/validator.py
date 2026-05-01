@@ -65,6 +65,16 @@ class Validator:
             return self.prepare(data)
         return data
 
+    @staticmethod
+    def _to_polars(data: Any) -> "pl.DataFrame":
+        """Normalize any input to a polars DataFrame via mountainash relation."""
+        from mountainash.relations import relation
+
+        if isinstance(data, pl.DataFrame):
+            return data
+        rel = relation(data)
+        return rel.collect()
+
     def validate(
         self,
         data: Any,
@@ -76,7 +86,7 @@ class Validator:
         random_seed: int | None = None,
     ) -> ValidationResult:
         """Full validation — collects all errors."""
-        prepared = self._prepare_data(data)
+        prepared = self._to_polars(self._prepare_data(data))
         active_contract = self._resolve_contract(context)
 
         try:
@@ -109,7 +119,7 @@ class Validator:
         random_seed: int | None = None,
     ) -> ValidationResult:
         """Quick validation — fails on first error."""
-        prepared = self._prepare_data(data)
+        prepared = self._to_polars(self._prepare_data(data))
         active_contract = self._resolve_contract(context)
 
         try:

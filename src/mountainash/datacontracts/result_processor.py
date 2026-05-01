@@ -1,26 +1,38 @@
-"""ValidationResultProcessor — unified failure case analysis."""
+"""ValidationResultProcessor — unified failure case analysis via mountainash relations."""
 from __future__ import annotations
 
 import polars as pl
+import mountainash as ma
 
 
 class ValidationResultProcessor:
-    """Processes pandera failure cases from a validation run."""
+    """Processes pandera failure cases using mountainash relations and expressions."""
 
     def __init__(self, failure_cases: pl.DataFrame) -> None:
         self._failure_cases = failure_cases
+        self._rel = ma.relation(failure_cases)
 
     def failure_cases(self) -> pl.DataFrame:
         return self._failure_cases
 
     def failure_cases_for_column(self, column: str) -> pl.DataFrame:
-        return self._failure_cases.filter(
-            (pl.col("schema_context") == "Column") & (pl.col("column") == column)
+        return (
+            self._rel
+            .filter(
+                ma.col("schema_context").eq(ma.lit("Column"))
+                & ma.col("column").eq(ma.lit(column))
+            )
+            .collect()
         )
 
     def failure_cases_for_rule(self, rule_id: str) -> pl.DataFrame:
-        return self._failure_cases.filter(
-            (pl.col("schema_context") == "DataFrameSchema") & (pl.col("check") == rule_id)
+        return (
+            self._rel
+            .filter(
+                ma.col("schema_context").eq(ma.lit("DataFrameSchema"))
+                & ma.col("check").eq(ma.lit(rule_id))
+            )
+            .collect()
         )
 
     def failure_count(self) -> int:
@@ -28,16 +40,20 @@ class ValidationResultProcessor:
 
     def failure_count_by_column(self) -> pl.DataFrame:
         return (
-            self._failure_cases.filter(pl.col("schema_context") == "Column")
+            self._rel
+            .filter(ma.col("schema_context").eq(ma.lit("Column")))
             .group_by("column")
-            .agg(pl.len().alias("count"))
+            .agg(ma.count_records().alias("count"))
+            .collect()
         )
 
     def failure_count_by_rule(self) -> pl.DataFrame:
         return (
-            self._failure_cases.filter(pl.col("schema_context") == "DataFrameSchema")
+            self._rel
+            .filter(ma.col("schema_context").eq(ma.lit("DataFrameSchema")))
             .group_by("check")
-            .agg(pl.len().alias("count"))
+            .agg(ma.count_records().alias("count"))
+            .collect()
         )
 
     def passed(self) -> bool:
