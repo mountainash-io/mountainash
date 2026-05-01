@@ -52,3 +52,18 @@ class TestRelationWidth:
         df = pl.LazyFrame({"a": [1], "b": [2], "c": [3]})
         r = ma.relation(df).select("a")
         assert r.width == 1
+
+
+class TestRelationExplain:
+    def test_explain_polars_returns_string(self):
+        df = pl.LazyFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        r = ma.relation(df).filter(ma.col("a").gt(1)).select("a", "b")
+        plan = r.explain()
+        assert isinstance(plan, str)
+        assert len(plan) > 0
+
+    def test_explain_contains_filter_info(self):
+        df = pl.LazyFrame({"a": [1, 2, 3]})
+        r = ma.relation(df).filter(ma.col("a").gt(1))
+        plan = r.explain()
+        assert "FILTER" in plan or "filter" in plan.lower()

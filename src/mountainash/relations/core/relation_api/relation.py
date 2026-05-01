@@ -451,6 +451,24 @@ class Relation(RelationBase):
         """
         return self._compile_and_execute()
 
+    def explain(self) -> str:
+        """Return the backend's query plan as a string, without executing data.
+
+        For Polars, returns the optimized LazyFrame plan. For Ibis, returns
+        the SQL string. For other backends, returns repr() of the compiled plan.
+        """
+        result = self.compile()
+        from mountainash.core.types import is_polars_lazyframe
+        if is_polars_lazyframe(result):
+            return result.explain()
+        if hasattr(result, "compile") and callable(result.compile):
+            try:
+                import ibis
+                return ibis.to_sql(result)
+            except (ImportError, Exception):
+                pass
+        return repr(result)
+
     def collect(self) -> Any:
         """Execute the plan and return a fully materialized native result.
 
@@ -668,18 +686,10 @@ class Relation(RelationBase):
     def schema(self) -> dict:
         """Output schema as {column_name: dtype} dict.
 
-        Compiles the plan to determine the output schema accurately,
-        including derived columns from select/with_columns/rename/join/agg.
+        Infers the schema from the AST without compilation or backend involvement.
         """
-        result = self._compile_and_execute()
-        from mountainash.core.types import is_polars_lazyframe
-        if is_polars_lazyframe(result):
-            return dict(result.collect_schema())
-        if hasattr(result, "schema"):
-            return dict(result.schema)
-        if hasattr(result, "dtypes"):
-            return dict(zip(result.columns, result.dtypes))
-        return {}
+        from mountainash.relations.schema_inference import infer_schema
+        return infer_schema(self._node)
 
     @property
     def dtypes(self) -> list:
