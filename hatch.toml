@@ -97,6 +97,7 @@ dependencies = [
     "pyarrow>=15.0.0",
     "pydantic>=2.0.0",
     "xarray==2024.11.0",
+    "pandera[polars]>=0.22.0",
 ]
 [envs.test.scripts]
 # ===========================================
