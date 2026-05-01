@@ -62,4 +62,16 @@ def conform(source: dict | TypeSpec) -> ConformBuilder:
     """Create a ConformBuilder from a dict or TypeSpec."""
     return ConformBuilder(source)
 
+
+def datacontract(spec_or_columns: "dict | TypeSpec") -> "type":
+    """Create a DataContract from a TypeSpec or simple dict."""
+    from mountainash.datacontracts.compiler import compile_datacontract
+
+    if isinstance(spec_or_columns, dict):
+        _spec = TypeSpec.from_simple_dict(spec_or_columns)
+    else:
+        _spec = spec_or_columns
+    return compile_datacontract(_spec)
+
+
 """Mountainash - Unified cross-backend DataFrame expression system."""
