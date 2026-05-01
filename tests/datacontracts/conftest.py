@@ -44,10 +44,3 @@ def valid_person_df() -> pl.DataFrame:
     })
 
 
-@pytest.fixture
-def invalid_person_df() -> pl.DataFrame:
-    return pl.DataFrame({
-        "name": ["alice", "", "charlie"],
-        "age": [30, -1, 200],
-        "email": ["a@b.com", None, "c@d.com"],
-    })

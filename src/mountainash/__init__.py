@@ -63,7 +63,7 @@ def conform(source: dict | TypeSpec) -> ConformBuilder:
     return ConformBuilder(source)
 
 
-def datacontract(spec_or_columns: "dict | TypeSpec") -> "type":
+def datacontract(spec_or_columns: "dict | TypeSpec") -> "type[BaseDataContract]":
     """Create a DataContract from a TypeSpec or simple dict."""
     from mountainash.datacontracts.compiler import compile_datacontract
 

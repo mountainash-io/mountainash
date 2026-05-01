@@ -1,7 +1,7 @@
 """Validator — unified validation orchestrator."""
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import polars as pl
 import pandera.polars as pa
@@ -70,13 +70,19 @@ class Validator:
         data: Any,
         *,
         context: dict[str, Any] | None = None,
+        head: int | None = None,
+        tail: int | None = None,
+        sample: int | None = None,
+        random_seed: int | None = None,
     ) -> ValidationResult:
         """Full validation — collects all errors."""
         prepared = self._prepare_data(data)
         active_contract = self._resolve_contract(context)
 
         try:
-            active_contract.validate_datacontract(prepared)
+            active_contract.validate_datacontract(
+                prepared, head=head, tail=tail, sample=sample, random_seed=random_seed,
+            )
             return ValidationResult(
                 passes=True,
                 validator_name=self.name,
