@@ -153,6 +153,61 @@ class ValidationResultProcessor:
         """True if no malformed rules detected."""
         return len(self.malformed_rules()) == 0
 
+    def _resolve_source_data(self, source_data: Any | None) -> Any:
+        """Resolve source data from parameter or stored value."""
+        resolved = source_data if source_data is not None else self._source_data
+        if resolved is None:
+            raise ValueError(
+                "source_data is required for pivot operations. "
+                "Pass it to the constructor or to this method."
+            )
+        return resolved
+
+    def pivot_all_fields(self, source_data: Any | None = None) -> pl.DataFrame:
+        """Wide pivot: all field values for failing rows, grouped by rule_id + row_index."""
+        resolved = self._resolve_source_data(source_data)
+        enriched = self.enriched_failure_cases()
+        failures = ma.relation(enriched).filter(
+            ma.col("row_index").is_not_null()
+        ).with_columns(
+            ma.col("row_index").cast("uint32").alias("row_index"),
+        ).select("rule_id", "row_index").unique()
+
+        source_rel = ma.relation(resolved).with_row_index(name="_row_idx")
+        joined = failures.join(
+            source_rel,
+            left_on=["row_index"],
+            right_on=["_row_idx"],
+            how="inner",
+        )
+        return joined.collect()
+
+    def pivot_key_fields(self, source_data: Any | None = None) -> pl.DataFrame:
+        """Wide pivot: natural key field values only for failing rows."""
+        if self._natural_key is None:
+            raise ValueError(
+                "natural_key is required for pivot_key_fields. "
+                "Pass it to the constructor."
+            )
+        resolved = self._resolve_source_data(source_data)
+        enriched = self.enriched_failure_cases()
+        failures = ma.relation(enriched).filter(
+            ma.col("row_index").is_not_null()
+        ).with_columns(
+            ma.col("row_index").cast("uint32").alias("row_index"),
+        ).select("rule_id", "row_index").unique()
+
+        source_rel = ma.relation(resolved).with_row_index(name="_row_idx")
+        select_cols = ["_row_idx"] + [c for c in self._natural_key]
+        source_rel = source_rel.select(*select_cols)
+        joined = failures.join(
+            source_rel,
+            left_on=["row_index"],
+            right_on=["_row_idx"],
+            how="inner",
+        )
+        return joined.collect()
+
     def passed(self) -> bool:
         return len(self._failure_cases) == 0
 

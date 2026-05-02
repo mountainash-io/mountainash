@@ -290,3 +290,94 @@ class TestMalformedRuleDetection:
             sample_failure_cases, validator_name="v1",
         )
         assert proc.rules_well_formed() is True
+
+
+@pytest.fixture
+def source_data() -> pl.DataFrame:
+    """Source data that was validated — row indices match failure_cases."""
+    return pl.DataFrame({
+        "age": [10, 20, 30, 40],
+        "name": ["alice", "bad_val", "worse", "dave"],
+        "score": [90, 80, 70, 60],
+    })
+
+
+@pytest.fixture
+def pivot_failure_cases() -> pl.DataFrame:
+    """Failure cases with indices matching source_data fixture."""
+    return pl.DataFrame({
+        "failure_case": ["10", "bad_val"],
+        "schema_context": ["Column", "Column"],
+        "column": ["age", "name"],
+        "check": ["ge(18)", "str_match"],
+        "check_number": [0, 0],
+        "index": [0, 1],
+    })
+
+
+class TestPivotReports:
+
+    def test_pivot_all_fields(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+        )
+        result = proc.pivot_all_fields()
+        assert len(result) == 2
+        assert "age" in result.columns
+        assert "name" in result.columns
+        assert "score" in result.columns
+        assert "rule_id" in result.columns
+        assert "row_index" in result.columns
+
+    def test_pivot_all_fields_with_override(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases, validator_name="v1",
+        )
+        result = proc.pivot_all_fields(source_data=source_data)
+        assert len(result) == 2
+
+    def test_pivot_all_fields_no_source_raises(self, pivot_failure_cases):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases, validator_name="v1",
+        )
+        with pytest.raises(ValueError, match="source_data"):
+            proc.pivot_all_fields()
+
+    def test_pivot_key_fields(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+            natural_key=["name"],
+        )
+        result = proc.pivot_key_fields()
+        assert len(result) == 2
+        assert "name" in result.columns
+        assert "rule_id" in result.columns
+        assert "score" not in result.columns
+
+    def test_pivot_key_fields_no_natural_key_raises(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+        )
+        with pytest.raises(ValueError, match="natural_key"):
+            proc.pivot_key_fields()
+
+    def test_pivot_excludes_null_row_index(self, source_data):
+        fc = pl.DataFrame({
+            "failure_case": ["err"],
+            "schema_context": ["DataFrameSchema"],
+            "column": ["TestContract"],
+            "check": ["VR_BAD"],
+            "check_number": [0],
+            "index": [None],
+        })
+        proc = ValidationResultProcessor(
+            fc, source_data=source_data, validator_name="v1",
+        )
+        result = proc.pivot_all_fields()
+        assert len(result) == 0
