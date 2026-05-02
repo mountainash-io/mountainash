@@ -469,18 +469,30 @@ class Relation(RelationBase):
                 pass
         return repr(result)
 
-    def collect(self) -> Any:
+    def collect(self, *, unwrap: bool = True) -> Any:
         """Execute the plan and return a fully materialized native result.
 
         Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
         an Ibis expression returns an executed result, narwhals returns its
         native frame, and so on. One syntax for all backends.
+
+        Args:
+            unwrap: When *True* (default), narwhals wrappers are stripped so
+                the caller receives the underlying pandas / PyArrow frame.
+                Pass *False* to keep the narwhals wrapper (useful for internal
+                code that needs narwhals-level operations on the result).
         """
-        from mountainash.core.types import is_polars_lazyframe
+        from mountainash.core.types import (
+            is_narwhals_dataframe,
+            is_narwhals_lazyframe,
+            is_polars_lazyframe,
+        )
 
         result = self.compile()
         if is_polars_lazyframe(result):
             return result.collect()
+        if unwrap and (is_narwhals_dataframe(result) or is_narwhals_lazyframe(result)):
+            return result.to_native()
         return result
 
     def item(self, column: str, row: int = 0) -> Any:
@@ -617,13 +629,17 @@ class Relation(RelationBase):
 
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
-        from mountainash.core.types import is_polars_dataframe
+        from mountainash.core.types import (
+            is_pandas_dataframe,
+            is_polars_dataframe,
+        )
 
         result = self.collect()
         if is_polars_dataframe(result):
             return result
-        # Fallback for other backends (Ibis, narwhals, pandas)
         import polars as pl
+        if is_pandas_dataframe(result):
+            return pl.from_pandas(result)
         return pl.from_pandas(result.to_pandas())
 
     def to_pandas(self) -> Any:

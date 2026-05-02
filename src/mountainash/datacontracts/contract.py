@@ -24,10 +24,8 @@ class BaseDataContract(pa.DataFrameModel):
         if isinstance(data, pl.LazyFrame):
             return data.collect()
         from mountainash.relations import relation
-        result = relation(data).collect()
-        if isinstance(result, pl.DataFrame):
-            return result
-        return pl.from_pandas(result.to_pandas())
+        result = relation(data).to_polars()
+        return result
 
     @classmethod
     def validate_datacontract(
