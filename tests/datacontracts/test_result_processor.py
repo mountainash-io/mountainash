@@ -3,9 +3,21 @@ from __future__ import annotations
 
 import pytest
 import polars as pl
+import pandera.polars as pa
+import mountainash as ma
 
+from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.datacontracts.rule import Rule
+from mountainash.datacontracts.registry import RuleRegistry
+from mountainash.datacontracts.validator import Validator
 from mountainash.datacontracts.result import ValidationResult
 from mountainash.datacontracts.result_processor import ValidationResultProcessor
+
+
+class OrderContract(BaseDataContract):
+    order_id: pa.typing.Series[int] = pa.Field(unique=True)
+    amount: pa.typing.Series[float] = pa.Field(ge=0)
+    status: pa.typing.Series[str] = pa.Field(isin=["open", "closed", "pending"])
 
 
 @pytest.fixture
@@ -478,3 +490,42 @@ class TestInterpolateMessages:
         }
         result = proc.interpolate_messages(rule_metadata=metadata)
         assert len(result) == 1  # only ge(18) matched
+
+
+class TestEndToEndPipeline:
+
+    def test_validator_to_profiling_pipeline(self):
+        rules = RuleRegistry([
+            Rule("VR01", ma.col("amount").le(ma.col("amount"))),  # always passes
+        ])
+
+        validator = Validator(
+            name="order_validator",
+            contract=OrderContract,
+            rules=rules,
+            natural_key=["order_id"],
+        )
+
+        df = pl.DataFrame({
+            "order_id": [1, 2, 3, 3],
+            "amount": [100.0, -50.0, 200.0, 300.0],
+            "status": ["open", "closed", "invalid", "pending"],
+        })
+
+        result = validator.validate(df)
+        assert result.passes is False
+        proc = result.processor
+        assert proc is not None
+
+        enriched = proc.enriched_failure_cases()
+        assert "validator_name" in enriched.columns
+        assert enriched["validator_name"][0] == "order_validator"
+
+        by_col = proc.profiled_failure_count_by_column()
+        assert len(by_col) >= 1
+
+        assert proc.rules_well_formed() is True
+
+        pivot = proc.pivot_all_fields()
+        assert len(pivot) >= 1
+        assert "order_id" in pivot.columns
