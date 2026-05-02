@@ -1,7 +1,7 @@
 """ValidationResultProcessor — unified failure case analysis via mountainash relations."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import mountainash as ma
 
@@ -96,6 +96,48 @@ class ValidationResultProcessor:
         result = enriched.collect()
         self._enriched = result
         return result
+
+    def _enriched_non_null(self) -> Any:
+        """Enriched failure cases filtered to non-null row_index, as a relation."""
+        return ma.relation(self.enriched_failure_cases()).filter(
+            ma.col("row_index").is_not_null()
+        )
+
+    def profiled_failure_count(self) -> pl.DataFrame:
+        """Unique failing rows grouped by validator_name."""
+        return (
+            self._enriched_non_null()
+            .group_by("validator_name")
+            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .collect()
+        )
+
+    def profiled_failure_count_by_column(self) -> pl.DataFrame:
+        """Unique failing rows grouped by validator_name + column_name."""
+        return (
+            self._enriched_non_null()
+            .group_by("validator_name", "column_name")
+            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .collect()
+        )
+
+    def profiled_failure_count_by_value(self) -> pl.DataFrame:
+        """Unique failing rows grouped by validator_name + column_name + value_str."""
+        return (
+            self._enriched_non_null()
+            .group_by("validator_name", "column_name", "value_str")
+            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .collect()
+        )
+
+    def profiled_failure_count_by_rule(self) -> pl.DataFrame:
+        """Unique failing rows grouped by validator_name + rule_id."""
+        return (
+            self._enriched_non_null()
+            .group_by("validator_name", "rule_id")
+            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .collect()
+        )
 
     def passed(self) -> bool:
         return len(self._failure_cases) == 0

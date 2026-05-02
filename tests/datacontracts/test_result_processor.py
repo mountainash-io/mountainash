@@ -198,3 +198,64 @@ class TestEnrichedFailureCases:
         first = proc.enriched_failure_cases()
         second = proc.enriched_failure_cases()
         assert first is second
+
+
+@pytest.fixture
+def multi_failure_cases() -> pl.DataFrame:
+    """Multiple failures across validators, columns, rules — with a null index for malformed rule."""
+    return pl.DataFrame({
+        "failure_case": ["0", "bad", "worse", "err", "0"],
+        "schema_context": ["Column", "Column", "Column", "DataFrameSchema", "Column"],
+        "column": ["age", "name", "name", "TestContract", "age"],
+        "check": ["ge(0)", "str_match", "str_match", "VR_BAD", "ge(0)"],
+        "check_number": [0, 0, 0, 0, 0],
+        "index": [0, 1, 2, None, 3],
+    })
+
+
+class TestProfilingAggregations:
+
+    def test_profiled_failure_count(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        result = proc.profiled_failure_count()
+        assert "validator_name" in result.columns
+        assert "unique_row_count" in result.columns
+        row = result.filter(pl.col("validator_name") == "v1")
+        assert row["unique_row_count"][0] == 4  # rows 0,1,2,3 — null excluded
+
+    def test_profiled_failure_count_by_column(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        result = proc.profiled_failure_count_by_column()
+        age_row = result.filter(pl.col("column_name") == "age")
+        assert age_row["unique_row_count"][0] == 2  # rows 0, 3
+        name_row = result.filter(pl.col("column_name") == "name")
+        assert name_row["unique_row_count"][0] == 2  # rows 1, 2
+
+    def test_profiled_failure_count_by_value(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        result = proc.profiled_failure_count_by_value()
+        assert "value_str" in result.columns
+        assert "unique_row_count" in result.columns
+        assert len(result) >= 3
+
+    def test_profiled_failure_count_by_rule(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        result = proc.profiled_failure_count_by_rule()
+        ge_row = result.filter(pl.col("rule_id") == "ge(0)")
+        assert ge_row["unique_row_count"][0] == 2  # rows 0, 3
+
+    def test_profiled_excludes_null_row_index(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        result = proc.profiled_failure_count()
+        total = result["unique_row_count"].sum()
+        assert total == 4  # null-index row excluded
