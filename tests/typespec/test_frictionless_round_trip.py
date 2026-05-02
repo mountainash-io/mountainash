@@ -91,6 +91,69 @@ GAP_FIXTURES = [
         },
         id="backend_type-under-x-mountainash",
     ),
+    # Gap 2: $schema not modelled in TypeSpec
+    pytest.param(
+        {
+            "$schema": "https://datapackage.org/profiles/1.0/tableschema.json",
+            "fields": [{"name": "x", "type": "string"}],
+        },
+        id="schema-url",
+    ),
+    # Gap 5: example not modelled in FieldSpec
+    pytest.param(
+        {
+            "fields": [{"name": "city", "type": "string", "example": "London"}],
+        },
+        id="example",
+    ),
+    # Gap 6: rdfType not modelled in FieldSpec
+    pytest.param(
+        {
+            "fields": [{
+                "name": "name",
+                "type": "string",
+                "rdfType": "http://schema.org/name",
+            }],
+        },
+        id="rdfType",
+    ),
+    # Gap 8: categoriesOrdered not modelled in FieldSpec
+    pytest.param(
+        {
+            "fields": [{
+                "name": "rating",
+                "type": "string",
+                "categories": ["low", "medium", "high"],
+                "categoriesOrdered": True,
+            }],
+        },
+        id="categoriesOrdered",
+    ),
+    # Gap 11: number/integer parsing properties
+    pytest.param(
+        {
+            "fields": [{
+                "name": "price",
+                "type": "number",
+                "decimalChar": ",",
+                "groupChar": ".",
+                "bareNumber": False,
+            }],
+        },
+        id="number-format-properties",
+    ),
+    # Gap 11: list parsing properties
+    pytest.param(
+        {
+            "fields": [{
+                "name": "tags",
+                "type": "string",
+                "itemType": "string",
+                "delimiter": ";",
+            }],
+        },
+        id="list-parsing-properties",
+    ),
 ]
 
 
