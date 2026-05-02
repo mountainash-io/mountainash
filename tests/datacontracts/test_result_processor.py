@@ -139,3 +139,62 @@ class TestConstructorParams:
     def test_no_natural_key_default(self, sample_failure_cases):
         proc = ValidationResultProcessor(sample_failure_cases)
         assert proc._natural_key is None
+
+
+class TestEnrichedFailureCases:
+
+    def test_enriched_columns_without_natural_key(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases, validator_name="test_validator",
+        )
+        enriched = proc.enriched_failure_cases()
+        assert set(enriched.columns) == {
+            "validator_name", "rule_id", "schema_context",
+            "column_name", "row_index", "value_str",
+        }
+
+    def test_enriched_columns_with_natural_key(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases,
+            validator_name="test_validator",
+            natural_key=["age"],
+        )
+        enriched = proc.enriched_failure_cases()
+        assert "column_is_natural_key" in enriched.columns
+
+    def test_enriched_values(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases, validator_name="v1",
+        )
+        enriched = proc.enriched_failure_cases()
+        assert enriched["validator_name"].to_list() == ["v1", "v1", "v1"]
+        assert enriched["rule_id"].to_list() == [
+            "greater_than_or_equal_to(0)", "str_matches('^[a-z]+$')", "VR01",
+        ]
+        assert enriched["column_name"].to_list() == ["age", "name", "TestContract"]
+        assert enriched["row_index"].to_list() == [0, 2, 1]
+        assert enriched["value_str"].to_list() == ["0", "bad_val", "missing"]
+
+    def test_enriched_natural_key_flag(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases,
+            validator_name="v1",
+            natural_key=["age"],
+        )
+        enriched = proc.enriched_failure_cases()
+        nk = enriched.select("column_name", "column_is_natural_key")
+        age_row = nk.filter(pl.col("column_name") == "age")
+        assert age_row["column_is_natural_key"][0] is True
+        name_row = nk.filter(pl.col("column_name") == "name")
+        assert name_row["column_is_natural_key"][0] is False
+
+    def test_enriched_null_validator_name(self, sample_failure_cases):
+        proc = ValidationResultProcessor(sample_failure_cases)
+        enriched = proc.enriched_failure_cases()
+        assert enriched["validator_name"].null_count() == 3
+
+    def test_enriched_caching(self, sample_failure_cases):
+        proc = ValidationResultProcessor(sample_failure_cases, validator_name="v1")
+        first = proc.enriched_failure_cases()
+        second = proc.enriched_failure_cases()
+        assert first is second
