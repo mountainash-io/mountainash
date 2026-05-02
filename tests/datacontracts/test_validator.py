@@ -125,3 +125,58 @@ class TestValidatorPandasInput:
         v = Validator(name="person", contract=person_contract)
         result = v.validate(pdf)
         assert result.passes is True
+
+
+class TestValidatorProcessorWiring:
+
+    def test_processor_receives_validator_name(self):
+        import pandera.polars as pa
+
+        class SimpleContract(BaseDataContract):
+            age: pa.typing.Series[int] = pa.Field(ge=0)
+
+        validator = Validator(name="test_v", contract=SimpleContract)
+        df = pl.DataFrame({"age": [-1, 5, 10]})
+        result = validator.validate(df)
+        assert result.passes is False
+        assert result.processor is not None
+        assert result.processor._validator_name == "test_v"
+
+    def test_processor_receives_natural_key(self):
+        import pandera.polars as pa
+
+        class SimpleContract(BaseDataContract):
+            age: pa.typing.Series[int] = pa.Field(ge=0)
+
+        validator = Validator(
+            name="test_v", contract=SimpleContract, natural_key=["age"],
+        )
+        df = pl.DataFrame({"age": [-1, 5, 10]})
+        result = validator.validate(df)
+        assert result.processor is not None
+        assert result.processor._natural_key == ["age"]
+
+    def test_processor_receives_source_data(self):
+        import pandera.polars as pa
+
+        class SimpleContract(BaseDataContract):
+            age: pa.typing.Series[int] = pa.Field(ge=0)
+
+        validator = Validator(name="test_v", contract=SimpleContract)
+        df = pl.DataFrame({"age": [-1, 5, 10]})
+        result = validator.validate(df)
+        assert result.processor is not None
+        assert result.processor._source_data is not None
+        assert len(result.processor._source_data) == 3
+
+    def test_processor_source_data_reflects_head_slice(self):
+        import pandera.polars as pa
+
+        class SimpleContract(BaseDataContract):
+            age: pa.typing.Series[int] = pa.Field(ge=0)
+
+        validator = Validator(name="test_v", contract=SimpleContract)
+        df = pl.DataFrame({"age": [-1, -2, -3, -4, -5]})
+        result = validator.validate(df, head=2)
+        assert result.processor is not None
+        assert len(result.processor._source_data) == 2

@@ -77,6 +77,24 @@ class Validator:
         rel = relation(data)
         return rel.collect()
 
+    @staticmethod
+    def _slice_data(
+        df: pl.DataFrame,
+        *,
+        head: int | None = None,
+        tail: int | None = None,
+        sample: int | None = None,
+        random_seed: int | None = None,
+    ) -> pl.DataFrame:
+        """Apply head/tail/sample slicing — mirrors BaseDataContract.validate_datacontract."""
+        if head is not None:
+            df = df.head(head)
+        if tail is not None:
+            df = df.tail(tail)
+        if sample is not None:
+            df = df.sample(n=sample, seed=random_seed)
+        return df
+
     def validate(
         self,
         data: Any,
@@ -89,6 +107,7 @@ class Validator:
     ) -> ValidationResult:
         """Full validation — collects all errors."""
         prepared = self._to_polars(self._prepare_data(data))
+        sliced = self._slice_data(prepared, head=head, tail=tail, sample=sample, random_seed=random_seed)
         active_contract = self._resolve_contract(context)
 
         try:
@@ -101,7 +120,12 @@ class Validator:
                 datacontract_name=active_contract.__name__,
             )
         except pa.errors.SchemaErrors as e:
-            processor = ValidationResultProcessor(e.failure_cases)
+            processor = ValidationResultProcessor(
+                e.failure_cases,
+                source_data=sliced,
+                natural_key=self.natural_key,
+                validator_name=self.name,
+            )
             return ValidationResult(
                 passes=False,
                 validator_name=self.name,
@@ -122,6 +146,7 @@ class Validator:
     ) -> ValidationResult:
         """Quick validation — fails on first error."""
         prepared = self._to_polars(self._prepare_data(data))
+        sliced = self._slice_data(prepared, head=head, tail=tail, sample=sample, random_seed=random_seed)
         active_contract = self._resolve_contract(context)
 
         try:
@@ -135,7 +160,16 @@ class Validator:
             )
         except pa.errors.SchemaError as e:
             fc = getattr(e, "failure_cases", None)
-            processor = ValidationResultProcessor(fc) if fc is not None else None
+            processor = (
+                ValidationResultProcessor(
+                    fc,
+                    source_data=sliced,
+                    natural_key=self.natural_key,
+                    validator_name=self.name,
+                )
+                if fc is not None
+                else None
+            )
             return ValidationResult(
                 passes=False,
                 validator_name=self.name,
