@@ -8,6 +8,7 @@ from .errors import (
     UnsupportedResourceFormat,
 )
 from .resource_ref import ResourceRef
+from .validation import DAGValidationResult, FKViolation
 
 __all__ = [
     "RelationDAG",
@@ -15,4 +16,6 @@ __all__ = [
     "RelationDAGRequired",
     "MissingResourceSchema",
     "UnsupportedResourceFormat",
+    "DAGValidationResult",
+    "FKViolation",
 ]
