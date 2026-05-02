@@ -73,6 +73,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
 | typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types; ForeignKey/ForeignKeyReference for cross-table relationships; enum_weights for weighted enums |
 | lossless-frictionless-storage.md | ADOPTED | `DataResource.table_schema` stores raw Frictionless schema dicts (not TypeSpec) so byte-equivalent round-trip is preserved; conversion to TypeSpec is lazy at consumer site |
+| frictionless-structural-fidelity.md | ENFORCED | TypeSpec mirrors Frictionless Table Schema structurally; flat fields matching Frictionless layout, no custom submodels |
 
 ### c. API Design
 
