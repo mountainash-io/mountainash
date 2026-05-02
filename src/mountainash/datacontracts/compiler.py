@@ -9,7 +9,7 @@ from mountainash.typespec.universal_types import UniversalType
 from mountainash.datacontracts.contract import BaseDataContract
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import FieldConstraints, TypeSpec
+    from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
 
 UNIVERSAL_TYPE_TO_PANDERA: dict[UniversalType, type] = {
     UniversalType.STRING: str,
@@ -26,29 +26,43 @@ UNIVERSAL_TYPE_TO_PANDERA: dict[UniversalType, type] = {
 }
 
 
-def _constraints_to_field_kwargs(constraints: FieldConstraints | None) -> dict[str, Any]:
+def _constraints_to_field_kwargs(
+    constraints: FieldConstraints | None,
+    field_spec: FieldSpec | None = None,
+) -> dict[str, Any]:
     if constraints is None:
-        return {"nullable": True}
+        kwargs: dict[str, Any] = {"nullable": True}
+    else:
+        kwargs = {}
+        kwargs["nullable"] = not constraints.required
+        if constraints.unique:
+            kwargs["unique"] = True
+        if constraints.minimum is not None:
+            kwargs["ge"] = constraints.minimum
+        if constraints.maximum is not None:
+            kwargs["le"] = constraints.maximum
+        if constraints.enum is not None:
+            kwargs["isin"] = constraints.enum
+        if constraints.pattern is not None:
+            kwargs["str_matches"] = constraints.pattern
+        if constraints.min_length is not None or constraints.max_length is not None:
+            length_kwargs: dict[str, int] = {}
+            if constraints.min_length is not None:
+                length_kwargs["min_value"] = constraints.min_length
+            if constraints.max_length is not None:
+                length_kwargs["max_value"] = constraints.max_length
+            kwargs["str_length"] = length_kwargs
 
-    kwargs: dict[str, Any] = {}
-    kwargs["nullable"] = not constraints.required
-    if constraints.unique:
-        kwargs["unique"] = True
-    if constraints.minimum is not None:
-        kwargs["ge"] = constraints.minimum
-    if constraints.maximum is not None:
-        kwargs["le"] = constraints.maximum
-    if constraints.enum is not None:
-        kwargs["isin"] = constraints.enum
-    if constraints.pattern is not None:
-        kwargs["str_matches"] = constraints.pattern
-    if constraints.min_length is not None or constraints.max_length is not None:
-        length_kwargs: dict[str, int] = {}
-        if constraints.min_length is not None:
-            length_kwargs["min_value"] = constraints.min_length
-        if constraints.max_length is not None:
-            length_kwargs["max_value"] = constraints.max_length
-        kwargs["str_length"] = length_kwargs
+    if "isin" not in kwargs and field_spec is not None and field_spec.categories is not None:
+        values = []
+        for cat in field_spec.categories:
+            if isinstance(cat, dict) and "value" in cat:
+                values.append(cat["value"])
+            else:
+                values.append(cat)
+        if values:
+            kwargs["isin"] = values
+
     return kwargs
 
 
@@ -66,7 +80,7 @@ def compile_datacontract(
     for field_spec in spec.fields:
         python_type = UNIVERSAL_TYPE_TO_PANDERA.get(field_spec.type, object)
         annotations[field_spec.name] = python_type
-        field_kwargs = _constraints_to_field_kwargs(field_spec.constraints)
+        field_kwargs = _constraints_to_field_kwargs(field_spec.constraints, field_spec=field_spec)
         if field_kwargs:
             namespace[field_spec.name] = pa.Field(**field_kwargs)
 

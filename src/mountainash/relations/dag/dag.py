@@ -10,7 +10,10 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import (
 )
 
 if TYPE_CHECKING:
+    import polars as pl
+
     from .resource_ref import ResourceRef
+    from .validation import DAGValidationResult
 
 """RelationDAG — orchestrator over named Relations.
 
@@ -393,6 +396,147 @@ class RelationDAG:
                 f"cannot export to DataPackage; relations without schema: {missing}"
             )
         return DataPackage(resources=resources)
+
+    # ------------------------------------------------------------------
+    # DAG-level validation
+    # ------------------------------------------------------------------
+
+    def validate(
+        self,
+        specs: dict[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+    ) -> "DAGValidationResult":
+        """Full validation — validate all tables and check all FK relationships.
+
+        Phase 1: Materialise and validate each table via its datacontract.
+        Phase 2: Check FK referential integrity using cached DataFrames.
+        """
+        from mountainash.relations.dag.validation import DAGValidationResult
+
+        table_results, cache = self._validate_tables(specs, context=context, fast=False)
+        fk_violations = self._check_all_fks(specs, cache, fast=False)
+
+        passes = all(r.passes for r in table_results.values()) and len(fk_violations) == 0
+        return DAGValidationResult(
+            passes=passes,
+            table_results=table_results,
+            fk_violations=fk_violations,
+        )
+
+    def validate_quick(
+        self,
+        specs: dict[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+    ) -> "DAGValidationResult":
+        """Fast validation — stop on first table failure or FK violation."""
+        from mountainash.relations.dag.validation import DAGValidationResult
+
+        table_results, cache = self._validate_tables(specs, context=context, fast=True)
+
+        if any(not r.passes for r in table_results.values()):
+            return DAGValidationResult(
+                passes=False,
+                table_results=table_results,
+            )
+
+        fk_violations = self._check_all_fks(specs, cache, fast=True)
+
+        passes = len(fk_violations) == 0
+        return DAGValidationResult(
+            passes=passes,
+            table_results=table_results,
+            fk_violations=fk_violations,
+        )
+
+    def _validate_tables(
+        self,
+        specs: dict[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        fast: bool = False,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Phase 1: Materialise and validate each table. Returns (results, cache)."""
+        from mountainash.datacontracts.contract import BaseDataContract
+        from mountainash.datacontracts.compiler import compile_datacontract
+        from mountainash.datacontracts.validator import Validator
+        from mountainash.typespec.spec import TypeSpec
+
+        table_results: dict[str, Any] = {}
+        cache: dict[str, pl.DataFrame] = {}
+
+        for name, spec in specs.items():
+            if name not in self.relations:
+                raise KeyError(f"relation {name!r} not in DAG")
+
+            rel = self.relations[name]
+            df = rel.to_polars()
+            cache[name] = df
+
+            if isinstance(spec, TypeSpec):
+                contract = compile_datacontract(spec, name=name)
+            elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
+                contract = spec
+            else:
+                raise TypeError(
+                    f"specs[{name!r}] must be TypeSpec or BaseDataContract subclass, "
+                    f"got {type(spec).__name__}"
+                )
+
+            validator = Validator(name=name, contract=contract)
+            if fast:
+                result = validator.validate_quick(df, context=context)
+            else:
+                result = validator.validate(df, context=context)
+            table_results[name] = result
+
+            if fast and not result.passes:
+                break
+
+        return table_results, cache
+
+    def _check_all_fks(
+        self,
+        specs: dict[str, Any],
+        cache: dict[str, Any],
+        *,
+        fast: bool = False,
+    ) -> list[Any]:
+        """Phase 2: Check FK referential integrity using cached DataFrames."""
+        from mountainash.relations.dag.validation import check_fk_integrity
+        from mountainash.typespec.spec import TypeSpec
+
+        fk_violations: list[Any] = []
+
+        for child_name, spec in specs.items():
+            if not isinstance(spec, TypeSpec) or spec.foreign_keys is None:
+                continue
+            if child_name not in cache:
+                continue
+
+            child_df = cache[child_name]
+
+            for fk in spec.foreign_keys:
+                parent_name = fk.reference.resource
+                if parent_name not in cache:
+                    continue
+
+                parent_df = cache[parent_name]
+                violation = check_fk_integrity(
+                    child_df=child_df,
+                    parent_df=parent_df,
+                    child_table=child_name,
+                    parent_table=parent_name,
+                    child_fields=fk.fields,
+                    parent_fields=fk.reference.fields,
+                )
+                if violation is not None:
+                    fk_violations.append(violation)
+                    if fast:
+                        return fk_violations
+
+        return fk_violations
 
     def _resolve_backend_const(
         self, backend: Optional[str], target_name: str
