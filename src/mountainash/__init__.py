@@ -1,4 +1,10 @@
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mountainash.datacontracts.contract import BaseDataContract
+
 # Re-export the full expressions public API at the top level
 # so that `import mountainash as ma; ma.col("x")` works
 from mountainash.expressions import (
@@ -61,5 +67,17 @@ def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
 def conform(source: dict | TypeSpec) -> ConformBuilder:
     """Create a ConformBuilder from a dict or TypeSpec."""
     return ConformBuilder(source)
+
+
+def datacontract(spec_or_columns: "dict | TypeSpec") -> "type[BaseDataContract]":
+    """Create a DataContract from a TypeSpec or simple dict."""
+    from mountainash.datacontracts.compiler import compile_datacontract
+
+    if isinstance(spec_or_columns, dict):
+        _spec = TypeSpec.from_simple_dict(spec_or_columns)
+    else:
+        _spec = spec_or_columns
+    return compile_datacontract(_spec)
+
 
 """Mountainash - Unified cross-backend DataFrame expression system."""

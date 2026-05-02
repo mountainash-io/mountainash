@@ -38,7 +38,8 @@ dependencies = [
 pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=9.0.0"]
 pyarrow = ["pyarrow>=15.0.0"]
-all = ["mountainash[pandas,ibis,pyarrow]"]
+datacontracts = ["pandera[polars]>=0.22.0"]
+all = ["mountainash[pandas,ibis,pyarrow,datacontracts]"]
 
 
 [project.urls]
