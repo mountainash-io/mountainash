@@ -12,9 +12,20 @@ if TYPE_CHECKING:
 class ValidationResultProcessor:
     """Processes pandera failure cases using mountainash relations and expressions."""
 
-    def __init__(self, failure_cases: pl.DataFrame) -> None:
+    def __init__(
+        self,
+        failure_cases: pl.DataFrame,
+        *,
+        source_data: pl.DataFrame | None = None,
+        natural_key: list[str] | None = None,
+        validator_name: str | None = None,
+    ) -> None:
         self._failure_cases = failure_cases
+        self._source_data = source_data
+        self._natural_key = natural_key
+        self._validator_name = validator_name
         self._rel = ma.relation(failure_cases)
+        self._enriched: pl.DataFrame | None = None
 
     def failure_cases(self) -> pl.DataFrame:
         return self._failure_cases

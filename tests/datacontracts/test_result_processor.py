@@ -114,3 +114,28 @@ class TestValidationResultProcessor:
     def test_passed_for_rule_false(self, sample_failure_cases):
         proc = ValidationResultProcessor(sample_failure_cases)
         assert proc.passed_for_rule("VR01") is False
+
+
+class TestConstructorParams:
+
+    def test_default_params_unchanged(self, sample_failure_cases):
+        proc = ValidationResultProcessor(sample_failure_cases)
+        assert proc.failure_count() == 3
+
+    def test_source_data_stored(self, sample_failure_cases):
+        source = pl.DataFrame({"age": [10, 20, 30], "name": ["a", "b", "c"]})
+        proc = ValidationResultProcessor(
+            sample_failure_cases, source_data=source, validator_name="v1",
+        )
+        assert proc._source_data is not None
+        assert proc._validator_name == "v1"
+
+    def test_natural_key_stored(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases, natural_key=["age"],
+        )
+        assert proc._natural_key == ["age"]
+
+    def test_no_natural_key_default(self, sample_failure_cases):
+        proc = ValidationResultProcessor(sample_failure_cases)
+        assert proc._natural_key is None
