@@ -137,6 +137,58 @@ class TestCompileDatacontract:
         result = Contract.validate_datacontract(df)
         assert len(result) == 2
 
+    def test_isin_from_categories_plain_values(self):
+        spec = _make_spec(
+            FieldSpec(
+                name="status",
+                type=UniversalType.STRING,
+                categories=["active", "cancelled", "pending"],
+            ),
+        )
+        Contract = compile_datacontract(spec)
+        df_good = pl.DataFrame({"status": ["active", "pending"]})
+        result = Contract.validate_datacontract(df_good)
+        assert len(result) == 2
+        df_bad = pl.DataFrame({"status": ["active", "unknown"]})
+        with pytest.raises(pa.errors.SchemaErrors):
+            Contract.validate_datacontract(df_bad)
+
+    def test_isin_from_categories_value_label_dicts(self):
+        spec = _make_spec(
+            FieldSpec(
+                name="code",
+                type=UniversalType.STRING,
+                categories=[
+                    {"value": "a", "label": "Active"},
+                    {"value": "c", "label": "Cancelled"},
+                ],
+            ),
+        )
+        Contract = compile_datacontract(spec)
+        df_good = pl.DataFrame({"code": ["a", "c"]})
+        result = Contract.validate_datacontract(df_good)
+        assert len(result) == 2
+        df_bad = pl.DataFrame({"code": ["a", "z"]})
+        with pytest.raises(pa.errors.SchemaErrors):
+            Contract.validate_datacontract(df_bad)
+
+    def test_enum_constraint_takes_precedence_over_categories(self):
+        spec = _make_spec(
+            FieldSpec(
+                name="tier",
+                type=UniversalType.STRING,
+                categories=["a", "b", "c"],
+                constraints=FieldConstraints(enum=["x", "y"]),
+            ),
+        )
+        Contract = compile_datacontract(spec)
+        df_good = pl.DataFrame({"tier": ["x", "y"]})
+        result = Contract.validate_datacontract(df_good)
+        assert len(result) == 2
+        df_bad = pl.DataFrame({"tier": ["a", "x"]})
+        with pytest.raises(pa.errors.SchemaErrors):
+            Contract.validate_datacontract(df_bad)
+
     def test_no_constraints_produces_nullable_field(self):
         spec = _make_spec(FieldSpec(name="val", type=UniversalType.STRING))
         Contract = compile_datacontract(spec)
