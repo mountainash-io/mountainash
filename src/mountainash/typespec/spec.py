@@ -83,6 +83,14 @@ class FieldSpec:
     true_values: Optional[List[str]] = None
     false_values: Optional[List[str]] = None
     categories: Optional[List[Any]] = None  # Gap 7: array of values or {value, label} dicts
+    categories_ordered: Optional[bool] = None
+    example: Optional[Any] = None
+    rdf_type: Optional[str] = None
+    decimal_char: Optional[str] = None
+    group_char: Optional[str] = None
+    bare_number: Optional[bool] = None
+    item_type: Optional[str] = None
+    delimiter: Optional[str] = None
     backend_type: Optional[str] = None
     null_fill: Any = None
     rename_from: Optional[str] = None
@@ -115,6 +123,22 @@ class FieldSpec:
             }
         if self.missing_values:
             result["missingValues"] = self.missing_values
+        if self.categories_ordered is not None:
+            result["categoriesOrdered"] = self.categories_ordered
+        if self.example is not None:
+            result["example"] = self.example
+        if self.rdf_type is not None:
+            result["rdfType"] = self.rdf_type
+        if self.decimal_char is not None:
+            result["decimalChar"] = self.decimal_char
+        if self.group_char is not None:
+            result["groupChar"] = self.group_char
+        if self.bare_number is not None:
+            result["bareNumber"] = self.bare_number
+        if self.item_type is not None:
+            result["itemType"] = self.item_type
+        if self.delimiter is not None:
+            result["delimiter"] = self.delimiter
         if self.backend_type:
             result["backend_type"] = self.backend_type
         if self.rename_from is not None:
@@ -141,6 +165,7 @@ class TypeSpec:
     keep_only_mapped: bool = False
     fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
+    schema_url: Optional[str] = None
 
     @classmethod
     def from_simple_dict(cls, columns: Dict[str, str], **metadata: Any) -> TypeSpec:
@@ -200,9 +225,10 @@ class TypeSpec:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to Frictionless-compatible dict."""
-        result: Dict[str, Any] = {
-            "fields": [f.to_dict() for f in self.fields],
-        }
+        result: Dict[str, Any] = {}
+        if self.schema_url is not None:
+            result["$schema"] = self.schema_url
+        result["fields"] = [f.to_dict() for f in self.fields]
         if self.title:
             result["title"] = self.title
         if self.description:
