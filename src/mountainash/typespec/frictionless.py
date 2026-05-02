@@ -99,6 +99,8 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["fieldsMatch"] = spec.fields_match
     if spec.unique_keys is not None:  # Gap 4
         descriptor["uniqueKeys"] = spec.unique_keys
+    if spec.schema_url is not None:
+        descriptor["$schema"] = spec.schema_url
 
     # Foreign keys (standard Frictionless field)
     if spec.foreign_keys:
@@ -150,6 +152,22 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
             field_dict["trueValues"] = fspec.true_values
         if fspec.false_values is not None:  # Gap 9
             field_dict["falseValues"] = fspec.false_values
+        if fspec.categories_ordered is not None:
+            field_dict["categoriesOrdered"] = fspec.categories_ordered
+        if fspec.example is not None:
+            field_dict["example"] = fspec.example
+        if fspec.rdf_type is not None:
+            field_dict["rdfType"] = fspec.rdf_type
+        if fspec.decimal_char is not None:
+            field_dict["decimalChar"] = fspec.decimal_char
+        if fspec.group_char is not None:
+            field_dict["groupChar"] = fspec.group_char
+        if fspec.bare_number is not None:
+            field_dict["bareNumber"] = fspec.bare_number
+        if fspec.item_type is not None:
+            field_dict["itemType"] = fspec.item_type
+        if fspec.delimiter is not None:
+            field_dict["delimiter"] = fspec.delimiter
 
         # Field-level x-mountainash extensions
         field_extensions: Dict[str, Any] = {}
@@ -214,6 +232,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     missing_values: Optional[List[str]] = descriptor.get("missingValues")
     fields_match: Optional[str] = descriptor.get("fieldsMatch")  # Gap 3
     unique_keys: Optional[List[List[str]]] = descriptor.get("uniqueKeys")  # Gap 4
+    schema_url: Optional[str] = descriptor.get("$schema")
 
     # Spec-level x-mountainash extensions
     spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}
@@ -250,6 +269,14 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         categories: Optional[List[Any]] = raw_field.get("categories")  # Gap 7
         true_values: Optional[List[str]] = raw_field.get("trueValues")  # Gap 9
         false_values: Optional[List[str]] = raw_field.get("falseValues")  # Gap 9
+        categories_ordered: Optional[bool] = raw_field.get("categoriesOrdered")
+        example: Optional[Any] = raw_field.get("example")
+        rdf_type: Optional[str] = raw_field.get("rdfType")
+        decimal_char: Optional[str] = raw_field.get("decimalChar")
+        group_char: Optional[str] = raw_field.get("groupChar")
+        bare_number: Optional[bool] = raw_field.get("bareNumber")
+        item_type: Optional[str] = raw_field.get("itemType")
+        delimiter: Optional[str] = raw_field.get("delimiter")
 
         # Field-level x-mountainash extensions
         field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
@@ -271,6 +298,14 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
                 constraints=constraints,
                 missing_values=field_missing_values,
                 categories=categories,
+                categories_ordered=categories_ordered,
+                example=example,
+                rdf_type=rdf_type,
+                decimal_char=decimal_char,
+                group_char=group_char,
+                bare_number=bare_number,
+                item_type=item_type,
+                delimiter=delimiter,
                 true_values=true_values,
                 false_values=false_values,
                 backend_type=backend_type,
@@ -290,6 +325,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         keep_only_mapped=keep_only_mapped,
         fields_match=fields_match,
         unique_keys=unique_keys,
+        schema_url=schema_url,
     )
 
 
