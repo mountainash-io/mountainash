@@ -259,3 +259,34 @@ class TestProfilingAggregations:
         result = proc.profiled_failure_count()
         total = result["unique_row_count"].sum()
         assert total == 4  # null-index row excluded
+
+
+class TestMalformedRuleDetection:
+
+    def test_malformed_rules_found(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        malformed = proc.malformed_rules()
+        assert len(malformed) == 1
+        assert malformed["rule_id"][0] == "VR_BAD"
+        assert malformed["null_index_count"][0] == 1
+
+    def test_malformed_rules_none(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases, validator_name="v1",
+        )
+        malformed = proc.malformed_rules()
+        assert len(malformed) == 0
+
+    def test_rules_well_formed_false(self, multi_failure_cases):
+        proc = ValidationResultProcessor(
+            multi_failure_cases, validator_name="v1",
+        )
+        assert proc.rules_well_formed() is False
+
+    def test_rules_well_formed_true(self, sample_failure_cases):
+        proc = ValidationResultProcessor(
+            sample_failure_cases, validator_name="v1",
+        )
+        assert proc.rules_well_formed() is True

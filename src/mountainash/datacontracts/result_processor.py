@@ -139,6 +139,20 @@ class ValidationResultProcessor:
             .collect()
         )
 
+    def malformed_rules(self) -> pl.DataFrame:
+        """Rules where row_index is null — the rule errored instead of returning row-level booleans."""
+        return (
+            ma.relation(self.enriched_failure_cases())
+            .filter(ma.col("row_index").is_null())
+            .group_by("rule_id")
+            .agg(ma.count_records().alias("null_index_count"))
+            .collect()
+        )
+
+    def rules_well_formed(self) -> bool:
+        """True if no malformed rules detected."""
+        return len(self.malformed_rules()) == 0
+
     def passed(self) -> bool:
         return len(self._failure_cases) == 0
 
