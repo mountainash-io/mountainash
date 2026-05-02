@@ -4,9 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import polars as pl
-
 if TYPE_CHECKING:
+    import polars as pl
+
     from mountainash.datacontracts.result import ValidationResult
 
 

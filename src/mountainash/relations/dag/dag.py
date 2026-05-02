@@ -10,7 +10,10 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import (
 )
 
 if TYPE_CHECKING:
+    import polars as pl
+
     from .resource_ref import ResourceRef
+    from .validation import DAGValidationResult
 
 """RelationDAG — orchestrator over named Relations.
 
@@ -455,7 +458,6 @@ class RelationDAG:
         fast: bool = False,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Phase 1: Materialise and validate each table. Returns (results, cache)."""
-        import polars as pl
         from mountainash.datacontracts.contract import BaseDataContract
         from mountainash.datacontracts.compiler import compile_datacontract
         from mountainash.datacontracts.validator import Validator
