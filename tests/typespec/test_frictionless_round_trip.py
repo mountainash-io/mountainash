@@ -91,6 +91,69 @@ GAP_FIXTURES = [
         },
         id="backend_type-under-x-mountainash",
     ),
+    # Gap 2: $schema not modelled in TypeSpec
+    pytest.param(
+        {
+            "$schema": "https://datapackage.org/profiles/1.0/tableschema.json",
+            "fields": [{"name": "x", "type": "string"}],
+        },
+        id="schema-url",
+    ),
+    # Gap 5: example not modelled in FieldSpec
+    pytest.param(
+        {
+            "fields": [{"name": "city", "type": "string", "example": "London"}],
+        },
+        id="example",
+    ),
+    # Gap 6: rdfType not modelled in FieldSpec
+    pytest.param(
+        {
+            "fields": [{
+                "name": "name",
+                "type": "string",
+                "rdfType": "http://schema.org/name",
+            }],
+        },
+        id="rdfType",
+    ),
+    # Gap 8: categoriesOrdered not modelled in FieldSpec
+    pytest.param(
+        {
+            "fields": [{
+                "name": "rating",
+                "type": "string",
+                "categories": ["low", "medium", "high"],
+                "categoriesOrdered": True,
+            }],
+        },
+        id="categoriesOrdered",
+    ),
+    # Gap 11: number/integer parsing properties
+    pytest.param(
+        {
+            "fields": [{
+                "name": "price",
+                "type": "number",
+                "decimalChar": ",",
+                "groupChar": ".",
+                "bareNumber": False,
+            }],
+        },
+        id="number-format-properties",
+    ),
+    # Gap 11: list parsing properties
+    pytest.param(
+        {
+            "fields": [{
+                "name": "tags",
+                "type": "string",
+                "itemType": "string",
+                "delimiter": ";",
+            }],
+        },
+        id="list-parsing-properties",
+    ),
 ]
 
 
@@ -100,3 +163,55 @@ def test_field_round_trip(descriptor):
     spec = typespec_from_frictionless(descriptor)
     result = typespec_to_frictionless(spec)
     assert result == descriptor
+
+
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
+
+
+class TestToDict:
+    """Direct to_dict tests — independent of frictionless round-trip."""
+
+    def test_fieldspec_to_dict_emits_all_new_fields(self):
+        fs = FieldSpec(
+            name="price",
+            type=UniversalType.NUMBER,
+            example=42.5,
+            rdf_type="http://schema.org/price",
+            categories_ordered=True,
+            decimal_char=",",
+            group_char=".",
+            bare_number=False,
+            item_type="string",
+            delimiter=";",
+        )
+        d = fs.to_dict()
+        assert d["example"] == 42.5
+        assert d["rdfType"] == "http://schema.org/price"
+        assert d["categoriesOrdered"] is True
+        assert d["decimalChar"] == ","
+        assert d["groupChar"] == "."
+        assert d["bareNumber"] is False
+        assert d["itemType"] == "string"
+        assert d["delimiter"] == ";"
+
+    def test_fieldspec_to_dict_omits_none_fields(self):
+        fs = FieldSpec(name="x", type=UniversalType.STRING)
+        d = fs.to_dict()
+        for key in ("example", "rdfType", "categoriesOrdered",
+                     "decimalChar", "groupChar", "bareNumber",
+                     "itemType", "delimiter"):
+            assert key not in d
+
+    def test_typespec_to_dict_emits_schema_url(self):
+        ts = TypeSpec(
+            fields=[FieldSpec(name="x", type=UniversalType.STRING)],
+            schema_url="https://datapackage.org/profiles/1.0/tableschema.json",
+        )
+        d = ts.to_dict()
+        assert d["$schema"] == "https://datapackage.org/profiles/1.0/tableschema.json"
+
+    def test_typespec_to_dict_omits_none_schema_url(self):
+        ts = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
+        d = ts.to_dict()
+        assert "$schema" not in d
