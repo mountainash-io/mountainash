@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from mountainash.expressions import BaseExpressionAPI
+if TYPE_CHECKING:
+    from mountainash.expressions import BaseExpressionAPI
 
 
 @dataclass(frozen=True)

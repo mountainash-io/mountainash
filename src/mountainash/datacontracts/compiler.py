@@ -1,13 +1,15 @@
 """Compile a TypeSpec into a pandera DataFrameModel (BaseDataContract subclass)."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandera.polars as pa
 
-from mountainash.typespec.spec import TypeSpec, FieldConstraints
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.datacontracts.contract import BaseDataContract
+
+if TYPE_CHECKING:
+    from mountainash.typespec.spec import FieldConstraints, TypeSpec
 
 UNIVERSAL_TYPE_TO_PANDERA: dict[UniversalType, type] = {
     UniversalType.STRING: str,

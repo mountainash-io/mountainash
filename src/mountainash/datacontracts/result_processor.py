@@ -1,8 +1,12 @@
 """ValidationResultProcessor — unified failure case analysis via mountainash relations."""
 from __future__ import annotations
 
-import polars as pl
+from typing import TYPE_CHECKING
+
 import mountainash as ma
+
+if TYPE_CHECKING:
+    import polars as pl
 
 
 class ValidationResultProcessor:

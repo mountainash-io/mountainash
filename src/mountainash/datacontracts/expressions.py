@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from functools import reduce
 import operator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import mountainash as ma
-from mountainash.expressions import BaseExpressionAPI
+
+if TYPE_CHECKING:
+    from mountainash.expressions import BaseExpressionAPI
 
 
 # --- Null patterns ---

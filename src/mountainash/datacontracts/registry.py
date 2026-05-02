@@ -1,9 +1,10 @@
 """RuleRegistry — composable rule collection with version-aware exclusions."""
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-from mountainash.datacontracts.rule import Rule
+if TYPE_CHECKING:
+    from mountainash.datacontracts.rule import Rule
 
 
 class RuleRegistry:

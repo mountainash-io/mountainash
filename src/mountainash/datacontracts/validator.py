@@ -1,16 +1,18 @@
 """Validator — unified validation orchestrator."""
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import polars as pl
 import pandera.polars as pa
 
-from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.registry import RuleRegistry
-from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.result import ValidationResult
 from mountainash.datacontracts.result_processor import ValidationResultProcessor
+
+if TYPE_CHECKING:
+    from mountainash.datacontracts.contract import BaseDataContract
+    from mountainash.datacontracts.registry import RuleRegistry
+    from mountainash.datacontracts.rule import Rule
 
 
 def _compile_contract_with_rules(

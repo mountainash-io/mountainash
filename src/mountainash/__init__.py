@@ -1,4 +1,10 @@
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mountainash.datacontracts.contract import BaseDataContract
+
 # Re-export the full expressions public API at the top level
 # so that `import mountainash as ma; ma.col("x")` works
 from mountainash.expressions import (
