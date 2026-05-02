@@ -381,3 +381,100 @@ class TestPivotReports:
         )
         result = proc.pivot_all_fields()
         assert len(result) == 0
+
+
+class TestInterpolateMessages:
+
+    def test_interpolate_from_dict(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+        )
+        metadata = {
+            "ge(18)": {
+                "error_message": "age {age} must be >= 18",
+                "fields": ["age"],
+            },
+            "str_match": {
+                "error_message": "name {name} is invalid",
+                "fields": ["name"],
+            },
+        }
+        result = proc.interpolate_messages(rule_metadata=metadata)
+        assert "error_message_template" in result.columns
+        assert "error_message" in result.columns
+        msgs = result.sort("row_index")["error_message"].to_list()
+        assert msgs[0] == "age 10 must be >= 18"
+        assert msgs[1] == "name bad_val is invalid"
+
+    def test_interpolate_from_dataframe(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+        )
+        metadata_df = pl.DataFrame({
+            "rule_id": ["ge(18)", "str_match"],
+            "error_message": ["age {age} must be >= 18", "name {name} is invalid"],
+            "fields": [["age"], ["name"]],
+        })
+        result = proc.interpolate_messages(rule_metadata=metadata_df)
+        assert len(result) == 2
+
+    def test_interpolate_multi_field(self, source_data):
+        fc = pl.DataFrame({
+            "failure_case": ["10"],
+            "schema_context": ["DataFrameSchema"],
+            "column": ["TestContract"],
+            "check": ["VR01"],
+            "check_number": [0],
+            "index": [0],
+        })
+        proc = ValidationResultProcessor(
+            fc, source_data=source_data, validator_name="v1",
+        )
+        metadata = {
+            "VR01": {
+                "error_message": "{name} (age {age}) failed",
+                "fields": ["name", "age"],
+            },
+        }
+        result = proc.interpolate_messages(rule_metadata=metadata)
+        assert result["error_message"][0] == "alice (age 10) failed"
+
+    def test_interpolate_no_source_raises(self, pivot_failure_cases):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases, validator_name="v1",
+        )
+        with pytest.raises(ValueError, match="source_data"):
+            proc.interpolate_messages(rule_metadata={"ge(18)": {"error_message": "x", "fields": []}})
+
+    def test_interpolate_duplicate_rule_id_raises(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+        )
+        dup_metadata = pl.DataFrame({
+            "rule_id": ["ge(18)", "ge(18)"],
+            "error_message": ["msg1", "msg2"],
+            "fields": [["age"], ["age"]],
+        })
+        with pytest.raises(ValueError, match="duplicate"):
+            proc.interpolate_messages(rule_metadata=dup_metadata)
+
+    def test_interpolate_unmatched_rules_excluded(self, pivot_failure_cases, source_data):
+        proc = ValidationResultProcessor(
+            pivot_failure_cases,
+            source_data=source_data,
+            validator_name="v1",
+        )
+        metadata = {
+            "ge(18)": {
+                "error_message": "age {age} must be >= 18",
+                "fields": ["age"],
+            },
+        }
+        result = proc.interpolate_messages(rule_metadata=metadata)
+        assert len(result) == 1  # only ge(18) matched

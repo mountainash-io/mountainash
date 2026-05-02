@@ -208,6 +208,94 @@ class ValidationResultProcessor:
         )
         return joined.collect()
 
+    def _normalise_rule_metadata(self, rule_metadata: Any) -> pl.DataFrame:
+        """Convert rule_metadata to a polars DataFrame with rule_id, error_message, fields columns."""
+        import polars as pl_mod
+
+        if isinstance(rule_metadata, dict):
+            rows = []
+            for rule_id, meta in rule_metadata.items():
+                rows.append({
+                    "rule_id": rule_id,
+                    "error_message": meta["error_message"],
+                    "fields": meta["fields"],
+                })
+            return pl_mod.DataFrame(rows)
+
+        if isinstance(rule_metadata, pl_mod.DataFrame):
+            return rule_metadata
+
+        return ma.relation(rule_metadata).to_polars()
+
+    def interpolate_messages(
+        self,
+        rule_metadata: Any,
+        source_data: Any | None = None,
+    ) -> pl.DataFrame:
+        """Join failure cases with rule metadata, replace {field} placeholders with actual values."""
+        import polars as pl_mod
+
+        resolved_source = self._resolve_source_data(source_data)
+        meta_df = self._normalise_rule_metadata(rule_metadata)
+
+        dup_ids = meta_df.group_by("rule_id").len().filter(pl_mod.col("len") > 1)
+        if len(dup_ids) > 0:
+            dups = dup_ids["rule_id"].to_list()
+            raise ValueError(f"rule_metadata contains duplicate rule_ids: {dups}")
+
+        enriched = self.enriched_failure_cases()
+        failures_with_idx = ma.relation(enriched).filter(
+            ma.col("row_index").is_not_null()
+        ).with_columns(
+            ma.col("row_index").cast("uint32").alias("row_index"),
+        )
+
+        source_rel = ma.relation(resolved_source).with_row_index(name="_row_idx")
+
+        joined_source = failures_with_idx.join(
+            source_rel,
+            left_on=["row_index"],
+            right_on=["_row_idx"],
+            how="inner",
+        )
+
+        with_meta = joined_source.join(
+            meta_df,
+            on=["rule_id"],
+            how="inner",
+        )
+
+        result_df = with_meta.collect()
+
+        result_df = result_df.with_columns(
+            pl_mod.col("error_message").alias("error_message_template"),
+        )
+
+        meta_rows = meta_df.to_dicts()
+        for rule_row in meta_rows:
+            rule_id = rule_row["rule_id"]
+            fields = rule_row["fields"]
+            if not fields:
+                continue
+            mask = result_df["rule_id"] == rule_id
+            for field_name in fields:
+                if field_name not in result_df.columns:
+                    continue
+                result_df = result_df.with_columns(
+                    pl_mod.when(mask)
+                    .then(
+                        pl_mod.col("error_message").str.replace(
+                            "{" + field_name + "}",
+                            pl_mod.col(field_name).cast(pl_mod.Utf8),
+                            literal=True,
+                        )
+                    )
+                    .otherwise(pl_mod.col("error_message"))
+                    .alias("error_message")
+                )
+
+        return result_df
+
     def passed(self) -> bool:
         return len(self._failure_cases) == 0
 
