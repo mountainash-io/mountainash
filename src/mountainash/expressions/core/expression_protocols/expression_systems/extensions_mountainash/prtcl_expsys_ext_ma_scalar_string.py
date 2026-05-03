@@ -9,7 +9,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol
+from typing import Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -59,7 +59,7 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
         """Parse string to integer with given base."""
         ...
 
-    def json_decode(self, x: ExpressionT, /, dtype: Any = None) -> ExpressionT:
+    def json_decode(self, x: ExpressionT, /, dtype: object = None) -> ExpressionT:
         """Parse JSON string into structured data."""
         ...
 

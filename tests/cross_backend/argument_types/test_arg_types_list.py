@@ -1,4 +1,4 @@
-"""Argument channel tests for window operations.
+"""Argument channel tests for list operations.
 
 OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
 which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
@@ -10,9 +10,6 @@ from __future__ import annotations
 
 import pytest
 
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    SUBSTRAIT_ARITHMETIC_WINDOW as FK_WIN,
-)
 from cross_backend.argument_types.conftest import ALL_BACKENDS
 from cross_backend.argument_types._test_template import (
     INPUT_TYPES,
@@ -22,26 +19,18 @@ from cross_backend.argument_types._test_template import (
 )
 
 TESTED_PARAMS: list[tuple] = [
-    (FK_WIN.FIRST_VALUE, "x"),
-    (FK_WIN.LAG, "x"),
-    (FK_WIN.LAST_VALUE, "x"),
-    (FK_WIN.LEAD, "x"),
-    (FK_WIN.NTH_VALUE, "window_offset"),
-    (FK_WIN.NTH_VALUE, "x"),
-    (FK_WIN.NTILE, "x"),
-    # order_by_col is visitor-injected from WindowSpec, not user-facing
-    (FK_WIN.RANK, "order_by_col"),
-    (FK_WIN.DENSE_RANK, "order_by_col"),
-    (FK_WIN.ROW_NUMBER, "order_by_col"),
-    # Mountainash extension window operations
-    ("backward_fill", "x"),
-    ("cum_count", "x"),
-    ("cum_max", "x"),
-    ("cum_min", "x"),
-    ("cum_prod", "x"),
-    ("cum_sum", "x"),
-    ("diff", "x"),
-    ("forward_fill", "x"),
+    ("list_contains", "item"),
+    ("list_contains", "x"),
+    ("list_explode", "x"),
+    ("list_get", "x"),
+    ("list_join", "x"),
+    ("list_len", "x"),
+    ("list_max", "x"),
+    ("list_mean", "x"),
+    ("list_min", "x"),
+    ("list_sort", "x"),
+    ("list_sum", "x"),
+    ("list_unique", "x"),
 ]
 
 OP_SPECS: list[OpSpec] = []

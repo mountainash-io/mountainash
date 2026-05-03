@@ -53,6 +53,11 @@ _CATEGORY_MAP = {
     "MountainAshScalarBooleanExpressionSystemProtocol": "boolean",
     "MountainAshScalarTernaryExpressionSystemProtocol": "boolean",
     "MountainAshScalarSetExpressionSystemProtocol": "set",
+    "MountainAshScalarListExpressionSystemProtocol": "list",
+    "MountainAshScalarStructExpressionSystemProtocol": "struct",
+    "MountainAshScalarStringExpressionSystemProtocol": "string",
+    "MountainashWindowExpressionSystemProtocol": "window",
+    "MountainashExtensionAggregateExpressionSystemProtocol": "aggregate",
 }
 
 _EXCLUDED_PARAMS = {"self", "input"}
@@ -70,11 +75,16 @@ def _classify_annotation(ann: Any) -> Kind:
     s = str(ann)
     if "ExpressionT" in s:
         return "argument"
+    import types as _types
+
     origin = typing.get_origin(ann)
-    if origin is typing.Union:
+    if origin is typing.Union or isinstance(ann, _types.UnionType):
         args = typing.get_args(ann)
         if any("ExpressionT" in str(a) for a in args):
             return "argument"
+        non_none = [a for a in args if a is not type(None)]
+        if all(a in (int, str, bool, float, bytes, object) for a in non_none):
+            return "option"
     if ann in (int, str, bool, float, bytes, object):
         return "option"
     # Optional[concrete] and unions of concrete literal types

@@ -12,7 +12,11 @@ import typing
 from typing import get_type_hints
 import importlib
 
-from cross_backend.argument_types._introspection import introspect_protocols
+from cross_backend.argument_types._introspection import (
+    introspect_protocols,
+    _iter_protocol_classes,
+    _CATEGORY_MAP,
+)
 
 _CATEGORY_MODULES = [
     "test_arg_types_string",
@@ -27,6 +31,8 @@ _CATEGORY_MODULES = [
     "test_arg_types_window",
     "test_arg_types_aggregate",
     "test_arg_types_misc",
+    "test_arg_types_list",
+    "test_arg_types_struct",
 ]
 
 
@@ -54,6 +60,12 @@ def test_every_argument_param_is_tested():
     extra = {(op, pname) for op, pname in tested if (op, pname) not in introspected}
     assert not missing, f"Argument params with no test: {sorted(missing)}"
     assert not extra, f"Tested params with no protocol: {sorted(extra)}"
+
+
+def test_all_protocols_categorized():
+    """Every protocol class discovered by _iter_protocol_classes must be in _CATEGORY_MAP."""
+    uncategorized = [name for name, _ in _iter_protocol_classes() if name not in _CATEGORY_MAP]
+    assert uncategorized == [], f"Uncategorized protocols (add to _CATEGORY_MAP): {uncategorized}"
 
 
 def test_no_unclassified_params():

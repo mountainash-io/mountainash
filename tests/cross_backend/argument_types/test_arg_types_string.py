@@ -62,6 +62,15 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.SUBSTRING, "length"),
     (FK_STR.SUBSTRING, "start"),
     (FK_STR.TRIM, "characters"),
+    # Mountainash string extensions
+    ("decode", "x"),
+    ("encode", "x"),
+    ("extract_groups", "x"),
+    ("json_decode", "x"),
+    ("json_path_match", "x"),
+    ("strip_suffix", "x"),
+    ("to_integer", "x"),
+    ("to_time", "x"),
 ]
 
 OP_SPECS: list[OpSpec] = [
