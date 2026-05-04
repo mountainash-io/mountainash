@@ -11,10 +11,7 @@ This file checks existence and wiring.
 
 from __future__ import annotations
 
-import importlib
-import inspect
 from pathlib import Path
-from typing import Protocol
 
 import pytest
 
@@ -132,4 +129,94 @@ class TestExpressionSystemProtocolFileCompleteness:
             f"{impl_filename}' has no corresponding protocol.\n"
             f"Expected: {protocol_path}\n"
             f"Either create the protocol or move the impl to the correct namespace."
+        )
+
+
+# ── MRO helpers ─────────────────────────────────────────────────────────
+
+def _has_protocol_in_mro(cls: type) -> bool:
+    """Check if any class in the MRO (excluding the class itself) has 'Protocol' in its name."""
+    for parent in type.mro(cls)[1:]:
+        if parent.__name__.endswith("Protocol"):
+            return True
+    return False
+
+
+def _collect_api_builder_classes() -> list[type]:
+    """Import all API builder packages and discover BaseExpressionAPIBuilder subclasses."""
+    import importlib
+
+    # Import every api_bldr_*.py module to register subclasses
+    _substrait_dir = _EXPR_ROOT / "core" / "expression_api" / "api_builders" / "substrait"
+    _ext_ma_dir = _EXPR_ROOT / "core" / "expression_api" / "api_builders" / "extensions_mountainash"
+    for d, pkg in [
+        (_substrait_dir, "mountainash.expressions.core.expression_api.api_builders.substrait"),
+        (_ext_ma_dir, "mountainash.expressions.core.expression_api.api_builders.extensions_mountainash"),
+    ]:
+        for f in sorted(d.glob("api_bldr_*.py")):
+            importlib.import_module(f".{f.stem}", pkg)
+
+    from mountainash.expressions.core.expression_api.api_builders.api_builder_base import BaseExpressionAPIBuilder
+
+    return [
+        cls for cls in BaseExpressionAPIBuilder.__subclasses__()
+        if not cls.__name__.startswith("_")
+    ]
+
+
+def _collect_backend_expsys_classes() -> list[type]:
+    """Import all backend packages and discover per-backend ExpressionSystem subclasses."""
+    from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem  # noqa: F401
+    from mountainash.expressions.backends.expression_systems.ibis import IbisExpressionSystem  # noqa: F401
+    from mountainash.expressions.backends.expression_systems.narwhals import NarwhalsExpressionSystem  # noqa: F401
+    from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
+    from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
+    from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
+
+    bases = (PolarsBaseExpressionSystem, IbisBaseExpressionSystem, NarwhalsBaseExpressionSystem)
+    classes = []
+    for base in bases:
+        for cls in base.__subclasses__():
+            if not cls.__name__.startswith("_"):
+                classes.append(cls)
+    return classes
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 3: API Builder Protocol Inheritance (Approach C — MRO)
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestAPIBuilderProtocolInheritance:
+    """Every concrete BaseExpressionAPIBuilder subclass must inherit from a Protocol."""
+
+    @pytest.mark.parametrize(
+        "builder_cls",
+        _collect_api_builder_classes(),
+        ids=[cls.__name__ for cls in _collect_api_builder_classes()],
+    )
+    def test_builder_inherits_protocol(self, builder_cls: type) -> None:
+        assert _has_protocol_in_mro(builder_cls), (
+            f"{builder_cls.__name__} does not inherit from any Protocol class.\n"
+            f"MRO: {[c.__name__ for c in type.mro(builder_cls)]}\n"
+            f"Add the corresponding *APIBuilderProtocol to the class bases."
+        )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 4: Expression System Protocol Inheritance (Approach C — MRO)
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestExpressionSystemProtocolInheritance:
+    """Every concrete backend ExpressionSystem subclass must inherit from a Protocol."""
+
+    @pytest.mark.parametrize(
+        "expsys_cls",
+        _collect_backend_expsys_classes(),
+        ids=[cls.__name__ for cls in _collect_backend_expsys_classes()],
+    )
+    def test_backend_inherits_protocol(self, expsys_cls: type) -> None:
+        assert _has_protocol_in_mro(expsys_cls), (
+            f"{expsys_cls.__name__} does not inherit from any Protocol class.\n"
+            f"MRO: {[c.__name__ for c in type.mro(expsys_cls)]}\n"
+            f"Add the corresponding *ExpressionSystemProtocol to the class bases."
         )
