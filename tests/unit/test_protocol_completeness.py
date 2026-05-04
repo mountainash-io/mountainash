@@ -11,6 +11,7 @@ This file checks existence and wiring.
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 
 import pytest
@@ -219,4 +220,78 @@ class TestExpressionSystemProtocolInheritance:
             f"{expsys_cls.__name__} does not inherit from any Protocol class.\n"
             f"MRO: {[c.__name__ for c in type.mro(expsys_cls)]}\n"
             f"Add the corresponding *ExpressionSystemProtocol to the class bases."
+        )
+
+
+# ── Export helpers ──────────────────────────────────────────────────────
+
+def _collect_protocol_files_and_packages() -> list[tuple[Path, str]]:
+    """Return (protocol_file_path, dotted_package_path) for all protocol files."""
+    results = []
+
+    protocol_roots = {
+        "api_builders": _EXPR_ROOT / "core" / "expression_protocols" / "api_builders",
+        "expression_systems": _EXPR_ROOT / "core" / "expression_protocols" / "expression_systems",
+    }
+
+    package_base = "mountainash.expressions.core.expression_protocols"
+
+    for layer, root in protocol_roots.items():
+        for ns in _NAMESPACES:
+            ns_dir = root / ns
+            if not ns_dir.exists():
+                continue
+            dotted_pkg = f"{package_base}.{layer}.{ns}"
+            for f in sorted(ns_dir.glob("prtcl_*.py")):
+                results.append((f, dotted_pkg))
+
+    return results
+
+
+def _extract_protocol_class_name(filepath: Path) -> str | None:
+    """Find the class name ending with 'Protocol' defined in a protocol file."""
+    with open(filepath) as fh:
+        for line in fh:
+            stripped = line.strip()
+            if stripped.startswith("class ") and "Protocol" in stripped:
+                class_name = stripped.split("(")[0].replace("class ", "").strip()
+                if class_name.endswith("Protocol"):
+                    return class_name
+    return None
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 5: Protocol Export Completeness
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestProtocolExportCompleteness:
+    """Every protocol class must be exported in its package __init__.py __all__."""
+
+    @pytest.mark.parametrize(
+        ("protocol_file", "package_path"),
+        _collect_protocol_files_and_packages(),
+        ids=[
+            f"{pf.parent.name}/{pf.name}"
+            for pf, _ in _collect_protocol_files_and_packages()
+        ],
+    )
+    def test_protocol_in_package_all(
+        self, protocol_file: Path, package_path: str
+    ) -> None:
+        class_name = _extract_protocol_class_name(protocol_file)
+        if class_name is None:
+            pytest.skip(f"No Protocol class found in {protocol_file.name}")
+
+        pkg = importlib.import_module(package_path)
+        all_exports = getattr(pkg, "__all__", [])
+
+        assert class_name in all_exports or any(
+            getattr(pkg, attr, None).__name__ == class_name
+            if hasattr(getattr(pkg, attr, None), "__name__")
+            else False
+            for attr in all_exports
+        ), (
+            f"Protocol class '{class_name}' from {protocol_file.name} "
+            f"is not exported in {package_path}.__all__.\n"
+            f"Current __all__: {all_exports}"
         )
