@@ -28,8 +28,7 @@ def _example_raw_value(annotation: str):
         return frozenset()
     if "Collection" in annotation or "Sequence" in annotation or "Iterable" in annotation or "List" in annotation or "list" in annotation:
         return []
-    if "dtype" in annotation.lower() or "object" in annotation:
-        # dtype/object annotations — use a placeholder non-None marker
+    if "dtype" in annotation.lower() or "object" in annotation or "Any" in annotation:
         return object()
     return None
 

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainashWindowExpressionSystemProtocol
 
 
-class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem):
+class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem, MountainashWindowExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of mountainash window extensions."""
 
     def diff(self, x, /, *, n: int = 1):

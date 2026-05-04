@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 
 
-class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem):
+class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of list operations."""
 
     def list_sum(self, x, /):

@@ -5,9 +5,10 @@ from __future__ import annotations
 from polars import Expr as PolarsExpr
 
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainashWindowExpressionSystemProtocol
 
 
-class MountainAshPolarsWindowExpressionSystem(PolarsBaseExpressionSystem):
+class MountainAshPolarsWindowExpressionSystem(PolarsBaseExpressionSystem, MountainashWindowExpressionSystemProtocol[PolarsExpr]):
     """Polars implementation of mountainash window extensions."""
 
     def diff(self, x: PolarsExpr, /, *, n: int = 1) -> PolarsExpr:
