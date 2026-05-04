@@ -286,10 +286,9 @@ class TestProtocolExportCompleteness:
         all_exports = getattr(pkg, "__all__", [])
 
         assert class_name in all_exports or any(
-            getattr(pkg, attr, None).__name__ == class_name
-            if hasattr(getattr(pkg, attr, None), "__name__")
-            else False
+            getattr(obj, "__name__", None) == class_name
             for attr in all_exports
+            if (obj := getattr(pkg, attr, None)) is not None
         ), (
             f"Protocol class '{class_name}' from {protocol_file.name} "
             f"is not exported in {package_path}.__all__.\n"

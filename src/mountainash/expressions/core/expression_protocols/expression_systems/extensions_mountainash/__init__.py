@@ -36,6 +36,7 @@ __all__ = [
     "MountainAshScalarTernaryExpressionSystemProtocol",
     "MountainAshNullExpressionSystemProtocol",
     "MountainAshNameExpressionSystemProtocol",
+    "MountainAshScalarSetExpressionSystemProtocol",
     "MountainAshScalarStructExpressionSystemProtocol",
     "MountainAshScalarListExpressionSystemProtocol",
     "MountainashWindowExpressionSystemProtocol",
