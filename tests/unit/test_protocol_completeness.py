@@ -162,6 +162,7 @@ def _collect_api_builder_classes() -> list[type]:
     return [
         cls for cls in BaseExpressionAPIBuilder.__subclasses__()
         if not cls.__name__.startswith("_")
+        and cls.__module__.startswith("mountainash.")
     ]
 
 
