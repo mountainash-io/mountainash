@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarStringAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_STRING,
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarStringAPIBuilderProtocol):
     """Mountainash extension string operations.
 
     Provides Polars-compatible aliases for standard string operations.

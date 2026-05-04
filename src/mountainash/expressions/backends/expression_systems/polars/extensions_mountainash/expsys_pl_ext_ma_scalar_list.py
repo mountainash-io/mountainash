@@ -1,10 +1,13 @@
 """Polars backend for mountainash list operations."""
 from __future__ import annotations
 
+import polars as pl
+
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 
 
-class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem):
+class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of list operations."""
 
     def list_sum(self, x, /):

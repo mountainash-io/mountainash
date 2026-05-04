@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarListAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarListAPIBuilderProtocol):
     """API builder for the .list namespace."""
 
     def sum(self) -> BaseExpressionAPI:

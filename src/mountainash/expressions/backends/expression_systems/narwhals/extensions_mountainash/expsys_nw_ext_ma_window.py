@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import narwhals as nw
+
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainashWindowExpressionSystemProtocol
 
 
-class MountainAshNarwhalsWindowExpressionSystem(NarwhalsBaseExpressionSystem):
+class MountainAshNarwhalsWindowExpressionSystem(NarwhalsBaseExpressionSystem, MountainashWindowExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of mountainash window extensions."""
 
     def diff(self, x, /, *, n: int = 1):
