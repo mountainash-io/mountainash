@@ -5,9 +5,12 @@ from __future__ import annotations
 import polars as pl
 
 from mountainash.core.constants import SortField
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitSortRelationSystemProtocol,
+)
 
 
-class SubstraitPolarsSortRelationSystem:
+class SubstraitPolarsSortRelationSystem(SubstraitSortRelationSystemProtocol):
     """Sort operations on Polars LazyFrames."""
 
     def sort(self, relation: pl.LazyFrame, sort_fields: list[SortField], /) -> pl.LazyFrame:

@@ -6,8 +6,12 @@ from typing import Any
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitAggregateRelationSystemProtocol,
+)
 
-class SubstraitIbisAggregateRelationSystem:
+
+class SubstraitIbisAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol):
     """Grouping and aggregation on Ibis table expressions."""
 
     def aggregate(

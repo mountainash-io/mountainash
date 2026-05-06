@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
+    MountainashExtensionRelationSystemProtocol,
+)
 
-class MountainashNarwhalsExtensionRelationSystem:
+
+class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSystemProtocol):
     """Mountainash-specific relation operations on Narwhals DataFrames."""
 
     def drop_nulls(

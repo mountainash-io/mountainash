@@ -6,8 +6,12 @@ from typing import Optional
 
 import polars as pl
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitFetchRelationSystemProtocol,
+)
 
-class SubstraitPolarsFetchRelationSystem:
+
+class SubstraitPolarsFetchRelationSystem(SubstraitFetchRelationSystemProtocol):
     """Offset/limit row retrieval on Polars LazyFrames."""
 
     def fetch(

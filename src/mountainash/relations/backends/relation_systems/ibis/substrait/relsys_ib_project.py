@@ -6,8 +6,12 @@ from typing import Any
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitProjectRelationSystemProtocol,
+)
 
-class SubstraitIbisProjectRelationSystem:
+
+class SubstraitIbisProjectRelationSystem(SubstraitProjectRelationSystemProtocol):
     """Projection operations on Ibis table expressions."""
 
     def project_select(self, relation: ir.Table, columns: list[Any], /) -> ir.Table:

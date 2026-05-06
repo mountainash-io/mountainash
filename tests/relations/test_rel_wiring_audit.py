@@ -26,43 +26,39 @@ class TestVisitorCoversAllNodes:
     """Every RelationNode subclass must have a visit_* method in the visitor."""
 
     def test_all_node_types_handled(self):
-        # Get all concrete node subclasses (recursively)
-        all_nodes = set()
-        def collect(cls):
+        # Import node packages to trigger subclass registration
+        import mountainash.relations.core.relation_nodes.substrait  # noqa: F401
+        import mountainash.relations.core.relation_nodes.extensions_mountainash  # noqa: F401
+
+        # Recursively collect all concrete RelationNode subclasses
+        all_nodes: set[type] = set()
+
+        def collect(cls: type) -> None:
             for sub in cls.__subclasses__():
                 if not inspect.isabstract(sub):
                     all_nodes.add(sub)
                 collect(sub)
-        collect(RelationNode)
 
+        collect(RelationNode)
+        assert all_nodes, "No RelationNode subclasses found — registration may have failed"
+
+        # Derive expected visitor method names from class names
+        # Convention: FooRelNode -> remove "Node" -> "FooRel" -> snake_case -> "foo_rel" -> "visit_foo_rel"
+        expected_methods: set[str] = set()
+        for node_cls in all_nodes:
+            stem = node_cls.__name__.removesuffix("Node")
+            method_name = f"visit_{_camel_to_snake(stem)}"
+            expected_methods.add(method_name)
+
+        # Get actual visitor methods
         visitor_methods = {
             name for name in dir(UnifiedRelationVisitor)
             if name.startswith("visit_") and name != "visit"
         }
 
-        for node_cls in all_nodes:
-            # The accept() method tells us what visitor method it calls
-            # We can check the source or just verify the method exists
-            node_name = node_cls.__name__.replace("Node", "").replace("Rel", "_rel")
-            # Build expected method name from the accept() body
-            # All nodes call visitor.visit_X_rel(self)
-            # Check by instantiating a mock visitor to see what method is called
-            pass  # The actual check is below
-
-        # Simpler approach: check visitor has methods for known node names
-        expected_methods = {
-            "visit_read_rel",
-            "visit_project_rel",
-            "visit_filter_rel",
-            "visit_sort_rel",
-            "visit_fetch_rel",
-            "visit_join_rel",
-            "visit_aggregate_rel",
-            "visit_set_rel",
-            "visit_extension_rel",
-        }
-        assert expected_methods.issubset(visitor_methods), (
-            f"Missing visitor methods: {expected_methods - visitor_methods}"
+        missing = expected_methods - visitor_methods
+        assert not missing, (
+            f"UnifiedRelationVisitor is missing methods for node types: {sorted(missing)}"
         )
 
 
@@ -133,3 +129,54 @@ class TestBackendRegistration:
         from mountainash.core.constants import CONST_BACKEND
         cls = get_relation_system(CONST_BACKEND.IBIS)
         assert cls is IbisRelationSystem
+
+
+class TestExtensionDispatchValidation:
+    """Verify that every method in MountainashExtensionRelationSystemProtocol
+    exists on all 3 backend extension classes.
+
+    The visitor's visit_extension_rel does getattr(self.backend, node.operation.lower()),
+    so each protocol method must be implemented by every backend.
+    """
+
+    def _get_protocol_methods(self) -> set[str]:
+        """Get public method names defined directly on the extension protocol."""
+        from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
+            MountainashExtensionRelationSystemProtocol,
+        )
+        return {
+            name
+            for name, val in MountainashExtensionRelationSystemProtocol.__dict__.items()
+            if not name.startswith("_") and callable(val)
+        }
+
+    @pytest.mark.parametrize("backend_module,backend_name", [
+        (
+            "mountainash.relations.backends.relation_systems.polars.extensions_mountainash",
+            "Polars",
+        ),
+        (
+            "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash",
+            "Ibis",
+        ),
+        (
+            "mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash",
+            "Narwhals",
+        ),
+    ])
+    def test_backend_implements_all_extension_methods(self, backend_module, backend_name):
+        import importlib
+        mod = importlib.import_module(backend_module)
+        # The module's __all__ should contain exactly one class
+        backend_cls = getattr(mod, mod.__all__[0])
+
+        protocol_methods = self._get_protocol_methods()
+        assert protocol_methods, "No protocol methods found — check protocol class"
+
+        missing = [
+            method for method in sorted(protocol_methods)
+            if not hasattr(backend_cls, method)
+        ]
+        assert not missing, (
+            f"{backend_name} extension backend missing methods: {missing}"
+        )

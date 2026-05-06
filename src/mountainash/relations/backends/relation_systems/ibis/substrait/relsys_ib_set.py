@@ -7,8 +7,12 @@ from typing import Any
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitSetRelationSystemProtocol,
+)
 
-class SubstraitIbisSetRelationSystem:
+
+class SubstraitIbisSetRelationSystem(SubstraitSetRelationSystemProtocol):
     """Set operations on Ibis table expressions."""
 
     def union_all(self, relations: list[Any], /) -> ir.Table:

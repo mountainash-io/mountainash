@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from mountainash.core.constants import SortField
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitSortRelationSystemProtocol,
+)
 
 
-class SubstraitNarwhalsSortRelationSystem:
+class SubstraitNarwhalsSortRelationSystem(SubstraitSortRelationSystemProtocol):
     """Sort operations on Narwhals DataFrames."""
 
     def sort(self, relation: object, sort_fields: list[SortField], /) -> object:

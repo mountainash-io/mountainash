@@ -7,6 +7,9 @@ from typing import Any, Optional
 import polars as pl
 
 from mountainash.core.constants import JoinType
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitJoinRelationSystemProtocol,
+)
 
 # Substrait/mountainash JoinType → Polars ``how`` parameter.
 # Polars uses "full" where Substrait says "outer".
@@ -21,7 +24,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitPolarsJoinRelationSystem:
+class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
     """Join operations on Polars LazyFrames."""
 
     def join(

@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitAggregateRelationSystemProtocol,
+)
 
-class SubstraitNarwhalsAggregateRelationSystem:
+
+class SubstraitNarwhalsAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol):
     """Aggregation operations on Narwhals DataFrames."""
 
     def aggregate(self, relation: Any, keys: list[Any], measures: list[Any], /) -> Any:

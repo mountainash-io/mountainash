@@ -6,8 +6,12 @@ from typing import Any
 
 import narwhals as nw
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitSetRelationSystemProtocol,
+)
 
-class SubstraitNarwhalsSetRelationSystem:
+
+class SubstraitNarwhalsSetRelationSystem(SubstraitSetRelationSystemProtocol):
     """Set operations on Narwhals DataFrames."""
 
     def union_all(self, relations: list[Any], /) -> Any:

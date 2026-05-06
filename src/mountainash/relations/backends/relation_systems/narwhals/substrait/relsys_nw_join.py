@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from mountainash.core.constants import JoinType
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitJoinRelationSystemProtocol,
+)
 
 # Substrait/mountainash JoinType → Narwhals ``how`` parameter.
 # Narwhals uses "full" where Substrait says "outer".
@@ -19,7 +22,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitNarwhalsJoinRelationSystem:
+class SubstraitNarwhalsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
     """Join operations on Narwhals DataFrames."""
 
     def join(
