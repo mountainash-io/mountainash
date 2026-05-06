@@ -6,9 +6,12 @@ import ibis
 import ibis.expr.types as ir
 
 from mountainash.core.constants import SortField
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitSortRelationSystemProtocol,
+)
 
 
-class SubstraitIbisSortRelationSystem:
+class SubstraitIbisSortRelationSystem(SubstraitSortRelationSystemProtocol):
     """Sort / order-by on Ibis table expressions."""
 
     def sort(self, relation: ir.Table, sort_fields: list[SortField], /) -> ir.Table:

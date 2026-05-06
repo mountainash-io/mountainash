@@ -6,8 +6,12 @@ from typing import Optional
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitFetchRelationSystemProtocol,
+)
 
-class SubstraitIbisFetchRelationSystem:
+
+class SubstraitIbisFetchRelationSystem(SubstraitFetchRelationSystemProtocol):
     """Offset/limit row retrieval on Ibis table expressions."""
 
     def fetch(

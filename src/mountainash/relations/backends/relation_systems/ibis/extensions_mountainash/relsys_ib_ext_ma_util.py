@@ -7,8 +7,12 @@ from typing import Any, Optional
 import ibis
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
+    MountainashExtensionRelationSystemProtocol,
+)
 
-class MountainashIbisExtensionRelationSystem:
+
+class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemProtocol):
     """Mountainash-specific relation operations for the Ibis backend."""
 
     def drop_nulls(self, relation: ir.Table, /, *, subset: Optional[list[str]] = None) -> ir.Table:
