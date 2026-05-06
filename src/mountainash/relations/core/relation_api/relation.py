@@ -25,6 +25,7 @@ from ..relation_nodes import (
 )
 from .relation_base import RelationBase
 from .grouped_relation import GroupedRelation
+from mountainash.relations.core.relation_protocols import RelationAPIProtocol
 
 _T = TypeVar("_T")
 
@@ -90,7 +91,7 @@ def _to_relation_node(other: Any) -> RelationNode:
 # Relation
 # ---------------------------------------------------------------------------
 
-class Relation(RelationBase):
+class Relation(RelationBase, RelationAPIProtocol):
     """Fluent builder for relational query plans.
 
     Every chainable method returns a new Relation wrapping a new AST node
