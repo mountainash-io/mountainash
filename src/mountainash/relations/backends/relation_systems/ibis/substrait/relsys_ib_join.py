@@ -53,7 +53,7 @@ class SubstraitIbisJoinRelationSystem:
             # Cross join or no predicate.
             predicates = []
 
-        return left.join(right, predicates=predicates, how=how, suffixes=("", suffix))
+        return left.join(right, predicates=predicates, how=how, lname="", rname=suffix or "{name}_right")
 
     def join_asof(
         self,
