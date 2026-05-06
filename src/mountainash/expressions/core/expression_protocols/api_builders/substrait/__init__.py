@@ -27,6 +27,7 @@ from .prtcl_api_bldr_scalar_logarithmic import SubstraitScalarLogarithmicAPIBuil
 from .prtcl_api_bldr_scalar_rounding import SubstraitScalarRoundingAPIBuilderProtocol
 from .prtcl_api_bldr_scalar_set import SubstraitScalarSetAPIBuilderProtocol
 from .prtcl_api_bldr_scalar_string import  SubstraitScalarStringAPIBuilderProtocol
+from .prtcl_api_bldr_window_arithmetic import SubstraitWindowArithmeticAPIBuilderProtocol
 
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "SubstraitScalarRoundingAPIBuilderProtocol",
     "SubstraitScalarSetAPIBuilderProtocol",
     "SubstraitScalarStringAPIBuilderProtocol",
+    "SubstraitWindowArithmeticAPIBuilderProtocol",
 ]

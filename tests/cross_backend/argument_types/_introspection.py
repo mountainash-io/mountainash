@@ -53,11 +53,11 @@ _CATEGORY_MAP = {
     "MountainAshScalarBooleanExpressionSystemProtocol": "boolean",
     "MountainAshScalarTernaryExpressionSystemProtocol": "boolean",
     "MountainAshScalarSetExpressionSystemProtocol": "set",
+    "MountainAshScalarStringExpressionSystemProtocol": "string",
     "MountainAshScalarListExpressionSystemProtocol": "list",
     "MountainAshScalarStructExpressionSystemProtocol": "struct",
-    "MountainAshScalarStringExpressionSystemProtocol": "string",
-    "MountainashWindowExpressionSystemProtocol": "window",
     "MountainashExtensionAggregateExpressionSystemProtocol": "aggregate",
+    "MountainashWindowExpressionSystemProtocol": "window",
 }
 
 _EXCLUDED_PARAMS = {"self", "input"}
@@ -71,30 +71,31 @@ def _iter_protocol_classes():
                 yield name, obj
 
 
+_CONCRETE_TYPES = (int, str, bool, float, bytes, object)
+_UNION_ORIGINS = {typing.Union, type(int | None)}  # typing.Union + types.UnionType
+
+
 def _classify_annotation(ann: Any) -> Kind:
     s = str(ann)
     if "ExpressionT" in s:
         return "argument"
-    import types as _types
-
     origin = typing.get_origin(ann)
-    if origin is typing.Union or isinstance(ann, _types.UnionType):
+    if origin in _UNION_ORIGINS:
         args = typing.get_args(ann)
         if any("ExpressionT" in str(a) for a in args):
             return "argument"
-        non_none = [a for a in args if a is not type(None)]
-        if all(a in (int, str, bool, float, bytes, object) for a in non_none):
+        if all(a is type(None) or a in _CONCRETE_TYPES for a in args):
             return "option"
-    if ann in (int, str, bool, float, bytes, object):
+    if ann in _CONCRETE_TYPES:
         return "option"
-    # Optional[concrete] and unions of concrete literal types
+    # Optional[concrete] (typing.Optional spelling)
     if s.startswith("typing.Optional[") and any(t in s for t in ("int", "str", "bool", "float", "bytes", "object")):
         return "option"
     # Literal collections (frozenset, set, list, tuple, Collection) carrying literal values
     if any(tok in s for tok in ("FrozenSet", "frozenset", "typing.Collection", "collections.abc.Collection")):
         return "option"
     if ann is typing.Any or s == "typing.Any":
-        return "unclassified"
+        return "option"
     return "unclassified"
 
 
