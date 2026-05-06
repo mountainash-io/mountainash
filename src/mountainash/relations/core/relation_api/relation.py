@@ -7,7 +7,6 @@ from mountainash.core.constants import (
     ExecutionTarget,
     ExtensionRelOperation,
     JoinType,
-    ProjectOperation,
     SetType,
     SortField,
 )
@@ -17,7 +16,6 @@ from ..relation_nodes import (
     FetchRelNode,
     FilterRelNode,
     JoinRelNode,
-    ProjectRelNode,
     ReadRelNode,
     RelationNode,
     SetRelNode,
@@ -25,7 +23,7 @@ from ..relation_nodes import (
 )
 from .relation_base import RelationBase
 from .grouped_relation import GroupedRelation
-from mountainash.relations.core.relation_protocols import RelationAPIProtocol
+from .api_builders import RelationProjectionBuilder
 
 _T = TypeVar("_T")
 
@@ -91,7 +89,7 @@ def _to_relation_node(other: Any) -> RelationNode:
 # Relation
 # ---------------------------------------------------------------------------
 
-class Relation(RelationBase, RelationAPIProtocol):
+class Relation(RelationBase):
     """Fluent builder for relational query plans.
 
     Every chainable method returns a new Relation wrapping a new AST node
@@ -99,48 +97,18 @@ class Relation(RelationBase, RelationAPIProtocol):
     terminal operation is called.
     """
 
-    # --- Projection ---
+    _FLAT_NAMESPACES: tuple[type, ...] = (
+        RelationProjectionBuilder,
+    )
 
-    def select(self, *columns: Any) -> Relation:
-        """Select columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(columns),
-                operation=ProjectOperation.SELECT,
-            )
-        )
-
-    def with_columns(self, *expressions: Any) -> Relation:
-        """Add or overwrite columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(expressions),
-                operation=ProjectOperation.WITH_COLUMNS,
-            )
-        )
-
-    def drop(self, *columns: Any) -> Relation:
-        """Drop columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(columns),
-                operation=ProjectOperation.DROP,
-            )
-        )
-
-    def rename(self, mapping: dict[str, str]) -> Relation:
-        """Rename columns according to *mapping*."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=[],
-                operation=ProjectOperation.RENAME,
-                rename_mapping=mapping,
-            )
-        )
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
+        for ns_cls in self._FLAT_NAMESPACES:
+            if name in ns_cls.__dict__:
+                ns = ns_cls(self)
+                return getattr(ns, name)
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
     # --- Filtering ---
 

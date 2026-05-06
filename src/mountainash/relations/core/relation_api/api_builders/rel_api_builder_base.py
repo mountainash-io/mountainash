@@ -25,5 +25,4 @@ class BaseRelationAPIBuilder:
         return self._relation._node
 
     def _build(self, node: RelationNode) -> Any:
-        from ..relation import Relation
-        return Relation(node)
+        return type(self._relation)(node)
