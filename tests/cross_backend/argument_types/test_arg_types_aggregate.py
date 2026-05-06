@@ -43,6 +43,8 @@ TESTED_PARAMS: list[tuple] = [
     (FK_AGG.SUM, "x"),
     (FK_AGG.SUM0, "x"),
     (FK_AGG.VARIANCE, "x"),
+    # Mountainash aggregate extensions
+    ("n_unique", "x"),
 ]
 
 OP_SPECS: list[OpSpec] = []
