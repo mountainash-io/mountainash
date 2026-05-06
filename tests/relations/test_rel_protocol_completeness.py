@@ -269,14 +269,14 @@ class TestRelationProtocolExportCompleteness:
 class TestRelationAPIProtocolInheritance:
     """Relation and GroupedRelation must inherit from their API protocols."""
 
-    def test_relation_inherits_api_protocol(self) -> None:
+    def test_relation_has_builder_dispatch(self) -> None:
         from mountainash.relations.core.relation_api.relation import Relation
-        from mountainash.relations.core.relation_protocols import RelationAPIProtocol
 
-        mro_names = [cls.__name__ for cls in type.mro(Relation)]
-        assert "RelationAPIProtocol" in mro_names, (
-            f"Relation does not inherit from RelationAPIProtocol.\n"
-            f"MRO: {mro_names}"
+        assert hasattr(Relation, "_FLAT_NAMESPACES"), (
+            "Relation must define _FLAT_NAMESPACES for builder dispatch"
+        )
+        assert len(Relation._FLAT_NAMESPACES) > 0, (
+            "Relation._FLAT_NAMESPACES must contain at least one builder"
         )
 
     def test_grouped_relation_inherits_api_protocol(self) -> None:
@@ -304,13 +304,20 @@ class TestRelationAPIProtocolMethodCoverage:
 
     @staticmethod
     def _get_public_methods(cls: type) -> set[str]:
-        """Get public method names from a class, excluding object builtins."""
+        """Get public methods including those dispatched via _FLAT_NAMESPACES."""
         object_attrs = set(dir(object))
-        return {
-            name
-            for name in dir(cls)
-            if not name.startswith("_") and name not in object_attrs
-        }
+        methods = set()
+        for name in dir(cls):
+            if name.startswith("_"):
+                continue
+            if name in object_attrs:
+                continue
+            methods.add(name)
+        for ns_cls in getattr(cls, "_FLAT_NAMESPACES", ()):
+            for name, value in ns_cls.__dict__.items():
+                if not name.startswith("_") and callable(value):
+                    methods.add(name)
+        return methods
 
     @staticmethod
     def _get_protocol_methods(protocol_cls: type) -> set[str]:
@@ -387,3 +394,72 @@ class TestRelationAPIProtocolMethodCoverage:
             f"  {sorted(missing)}\n"
             f"Either implement them on GroupedRelation or remove from protocol."
         )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 7: Relation Builder Protocol Completeness
+# ═════════════════════════════════════════════════════════════════════════
+
+
+class TestRelationBuilderProtocolCompleteness:
+    """Every rel_bldr_*.py must have a prtcl_rel_bldr_*.py and inherit from it."""
+
+    def _collect_builder_classes(self) -> list[tuple[str, type]]:
+        from mountainash.relations.core.relation_api.api_builders import (
+            RelationProjectionBuilder,
+        )
+
+        return [
+            ("RelationProjectionBuilder", RelationProjectionBuilder),
+        ]
+
+    def test_builder_inherits_protocol(self):
+        for name, cls in self._collect_builder_classes():
+            assert _has_protocol_in_mro(cls), (
+                f"{name} does not inherit from any Protocol class.\n"
+                f"MRO: {[c.__name__ for c in type.mro(cls)]}"
+            )
+
+    def test_builder_protocol_file_exists(self):
+        protocol_dir = (
+            Path(__file__).resolve().parents[2]
+            / "src"
+            / "mountainash"
+            / "relations"
+            / "core"
+            / "relation_protocols"
+            / "api_builders"
+        )
+        builder_dir = (
+            Path(__file__).resolve().parents[2]
+            / "src"
+            / "mountainash"
+            / "relations"
+            / "core"
+            / "relation_api"
+            / "api_builders"
+        )
+        for f in sorted(builder_dir.glob("rel_bldr_*.py")):
+            expected_protocol = f"prtcl_{f.name}"
+            assert (protocol_dir / expected_protocol).exists(), (
+                f"Builder '{f.name}' has no protocol file.\n"
+                f"Expected: {protocol_dir / expected_protocol}"
+            )
+
+    def test_dispatch_routes_to_concrete_methods(self):
+        """Verify _FLAT_NAMESPACES dispatch only exposes concrete implementations."""
+        import inspect
+
+        from mountainash.relations.core.relation_api.relation import Relation
+
+        for ns_cls in Relation._FLAT_NAMESPACES:
+            for name, value in ns_cls.__dict__.items():
+                if name.startswith("_"):
+                    continue
+                if not callable(value):
+                    continue
+                assert inspect.isfunction(value), (
+                    f"{ns_cls.__name__}.{name} is not a function — "
+                    f"got {type(value).__name__}. "
+                    "Dispatch would expose a protocol stub."
+                )
