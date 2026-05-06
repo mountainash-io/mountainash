@@ -6,8 +6,12 @@ from typing import Any
 
 import narwhals as nw
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitReadRelationSystemProtocol,
+)
 
-class SubstraitNarwhalsReadRelationSystem:
+
+class SubstraitNarwhalsReadRelationSystem(SubstraitReadRelationSystemProtocol):
     """Read / scan a data source into a Narwhals DataFrame."""
 
     def read(self, dataframe: Any, /) -> Any:
