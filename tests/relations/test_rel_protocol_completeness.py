@@ -259,3 +259,131 @@ class TestRelationProtocolExportCompleteness:
             f"is not exported in {package_path}.__all__.\n"
             f"Current __all__: {all_exports}"
         )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 5: Relation API Protocol Inheritance
+# ═════════════════════════════════════════════════════════════════════════
+
+
+class TestRelationAPIProtocolInheritance:
+    """Relation and GroupedRelation must inherit from their API protocols."""
+
+    def test_relation_inherits_api_protocol(self) -> None:
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_protocols import RelationAPIProtocol
+
+        mro_names = [cls.__name__ for cls in type.mro(Relation)]
+        assert "RelationAPIProtocol" in mro_names, (
+            f"Relation does not inherit from RelationAPIProtocol.\n"
+            f"MRO: {mro_names}"
+        )
+
+    def test_grouped_relation_inherits_api_protocol(self) -> None:
+        from mountainash.relations.core.relation_api.grouped_relation import (
+            GroupedRelation,
+        )
+        from mountainash.relations.core.relation_protocols import (
+            GroupedRelationAPIProtocol,
+        )
+
+        mro_names = [cls.__name__ for cls in type.mro(GroupedRelation)]
+        assert "GroupedRelationAPIProtocol" in mro_names, (
+            f"GroupedRelation does not inherit from GroupedRelationAPIProtocol.\n"
+            f"MRO: {mro_names}"
+        )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 6: Relation API Protocol Method Coverage
+# ═════════════════════════════════════════════════════════════════════════
+
+
+class TestRelationAPIProtocolMethodCoverage:
+    """API protocols must cover all public methods on Relation/GroupedRelation."""
+
+    @staticmethod
+    def _get_public_methods(cls: type) -> set[str]:
+        """Get public method names from a class, excluding object builtins."""
+        object_attrs = set(dir(object))
+        return {
+            name
+            for name in dir(cls)
+            if not name.startswith("_") and name not in object_attrs
+        }
+
+    @staticmethod
+    def _get_protocol_methods(protocol_cls: type) -> set[str]:
+        """Get public method/property names defined directly on a protocol class."""
+        return {
+            name
+            for name, value in protocol_cls.__dict__.items()
+            if not name.startswith("_")
+            and (callable(value) or isinstance(value, property))
+        }
+
+    def test_relation_methods_covered_by_protocol(self) -> None:
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_protocols import RelationAPIProtocol
+
+        class_methods = self._get_public_methods(Relation)
+        protocol_methods = self._get_protocol_methods(RelationAPIProtocol)
+
+        missing = class_methods - protocol_methods
+        assert not missing, (
+            f"Relation has public methods not covered by RelationAPIProtocol:\n"
+            f"  {sorted(missing)}\n"
+            f"Add these to the protocol or exclude them explicitly."
+        )
+
+    def test_protocol_methods_exist_on_relation(self) -> None:
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_protocols import RelationAPIProtocol
+
+        protocol_methods = self._get_protocol_methods(RelationAPIProtocol)
+        class_methods = self._get_public_methods(Relation)
+
+        missing = protocol_methods - class_methods
+        assert not missing, (
+            f"RelationAPIProtocol declares methods not found on Relation:\n"
+            f"  {sorted(missing)}\n"
+            f"Either implement them on Relation or remove from protocol."
+        )
+
+    def test_grouped_relation_methods_covered_by_protocol(self) -> None:
+        from mountainash.relations.core.relation_api.grouped_relation import (
+            GroupedRelation,
+        )
+        from mountainash.relations.core.relation_protocols import (
+            GroupedRelationAPIProtocol,
+        )
+
+        class_methods = self._get_public_methods(GroupedRelation)
+        protocol_methods = self._get_protocol_methods(GroupedRelationAPIProtocol)
+
+        missing = class_methods - protocol_methods
+        assert not missing, (
+            f"GroupedRelation has public methods not covered by "
+            f"GroupedRelationAPIProtocol:\n"
+            f"  {sorted(missing)}\n"
+            f"Add these to the protocol or exclude them explicitly."
+        )
+
+    def test_grouped_protocol_methods_exist_on_class(self) -> None:
+        from mountainash.relations.core.relation_api.grouped_relation import (
+            GroupedRelation,
+        )
+        from mountainash.relations.core.relation_protocols import (
+            GroupedRelationAPIProtocol,
+        )
+
+        protocol_methods = self._get_protocol_methods(GroupedRelationAPIProtocol)
+        class_methods = self._get_public_methods(GroupedRelation)
+
+        missing = protocol_methods - class_methods
+        assert not missing, (
+            f"GroupedRelationAPIProtocol declares methods not found on "
+            f"GroupedRelation:\n"
+            f"  {sorted(missing)}\n"
+            f"Either implement them on GroupedRelation or remove from protocol."
+        )
