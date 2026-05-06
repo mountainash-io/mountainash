@@ -6,8 +6,12 @@ from typing import Any
 
 import polars as pl
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitProjectRelationSystemProtocol,
+)
 
-class SubstraitPolarsProjectRelationSystem:
+
+class SubstraitPolarsProjectRelationSystem(SubstraitProjectRelationSystemProtocol):
     """Projection operations on Polars LazyFrames."""
 
     def project_select(self, relation: pl.LazyFrame, columns: list[Any], /) -> pl.LazyFrame:

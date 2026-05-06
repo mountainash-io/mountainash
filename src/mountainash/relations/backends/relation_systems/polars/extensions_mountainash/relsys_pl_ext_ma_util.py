@@ -6,8 +6,12 @@ from typing import Optional
 
 import polars as pl
 
+from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
+    MountainashExtensionRelationSystemProtocol,
+)
 
-class MountainashPolarsExtensionRelationSystem:
+
+class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSystemProtocol):
     """Mountainash-specific relation operations on Polars LazyFrames."""
 
     def drop_nulls(
