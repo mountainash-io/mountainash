@@ -11,8 +11,17 @@ import io
 import polars as pl
 import pytest
 
-from mountainash.relations.dag.readers import read_resource_to_polars
+from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+    MountainashPolarsExtensionRelationSystem,
+)
 from mountainash.typespec.datapackage import DataResource
+
+_polars_ext = MountainashPolarsExtensionRelationSystem()
+
+
+def read_resource_to_polars(res):
+    """Compatibility shim — delegates to Polars backend's read_resource."""
+    return _polars_ext.read_resource(res)
 
 
 def test_https_path_routed_through_facade(monkeypatch):
@@ -23,9 +32,9 @@ def test_https_path_routed_through_facade(monkeypatch):
         calls.append(path)
         return fake_csv
 
-    from mountainash.relations.dag.readers import csv as csv_reader
+    import mountainash.core.io as io_mod
 
-    monkeypatch.setattr(csv_reader, "_facade_read_bytes", fake_read_bytes)
+    monkeypatch.setattr(io_mod, "facade_read_bytes", fake_read_bytes)
 
     res = DataResource(name="t", path="https://example.com/t.csv", format="csv")
     df = read_resource_to_polars(res).collect()
@@ -43,9 +52,9 @@ def test_s3_path_routed_through_facade(monkeypatch):
         calls.append(path)
         return fake_parquet
 
-    from mountainash.relations.dag.readers import parquet as parquet_reader
+    import mountainash.core.io as io_mod
 
-    monkeypatch.setattr(parquet_reader, "_facade_read_bytes", fake_read_bytes)
+    monkeypatch.setattr(io_mod, "facade_read_bytes", fake_read_bytes)
 
     res = DataResource(name="t", path="s3://bucket/t.parquet", format="parquet")
     df = read_resource_to_polars(res).collect()
@@ -61,9 +70,9 @@ def test_r2_csv_routed_through_facade(monkeypatch):
         calls.append(path)
         return fake_csv
 
-    from mountainash.relations.dag.readers import csv as csv_reader
+    import mountainash.core.io as io_mod
 
-    monkeypatch.setattr(csv_reader, "_facade_read_bytes", fake_read_bytes)
+    monkeypatch.setattr(io_mod, "facade_read_bytes", fake_read_bytes)
 
     res = DataResource(name="t", path="r2://bucket/data.csv", format="csv")
     df = read_resource_to_polars(res).collect()
@@ -81,9 +90,9 @@ def test_minio_json_routed_through_facade(monkeypatch):
         calls.append(path)
         return fake_json
 
-    from mountainash.relations.dag.readers import json as json_reader
+    import mountainash.core.io as io_mod
 
-    monkeypatch.setattr(json_reader, "_facade_read_bytes", fake_read_bytes)
+    monkeypatch.setattr(io_mod, "facade_read_bytes", fake_read_bytes)
 
     res = DataResource(name="t", path="minio://bucket/data.json", format="json")
     df = read_resource_to_polars(res).collect()
@@ -101,9 +110,9 @@ def test_local_path_does_not_call_facade(monkeypatch, tmp_path):
         facade_calls.append(path)
         raise AssertionError(f"facade called for local path: {path}")
 
-    from mountainash.relations.dag.readers import csv as csv_reader
+    import mountainash.core.io as io_mod
 
-    monkeypatch.setattr(csv_reader, "_facade_read_bytes", must_not_be_called)
+    monkeypatch.setattr(io_mod, "facade_read_bytes", must_not_be_called)
 
     res = DataResource(name="t", path=str(p), format="csv")
     df = read_resource_to_polars(res).collect()
