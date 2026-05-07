@@ -39,6 +39,10 @@ on:
           - develop
           - main
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   build-and-release:
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
