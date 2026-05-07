@@ -6,6 +6,10 @@ on:
     branches:
       - "main"
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   generate-changelog:
     if: github.event.pull_request.merged == true
