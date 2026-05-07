@@ -98,3 +98,12 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
     ) -> ir.Table:
         order_key = ibis.desc(by) if descending else by
         return relation.order_by(order_key).limit(k)
+
+    def read_resource(self, resource: Any) -> ir.Table:
+        """Load a DataResource via Polars, then coerce to Ibis memtable."""
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
+        )
+
+        lf = MountainashPolarsExtensionRelationSystem().read_resource(resource)
+        return ibis.memtable(lf.collect().to_pandas())

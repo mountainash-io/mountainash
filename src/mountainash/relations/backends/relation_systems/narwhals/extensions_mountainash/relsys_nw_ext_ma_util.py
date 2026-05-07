@@ -88,3 +88,14 @@ class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSys
         self, relation: Any, /, *, k: int, by: str, descending: bool = True
     ) -> Any:
         return relation.sort(by, descending=descending).head(k)
+
+    def read_resource(self, resource: Any) -> Any:
+        """Load a DataResource via Polars, then coerce to Narwhals native."""
+        import narwhals as nw
+
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
+        )
+
+        lf = MountainashPolarsExtensionRelationSystem().read_resource(resource)
+        return nw.from_native(lf.collect(), eager_only=True)
