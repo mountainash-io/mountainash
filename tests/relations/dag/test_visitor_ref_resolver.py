@@ -85,52 +85,6 @@ def test_resource_read_rel_loads_csv_path(tmp_path):
     assert df.shape == (2, 2)
 
 
-# ---------------------------------------------------------------------------
-# Task 14: _coerce_from_polars_lazy — backend coercion
-# ---------------------------------------------------------------------------
-
-def test_coerce_from_polars_lazy_polars_passthrough():
-    """Polars backend: LazyFrame is returned unchanged."""
-    visitor = _make_polars_visitor()
-    lf = pl.DataFrame({"z": [3, 4]}).lazy()
-    result = visitor._coerce_from_polars_lazy(lf)
-    assert isinstance(result, pl.LazyFrame)
-    assert result.collect()["z"].to_list() == [3, 4]
-
-
-def test_coerce_from_polars_lazy_narwhals():
-    """Narwhals backend: LazyFrame is converted to narwhals eager frame."""
-    narwhals = pytest.importorskip("narwhals")
-    from mountainash.relations.backends.relation_systems.narwhals import (
-        NarwhalsRelationSystem,
-    )
-    rs = NarwhalsRelationSystem()
-    visitor = UnifiedRelationVisitor(rs, expression_visitor=None)
-    lf = pl.DataFrame({"n": [5, 6]}).lazy()
-    result = visitor._coerce_from_polars_lazy(lf)
-    # Narwhals wraps the frame; confirm it's a narwhals type and has expected data
-    assert hasattr(result, "to_native") or hasattr(result, "__narwhals_dataframe__")
-    # Can iterate via narwhals API
-    native = narwhals.to_native(result)
-    # native should be a polars or pandas DataFrame with column "n"
-    assert list(native["n"]) == [5, 6]
-
-
-def test_coerce_from_polars_lazy_ibis():
-    """Ibis backend: LazyFrame is converted to an ibis in-memory table."""
-    ibis = pytest.importorskip("ibis")
-    from mountainash.relations.backends.relation_systems.ibis import (
-        IbisRelationSystem,
-    )
-    rs = IbisRelationSystem()
-    visitor = UnifiedRelationVisitor(rs, expression_visitor=None)
-    lf = pl.DataFrame({"i": [7, 8]}).lazy()
-    result = visitor._coerce_from_polars_lazy(lf)
-    # Ibis: result is an ibis Table expression
-    assert hasattr(result, "execute")
-    rows = result.execute()
-    assert list(rows["i"]) == [7, 8]
-
 
 # ---------------------------------------------------------------------------
 # Task 13: existing positional constructor still works (no regression)

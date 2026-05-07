@@ -39,7 +39,8 @@ pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=9.0.0"]
 pyarrow = ["pyarrow>=15.0.0"]
 datacontracts = ["pandera[polars]>=0.22.0"]
-all = ["mountainash[pandas,ibis,pyarrow,datacontracts]"]
+storage = ["mountainash-utils-files"]
+all = ["mountainash[pandas,ibis,pyarrow,datacontracts,storage]"]
 
 
 [project.urls]
