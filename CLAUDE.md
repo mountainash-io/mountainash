@@ -145,7 +145,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 ```
 src/mountainash/
 ├── __init__.py                  # Top-level re-exports (col, lit, when, relation, conform, typespec, etc.)
-├── core/                        # Shared infrastructure (constants, types, enums, factories)
+├── core/                        # Shared infrastructure (constants, types, enums, factories, io)
 ├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
 │   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
@@ -157,11 +157,10 @@ src/mountainash/
 │   │   ├── relation_protocols/ # 9 protocol files + RelationSystem base (prtcl_relsys_*)
 │   │   ├── relation_api/       # Relation fluent API, GroupedRelation
 │   │   └── unified_visitor/    # UnifiedRelationVisitor (with optional ref_resolver kwarg)
-│   ├── dag/                    # NEW: RelationDAG orchestrator
+│   ├── dag/                    # RelationDAG orchestrator (pure orchestration, no file I/O)
 │   │   ├── dag.py              # RelationDAG, dependency_edges, constraint_edges, collect()
 │   │   ├── resource_ref.py     # ResourceRef wrapper (tabular + non-tabular)
-│   │   ├── errors.py           # RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat
-│   │   └── readers/            # csv / json / parquet / inline format dispatch + storage facade routing
+│   │   └── errors.py           # RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat
 │   └── backends/
 │       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
 ├── typespec/                    # Type metadata — serializable Frictionless-aligned specs
@@ -195,7 +194,7 @@ ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "s
 
 All other dependencies are in `pyproject.toml`.
 
-**Workspace dependency for DataPackage I/O:** `mountainash-utils-files` (sibling package) provides the `storage_facade` used by `relations/dag/readers/` to load remote `DataResource` paths (`http://`, `https://`, `s3://`, `r2://`, `minio://`). Local paths bypass the facade and use Polars directly. The import is lazy inside each reader so a local-only test run never touches `mountainash_utils_files`.
+**Workspace dependency for DataPackage I/O:** `mountainash-utils-files` (sibling package, optional `storage` extra) provides `StorageFacade` used by `core/io.py` to load remote `DataResource` paths. `core.io.is_remote()` delegates to the facade's scheme registry for auto-detection; `core.io.facade_read_bytes()` calls `StorageFacade.from_path()`. Local paths bypass the facade and use Polars directly. The import is lazy so a local-only test run never touches `mountainash_utils_files`.
 
 
 ## Development Commands
