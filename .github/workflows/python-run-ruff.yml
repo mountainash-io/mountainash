@@ -1,23 +1,20 @@
 name: Ruff Linting Check
 
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - "src/mountainash/**"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   linting-checks:
     runs-on: ubuntu-24.04
     steps:
-      # Current Branch
-      - name: Get branch name
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}})" >> $GITHUB_ENV
-
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.BRANCH_NAME }}
           fetch-depth: 0
 
       - name: Set up Python 3.12

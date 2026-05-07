@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshNameAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from typing import TYPE_CHECKING
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 
 
-class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshNameAPIBuilder(BaseExpressionAPIBuilder, MountainAshNameAPIBuilderProtocol):
     """
     Column naming operations APIBuilder.
 

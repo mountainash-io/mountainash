@@ -6,8 +6,12 @@ from typing import Any
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitReadRelationSystemProtocol,
+)
 
-class SubstraitIbisReadRelationSystem:
+
+class SubstraitIbisReadRelationSystem(SubstraitReadRelationSystemProtocol):
     """Read / scan a data source into an Ibis table expression.
 
     Ibis tables are already deferred, so this is essentially a pass-through

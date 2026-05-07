@@ -1,0 +1,179 @@
+"""Validator — unified validation orchestrator."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable
+
+import polars as pl
+import pandera.polars as pa
+
+from mountainash.datacontracts.result import ValidationResult
+from mountainash.datacontracts.result_processor import ValidationResultProcessor
+
+if TYPE_CHECKING:
+    from mountainash.datacontracts.contract import BaseDataContract
+    from mountainash.datacontracts.registry import RuleRegistry
+    from mountainash.datacontracts.rule import Rule
+
+
+def _compile_contract_with_rules(
+    contract: type[BaseDataContract],
+    rules: list[Rule],
+) -> type[BaseDataContract]:
+    """Create an ephemeral subclass with compiled rules as @dataframe_check methods."""
+    check_methods: dict[str, Any] = {}
+    for rule in rules:
+        def make_check(r: Rule) -> Any:
+            def check_fn(cls: Any, data: pa.PolarsData) -> pl.LazyFrame:
+                compiled_expr = r.expr.compile(data.lazyframe)
+                return data.lazyframe.select(compiled_expr)
+            return pa.dataframe_check(name=r.id)(check_fn)
+        check_methods[f"_check_{rule.id}"] = make_check(rule)
+
+    return type(
+        f"{contract.__name__}_WithRules",
+        (contract,),
+        check_methods,
+    )
+
+
+class Validator:
+    """Unified validation orchestrator binding contract + rules + data."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        contract: type[BaseDataContract],
+        rules: RuleRegistry | None = None,
+        natural_key: list[str] | None = None,
+        prepare: Callable[[Any], Any] | None = None,
+    ) -> None:
+        self.name = name
+        self.contract = contract
+        self.rules = rules
+        self.natural_key = natural_key
+        self.prepare = prepare
+
+    def _resolve_contract(self, context: dict[str, Any] | None) -> type[BaseDataContract]:
+        if self.rules is None:
+            return self.contract
+        resolved = self.rules.resolve(context=context)
+        if not resolved:
+            return self.contract
+        return _compile_contract_with_rules(self.contract, resolved)
+
+    def _prepare_data(self, data: Any) -> Any:
+        if self.prepare is not None:
+            return self.prepare(data)
+        return data
+
+    @staticmethod
+    def _to_polars(data: Any) -> "pl.DataFrame":
+        """Normalize any input to a polars DataFrame via mountainash relation."""
+        from mountainash.relations import relation
+
+        if isinstance(data, pl.DataFrame):
+            return data
+        rel = relation(data)
+        return rel.collect()
+
+    @staticmethod
+    def _slice_data(
+        df: pl.DataFrame,
+        *,
+        head: int | None = None,
+        tail: int | None = None,
+        sample: int | None = None,
+        random_seed: int | None = None,
+    ) -> pl.DataFrame:
+        """Apply head/tail/sample slicing — mirrors BaseDataContract.validate_datacontract."""
+        if head is not None:
+            df = df.head(head)
+        if tail is not None:
+            df = df.tail(tail)
+        if sample is not None:
+            df = df.sample(n=sample, seed=random_seed)
+        return df
+
+    def validate(
+        self,
+        data: Any,
+        *,
+        context: dict[str, Any] | None = None,
+        head: int | None = None,
+        tail: int | None = None,
+        sample: int | None = None,
+        random_seed: int | None = None,
+    ) -> ValidationResult:
+        """Full validation — collects all errors."""
+        prepared = self._to_polars(self._prepare_data(data))
+        sliced = self._slice_data(prepared, head=head, tail=tail, sample=sample, random_seed=random_seed)
+        active_contract = self._resolve_contract(context)
+
+        try:
+            active_contract.validate_datacontract(
+                prepared, head=head, tail=tail, sample=sample, random_seed=random_seed,
+            )
+            return ValidationResult(
+                passes=True,
+                validator_name=self.name,
+                datacontract_name=active_contract.__name__,
+            )
+        except pa.errors.SchemaErrors as e:
+            processor = ValidationResultProcessor(
+                e.failure_cases,
+                source_data=sliced,
+                natural_key=self.natural_key,
+                validator_name=self.name,
+            )
+            return ValidationResult(
+                passes=False,
+                validator_name=self.name,
+                datacontract_name=active_contract.__name__,
+                processor=processor,
+                message=str(e),
+            )
+
+    def validate_quick(
+        self,
+        data: Any,
+        *,
+        context: dict[str, Any] | None = None,
+        head: int | None = None,
+        tail: int | None = None,
+        sample: int | None = None,
+        random_seed: int | None = None,
+    ) -> ValidationResult:
+        """Quick validation — fails on first error."""
+        prepared = self._to_polars(self._prepare_data(data))
+        sliced = self._slice_data(prepared, head=head, tail=tail, sample=sample, random_seed=random_seed)
+        active_contract = self._resolve_contract(context)
+
+        try:
+            active_contract.validate_datacontract_quick(
+                prepared, head=head, tail=tail, sample=sample, random_seed=random_seed,
+            )
+            return ValidationResult(
+                passes=True,
+                validator_name=self.name,
+                datacontract_name=active_contract.__name__,
+            )
+        except pa.errors.SchemaError as e:
+            fc = getattr(e, "failure_cases", None)
+            processor = (
+                ValidationResultProcessor(
+                    fc,
+                    source_data=sliced,
+                    natural_key=self.natural_key,
+                    validator_name=self.name,
+                )
+                if fc is not None
+                else None
+            )
+            return ValidationResult(
+                passes=False,
+                validator_name=self.name,
+                datacontract_name=active_contract.__name__,
+                processor=processor,
+                message=str(e),
+            )

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarComparisonAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarComparisonAPIBuilderProtocol):
     """Mountainash extension comparison operations.
 
     Provides Polars-compatible aliases for standard comparison operations.

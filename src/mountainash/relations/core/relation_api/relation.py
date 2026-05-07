@@ -7,7 +7,6 @@ from mountainash.core.constants import (
     ExecutionTarget,
     ExtensionRelOperation,
     JoinType,
-    ProjectOperation,
     SetType,
     SortField,
 )
@@ -17,7 +16,6 @@ from ..relation_nodes import (
     FetchRelNode,
     FilterRelNode,
     JoinRelNode,
-    ProjectRelNode,
     ReadRelNode,
     RelationNode,
     SetRelNode,
@@ -25,6 +23,7 @@ from ..relation_nodes import (
 )
 from .relation_base import RelationBase
 from .grouped_relation import GroupedRelation
+from .api_builders import RelationProjectionBuilder
 
 _T = TypeVar("_T")
 
@@ -98,48 +97,18 @@ class Relation(RelationBase):
     terminal operation is called.
     """
 
-    # --- Projection ---
+    _FLAT_NAMESPACES: tuple[type, ...] = (
+        RelationProjectionBuilder,
+    )
 
-    def select(self, *columns: Any) -> Relation:
-        """Select columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(columns),
-                operation=ProjectOperation.SELECT,
-            )
-        )
-
-    def with_columns(self, *expressions: Any) -> Relation:
-        """Add or overwrite columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(expressions),
-                operation=ProjectOperation.WITH_COLUMNS,
-            )
-        )
-
-    def drop(self, *columns: Any) -> Relation:
-        """Drop columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(columns),
-                operation=ProjectOperation.DROP,
-            )
-        )
-
-    def rename(self, mapping: dict[str, str]) -> Relation:
-        """Rename columns according to *mapping*."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=[],
-                operation=ProjectOperation.RENAME,
-                rename_mapping=mapping,
-            )
-        )
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
+        for ns_cls in self._FLAT_NAMESPACES:
+            if name in ns_cls.__dict__:
+                ns = ns_cls(self)
+                return getattr(ns, name)
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
     # --- Filtering ---
 
@@ -451,18 +420,48 @@ class Relation(RelationBase):
         """
         return self._compile_and_execute()
 
-    def collect(self) -> Any:
+    def explain(self) -> str:
+        """Return the backend's query plan as a string, without executing data.
+
+        For Polars, returns the optimized LazyFrame plan. For Ibis, returns
+        the SQL string. For other backends, returns repr() of the compiled plan.
+        """
+        result = self.compile()
+        from mountainash.core.types import is_polars_lazyframe
+        if is_polars_lazyframe(result):
+            return result.explain()
+        if hasattr(result, "compile") and callable(result.compile):
+            try:
+                import ibis
+                return ibis.to_sql(result)
+            except (ImportError, Exception):
+                pass
+        return repr(result)
+
+    def collect(self, *, unwrap: bool = True) -> Any:
         """Execute the plan and return a fully materialized native result.
 
         Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
         an Ibis expression returns an executed result, narwhals returns its
         native frame, and so on. One syntax for all backends.
+
+        Args:
+            unwrap: When *True* (default), narwhals wrappers are stripped so
+                the caller receives the underlying pandas / PyArrow frame.
+                Pass *False* to keep the narwhals wrapper (useful for internal
+                code that needs narwhals-level operations on the result).
         """
-        from mountainash.core.types import is_polars_lazyframe
+        from mountainash.core.types import (
+            is_narwhals_dataframe,
+            is_narwhals_lazyframe,
+            is_polars_lazyframe,
+        )
 
         result = self.compile()
         if is_polars_lazyframe(result):
             return result.collect()
+        if unwrap and (is_narwhals_dataframe(result) or is_narwhals_lazyframe(result)):
+            return result.to_native()
         return result
 
     def item(self, column: str, row: int = 0) -> Any:
@@ -599,13 +598,17 @@ class Relation(RelationBase):
 
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
-        from mountainash.core.types import is_polars_dataframe
+        from mountainash.core.types import (
+            is_pandas_dataframe,
+            is_polars_dataframe,
+        )
 
         result = self.collect()
         if is_polars_dataframe(result):
             return result
-        # Fallback for other backends (Ibis, narwhals, pandas)
         import polars as pl
+        if is_pandas_dataframe(result):
+            return pl.from_pandas(result)
         return pl.from_pandas(result.to_pandas())
 
     def to_pandas(self) -> Any:
@@ -668,18 +671,10 @@ class Relation(RelationBase):
     def schema(self) -> dict:
         """Output schema as {column_name: dtype} dict.
 
-        Compiles the plan to determine the output schema accurately,
-        including derived columns from select/with_columns/rename/join/agg.
+        Infers the schema from the AST without compilation or backend involvement.
         """
-        result = self._compile_and_execute()
-        from mountainash.core.types import is_polars_lazyframe
-        if is_polars_lazyframe(result):
-            return dict(result.collect_schema())
-        if hasattr(result, "schema"):
-            return dict(result.schema)
-        if hasattr(result, "dtypes"):
-            return dict(zip(result.columns, result.dtypes))
-        return {}
+        from mountainash.relations.schema_inference import infer_schema
+        return infer_schema(self._node)
 
     @property
     def dtypes(self) -> list:

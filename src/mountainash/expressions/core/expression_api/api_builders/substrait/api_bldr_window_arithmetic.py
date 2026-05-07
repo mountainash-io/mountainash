@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitWindowArithmeticAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     SUBSTRAIT_ARITHMETIC_WINDOW,
     FKEY_MOUNTAINASH_WINDOW,
@@ -34,7 +35,7 @@ _RANK_METHOD_TO_KEY = {
 }
 
 
-class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder):
+class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitWindowArithmeticAPIBuilderProtocol):
     """
     Window arithmetic operations APIBuilder (Substrait-aligned).
 

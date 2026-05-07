@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from ..relation_nodes import AggregateRelNode, RelationNode
+from mountainash.relations.core.relation_protocols import GroupedRelationAPIProtocol
 
 if TYPE_CHECKING:
     from .relation import Relation
 
 
-class GroupedRelation:
+class GroupedRelation(GroupedRelationAPIProtocol):
     """Intermediate object representing a grouped relation.
 
     Created by ``Relation.group_by(*keys)`` and consumed by ``.agg()``.

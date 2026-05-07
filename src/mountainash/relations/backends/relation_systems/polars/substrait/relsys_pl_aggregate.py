@@ -6,8 +6,12 @@ from typing import Any
 
 import polars as pl
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitAggregateRelationSystemProtocol,
+)
 
-class SubstraitPolarsAggregateRelationSystem:
+
+class SubstraitPolarsAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol):
     """Aggregation operations on Polars LazyFrames."""
 
     def aggregate(

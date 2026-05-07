@@ -6,8 +6,12 @@ from typing import Any
 
 import polars as pl
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitFilterRelationSystemProtocol,
+)
 
-class SubstraitPolarsFilterRelationSystem:
+
+class SubstraitPolarsFilterRelationSystem(SubstraitFilterRelationSystemProtocol):
     """Row filtering on Polars LazyFrames."""
 
     def filter(self, relation: pl.LazyFrame, predicate: Any, /) -> pl.LazyFrame:

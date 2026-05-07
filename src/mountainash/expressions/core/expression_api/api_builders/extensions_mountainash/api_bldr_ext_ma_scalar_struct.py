@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarStructAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarStructAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarStructAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarStructAPIBuilderProtocol):
     """API builder for the .struct namespace."""
 
     def field(self, name: str) -> BaseExpressionAPI:

@@ -1,4 +1,11 @@
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+    from mountainash.datacontracts.contract import BaseDataContract
+
 # Re-export the full expressions public API at the top level
 # so that `import mountainash as ma; ma.col("x")` works
 from mountainash.expressions import (
@@ -61,5 +68,67 @@ def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
 def conform(source: dict | TypeSpec) -> ConformBuilder:
     """Create a ConformBuilder from a dict or TypeSpec."""
     return ConformBuilder(source)
+
+
+def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDataContract]":
+    """Create a DataContract from various schema sources.
+
+    Accepts:
+        - TypeSpec object
+        - BaseDataContract subclass (returned as-is)
+        - pandera DataFrameModel subclass (wrapped with BaseDataContract methods)
+        - Pydantic BaseModel subclass (extracted to TypeSpec, then compiled)
+        - str or Path to a Frictionless JSON schema file
+        - dict with "fields" key (Frictionless descriptor)
+        - dict without "fields" key (simple {name: type_string} mapping)
+    """
+    from pathlib import Path as _Path
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.datacontracts.contract import BaseDataContract as _BaseDataContract
+
+    import pandera.polars as pa
+
+    if isinstance(source, type) and issubclass(source, _BaseDataContract):
+        return source
+
+    if isinstance(source, type) and issubclass(source, pa.DataFrameModel):
+        return type(
+            f"{source.__name__}_DataContract",
+            (_BaseDataContract, source),
+            {},
+        )
+
+    if isinstance(source, TypeSpec):
+        return compile_datacontract(source)
+
+    try:
+        from pydantic import BaseModel as _PydanticBaseModel
+    except ImportError:
+        _PydanticBaseModel = None
+
+    if _PydanticBaseModel is not None and isinstance(source, type) and issubclass(source, _PydanticBaseModel):
+        from mountainash.typespec.extraction import extract_from_pydantic
+        _spec = extract_from_pydantic(source)
+        return compile_datacontract(_spec)
+
+    if isinstance(source, (str, _Path)):
+        from mountainash.typespec.frictionless import typespec_from_frictionless
+        _spec = typespec_from_frictionless(source)
+        return compile_datacontract(_spec)
+
+    if isinstance(source, dict):
+        if "fields" in source:
+            from mountainash.typespec.frictionless import typespec_from_frictionless
+            _spec = typespec_from_frictionless(source)
+            return compile_datacontract(_spec)
+        _spec = TypeSpec.from_simple_dict(source)
+        return compile_datacontract(_spec)
+
+    raise TypeError(
+        f"Cannot create datacontract from {type(source).__name__}. "
+        "Expected TypeSpec, dict, BaseModel subclass, DataFrameModel subclass, "
+        "or path to a Frictionless JSON file."
+    )
+
 
 """Mountainash - Unified cross-backend DataFrame expression system."""

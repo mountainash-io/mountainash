@@ -157,11 +157,6 @@ class TestHead:
 
 
 class TestJoinInner:
-    @pytest.mark.xfail(
-        reason="Ibis backend passes unsupported 'suffixes' kwarg to Table.join(). "
-               "See relsys_ib_join.py — needs to use 'lname'/'rname' or drop 'suffixes'.",
-        strict=True,
-    )
     def test_inner_join(self, ibis_table, ibis_join_table):
         result = _to_polars(
             relation(ibis_table).join(relation(ibis_join_table), on="id")

@@ -14,10 +14,6 @@ _TABULAR_FORMATS: frozenset[str] = frozenset({
     "csv", "tsv", "json", "ndjson", "parquet", "jsonl",
 })
 
-_REMOTE_SCHEMES: tuple[str, ...] = (
-    "http://", "https://", "s3://", "r2://", "minio://",
-)
-
 
 class ResourceRef:
     """Uniform wrapper around a DataResource.
@@ -49,11 +45,9 @@ class ResourceRef:
         path: Any = self.resource.path
         if isinstance(path, list):
             path = path[0]
-        if any(path.startswith(s) for s in _REMOTE_SCHEMES):
-            # Reuse the storage facade dispatch from the readers package so we
-            # don't duplicate the URL-scheme → backend logic.
-            from mountainash.relations.dag.readers.csv import _facade_read_bytes
-            return _facade_read_bytes(path)
+        from mountainash.core.io import is_remote, facade_read_bytes
+        if is_remote(path):
+            return facade_read_bytes(path)
         return Path(path).read_bytes()
 
     def relation(self) -> "Relation":

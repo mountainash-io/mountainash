@@ -144,30 +144,11 @@ class UnifiedRelationVisitor:
         return self.ref_resolver(node.name)
 
     def visit_resource_read_rel(self, node: Any) -> Any:
-        """Visit a resource-read node — loads via readers and coerces to active backend."""
-        from mountainash.relations.dag.readers import read_resource_to_polars
-        lf = read_resource_to_polars(node.resource)  # always pl.LazyFrame
-        out = self._coerce_from_polars_lazy(lf)
+        """Visit a resource-read node — delegates to backend's read_resource."""
+        out = self.backend.read_resource(node.resource)
         if node.resource.table_schema is not None:
             out = self._apply_conform(out, node.resource.table_schema)
         return out
-
-    def _coerce_from_polars_lazy(self, lf: Any) -> Any:
-        """Convert a Polars LazyFrame to the relation_system's native type.
-
-        - Polars backends: pass through unchanged.
-        - Narwhals backends: wrap with nw.from_native (eager collect first).
-        - Ibis backends: convert to ibis memtable via pandas intermediary.
-        """
-        cls_name = type(self.backend).__name__
-        if "Narwhals" in cls_name:
-            import narwhals as nw
-            return nw.from_native(lf.collect(), eager_only=True)
-        if "Ibis" in cls_name:
-            import ibis
-            return ibis.memtable(lf.collect().to_pandas())
-        # Polars (default / any unrecognised backend): pass through as LazyFrame
-        return lf
 
     def _apply_conform(self, native: Any, schema: Any) -> Any:
         """Apply conform from a TypeSpec or raw frictionless schema dict.

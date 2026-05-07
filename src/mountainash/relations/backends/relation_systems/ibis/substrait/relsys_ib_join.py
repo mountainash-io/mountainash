@@ -7,6 +7,9 @@ from typing import Any, Optional
 import ibis.expr.types as ir
 
 from mountainash.core.constants import JoinType
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitJoinRelationSystemProtocol,
+)
 
 # Mapping from mountainash JoinType to Ibis ``how`` parameter values.
 _JOIN_TYPE_MAP: dict[JoinType, str] = {
@@ -20,7 +23,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitIbisJoinRelationSystem:
+class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
     """Join operations on Ibis table expressions."""
 
     def join(
@@ -53,7 +56,7 @@ class SubstraitIbisJoinRelationSystem:
             # Cross join or no predicate.
             predicates = []
 
-        return left.join(right, predicates=predicates, how=how, suffixes=("", suffix))
+        return left.join(right, predicates=predicates, how=how, lname="", rname=suffix or "{name}_right")
 
     def join_asof(
         self,

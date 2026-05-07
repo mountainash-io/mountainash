@@ -33,6 +33,15 @@ TESTED_PARAMS: list[tuple] = [
     (FK_WIN.RANK, "order_by_col"),
     (FK_WIN.DENSE_RANK, "order_by_col"),
     (FK_WIN.ROW_NUMBER, "order_by_col"),
+    # Mountainash extension window operations
+    ("backward_fill", "x"),
+    ("cum_count", "x"),
+    ("cum_max", "x"),
+    ("cum_min", "x"),
+    ("cum_prod", "x"),
+    ("cum_sum", "x"),
+    ("diff", "x"),
+    ("forward_fill", "x"),
 ]
 
 OP_SPECS: list[OpSpec] = []

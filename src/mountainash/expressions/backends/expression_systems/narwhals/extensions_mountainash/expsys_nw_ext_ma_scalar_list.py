@@ -1,10 +1,13 @@
 """Narwhals backend for mountainash list operations."""
 from __future__ import annotations
 
+import narwhals as nw
+
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 
 
-class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem):
+class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of list operations."""
 
     def list_sum(self, x, /):

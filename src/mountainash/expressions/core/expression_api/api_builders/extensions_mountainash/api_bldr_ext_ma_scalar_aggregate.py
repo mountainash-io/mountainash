@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarAggregateAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarAggregateAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarAggregateAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarAggregateAPIBuilderProtocol):
     """Mountainash short aliases for Substrait aggregate operations."""
 
     def mean(self, *, overflow: Optional[str] = None) -> "BaseExpressionAPI":
