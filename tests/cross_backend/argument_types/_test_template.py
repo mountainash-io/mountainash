@@ -73,23 +73,21 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     """Returns a pytest.mark.xfail if the registry declares this combination limited,
     and the input type actually exercises the limitation (col/complex, not raw/lit).
 
-    The narwhals KNOWN_EXPR_LIMITATIONS registry is shared between narwhals-polars
-    and narwhals-pandas, but the actual native-backend behaviour differs: narwhals
-    wrapping polars sometimes accepts expressions the registry flags (in particular
-    anything narwhals itself has learned to pass through to polars). Rather than
-    maintain two parallel registries, we keep a small allow-list of
-    (function_key, param_name) pairs that are known to work on narwhals-polars
-    despite the registry entry, and skip the xfail for those on that variant only.
-    When upstream narwhals extends support further, entries are added to the
-    allow-list and the registry entry itself is kept to enrich narwhals-pandas
-    errors until both variants work.
+    narwhals-polars: the KNOWN_EXPR_LIMITATIONS registry is shared with narwhals-pandas,
+    but narwhals often passes expressions through to Polars which handles them fine.
+    _NW_POLARS_FIXED tracks ops confirmed to work — these get NO xfail (regression
+    detection). Other Narwhals "literal values" limitations use strict=False (an
+    unexpected pass is fine, a failure is expected).
     """
     if input_type in ("raw", "lit"):
         return None
+
+    registry = _get_registry(backend)
+    limitation = registry.get((function_key, param_name))
+    if limitation is None:
+        return None
+
     if backend == "narwhals-polars":
-        # narwhals 2.19.0 added Expr support for str.contains on polars.
-        # Extend this list as upstream closes more gaps; see
-        # h.backlog/narwhals-219-upgrade.md.
         from mountainash.expressions.core.expression_system.function_keys.enums import (
             FKEY_SUBSTRAIT_SCALAR_STRING as _FK_STR,
         )
@@ -103,10 +101,13 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
         }
         if (function_key, param_name) in _NW_POLARS_FIXED:
             return None
-    registry = _get_registry(backend)
-    limitation = registry.get((function_key, param_name))
-    if limitation is None:
-        return None
+        if "literal" in limitation.message.lower() or "not accept expression" in limitation.message.lower():
+            return pytest.mark.xfail(
+                strict=False,
+                raises=BackendCapabilityError,
+                reason=f"[non-strict] {limitation.message}",
+            )
+
     return pytest.mark.xfail(
         strict=True,
         raises=BackendCapabilityError,
