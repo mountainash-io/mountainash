@@ -31,9 +31,16 @@ class OpSpec:
     data: dict[str, list[Any]]
     input_col: str = "text"
     extra: dict[str, Any] = field(default_factory=dict)
+    complex_builder: Callable[[str], Any] | None = None
+    execution_mode: str = "select"
 
 
-def _materialize_arg(input_type: str, raw: Any, col_name: str):
+def _materialize_arg(
+    input_type: str,
+    raw: Any,
+    col_name: str,
+    complex_builder: Callable[[str], Any] | None = None,
+):
     """Produce the argument value for a given input type."""
     if input_type == "raw":
         return raw
@@ -42,6 +49,8 @@ def _materialize_arg(input_type: str, raw: Any, col_name: str):
     if input_type == "col":
         return ma.col(col_name)
     if input_type == "complex":
+        if complex_builder is not None:
+            return complex_builder(col_name)
         if isinstance(raw, str):
             return ma.col(col_name).str.lower()
         return ma.col(col_name).add(ma.lit(0))
@@ -105,8 +114,11 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     )
 
 
-def _materialize_result(df, compiled, backend: str) -> None:
+def _materialize_result(df, compiled, backend: str, execution_mode: str = "select") -> None:
     """Force execution to surface errors that fire at materialization time."""
+    if execution_mode == "over":
+        compiled = compiled.over("__group__")
+
     if backend == "polars":
         import polars as pl
 
@@ -127,7 +139,7 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     from cross_backend.argument_types.conftest import make_df
 
     df = make_df(op.data, backend)
-    arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name)
+    arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name, op.complex_builder)
     expr = op.build(ma.col(op.input_col), arg)
 
     registry = _get_registry(backend)
@@ -136,7 +148,7 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     try:
         compiled = expr.compile(df)
         assert compiled is not None
-        _materialize_result(df, compiled, backend)
+        _materialize_result(df, compiled, backend, op.execution_mode)
     except BackendCapabilityError:
         raise
     except Exception as e:
