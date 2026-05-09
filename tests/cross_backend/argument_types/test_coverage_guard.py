@@ -56,18 +56,18 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     # tests, not entries here. Shrink this set over time.
     #
     # -- arithmetic --
-    ("abs", "x"), ("add", "x"), ("add", "y"), ("divide", "x"), ("divide", "y"),
-    ("exp", "x"), ("factorial", "n"), ("modulus", "x"), ("modulus", "y"),
-    ("multiply", "x"), ("multiply", "y"), ("negate", "x"), ("power", "x"), ("power", "y"),
-    ("sign", "x"), ("sqrt", "x"), ("subtract", "x"), ("subtract", "y"),
+    ("abs", "x"), ("add", "x"), ("divide", "x"),
+    ("exp", "x"), ("modulus", "x"),
+    ("multiply", "x"), ("negate", "x"), ("power", "x"),
+    ("sign", "x"), ("sqrt", "x"), ("subtract", "x"),
     ("cos", "x"), ("cosh", "x"), ("sin", "x"), ("sinh", "x"), ("tan", "x"), ("tanh", "x"),
     ("acos", "x"), ("acosh", "x"), ("asin", "x"), ("asinh", "x"), ("atan", "x"), ("atanh", "x"),
-    ("atan2", "x"), ("atan2", "y"), ("degrees", "x"), ("radians", "x"),
-    ("bitwise_and", "x"), ("bitwise_and", "y"), ("bitwise_or", "x"), ("bitwise_or", "y"),
-    ("bitwise_xor", "x"), ("bitwise_xor", "y"), ("bitwise_not", "x"),
-    ("shift_left", "base"), ("shift_left", "shift"), ("shift_right", "base"), ("shift_right", "shift"),
-    ("shift_right_unsigned", "base"), ("shift_right_unsigned", "shift"),
-    ("floor_divide", "x"), ("floor_divide", "y"),
+    ("atan2", "x"), ("degrees", "x"), ("radians", "x"),
+    ("bitwise_and", "x"), ("bitwise_or", "x"),
+    ("bitwise_xor", "x"), ("bitwise_not", "x"),
+    ("shift_left", "base"), ("shift_right", "base"),
+    ("shift_right_unsigned", "base"),
+    ("floor_divide", "x"),
     # -- datetime --
     ("day", "x"), ("day_of_week", "x"), ("day_of_year", "x"), ("hour", "x"),
     ("microsecond", "x"), ("millisecond", "x"), ("minute", "x"), ("month", "x"),
