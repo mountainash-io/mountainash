@@ -81,11 +81,8 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("strftime", "x"), ("strftime", "format"),
     ("strptime_date", "x"), ("strptime_time", "x"), ("strptime_timestamp", "x"),
     ("offset_by", "x"),
-    ("add_days", "x"), ("add_days", "days"), ("add_hours", "x"), ("add_hours", "hours"),
-    ("add_microseconds", "x"), ("add_microseconds", "microseconds"),
-    ("add_milliseconds", "x"), ("add_milliseconds", "milliseconds"),
-    ("add_minutes", "x"), ("add_minutes", "minutes"), ("add_months", "x"), ("add_months", "months"),
-    ("add_seconds", "x"), ("add_seconds", "seconds"), ("add_years", "x"), ("add_years", "years"),
+    # add_days/hours/microseconds/milliseconds/minutes/months/seconds/years
+    # secondary params now have OP_SPECS in test_arg_types_datetime.py; removed 2026-05-09.
     ("add_intervals", "x"), ("add_intervals", "y"),
     ("diff_days", "x"), ("diff_days", "other"), ("diff_hours", "x"), ("diff_hours", "other"),
     ("diff_milliseconds", "x"), ("diff_milliseconds", "other"),
