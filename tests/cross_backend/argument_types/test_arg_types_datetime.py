@@ -4,6 +4,22 @@ The add_* operations (add_days, add_hours, etc.) have KNOWN_EXPR_LIMITATIONS
 on narwhals (literal-only offset) and ibis (ibis.interval rejects expressions).
 On ibis, the TypeError fires at execution time (not compile time), so the test
 template fallback catch in _test_template.py:137-145 handles error enrichment.
+
+The diff_* operations (diff_days, diff_hours, etc.) take a second datetime
+expression as `other`.  The complex_builder offsets the `other` column by 1 day
+to exercise a genuine sub-expression rather than a bare column reference.
+
+Skipped params (not added as OP_SPECS):
+- diff_milliseconds.other: API builder has no diff_milliseconds method (returns None).
+- to_timezone.timezone: FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE is not in the
+  Polars function registry (KeyError at compile time).
+- assume_timezone.timezone, strftime.format, truncate.unit, ceil.unit, floor.unit,
+  round.unit: these are passed as options (not visited expressions) in the API builder;
+  lit/col/complex input types fail with TypeError.  ceil/floor/round are additionally
+  broken even with raw args (name collision with numeric rounding).
+- extract.component, extract.timezone, extract_boolean.component: internal dispatch
+  params used by the visitor, not exposed via the fluent API.
+- round_temporal.*, round_calendar.*: options (int/str literals), not expression args.
 """
 from __future__ import annotations
 
@@ -11,6 +27,7 @@ from datetime import datetime
 
 import pytest
 
+import mountainash as ma
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_DT,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
@@ -232,6 +249,95 @@ OP_SPECS: list[OpSpec] = [
             "years": [1, 2, 5],
         },
         input_col="dt",
+    ),
+    # ------------------------------------------------------------------
+    # Diff ops — `other` is a datetime expression argument
+    # complex_builder offsets the `other` column by 1 day so the complex
+    # input type exercises a genuine sub-expression, not just a column ref.
+    # ------------------------------------------------------------------
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_DAYS,
+        op_name="diff_days",
+        build=lambda col, arg: col.dt.diff_days(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_HOURS,
+        op_name="diff_hours",
+        build=lambda col, arg: col.dt.diff_hours(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_MINUTES,
+        op_name="diff_minutes",
+        build=lambda col, arg: col.dt.diff_minutes(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_SECONDS,
+        op_name="diff_seconds",
+        build=lambda col, arg: col.dt.diff_seconds(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_MONTHS,
+        op_name="diff_months",
+        build=lambda col, arg: col.dt.diff_months(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_YEARS,
+        op_name="diff_years",
+        build=lambda col, arg: col.dt.diff_years(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
     ),
 ]
 

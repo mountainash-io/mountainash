@@ -78,7 +78,25 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         (FK_STR.SUBSTRING, "start"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.SUBSTRING, "length"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.LPAD, "length"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.LPAD, "characters"): KnownLimitation(
+            message=(
+                "Narwhals str.lpad() requires a single literal fill character, not a column expression. "
+                "Polars backend: expression yields a multi-character string rejected by Polars. "
+                "Pandas backend: str.rjust() fillchar must be a single character."
+            ),
+            native_errors=(ValueError, TypeError),
+            workaround="Use a literal single-character string",
+        ),
         (FK_STR.RPAD, "length"): _NW_STRING_LITERAL_ONLY,
+        (FK_STR.RPAD, "characters"): KnownLimitation(
+            message=(
+                "Narwhals str.rpad() requires a single literal fill character, not a column expression. "
+                "Polars backend: expression yields a multi-character string rejected by Polars. "
+                "Pandas backend: str.ljust() fillchar must be a single character."
+            ),
+            native_errors=(ValueError, TypeError),
+            workaround="Use a literal single-character string",
+        ),
         (FK_STR.LEFT, "count"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.RIGHT, "count"): _NW_STRING_LITERAL_ONLY,
         (FK_STR.TRIM, "characters"): _NW_STRING_LITERAL_ONLY,

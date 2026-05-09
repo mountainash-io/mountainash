@@ -81,18 +81,12 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("strftime", "x"), ("strftime", "format"),
     ("strptime_date", "x"), ("strptime_time", "x"), ("strptime_timestamp", "x"),
     ("offset_by", "x"),
-    ("add_days", "x"), ("add_days", "days"), ("add_hours", "x"), ("add_hours", "hours"),
-    ("add_microseconds", "x"), ("add_microseconds", "microseconds"),
-    ("add_milliseconds", "x"), ("add_milliseconds", "milliseconds"),
-    ("add_minutes", "x"), ("add_minutes", "minutes"), ("add_months", "x"), ("add_months", "months"),
-    ("add_seconds", "x"), ("add_seconds", "seconds"), ("add_years", "x"), ("add_years", "years"),
+    # add_days/hours/microseconds/milliseconds/minutes/months/seconds/years
+    # secondary params now have OP_SPECS in test_arg_types_datetime.py; removed 2026-05-09.
     ("add_intervals", "x"), ("add_intervals", "y"),
-    ("diff_days", "x"), ("diff_days", "other"), ("diff_hours", "x"), ("diff_hours", "other"),
+    # diff_days/hours/minutes/seconds/months/years now have OP_SPECS; removed 2026-05-09.
+    # diff_milliseconds: API builder has no diff_milliseconds method (returns None); skip.
     ("diff_milliseconds", "x"), ("diff_milliseconds", "other"),
-    ("diff_minutes", "x"), ("diff_minutes", "other"),
-    ("diff_months", "x"), ("diff_months", "other"),
-    ("diff_seconds", "x"), ("diff_seconds", "other"),
-    ("diff_years", "x"), ("diff_years", "other"),
     ("total_microseconds", "x"), ("total_milliseconds", "x"),
     ("total_minutes", "x"), ("total_seconds", "x"),
     ("truncate", "x"), ("truncate", "unit"),
@@ -106,25 +100,21 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("json_decode", "x"), ("json_path_match", "x"), ("encode", "x"), ("decode", "x"),
     ("extract_groups", "x"),
     # -- string (substrait) --
-    ("contains", "substring"), ("count_substring", "substring"),
-    ("ends_with", "substring"), ("starts_with", "substring"), ("strpos", "substring"),
-    ("like", "match"), ("left", "count"), ("right", "count"),
-    ("repeat", "count"), ("substring", "start"), ("substring", "length"),
-    ("replace", "substring"), ("replace", "replacement"),
-    ("replace_slice", "start"), ("replace_slice", "length"), ("replace_slice", "replacement"),
-    ("trim", "characters"), ("ltrim", "characters"), ("rtrim", "characters"),
-    ("lpad", "length"), ("lpad", "characters"), ("rpad", "length"), ("rpad", "characters"),
-    ("center", "length"), ("center", "character"),
-    ("concat_ws", "separator"), ("concat_ws", "string_arguments"),
+    # All previously-listed params now have OP_SPECS in test_arg_types_string.py,
+    # except for those with broken underlying APIs (noted below).
+    # Broken API — STRING_SPLIT enum key missing in FKEY_SUBSTRAIT_SCALAR_STRING:
     ("string_split", "separator"),
+    # Broken API — concat_ws backend accepts exactly 2 positional args; *others not wired:
+    ("concat_ws", "string_arguments"),
+    # Broken API — regexp_count_substring, regexp_strpos backends return None (NoneType.compile):
+    ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
+    ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
+    # Broken API — regexp_match_substring, regexp_match_substring_all, regexp_string_split
+    # reference missing FKEY enum members:
     ("regexp_match_substring", "pattern"), ("regexp_match_substring", "position"),
     ("regexp_match_substring", "occurrence"), ("regexp_match_substring", "group"),
     ("regexp_match_substring_all", "pattern"), ("regexp_match_substring_all", "position"),
     ("regexp_match_substring_all", "group"),
-    ("regexp_replace", "pattern"), ("regexp_replace", "position"),
-    ("regexp_replace", "occurrence"), ("regexp_replace", "replacement"),
-    ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
-    ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
     ("regexp_string_split", "pattern"),
 }
 
