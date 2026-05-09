@@ -50,7 +50,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def extract_boolean(self, x: ExpressionT, /, component: ExpressionT) -> ExpressionT:
+    def extract_boolean(self, x: ExpressionT, /, component: str) -> ExpressionT:
         """Extract boolean values of a date/time value. * IS_LEAP_YEAR Return true if year of the given value is a leap year and false otherwise. * IS_DST Return true if DST (Daylight Savings Time) is observed at the given value
   in the given timezone.
 
@@ -182,7 +182,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_temporal(self, x: ExpressionT, /, rounding: Optional[str], unit: str, multiple: int, origin: Optional[str]) -> ExpressionT:
+    def round_temporal(self, x: ExpressionT, /, rounding: Optional[str] = None, unit: str = "1d", multiple: int = 1, origin: Optional[str] = None) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -191,7 +191,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_calendar(self, x: ExpressionT, /, rounding: Optional[str], unit: str, origin: Optional[str], multiple: int) -> ExpressionT:
+    def round_calendar(self, x: ExpressionT, /, rounding: Optional[str] = None, unit: str = "1d", origin: Optional[str] = None, multiple: int = 1) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 

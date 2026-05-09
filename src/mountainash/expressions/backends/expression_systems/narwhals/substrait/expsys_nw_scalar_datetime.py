@@ -440,9 +440,9 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        rounding: Optional[str],
-        unit: str,
-        multiple: int = None,
+        rounding: Optional[str] = None,
+        unit: str = "1d",
+        multiple: int = 1,
         origin: Optional[str] = None,
     ) -> NarwhalsExpr:
         """Round datetime to a multiple of a time unit.
@@ -467,10 +467,10 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        rounding: Optional[str],
-        unit: str,
+        rounding: Optional[str] = None,
+        unit: str = "1d",
         origin: Optional[str] = None,
-        multiple: int = None,
+        multiple: int = 1,
     ) -> NarwhalsExpr:
         """Round datetime to a calendar unit.
 

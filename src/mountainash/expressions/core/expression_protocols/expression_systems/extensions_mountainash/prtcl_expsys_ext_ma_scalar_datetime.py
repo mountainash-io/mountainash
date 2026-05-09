@@ -342,8 +342,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def truncate(
         self,
         x: ExpressionT,
-        unit: str,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Truncate datetime to the specified unit (floor)."""
         ...
@@ -351,8 +352,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def round(
         self,
         x: ExpressionT,
-        unit: str,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime to the nearest unit."""
         ...
@@ -360,8 +362,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def ceil(
         self,
         x: ExpressionT,
-        unit: str,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime up to the next unit."""
         ...
@@ -369,8 +372,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def floor(
         self,
         x: ExpressionT,
-        unit: str,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime down to the previous unit."""
         ...
