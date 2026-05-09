@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
+)
 from cross_backend.argument_types.conftest import ALL_BACKENDS
 from cross_backend.argument_types._test_template import (
     INPUT_TYPES,
@@ -26,7 +29,25 @@ TESTED_PARAMS: list[tuple] = [
     ("list_unique", "x"),
 ]
 
-OP_SPECS: list[OpSpec] = []
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key=FK_LIST.CONTAINS,
+        op_name="list_contains_item",
+        build=lambda col, arg: col.list.contains(arg),
+        raw_arg=2,
+        arg_col_name="item",
+        param_name="item",
+        input_col="a",
+        data={"a": [[1, 2, 3], [4, 5, 6], [7, 8, 9]], "item": [2, 5, 1]},
+    ),
+]
+
+_NW_XFAIL = pytest.mark.xfail(
+    strict=True,
+    raises=TypeError,
+    reason="Narwhals list namespace not supported on pandas; expression handling issues on polars",
+)
+_NW_BACKENDS = {"narwhals-polars", "narwhals-pandas"}
 
 
 def _params():
@@ -36,6 +57,8 @@ def _params():
             for it in INPUT_TYPES:
                 mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
                 marks = [mark] if mark else []
+                if bk in _NW_BACKENDS:
+                    marks = [_NW_XFAIL]
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )
