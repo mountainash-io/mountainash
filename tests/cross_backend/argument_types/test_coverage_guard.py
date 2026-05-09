@@ -100,7 +100,6 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("round_temporal", "origin"), ("round_temporal", "rounding"),
     ("round_calendar", "x"), ("round_calendar", "unit"), ("round_calendar", "multiple"),
     ("round_calendar", "origin"), ("round_calendar", "rounding"),
-    # -- rounding --
     ("ceil", "unit"), ("floor", "unit"), ("round", "unit"),
     # -- string (ext) --
     ("strip_suffix", "x"), ("to_integer", "x"), ("to_time", "x"),
