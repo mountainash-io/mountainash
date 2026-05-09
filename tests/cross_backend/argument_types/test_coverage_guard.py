@@ -148,6 +148,11 @@ def test_every_argument_param_is_tested():
     assert not newly_missing, f"New argument params with no test (add test or register in _KNOWN_UNTESTED): {sorted(newly_missing)}"
     assert not extra, f"Tested params with no protocol: {sorted(extra)}"
     assert not stale_known, f"Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that no longer exist in protocols (remove them): {sorted(stale_known)}"
+    overlap = _KNOWN_UNTESTED_ARGUMENT_PARAMS & tested
+    assert not overlap, (
+        f"Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that are already tested "
+        f"(remove from _KNOWN_UNTESTED): {sorted(overlap)}"
+    )
 
 
 def test_all_protocols_categorized():
