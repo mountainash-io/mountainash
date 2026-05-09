@@ -295,3 +295,28 @@ class TestProtocolExportCompleteness:
             f"is not exported in {package_path}.__all__.\n"
             f"Current __all__: {all_exports}"
         )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 6: Expression Dispatch Validation
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestExpressionDispatchValidation:
+    """Verify _FLAT_NAMESPACES dispatch only exposes concrete implementations."""
+
+    def test_dispatch_routes_to_concrete_methods(self):
+        """Every method in _FLAT_NAMESPACES must be a real function, not a Protocol stub."""
+        import inspect
+        from mountainash.expressions.core.expression_api.boolean import BooleanExpressionAPI
+
+        for ns_cls in BooleanExpressionAPI._FLAT_NAMESPACES:
+            for name, value in ns_cls.__dict__.items():
+                if name.startswith("_"):
+                    continue
+                if not callable(value):
+                    continue
+                assert inspect.isfunction(value), (
+                    f"{ns_cls.__name__}.{name} is not a function — "
+                    f"got {type(value).__name__}. "
+                    "Dispatch would expose a protocol stub."
+                )
