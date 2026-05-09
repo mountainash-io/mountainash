@@ -55,62 +55,30 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     # previously-untracked protocol in _CATEGORY_MAP. New operations should add
     # tests, not entries here. Shrink this set over time.
     #
-    # -- arithmetic --
-    ("abs", "x"), ("add", "x"), ("divide", "x"),
-    ("exp", "x"), ("modulus", "x"),
-    ("multiply", "x"), ("negate", "x"), ("power", "x"),
-    ("sign", "x"), ("sqrt", "x"), ("subtract", "x"),
-    ("cos", "x"), ("cosh", "x"), ("sin", "x"), ("sinh", "x"), ("tan", "x"), ("tanh", "x"),
-    ("acos", "x"), ("acosh", "x"), ("asin", "x"), ("asinh", "x"), ("atan", "x"), ("atanh", "x"),
-    ("atan2", "x"), ("degrees", "x"), ("radians", "x"),
-    ("bitwise_and", "x"), ("bitwise_or", "x"),
-    ("bitwise_xor", "x"), ("bitwise_not", "x"),
-    ("shift_left", "base"), ("shift_right", "base"),
-    ("shift_right_unsigned", "base"),
-    ("floor_divide", "x"),
-    # -- datetime --
-    ("day", "x"), ("day_of_week", "x"), ("day_of_year", "x"), ("hour", "x"),
-    ("microsecond", "x"), ("millisecond", "x"), ("minute", "x"), ("month", "x"),
-    ("nanosecond", "x"), ("quarter", "x"), ("second", "x"), ("week_of_year", "x"), ("year", "x"),
-    ("iso_year", "x"), ("is_dst", "x"), ("is_leap_year", "x"),
-    ("extract", "x"), ("extract", "component"), ("extract", "timezone"),
-    ("extract_boolean", "x"), ("extract_boolean", "component"),
-    ("assume_timezone", "x"), ("assume_timezone", "timezone"),
-    ("to_timezone", "x"), ("to_timezone", "timezone"),
-    ("timezone_offset", "x"), ("local_timestamp", "x"), ("unix_timestamp", "x"),
-    ("strftime", "x"), ("strftime", "format"),
-    ("strptime_date", "x"), ("strptime_time", "x"), ("strptime_timestamp", "x"),
-    ("offset_by", "x"),
-    # add_days/hours/microseconds/milliseconds/minutes/months/seconds/years
-    # secondary params now have OP_SPECS in test_arg_types_datetime.py; removed 2026-05-09.
-    ("add_intervals", "x"), ("add_intervals", "y"),
-    # diff_days/hours/minutes/seconds/months/years now have OP_SPECS; removed 2026-05-09.
-    # diff_milliseconds: API builder has no diff_milliseconds method (returns None); skip.
-    ("diff_milliseconds", "x"), ("diff_milliseconds", "other"),
-    ("total_microseconds", "x"), ("total_milliseconds", "x"),
-    ("total_minutes", "x"), ("total_seconds", "x"),
-    ("truncate", "x"), ("truncate", "unit"),
-    ("round_temporal", "x"), ("round_temporal", "unit"), ("round_temporal", "multiple"),
-    ("round_temporal", "origin"), ("round_temporal", "rounding"),
-    ("round_calendar", "x"), ("round_calendar", "unit"), ("round_calendar", "multiple"),
-    ("round_calendar", "origin"), ("round_calendar", "rounding"),
+    # -- datetime (options masquerading as arguments) --
+    # These params are typed as ExpressionT in protocols but passed via options={},
+    # not visited expressions — lit/col/complex fail with TypeError.
+    ("extract", "component"), ("extract", "timezone"),
+    ("extract_boolean", "component"),
+    ("assume_timezone", "timezone"), ("to_timezone", "timezone"),
+    ("strftime", "format"), ("truncate", "unit"),
     ("ceil", "unit"), ("floor", "unit"), ("round", "unit"),
-    # -- string (ext) --
+    ("round_temporal", "unit"), ("round_temporal", "multiple"),
+    ("round_temporal", "origin"), ("round_temporal", "rounding"),
+    ("round_calendar", "unit"), ("round_calendar", "multiple"),
+    ("round_calendar", "origin"), ("round_calendar", "rounding"),
+    # -- datetime (unimplemented APIs) --
+    ("add_intervals", "y"),
+    ("diff_milliseconds", "other"),
+    # -- string (ext) — APIs broken, TESTED_PARAMS removed --
     ("strip_suffix", "x"), ("to_integer", "x"), ("to_time", "x"),
     ("json_decode", "x"), ("json_path_match", "x"), ("encode", "x"), ("decode", "x"),
     ("extract_groups", "x"),
-    # -- string (substrait) --
-    # All previously-listed params now have OP_SPECS in test_arg_types_string.py,
-    # except for those with broken underlying APIs (noted below).
-    # Broken API — STRING_SPLIT enum key missing in FKEY_SUBSTRAIT_SCALAR_STRING:
+    # -- string (substrait) — broken APIs --
     ("string_split", "separator"),
-    # Broken API — concat_ws backend accepts exactly 2 positional args; *others not wired:
     ("concat_ws", "string_arguments"),
-    # Broken API — regexp_count_substring, regexp_strpos backends return None (NoneType.compile):
     ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
     ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
-    # Broken API — regexp_match_substring, regexp_match_substring_all, regexp_string_split
-    # reference missing FKEY enum members:
     ("regexp_match_substring", "pattern"), ("regexp_match_substring", "position"),
     ("regexp_match_substring", "occurrence"), ("regexp_match_substring", "group"),
     ("regexp_match_substring_all", "pattern"), ("regexp_match_substring_all", "position"),
