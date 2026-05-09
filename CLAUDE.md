@@ -107,6 +107,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries; Narwhals diff(n>1), Polars .over() frame bounds, Narwhals cumulative in .over(), rank(method="average") on Ibis |
 | cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
 | arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
+| upstream-fix-monitoring.md | ADOPTED | Link upstream issues, understand upstream fix patterns vs our centralized registry approach, proactively monitor changelogs to prevent xfail→xpass CI surprises |
 
 ### f. Extension Model
 
