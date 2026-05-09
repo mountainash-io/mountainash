@@ -20,6 +20,16 @@ if TYPE_CHECKING:
     from ....expression_nodes import ExpressionNode
 
 
+def _reject_expression(param_name: str, value: Any, method_name: str) -> None:
+    """Raise TypeError if an expression is passed where a literal option is required."""
+    from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
+    if isinstance(value, (ExpressionNode, BaseExpressionAPIBuilder, BaseExpressionAPI)):
+        raise TypeError(
+            f"{method_name}({param_name}=...) requires a literal value, not an expression. "
+            f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+        )
+
+
 class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarDatetimeAPIBuilderProtocol):
     """
     DateTime operations APIBuilder (Substrait-aligned).
@@ -691,6 +701,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with truncate node.
         """
+        _reject_expression("unit", unit, "truncate")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE,
             arguments=[self._node],
@@ -713,6 +724,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with round node.
         """
+        _reject_expression("unit", unit, "round")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
             arguments=[self._node],
@@ -735,6 +747,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with ceil node.
         """
+        _reject_expression("unit", unit, "ceil")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
             arguments=[self._node],
@@ -757,6 +770,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with floor node.
         """
+        _reject_expression("unit", unit, "floor")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR,
             arguments=[self._node],
@@ -783,6 +797,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with to_timezone node.
         """
+        _reject_expression("timezone", timezone, "to_timezone")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
             arguments=[self._node],
@@ -808,6 +823,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with assume_timezone node.
         """
+        _reject_expression("timezone", timezone, "assume_timezone")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
             arguments=[self._node],
@@ -836,6 +852,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with strftime node.
         """
+        _reject_expression("format", format, "strftime")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
             arguments=[self._node],
