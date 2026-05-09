@@ -106,26 +106,21 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("json_decode", "x"), ("json_path_match", "x"), ("encode", "x"), ("decode", "x"),
     ("extract_groups", "x"),
     # -- string (substrait) --
-    # Tested in test_arg_types_string.py (OP_SPECS added in previous commit):
-    #   contains.substring, starts_with.substring, ends_with.substring,
-    #   replace.substring, replace.replacement, lpad.length, rpad.length,
-    #   substring.start, substring.length, left.count, right.count,
-    #   trim.characters, ltrim.characters, rtrim.characters,
-    #   like.match, regexp_replace.pattern, regexp_replace.replacement
-    ("count_substring", "substring"), ("strpos", "substring"),
-    ("repeat", "count"), ("substring", "start"), ("substring", "length"),
-    ("replace_slice", "start"), ("replace_slice", "length"), ("replace_slice", "replacement"),
-    ("lpad", "characters"), ("rpad", "characters"),
-    ("center", "length"), ("center", "character"),
-    ("concat_ws", "separator"), ("concat_ws", "string_arguments"),
+    # All previously-listed params now have OP_SPECS in test_arg_types_string.py,
+    # except for those with broken underlying APIs (noted below).
+    # Broken API — STRING_SPLIT enum key missing in FKEY_SUBSTRAIT_SCALAR_STRING:
     ("string_split", "separator"),
+    # Broken API — concat_ws backend accepts exactly 2 positional args; *others not wired:
+    ("concat_ws", "string_arguments"),
+    # Broken API — regexp_count_substring, regexp_strpos backends return None (NoneType.compile):
+    ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
+    ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
+    # Broken API — regexp_match_substring, regexp_match_substring_all, regexp_string_split
+    # reference missing FKEY enum members:
     ("regexp_match_substring", "pattern"), ("regexp_match_substring", "position"),
     ("regexp_match_substring", "occurrence"), ("regexp_match_substring", "group"),
     ("regexp_match_substring_all", "pattern"), ("regexp_match_substring_all", "position"),
     ("regexp_match_substring_all", "group"),
-    ("regexp_replace", "position"), ("regexp_replace", "occurrence"),
-    ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
-    ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
     ("regexp_string_split", "pattern"),
 }
 

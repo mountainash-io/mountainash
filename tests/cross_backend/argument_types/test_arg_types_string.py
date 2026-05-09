@@ -17,10 +17,10 @@ from cross_backend.argument_types._test_template import (
 # Full set of (function_key_or_op_name, param_name) pairs covered by this category.
 # String fallbacks are used for ops that lack a matching FKEY enum member yet.
 TESTED_PARAMS: list[tuple] = [
+    # Substrait string ops — all have OP_SPECS in this file
     (FK_STR.CENTER, "character"),
     (FK_STR.CENTER, "length"),
     (FK_STR.CONCAT_WS, "separator"),
-    (FK_STR.CONCAT_WS, "string_arguments"),
     (FK_STR.CONTAINS, "substring"),
     (FK_STR.COUNT_SUBSTRING, "substring"),
     (FK_STR.ENDS_WITH, "substring"),
@@ -29,23 +29,10 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.LPAD, "characters"),
     (FK_STR.LPAD, "length"),
     (FK_STR.LTRIM, "characters"),
-    ("regexp_count_substring", "pattern"),
-    ("regexp_count_substring", "position"),
-    ("regexp_match_substring", "group"),
-    ("regexp_match_substring", "occurrence"),
-    ("regexp_match_substring", "pattern"),
-    ("regexp_match_substring", "position"),
-    ("regexp_match_substring_all", "group"),
-    ("regexp_match_substring_all", "pattern"),
-    ("regexp_match_substring_all", "position"),
     (FK_STR.REGEXP_REPLACE, "occurrence"),
     (FK_STR.REGEXP_REPLACE, "pattern"),
     (FK_STR.REGEXP_REPLACE, "position"),
     (FK_STR.REGEXP_REPLACE, "replacement"),
-    ("regexp_string_split", "pattern"),
-    ("regexp_strpos", "occurrence"),
-    ("regexp_strpos", "pattern"),
-    ("regexp_strpos", "position"),
     (FK_STR.REPEAT, "count"),
     (FK_STR.REPLACE, "replacement"),
     (FK_STR.REPLACE, "substring"),
@@ -57,20 +44,21 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.RPAD, "length"),
     (FK_STR.RTRIM, "characters"),
     (FK_STR.STARTS_WITH, "substring"),
-    ("string_split", "separator"),
     (FK_STR.STRPOS, "substring"),
     (FK_STR.SUBSTRING, "length"),
     (FK_STR.SUBSTRING, "start"),
     (FK_STR.TRIM, "characters"),
-    # Mountainash string extensions
-    ("decode", "x"),
-    ("encode", "x"),
-    ("extract_groups", "x"),
-    ("json_decode", "x"),
-    ("json_path_match", "x"),
-    ("strip_suffix", "x"),
-    ("to_integer", "x"),
-    ("to_time", "x"),
+    # Not listed here (no OP_SPECS yet, tracked in _KNOWN_UNTESTED):
+    #   Mountainash string extensions: decode.x, encode.x, extract_groups.x,
+    #     json_decode.x, json_path_match.x, strip_suffix.x, to_integer.x, to_time.x
+    #   Broken upstream APIs:
+    #     concat_ws.string_arguments — backend only accepts 2 positional args
+    #     string_split.separator — STRING_SPLIT enum key missing
+    #     regexp_count_substring.pattern/.position — backends return None (NoneType.compile)
+    #     regexp_match_substring.* — missing FKEY enum members
+    #     regexp_match_substring_all.* — missing FKEY enum members
+    #     regexp_strpos.* — backends return None
+    #     regexp_string_split.pattern — missing FKEY enum member
 ]
 
 OP_SPECS: list[OpSpec] = [
@@ -278,7 +266,173 @@ OP_SPECS: list[OpSpec] = [
             "replacement": ["X", "Y", "Z"],
         },
     ),
+    # -- secondary args added in Part 2 --
+    OpSpec(
+        function_key=FK_STR.COUNT_SUBSTRING,
+        op_name="count_substring",
+        build=lambda col, arg: col.str.count_substring(arg),
+        raw_arg="o",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello world", "foo bar", "boo"],
+            "pattern": ["o", "o", "o"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.STRPOS,
+        op_name="strpos",
+        build=lambda col, arg: col.str.strpos(arg),
+        raw_arg="lo",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello", "world", "helo"],
+            "pattern": ["lo", "lo", "lo"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPEAT,
+        op_name="repeat",
+        build=lambda col, arg: col.str.repeat(arg),
+        raw_arg=3,
+        arg_col_name="count_col",
+        param_name="count",
+        data={
+            "text": ["a", "b", "c"],
+            "count_col": [3, 3, 3],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CENTER,
+        op_name="center_length",
+        build=lambda col, arg: col.str.center(arg, "*"),
+        raw_arg=10,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "length": [10, 10, 10],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CENTER,
+        op_name="center_character",
+        build=lambda col, arg: col.str.center(10, arg),
+        raw_arg="*",
+        arg_col_name="fill",
+        param_name="character",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "fill": ["*", "*", "*"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LPAD,
+        op_name="lpad_characters",
+        build=lambda col, arg: col.str.lpad(10, arg),
+        raw_arg="*",
+        arg_col_name="fill",
+        param_name="characters",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "fill": ["*", "*", "*"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RPAD,
+        op_name="rpad_characters",
+        build=lambda col, arg: col.str.rpad(10, arg),
+        raw_arg="*",
+        arg_col_name="fill",
+        param_name="characters",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "fill": ["*", "*", "*"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE_SLICE,
+        op_name="replace_slice_start",
+        build=lambda col, arg: col.str.replace_slice(arg, 2, "XX"),
+        raw_arg=0,
+        arg_col_name="start_col",
+        param_name="start",
+        data={
+            "text": ["hello", "world", "test"],
+            "start_col": [0, 0, 0],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE_SLICE,
+        op_name="replace_slice_length",
+        build=lambda col, arg: col.str.replace_slice(0, arg, "XX"),
+        raw_arg=2,
+        arg_col_name="length_col",
+        param_name="length",
+        data={
+            "text": ["hello", "world", "test"],
+            "length_col": [2, 2, 2],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE_SLICE,
+        op_name="replace_slice_replacement",
+        build=lambda col, arg: col.str.replace_slice(0, 2, arg),
+        raw_arg="XX",
+        arg_col_name="repl",
+        param_name="replacement",
+        data={
+            "text": ["hello", "world", "test"],
+            "repl": ["XX", "YY", "ZZ"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CONCAT_WS,
+        op_name="concat_ws_separator",
+        build=lambda col, arg: col.str.concat_ws(arg),
+        raw_arg=",",
+        arg_col_name="sep",
+        param_name="separator",
+        data={
+            "text": ["hello", "world", "test"],
+            "sep": [",", ",", ","],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_REPLACE,
+        op_name="regexp_replace_position",
+        build=lambda col, arg: col.str.regexp_replace("o+", "X", position=arg),
+        raw_arg=0,
+        arg_col_name="pos",
+        param_name="position",
+        data={
+            "text": ["hello", "foooo", "world"],
+            "pos": [0, 0, 0],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_REPLACE,
+        op_name="regexp_replace_occurrence",
+        build=lambda col, arg: col.str.regexp_replace("o+", "X", occurrence=arg),
+        raw_arg=1,
+        arg_col_name="occ",
+        param_name="occurrence",
+        data={
+            "text": ["hello", "foooo", "world"],
+            "occ": [1, 1, 1],
+        },
+    ),
 ]
+
+
+# Ops fully unsupported on narwhals (raise BackendCapabilityError for all input types,
+# not just col/complex). xfail_if_limited only marks col/complex, so we handle these
+# manually to avoid unexplained failures on raw/lit inputs.
+_NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
+    # repeat: narwhals has no str.repeat(); raises BackendCapabilityError unconditionally
+    (FK_STR.REPEAT, "count"),
+}
 
 
 def _params():
@@ -287,6 +441,13 @@ def _params():
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
+                if mark is None and bk in ("narwhals-polars", "narwhals-pandas"):
+                    if (op.function_key, op.param_name) in _NARWHALS_FULLY_UNSUPPORTED:
+                        mark = pytest.mark.xfail(
+                            strict=True,
+                            raises=Exception,
+                            reason="Narwhals backend does not support this operation at all",
+                        )
                 marks = [mark] if mark else []
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")

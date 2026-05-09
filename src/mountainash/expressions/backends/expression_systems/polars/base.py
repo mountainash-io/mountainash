@@ -37,6 +37,52 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
             native_errors=(pl.exceptions.ComputeError,),
             workaround="Use a literal string regex pattern; replacement can be a column reference",
         ),
+        # Polars string methods that require literal (non-expression) integer arguments
+        (FK_STR.REPEAT, "count"): KnownLimitation(
+            message="Polars str.repeat() requires a literal integer count, not a column expression",
+            native_errors=(TypeError,),
+            workaround="Use a literal integer count value",
+        ),
+        (FK_STR.CENTER, "length"): KnownLimitation(
+            message="Polars str.center() requires a literal integer length, not a column expression",
+            native_errors=(TypeError,),
+            workaround="Use a literal integer length value",
+        ),
+        (FK_STR.REPLACE_SLICE, "start"): KnownLimitation(
+            message="Polars str.replace_slice() requires a literal integer start, not a column expression",
+            native_errors=(TypeError,),
+            workaround="Use a literal integer start value",
+        ),
+        (FK_STR.REPLACE_SLICE, "length"): KnownLimitation(
+            message="Polars str.replace_slice() requires a literal integer length, not a column expression",
+            native_errors=(TypeError,),
+            workaround="Use a literal integer length value",
+        ),
+        # Polars string methods that require a single-character literal fill string
+        (FK_STR.CENTER, "character"): KnownLimitation(
+            message=(
+                "Polars str.center() requires a single literal fill character, not a column expression. "
+                "Passing an expression yields a multi-character string that Polars rejects."
+            ),
+            native_errors=(TypeError,),
+            workaround="Use a literal single-character string",
+        ),
+        (FK_STR.LPAD, "characters"): KnownLimitation(
+            message=(
+                "Polars str.lpad() requires a single literal fill character, not a column expression. "
+                "Passing an expression yields a multi-character string that Polars rejects."
+            ),
+            native_errors=(ValueError,),
+            workaround="Use a literal single-character string",
+        ),
+        (FK_STR.RPAD, "characters"): KnownLimitation(
+            message=(
+                "Polars str.rpad() requires a single literal fill character, not a column expression. "
+                "Passing an expression yields a multi-character string that Polars rejects."
+            ),
+            native_errors=(ValueError,),
+            workaround="Use a literal single-character string",
+        ),
     }
 
     @property
