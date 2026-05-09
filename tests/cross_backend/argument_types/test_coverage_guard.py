@@ -107,7 +107,7 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     # -- string (ext) --
     ("strip_suffix", "x"), ("to_integer", "x"), ("to_time", "x"),
     ("json_decode", "x"), ("json_path_match", "x"), ("encode", "x"), ("decode", "x"),
-    ("extract_groups", "x"), ("n_unique", "x"),
+    ("extract_groups", "x"),
     # -- string (substrait) --
     ("contains", "substring"), ("count_substring", "substring"),
     ("ends_with", "substring"), ("starts_with", "substring"), ("strpos", "substring"),
@@ -129,20 +129,6 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
     ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
     ("regexp_string_split", "pattern"),
-    # -- list --
-    ("list_sum", "x"), ("list_min", "x"), ("list_max", "x"), ("list_mean", "x"),
-    ("list_len", "x"), ("list_contains", "x"), ("list_contains", "item"),
-    ("list_sort", "x"), ("list_unique", "x"), ("list_explode", "x"),
-    ("list_join", "x"), ("list_get", "x"),
-    # -- struct --
-    ("struct_field", "x"),
-    # -- window --
-    ("cum_sum", "x"), ("cum_max", "x"), ("cum_min", "x"), ("cum_count", "x"), ("cum_prod", "x"),
-    ("forward_fill", "x"), ("backward_fill", "x"), ("diff", "x"),
-    ("first_value", "x"), ("last_value", "x"),
-    ("nth_value", "x"), ("nth_value", "window_offset"), ("ntile", "x"),
-    ("lead", "x"), ("lag", "x"),
-    ("rank", "order_by_col"), ("dense_rank", "order_by_col"), ("row_number", "order_by_col"),
 }
 
 
