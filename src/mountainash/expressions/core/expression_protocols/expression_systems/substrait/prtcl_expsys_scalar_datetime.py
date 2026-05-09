@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -20,7 +20,7 @@ class SubstraitScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: scalar
     """
 
-    def extract(self, x: ExpressionT, /, component: ExpressionT, timezone: str) -> ExpressionT:
+    def extract(self, x: ExpressionT, /, component: str, timezone: str) -> ExpressionT:
         """Extract portion of a date/time value. * YEAR Return the year. * ISO_YEAR Return the ISO 8601 week-numbering year. First week of an ISO year has the majority (4 or more) of
   its days in January.
 * US_YEAR Return the US epidemiological year. First week of US epidemiological year has the majority (4 or more)
@@ -182,7 +182,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_temporal(self, x: ExpressionT, /, rounding: ExpressionT, unit: ExpressionT, multiple: ExpressionT, origin: ExpressionT) -> ExpressionT:
+    def round_temporal(self, x: ExpressionT, /, rounding: Optional[str], unit: str, multiple: int, origin: Optional[str]) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -191,7 +191,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_calendar(self, x: ExpressionT, /, rounding: ExpressionT, unit: ExpressionT, origin: ExpressionT, multiple: ExpressionT) -> ExpressionT:
+    def round_calendar(self, x: ExpressionT, /, rounding: Optional[str], unit: str, origin: Optional[str], multiple: int) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
