@@ -31,6 +31,26 @@ OP_SPECS: list[OpSpec] = [
         input_col="a",
         data={"a": [1, 2, 3], "b": [0, 0, 0]},
     ),
+    OpSpec(
+        function_key=FK_NULL.FILL_NAN,
+        op_name="fill_nan",
+        build=lambda col, arg: col.fill_nan(arg),
+        raw_arg=0.0,
+        arg_col_name="b",
+        param_name="replacement",
+        input_col="a",
+        data={"a": [1.0, float("nan"), 3.0], "b": [0.0, 0.0, 0.0]},
+    ),
+    OpSpec(
+        function_key=FK_NULL.NULL_IF,
+        op_name="null_if",
+        build=lambda col, arg: col.null_if(arg),
+        raw_arg=1,
+        arg_col_name="b",
+        param_name="condition",
+        input_col="a",
+        data={"a": [1, 2, 3], "b": [1, 1, 1]},
+    ),
 ]
 
 
