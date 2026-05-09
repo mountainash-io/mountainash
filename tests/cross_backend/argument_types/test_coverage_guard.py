@@ -84,12 +84,9 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     # add_days/hours/microseconds/milliseconds/minutes/months/seconds/years
     # secondary params now have OP_SPECS in test_arg_types_datetime.py; removed 2026-05-09.
     ("add_intervals", "x"), ("add_intervals", "y"),
-    ("diff_days", "x"), ("diff_days", "other"), ("diff_hours", "x"), ("diff_hours", "other"),
+    # diff_days/hours/minutes/seconds/months/years now have OP_SPECS; removed 2026-05-09.
+    # diff_milliseconds: API builder has no diff_milliseconds method (returns None); skip.
     ("diff_milliseconds", "x"), ("diff_milliseconds", "other"),
-    ("diff_minutes", "x"), ("diff_minutes", "other"),
-    ("diff_months", "x"), ("diff_months", "other"),
-    ("diff_seconds", "x"), ("diff_seconds", "other"),
-    ("diff_years", "x"), ("diff_years", "other"),
     ("total_microseconds", "x"), ("total_milliseconds", "x"),
     ("total_minutes", "x"), ("total_seconds", "x"),
     ("truncate", "x"), ("truncate", "unit"),
