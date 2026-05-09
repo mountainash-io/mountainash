@@ -37,7 +37,19 @@ TESTED_PARAMS: list[tuple] = [
     ("forward_fill", "x"),
 ]
 
-OP_SPECS: list[OpSpec] = []
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key="cum_sum",
+        op_name="cum_sum",
+        build=lambda col, _arg: col.cum_sum(),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": [10, 20, 30, 40], "__group__": [1, 1, 2, 2]},
+        execution_mode="over",
+    ),
+]
 
 
 def _params():

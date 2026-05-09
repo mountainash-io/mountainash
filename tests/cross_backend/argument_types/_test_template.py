@@ -114,11 +114,8 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     )
 
 
-def _materialize_result(df, compiled, backend: str, execution_mode: str = "select") -> None:
+def _materialize_result(df, compiled, backend: str) -> None:
     """Force execution to surface errors that fire at materialization time."""
-    if execution_mode == "over":
-        compiled = compiled.over("__group__")
-
     if backend == "polars":
         import polars as pl
 
@@ -141,6 +138,8 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     df = make_df(op.data, backend)
     arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name, op.complex_builder)
     expr = op.build(ma.col(op.input_col), arg)
+    if op.execution_mode == "over":
+        expr = expr.over("__group__")
 
     registry = _get_registry(backend)
     limitation = registry.get((op.function_key, op.param_name))
@@ -148,7 +147,7 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     try:
         compiled = expr.compile(df)
         assert compiled is not None
-        _materialize_result(df, compiled, backend, op.execution_mode)
+        _materialize_result(df, compiled, backend)
     except BackendCapabilityError:
         raise
     except Exception as e:
