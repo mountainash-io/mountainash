@@ -1,11 +1,4 @@
-"""Argument channel tests for struct operations.
-
-OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
-which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
-apply to lazy backends), causing strict-xfail XPASS noise. The full
-TESTED_PARAMS list still satisfies the coverage guard. Once the test
-infrastructure can route through lazy backends, OP_SPECS can be filled in.
-"""
+"""Argument channel tests for struct operations."""
 from __future__ import annotations
 
 import pytest
