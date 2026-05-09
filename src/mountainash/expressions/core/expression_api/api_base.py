@@ -87,8 +87,8 @@ class BaseExpressionAPI(ABC):
             )
 
         for ns_cls in self._FLAT_NAMESPACES:
-            ns = ns_cls(self)
-            if hasattr(ns_cls, name):
+            if name in ns_cls.__dict__:
+                ns = ns_cls(self)
                 return getattr(ns, name)
 
         raise AttributeError(
