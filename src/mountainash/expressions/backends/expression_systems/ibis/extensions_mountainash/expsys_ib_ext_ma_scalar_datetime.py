@@ -75,8 +75,8 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def extract(
         self,
         x: IbisTemporalExpr,
-        component: IbisValueExpr,
-        timezone: Optional[IbisValueExpr] = None,
+        component: str,
+        timezone: Optional[str] = None,
         /,
     ) -> IbisValueExpr:
         """Extract portion of a date/time value.
@@ -116,7 +116,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         self,
         x: IbisValueExpr,
         /,
-        component: IbisValueExpr,
+        component: str,
     ) -> IbisValueExpr:
         """Extract boolean values of a date/time value.
 
@@ -551,7 +551,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         self,
         x: IbisTemporalExpr,
         *,
-        unit: IbisValueExpr,
+        unit: str,
     ) -> IbisValueExpr:
         """Truncate datetime to the specified unit.
 
@@ -582,7 +582,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         self,
         x: IbisTemporalExpr,
         *,
-        unit: IbisValueExpr,
+        unit: str,
     ) -> IbisValueExpr:
         """Round datetime to the nearest unit.
 
@@ -603,7 +603,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         self,
         x: IbisTemporalExpr,
         *,
-        unit: IbisValueExpr,
+        unit: str,
     ) -> IbisValueExpr:
         """Round datetime up to the next unit.
 
@@ -624,7 +624,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         self,
         x: IbisTemporalExpr,
         *,
-        unit: IbisValueExpr,
+        unit: str,
     ) -> IbisValueExpr:
         """Round datetime down to the previous unit.
 
@@ -644,7 +644,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def to_timezone(
         self,
         x: IbisTemporalExpr,
-        timezone: IbisValueExpr,
+        timezone: str,
         /,
     ) -> IbisValueExpr:
         """Convert to specified timezone.
@@ -665,7 +665,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def assume_timezone(
         self,
         x: IbisTemporalExpr,
-        timezone: IbisValueExpr,
+        timezone: str,
         /,
     ) -> IbisValueExpr:
         """Assume the timestamp is in the specified timezone.
@@ -690,7 +690,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def strftime(
         self,
         x: IbisTemporalExpr,
-        format: IbisValueExpr,
+        format: str,
         /,
     ) -> IbisValueExpr:
         """Format datetime as string.

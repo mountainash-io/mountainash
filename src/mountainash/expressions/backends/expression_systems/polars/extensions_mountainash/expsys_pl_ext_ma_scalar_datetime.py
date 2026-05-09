@@ -80,8 +80,8 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     def extract(
         self,
         x: PolarsExpr,
-        component: PolarsExpr,
-        timezone: Optional[PolarsExpr] = None,
+        component: str,
+        timezone: Optional[str] = None,
         /,
     ) -> PolarsExpr:
         """Extract portion of a date/time value.
@@ -129,7 +129,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        component: PolarsExpr,
+        component: str,
     ) -> PolarsExpr:
         """Extract boolean values of a date/time value.
 
@@ -550,7 +550,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         *,
-        unit: PolarsExpr,
+        unit: str,
     ) -> PolarsExpr:
         """Truncate datetime to the specified unit.
 
@@ -567,7 +567,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         *,
-        unit: PolarsExpr,
+        unit: str,
     ) -> PolarsExpr:
         """Round datetime to the nearest unit.
 
@@ -584,7 +584,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         *,
-        unit: PolarsExpr,
+        unit: str,
     ) -> PolarsExpr:
         """Round datetime up to the next unit.
 
@@ -604,7 +604,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         *,
-        unit: PolarsExpr,
+        unit: str,
     ) -> PolarsExpr:
         """Round datetime down to the previous unit.
 
@@ -625,7 +625,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     def to_timezone(
         self,
         x: PolarsExpr,
-        timezone: PolarsExpr,
+        timezone: str,
         /,
     ) -> PolarsExpr:
         """Convert to specified timezone.
@@ -643,7 +643,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     def assume_timezone(
         self,
         x: PolarsExpr,
-        timezone: PolarsExpr,
+        timezone: str,
         /,
     ) -> PolarsExpr:
         """Assume the timestamp is in the specified timezone.
@@ -664,7 +664,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     def strftime(
         self,
         x: PolarsExpr,
-        format: PolarsExpr,
+        format: str,
         /,
     ) -> PolarsExpr:
         """Format datetime as string.

@@ -75,7 +75,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        component: PolarsExpr,
+        component: str,
         timezone: str = None,
     ) -> PolarsExpr:
         """Extract portion of a date/time value.
@@ -123,7 +123,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        component: PolarsExpr,
+        component: str,
     ) -> PolarsExpr:
         """Extract boolean values of a date/time value.
 
@@ -425,10 +425,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        multiple: PolarsExpr = None,
-        origin: PolarsExpr = None,
+        rounding: Optional[str],
+        unit: str,
+        multiple: int = None,
+        origin: Optional[str] = None,
     ) -> PolarsExpr:
         """Round datetime to a multiple of a time unit.
 
@@ -457,10 +457,10 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        origin: PolarsExpr = None,
-        multiple: PolarsExpr = None,
+        rounding: Optional[str],
+        unit: str,
+        origin: Optional[str] = None,
+        multiple: int = None,
     ) -> PolarsExpr:
         """Round datetime to a calendar unit.
 
