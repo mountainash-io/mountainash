@@ -6,7 +6,7 @@ Implements string operations for the Narwhals backend.
 from __future__ import annotations
 
 import re
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import narwhals as nw
 
@@ -743,9 +743,9 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         input: NarwhalsExpr,
         /,
         pattern: NarwhalsExpr,
-        position: NarwhalsExpr = None,
-        occurrence: NarwhalsExpr = None,
-        group: NarwhalsExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -776,8 +776,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         input: NarwhalsExpr,
         /,
         pattern: NarwhalsExpr,
-        position: NarwhalsExpr = None,
-        group: NarwhalsExpr = None,
+        position: Optional[int] = None,
+        group: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -807,8 +807,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         input: NarwhalsExpr,
         /,
         pattern: NarwhalsExpr,
-        position: NarwhalsExpr = None,
-        occurrence: NarwhalsExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -838,7 +838,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         input: NarwhalsExpr,
         /,
         pattern: NarwhalsExpr,
-        position: NarwhalsExpr = None,
+        position: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -868,8 +868,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         pattern: NarwhalsExpr,
         replacement: NarwhalsExpr,
-        position: NarwhalsExpr = None,
-        occurrence: NarwhalsExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
