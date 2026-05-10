@@ -227,7 +227,7 @@ def validate(data: object) -> list[str]:
                     f"{prefix}: 'id' does not match {{PROJ}}-{{CAT}}-{{NN}} format; got '{entry_id_str}'."
                 )
             else:
-                proj_abbr_in_id, cat_abbr_in_id, _num = m.groups()
+                proj_abbr_in_id, cat_abbr_in_id, _ = m.groups()
 
                 # Check project abbreviation matches the project field
                 if project in PROJECT_ABBR:
