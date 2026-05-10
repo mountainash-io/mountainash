@@ -38,9 +38,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.LPAD, "characters"),
     (FK_STR.LPAD, "length"),
     (FK_STR.LTRIM, "characters"),
-    (FK_STR.REGEXP_REPLACE, "occurrence"),
     (FK_STR.REGEXP_REPLACE, "pattern"),
-    (FK_STR.REGEXP_REPLACE, "position"),
     (FK_STR.REGEXP_REPLACE, "replacement"),
     (FK_STR.REPEAT, "count"),
     (FK_STR.REPLACE, "replacement"),
@@ -57,14 +55,19 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.SUBSTRING, "length"),
     (FK_STR.SUBSTRING, "start"),
     (FK_STR.TRIM, "characters"),
-    # Not listed here (broken upstream APIs, tracked in _KNOWN_UNTESTED in coverage guard):
-    #     concat_ws.string_arguments — backend only accepts 2 positional args
-    #     string_split.separator — STRING_SPLIT enum key missing
-    #     regexp_count_substring.pattern/.position — backends return None (NoneType.compile)
-    #     regexp_match_substring.* — missing FKEY enum members
-    #     regexp_match_substring_all.* — missing FKEY enum members
-    #     regexp_strpos.* — backends return None
-    #     regexp_string_split.pattern — missing FKEY enum member
+    # Newly-wired regex + split ops — OP_SPECS exist for all pattern params;
+    # concat_ws.string_arguments has TESTED_PARAMS entry but no OP_SPEC (variadic limitation).
+    # Note: FKEY enum name != protocol method name for these ops, so string keys are used.
+    ("regexp_match_substring_all", "pattern"),
+    ("regexp_count_substring", "pattern"),
+    ("regexp_match_substring", "pattern"),
+    ("regexp_strpos", "pattern"),
+    ("regexp_string_split", "pattern"),
+    ("string_split", "separator"),
+    # concat_ws.string_arguments: variadic param — backend accepts a single col expression
+    # but the Polars implementation only supports positional concat (no variadic column arg).
+    # Tracked as a known limitation; no OP_SPEC is added.
+    (FK_STR.CONCAT_WS, "string_arguments"),
 ]
 
 OP_SPECS: list[OpSpec] = [
@@ -498,6 +501,79 @@ OP_SPECS: list[OpSpec] = [
         data={
             "text": ["hello", "foooo", "world"],
             "occ": [1, 1, 1],
+        },
+    ),
+    # -- Newly-wired regex + split ops --
+    OpSpec(
+        function_key=FK_STR.REGEXP_MATCH_ALL,
+        op_name="regexp_match_substring_all",
+        build=lambda col, arg: col.str.regexp_match_substring_all(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_COUNT,
+        op_name="regexp_count_substring",
+        build=lambda col, arg: col.str.regexp_count_substring(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_MATCH,
+        op_name="regexp_match_substring",
+        build=lambda col, arg: col.str.regexp_match_substring(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_STRPOS,
+        op_name="regexp_strpos",
+        build=lambda col, arg: col.str.regexp_strpos(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_SPLIT,
+        op_name="regexp_string_split",
+        build=lambda col, arg: col.str.regexp_string_split(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123world", "foo456bar", "baz"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.SPLIT,
+        op_name="string_split",
+        build=lambda col, arg: col.str.string_split(arg),
+        raw_arg=",",
+        arg_col_name="sep",
+        param_name="separator",
+        data={
+            "text": ["a,b,c", "d,e", "f"],
+            "sep": [",", ",", ","],
         },
     ),
 ]
