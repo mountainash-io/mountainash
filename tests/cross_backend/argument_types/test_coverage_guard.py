@@ -57,7 +57,6 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     #
     # -- datetime (unimplemented APIs) --
     ("add_intervals", "y"),
-    ("diff_milliseconds", "other"),
     # -- string (substrait) — broken APIs --
     ("string_split", "separator"),
     ("concat_ws", "string_arguments"),
