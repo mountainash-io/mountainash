@@ -7,7 +7,7 @@ are in MountainAshScalarDatetimeAPIBuilder (the extension builder).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
@@ -23,6 +23,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait im
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
+    from ....expression_nodes import ExpressionNode
 
 
 class SubstraitScalarDatetimeAPIBuilder(
@@ -91,5 +92,25 @@ class SubstraitScalarDatetimeAPIBuilder(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
             arguments=[self._node],
             options={"format": format},
+        )
+        return self._build(node)
+
+    def add_intervals(
+        self,
+        y: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """Add an interval/duration to a datetime expression.
+
+        Args:
+            y: Interval or duration expression to add.
+
+        Returns:
+            New ExpressionAPI with add_intervals node.
+        """
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+        y_node = self._to_substrait_node(y)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ADD_INTERVALS,
+            arguments=[self._node, y_node],
         )
         return self._build(node)

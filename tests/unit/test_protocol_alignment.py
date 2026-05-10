@@ -658,15 +658,10 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
     # Substrait Scalar Comparison — distinct operations
     (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): "No ENUM, no function mapping, no API builder",
     (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): "No ENUM, no function mapping, no API builder",
-    # Substrait Scalar String — advanced regex
-    (SubstraitScalarStringExpressionSystemProtocol, "regexp_match_substring_all"): "No function mapping registered",
-    (SubstraitScalarStringExpressionSystemProtocol, "regexp_strpos"): "No function mapping registered",
-    (SubstraitScalarStringExpressionSystemProtocol, "regexp_count_substring"): "No function mapping registered",
     # Substrait Scalar Datetime — most methods use Mountainash extension dispatch
     (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): "Datetime dispatch via Mountainash extensions",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): "Datetime dispatch via Mountainash extensions",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): "Datetime dispatch via Mountainash extensions",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "add_intervals"): "Datetime dispatch via Mountainash extensions",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): "Datetime comparisons handled by scalar_comparison",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): "Datetime comparisons handled by scalar_comparison",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): "Datetime comparisons handled by scalar_comparison",

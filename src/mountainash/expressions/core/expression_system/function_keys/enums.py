@@ -320,9 +320,12 @@ class FKEY_SUBSTRAIT_SCALAR_STRING(Enum):
 
     # Regex
     REGEXP_MATCH = auto()
+    REGEXP_MATCH_ALL = auto()
     REGEXP_CONTAINS = auto()
     REGEXP_REPLACE = auto()
     REGEXP_SPLIT = auto()
+    REGEXP_COUNT = auto()
+    REGEXP_STRPOS = auto()
 
 
 
@@ -437,6 +440,8 @@ class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     # Timezone
     LOCAL_TIMESTAMP = auto()
 
+    # Arithmetic
+    ADD_INTERVALS = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):

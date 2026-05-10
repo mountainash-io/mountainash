@@ -23,7 +23,7 @@ Skipped params (not added as OP_SPECS):
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -61,9 +61,10 @@ TESTED_PARAMS: list[tuple] = [
     (FK_MA_DT.ADD_SECONDS, "x"),
     (FK_MA_DT.ADD_YEARS, "x"),
     (FK_MA_DT.ADD_YEARS, "years"),
-    (FK_MA_DT.ASSUME_TIMEZONE, "timezone"),
+    # assume_timezone.timezone, ceil.unit, floor.unit, round.unit, truncate.unit,
+    # strftime.format, to_timezone.timezone: reclassified as option (concrete str) in
+    # protocol commit 5fd72c5 — removed from TESTED_PARAMS.
     (FK_MA_DT.ASSUME_TIMEZONE, "x"),
-    (FK_MA_DT.CEIL, "unit"),
     (FK_MA_DT.CEIL, "x"),
     ("day", "x"),
     ("day_of_week", "x"),
@@ -82,12 +83,9 @@ TESTED_PARAMS: list[tuple] = [
     (FK_MA_DT.DIFF_SECONDS, "x"),
     (FK_MA_DT.DIFF_YEARS, "other"),
     (FK_MA_DT.DIFF_YEARS, "x"),
-    (FK_DT.EXTRACT, "component"),
-    (FK_DT.EXTRACT, "timezone"),
+    # extract.component, extract.timezone, extract_boolean.component: reclassified as option
     (FK_DT.EXTRACT, "x"),
-    (FK_DT.EXTRACT_BOOLEAN, "component"),
     (FK_DT.EXTRACT_BOOLEAN, "x"),
-    (FK_MA_DT.FLOOR, "unit"),
     (FK_MA_DT.FLOOR, "x"),
     ("gt", "x"),
     ("gt", "y"),
@@ -111,20 +109,12 @@ TESTED_PARAMS: list[tuple] = [
     ("nanosecond", "x"),
     (FK_MA_DT.OFFSET_BY, "x"),
     ("quarter", "x"),
-    (FK_MA_DT.ROUND, "unit"),
     (FK_MA_DT.ROUND, "x"),
-    ("round_calendar", "multiple"),
-    ("round_calendar", "origin"),
-    ("round_calendar", "rounding"),
-    ("round_calendar", "unit"),
+    # round_calendar/round_temporal option params: multiple, origin, rounding, unit all
+    # reclassified as option in protocol commit 5fd72c5 — removed from TESTED_PARAMS.
     ("round_calendar", "x"),
-    ("round_temporal", "multiple"),
-    ("round_temporal", "origin"),
-    ("round_temporal", "rounding"),
-    ("round_temporal", "unit"),
     ("round_temporal", "x"),
     ("second", "x"),
-    (FK_MA_DT.STRFTIME, "format"),
     (FK_MA_DT.STRFTIME, "x"),
     ("strptime_date", "x"),
     ("strptime_time", "x"),
@@ -132,9 +122,7 @@ TESTED_PARAMS: list[tuple] = [
     ("subtract", "x"),
     ("subtract", "y"),
     ("timezone_offset", "x"),
-    (FK_MA_DT.TO_TIMEZONE, "timezone"),
     (FK_MA_DT.TO_TIMEZONE, "x"),
-    (FK_MA_DT.TRUNCATE, "unit"),
     (FK_MA_DT.TRUNCATE, "x"),
     ("unix_timestamp", "x"),
     ("week_of_year", "x"),
@@ -352,6 +340,20 @@ OP_SPECS: list[OpSpec] = [
         },
         input_col="dt",
         complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
+    OpSpec(
+        function_key="add_intervals",
+        op_name="add_intervals",
+        build=lambda col, arg: col.dt.add_intervals(arg),
+        raw_arg=timedelta(days=5),
+        arg_col_name="interval",
+        param_name="y",
+        input_col="dt",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "interval": [timedelta(days=5), timedelta(hours=12), timedelta(days=1)],
+        },
+        complex_builder=lambda cn: ma.col(cn),
     ),
 ]
 

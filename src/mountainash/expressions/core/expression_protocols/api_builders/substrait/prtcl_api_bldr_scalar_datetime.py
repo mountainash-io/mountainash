@@ -63,3 +63,14 @@ class SubstraitScalarDatetimeAPIBuilderProtocol(Protocol):
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
         """
         ...
+
+    def add_intervals(
+        self,
+        y: object,
+    ) -> BaseExpressionAPI:
+        """Add an interval/duration to a datetime expression.
+
+        Substrait: add_intervals
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...

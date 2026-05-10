@@ -472,7 +472,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Difference in days (x - other).
         """
-        return (x - other).dt.total_days()
+        return ((x - other).dt.total_seconds() / nw.lit(86400)).floor()
 
     def diff_hours(
         self,

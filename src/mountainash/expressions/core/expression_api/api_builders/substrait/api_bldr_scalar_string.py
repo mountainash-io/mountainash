@@ -823,7 +823,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             args.append(self._to_substrait_node(group))
 
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_SUBSTRING,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
             arguments=args,
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
                      "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
@@ -838,49 +838,85 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
     def regexp_match_substring_all(
         self,
-        pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        position: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
         dotall: bool = None,
     ) -> BaseExpressionAPI:
-        """Extract all substrings that match the given regular expression pattern
+        """Extract all substrings that match the given regular expression pattern.
 
         Substrait: regexp_match_substring_all
         """
-        ...
+        pattern_node = self._to_substrait_node(pattern)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            arguments=[self._node, pattern_node],
+            options={
+                "position": position,
+                "group": group,
+                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
+                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+            },
+        )
+        return self._build(node)
 
     def regexp_strpos(
         self,
-        pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
         dotall: bool = None,
     ) -> BaseExpressionAPI:
-        """"Return the position of an occurrence of the given regular expression pattern in a string.
+        """Return the position of an occurrence of a regex pattern in a string.
 
         Substrait: regexp_strpos
         """
-        ...
+        pattern_node = self._to_substrait_node(pattern)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            arguments=[self._node, pattern_node],
+            options={
+                "position": position,
+                "occurrence": occurrence,
+                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
+                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+            },
+        )
+        return self._build(node)
 
     def regexp_count_substring(
         self,
-        pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        position: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
         dotall: bool = None,
     ) -> BaseExpressionAPI:
-        """"Return the number of non-overlapping occurrences of a regular expression pattern in an input string
+        """Return the number of non-overlapping occurrences of a regex pattern.
+
         Substrait: regexp_count_substring
         """
-        ...
+        pattern_node = self._to_substrait_node(pattern)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            arguments=[self._node, pattern_node],
+            options={
+                "position": position,
+                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
+                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+            },
+        )
+        return self._build(node)
 
 
 
@@ -967,7 +1003,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         separator_node = self._to_substrait_node(separator)
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRING_SPLIT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT,
             arguments=[self._node, separator_node],
         )
         return self._build(node)
@@ -991,7 +1027,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRING_SPLIT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
             arguments=[self._node, pattern_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )

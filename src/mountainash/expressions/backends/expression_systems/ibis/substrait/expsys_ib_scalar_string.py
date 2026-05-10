@@ -5,7 +5,7 @@ Implements string operations for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import ibis
 
@@ -654,9 +654,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         input: IbisValueExpr,
         pattern: IbisValueExpr,
         /,
-        position: IbisValueExpr = None,
-        occurrence: IbisValueExpr = None,
-        group: IbisValueExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -688,8 +688,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         input: IbisValueExpr,
         /,
         pattern: IbisValueExpr,
-        position: IbisValueExpr = None,
-        group: IbisValueExpr = None,
+        position: Optional[int] = None,
+        group: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -719,8 +719,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         input: IbisValueExpr,
         /,
         pattern: IbisValueExpr,
-        position: IbisValueExpr = None,
-        occurrence: IbisValueExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -750,7 +750,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         input: IbisValueExpr,
         /,
         pattern: IbisValueExpr,
-        position: IbisValueExpr = None,
+        position: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -780,8 +780,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         pattern: IbisValueExpr,
         replacement: IbisValueExpr,
-        position: IbisValueExpr = None,
-        occurrence: IbisValueExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,

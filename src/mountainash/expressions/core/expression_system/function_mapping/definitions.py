@@ -572,6 +572,24 @@ def register_all_functions() -> None:
             substrait_name="regexp_replace",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_replace,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="regexp_match_substring_all",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_match_substring_all,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="regexp_count_substring",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_count_substring,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            substrait_uri=SubstraitExtension.SCALAR_STRING,
+            substrait_name="regexp_strpos",
+            protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_strpos,
+        ),
         # Case conversion (aspirational)
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
@@ -806,6 +824,12 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="extract",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.extract_boolean,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ADD_INTERVALS,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
+            substrait_name="add_intervals",
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.add_intervals,
         ),
     ]
 

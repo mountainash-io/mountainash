@@ -49,25 +49,7 @@ def _collect_tested_params() -> set[tuple[str, str]]:
     return tested
 
 
-_KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
-    # These argument-typed protocol params have no cross-backend argument type
-    # test yet. Adding a param here is acceptable ONLY when registering a
-    # previously-untracked protocol in _CATEGORY_MAP. New operations should add
-    # tests, not entries here. Shrink this set over time.
-    #
-    # -- datetime (unimplemented APIs) --
-    ("add_intervals", "y"),
-    # -- string (substrait) — broken APIs --
-    ("string_split", "separator"),
-    ("concat_ws", "string_arguments"),
-    ("regexp_count_substring", "pattern"), ("regexp_count_substring", "position"),
-    ("regexp_strpos", "pattern"), ("regexp_strpos", "position"), ("regexp_strpos", "occurrence"),
-    ("regexp_match_substring", "pattern"), ("regexp_match_substring", "position"),
-    ("regexp_match_substring", "occurrence"), ("regexp_match_substring", "group"),
-    ("regexp_match_substring_all", "pattern"), ("regexp_match_substring_all", "position"),
-    ("regexp_match_substring_all", "group"),
-    ("regexp_string_split", "pattern"),
-}
+_KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = set()
 
 
 def test_every_argument_param_is_tested():

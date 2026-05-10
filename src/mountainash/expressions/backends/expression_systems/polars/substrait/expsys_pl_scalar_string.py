@@ -6,7 +6,7 @@ Implements string operations for the Polars backend.
 from __future__ import annotations
 
 import re
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import polars as pl
 
@@ -700,9 +700,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         pattern: PolarsExpr,
         /,
-        position: PolarsExpr = None,
-        occurrence: PolarsExpr = None,
-        group: PolarsExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -730,8 +730,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         /,
         pattern: PolarsExpr,
-        position: PolarsExpr = None,
-        group: PolarsExpr = None,
+        position: Optional[int] = None,
+        group: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -757,8 +757,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         /,
         pattern: PolarsExpr,
-        position: PolarsExpr = None,
-        occurrence: PolarsExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -785,7 +785,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         /,
         pattern: PolarsExpr,
-        position: PolarsExpr = None,
+        position: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -811,8 +811,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         /,
         pattern: PolarsExpr,
         replacement: PolarsExpr,
-        position: PolarsExpr = None,
-        occurrence: PolarsExpr = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
