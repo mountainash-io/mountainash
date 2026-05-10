@@ -682,6 +682,28 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         )
         return self._build(node)
 
+    def diff_milliseconds(
+        self,
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """
+        Calculate difference in milliseconds.
+
+        Substrait: subtract
+
+        Args:
+            other: Datetime to compare with.
+
+        Returns:
+            New ExpressionAPI with diff_milliseconds node.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MILLISECONDS,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
     # ========================================
     # Truncation / Rounding
     # ========================================
