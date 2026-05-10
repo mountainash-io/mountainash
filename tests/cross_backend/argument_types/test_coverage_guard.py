@@ -55,18 +55,6 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     # previously-untracked protocol in _CATEGORY_MAP. New operations should add
     # tests, not entries here. Shrink this set over time.
     #
-    # -- datetime (options masquerading as arguments) --
-    # These params are typed as ExpressionT in protocols but passed via options={},
-    # not visited expressions — lit/col/complex fail with TypeError.
-    ("extract", "component"), ("extract", "timezone"),
-    ("extract_boolean", "component"),
-    ("assume_timezone", "timezone"), ("to_timezone", "timezone"),
-    ("strftime", "format"), ("truncate", "unit"),
-    ("ceil", "unit"), ("floor", "unit"), ("round", "unit"),
-    ("round_temporal", "unit"), ("round_temporal", "multiple"),
-    ("round_temporal", "origin"), ("round_temporal", "rounding"),
-    ("round_calendar", "unit"), ("round_calendar", "multiple"),
-    ("round_calendar", "origin"), ("round_calendar", "rounding"),
     # -- datetime (unimplemented APIs) --
     ("add_intervals", "y"),
     ("diff_milliseconds", "other"),

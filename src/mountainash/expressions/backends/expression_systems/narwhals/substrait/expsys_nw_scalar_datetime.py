@@ -6,7 +6,7 @@ Implements datetime operations for the Narwhals backend.
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import narwhals as nw
 
@@ -75,7 +75,7 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        component: NarwhalsExpr,
+        component: str,
         timezone: str = None,
     ) -> NarwhalsExpr:
         """Extract portion of a date/time value.
@@ -115,7 +115,7 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        component: NarwhalsExpr,
+        component: str,
     ) -> NarwhalsExpr:
         """Extract boolean values of a date/time value.
 
@@ -440,10 +440,10 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        rounding: NarwhalsExpr,
-        unit: NarwhalsExpr,
-        multiple: NarwhalsExpr = None,
-        origin: NarwhalsExpr = None,
+        rounding: Optional[str] = None,
+        unit: str = "1d",
+        multiple: int = 1,
+        origin: Optional[str] = None,
     ) -> NarwhalsExpr:
         """Round datetime to a multiple of a time unit.
 
@@ -467,10 +467,10 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        rounding: NarwhalsExpr,
-        unit: NarwhalsExpr,
-        origin: NarwhalsExpr = None,
-        multiple: NarwhalsExpr = None,
+        rounding: Optional[str] = None,
+        unit: str = "1d",
+        origin: Optional[str] = None,
+        multiple: int = 1,
     ) -> NarwhalsExpr:
         """Round datetime to a calendar unit.
 

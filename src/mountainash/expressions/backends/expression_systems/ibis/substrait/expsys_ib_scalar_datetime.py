@@ -6,7 +6,7 @@ Implements datetime operations for the Ibis backend.
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import ibis
 
@@ -70,7 +70,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        component: IbisValueExpr,
+        component: str,
         timezone: str = None,
     ) -> IbisValueExpr:
         """Extract portion of a date/time value.
@@ -110,7 +110,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        component: IbisValueExpr,
+        component: str,
     ) -> IbisValueExpr:
         """Extract boolean values of a date/time value.
 
@@ -425,10 +425,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        rounding: IbisValueExpr,
-        unit: IbisValueExpr,
-        multiple: IbisValueExpr = None,
-        origin: IbisValueExpr = None,
+        rounding: Optional[str] = None,
+        unit: str = "1d",
+        multiple: int = 1,
+        origin: Optional[str] = None,
     ) -> IbisValueExpr:
         """Round datetime to a multiple of a time unit.
 
@@ -452,10 +452,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        rounding: IbisValueExpr,
-        unit: IbisValueExpr,
-        origin: IbisValueExpr = None,
-        multiple: IbisValueExpr = None,
+        rounding: Optional[str] = None,
+        unit: str = "1d",
+        origin: Optional[str] = None,
+        multiple: int = 1,
     ) -> IbisValueExpr:
         """Round datetime to a calendar unit.
 

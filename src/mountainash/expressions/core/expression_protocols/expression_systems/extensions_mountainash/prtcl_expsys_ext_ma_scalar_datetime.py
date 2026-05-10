@@ -342,8 +342,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def truncate(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Truncate datetime to the specified unit (floor)."""
         ...
@@ -351,8 +352,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def round(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime to the nearest unit."""
         ...
@@ -360,8 +362,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def ceil(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime up to the next unit."""
         ...
@@ -369,8 +372,9 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def floor(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime down to the previous unit."""
         ...
@@ -405,8 +409,8 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def extract(
         self,
         x: ExpressionT,
-        component: ExpressionT,
-        timezone: ExpressionT = None,
+        component: str,
+        timezone: Optional[str] = None,
         /,
     ) -> ExpressionT:
         """Extract a datetime component by name.
@@ -426,7 +430,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        component: ExpressionT,
+        component: str,
     ) -> ExpressionT:
         """Extract a boolean datetime property.
 
@@ -448,7 +452,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def to_timezone(
         self,
         x: ExpressionT,
-        timezone: ExpressionT,
+        timezone: str,
         /,
     ) -> ExpressionT:
         """Convert to specified timezone."""
@@ -457,7 +461,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def assume_timezone(
         self,
         x: ExpressionT,
-        timezone: ExpressionT,
+        timezone: str,
         /,
     ) -> ExpressionT:
         """Assume the timestamp is in the specified timezone."""
@@ -470,7 +474,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def strftime(
         self,
         x: ExpressionT,
-        format: ExpressionT,
+        format: str,
         /,
     ) -> ExpressionT:
         """Format datetime as string."""

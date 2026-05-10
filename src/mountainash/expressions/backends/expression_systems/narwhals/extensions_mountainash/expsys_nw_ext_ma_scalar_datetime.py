@@ -78,8 +78,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def extract(
         self,
         x: NarwhalsExpr,
-        component: NarwhalsExpr,
-        timezone: Optional[NarwhalsExpr] = None,
+        component: str,
+        timezone: Optional[str] = None,
         /,
     ) -> NarwhalsExpr:
         """Extract portion of a date/time value.
@@ -119,7 +119,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         /,
-        component: NarwhalsExpr,
+        component: str,
     ) -> NarwhalsExpr:
         """Extract boolean values of a date/time value.
 
@@ -556,7 +556,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Truncate datetime to the specified unit.
 
@@ -573,7 +573,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Round datetime to the nearest unit.
 
@@ -594,7 +594,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Round datetime up to the next unit.
 
@@ -615,7 +615,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Round datetime down to the previous unit.
 
@@ -635,7 +635,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def to_timezone(
         self,
         x: NarwhalsExpr,
-        timezone: NarwhalsExpr,
+        timezone: str,
         /,
     ) -> NarwhalsExpr:
         """Convert to specified timezone.
@@ -656,7 +656,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def assume_timezone(
         self,
         x: NarwhalsExpr,
-        timezone: NarwhalsExpr,
+        timezone: str,
         /,
     ) -> NarwhalsExpr:
         """Assume the timestamp is in the specified timezone.
@@ -681,7 +681,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def strftime(
         self,
         x: NarwhalsExpr,
-        format: NarwhalsExpr,
+        format: str,
         /,
     ) -> NarwhalsExpr:
         """Format datetime as string.
