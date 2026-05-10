@@ -339,6 +339,20 @@ OP_SPECS: list[OpSpec] = [
         input_col="dt",
         complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
     ),
+    OpSpec(
+        function_key=FK_MA_DT.DIFF_MILLISECONDS,
+        op_name="diff_milliseconds",
+        build=lambda col, arg: col.dt.diff_milliseconds(arg),
+        raw_arg=datetime(2024, 1, 15),
+        arg_col_name="other",
+        param_name="other",
+        data={
+            "dt": [datetime(2024, 1, 1), datetime(2024, 6, 15), datetime(2024, 12, 31)],
+            "other": [datetime(2023, 12, 31), datetime(2024, 1, 1), datetime(2024, 6, 1)],
+        },
+        input_col="dt",
+        complex_builder=lambda cn: ma.col(cn).dt.add_days(1),
+    ),
 ]
 
 
