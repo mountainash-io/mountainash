@@ -17,7 +17,6 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-    from ....expression_nodes import ExpressionNode
 
 
 def _reject_expression(param_name: str, value: Any, method_name: str) -> None:
