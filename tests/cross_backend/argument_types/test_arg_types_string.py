@@ -22,6 +22,15 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.CENTER, "length"),
     (FK_STR.CONCAT_WS, "separator"),
     (FK_STR.CONTAINS, "substring"),
+    # Mountainash string extensions — 8 ops (json_decode has no OP_SPEC; others have one)
+    ("strip_suffix", "x"),
+    ("to_integer", "x"),
+    ("to_time", "x"),
+    ("encode", "x"),
+    ("decode", "x"),
+    ("json_decode", "x"),
+    ("json_path_match", "x"),
+    ("extract_groups", "x"),
     (FK_STR.COUNT_SUBSTRING, "substring"),
     (FK_STR.ENDS_WITH, "substring"),
     (FK_STR.LEFT, "count"),
@@ -48,10 +57,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.SUBSTRING, "length"),
     (FK_STR.SUBSTRING, "start"),
     (FK_STR.TRIM, "characters"),
-    # Not listed here (no OP_SPECS yet, tracked in _KNOWN_UNTESTED):
-    #   Mountainash string extensions: decode.x, encode.x, extract_groups.x,
-    #     json_decode.x, json_path_match.x, strip_suffix.x, to_integer.x, to_time.x
-    #   Broken upstream APIs:
+    # Not listed here (broken upstream APIs, tracked in _KNOWN_UNTESTED in coverage guard):
     #     concat_ws.string_arguments — backend only accepts 2 positional args
     #     string_split.separator — STRING_SPLIT enum key missing
     #     regexp_count_substring.pattern/.position — backends return None (NoneType.compile)
@@ -387,6 +393,77 @@ OP_SPECS: list[OpSpec] = [
             "repl": ["XX", "YY", "ZZ"],
         },
     ),
+    # -- Mountainash string extensions --
+    OpSpec(
+        function_key="strip_suffix",
+        op_name="strip_suffix",
+        build=lambda col, _arg: col.str.strip_suffix("_old"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["hello_old", "world_old", "test"]},
+    ),
+    OpSpec(
+        function_key="to_integer",
+        op_name="to_integer",
+        build=lambda col, _arg: col.str.to_integer(),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["123", "456", "789"]},
+    ),
+    OpSpec(
+        function_key="to_time",
+        op_name="to_time",
+        build=lambda col, _arg: col.str.to_time("%H:%M"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["12:30", "08:00", "23:59"]},
+    ),
+    OpSpec(
+        function_key="encode",
+        op_name="encode",
+        build=lambda col, _arg: col.str.encode("hex"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["hello", "world", "test"]},
+    ),
+    OpSpec(
+        function_key="decode",
+        op_name="decode",
+        build=lambda col, _arg: col.str.decode("hex"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["68656c6c6f", "776f726c64", "74657374"]},
+    ),
+    OpSpec(
+        function_key="json_path_match",
+        op_name="json_path_match",
+        build=lambda col, _arg: col.str.json_path_match("$.x"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ['{"x":1}', '{"x":2}', '{"x":3}']},
+    ),
+    OpSpec(
+        function_key="extract_groups",
+        op_name="extract_groups",
+        build=lambda col, _arg: col.str.extract_groups(r"(\w+)@(\w+)"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["user@host", "foo@bar", "a@b"]},
+    ),
     OpSpec(
         function_key=FK_STR.CONCAT_WS,
         op_name="concat_ws_separator",
@@ -432,6 +509,21 @@ OP_SPECS: list[OpSpec] = [
 _NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
     # repeat: narwhals has no str.repeat(); raises BackendCapabilityError unconditionally
     (FK_STR.REPEAT, "count"),
+    # string extension ops with no narwhals support
+    ("to_time", "x"),
+    ("encode", "x"),
+    ("decode", "x"),
+    ("json_path_match", "x"),
+    ("extract_groups", "x"),
+}
+
+# Ops fully unsupported on ibis (raise BackendCapabilityError for all input types).
+_IBIS_FULLY_UNSUPPORTED: set[tuple] = {
+    ("to_time", "x"),
+    ("encode", "x"),
+    ("decode", "x"),
+    ("json_path_match", "x"),
+    ("extract_groups", "x"),
 }
 
 
@@ -447,6 +539,13 @@ def _params():
                             strict=True,
                             raises=Exception,
                             reason="Narwhals backend does not support this operation at all",
+                        )
+                if mark is None and bk == "ibis":
+                    if (op.function_key, op.param_name) in _IBIS_FULLY_UNSUPPORTED:
+                        mark = pytest.mark.xfail(
+                            strict=True,
+                            raises=Exception,
+                            reason="Ibis backend does not support this operation at all",
                         )
                 marks = [mark] if mark else []
                 cases.append(
