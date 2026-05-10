@@ -823,7 +823,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             args.append(self._to_substrait_node(group))
 
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_SUBSTRING,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
             arguments=args,
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
                      "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
@@ -967,7 +967,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         separator_node = self._to_substrait_node(separator)
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRING_SPLIT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT,
             arguments=[self._node, separator_node],
         )
         return self._build(node)
@@ -991,7 +991,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRING_SPLIT,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
             arguments=[self._node, pattern_node],
             options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
         )
