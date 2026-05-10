@@ -20,7 +20,7 @@ import json
 import re
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -263,20 +263,6 @@ _KEL_DICT_START_RE = re.compile(r'KNOWN_EXPR_LIMITATIONS\s*:\s*dict\[.*?\]\s*=\s
 _SHARED_VAR_RE = re.compile(
     r'(?P<varname>_[A-Z_]+)\s*=\s*KnownLimitation\s*\((?P<body>[^)]*(?:\([^)]*\)[^)]*)*)\)',
     re.DOTALL,
-)
-
-# Match dict key-value entries:
-# (FK_SOMETHING.VALUE, "param"): KnownLimitation(...) or _VAR_NAME,
-_ENTRY_RE = re.compile(
-    r'\(\s*(?P<fkey>[A-Za-z_]+\.[A-Z_]+)\s*,\s*["\'](?P<param>[^"\']+)["\']\s*\)'
-    r'\s*:\s*(?P<value>[^,\n]+(?:\n[^,\n]+)*?)(?=\s*[,\n]\s*(?:#|\(|$|\}))',
-    re.DOTALL,
-)
-
-# Simpler line-by-line dict entry scanner
-_KEY_LINE_RE = re.compile(
-    r'\(\s*(?P<fkey>[A-Za-z_]+\.[A-Z_]+)\s*,\s*["\'](?P<param>[^"\']+)["\']\s*\)\s*:'
-    r'\s*(?P<value>.+)'
 )
 
 
