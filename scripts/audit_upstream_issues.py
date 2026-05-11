@@ -595,17 +595,6 @@ def discover_upstream_issues(
 # ---------------------------------------------------------------------------
 
 
-def _extract_keywords(text: str) -> set[str]:
-    """Extract significant keywords from a text string for fuzzy matching."""
-    stop = {
-        "the", "a", "an", "is", "not", "and", "or", "on", "in", "to", "for",
-        "of", "at", "this", "that", "with", "from", "are", "be", "do", "as",
-        "by", "it", "its", "we", "our", "has", "have", "been", "was", "were",
-    }
-    words = re.sub(r'[^\w\s]', ' ', text.lower()).split()
-    return {w for w in words if len(w) > 3 and w not in stop}
-
-
 def _registry_matches_xfail(entry: RegistryEntry, xfail: StaticXfail) -> bool:
     """Heuristic: does a registry entry plausibly describe a given xfail?"""
     reg_kw = _extract_keywords(entry.description + " " + entry.status + " " + entry.action)
