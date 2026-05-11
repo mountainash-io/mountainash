@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainashWindowExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_WINDOW
 
 
 class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem, MountainashWindowExpressionSystemProtocol["IbisValueExpr"]):
@@ -34,9 +36,19 @@ class MountainAshIbisWindowExpressionSystem(IbisBaseExpressionSystem, Mountainas
         return x.prod()
 
     def forward_fill(self, x, /, *, limit: int | None = None):
-        """Forward fill null values."""
-        return x.fill_null(method="ffill")
+        """Forward fill null values — not supported at the expression level in Ibis."""
+        raise BackendCapabilityError(
+            "Ibis has no expression-level forward_fill/backward_fill. "
+            "Use relation-level composition (e.g. window functions via SQL) instead.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL,
+        )
 
     def backward_fill(self, x, /, *, limit: int | None = None):
-        """Backward fill null values."""
-        return x.fill_null(method="bfill")
+        """Backward fill null values — not supported at the expression level in Ibis."""
+        raise BackendCapabilityError(
+            "Ibis has no expression-level forward_fill/backward_fill. "
+            "Use relation-level composition (e.g. window functions via SQL) instead.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL,
+        )

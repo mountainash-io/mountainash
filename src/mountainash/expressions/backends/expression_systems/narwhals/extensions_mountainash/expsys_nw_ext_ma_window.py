@@ -42,12 +42,8 @@ class MountainAshNarwhalsWindowExpressionSystem(NarwhalsBaseExpressionSystem, Mo
 
     def forward_fill(self, x, /, *, limit: int | None = None):
         """Forward fill null values."""
-        if limit is not None:
-            return x.forward_fill(limit=limit)
-        return x.forward_fill()
+        return x.fill_null(strategy="forward", limit=limit)
 
     def backward_fill(self, x, /, *, limit: int | None = None):
         """Backward fill null values."""
-        if limit is not None:
-            return x.backward_fill(limit=limit)
-        return x.backward_fill()
+        return x.fill_null(strategy="backward", limit=limit)
