@@ -449,7 +449,13 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Return the bitwise XOR of two integers."""
-        return x ^ y
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Narwhals does not support bitwise_xor. Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR,
+        )
 
     def shift_left(
         self,
