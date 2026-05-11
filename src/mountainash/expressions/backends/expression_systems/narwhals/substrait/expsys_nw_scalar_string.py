@@ -799,8 +799,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Note:
             Narwhals doesn't have extract_all. Returns input as fallback.
         """
-        # Narwhals doesn't have extract_all - fallback
-        return input
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+        raise BackendCapabilityError(
+            "Narwhals does not support regexp_match_substring_all (no extract_all method). "
+            "Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+        )
 
     def regexp_strpos(
         self,
@@ -830,8 +836,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Note:
             Narwhals doesn't have regex find. Returns 0 as fallback.
         """
-        # Narwhals doesn't have regex position - fallback
-        return nw.lit(0)
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+        raise BackendCapabilityError(
+            "Narwhals does not support regexp_strpos (no regex find method). "
+            "Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+        )
 
     def regexp_count_substring(
         self,
@@ -859,8 +871,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Note:
             Narwhals doesn't have count_matches. Returns 0 as fallback.
         """
-        # Narwhals doesn't have regex count - fallback
-        return nw.lit(0)
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+        raise BackendCapabilityError(
+            "Narwhals does not support regexp_count_substring (no count_matches method). "
+            "Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+        )
 
     def regexp_replace(
         self,
