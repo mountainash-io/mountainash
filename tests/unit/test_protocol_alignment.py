@@ -646,14 +646,6 @@ WIRING_PROTOCOL_REGISTRY = {
 # Each entry maps (protocol_cls, method_name) → reason string.
 # These are xfailed in the wiring audit, not hard failures.
 KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
-    # Substrait Scalar Arithmetic — bitwise operations
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_not"): "Bitwise ops: no function mapping registered",
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_and"): "Bitwise ops: no function mapping registered",
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_or"): "Bitwise ops: no function mapping registered",
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "bitwise_xor"): "Bitwise ops: no function mapping registered",
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "shift_left"): "Bitwise ops: no function mapping registered",
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "shift_right"): "Bitwise ops: no function mapping registered",
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "shift_right_unsigned"): "Bitwise ops: no function mapping registered",
     (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): "No backend support yet",
     # Substrait Scalar Comparison — distinct operations
     (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): "No ENUM, no function mapping, no API builder",
