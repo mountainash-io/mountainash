@@ -49,3 +49,58 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
 
     def list_get(self, x, /, *, index: int = 0):
         return x[index]
+
+    def list_all(self, x, /):
+        return x.alls()
+
+    def list_any(self, x, /):
+        return x.anys()
+
+    def list_drop_nulls(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.drop_nulls(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS,
+        )
+
+    def list_median(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.median(). Use Polars or Narwhals backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN,
+        )
+
+    def list_std(self, x, /, *, ddof: int = 1):
+        raise BackendCapabilityError(
+            "Ibis does not support array.std(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.STD,
+        )
+
+    def list_var(self, x, /, *, ddof: int = 1):
+        raise BackendCapabilityError(
+            "Ibis does not support array.var(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.VAR,
+        )
+
+    def list_n_unique(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.n_unique(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE,
+        )
+
+    def list_count_matches(self, x, /, item):
+        raise BackendCapabilityError(
+            "Ibis does not support array.count_matches(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES,
+        )
+
+    def list_item(self, x, /, *, index: int = 0):
+        raise BackendCapabilityError(
+            "Ibis does not support array.item(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
+        )

@@ -256,3 +256,170 @@ class TestNarwhalsExplodeJoinGuard:
         expr = ma.col("tags").list.join(",")
         with pytest.raises(BackendCapabilityError, match="join"):
             expr.compile(df)
+
+
+# =============================================================================
+# Batch 2a: Aggregation-like list ops
+# =============================================================================
+
+# Backends where all/any work: Polars + Ibis (Narwhals lacks these ops)
+LIST_BACKENDS_POLARS_IBIS = [
+    "polars",
+    pytest.param(
+        "narwhals-polars",
+        marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks list.all()/any()"),
+    ),
+    "ibis-duckdb",
+]
+
+# Backends where median works: Polars + Narwhals (Ibis lacks it)
+LIST_BACKENDS_POLARS_NARWHALS = [
+    "polars",
+    "narwhals-polars",
+    pytest.param(
+        "ibis-duckdb",
+        marks=pytest.mark.xfail(strict=True, reason="Ibis lacks array.median()"),
+    ),
+]
+
+# Polars-only ops (both Narwhals and Ibis lack them)
+LIST_BACKENDS_POLARS_ONLY = [
+    "polars",
+    pytest.param(
+        "narwhals-polars",
+        marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks this list op"),
+    ),
+    pytest.param(
+        "ibis-duckdb",
+        marks=pytest.mark.xfail(strict=True, reason="Ibis lacks this array op"),
+    ),
+]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_IBIS)
+class TestListAll:
+    def test_all_true(self, backend_name, backend_factory, collect_expr):
+        data = {"flags": [[True, True, True], [True, False], [True]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("flags").list.all()
+        result = collect_expr(df, expr)
+        assert result == [True, False, True]
+
+    def test_all_false(self, backend_name, backend_factory, collect_expr):
+        data = {"flags": [[False, False], [True, True]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("flags").list.all()
+        result = collect_expr(df, expr)
+        assert result == [False, True]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_IBIS)
+class TestListAny:
+    def test_any_mixed(self, backend_name, backend_factory, collect_expr):
+        data = {"flags": [[False, False], [True, False], [True, True]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("flags").list.any()
+        result = collect_expr(df, expr)
+        assert result == [False, True, True]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListDropNulls:
+    def test_drop_nulls(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, None, 2], [None, None], [3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.drop_nulls()
+        result = collect_expr(df, expr)
+        assert result == [[1, 2], [], [3, 4]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_NARWHALS)
+class TestListMedian:
+    def test_median_odd(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3], [10, 20, 30]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.median()
+        result = collect_expr(df, expr)
+        assert result == [2.0, 20.0]
+
+    def test_median_even(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4], [10, 20]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.median()
+        result = collect_expr(df, expr)
+        assert result == [2.5, 15.0]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListStd:
+    def test_std_default_ddof(self, backend_name, backend_factory, collect_expr):
+        import math
+        data = {"vals": [[2, 4, 4, 4, 5, 5, 7, 9]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.std()
+        result = collect_expr(df, expr)
+        assert math.isclose(result[0], 2.138089935, rel_tol=1e-5)
+
+    def test_std_ddof_zero(self, backend_name, backend_factory, collect_expr):
+        import math
+        data = {"vals": [[2, 4, 4, 4, 5, 5, 7, 9]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.std(ddof=0)
+        result = collect_expr(df, expr)
+        assert math.isclose(result[0], 2.0, rel_tol=1e-5)
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListVar:
+    def test_var_default_ddof(self, backend_name, backend_factory, collect_expr):
+        import math
+        data = {"vals": [[2, 4, 4, 4, 5, 5, 7, 9]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.var()
+        result = collect_expr(df, expr)
+        assert math.isclose(result[0], 4.571428571, rel_tol=1e-5)
+
+    def test_var_ddof_zero(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[2, 4, 4, 4, 5, 5, 7, 9]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.var(ddof=0)
+        result = collect_expr(df, expr)
+        assert result[0] == 4.0
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListNUnique:
+    def test_n_unique(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 2, 3], [5, 5, 5], [10]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.n_unique()
+        result = collect_expr(df, expr)
+        assert result == [3, 1, 1]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListCountMatches:
+    def test_count_matches_literal(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 1, 3], [1, 1, 1], [2, 3]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.count_matches(1)
+        result = collect_expr(df, expr)
+        assert result == [2, 3, 0]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListItem:
+    def test_item_first(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30], [40, 50]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.item(index=0)
+        result = collect_expr(df, expr)
+        assert result == [10, 40]
+
+    def test_item_oob_returns_null(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20], [30]]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("vals").list.item(index=5)
+        result = collect_expr(df, expr)
+        assert result[0] is None
+        assert result[1] is None

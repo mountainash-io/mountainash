@@ -78,3 +78,42 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def last(self) -> BaseExpressionAPI:
         """Last element of each list."""
         ...
+
+    def all(self) -> BaseExpressionAPI:
+        """Check if all elements in each list are true."""
+        ...
+
+    def any(self) -> BaseExpressionAPI:
+        """Check if any element in each list is true."""
+        ...
+
+    def drop_nulls(self) -> BaseExpressionAPI:
+        """Remove null values from each list."""
+        ...
+
+    def median(self) -> BaseExpressionAPI:
+        """Median of elements in each list."""
+        ...
+
+    def std(self, *, ddof: int = 1) -> BaseExpressionAPI:
+        """Standard deviation of elements in each list."""
+        ...
+
+    def var(self, *, ddof: int = 1) -> BaseExpressionAPI:
+        """Variance of elements in each list."""
+        ...
+
+    def n_unique(self) -> BaseExpressionAPI:
+        """Count distinct elements in each list."""
+        ...
+
+    def count_matches(
+        self,
+        item: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """Count occurrences of a value in each list."""
+        ...
+
+    def item(self, *, index: int = 0) -> BaseExpressionAPI:
+        """Get element at the given index, returning null on out-of-bounds."""
+        ...

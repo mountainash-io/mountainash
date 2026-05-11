@@ -633,6 +633,15 @@ class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     EXPLODE = auto()
     JOIN = auto()
     GET = auto()
+    ALL = auto()
+    ANY = auto()
+    DROP_NULLS = auto()
+    MEDIAN = auto()
+    STD = auto()
+    VAR = auto()
+    N_UNIQUE = auto()
+    COUNT_MATCHES = auto()
+    ITEM = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):

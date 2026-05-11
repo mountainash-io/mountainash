@@ -42,3 +42,30 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
 
     def list_get(self, x, /, *, index: int = 0):
         return x.list.get(index, null_on_oob=True)
+
+    def list_all(self, x, /):
+        return x.list.all()
+
+    def list_any(self, x, /):
+        return x.list.any()
+
+    def list_drop_nulls(self, x, /):
+        return x.list.drop_nulls()
+
+    def list_median(self, x, /):
+        return x.list.median()
+
+    def list_std(self, x, /, *, ddof: int = 1):
+        return x.list.std(ddof=ddof)
+
+    def list_var(self, x, /, *, ddof: int = 1):
+        return x.list.var(ddof=ddof)
+
+    def list_n_unique(self, x, /):
+        return x.list.n_unique()
+
+    def list_count_matches(self, x, /, item):
+        return x.list.count_matches(item)
+
+    def list_item(self, x, /, *, index: int = 0):
+        return x.list.get(index, null_on_oob=True)

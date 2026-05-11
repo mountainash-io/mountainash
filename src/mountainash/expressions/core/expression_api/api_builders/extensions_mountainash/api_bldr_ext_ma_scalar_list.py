@@ -130,3 +130,95 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
     def last(self) -> BaseExpressionAPI:
         """Last element of each list."""
         return self.get(-1)
+
+    def all(self) -> BaseExpressionAPI:
+        """Check if all elements in each list are true."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ALL,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def any(self) -> BaseExpressionAPI:
+        """Check if any element in each list is true."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ANY,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def drop_nulls(self) -> BaseExpressionAPI:
+        """Remove null values from each list."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def median(self) -> BaseExpressionAPI:
+        """Median of elements in each list."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def std(self, *, ddof: int = 1) -> BaseExpressionAPI:
+        """Standard deviation of elements in each list.
+
+        Args:
+            ddof: Delta degrees of freedom. Default is 1 (sample std dev).
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.STD,
+            arguments=[self._node],
+            options={"ddof": ddof},
+        )
+        return self._build(node)
+
+    def var(self, *, ddof: int = 1) -> BaseExpressionAPI:
+        """Variance of elements in each list.
+
+        Args:
+            ddof: Delta degrees of freedom. Default is 1 (sample variance).
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.VAR,
+            arguments=[self._node],
+            options={"ddof": ddof},
+        )
+        return self._build(node)
+
+    def n_unique(self) -> BaseExpressionAPI:
+        """Count distinct elements in each list."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def count_matches(self, item: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Count occurrences of a value in each list.
+
+        Args:
+            item: Value or expression to count.
+        """
+        item_node = self._to_substrait_node(item)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES,
+            arguments=[self._node, item_node],
+        )
+        return self._build(node)
+
+    def item(self, *, index: int = 0) -> BaseExpressionAPI:
+        """Get element at the given index, returning null on out-of-bounds.
+
+        Args:
+            index: Zero-based index. Negative indices count from the end.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
+            arguments=[self._node],
+            options={"index": index},
+        )
+        return self._build(node)
