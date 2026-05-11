@@ -222,3 +222,115 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
             options={"index": index},
         )
         return self._build(node)
+
+    def reverse(self) -> BaseExpressionAPI:
+        """Reverse each list."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def head(self, n: int = 5) -> BaseExpressionAPI:
+        """Return the first n elements of each list.
+
+        Args:
+            n: Number of elements to take from the start.
+        """
+        n_node = self._to_substrait_node(n)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.HEAD,
+            arguments=[self._node, n_node],
+        )
+        return self._build(node)
+
+    def tail(self, n: int = 5) -> BaseExpressionAPI:
+        """Return the last n elements of each list.
+
+        Args:
+            n: Number of elements to take from the end.
+        """
+        n_node = self._to_substrait_node(n)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TAIL,
+            arguments=[self._node, n_node],
+        )
+        return self._build(node)
+
+    def slice(self, offset: Union[BaseExpressionAPI, Any], *, length: int | None = None) -> BaseExpressionAPI:
+        """Return a slice of each list starting at offset.
+
+        Args:
+            offset: Start index (can be an expression).
+            length: Number of elements to include. None means take all remaining.
+        """
+        offset_node = self._to_substrait_node(offset)
+        opts: dict[str, Any] = {}
+        if length is not None:
+            opts["length"] = length
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SLICE,
+            arguments=[self._node, offset_node],
+            options=opts,
+        )
+        return self._build(node)
+
+    def gather(self, indices: Union[BaseExpressionAPI, Any], *, null_on_oob: bool = False) -> BaseExpressionAPI:
+        """Gather elements at the given indices.
+
+        Args:
+            indices: List of indices (can be an expression).
+            null_on_oob: Return null instead of raising on out-of-bounds.
+        """
+        indices_node = self._to_substrait_node(indices)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER,
+            arguments=[self._node, indices_node],
+            options={"null_on_oob": null_on_oob},
+        )
+        return self._build(node)
+
+    def gather_every(self, n: Union[BaseExpressionAPI, Any], *, offset: int = 0) -> BaseExpressionAPI:
+        """Take every nth element of each list.
+
+        Args:
+            n: Step size.
+            offset: Starting offset before sampling.
+        """
+        n_node = self._to_substrait_node(n)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY,
+            arguments=[self._node, n_node],
+            options={"offset": offset},
+        )
+        return self._build(node)
+
+    def shift(self, n: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Shift list values by n positions, filling with null.
+
+        Args:
+            n: Number of positions to shift. Positive shifts right, negative shifts left.
+        """
+        n_node = self._to_substrait_node(n)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT,
+            arguments=[self._node, n_node],
+        )
+        return self._build(node)
+
+    def diff(self, *, n: int = 1, null_behavior: str = "ignore") -> BaseExpressionAPI:
+        """Compute element-wise differences within each list.
+
+        Args:
+            n: Number of slots to shift before differencing.
+            null_behavior: How to handle nulls: "ignore" or "drop".
+        """
+        opts: dict[str, Any] = {"n": n}
+        if null_behavior != "ignore":
+            opts["null_behavior"] = null_behavior
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
+            arguments=[self._node],
+            options=opts,
+        )
+        return self._build(node)

@@ -642,6 +642,14 @@ class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     N_UNIQUE = auto()
     COUNT_MATCHES = auto()
     ITEM = auto()
+    REVERSE = auto()
+    HEAD = auto()
+    TAIL = auto()
+    SLICE = auto()
+    GATHER = auto()
+    GATHER_EVERY = auto()
+    SHIFT = auto()
+    DIFF = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):

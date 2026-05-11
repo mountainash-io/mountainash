@@ -117,3 +117,35 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def item(self, *, index: int = 0) -> BaseExpressionAPI:
         """Get element at the given index, returning null on out-of-bounds."""
         ...
+
+    def reverse(self) -> BaseExpressionAPI:
+        """Reverse each list."""
+        ...
+
+    def head(self, n: int = 5) -> BaseExpressionAPI:
+        """Return the first n elements of each list."""
+        ...
+
+    def tail(self, n: int = 5) -> BaseExpressionAPI:
+        """Return the last n elements of each list."""
+        ...
+
+    def slice(self, offset: int, *, length: int | None = None) -> BaseExpressionAPI:
+        """Return a slice of each list."""
+        ...
+
+    def gather(self, indices: Any, *, null_on_oob: bool = False) -> BaseExpressionAPI:
+        """Gather elements at the given indices."""
+        ...
+
+    def gather_every(self, n: int, *, offset: int = 0) -> BaseExpressionAPI:
+        """Take every nth element of each list."""
+        ...
+
+    def shift(self, n: int) -> BaseExpressionAPI:
+        """Shift list values by n positions."""
+        ...
+
+    def diff(self, *, n: int = 1, null_behavior: str = "ignore") -> BaseExpressionAPI:
+        """Compute element-wise differences."""
+        ...

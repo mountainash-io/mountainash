@@ -69,3 +69,27 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
 
     def list_item(self, x, /, *, index: int = 0):
         return x.list.get(index, null_on_oob=True)
+
+    def list_reverse(self, x, /):
+        return x.list.reverse()
+
+    def list_head(self, x, /, n):
+        return x.list.head(n)
+
+    def list_tail(self, x, /, n):
+        return x.list.tail(n)
+
+    def list_slice(self, x, /, offset, *, length=None):
+        return x.list.slice(offset, length)
+
+    def list_gather(self, x, /, indices, *, null_on_oob=False):
+        return x.list.gather(indices, null_on_oob=null_on_oob)
+
+    def list_gather_every(self, x, /, n, *, offset=0):
+        return x.list.gather_every(n, offset=offset)
+
+    def list_shift(self, x, /, n):
+        return x.list.shift(n)
+
+    def list_diff(self, x, /, *, n=1, null_behavior="ignore"):
+        return x.list.diff(n=n, null_behavior=null_behavior)

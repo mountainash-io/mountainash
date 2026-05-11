@@ -423,3 +423,54 @@ class TestListItem:
         result = collect_expr(df, expr)
         assert result[0] is None
         assert result[1] is None
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListPositionalOps:
+    def test_list_reverse(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3], [4, 5]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.reverse())
+        assert result == [[3, 2, 1], [5, 4]]
+
+    def test_list_head(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4, 5], [10, 20]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.head(2))
+        assert result == [[1, 2], [10, 20]]
+
+    def test_list_tail(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4, 5], [10, 20]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.tail(2))
+        assert result == [[4, 5], [10, 20]]
+
+    def test_list_slice(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4, 5]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.slice(1, length=3))
+        assert result == [[2, 3, 4]]
+
+    def test_list_gather(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20, 30, 40]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.gather([0, 2]))
+        assert result == [[10, 30]]
+
+    def test_list_gather_every(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4, 5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.gather_every(2))
+        assert result == [[1, 3, 5]]
+
+    def test_list_shift(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.shift(1))
+        assert result == [[None, 1, 2]]
+
+    def test_list_diff(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 30, 25]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.diff())
+        assert result == [[None, 20, -5]]

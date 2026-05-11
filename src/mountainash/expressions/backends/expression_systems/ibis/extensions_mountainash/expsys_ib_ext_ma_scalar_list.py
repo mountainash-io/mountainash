@@ -104,3 +104,59 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
             backend=self.BACKEND_NAME,
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
         )
+
+    def list_reverse(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.reverse(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE,
+        )
+
+    def list_head(self, x, /, n):
+        raise BackendCapabilityError(
+            "Ibis does not support array.head(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.HEAD,
+        )
+
+    def list_tail(self, x, /, n):
+        raise BackendCapabilityError(
+            "Ibis does not support array.tail(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TAIL,
+        )
+
+    def list_slice(self, x, /, offset, *, length=None):
+        raise BackendCapabilityError(
+            "Ibis does not support array.slice(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SLICE,
+        )
+
+    def list_gather(self, x, /, indices, *, null_on_oob=False):
+        raise BackendCapabilityError(
+            "Ibis does not support array.gather(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER,
+        )
+
+    def list_gather_every(self, x, /, n, *, offset=0):
+        raise BackendCapabilityError(
+            "Ibis does not support array.gather_every(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY,
+        )
+
+    def list_shift(self, x, /, n):
+        raise BackendCapabilityError(
+            "Ibis does not support array.shift(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT,
+        )
+
+    def list_diff(self, x, /, *, n=1, null_behavior="ignore"):
+        raise BackendCapabilityError(
+            "Ibis does not support array.diff(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
+        )
