@@ -145,12 +145,9 @@ class TestDurationExtractionNew:
         assert result == [1, 25, 0]
 
 
-DURATION_POLARS_ONLY = [
+DURATION_POLARS_AND_NARWHALS = [
     "polars",
-    pytest.param(
-        "narwhals-polars",
-        marks=pytest.mark.xfail(strict=False, reason="Narwhals total_nanoseconds() support depends on version"),
-    ),
+    "narwhals-polars",
     pytest.param(
         "ibis-duckdb",
         marks=pytest.mark.xfail(strict=True, reason="Ibis IntervalValue has no total_nanoseconds()"),
@@ -158,7 +155,7 @@ DURATION_POLARS_ONLY = [
 ]
 
 
-@pytest.mark.parametrize("backend_name", DURATION_POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", DURATION_POLARS_AND_NARWHALS)
 class TestTotalNanoseconds:
     def test_total_nanoseconds(self, backend_name, backend_factory, collect_expr):
         data = {"gap": [timedelta(seconds=1), timedelta(milliseconds=500)]}
