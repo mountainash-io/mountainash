@@ -3,7 +3,7 @@
 Cross-references:
   1. Static pytest.mark.xfail markers in tests/
   2. KNOWN_EXPR_LIMITATIONS registries in backend base.py files
-  3. Markdown registry tables in mountainash-central upstream-issues/
+  3. YAML registry (upstream-issues.yaml) in mountainash-central upstream-issues/
 
 Produces a reconciliation report showing counts and discrepancies.
 
@@ -45,12 +45,7 @@ REGISTRY_ROOT = (
     / "mountainash-central/01.principles/mountainash/h.backlog/upstream-issues"
 )
 
-REGISTRY_PROJECTS = {
-    "ibis": REGISTRY_ROOT / "ibis",
-    "narwhals": REGISTRY_ROOT / "narwhals",
-    "polars": REGISTRY_ROOT / "polars",
-    "mountainash-internal": REGISTRY_ROOT / "mountainash-internal",
-}
+REGISTRY_YAML = REGISTRY_ROOT / "upstream-issues.yaml"
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -362,108 +357,53 @@ def parse_known_expr_limitations() -> list[KelEntry]:
 
 
 # ---------------------------------------------------------------------------
-# 3. Parse markdown registry
+# 3. Parse YAML registry
 # ---------------------------------------------------------------------------
 
-_TABLE_ROW_RE = re.compile(r'^\|\s*(?P<cells>[^|]+(?:\|[^|]+)*)\|?\s*$')
-_SEPARATOR_RE = re.compile(r'^\|[-| :]+\|?\s*$')
 
+def parse_yaml_registry() -> list[RegistryEntry]:
+    """Parse the canonical YAML upstream-issues registry."""
+    yaml_path = REGISTRY_YAML
+    if not yaml_path.exists():
+        print(f"  WARNING: YAML registry not found at {yaml_path}", flush=True)
+        return []
 
-def _parse_table(text: str, filename: str, project: str) -> list[RegistryEntry]:
-    """Parse a markdown table from text, returning RegistryEntry objects."""
-    entries: list[RegistryEntry] = []
-    lines = text.splitlines()
+    try:
+        import yaml
+    except ImportError:
+        print("  WARNING: PyYAML not installed — cannot parse YAML registry", flush=True)
+        return []
 
-    header: list[str] = []
-    in_table = False
-    past_separator = False
+    with open(yaml_path) as fh:
+        data = yaml.safe_load(fh)
 
-    # Derive category from filename (strip extension)
-    category = Path(filename).stem  # e.g. "string-ops"
+    if not isinstance(data, dict) or "issues" not in data:
+        print("  WARNING: YAML registry has unexpected structure", flush=True)
+        return []
 
-    for line in lines:
-        if _SEPARATOR_RE.match(line):
-            past_separator = True
-            in_table = True
-            continue
+    results: list[RegistryEntry] = []
+    for entry in data["issues"]:
+        upstream_url = entry.get("upstream_issue")
+        upstream_number = None
+        if upstream_url:
+            m = re.search(r'/issues/(\d+)$', upstream_url)
+            if m:
+                upstream_number = f"#{m.group(1)}"
 
-        if not line.strip().startswith("|"):
-            if in_table and past_separator:
-                # Table ended
-                in_table = False
-                past_separator = False
-                header = []
-            continue
+        kel = entry.get("known_expr_limitations", [])
+        kel_count = str(len(kel)) if kel else None
 
-        row_m = _TABLE_ROW_RE.match(line)
-        if not row_m:
-            continue
-
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-
-        if not past_separator:
-            # This is the header row
-            header = [c.lower().strip() for c in cells]
-            continue
-
-        # Data row
-        if not header:
-            continue
-
-        # Pad or trim cells to match header length
-        while len(cells) < len(header):
-            cells.append("")
-
-        row = dict(zip(header, cells))
-
-        entry_id = row.get("id", "").strip()
-        if not entry_id or entry_id == "id":
-            continue
-
-        description = row.get("description", "").strip()
-        status = row.get("status", "").strip()
-        action = row.get("action", "").strip()
-
-        # Upstream issue: extract URL from markdown link [#123](url) or "not filed"
-        upstream_raw = row.get("upstream issue", "").strip()
-        upstream_url: str | None = None
-        upstream_number: str | None = None
-        if upstream_raw and upstream_raw.lower() not in ("not filed", "n/a", "—", "-", ""):
-            url_m = re.search(r'\[([^\]]+)\]\(([^)]+)\)', upstream_raw)
-            if url_m:
-                upstream_number = url_m.group(1)
-                upstream_url = url_m.group(2)
-
-        kel_count = row.get("known_expr_limitations", row.get("kel", None))
-        if kel_count is not None:
-            kel_count = kel_count.strip() or None
-
-        entries.append(RegistryEntry(
-            id=entry_id,
-            project=project,
-            category=category,
-            description=description,
+        results.append(RegistryEntry(
+            id=entry.get("id", ""),
+            project=entry.get("project", ""),
+            category=entry.get("category", ""),
+            description=entry.get("summary", ""),
             upstream_issue=upstream_url,
             upstream_issue_number=upstream_number,
-            status=status,
-            action=action,
+            status=entry.get("status", ""),
+            action=entry.get("our_workaround", ""),
             kel_count=kel_count,
         ))
-
-    return entries
-
-
-def parse_markdown_registry() -> list[RegistryEntry]:
-    """Parse all markdown registry files in the upstream-issues subdirectories."""
-    results: list[RegistryEntry] = []
-
-    for project, proj_dir in REGISTRY_PROJECTS.items():
-        if not proj_dir.exists():
-            continue
-        for md_file in sorted(proj_dir.glob("*.md")):
-            text = md_file.read_text(encoding="utf-8")
-            entries = _parse_table(text, md_file.name, project)
-            results.extend(entries)
 
     return results
 
@@ -756,7 +696,7 @@ def format_report(report: AuditReport) -> str:
     lines.append(f"|--------|-------|")
     lines.append(f"| Static `pytest.mark.xfail` markers | {report.total_xfails} |")
     lines.append(f"| `KNOWN_EXPR_LIMITATIONS` entries | {report.total_kel} |")
-    lines.append(f"| Markdown registry entries | {report.total_registry} |")
+    lines.append(f"| YAML registry entries | {report.total_registry} |")
     lines.append("")
 
     # Per-backend breakdown
@@ -914,8 +854,8 @@ def main() -> None:
     kel_entries = parse_known_expr_limitations()
     print(f"  Found {len(kel_entries)} KEL entries", flush=True)
 
-    print("Parsing markdown registry...", flush=True)
-    registry = parse_markdown_registry()
+    print("Parsing YAML registry...", flush=True)
+    registry = parse_yaml_registry()
     print(f"  Found {len(registry)} registry entries", flush=True)
 
     github_statuses: dict[str, GithubIssueStatus] | None = None
