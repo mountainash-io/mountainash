@@ -95,6 +95,10 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
     ("list_to_array", "x"),
     ("list_to_struct", "x"),
     ("list_var", "x"),
+    # Duration extraction — Ibis has no total_* methods
+    ("total_days", "x"),
+    ("total_hours", "x"),
+    ("total_nanoseconds", "x"),
 }
 
 
