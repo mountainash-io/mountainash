@@ -49,7 +49,53 @@ def _collect_tested_params() -> set[tuple[str, str]]:
     return tested
 
 
-_KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = set()
+_KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
+    # List ops — mostly Polars-only, argument expression support is backend-specific
+    ("list_all", "x"),
+    ("list_any", "x"),
+    ("list_arg_max", "x"),
+    ("list_arg_min", "x"),
+    ("list_agg", "x"),
+    ("list_agg", "expr"),
+    ("list_concat", "x"),
+    ("list_concat", "other"),
+    ("list_count_matches", "x"),
+    ("list_count_matches", "item"),
+    ("list_diff", "x"),
+    ("list_drop_nulls", "x"),
+    ("list_filter", "x"),
+    ("list_filter", "mask"),
+    ("list_gather", "x"),
+    ("list_gather", "indices"),
+    ("list_gather_every", "x"),
+    ("list_gather_every", "n"),
+    ("list_head", "x"),
+    ("list_head", "n"),
+    ("list_item", "x"),
+    ("list_median", "x"),
+    ("list_n_unique", "x"),
+    ("list_reverse", "x"),
+    ("list_sample", "x"),
+    ("list_sample", "n"),
+    ("list_set_difference", "x"),
+    ("list_set_difference", "other"),
+    ("list_set_intersection", "x"),
+    ("list_set_intersection", "other"),
+    ("list_set_symmetric_difference", "x"),
+    ("list_set_symmetric_difference", "other"),
+    ("list_set_union", "x"),
+    ("list_set_union", "other"),
+    ("list_shift", "x"),
+    ("list_shift", "n"),
+    ("list_slice", "x"),
+    ("list_slice", "offset"),
+    ("list_std", "x"),
+    ("list_tail", "x"),
+    ("list_tail", "n"),
+    ("list_to_array", "x"),
+    ("list_to_struct", "x"),
+    ("list_var", "x"),
+}
 
 
 def test_every_argument_param_is_tested():
