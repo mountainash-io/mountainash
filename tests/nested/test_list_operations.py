@@ -587,3 +587,68 @@ class TestListFilter:
         df = backend_factory.create(data, backend_name)
         result = collect_expr(df, ma.col("a").list.filter(pl.element() % 2 == 0))
         assert result == [[2, 4], [10, 12]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListConversionOps:
+    def test_to_struct_with_fields(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2], [3, 4], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.to_struct(fields=["x", "y"]))
+        assert len(result) == 3
+        assert result[0] == {"x": 1, "y": 2}
+        assert result[1] == {"x": 3, "y": 4}
+        assert result[2] == {"x": 5, "y": 6}
+
+    def test_to_struct_with_upper_bound(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[10, 20], [30, 40]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.to_struct(upper_bound=2))
+        assert len(result) == 2
+        assert result[0] == {"field_0": 10, "field_1": 20}
+
+    def test_to_array(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3], [4, 5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.to_array(width=3))
+        assert result == [[1, 2, 3], [4, 5, 6]]
+
+    def test_arg_min(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[30, 10, 20], [5, 15, 1]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.arg_min())
+        assert result == [1, 2]
+
+    def test_arg_max(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[30, 10, 20], [5, 15, 1]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.arg_max())
+        assert result == [0, 1]
+
+    def test_sample_n(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4, 5]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.sample(n=2, seed=42))
+        assert len(result) == 1
+        assert len(result[0]) == 2
+
+    def test_sample_fraction(self, backend_name, backend_factory, collect_expr):
+        data = {"vals": [[1, 2, 3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.sample(fraction=0.5, seed=0))
+        assert len(result) == 1
+        assert len(result[0]) == 2
+
+    def test_agg_sum(self, backend_name, backend_factory, collect_expr):
+        import polars as pl
+        data = {"vals": [[1, 2, 3], [4, 5]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.agg(pl.element().sum()))
+        assert result == [6, 9]
+
+    def test_agg_null_count(self, backend_name, backend_factory, collect_expr):
+        import polars as pl
+        data = {"vals": [[1, None, 3], [None, None]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("vals").list.agg(pl.element().null_count()))
+        assert result == [1, 2]

@@ -173,3 +173,27 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def filter(self, mask: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
         """Filter list elements by a boolean mask expression."""
         ...
+
+    def to_struct(self, *, n_field_strategy: str = "first_non_null", fields: list[str] | None = None, upper_bound: int | None = None) -> BaseExpressionAPI:
+        """Convert each list to a struct."""
+        ...
+
+    def to_array(self, *, width: int) -> BaseExpressionAPI:
+        """Convert each list to a fixed-width array."""
+        ...
+
+    def arg_min(self) -> BaseExpressionAPI:
+        """Return the index of the minimum value in each list."""
+        ...
+
+    def arg_max(self) -> BaseExpressionAPI:
+        """Return the index of the maximum value in each list."""
+        ...
+
+    def sample(self, n: Any = None, *, fraction: float | None = None, with_replacement: bool = False, shuffle: bool = False, seed: int | None = None) -> BaseExpressionAPI:
+        """Sample elements from each list."""
+        ...
+
+    def agg(self, expr: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Aggregate list elements with an expression."""
+        ...

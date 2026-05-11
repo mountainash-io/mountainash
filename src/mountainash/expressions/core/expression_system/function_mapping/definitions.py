@@ -2310,6 +2310,39 @@ def register_all_functions() -> None:
             substrait_uri=None, substrait_name=None, is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_filter,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("n_field_strategy", "fields", "upper_bound"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_to_struct,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("width",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_to_array,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_arg_min,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_arg_max,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("fraction", "with_replacement", "shuffle", "seed"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sample,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_agg,
+        ),
     ]
 
     # ========================================

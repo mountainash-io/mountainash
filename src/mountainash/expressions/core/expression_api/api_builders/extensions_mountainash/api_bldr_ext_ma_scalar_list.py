@@ -415,3 +415,103 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
             arguments=[self._node, mask_node],
         )
         return self._build(node)
+
+    def to_struct(self, *, n_field_strategy: str = "first_non_null", fields: list[str] | None = None, upper_bound: int | None = None) -> BaseExpressionAPI:
+        """Convert each list to a struct.
+
+        Args:
+            n_field_strategy: How to determine the number of fields. One of
+                "first_non_null", "max_width". Default "first_non_null".
+            fields: Optional list of field names. If None, fields are named
+                "field_0", "field_1", etc.
+            upper_bound: Optional upper bound on the number of struct fields.
+                Only used when n_field_strategy is "max_width".
+        """
+        opts: dict[str, Any] = {"n_field_strategy": n_field_strategy}
+        if fields is not None:
+            opts["fields"] = fields
+        if upper_bound is not None:
+            opts["upper_bound"] = upper_bound
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+            arguments=[self._node],
+            options=opts,
+        )
+        return self._build(node)
+
+    def to_array(self, *, width: int) -> BaseExpressionAPI:
+        """Convert each list to a fixed-width array.
+
+        Args:
+            width: The fixed width of the resulting array. All lists must have
+                exactly this many elements.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+            arguments=[self._node],
+            options={"width": width},
+        )
+        return self._build(node)
+
+    def arg_min(self) -> BaseExpressionAPI:
+        """Return the index of the minimum value in each list."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def arg_max(self) -> BaseExpressionAPI:
+        """Return the index of the maximum value in each list."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def sample(self, n: Union[BaseExpressionAPI, Any] = None, *, fraction: float | None = None, with_replacement: bool = False, shuffle: bool = False, seed: int | None = None) -> BaseExpressionAPI:
+        """Sample elements from each list.
+
+        Either ``n`` or ``fraction`` must be provided, but not both.
+
+        Args:
+            n: Number of elements to sample. Can be an expression.
+            fraction: Fraction of elements to sample (0.0 – 1.0).
+            with_replacement: Allow sampling with replacement.
+            shuffle: Shuffle the result after sampling.
+            seed: Random seed for reproducibility.
+        """
+        args = [self._node]
+        if n is not None:
+            args.append(self._to_substrait_node(n))
+        opts: dict[str, Any] = {}
+        if fraction is not None:
+            opts["fraction"] = fraction
+        if with_replacement:
+            opts["with_replacement"] = True
+        if shuffle:
+            opts["shuffle"] = True
+        if seed is not None:
+            opts["seed"] = seed
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+            arguments=args,
+            options=opts,
+        )
+        return self._build(node)
+
+    def agg(self, expr: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Aggregate the elements of each list with an expression.
+
+        The expression is evaluated over each list's elements in a sub-context
+        (similar to Polars ``pl.element()``).
+
+        Args:
+            expr: Aggregation expression applied to each list's elements.
+        """
+        expr_node = self._to_substrait_node(expr)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
+            arguments=[self._node, expr_node],
+        )
+        return self._build(node)

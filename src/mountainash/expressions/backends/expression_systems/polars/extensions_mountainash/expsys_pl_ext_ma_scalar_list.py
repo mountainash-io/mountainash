@@ -111,3 +111,33 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
 
     def list_filter(self, x, /, mask):
         return x.list.filter(mask)
+
+    def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
+        kwargs = {}
+        if fields is not None:
+            kwargs["fields"] = fields
+        if upper_bound is not None:
+            kwargs["upper_bound"] = upper_bound
+        return x.list.to_struct(**kwargs)
+
+    def list_to_array(self, x, /, *, width):
+        return x.list.to_array(width)
+
+    def list_arg_min(self, x, /):
+        return x.list.arg_min()
+
+    def list_arg_max(self, x, /):
+        return x.list.arg_max()
+
+    def list_sample(self, x, /, n=None, *, fraction=None, with_replacement=False, shuffle=False, seed=None):
+        kwargs = {"with_replacement": with_replacement, "shuffle": shuffle}
+        if n is not None:
+            kwargs["n"] = n
+        if fraction is not None:
+            kwargs["fraction"] = fraction
+        if seed is not None:
+            kwargs["seed"] = seed
+        return x.list.sample(**kwargs)
+
+    def list_agg(self, x, /, expr):
+        return x.list.agg(expr)

@@ -192,3 +192,45 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
             backend=self.BACKEND_NAME,
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
         )
+
+    def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
+        raise BackendCapabilityError(
+            "Ibis does not support array.to_struct(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+        )
+
+    def list_to_array(self, x, /, *, width):
+        raise BackendCapabilityError(
+            "Ibis does not support array.to_array(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+        )
+
+    def list_arg_min(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.arg_min(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+        )
+
+    def list_arg_max(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.arg_max(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+        )
+
+    def list_sample(self, x, /, n=None, *, fraction=None, with_replacement=False, shuffle=False, seed=None):
+        raise BackendCapabilityError(
+            "Ibis does not support array.sample(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+        )
+
+    def list_agg(self, x, /, expr):
+        raise BackendCapabilityError(
+            "Ibis does not support array.agg(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
+        )
