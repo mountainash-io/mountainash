@@ -84,6 +84,7 @@ class RegistryEntry:
     action: str
     kel_count: str | None  # column value if present
     xfail_refs: list[str] | None = None
+    known_expr_limitations: list[str] | None = None
 
 
 @dataclass
@@ -400,7 +401,7 @@ def parse_yaml_registry() -> list[RegistryEntry]:
             if m:
                 upstream_number = f"#{m.group(1)}"
 
-        kel = entry.get("known_expr_limitations", [])
+        kel = entry.get("known_expr_limitations", []) or []
         kel_count = str(len(kel)) if kel else None
 
         xfail_refs = entry.get("xfail_refs", []) or []
@@ -416,6 +417,7 @@ def parse_yaml_registry() -> list[RegistryEntry]:
             action=entry.get("our_workaround", ""),
             kel_count=kel_count,
             xfail_refs=xfail_refs,
+            known_expr_limitations=kel if kel else None,
         ))
 
     return results
@@ -580,6 +582,13 @@ def _registry_matches_xfail(entry: RegistryEntry, xfail: StaticXfail) -> bool:
 
 def _registry_matches_kel(entry: RegistryEntry, kel: KelEntry) -> bool:
     """Heuristic: does a registry entry plausibly cover a given KEL entry?"""
+    # Check known_expr_limitations field — if the KEL param name appears in any entry, it's a match
+    if entry.known_expr_limitations:
+        kel_id = f"{kel.param_name}"
+        for kel_ref in entry.known_expr_limitations:
+            if kel_id in kel_ref.lower():
+                return True
+
     # Check if function key components appear in the description
     fkey_parts = kel.function_key.lower().replace("fk_", "").replace("fk_ma_", "").split(".")
     fkey_op = fkey_parts[-1].lower().replace("_", " ") if fkey_parts else ""
