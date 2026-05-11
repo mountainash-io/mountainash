@@ -461,6 +461,49 @@ def register_all_functions() -> None:
             substrait_name="degrees",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.degrees,
         ),
+        # Bitwise
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_NOT,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="bitwise_not",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_not,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_AND,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="bitwise_and",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_and,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_OR,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="bitwise_or",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_or,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="bitwise_xor",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_xor,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="shift_left",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.shift_left,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="shift_right",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.shift_right,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
+            substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
+            substrait_name="shift_right_unsigned",
+            protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.shift_right_unsigned,
+        ),
     ]
 
     # ========================================

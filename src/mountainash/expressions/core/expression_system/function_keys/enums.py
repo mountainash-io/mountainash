@@ -193,6 +193,15 @@ class FKEY_SUBSTRAIT_SCALAR_ARITHMETIC(Enum):
     RADIANS = auto()
     DEGREES = auto()
 
+    # Bitwise
+    BITWISE_NOT = auto()
+    BITWISE_AND = auto()
+    BITWISE_OR = auto()
+    BITWISE_XOR = auto()
+    SHIFT_LEFT = auto()
+    SHIFT_RIGHT = auto()
+    SHIFT_RIGHT_UNSIGNED = auto()
+
 # =============================================================================
 # Comparison Functions (Substrait-aligned)
 # =============================================================================
