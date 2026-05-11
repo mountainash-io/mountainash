@@ -539,3 +539,15 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def total_microseconds(self, x: ExpressionT, /) -> ExpressionT:
         """Total microseconds in a duration."""
         ...
+
+    def total_days(self, x: ExpressionT, /) -> ExpressionT:
+        """Total days in a duration."""
+        ...
+
+    def total_hours(self, x: ExpressionT, /) -> ExpressionT:
+        """Total hours in a duration."""
+        ...
+
+    def total_nanoseconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total nanoseconds in a duration."""
+        ...

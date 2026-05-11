@@ -66,6 +66,8 @@ _IBIS_DTYPE_MAP = {
     "Binary": "binary",
     "time": "time",
     "Time": "time",
+    "duration": "interval",
+    "Duration": "interval",
 }
 
 

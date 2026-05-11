@@ -1968,6 +1968,27 @@ def register_all_functions() -> None:
             is_extension=True,
             protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_microseconds,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_DAYS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_days",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_days,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_HOURS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_hours",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_hours,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_NANOSECONDS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_nanoseconds",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_nanoseconds,
+        ),
     ]
 
     # ========================================

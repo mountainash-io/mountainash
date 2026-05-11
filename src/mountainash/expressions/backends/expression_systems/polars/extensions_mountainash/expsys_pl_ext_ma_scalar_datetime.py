@@ -763,3 +763,12 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
     def total_microseconds(self, x: PolarsExpr, /) -> PolarsExpr:
         return x.dt.total_microseconds()
+
+    def total_days(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_days()
+
+    def total_hours(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_hours()
+
+    def total_nanoseconds(self, x: PolarsExpr, /) -> PolarsExpr:
+        return x.dt.total_nanoseconds()

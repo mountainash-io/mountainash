@@ -840,3 +840,21 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
             "Ibis IntervalValue has no total_microseconds() method. "
             "Use integer arithmetic on dt.diff_seconds() for sub-second extraction."
         )
+
+    def total_days(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_days() method. "
+            "Use dt.diff_days() for integer-based extraction."
+        )
+
+    def total_hours(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_hours() method. "
+            "Use dt.diff_hours() for integer-based extraction."
+        )
+
+    def total_nanoseconds(self, x, /):
+        raise NotImplementedError(
+            "Ibis IntervalValue has no total_nanoseconds() method. "
+            "Use integer arithmetic on dt.diff_seconds() for sub-nanosecond extraction."
+        )

@@ -529,6 +529,9 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     TOTAL_MINUTES = auto()
     TOTAL_MILLISECONDS = auto()
     TOTAL_MICROSECONDS = auto()
+    TOTAL_DAYS = auto()
+    TOTAL_HOURS = auto()
+    TOTAL_NANOSECONDS = auto()
 
 
 # =============================================================================
