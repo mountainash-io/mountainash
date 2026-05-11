@@ -585,6 +585,10 @@ OP_SPECS: list[OpSpec] = [
 _NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
     # repeat: narwhals has no str.repeat(); raises BackendCapabilityError unconditionally
     (FK_STR.REPEAT, "count"),
+    # regex ops: narwhals has no extract_all, count_matches, or regex find
+    (FK_STR.REGEXP_MATCH_ALL, "pattern"),
+    (FK_STR.REGEXP_COUNT, "pattern"),
+    (FK_STR.REGEXP_STRPOS, "pattern"),
     # string extension ops with no narwhals support
     ("to_time", "x"),
     ("encode", "x"),
@@ -595,6 +599,10 @@ _NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
 
 # Ops fully unsupported on ibis (raise BackendCapabilityError for all input types).
 _IBIS_FULLY_UNSUPPORTED: set[tuple] = {
+    # regex ops: ibis has no re_extract_all, re_count, or re_find
+    (FK_STR.REGEXP_MATCH_ALL, "pattern"),
+    (FK_STR.REGEXP_COUNT, "pattern"),
+    (FK_STR.REGEXP_STRPOS, "pattern"),
     ("to_time", "x"),
     ("encode", "x"),
     ("decode", "x"),
