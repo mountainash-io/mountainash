@@ -93,3 +93,21 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
 
     def list_diff(self, x, /, *, n=1, null_behavior="ignore"):
         return x.list.diff(n=n, null_behavior=null_behavior)
+
+    def list_set_union(self, x, /, other):
+        return x.list.set_union(other)
+
+    def list_set_intersection(self, x, /, other):
+        return x.list.set_intersection(other)
+
+    def list_set_difference(self, x, /, other):
+        return x.list.set_difference(other)
+
+    def list_set_symmetric_difference(self, x, /, other):
+        return x.list.set_symmetric_difference(other)
+
+    def list_concat(self, x, /, other):
+        return x.list.concat(other)
+
+    def list_filter(self, x, /, mask):
+        return x.list.filter(mask)

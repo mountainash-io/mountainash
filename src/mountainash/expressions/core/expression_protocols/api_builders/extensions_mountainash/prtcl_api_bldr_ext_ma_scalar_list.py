@@ -149,3 +149,27 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def diff(self, *, n: int = 1, null_behavior: str = "ignore") -> BaseExpressionAPI:
         """Compute element-wise differences."""
         ...
+
+    def set_union(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Union of two lists (deduplicated)."""
+        ...
+
+    def set_intersection(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Intersection of two lists (elements common to both)."""
+        ...
+
+    def set_difference(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Elements in self that are not in other."""
+        ...
+
+    def set_symmetric_difference(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Elements in either list but not both."""
+        ...
+
+    def concat(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Concatenate two lists."""
+        ...
+
+    def filter(self, mask: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+        """Filter list elements by a boolean mask expression."""
+        ...

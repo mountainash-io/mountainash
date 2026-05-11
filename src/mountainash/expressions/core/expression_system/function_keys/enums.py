@@ -650,6 +650,12 @@ class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     GATHER_EVERY = auto()
     SHIFT = auto()
     DIFF = auto()
+    SET_UNION = auto()
+    SET_INTERSECTION = auto()
+    SET_DIFFERENCE = auto()
+    SET_SYMMETRIC_DIFFERENCE = auto()
+    CONCAT = auto()
+    FILTER = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):

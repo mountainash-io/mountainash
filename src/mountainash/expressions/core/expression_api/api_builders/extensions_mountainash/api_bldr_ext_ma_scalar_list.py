@@ -334,3 +334,84 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
             options=opts,
         )
         return self._build(node)
+
+    def set_union(self, other: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Union of two lists, returning unique elements from both.
+
+        Args:
+            other: List column or expression to union with.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def set_intersection(self, other: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Elements common to both lists (deduplicated).
+
+        Args:
+            other: List column or expression to intersect with.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def set_difference(self, other: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Elements in self that are not in other (deduplicated).
+
+        Args:
+            other: List column or expression to subtract.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def set_symmetric_difference(self, other: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Elements in either list but not both.
+
+        Args:
+            other: List column or expression to compare with.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def concat(self, other: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Concatenate two list columns element-wise.
+
+        Args:
+            other: List column or expression to append.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
+    def filter(self, mask: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Filter list elements using a boolean predicate expression.
+
+        The mask expression is evaluated per element (use ``pl.element()``
+        in Polars context, or a deferred predicate in Ibis).
+
+        Args:
+            mask: Boolean predicate expression applied to each element.
+        """
+        mask_node = self._to_substrait_node(mask)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
+            arguments=[self._node, mask_node],
+        )
+        return self._build(node)

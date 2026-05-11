@@ -474,3 +474,116 @@ class TestListPositionalOps:
         df = backend_factory.create(data, backend_name)
         result = collect_expr(df, ma.col("vals").list.diff())
         assert result == [[None, 20, -5]]
+
+
+# =============================================================================
+# Batch 2c: Set, concatenation, and filter list ops
+# =============================================================================
+
+# Backends where set ops work: Polars + Ibis (Narwhals lacks these ops)
+LIST_BACKENDS_SET_OPS = [
+    "polars",
+    pytest.param(
+        "narwhals-polars",
+        marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks list set operations"),
+    ),
+    "ibis-duckdb",
+]
+
+# set_difference and set_symmetric_difference: Polars only
+LIST_BACKENDS_SET_DIFF = [
+    "polars",
+    pytest.param(
+        "narwhals-polars",
+        marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks list.set_difference()"),
+    ),
+    pytest.param(
+        "ibis-duckdb",
+        marks=pytest.mark.xfail(strict=True, reason="Ibis lacks array set_difference()"),
+    ),
+]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_SET_OPS)
+class TestListSetUnion:
+    def test_set_union_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2, 3], [4, 5]], "b": [[3, 4, 5], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.set_union(ma.col("b")))
+        result = [sorted(r) for r in result]
+        assert result == [[1, 2, 3, 4, 5], [4, 5, 6]]
+
+    def test_set_union_no_overlap(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2], [3]], "b": [[3, 4], [4]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.set_union(ma.col("b")))
+        result = [sorted(r) for r in result]
+        assert result == [[1, 2, 3, 4], [3, 4]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_SET_OPS)
+class TestListSetIntersection:
+    def test_set_intersection_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2, 3], [4, 5, 6]], "b": [[2, 3, 4], [5, 7]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.set_intersection(ma.col("b")))
+        result = [sorted(r) for r in result]
+        assert result == [[2, 3], [5]]
+
+    def test_set_intersection_empty(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2]], "b": [[3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.set_intersection(ma.col("b")))
+        assert result == [[]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_SET_DIFF)
+class TestListSetDifference:
+    def test_set_difference_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2, 3, 4], [5, 6]], "b": [[2, 4], [6, 7]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.set_difference(ma.col("b")))
+        result = [sorted(r) for r in result]
+        assert result == [[1, 3], [5]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_SET_DIFF)
+class TestListSetSymmetricDifference:
+    def test_set_symmetric_difference_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2, 3], [4, 5]], "b": [[2, 3, 4], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.set_symmetric_difference(ma.col("b")))
+        result = [sorted(r) for r in result]
+        assert result == [[1, 4], [4, 6]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_SET_OPS)
+class TestListConcat:
+    def test_concat_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2], [3]], "b": [[3, 4], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.concat(ma.col("b")))
+        assert result == [[1, 2, 3, 4], [3, 5, 6]]
+
+    def test_concat_empty_list(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [[1, 2], []], "b": [[], [3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.concat(ma.col("b")))
+        assert result == [[1, 2], [3, 4]]
+
+
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+class TestListFilter:
+    def test_filter_keep_large(self, backend_name, backend_factory, collect_expr):
+        import polars as pl
+        data = {"a": [[1, 2, 3, 4], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.filter(pl.element() > 2))
+        assert result == [[3, 4], [5, 6]]
+
+    def test_filter_keep_even(self, backend_name, backend_factory, collect_expr):
+        import polars as pl
+        data = {"a": [[1, 2, 3, 4, 5], [10, 11, 12]]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("a").list.filter(pl.element() % 2 == 0))
+        assert result == [[2, 4], [10, 12]]

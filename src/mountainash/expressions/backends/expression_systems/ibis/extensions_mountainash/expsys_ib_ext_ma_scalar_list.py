@@ -160,3 +160,35 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
             backend=self.BACKEND_NAME,
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
         )
+
+    def list_set_union(self, x, /, other):
+        return x.union(other)
+
+    def list_set_intersection(self, x, /, other):
+        return x.intersect(other)
+
+    def list_set_difference(self, x, /, other):
+        raise BackendCapabilityError(
+            "Ibis does not support array.set_difference(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+        )
+
+    def list_set_symmetric_difference(self, x, /, other):
+        raise BackendCapabilityError(
+            "Ibis does not support array.set_symmetric_difference(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+        )
+
+    def list_concat(self, x, /, other):
+        return x.concat(other)
+
+    def list_filter(self, x, /, mask):
+        raise BackendCapabilityError(
+            "Ibis array.filter() requires a Deferred/Callable predicate, "
+            "which is incompatible with mountainash's compiled expression model. "
+            "Use Polars backend for list.filter().",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
+        )

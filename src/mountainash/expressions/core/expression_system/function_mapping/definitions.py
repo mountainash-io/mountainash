@@ -2280,6 +2280,36 @@ def register_all_functions() -> None:
             options=("n", "null_behavior"),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_diff,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_union,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_intersection,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_difference,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_symmetric_difference,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_concat,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_filter,
+        ),
     ]
 
     # ========================================
