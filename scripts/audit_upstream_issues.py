@@ -83,6 +83,7 @@ class RegistryEntry:
     status: str
     action: str
     kel_count: str | None  # column value if present
+    xfail_refs: list[str] | None = None
 
 
 @dataclass
@@ -134,7 +135,14 @@ _PARAM_XFAIL_RE = re.compile(
 _BARE_XFAIL_RE = re.compile(r'pytest\.mark\.xfail\s*\(')
 
 # Extract reason="..." or reason='...'
-_REASON_RE = re.compile(r'\breason\s*=\s*(?P<q>["\'])(?P<reason>.*?)(?P=q)', re.DOTALL)
+_REASON_RE = re.compile(
+    r'\breason\s*=\s*(?:'
+    r'(?P<q>["\'])(?P<reason>.*?)(?P=q)'       # reason="..." or reason='...'
+    r'|'
+    r'\(\s*["\'](?P<reason_paren>.*?)["\']'    # reason=("..." — first string in parens
+    r')',
+    re.DOTALL,
+)
 
 # Extract strict=True/False
 _STRICT_RE = re.compile(r'\bstrict\s*=\s*(?P<val>True|False)')
@@ -143,7 +151,7 @@ _STRICT_RE = re.compile(r'\bstrict\s*=\s*(?P<val>True|False)')
 def _extract_xfail_attrs(text: str) -> tuple[str, bool]:
     """Extract (reason, strict) from the text of an xfail call's arguments."""
     reason_m = _REASON_RE.search(text)
-    reason = reason_m.group("reason") if reason_m else ""
+    reason = (reason_m.group("reason") or reason_m.group("reason_paren") or "") if reason_m else ""
     strict_m = _STRICT_RE.search(text)
     strict = strict_m.group("val") == "True" if strict_m else False
     return reason, strict
@@ -182,6 +190,8 @@ def parse_static_xfails() -> list[StaticXfail]:
     results: list[StaticXfail] = []
 
     for py_file in sorted(TESTS_DIR.rglob("*.py")):
+        if py_file.name.startswith("_"):
+            continue
         text = py_file.read_text(encoding="utf-8")
         rel_path = str(py_file.relative_to(PROJECT_ROOT))
         lines = text.splitlines()
@@ -393,6 +403,8 @@ def parse_yaml_registry() -> list[RegistryEntry]:
         kel = entry.get("known_expr_limitations", [])
         kel_count = str(len(kel)) if kel else None
 
+        xfail_refs = entry.get("xfail_refs", []) or []
+
         results.append(RegistryEntry(
             id=entry.get("id", ""),
             project=entry.get("project", ""),
@@ -403,6 +415,7 @@ def parse_yaml_registry() -> list[RegistryEntry]:
             status=entry.get("status", ""),
             action=entry.get("our_workaround", ""),
             kel_count=kel_count,
+            xfail_refs=xfail_refs,
         ))
 
     return results
@@ -548,12 +561,20 @@ def _extract_keywords(text: str) -> set[str]:
 
 def _registry_matches_xfail(entry: RegistryEntry, xfail: StaticXfail) -> bool:
     """Heuristic: does a registry entry plausibly describe a given xfail?"""
+    # Check xfail_refs first — if the file path appears in xfail_refs, it's a match
+    if entry.xfail_refs:
+        xfail_file = xfail.file.replace("\\", "/")
+        for ref in entry.xfail_refs:
+            ref_file = ref.split(":")[0]
+            if ref_file in xfail_file or xfail_file.endswith(ref_file):
+                return True
+
+    # Fall back to keyword heuristic
     reg_kw = _extract_keywords(entry.description + " " + entry.status + " " + entry.action)
     xfail_kw = _extract_keywords(xfail.reason)
     if not xfail_kw:
         return False
     overlap = reg_kw & xfail_kw
-    # Require at least 2 overlapping significant words
     return len(overlap) >= 2
 
 
@@ -649,8 +670,11 @@ def cross_reference(
                 elif ("closed" in reg_status or "fixed" in reg_status) and gh_state == "open":
                     status_mismatches.append((entry, gh_status))
 
-    # Ambiguous xfails: no backend could be determined
-    ambiguous_xfails = [x for x in xfails if x.backend is None]
+    # Ambiguous xfails: no backend could be determined (exclude unit tests — they're backend-agnostic by design)
+    ambiguous_xfails = [
+        x for x in xfails
+        if x.backend is None and "/unit/" not in x.file and "/expressions/" not in x.file
+    ]
 
     # GitHub stats
     github_checked = len(github_statuses) if github_statuses else 0
