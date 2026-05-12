@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import importlib
 import inspect
 import typing
 from typing import get_type_hints
@@ -14,7 +15,9 @@ from typing import get_type_hints
 from cross_backend.argument_types._coverage_guard_helpers import (
     KnownGap,
     TestedParamRef,
+    canonicalize_tested_param,
     collect_tested_params,
+    protocol_params_by_category,
 )
 from cross_backend.argument_types._introspection import (
     introspect_protocols,
@@ -46,6 +49,39 @@ def _collect_tested_param_refs() -> set[TestedParamRef]:
 
 def _collect_tested_params() -> set[tuple[str, str]]:
     return {(ref.op_name, ref.param_name) for ref in _collect_tested_param_refs()}
+
+
+def _operation_identity(ref: TestedParamRef) -> tuple[str, str | None, str]:
+    return (ref.module_name, ref.protocol_name, ref.op_name)
+
+
+def _collect_matrix_executed_param_refs() -> set[TestedParamRef]:
+    """Return TESTED_PARAMS entries whose operation has at least one OP_SPEC."""
+    tested_refs = _collect_tested_param_refs()
+    executed_ops: set[tuple[str, str | None, str]] = set()
+    params_by_category = protocol_params_by_category()
+    for module_name in _CATEGORY_MODULES:
+        mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
+        for op_spec in getattr(mod, "OP_SPECS", []):
+            executed_ops.add(
+                _operation_identity(
+                    canonicalize_tested_param(
+                        module_name,
+                        op_spec.function_key,
+                        op_spec.param_name,
+                        params_by_category,
+                    )
+                )
+            )
+    return {ref for ref in tested_refs if _operation_identity(ref) in executed_ops}
+
+
+def _collect_tested_option_params() -> set[tuple[str, str, str]]:
+    tested: set[tuple[str, str, str]] = set()
+    for module_name in _CATEGORY_MODULES:
+        mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
+        tested.update(getattr(mod, "TESTED_OPTION_PARAMS", []))
+    return tested
 
 
 _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
@@ -126,6 +162,31 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
             ),
         }
     },
+}
+
+
+_KNOWN_METADATA_ONLY_TESTED_MODULES: dict[str, KnownGap] = {
+    module_name: KnownGap(
+        reason=(
+            "TESTED_PARAMS is protocol accounting metadata here; operation matrix "
+            "coverage is blocked by current backend/test infrastructure limitations"
+        ),
+        since="2026-05-12",
+    )
+    for module_name in {
+        "test_arg_types_aggregate",
+        "test_arg_types_arithmetic",
+        "test_arg_types_boolean",
+        "test_arg_types_comparison",
+        "test_arg_types_datetime",
+        "test_arg_types_list",
+        "test_arg_types_logarithmic",
+        "test_arg_types_misc",
+        "test_arg_types_rounding",
+        "test_arg_types_string",
+        "test_arg_types_struct",
+        "test_arg_types_window",
+    }
 }
 
 
@@ -842,13 +903,34 @@ def test_every_argument_param_is_tested():
     )
 
 
+def test_tested_params_are_backed_by_argument_matrix_or_named_gap():
+    """TESTED_PARAMS metadata must not silently imply executed matrix coverage."""
+    tested = _collect_tested_param_refs()
+    executed = _collect_matrix_executed_param_refs()
+    metadata_only_modules = {
+        ref.module_name
+        for ref in tested - executed
+    }
+    known = set(_KNOWN_METADATA_ONLY_TESTED_MODULES)
+    newly_metadata_only = metadata_only_modules - known
+    stale_known = known - metadata_only_modules
+    assert not newly_metadata_only, (
+        "TESTED_PARAMS entries without OP_SPEC-backed execution need a named "
+        f"_KNOWN_METADATA_ONLY_TESTED_MODULES gap: {sorted(newly_metadata_only)}"
+    )
+    assert not stale_known, (
+        "Modules in _KNOWN_METADATA_ONLY_TESTED_MODULES now have fully backed "
+        f"TESTED_PARAMS entries and should be removed: {sorted(stale_known)}"
+    )
+
+
 def test_every_option_param_is_tested_or_registered():
     introspected = {
         (p.protocol_name, p.op_name, p.param_name)
         for p in introspect_protocols()
         if p.kind == "option"
     }
-    tested_options: set[tuple[str, str, str]] = set()
+    tested_options = _collect_tested_option_params()
     known = set(_KNOWN_UNTESTED_OPTION_PARAMS)
     newly_missing = introspected - tested_options - known
     stale_known = known - introspected

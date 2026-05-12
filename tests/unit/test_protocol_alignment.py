@@ -35,7 +35,6 @@ import warnings
 
 from cross_backend.argument_types._coverage_guard_helpers import (
     KnownGap,
-    collect_tested_params,
 )
 
 
@@ -673,6 +672,26 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainashWindowExpressionSystemProtocol: "mountainash_window",
 }
 
+
+def _alignment_category(registry_category: str, prefix: str) -> str:
+    return registry_category.removeprefix(prefix)
+
+
+# Keep signature-alignment parametrization in lockstep with the wiring registry.
+# Categories without backend implementation classes are still parametrized and
+# skipped by the backend-specific alignment tests until those layers exist.
+SUBSTRAIT_PROTOCOLS = [
+    (protocol_cls, _alignment_category(category, "substrait_"))
+    for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+    if category.startswith("substrait_")
+]
+
+MOUNTAINASH_PROTOCOLS = [
+    (protocol_cls, _alignment_category(category, "mountainash_"))
+    for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+    if category.startswith("mountainash_")
+]
+
 # Methods that exist in protocols but are intentionally not fully wired yet.
 # Each entry maps (protocol_cls, method_name) → known gap details.
 # These are xfailed in the wiring audit, not hard failures.
@@ -737,113 +756,6 @@ KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {
         reason="Argument channel is tested, but literal node is intentionally not registry-dispatched",
         since="2026-05-12",
     ),
-    (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): KnownGap(
-        reason="Argument channel is tested, but backend support remains aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): KnownGap(
-        reason="Argument channel is tested, but enum, registry, and API builder wiring remain aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): KnownGap(
-        reason="Argument channel is tested, but enum, registry, and API builder wiring remain aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): KnownGap(
-        reason="Argument channel is tested, but dispatch is intentionally through Mountainash datetime extensions",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): KnownGap(
-        reason="Argument channel is tested, but dispatch is intentionally through Mountainash datetime extensions",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): KnownGap(
-        reason="Argument channel is tested, but dispatch is intentionally through Mountainash datetime extensions",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): KnownGap(
-        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): KnownGap(
-        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(
-        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(
-        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "assume_timezone"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): KnownGap(
-        reason="Argument channel is tested, but function registry wiring remains aspirational",
-        since="2026-05-12",
-    ),
-    **{
-        key: KnownGap(
-            reason="Argument channel is tested, but geometry function registry wiring remains aspirational",
-            since="2026-05-12",
-        )
-        for key in {
-            (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "collection_extract"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "dimension"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "envelope"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "flip_coordinates"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "geometry_type"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "is_closed"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "is_empty"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "is_ring"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "is_simple"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "is_valid"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "make_line"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "minimum_bounding_circle"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "num_points"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "point"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "remove_repeated_points"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "x_coordinate"),
-            (SubstraitScalarGeometryExpressionSystemProtocol, "y_coordinate"),
-        }
-    },
 }
 
 
@@ -1551,6 +1463,21 @@ class TestWiringAuditHelpers:
             f"{sorted(cls.__name__ for cls in extra)}"
         )
 
+    def test_signature_alignment_protocol_lists_follow_wiring_registry(self):
+        """Signature-alignment protocol lists should cover the same protocols as wiring."""
+        substrait_registered = {
+            protocol_cls
+            for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+            if category.startswith("substrait_")
+        }
+        mountainash_registered = {
+            protocol_cls
+            for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+            if category.startswith("mountainash_")
+        }
+        assert {protocol for protocol, _ in SUBSTRAIT_PROTOCOLS} == substrait_registered
+        assert {protocol for protocol, _ in MOUNTAINASH_PROTOCOLS} == mountainash_registered
+
     def test_known_aspirational_references_valid_protocols(self):
         """Every protocol class in KNOWN_ASPIRATIONAL must be in WIRING_PROTOCOL_REGISTRY."""
         for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
@@ -1575,13 +1502,13 @@ class TestWiringAuditHelpers:
 
     def test_aspirational_methods_are_not_claimed_tested_without_exception(self):
         from cross_backend.argument_types.test_coverage_guard import (
-            _CATEGORY_MODULES,
+            _collect_matrix_executed_param_refs,
             _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES,
             _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES,
             _KNOWN_SPECIAL_NODE_UNWIRED_OPS,
         )
 
-        tested_refs = collect_tested_params(_CATEGORY_MODULES)
+        tested_refs = _collect_matrix_executed_param_refs()
         tested_protocol_keys = {
             ref.protocol_param_key
             for ref in tested_refs
