@@ -135,7 +135,7 @@ def collect_tested_params(module_names: Iterable[str]) -> set[TestedParamRef]:
     for module_name in module_names:
         try:
             mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
-        except ImportError:
+        except Exception:
             continue
         for original_key, param_name in getattr(mod, "TESTED_PARAMS", []):
             tested.add(
