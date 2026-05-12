@@ -33,7 +33,10 @@ from typing import Protocol, Set, List, Type
 from dataclasses import dataclass, field
 import warnings
 
-from cross_backend.argument_types._coverage_guard_helpers import KnownGap
+from cross_backend.argument_types._coverage_guard_helpers import (
+    KnownGap,
+    collect_tested_params,
+)
 
 
 # =============================================================================
@@ -723,6 +726,81 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+}
+
+KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {
+    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(
+        reason="Argument channel is tested, but expression node is intentionally not registry-dispatched",
+        since="2026-05-12",
+    ),
+    (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(
+        reason="Argument channel is tested, but literal node is intentionally not registry-dispatched",
+        since="2026-05-12",
+    ),
+    (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): KnownGap(
+        reason="Argument channel is tested, but backend support remains aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): KnownGap(
+        reason="Argument channel is tested, but enum, registry, and API builder wiring remain aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): KnownGap(
+        reason="Argument channel is tested, but enum, registry, and API builder wiring remain aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): KnownGap(
+        reason="Argument channel is tested, but dispatch is intentionally through Mountainash datetime extensions",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): KnownGap(
+        reason="Argument channel is tested, but dispatch is intentionally through Mountainash datetime extensions",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): KnownGap(
+        reason="Argument channel is tested, but dispatch is intentionally through Mountainash datetime extensions",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): KnownGap(
+        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): KnownGap(
+        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(
+        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(
+        reason="Argument channel is tested, but datetime comparison dispatch is intentionally handled by scalar_comparison",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
 }
 
 
@@ -1451,6 +1529,37 @@ class TestWiringAuditHelpers:
         for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
             assert gap.reason.strip(), f"{protocol_cls.__name__}.{method_name} has no reason"
             date.fromisoformat(gap.since)
+
+    def test_aspirational_methods_are_not_claimed_tested_without_exception(self):
+        from cross_backend.argument_types.test_coverage_guard import (
+            _CATEGORY_MODULES,
+            _KNOWN_SPECIAL_NODE_UNWIRED_OPS,
+        )
+
+        tested_ops = {
+            (ref.protocol_name, ref.op_name)
+            for ref in collect_tested_params(_CATEGORY_MODULES)
+            if ref.protocol_name is not None
+        }
+        tested_ops |= set(_KNOWN_SPECIAL_NODE_UNWIRED_OPS)
+        aspirational_ops = {
+            (protocol_cls.__name__, method_name)
+            for (protocol_cls, method_name) in KNOWN_ASPIRATIONAL
+        }
+        allowed = {
+            (protocol_cls.__name__, method_name)
+            for (protocol_cls, method_name) in KNOWN_ASPIRATIONAL_AND_TESTED
+        }
+        contradictions = (tested_ops & aspirational_ops) - allowed
+        stale_allowed = allowed - (tested_ops & aspirational_ops)
+        assert not contradictions, (
+            "Methods are both aspirational and TESTED_PARAMS-covered without an explicit exception: "
+            f"{sorted(contradictions)}"
+        )
+        assert not stale_allowed, (
+            "KNOWN_ASPIRATIONAL_AND_TESTED entries no longer need exceptions: "
+            f"{sorted(stale_allowed)}"
+        )
 
     def test_known_aspirational_staleness_warns(self):
         today = date(2026, 5, 12)
