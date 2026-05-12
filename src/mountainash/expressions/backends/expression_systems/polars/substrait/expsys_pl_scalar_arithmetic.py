@@ -388,10 +388,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Return the bitwise NOT of an integer."""
-        raise NotImplementedError(
-            "bitwise_not() is not directly supported by the Polars backend. "
-            "Consider using XOR with -1 or a custom implementation."
-        )
+        return ~x
 
     def bitwise_and(
         self,
@@ -427,9 +424,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Bitwise shift left."""
-        raise NotImplementedError(
-            "shift_left() is not directly supported by the Polars backend. "
-            "Consider using multiplication by powers of 2."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Polars does not support bitwise shift_left. Use Ibis backend for shift operations.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT,
         )
 
     def shift_right(
@@ -439,9 +439,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Bitwise signed shift right."""
-        raise NotImplementedError(
-            "shift_right() is not directly supported by the Polars backend. "
-            "Consider using floor division by powers of 2."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Polars does not support bitwise shift_right. Use Ibis backend for shift operations.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT,
         )
 
     def shift_right_unsigned(
@@ -451,6 +454,10 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Bitwise unsigned shift right."""
-        raise NotImplementedError(
-            "shift_right_unsigned() is not directly supported by the Polars backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "No backend supports bitwise shift_right_unsigned.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
         )

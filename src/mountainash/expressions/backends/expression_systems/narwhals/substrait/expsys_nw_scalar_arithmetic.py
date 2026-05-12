@@ -422,9 +422,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Return the bitwise NOT of an integer."""
-        raise NotImplementedError(
-            "bitwise_not() is not supported by the Narwhals backend."
-        )
+        return ~x
 
     def bitwise_and(
         self,
@@ -433,9 +431,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Return the bitwise AND of two integers."""
-        raise NotImplementedError(
-            "bitwise_and() is not supported by the Narwhals backend."
-        )
+        return x & y
 
     def bitwise_or(
         self,
@@ -444,9 +440,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Return the bitwise OR of two integers."""
-        raise NotImplementedError(
-            "bitwise_or() is not supported by the Narwhals backend."
-        )
+        return x | y
 
     def bitwise_xor(
         self,
@@ -455,8 +449,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Return the bitwise XOR of two integers."""
-        raise NotImplementedError(
-            "bitwise_xor() is not supported by the Narwhals backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Narwhals does not support bitwise_xor. Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR,
         )
 
     def shift_left(
@@ -466,8 +464,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Bitwise shift left."""
-        raise NotImplementedError(
-            "shift_left() is not supported by the Narwhals backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Narwhals does not support bitwise shift_left. Use Ibis backend for shift operations.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT,
         )
 
     def shift_right(
@@ -477,8 +479,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Bitwise signed shift right."""
-        raise NotImplementedError(
-            "shift_right() is not supported by the Narwhals backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Narwhals does not support bitwise shift_right. Use Ibis backend for shift operations.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT,
         )
 
     def shift_right_unsigned(
@@ -488,6 +494,10 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Bitwise unsigned shift right."""
-        raise NotImplementedError(
-            "shift_right_unsigned() is not supported by the Narwhals backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "No backend supports bitwise shift_right_unsigned.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
         )

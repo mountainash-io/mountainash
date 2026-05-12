@@ -170,40 +170,45 @@ class TestArithmeticAliases:
         assert canonical.function_key == alias.function_key
 
 
-class TestBitwiseStubs:
-    """Bitwise methods are protocol stubs (body is `...`), not yet implemented."""
-
-    @pytest.mark.xfail(reason="bitwise_not is a protocol stub, not yet implemented")
+class TestBitwise:
     def test_bitwise_not(self):
         expr = ma.col("x").bitwise_not()
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_NOT
+        assert len(expr._node.arguments) == 1
 
-    @pytest.mark.xfail(reason="bitwise_and is a protocol stub, not yet implemented")
     def test_bitwise_and(self):
         expr = ma.col("x").bitwise_and(ma.col("y"))
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_AND
+        assert len(expr._node.arguments) == 2
 
-    @pytest.mark.xfail(reason="bitwise_or is a protocol stub, not yet implemented")
     def test_bitwise_or(self):
         expr = ma.col("x").bitwise_or(ma.col("y"))
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_OR
+        assert len(expr._node.arguments) == 2
 
-    @pytest.mark.xfail(reason="bitwise_xor is a protocol stub, not yet implemented")
     def test_bitwise_xor(self):
         expr = ma.col("x").bitwise_xor(ma.col("y"))
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR
+        assert len(expr._node.arguments) == 2
 
-    @pytest.mark.xfail(reason="shift_left is a protocol stub, not yet implemented")
     def test_shift_left(self):
         expr = ma.col("x").shift_left(2)
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT
+        assert len(expr._node.arguments) == 2
 
-    @pytest.mark.xfail(reason="shift_right is a protocol stub, not yet implemented")
     def test_shift_right(self):
         expr = ma.col("x").shift_right(2)
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT
+        assert len(expr._node.arguments) == 2
 
-    @pytest.mark.xfail(reason="shift_right_unsigned is a protocol stub, not yet implemented")
     def test_shift_right_unsigned(self):
         expr = ma.col("x").shift_right_unsigned(2)
         assert isinstance(expr._node, ScalarFunctionNode)
+        assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED
+        assert len(expr._node.arguments) == 2

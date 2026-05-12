@@ -468,65 +468,89 @@ Negative inputs will raise an error.
     def bitwise_not(self) -> BaseExpressionAPI:
         """Return the bitwise NOT result for one integer input.
 
-
         Substrait: bitwise_not
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_NOT,
+            arguments=[self._node],
+        )
+        return self._build(node)
 
-    def bitwise_and(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def bitwise_and(self, other: Union[BaseExpressionAPI, "ExpressionNode", Any], /) -> BaseExpressionAPI:
         """Return the bitwise AND result for two integer inputs.
-
 
         Substrait: bitwise_and
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_AND,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
 
-    def bitwise_or(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def bitwise_or(self, other: Union[BaseExpressionAPI, "ExpressionNode", Any], /) -> BaseExpressionAPI:
         """Return the bitwise OR result for two given integer inputs.
-
 
         Substrait: bitwise_or
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_OR,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
 
-    def bitwise_xor(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def bitwise_xor(self, other: Union[BaseExpressionAPI, "ExpressionNode", Any], /) -> BaseExpressionAPI:
         """Return the bitwise XOR result for two integer inputs.
-
 
         Substrait: bitwise_xor
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
 
-    def shift_left(self, shift: Union[BaseExpressionAPI, ExpressionNode, int], /) -> BaseExpressionAPI:
-        """Bitwise shift left. The vacant (least-significant) bits are filled with zeros. Params:
-  base – the base number to shift.
-  shift – number of bits to left shift.
+    def shift_left(self, shift: Union[BaseExpressionAPI, "ExpressionNode", int], /) -> BaseExpressionAPI:
+        """Bitwise shift left. The vacant (least-significant) bits are filled with zeros.
 
         Substrait: shift_left
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        shift_node = self._to_substrait_node(shift)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT,
+            arguments=[self._node, shift_node],
+        )
+        return self._build(node)
 
-    def shift_right(self, shift: Union[BaseExpressionAPI, ExpressionNode, int], /) -> BaseExpressionAPI:
-        """Bitwise (signed) shift right. The vacant (most-significant) bits are filled with zeros if the base number is positive or with ones if the base number is negative, thus preserving the sign of the resulting number. Params:
-  base – the base number to shift.
-  shift – number of bits to right shift.
+    def shift_right(self, shift: Union[BaseExpressionAPI, "ExpressionNode", int], /) -> BaseExpressionAPI:
+        """Bitwise (signed) shift right. Vacant bits are filled with the sign bit.
 
         Substrait: shift_right
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        shift_node = self._to_substrait_node(shift)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT,
+            arguments=[self._node, shift_node],
+        )
+        return self._build(node)
 
-    def shift_right_unsigned(self, shift: Union[BaseExpressionAPI, ExpressionNode, int], /) -> BaseExpressionAPI:
-        """Bitwise unsigned shift right. The vacant (most-significant) bits are filled with zeros. Params:
-  base – the base number to shift.
-  shift – number of bits to right shift.
+    def shift_right_unsigned(self, shift: Union[BaseExpressionAPI, "ExpressionNode", int], /) -> BaseExpressionAPI:
+        """Bitwise unsigned shift right. The vacant (most-significant) bits are filled with zeros.
 
         Substrait: shift_right_unsigned
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
-        ...
+        shift_node = self._to_substrait_node(shift)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
+            arguments=[self._node, shift_node],
+        )
+        return self._build(node)

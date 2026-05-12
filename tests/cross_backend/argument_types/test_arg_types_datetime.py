@@ -358,6 +358,15 @@ OP_SPECS: list[OpSpec] = [
 ]
 
 
+_DIFF_NW_XFAIL = pytest.mark.xfail(
+    strict=False,
+    raises=AttributeError,
+    reason="Narwhals ExprDateTimeNamespace lacks total_days/total_hours/etc methods",
+)
+
+_NW_BACKENDS = {}#"narwhals-polars", "narwhals-pandas"}
+
+
 def _params():
     cases = []
     for op in OP_SPECS:

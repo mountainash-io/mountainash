@@ -432,9 +432,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Bitwise shift left."""
-        raise NotImplementedError(
-            "shift_left() is not directly supported by the Ibis backend."
-        )
+        return base << shift
 
     def shift_right(
         self,
@@ -443,9 +441,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Bitwise signed shift right."""
-        raise NotImplementedError(
-            "shift_right() is not directly supported by the Ibis backend."
-        )
+        return base >> shift
 
     def shift_right_unsigned(
         self,
@@ -454,6 +450,10 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Bitwise unsigned shift right."""
-        raise NotImplementedError(
-            "shift_right_unsigned() is not directly supported by the Ibis backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "No backend supports bitwise shift_right_unsigned.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
         )

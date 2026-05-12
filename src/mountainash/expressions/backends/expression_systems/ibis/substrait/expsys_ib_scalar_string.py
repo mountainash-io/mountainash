@@ -711,8 +711,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Note:
             Ibis doesn't have extract_all. Falls back to single match.
         """
-        # Ibis doesn't have extract_all - fallback
-        return input.re_extract(pattern, 0)
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+        raise BackendCapabilityError(
+            "Ibis does not support regexp_match_substring_all (no extract_all equivalent). "
+            "Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+        )
 
     def regexp_strpos(
         self,
@@ -742,8 +748,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Note:
             Ibis doesn't have regex position. Falls back to 0.
         """
-        # Ibis doesn't have regex position - fallback
-        return ibis.literal(0)
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+        raise BackendCapabilityError(
+            "Ibis does not support regexp_strpos (no regex find method). "
+            "Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+        )
 
     def regexp_count_substring(
         self,
@@ -771,8 +783,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Note:
             Ibis doesn't have regex count. Falls back to 0.
         """
-        # Ibis doesn't have regex count - fallback
-        return ibis.literal(0)
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+        raise BackendCapabilityError(
+            "Ibis does not support regexp_count_substring (no count_matches method). "
+            "Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+        )
 
     def regexp_replace(
         self,
