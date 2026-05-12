@@ -455,10 +455,6 @@ _KNOWN_UNRESOLVED_TESTED_PARAMS: dict[tuple[str, str], KnownGap] = {
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.buffer",
         since="2026-05-12",
     ),
-    ("cast", "x"): KnownGap(
-        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitCastExpressionSystemProtocol.cast",
-        since="2026-05-12",
-    ),
     ("centroid", "geom"): KnownGap(
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.centroid",
         since="2026-05-12",
@@ -485,18 +481,6 @@ _KNOWN_UNRESOLVED_TESTED_PARAMS: dict[tuple[str, str], KnownGap] = {
     ),
     ("geometry_type", "geom"): KnownGap(
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.geometry_type",
-        since="2026-05-12",
-    ),
-    ("if_then_else", "condition"): KnownGap(
-        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitConditionalExpressionSystemProtocol.if_then_else",
-        since="2026-05-12",
-    ),
-    ("if_then_else", "if_false"): KnownGap(
-        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitConditionalExpressionSystemProtocol.if_then_else",
-        since="2026-05-12",
-    ),
-    ("if_then_else", "if_true"): KnownGap(
-        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitConditionalExpressionSystemProtocol.if_then_else",
         since="2026-05-12",
     ),
     ("is_closed", "geom"): KnownGap(
