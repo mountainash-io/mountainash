@@ -265,6 +265,10 @@ def check_alignment(
 # =============================================================================
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitAggregateArithmeticExpressionSystemProtocol,
+    SubstraitAggregateBooleanExpressionSystemProtocol,
+    SubstraitAggregateGenericExpressionSystemProtocol,
+    SubstraitAggregateStringExpressionSystemProtocol,
     SubstraitCastExpressionSystemProtocol,
     SubstraitConditionalExpressionSystemProtocol,
     SubstraitFieldReferenceExpressionSystemProtocol,
@@ -274,10 +278,12 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
     SubstraitScalarBooleanExpressionSystemProtocol,
     SubstraitScalarComparisonExpressionSystemProtocol,
     SubstraitScalarDatetimeExpressionSystemProtocol,
+    SubstraitScalarGeometryExpressionSystemProtocol,
     SubstraitScalarLogarithmicExpressionSystemProtocol,
     SubstraitScalarRoundingExpressionSystemProtocol,
     SubstraitScalarSetExpressionSystemProtocol,
     SubstraitScalarStringExpressionSystemProtocol,
+    SubstraitWindowArithmeticExpressionSystemProtocol,
 )
 
 # =============================================================================
@@ -290,8 +296,14 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarArithmeticExpressionSystemProtocol,
     MountainAshScalarBooleanExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
+    MountainAshScalarListExpressionSystemProtocol,
+    MountainAshScalarSetExpressionSystemProtocol,
+    MountainAshScalarStringExpressionSystemProtocol,
+    MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
     # MountainAshScalarAggregateExpressionSystemProtocol,
+    MountainashExtensionAggregateExpressionSystemProtocol,
+    MountainashWindowExpressionSystemProtocol,
 )
 
 # =============================================================================
@@ -622,14 +634,20 @@ MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
 # Maps each ExpressionSystem protocol to its category label.
 # This is the source of truth for the wiring audit.
 WIRING_PROTOCOL_REGISTRY = {
+    SubstraitAggregateArithmeticExpressionSystemProtocol: "substrait_aggregate_arithmetic",
+    SubstraitAggregateBooleanExpressionSystemProtocol: "substrait_aggregate_boolean",
+    SubstraitAggregateGenericExpressionSystemProtocol: "substrait_aggregate_generic",
+    SubstraitAggregateStringExpressionSystemProtocol: "substrait_aggregate_string",
     SubstraitScalarComparisonExpressionSystemProtocol: "substrait_scalar_comparison",
     SubstraitScalarBooleanExpressionSystemProtocol: "substrait_scalar_boolean",
     SubstraitScalarArithmeticExpressionSystemProtocol: "substrait_scalar_arithmetic",
     SubstraitScalarStringExpressionSystemProtocol: "substrait_scalar_string",
     SubstraitScalarDatetimeExpressionSystemProtocol: "substrait_scalar_datetime",
+    SubstraitScalarGeometryExpressionSystemProtocol: "substrait_scalar_geometry",
     SubstraitScalarRoundingExpressionSystemProtocol: "substrait_scalar_rounding",
     SubstraitScalarLogarithmicExpressionSystemProtocol: "substrait_scalar_logarithmic",
     SubstraitScalarSetExpressionSystemProtocol: "substrait_scalar_set",
+    SubstraitWindowArithmeticExpressionSystemProtocol: "substrait_window_arithmetic",
     SubstraitCastExpressionSystemProtocol: "substrait_cast",
     SubstraitConditionalExpressionSystemProtocol: "substrait_conditional",
     SubstraitFieldReferenceExpressionSystemProtocol: "substrait_field_reference",
@@ -640,12 +658,22 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainAshScalarDatetimeExpressionSystemProtocol: "mountainash_scalar_datetime",
     MountainAshScalarArithmeticExpressionSystemProtocol: "mountainash_scalar_arithmetic",
     MountainAshScalarBooleanExpressionSystemProtocol: "mountainash_scalar_boolean",
+    MountainAshScalarListExpressionSystemProtocol: "mountainash_scalar_list",
+    MountainAshScalarSetExpressionSystemProtocol: "mountainash_scalar_set",
+    MountainAshScalarStringExpressionSystemProtocol: "mountainash_scalar_string",
+    MountainAshScalarStructExpressionSystemProtocol: "mountainash_scalar_struct",
+    MountainashExtensionAggregateExpressionSystemProtocol: "mountainash_aggregate",
+    MountainashWindowExpressionSystemProtocol: "mountainash_window",
 }
 
 # Methods that exist in protocols but are intentionally not fully wired yet.
 # Each entry maps (protocol_cls, method_name) → reason string.
 # These are xfailed in the wiring audit, not hard failures.
 KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
+    # Substrait Aggregate Arithmetic — not yet in function registry
+    (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): "No function mapping registered yet",
+    # Substrait Aggregate String — not yet in function registry
+    (SubstraitAggregateStringExpressionSystemProtocol, "string_agg"): "No function mapping registered yet",
     (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): "No backend support yet",
     # Substrait Scalar Comparison — distinct operations
     (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): "No ENUM, no function mapping, no API builder",
@@ -662,6 +690,26 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
     (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): "No function mapping registered",
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): "No function mapping registered",
+    # Substrait Scalar Geometry — not yet in function registry
+    (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "collection_extract"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "dimension"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "envelope"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "flip_coordinates"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "geometry_type"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_closed"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_empty"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_ring"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_simple"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_valid"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "make_line"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "minimum_bounding_circle"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "num_points"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "point"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "remove_repeated_points"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "x_coordinate"): "No function mapping registered yet",
+    (SubstraitScalarGeometryExpressionSystemProtocol, "y_coordinate"): "No function mapping registered yet",
     # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode
     (SubstraitFieldReferenceExpressionSystemProtocol, "col"): "Special node type (FieldReferenceNode), not dispatched via function registry",
     (SubstraitLiteralExpressionSystemProtocol, "lit"): "Special node type (LiteralNode), not dispatched via function registry",
@@ -1361,8 +1409,22 @@ class TestWiringAuditHelpers:
         assert len(enums) > 50
 
     def test_wiring_protocol_registry_complete(self):
-        """Registry should contain all 18 protocol classes."""
-        assert len(WIRING_PROTOCOL_REGISTRY) == 18
+        """Wiring audit registry should include every discovered expression-system protocol."""
+        from cross_backend.argument_types._introspection import _iter_protocol_classes
+
+        discovered = {protocol_cls for _, protocol_cls in _iter_protocol_classes()}
+        registered = set(WIRING_PROTOCOL_REGISTRY)
+        missing = discovered - registered
+        extra = registered - discovered
+        assert not missing, (
+            "Protocols missing from WIRING_PROTOCOL_REGISTRY "
+            f"(add them with aspirational entries for unwired methods): "
+            f"{sorted(cls.__name__ for cls in missing)}"
+        )
+        assert not extra, (
+            "WIRING_PROTOCOL_REGISTRY contains protocols not discovered by introspection: "
+            f"{sorted(cls.__name__ for cls in extra)}"
+        )
 
     def test_known_aspirational_references_valid_protocols(self):
         """Every protocol class in KNOWN_ASPIRATIONAL must be in WIRING_PROTOCOL_REGISTRY."""
