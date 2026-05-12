@@ -10,8 +10,12 @@ from __future__ import annotations
 import inspect
 import typing
 from typing import get_type_hints
-import importlib
 
+from cross_backend.argument_types._coverage_guard_helpers import (
+    KnownGap,
+    TestedParamRef,
+    collect_tested_params,
+)
 from cross_backend.argument_types._introspection import (
     introspect_protocols,
     _iter_protocol_classes,
@@ -36,17 +40,12 @@ _CATEGORY_MODULES = [
 ]
 
 
+def _collect_tested_param_refs() -> set[TestedParamRef]:
+    return collect_tested_params(_CATEGORY_MODULES)
+
+
 def _collect_tested_params() -> set[tuple[str, str]]:
-    tested: set[tuple[str, str]] = set()
-    for modname in _CATEGORY_MODULES:
-        try:
-            mod = importlib.import_module(f"cross_backend.argument_types.{modname}")
-        except ImportError:
-            continue
-        for fkey, pname in getattr(mod, "TESTED_PARAMS", []):
-            op_name = fkey.name.lower() if hasattr(fkey, "name") else str(fkey)
-            tested.add((op_name, pname))
-    return tested
+    return {(ref.op_name, ref.param_name) for ref in _collect_tested_param_refs()}
 
 
 _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
@@ -102,6 +101,218 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
 }
 
 
+_KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
+    ("SubstraitFieldReferenceExpressionSystemProtocol", "col"): KnownGap(
+        reason="Special node type (FieldReferenceNode), not dispatched through scalar function registry",
+        since="2026-05-12",
+    ),
+    **{
+        key: KnownGap(
+            reason="TESTED_PARAMS operation is covered, but registry protocol_method wiring is not in place yet",
+            since="2026-05-12",
+        )
+        for key in {
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "day"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "day_of_week"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "day_of_year"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "hour"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "iso_year"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "microsecond"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "millisecond"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "minute"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "month"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "nanosecond"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "quarter"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "second"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "timezone_offset"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "unix_timestamp"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "week_of_year"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "year"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_contains"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_explode"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_get"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_join"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_len"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_max"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_mean"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_min"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_sort"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_sum"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_unique"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "decode"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "encode"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "extract_groups"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "json_decode"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "json_path_match"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "strip_suffix"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "to_integer"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "to_time"),
+            ("MountainAshScalarStructExpressionSystemProtocol", "struct_field"),
+            ("MountainAshScalarTernaryExpressionSystemProtocol", "is_false_ternary"),
+            ("MountainAshScalarTernaryExpressionSystemProtocol", "is_true_ternary"),
+            ("MountainashExtensionAggregateExpressionSystemProtocol", "n_unique"),
+            ("MountainashWindowExpressionSystemProtocol", "backward_fill"),
+            ("MountainashWindowExpressionSystemProtocol", "cum_count"),
+            ("MountainashWindowExpressionSystemProtocol", "cum_max"),
+            ("MountainashWindowExpressionSystemProtocol", "cum_min"),
+            ("MountainashWindowExpressionSystemProtocol", "cum_prod"),
+            ("MountainashWindowExpressionSystemProtocol", "cum_sum"),
+            ("MountainashWindowExpressionSystemProtocol", "diff"),
+            ("MountainashWindowExpressionSystemProtocol", "forward_fill"),
+            ("SubstraitAggregateArithmeticExpressionSystemProtocol", "sum0"),
+            ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial"),
+            ("SubstraitScalarArithmeticExpressionSystemProtocol", "modulus"),
+            ("SubstraitScalarBooleanExpressionSystemProtocol", "and_"),
+            ("SubstraitScalarBooleanExpressionSystemProtocol", "not_"),
+            ("SubstraitScalarBooleanExpressionSystemProtocol", "or_"),
+            ("SubstraitScalarComparisonExpressionSystemProtocol", "is_distinct_from"),
+            ("SubstraitScalarComparisonExpressionSystemProtocol", "is_not_distinct_from"),
+            ("SubstraitScalarComparisonExpressionSystemProtocol", "nullif"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "add"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "add_intervals"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "gt"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "gte"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "lt"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "lte"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "multiply"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "subtract"),
+            ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln"),
+            ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log1p"),
+            ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring"),
+            ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring"),
+            ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all"),
+            ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split"),
+            ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos"),
+            ("SubstraitScalarStringExpressionSystemProtocol", "string_split"),
+        }
+    },
+}
+
+
+_KNOWN_UNRESOLVED_TESTED_PARAMS: dict[tuple[str, str], KnownGap] = {
+    ("buffer", "buffer_radius"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.buffer",
+        since="2026-05-12",
+    ),
+    ("buffer", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.buffer",
+        since="2026-05-12",
+    ),
+    ("cast", "x"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitCastExpressionSystemProtocol.cast",
+        since="2026-05-12",
+    ),
+    ("centroid", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.centroid",
+        since="2026-05-12",
+    ),
+    ("col", "x"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitFieldReferenceExpressionSystemProtocol.col",
+        since="2026-05-12",
+    ),
+    ("collection_extract", "geom_collection"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.collection_extract",
+        since="2026-05-12",
+    ),
+    ("dimension", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.dimension",
+        since="2026-05-12",
+    ),
+    ("envelope", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.envelope",
+        since="2026-05-12",
+    ),
+    ("flip_coordinates", "geom_collection"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.flip_coordinates",
+        since="2026-05-12",
+    ),
+    ("geometry_type", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.geometry_type",
+        since="2026-05-12",
+    ),
+    ("if_then_else", "condition"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitConditionalExpressionSystemProtocol.if_then_else",
+        since="2026-05-12",
+    ),
+    ("if_then_else", "if_false"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitConditionalExpressionSystemProtocol.if_then_else",
+        since="2026-05-12",
+    ),
+    ("if_then_else", "if_true"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitConditionalExpressionSystemProtocol.if_then_else",
+        since="2026-05-12",
+    ),
+    ("is_closed", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_closed",
+        since="2026-05-12",
+    ),
+    ("is_empty", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_empty",
+        since="2026-05-12",
+    ),
+    ("is_ring", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_ring",
+        since="2026-05-12",
+    ),
+    ("is_simple", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_simple",
+        since="2026-05-12",
+    ),
+    ("is_valid", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_valid",
+        since="2026-05-12",
+    ),
+    ("make_line", "geom1"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.make_line",
+        since="2026-05-12",
+    ),
+    ("make_line", "geom2"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.make_line",
+        since="2026-05-12",
+    ),
+    ("minimum_bounding_circle", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.minimum_bounding_circle",
+        since="2026-05-12",
+    ),
+    ("num_points", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.num_points",
+        since="2026-05-12",
+    ),
+    ("point", "x"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.point",
+        since="2026-05-12",
+    ),
+    ("point", "y"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.point",
+        since="2026-05-12",
+    ),
+    ("remove_repeated_points", "geom"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.remove_repeated_points",
+        since="2026-05-12",
+    ),
+    ("x_coordinate", "point"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.x_coordinate",
+        since="2026-05-12",
+    ),
+    ("y_coordinate", "point"): KnownGap(
+        reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.y_coordinate",
+        since="2026-05-12",
+    ),
+}
+
+
+_KNOWN_UNRESOLVED_OPERATION_KEYS: dict[tuple[str, str], tuple[str, str]] = {
+    ("col", "x"): ("SubstraitFieldReferenceExpressionSystemProtocol", "col"),
+}
+
+
 def test_every_argument_param_is_tested():
     introspected = {
         (p.op_name, p.param_name)
@@ -122,6 +333,50 @@ def test_every_argument_param_is_tested():
     assert not overlap, (
         f"Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that are already tested "
         f"(remove from _KNOWN_UNTESTED): {sorted(overlap)}"
+    )
+
+
+def test_tested_params_have_registry_wiring_or_named_gap():
+    tested = _collect_tested_param_refs()
+    unwired = {
+        ref.operation_key
+        for ref in tested
+        if ref.operation_key is not None
+        and not ref.registry_wired
+        and ref.operation_key not in _KNOWN_UNWIRED_TESTED_OPS
+    }
+    unresolved = {
+        (ref.op_name, ref.param_name)
+        for ref in tested
+        if ref.operation_key is None
+        and (ref.op_name, ref.param_name) not in _KNOWN_UNRESOLVED_TESTED_PARAMS
+    }
+    stale_unresolved_known = {
+        key for key in _KNOWN_UNRESOLVED_TESTED_PARAMS
+        if key not in {(ref.op_name, ref.param_name) for ref in tested}
+    }
+    tested_operation_keys = {ref.operation_key for ref in tested}
+    tested_operation_keys.update(
+        operation_key
+        for tested_param_key, operation_key in _KNOWN_UNRESOLVED_OPERATION_KEYS.items()
+        if tested_param_key in {(ref.op_name, ref.param_name) for ref in tested}
+    )
+    stale_known = {
+        key for key in _KNOWN_UNWIRED_TESTED_OPS
+        if key not in tested_operation_keys
+    }
+    assert not unresolved, f"TESTED_PARAMS entries with no protocol match: {sorted(unresolved)}"
+    assert not unwired, (
+        "TESTED_PARAMS operations with no function registry wiring "
+        f"(add enum/registry wiring or _KNOWN_UNWIRED_TESTED_OPS entry): {sorted(unwired)}"
+    )
+    assert not stale_known, (
+        "Entries in _KNOWN_UNWIRED_TESTED_OPS no longer referenced by TESTED_PARAMS "
+        f"(remove them): {sorted(stale_known)}"
+    )
+    assert not stale_unresolved_known, (
+        "Entries in _KNOWN_UNRESOLVED_TESTED_PARAMS no longer referenced by TESTED_PARAMS "
+        f"(remove them): {sorted(stale_unresolved_known)}"
     )
 
 
