@@ -717,6 +717,68 @@ _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
 }
 
 
+_ALLOWED_CROSS_CATEGORY_TESTED_PARAMS: dict[tuple[str, str, str], KnownGap] = {
+    **{
+        key: KnownGap(
+            reason=(
+                "Datetime comparison dispatch is implemented by scalar comparison "
+                "registry/backend methods"
+            ),
+            since="2026-05-12",
+        )
+        for key in {
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "gt", "x"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "gt", "y"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "gte", "x"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "gte", "y"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "lt", "x"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "lt", "y"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "lte", "x"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "lte", "y"),
+        }
+    },
+    **{
+        key: KnownGap(
+            reason=(
+                "Substrait cast argument coverage is centralized in the misc "
+                "argument-type module"
+            ),
+            since="2026-05-12",
+        )
+        for key in {
+            ("SubstraitCastExpressionSystemProtocol", "cast", "x"),
+        }
+    },
+    **{
+        key: KnownGap(
+            reason=(
+                "Substrait conditional argument coverage is centralized in the "
+                "misc argument-type module"
+            ),
+            since="2026-05-12",
+        )
+        for key in {
+            ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "condition"),
+            ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "if_false"),
+            ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "if_true"),
+        }
+    },
+    **{
+        key: KnownGap(
+            reason=(
+                "Substrait set argument coverage is centralized in the misc "
+                "argument-type module"
+            ),
+            since="2026-05-12",
+        )
+        for key in {
+            ("SubstraitScalarSetExpressionSystemProtocol", "index_in", "haystack"),
+            ("SubstraitScalarSetExpressionSystemProtocol", "index_in", "needle"),
+        }
+    },
+}
+
+
 def test_every_argument_param_is_tested():
     introspected = {
         (p.protocol_name, p.op_name, p.param_name)
@@ -850,6 +912,31 @@ def test_tested_params_have_registry_wiring_or_named_gap():
     assert not stale_special_nodes, (
         "Entries in _KNOWN_SPECIAL_NODE_UNWIRED_OPS no longer exist in protocols "
         f"(remove them): {sorted(stale_special_nodes)}"
+    )
+
+
+def test_tested_params_match_protocol_category_or_named_dispatch_gap():
+    params_by_key = {
+        (p.protocol_name, p.op_name, p.param_name): p
+        for p in introspect_protocols()
+    }
+    mismatches = []
+    for ref in _collect_tested_param_refs():
+        key = ref.protocol_param_key
+        if key is None or key in _ALLOWED_CROSS_CATEGORY_TESTED_PARAMS:
+            continue
+        protocol_param = params_by_key.get(key)
+        if protocol_param is None:
+            continue
+        if protocol_param.category != ref.category:
+            mismatches.append(
+                f"{key}: tested in {ref.category}, protocol category is {protocol_param.category}"
+            )
+    stale_known = set(_ALLOWED_CROSS_CATEGORY_TESTED_PARAMS) - set(params_by_key)
+    assert not mismatches, "Category provenance mismatches:\n  " + "\n  ".join(mismatches)
+    assert not stale_known, (
+        "Stale _ALLOWED_CROSS_CATEGORY_TESTED_PARAMS entries: "
+        f"{sorted(stale_known)}"
     )
 
 
