@@ -48,56 +48,302 @@ def _collect_tested_params() -> set[tuple[str, str]]:
     return {(ref.op_name, ref.param_name) for ref in _collect_tested_param_refs()}
 
 
-_KNOWN_UNTESTED_ARGUMENT_PARAMS: set[tuple[str, str]] = {
-    # List ops — mostly Polars-only, argument expression support is backend-specific
-    ("list_all", "x"),
-    ("list_any", "x"),
-    ("list_arg_max", "x"),
-    ("list_arg_min", "x"),
-    ("list_agg", "x"),
-    ("list_agg", "expr"),
-    ("list_concat", "x"),
-    ("list_concat", "other"),
-    ("list_count_matches", "x"),
-    ("list_count_matches", "item"),
-    ("list_diff", "x"),
-    ("list_drop_nulls", "x"),
-    ("list_filter", "x"),
-    ("list_filter", "mask"),
-    ("list_gather", "x"),
-    ("list_gather", "indices"),
-    ("list_gather_every", "x"),
-    ("list_gather_every", "n"),
-    ("list_head", "x"),
-    ("list_head", "n"),
-    ("list_item", "x"),
-    ("list_median", "x"),
-    ("list_n_unique", "x"),
-    ("list_reverse", "x"),
-    ("list_sample", "x"),
-    ("list_sample", "n"),
-    ("list_set_difference", "x"),
-    ("list_set_difference", "other"),
-    ("list_set_intersection", "x"),
-    ("list_set_intersection", "other"),
-    ("list_set_symmetric_difference", "x"),
-    ("list_set_symmetric_difference", "other"),
-    ("list_set_union", "x"),
-    ("list_set_union", "other"),
-    ("list_shift", "x"),
-    ("list_shift", "n"),
-    ("list_slice", "x"),
-    ("list_slice", "offset"),
-    ("list_std", "x"),
-    ("list_tail", "x"),
-    ("list_tail", "n"),
-    ("list_to_array", "x"),
-    ("list_to_struct", "x"),
-    ("list_var", "x"),
-    # Duration extraction — Ibis has no total_* methods
-    ("total_days", "x"),
-    ("total_hours", "x"),
-    ("total_nanoseconds", "x"),
+_KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
+    # List ops - mostly Polars-only, argument expression support is backend-specific
+    **{
+        key: KnownGap(
+            reason="List argument expression support is backend-specific",
+            since="2026-05-12",
+        )
+        for key in {
+            ("MountainAshScalarListExpressionSystemProtocol", "list_all", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_any", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_arg_max", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_arg_min", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_agg", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_agg", "expr"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_concat", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_concat", "other"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_count_matches", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_count_matches", "item"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_diff", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_drop_nulls", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_filter", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_filter", "mask"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_gather", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_gather", "indices"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_gather_every", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_gather_every", "n"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_head", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_head", "n"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_item", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_median", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_n_unique", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_reverse", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "n"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_set_difference", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_set_difference", "other"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_set_intersection", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_set_intersection", "other"),
+            (
+                "MountainAshScalarListExpressionSystemProtocol",
+                "list_set_symmetric_difference",
+                "x",
+            ),
+            (
+                "MountainAshScalarListExpressionSystemProtocol",
+                "list_set_symmetric_difference",
+                "other",
+            ),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_set_union", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_set_union", "other"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_shift", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_shift", "n"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_slice", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_slice", "offset"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_std", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_tail", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_tail", "n"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_to_array", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_to_struct", "x"),
+            ("MountainAshScalarListExpressionSystemProtocol", "list_var", "x"),
+        }
+    },
+    # Duration extraction - Ibis has no total_* methods
+    **{
+        key: KnownGap(
+            reason="Ibis has no total_* duration extraction methods",
+            since="2026-05-12",
+        )
+        for key in {
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "total_days", "x"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "total_hours", "x"),
+            (
+                "MountainAshScalarDatetimeExpressionSystemProtocol",
+                "total_nanoseconds",
+                "x",
+            ),
+        }
+    },
+}
+
+
+_KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
+    key: KnownGap(
+        reason=(
+            "Option behavior coverage is not implemented yet; tracked explicitly "
+            "by option-param guard"
+        ),
+        since="2026-05-12",
+    )
+    for key in {
+        ("MountainAshNameExpressionSystemProtocol", "alias", "name"),
+        ("MountainAshNameExpressionSystemProtocol", "prefix", "prefix"),
+        ("MountainAshNameExpressionSystemProtocol", "suffix", "suffix"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "assume_timezone", "timezone"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "ceil", "unit"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "component"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "floor", "unit"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "is_dst", "timezone"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "offset_by", "offset"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "round", "unit"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "strftime", "format"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "truncate", "unit"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_diff", "n"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_diff", "null_behavior"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_gather", "null_on_oob"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_gather_every", "offset"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_get", "index"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_item", "index"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_join", "separator"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "fraction"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "seed"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "shuffle"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "with_replacement"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_slice", "length"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_sort", "descending"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_std", "ddof"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_to_array", "width"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_to_struct", "fields"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_to_struct", "n_field_strategy"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_to_struct", "upper_bound"),
+        ("MountainAshScalarListExpressionSystemProtocol", "list_var", "ddof"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "decode", "encoding"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "decode", "strict"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "encode", "encoding"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "extract_groups", "pattern"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "json_decode", "dtype"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "json_path_match", "json_path"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "regex_contains", "case_sensitivity"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "regex_contains", "pattern"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "strip_suffix", "suffix"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "to_integer", "base"),
+        ("MountainAshScalarStringExpressionSystemProtocol", "to_time", "format"),
+        ("MountainAshScalarStructExpressionSystemProtocol", "struct_field", "field_name"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "collect_values", "values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_eq", "left_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_eq", "right_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_ge", "left_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_ge", "right_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_gt", "left_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_gt", "right_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_is_in", "unknown_values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_is_not_in", "unknown_values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_le", "left_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_le", "right_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_lt", "left_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_lt", "right_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_ne", "left_unknown"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_ne", "right_unknown"),
+        ("MountainashWindowExpressionSystemProtocol", "backward_fill", "limit"),
+        ("MountainashWindowExpressionSystemProtocol", "cum_count", "reverse"),
+        ("MountainashWindowExpressionSystemProtocol", "cum_max", "reverse"),
+        ("MountainashWindowExpressionSystemProtocol", "cum_min", "reverse"),
+        ("MountainashWindowExpressionSystemProtocol", "cum_prod", "reverse"),
+        ("MountainashWindowExpressionSystemProtocol", "cum_sum", "reverse"),
+        ("MountainashWindowExpressionSystemProtocol", "diff", "n"),
+        ("MountainashWindowExpressionSystemProtocol", "forward_fill", "limit"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "avg", "overflow"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "corr", "rounding"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "median", "rounding"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "product", "overflow"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "quantile", "rounding"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "std_dev", "distribution"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "std_dev", "rounding"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "sum", "overflow"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "sum0", "overflow"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "variance", "distribution"),
+        ("SubstraitAggregateArithmeticExpressionSystemProtocol", "variance", "rounding"),
+        ("SubstraitAggregateGenericExpressionSystemProtocol", "any_value", "ignore_nulls"),
+        ("SubstraitAggregateGenericExpressionSystemProtocol", "count", "overflow"),
+        ("SubstraitAggregateGenericExpressionSystemProtocol", "count_records", "overflow"),
+        ("SubstraitAggregateStringExpressionSystemProtocol", "string_agg", "separator"),
+        ("SubstraitCastExpressionSystemProtocol", "cast", "dtype"),
+        ("SubstraitLiteralExpressionSystemProtocol", "lit", "x"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "acos", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "acos", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "acosh", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "acosh", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "add", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "asin", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "asin", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "asinh", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "atan", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "atan2", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "atan2", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "atanh", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "atanh", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "cos", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "cosh", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "degrees", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "divide", "on_division_by_zero"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "divide", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "divide", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "exp", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "modulus", "division_type"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "modulus", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "modulus", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "multiply", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "negate", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "power", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "radians", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "sin", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "sinh", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "sqrt", "on_domain_error"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "sqrt", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "subtract", "overflow"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "tan", "rounding"),
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "tanh", "rounding"),
+        ("SubstraitScalarComparisonExpressionSystemProtocol", "between", "closed"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "assume_timezone", "timezone"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "component"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp", "timezone"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "unit"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "multiple"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "origin"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strftime", "format"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "format"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time", "format"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "format"),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "timezone"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln", "on_domain_error"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln", "on_log_zero"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln", "rounding"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log10", "on_domain_error"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log10", "on_log_zero"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log10", "rounding"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log1p", "on_domain_error"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log1p", "on_log_zero"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log1p", "rounding"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log2", "on_domain_error"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log2", "on_log_zero"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log2", "rounding"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "logb", "on_domain_error"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "logb", "on_log_zero"),
+        ("SubstraitScalarLogarithmicExpressionSystemProtocol", "logb", "rounding"),
+        ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "rounding"),
+        ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "s"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "capitalize", "char_set"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "center", "padding"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "concat", "null_handling"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "contains", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "count_substring", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "ends_with", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "initcap", "char_set"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "like", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "lower", "char_set"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "dotall"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "multiline"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "position"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "dotall"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "group"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "multiline"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "occurrence"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "position"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "dotall"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "group"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "multiline"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "position"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "dotall"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "multiline"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "occurrence"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "position"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "dotall"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "multiline"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "dotall"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "multiline"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "occurrence"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "position"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "replace", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "substring", "negative_start"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "swapcase", "char_set"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "title", "char_set"),
+        ("SubstraitScalarStringExpressionSystemProtocol", "upper", "char_set"),
+        ("SubstraitWindowArithmeticExpressionSystemProtocol", "dense_rank", "descending"),
+        ("SubstraitWindowArithmeticExpressionSystemProtocol", "rank", "descending"),
+        ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),
+    }
 }
 
 
@@ -322,26 +568,149 @@ _KNOWN_SPECIAL_NODE_UNWIRED_OPS: dict[tuple[str, str], KnownGap] = {
 }
 
 
+_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_KEYS: dict[tuple[str, str, str], KnownGap] = {
+    key: KnownGap(
+        reason=(
+            "String TESTED_PARAMS entry is covered but cannot yet be resolved to a "
+            "protocol-qualified key by the category resolver"
+        ),
+        since="2026-05-12",
+    )
+    for key in {
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "assume_timezone", "x"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "x"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "x"),
+        ("MountainAshScalarDatetimeExpressionSystemProtocol", "strftime", "x"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "haystack"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "needle"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "haystack"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "needle"),
+        ("SubstraitCastExpressionSystemProtocol", "cast", "x"),
+        ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "condition"),
+        ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "if_false"),
+        ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "if_true"),
+        ("SubstraitFieldReferenceExpressionSystemProtocol", "col", "x"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "buffer", "buffer_radius"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "buffer", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "centroid", "geom"),
+        (
+            "SubstraitScalarGeometryExpressionSystemProtocol",
+            "collection_extract",
+            "geom_collection",
+        ),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "dimension", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "envelope", "geom"),
+        (
+            "SubstraitScalarGeometryExpressionSystemProtocol",
+            "flip_coordinates",
+            "geom_collection",
+        ),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "geometry_type", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_closed", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_empty", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_ring", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_simple", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_valid", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "make_line", "geom1"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "make_line", "geom2"),
+        (
+            "SubstraitScalarGeometryExpressionSystemProtocol",
+            "minimum_bounding_circle",
+            "geom",
+        ),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "num_points", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "point", "x"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "point", "y"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "remove_repeated_points", "geom"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "x_coordinate", "point"),
+        ("SubstraitScalarGeometryExpressionSystemProtocol", "y_coordinate", "point"),
+    }
+}
+
+
+_KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
+    tuple[str, str, str],
+    tuple[str, str, str],
+] = {
+    (
+        "SubstraitScalarSetExpressionSystemProtocol",
+        "is_in",
+        "haystack",
+    ): ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "haystack"),
+    (
+        "SubstraitScalarSetExpressionSystemProtocol",
+        "is_in",
+        "needle",
+    ): ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "needle"),
+    (
+        "SubstraitScalarSetExpressionSystemProtocol",
+        "is_not_in",
+        "haystack",
+    ): ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "haystack"),
+    (
+        "SubstraitScalarSetExpressionSystemProtocol",
+        "is_not_in",
+        "needle",
+    ): ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "needle"),
+}
+
+
 def test_every_argument_param_is_tested():
     introspected = {
-        (p.op_name, p.param_name)
+        (p.protocol_name, p.op_name, p.param_name)
         for p in introspect_protocols()
         if p.kind == "argument"
     }
-    tested = _collect_tested_params()
-    newly_missing = {
-        (op, pname) for op, pname in introspected
-        if (op, pname) not in tested and (op, pname) not in _KNOWN_UNTESTED_ARGUMENT_PARAMS
-    }
-    extra = {(op, pname) for op, pname in tested if (op, pname) not in introspected}
-    stale_known = _KNOWN_UNTESTED_ARGUMENT_PARAMS - introspected
-    assert not newly_missing, f"New argument params with no test (add test or register in _KNOWN_UNTESTED): {sorted(newly_missing)}"
+    tested = {
+        _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES.get(
+            ref.protocol_param_key,
+            ref.protocol_param_key,
+        )
+        for ref in _collect_tested_param_refs()
+        if ref.protocol_param_key is not None
+    } | set(_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_KEYS)
+    known = set(_KNOWN_UNTESTED_ARGUMENT_PARAMS)
+    newly_missing = introspected - tested - known
+    extra = tested - introspected
+    stale_known = known - introspected
+    overlap = known & tested
+    assert not newly_missing, (
+        "New argument params with no test "
+        f"(add test or register in _KNOWN_UNTESTED_ARGUMENT_PARAMS): {sorted(newly_missing)}"
+    )
     assert not extra, f"Tested params with no protocol: {sorted(extra)}"
-    assert not stale_known, f"Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that no longer exist in protocols (remove them): {sorted(stale_known)}"
-    overlap = _KNOWN_UNTESTED_ARGUMENT_PARAMS & tested
+    assert not stale_known, (
+        "Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that no longer exist in protocols "
+        f"(remove them): {sorted(stale_known)}"
+    )
     assert not overlap, (
-        f"Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that are already tested "
-        f"(remove from _KNOWN_UNTESTED): {sorted(overlap)}"
+        "Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that are already tested "
+        f"(remove from _KNOWN_UNTESTED_ARGUMENT_PARAMS): {sorted(overlap)}"
+    )
+
+
+def test_every_option_param_is_tested_or_registered():
+    introspected = {
+        (p.protocol_name, p.op_name, p.param_name)
+        for p in introspect_protocols()
+        if p.kind == "option"
+    }
+    tested_options: set[tuple[str, str, str]] = set()
+    known = set(_KNOWN_UNTESTED_OPTION_PARAMS)
+    newly_missing = introspected - tested_options - known
+    stale_known = known - introspected
+    overlap = known & tested_options
+    assert not newly_missing, (
+        "Option params with no behavior test or known-gap entry "
+        f"(add tests or _KNOWN_UNTESTED_OPTION_PARAMS entries): {sorted(newly_missing)}"
+    )
+    assert not stale_known, (
+        "Entries in _KNOWN_UNTESTED_OPTION_PARAMS that no longer exist in protocols "
+        f"(remove them): {sorted(stale_known)}"
+    )
+    assert not overlap, (
+        "Entries in _KNOWN_UNTESTED_OPTION_PARAMS that are already tested "
+        f"(remove from _KNOWN_UNTESTED_OPTION_PARAMS): {sorted(overlap)}"
     )
 
 
