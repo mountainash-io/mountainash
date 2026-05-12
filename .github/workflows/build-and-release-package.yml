@@ -57,6 +57,14 @@ jobs:
       BUILD_ENV: "build_github"
 
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: mountainash-io
+
       # ======================================================
       # INITIALIZE
 
@@ -127,7 +135,7 @@ jobs:
       #     dependencies: ${{ steps.deps.outputs.dependencies }}
       #     target-branch: ${{ env.TARGET_BRANCH }}
       #     default-branch: ${{ env.FALLBACK_BRANCH }}
-      #     token: ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}
+      #     token: ${{ steps.app-token.outputs.token }}
       #     org-name: ${{ env.ORGNAME }}
 
       # ======================================================
@@ -394,7 +402,7 @@ jobs:
           git config --global user.email "actions@github.com"
 
           # Clone the wheels repository
-          git clone https://x-access-token:${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}@github.com/${{ env.ORGNAME }}/mountainash-wheels.git wheels-repo
+          git clone https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ env.ORGNAME }}/mountainash-wheels.git wheels-repo
 
           # Go to the wheels repository
           cd wheels-repo
@@ -434,7 +442,7 @@ jobs:
 
           # Create the PR
           PR_RESPONSE=$(curl -X POST \
-            -H "Authorization: token ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}" \
+            -H "Authorization: token ${{ steps.app-token.outputs.token }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ env.ORGNAME }}/mountainash-wheels/pulls \
             -d "{
@@ -453,7 +461,7 @@ jobs:
             # Add labels to the PR
             if [ "$PR_NUMBER" != "null" ]; then
               curl -X POST \
-                -H "Authorization: token ${{ secrets.CLONE_PRIVATE_REPOS_TOKEN }}" \
+                -H "Authorization: token ${{ steps.app-token.outputs.token }}" \
                 -H "Accept: application/vnd.github.v3+json" \
                 https://api.github.com/repos/${{ env.ORGNAME }}/mountainash-wheels/issues/$PR_NUMBER/labels \
                 -d '{
