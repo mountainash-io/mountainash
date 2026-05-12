@@ -51,20 +51,20 @@ def _collect_tested_params() -> set[tuple[str, str]]:
     return {(ref.op_name, ref.param_name) for ref in _collect_tested_param_refs()}
 
 
-def _operation_identity(ref: TestedParamRef) -> tuple[str, str | None, str]:
-    return (ref.module_name, ref.protocol_name, ref.op_name)
+def _param_identity(ref: TestedParamRef) -> tuple[str, str | None, str, str]:
+    return (ref.module_name, ref.protocol_name, ref.op_name, ref.param_name)
 
 
 def _collect_matrix_executed_param_refs() -> set[TestedParamRef]:
     """Return TESTED_PARAMS entries whose operation has at least one OP_SPEC."""
     tested_refs = _collect_tested_param_refs()
-    executed_ops: set[tuple[str, str | None, str]] = set()
+    executed_params: set[tuple[str, str | None, str, str]] = set()
     params_by_category = protocol_params_by_category()
     for module_name in _CATEGORY_MODULES:
         mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
         for op_spec in getattr(mod, "OP_SPECS", []):
-            executed_ops.add(
-                _operation_identity(
+            executed_params.add(
+                _param_identity(
                     canonicalize_tested_param(
                         module_name,
                         op_spec.function_key,
@@ -73,7 +73,7 @@ def _collect_matrix_executed_param_refs() -> set[TestedParamRef]:
                     )
                 )
             )
-    return {ref for ref in tested_refs if _operation_identity(ref) in executed_ops}
+    return {ref for ref in tested_refs if _param_identity(ref) in executed_params}
 
 
 def _collect_tested_option_params() -> set[tuple[str, str, str]]:
@@ -165,27 +165,295 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
 }
 
 
-_KNOWN_METADATA_ONLY_TESTED_MODULES: dict[str, KnownGap] = {
-    module_name: KnownGap(
+_KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], KnownGap] = {
+    key: KnownGap(
         reason=(
             "TESTED_PARAMS is protocol accounting metadata here; operation matrix "
             "coverage is blocked by current backend/test infrastructure limitations"
         ),
         since="2026-05-12",
     )
-    for module_name in {
-        "test_arg_types_aggregate",
-        "test_arg_types_arithmetic",
-        "test_arg_types_boolean",
-        "test_arg_types_comparison",
-        "test_arg_types_datetime",
-        "test_arg_types_list",
-        "test_arg_types_logarithmic",
-        "test_arg_types_misc",
-        "test_arg_types_rounding",
-        "test_arg_types_string",
-        "test_arg_types_struct",
-        "test_arg_types_window",
+    for key in {
+        ('test_arg_types_aggregate', 'MountainashExtensionAggregateExpressionSystemProtocol', 'n_unique', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'avg', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'corr', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'corr', 'y'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'max', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'median', 'precision'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'median', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'min', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'mode', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'product', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'quantile', 'boundaries'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'quantile', 'distribution'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'quantile', 'n'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'quantile', 'precision'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'std_dev', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'sum', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'sum0', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateArithmeticExpressionSystemProtocol', 'variance', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateBooleanExpressionSystemProtocol', 'bool_and', 'a'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateBooleanExpressionSystemProtocol', 'bool_or', 'a'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateGenericExpressionSystemProtocol', 'any_value', 'x'),
+        ('test_arg_types_aggregate', 'SubstraitAggregateGenericExpressionSystemProtocol', 'count', 'x'),
+        ('test_arg_types_arithmetic', 'MountainAshScalarArithmeticExpressionSystemProtocol', 'floor_divide', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'abs', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'acos', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'acosh', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'add', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'asin', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'asinh', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'atan', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'atan2', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'atanh', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_and', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_and', 'y'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_not', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_or', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_or', 'y'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_xor', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'bitwise_xor', 'y'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'cos', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'cosh', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'degrees', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'divide', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'exp', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'factorial', 'n'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'modulus', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'multiply', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'negate', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'power', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'radians', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'shift_left', 'base'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'shift_left', 'shift'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'shift_right', 'base'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'shift_right', 'shift'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'shift_right_unsigned', 'base'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'shift_right_unsigned', 'shift'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'sign', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'sin', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'sinh', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'sqrt', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'subtract', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'tan', 'x'),
+        ('test_arg_types_arithmetic', 'SubstraitScalarArithmeticExpressionSystemProtocol', 'tanh', 'x'),
+        ('test_arg_types_boolean', 'MountainAshScalarBooleanExpressionSystemProtocol', 'xor_parity', 'a'),
+        ('test_arg_types_boolean', 'MountainAshScalarBooleanExpressionSystemProtocol', 'xor_parity', 'b'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'is_false_ternary', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'is_known', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'is_true_ternary', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'is_unknown', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'maybe_false', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'maybe_true', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_and', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_and', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_eq', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_eq', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_ge', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_ge', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_gt', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_gt', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_is_in', 'collection'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_is_in', 'element'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_is_not_in', 'collection'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_is_not_in', 'element'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_le', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_le', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_lt', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_lt', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_ne', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_ne', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_not', 'operand'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_or', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_or', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_xor', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_xor', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_xor_parity', 'left'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 't_xor_parity', 'right'),
+        ('test_arg_types_boolean', 'MountainAshScalarTernaryExpressionSystemProtocol', 'to_ternary', 'operand'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'and_', 'args'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'and_not', 'a'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'and_not', 'b'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'not_', 'a'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'or_', 'args'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'xor', 'a'),
+        ('test_arg_types_boolean', 'SubstraitScalarBooleanExpressionSystemProtocol', 'xor', 'b'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'between', 'high'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'between', 'low'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'between', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'coalesce', 'args'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'equal', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'equal', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'greatest', 'args'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'greatest_skip_null', 'args'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'gt', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'gt', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'gte', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'gte', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_distinct_from', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_distinct_from', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_false', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_finite', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_infinite', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_nan', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_not_distinct_from', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_not_distinct_from', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_not_false', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_not_null', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_not_true', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_null', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_true', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'least', 'args'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'least_skip_null', 'args'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'lt', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'lt', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'lte', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'lte', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'not_equal', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'not_equal', 'y'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'nullif', 'x'),
+        ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'nullif', 'y'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_days', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_hours', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_microseconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_milliseconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_minutes', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_months', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_seconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'add_years', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'ceil', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'day', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'day_of_week', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'day_of_year', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_days', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_hours', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_milliseconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_minutes', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_months', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_seconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'diff_years', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'floor', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'hour', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'is_dst', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'is_leap_year', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'iso_year', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'microsecond', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'millisecond', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'minute', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'month', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'nanosecond', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'offset_by', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'quarter', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'round', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'second', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'timezone_offset', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'to_timezone', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_microseconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_milliseconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_minutes', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_seconds', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'truncate', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'unix_timestamp', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'week_of_year', 'x'),
+        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'year', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'add', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'add', 'y'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'add_intervals', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'assume_timezone', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'extract', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'extract_boolean', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gt', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gt', 'y'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gte', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gte', 'y'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'local_timestamp', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lt', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lt', 'y'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lte', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lte', 'y'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'multiply', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'multiply', 'y'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'round_calendar', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'round_temporal', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strftime', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strptime_date', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strptime_time', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strptime_timestamp', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'subtract', 'x'),
+        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'subtract', 'y'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_contains', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_explode', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_get', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_join', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_len', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_max', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_mean', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_min', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_sort', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_sum', 'x'),
+        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_unique', 'x'),
+        ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'ln', 'x'),
+        ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'log10', 'x'),
+        ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'log1p', 'x'),
+        ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'log2', 'x'),
+        ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'logb', 'base'),
+        ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'logb', 'x'),
+        ('test_arg_types_misc', None, 'buffer', 'buffer_radius'),
+        ('test_arg_types_misc', None, 'buffer', 'geom'),
+        ('test_arg_types_misc', None, 'centroid', 'geom'),
+        ('test_arg_types_misc', None, 'col', 'x'),
+        ('test_arg_types_misc', None, 'collection_extract', 'geom_collection'),
+        ('test_arg_types_misc', None, 'dimension', 'geom'),
+        ('test_arg_types_misc', None, 'envelope', 'geom'),
+        ('test_arg_types_misc', None, 'flip_coordinates', 'geom_collection'),
+        ('test_arg_types_misc', None, 'geometry_type', 'geom'),
+        ('test_arg_types_misc', None, 'is_closed', 'geom'),
+        ('test_arg_types_misc', None, 'is_empty', 'geom'),
+        ('test_arg_types_misc', None, 'is_ring', 'geom'),
+        ('test_arg_types_misc', None, 'is_simple', 'geom'),
+        ('test_arg_types_misc', None, 'is_valid', 'geom'),
+        ('test_arg_types_misc', None, 'make_line', 'geom1'),
+        ('test_arg_types_misc', None, 'make_line', 'geom2'),
+        ('test_arg_types_misc', None, 'minimum_bounding_circle', 'geom'),
+        ('test_arg_types_misc', None, 'num_points', 'geom'),
+        ('test_arg_types_misc', None, 'point', 'x'),
+        ('test_arg_types_misc', None, 'point', 'y'),
+        ('test_arg_types_misc', None, 'remove_repeated_points', 'geom'),
+        ('test_arg_types_misc', None, 'x_coordinate', 'point'),
+        ('test_arg_types_misc', None, 'y_coordinate', 'point'),
+        ('test_arg_types_misc', 'SubstraitCastExpressionSystemProtocol', 'cast', 'x'),
+        ('test_arg_types_misc', 'SubstraitConditionalExpressionSystemProtocol', 'if_then_else', 'condition'),
+        ('test_arg_types_misc', 'SubstraitConditionalExpressionSystemProtocol', 'if_then_else', 'if_false'),
+        ('test_arg_types_misc', 'SubstraitConditionalExpressionSystemProtocol', 'if_then_else', 'if_true'),
+        ('test_arg_types_misc', 'SubstraitScalarSetExpressionSystemProtocol', 'index_in', 'haystack'),
+        ('test_arg_types_misc', 'SubstraitScalarSetExpressionSystemProtocol', 'index_in', 'needle'),
+        ('test_arg_types_misc', 'SubstraitScalarSetExpressionSystemProtocol', 'is_in', 'haystack'),
+        ('test_arg_types_misc', 'SubstraitScalarSetExpressionSystemProtocol', 'is_in', 'needle'),
+        ('test_arg_types_misc', 'SubstraitScalarSetExpressionSystemProtocol', 'is_not_in', 'haystack'),
+        ('test_arg_types_misc', 'SubstraitScalarSetExpressionSystemProtocol', 'is_not_in', 'needle'),
+        ('test_arg_types_rounding', 'SubstraitScalarRoundingExpressionSystemProtocol', 'ceil', 'x'),
+        ('test_arg_types_rounding', 'SubstraitScalarRoundingExpressionSystemProtocol', 'floor', 'x'),
+        ('test_arg_types_rounding', 'SubstraitScalarRoundingExpressionSystemProtocol', 'round', 'x'),
+        ('test_arg_types_string', 'MountainAshScalarStringExpressionSystemProtocol', 'json_decode', 'x'),
+        ('test_arg_types_string', 'SubstraitScalarStringExpressionSystemProtocol', 'concat_ws', 'string_arguments'),
+        ('test_arg_types_struct', 'MountainAshScalarStructExpressionSystemProtocol', 'struct_field', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'backward_fill', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'cum_count', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'cum_max', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'cum_min', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'cum_prod', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'diff', 'x'),
+        ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'forward_fill', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'dense_rank', 'order_by_col'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'first_value', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'lag', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'last_value', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'lead', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'nth_value', 'window_offset'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'nth_value', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'ntile', 'x'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'rank', 'order_by_col'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'row_number', 'order_by_col'),
     }
 }
 
@@ -907,19 +1175,16 @@ def test_tested_params_are_backed_by_argument_matrix_or_named_gap():
     """TESTED_PARAMS metadata must not silently imply executed matrix coverage."""
     tested = _collect_tested_param_refs()
     executed = _collect_matrix_executed_param_refs()
-    metadata_only_modules = {
-        ref.module_name
-        for ref in tested - executed
-    }
-    known = set(_KNOWN_METADATA_ONLY_TESTED_MODULES)
-    newly_metadata_only = metadata_only_modules - known
-    stale_known = known - metadata_only_modules
+    metadata_only = {_param_identity(ref) for ref in tested - executed}
+    known = set(_KNOWN_METADATA_ONLY_TESTED_PARAMS)
+    newly_metadata_only = metadata_only - known
+    stale_known = known - metadata_only
     assert not newly_metadata_only, (
         "TESTED_PARAMS entries without OP_SPEC-backed execution need a named "
-        f"_KNOWN_METADATA_ONLY_TESTED_MODULES gap: {sorted(newly_metadata_only)}"
+        f"_KNOWN_METADATA_ONLY_TESTED_PARAMS gap: {sorted(newly_metadata_only)}"
     )
     assert not stale_known, (
-        "Modules in _KNOWN_METADATA_ONLY_TESTED_MODULES now have fully backed "
+        "Entries in _KNOWN_METADATA_ONLY_TESTED_PARAMS now have OP_SPEC-backed "
         f"TESTED_PARAMS entries and should be removed: {sorted(stale_known)}"
     )
 
