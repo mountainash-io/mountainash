@@ -12,6 +12,9 @@ import pytest
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_SET as FK_MA_SET,
+    FKEY_SUBSTRAIT_CAST as FK_CAST,
+    FKEY_SUBSTRAIT_CONDITIONAL as FK_COND,
+    FKEY_SUBSTRAIT_FIELD_REFERENCE as FK_FIELD,
     FKEY_SUBSTRAIT_SCALAR_SET as FK_SET,
 )
 from cross_backend.argument_types.conftest import ALL_BACKENDS
@@ -25,17 +28,17 @@ from cross_backend.argument_types._test_template import (
 TESTED_PARAMS: list[tuple] = [
     ("buffer", "buffer_radius"),
     ("buffer", "geom"),
-    ("cast", "x"),
+    (FK_CAST.CAST, "x"),
     ("centroid", "geom"),
-    ("col", "x"),
+    (FK_FIELD.COL, "x"),
     ("collection_extract", "geom_collection"),
     ("dimension", "geom"),
     ("envelope", "geom"),
     ("flip_coordinates", "geom_collection"),
     ("geometry_type", "geom"),
-    ("if_then_else", "condition"),
-    ("if_then_else", "if_false"),
-    ("if_then_else", "if_true"),
+    (FK_COND.IF_THEN_ELSE, "condition"),
+    (FK_COND.IF_THEN_ELSE, "if_false"),
+    (FK_COND.IF_THEN_ELSE, "if_true"),
     (FK_SET.INDEX_IN, "haystack"),
     (FK_SET.INDEX_IN, "needle"),
     ("is_closed", "geom"),

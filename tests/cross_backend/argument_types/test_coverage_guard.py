@@ -578,7 +578,6 @@ _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES: dict[
         "buffer_radius",
     ),
     ("buffer", "geom"): ("SubstraitScalarGeometryExpressionSystemProtocol", "buffer", "geom"),
-    ("cast", "x"): ("SubstraitCastExpressionSystemProtocol", "cast", "x"),
     ("centroid", "geom"): (
         "SubstraitScalarGeometryExpressionSystemProtocol",
         "centroid",
@@ -609,21 +608,6 @@ _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES: dict[
         "SubstraitScalarGeometryExpressionSystemProtocol",
         "geometry_type",
         "geom",
-    ),
-    ("if_then_else", "condition"): (
-        "SubstraitConditionalExpressionSystemProtocol",
-        "if_then_else",
-        "condition",
-    ),
-    ("if_then_else", "if_false"): (
-        "SubstraitConditionalExpressionSystemProtocol",
-        "if_then_else",
-        "if_false",
-    ),
-    ("if_then_else", "if_true"): (
-        "SubstraitConditionalExpressionSystemProtocol",
-        "if_then_else",
-        "if_true",
     ),
     ("is_closed", "geom"): (
         "SubstraitScalarGeometryExpressionSystemProtocol",
