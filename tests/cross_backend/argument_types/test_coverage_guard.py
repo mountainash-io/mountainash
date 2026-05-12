@@ -312,9 +312,13 @@ _KNOWN_UNRESOLVED_TESTED_PARAMS: dict[tuple[str, str], KnownGap] = {
 }
 
 
-_KNOWN_UNREFERENCED_UNWIRED_TESTED_OPS: set[tuple[str, str]] = {
-    ("SubstraitFieldReferenceExpressionSystemProtocol", "col"),
-    ("SubstraitLiteralExpressionSystemProtocol", "lit"),
+_KNOWN_SPECIAL_NODE_UNWIRED_OPS: dict[tuple[str, str], KnownGap] = {
+    ("SubstraitFieldReferenceExpressionSystemProtocol", "col"): _KNOWN_UNWIRED_TESTED_OPS[
+        ("SubstraitFieldReferenceExpressionSystemProtocol", "col")
+    ],
+    ("SubstraitLiteralExpressionSystemProtocol", "lit"): _KNOWN_UNWIRED_TESTED_OPS[
+        ("SubstraitLiteralExpressionSystemProtocol", "lit")
+    ],
 }
 
 
@@ -364,7 +368,11 @@ def test_tested_params_have_registry_wiring_or_named_gap():
     stale_known = {
         key for key in _KNOWN_UNWIRED_TESTED_OPS
         if key not in tested_operation_keys
-        and key not in _KNOWN_UNREFERENCED_UNWIRED_TESTED_OPS
+        and key not in _KNOWN_SPECIAL_NODE_UNWIRED_OPS
+    }
+    stale_special_nodes = {
+        key for key in _KNOWN_SPECIAL_NODE_UNWIRED_OPS
+        if not any((p.protocol_name, p.op_name) == key for p in introspect_protocols())
     }
     assert not unresolved, f"TESTED_PARAMS entries with no protocol match: {sorted(unresolved)}"
     assert not unwired, (
@@ -378,6 +386,10 @@ def test_tested_params_have_registry_wiring_or_named_gap():
     assert not stale_unresolved_known, (
         "Entries in _KNOWN_UNRESOLVED_TESTED_PARAMS no longer referenced by TESTED_PARAMS "
         f"(remove them): {sorted(stale_unresolved_known)}"
+    )
+    assert not stale_special_nodes, (
+        "Entries in _KNOWN_SPECIAL_NODE_UNWIRED_OPS no longer exist in protocols "
+        f"(remove them): {sorted(stale_special_nodes)}"
     )
 
 

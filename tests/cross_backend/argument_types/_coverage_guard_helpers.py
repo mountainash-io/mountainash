@@ -26,6 +26,8 @@ class ProtocolMethodRef:
 
 @dataclass(frozen=True)
 class TestedParamRef:
+    __test__ = False
+
     module_name: str
     category: str
     original_key: Any
@@ -133,10 +135,7 @@ def collect_tested_params(module_names: Iterable[str]) -> set[TestedParamRef]:
     tested: set[TestedParamRef] = set()
     params_by_category = protocol_params_by_category()
     for module_name in module_names:
-        try:
-            mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
-        except Exception:
-            continue
+        mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
         for original_key, param_name in getattr(mod, "TESTED_PARAMS", []):
             tested.add(
                 canonicalize_tested_param(
