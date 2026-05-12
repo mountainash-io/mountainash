@@ -113,7 +113,10 @@ def canonicalize_tested_param(
             registry_wired=True,
         )
 
-    op_name = str(original_key)
+    if isinstance(original_key, Enum):
+        op_name = original_key.name.lower()
+    else:
+        op_name = str(original_key)
     protocol_ref = resolve_string_protocol_ref(op_name, category, params_by_category)
     return TestedParamRef(
         module_name=module_name,

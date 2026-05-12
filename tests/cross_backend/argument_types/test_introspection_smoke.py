@@ -1,10 +1,12 @@
 from cross_backend.argument_types._introspection import ProtocolParam, introspect_protocols
 from cross_backend.argument_types._coverage_guard_helpers import (
+    canonicalize_tested_param,
     collect_tested_params,
     registry_protocol_ref,
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_DT,
 )
 
 
@@ -48,3 +50,14 @@ def test_collect_tested_params_preserves_category_provenance():
     assert len(add_refs) == 1
     assert add_refs[0].category == "arithmetic"
     assert add_refs[0].registry_wired is True
+
+
+def test_canonicalize_tested_param_resolves_unregistered_enum_by_name():
+    ref = canonicalize_tested_param(
+        module_name="test_arg_types_datetime",
+        original_key=FK_DT.LOCAL_TIMESTAMP,
+        param_name="x",
+    )
+    assert ref.protocol_name == "SubstraitScalarDatetimeExpressionSystemProtocol"
+    assert ref.op_name == "local_timestamp"
+    assert ref.registry_wired is False
