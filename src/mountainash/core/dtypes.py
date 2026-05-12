@@ -32,6 +32,7 @@ class MountainashDtype(str, Enum):
     DATE = "date"
     TIME = "time"
     TIMESTAMP = "timestamp"
+    DURATION = "duration"
 
 
 DTYPE_ALIASES: dict[str, MountainashDtype] = {
@@ -52,6 +53,7 @@ DTYPE_ALIASES: dict[str, MountainashDtype] = {
     "date": MountainashDtype.DATE,
     "time": MountainashDtype.TIME,
     "timestamp": MountainashDtype.TIMESTAMP,
+    "duration": MountainashDtype.DURATION,
     # Substrait alternatives
     "boolean": MountainashDtype.BOOL,
     # Polars/Narwhals capitalized style
@@ -72,6 +74,7 @@ DTYPE_ALIASES: dict[str, MountainashDtype] = {
     "Date": MountainashDtype.DATE,
     "Time": MountainashDtype.TIME,
     "Datetime": MountainashDtype.TIMESTAMP,
+    "Duration": MountainashDtype.DURATION,
     # Python type str() representations
     "int": MountainashDtype.I64,
     "float": MountainashDtype.FP64,

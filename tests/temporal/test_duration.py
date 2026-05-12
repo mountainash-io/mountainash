@@ -128,3 +128,37 @@ class TestDurationExtraction:
         expr = ma.col("gap").dt.total_microseconds()
         result = collect_expr(df, expr)
         assert result == [5400000000, 7245000000, 129600000000]
+
+
+@pytest.mark.parametrize("backend_name", DURATION_EXTRACTION_BACKENDS)
+class TestDurationExtractionNew:
+    def test_total_days(self, backend_name, backend_factory, collect_expr):
+        data = {"gap": [timedelta(days=3, hours=12), timedelta(days=1), timedelta(hours=36)]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("gap").dt.total_days())
+        assert result == [3, 1, 1]
+
+    def test_total_hours(self, backend_name, backend_factory, collect_expr):
+        data = {"gap": [timedelta(hours=1, minutes=30), timedelta(hours=25), timedelta(minutes=45)]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("gap").dt.total_hours())
+        assert result == [1, 25, 0]
+
+
+DURATION_POLARS_AND_NARWHALS = [
+    "polars",
+    "narwhals-polars",
+    pytest.param(
+        "ibis-duckdb",
+        marks=pytest.mark.xfail(strict=True, reason="Ibis IntervalValue has no total_nanoseconds()"),
+    ),
+]
+
+
+@pytest.mark.parametrize("backend_name", DURATION_POLARS_AND_NARWHALS)
+class TestTotalNanoseconds:
+    def test_total_nanoseconds(self, backend_name, backend_factory, collect_expr):
+        data = {"gap": [timedelta(seconds=1), timedelta(milliseconds=500)]}
+        df = backend_factory.create(data, backend_name)
+        result = collect_expr(df, ma.col("gap").dt.total_nanoseconds())
+        assert result == [1_000_000_000, 500_000_000]

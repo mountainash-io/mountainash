@@ -2011,6 +2011,27 @@ def register_all_functions() -> None:
             is_extension=True,
             protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_microseconds,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_DAYS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_days",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_days,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_HOURS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_hours",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_hours,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_NANOSECONDS,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="total_nanoseconds",
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.total_nanoseconds,
+        ),
     ]
 
     # ========================================
@@ -2230,6 +2251,161 @@ def register_all_functions() -> None:
             substrait_uri=None, substrait_name=None, is_extension=True,
             options=("index",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_get,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ALL,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_all,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ANY,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_any,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_drop_nulls,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_median,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.STD,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("ddof",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_std,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.VAR,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("ddof",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_var,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_n_unique,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_count_matches,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("index",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_item,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_reverse,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.HEAD,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_head,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TAIL,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_tail,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SLICE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("length",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_slice,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("null_on_oob",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_gather,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("offset",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_gather_every,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_shift,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("n", "null_behavior"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_diff,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_union,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_intersection,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_difference,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_symmetric_difference,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_concat,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_filter,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("n_field_strategy", "fields", "upper_bound"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_to_struct,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("width",),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_to_array,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_arg_min,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_arg_max,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            options=("fraction", "with_replacement", "shuffle", "seed"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sample,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
+            substrait_uri=None, substrait_name=None, is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_agg,
         ),
     ]
 

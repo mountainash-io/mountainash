@@ -145,7 +145,6 @@ class TestStringManipulation:
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT_WS
 
-    @pytest.mark.xfail(reason="builder references FKEY_SUBSTRAIT_SCALAR_STRING.STRING_SPLIT but enum has SPLIT")
     def test_string_split(self):
         expr = ma.col("x").str.string_split(",")
         node = expr._node
@@ -160,7 +159,6 @@ class TestStringPattern:
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.LIKE
 
-    @pytest.mark.xfail(reason="builder references REGEXP_MATCH_SUBSTRING but enum has REGEXP_MATCH")
     def test_regexp_match_substring(self):
         expr = ma.col("x").str.regexp_match_substring(r"\d+")
         node = expr._node
@@ -173,7 +171,6 @@ class TestStringPattern:
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE
 
-    @pytest.mark.xfail(reason="builder references REGEXP_STRING_SPLIT but enum has REGEXP_SPLIT")
     def test_regexp_string_split(self):
         expr = ma.col("x").str.regexp_string_split(r"\s+")
         node = expr._node

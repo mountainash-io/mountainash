@@ -107,7 +107,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries; Narwhals diff(n>1), Polars .over() frame bounds, Narwhals cumulative in .over(), rank(method="average") on Ibis |
 | cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
 | arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
-| upstream-fix-monitoring.md | ADOPTED | Link upstream issues, understand upstream fix patterns vs our centralized registry approach, proactively monitor changelogs to prevent xfail→xpass CI surprises |
+| upstream-fix-monitoring.md | ADOPTED | Link upstream issues, understand upstream fix patterns vs our centralized registry approach, proactively monitor changelogs to prevent xfail→xpass CI surprises; reconciliation audit cross-references xfails, KEL entries, and YAML registry via concrete linkages |
 
 ### f. Extension Model
 
@@ -126,6 +126,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | cross-backend-test-coverage.md | ENFORCED | Every new expression test must be cross-backend parametrized; Polars-only tests require explicit justification; use xfail not omission for backend limitations |
 | file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
 | import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
+| closed-by-default-verification.md | PROPOSED | Verification systems must fail on undiscovered items, not silently skip; introspection-driven scope; exception sets with reasons and dates |
 
 ### h. Backlog
 
@@ -139,6 +140,13 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | Document | Status | Summary |
 |----------|--------|---------|
 | competitive-positioning.md | ADOPTED | Market landscape, Socratic strengths/weaknesses, feature gaps, positioning as "abstract data products" alongside Ibis/Narwhals/Pandera |
+
+### j. Research
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| introspection-driven-verification-patterns.md | REFERENCE | Prior art survey: 9 patterns for protocol/reflection-based test completeness (interface contract testing, Go compile-time assertions, Rust exhaustiveness, Spring GraphQL SchemaMappingInspector, gRPC reflection coverage, Django metaclass registry, etc.) |
+| r-ast-expression-architecture-comparison.md | REFERENCE | R's dplyr/data.table AST manipulation vs Python expression systems; lessons for mountainash: AST rewriting opportunities, expression templates, strategic positioning as programmable IR |
 
 
 ## Package Structure
@@ -214,6 +222,11 @@ hatch run mypy:check                 # Type safety validation
 
 # Building
 hatch build
+
+# Upstream issue reconciliation
+python scripts/audit_upstream_issues.py --skip-github                          # Local cross-reference only
+python scripts/audit_upstream_issues.py --report-file scripts/outputs/reconciliation-report.md  # Full audit with GitHub checks
+python scripts/validate_upstream_registry.py                                   # Validate YAML schema
 ```
 
 

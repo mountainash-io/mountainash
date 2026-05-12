@@ -373,12 +373,9 @@ def _params():
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 marks = []
-                if op.op_name.startswith("diff_") and bk in _NW_BACKENDS:
-                    marks.append(_DIFF_NW_XFAIL)
-                else:
-                    mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
-                    if mark:
-                        marks.append(mark)
+                mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
+                if mark:
+                    marks.append(mark)
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )

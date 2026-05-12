@@ -56,3 +56,258 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
 
     def list_get(self, x, /, *, index: int = 0):
         return x.list.get(index)
+
+    def list_median(self, x, /):
+        return x.list.median()
+
+    def list_all(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.all(). Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ALL,
+        )
+
+    def list_any(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.any(). Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ANY,
+        )
+
+    def list_drop_nulls(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.drop_nulls(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS,
+        )
+
+    def list_std(self, x, /, *, ddof: int = 1):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.std(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.STD,
+        )
+
+    def list_var(self, x, /, *, ddof: int = 1):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.var(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.VAR,
+        )
+
+    def list_n_unique(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.n_unique(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE,
+        )
+
+    def list_count_matches(self, x, /, item):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.count_matches(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES,
+        )
+
+    def list_item(self, x, /, *, index: int = 0):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.item(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
+        )
+
+    def list_reverse(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.reverse(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE,
+        )
+
+    def list_head(self, x, /, n):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.head(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.HEAD,
+        )
+
+    def list_tail(self, x, /, n):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.tail(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TAIL,
+        )
+
+    def list_slice(self, x, /, offset, *, length=None):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.slice(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SLICE,
+        )
+
+    def list_gather(self, x, /, indices, *, null_on_oob=False):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.gather(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER,
+        )
+
+    def list_gather_every(self, x, /, n, *, offset=0):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.gather_every(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY,
+        )
+
+    def list_shift(self, x, /, n):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.shift(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT,
+        )
+
+    def list_diff(self, x, /, *, n=1, null_behavior="ignore"):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.diff(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
+        )
+
+    def list_set_union(self, x, /, other):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.set_union(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION,
+        )
+
+    def list_set_intersection(self, x, /, other):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.set_intersection(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION,
+        )
+
+    def list_set_difference(self, x, /, other):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.set_difference(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+        )
+
+    def list_set_symmetric_difference(self, x, /, other):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.set_symmetric_difference(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+        )
+
+    def list_concat(self, x, /, other):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.concat(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT,
+        )
+
+    def list_filter(self, x, /, mask):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.filter(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
+        )
+
+    def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.to_struct(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+        )
+
+    def list_to_array(self, x, /, *, width):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.to_array(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+        )
+
+    def list_arg_min(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.arg_min(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+        )
+
+    def list_arg_max(self, x, /):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.arg_max(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+        )
+
+    def list_sample(self, x, /, n=None, *, fraction=None, with_replacement=False, shuffle=False, seed=None):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.sample(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+        )
+
+    def list_agg(self, x, /, expr):
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+        raise BackendCapabilityError(
+            "Narwhals does not support list.agg(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
+        )
