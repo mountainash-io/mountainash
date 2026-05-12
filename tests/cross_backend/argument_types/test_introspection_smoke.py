@@ -1,7 +1,6 @@
 from cross_backend.argument_types._introspection import ProtocolParam, introspect_protocols
 from cross_backend.argument_types._coverage_guard_helpers import (
     canonicalize_tested_param,
-    collect_tested_params,
     registry_protocol_ref,
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -39,17 +38,13 @@ def test_registry_protocol_ref_resolves_enum_to_protocol_method_name():
     assert ref.op_name == "modulus"
 
 
-def test_collect_tested_params_preserves_category_provenance():
-    refs = collect_tested_params(["test_arg_types_arithmetic"])
-    add_refs = [
-        ref for ref in refs
-        if ref.protocol_name == "SubstraitScalarArithmeticExpressionSystemProtocol"
-        and ref.op_name == "add"
-        and ref.param_name == "x"
-    ]
-    assert len(add_refs) == 1
-    assert add_refs[0].category == "arithmetic"
-    assert add_refs[0].registry_wired is True
+def test_canonicalize_tested_param_preserves_category_provenance():
+    ref = canonicalize_tested_param("test_arg_types_arithmetic", FK_ARITH.ADD, "x")
+    assert ref.protocol_name == "SubstraitScalarArithmeticExpressionSystemProtocol"
+    assert ref.op_name == "add"
+    assert ref.param_name == "x"
+    assert ref.category == "arithmetic"
+    assert ref.registry_wired is True
 
 
 def test_canonicalize_tested_param_resolves_unregistered_enum_by_name():
