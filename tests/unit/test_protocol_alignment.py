@@ -37,6 +37,8 @@ from cross_backend.argument_types._coverage_guard_helpers import (
     KnownGap,
 )
 
+pytestmark = pytest.mark.protocol_alignment
+
 
 # =============================================================================
 # Test Infrastructure

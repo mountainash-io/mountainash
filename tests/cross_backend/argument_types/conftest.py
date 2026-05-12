@@ -8,6 +8,11 @@ import pytest
 ALL_BACKENDS = ["polars", "ibis", "narwhals-polars", "narwhals-pandas"]
 
 
+def pytest_collection_modifyitems(items):
+    for item in items:
+        item.add_marker(pytest.mark.argument_types)
+
+
 def make_df(data: dict[str, list[Any]], backend: str):
     """Materialize a dict of columns into a backend-native DataFrame."""
     import polars as pl
