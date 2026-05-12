@@ -460,6 +460,10 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitWin
             function_key=FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL,
             arguments=[self._node],
             options={"limit": limit} if limit is not None else {},
+            window_spec=WindowSpec(
+                lower_bound=WindowBound(bound_type=WindowBoundType.UNBOUNDED_PRECEDING),
+                upper_bound=WindowBound(bound_type=WindowBoundType.CURRENT_ROW),
+            ),
         )
         return self._build(node)
 
@@ -469,6 +473,10 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitWin
             function_key=FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL,
             arguments=[self._node],
             options={"limit": limit} if limit is not None else {},
+            window_spec=WindowSpec(
+                lower_bound=WindowBound(bound_type=WindowBoundType.CURRENT_ROW),
+                upper_bound=WindowBound(bound_type=WindowBoundType.UNBOUNDED_FOLLOWING),
+            ),
         )
         return self._build(node)
 

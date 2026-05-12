@@ -73,6 +73,8 @@ _NARWHALS_DTYPE_MAP = {
     # Binary
     "binary": nw.Binary,
     "Binary": nw.Binary,
+    "duration": nw.Duration,
+    "Duration": nw.Duration,
 }
 
 

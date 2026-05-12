@@ -783,3 +783,14 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
     def total_microseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         return x.dt.total_microseconds()
+
+    def total_days(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        """Total days in a duration. Composed from total_seconds (Narwhals lacks total_days)."""
+        return (x.dt.total_seconds() // nw.lit(86400))
+
+    def total_hours(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        """Total hours in a duration. Composed from total_seconds (Narwhals lacks total_hours)."""
+        return (x.dt.total_seconds() // nw.lit(3600))
+
+    def total_nanoseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_nanoseconds()

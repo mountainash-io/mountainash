@@ -42,3 +42,102 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
 
     def list_get(self, x, /, *, index: int = 0):
         return x.list.get(index, null_on_oob=True)
+
+    def list_all(self, x, /):
+        return x.list.all()
+
+    def list_any(self, x, /):
+        return x.list.any()
+
+    def list_drop_nulls(self, x, /):
+        return x.list.drop_nulls()
+
+    def list_median(self, x, /):
+        return x.list.median()
+
+    def list_std(self, x, /, *, ddof: int = 1):
+        return x.list.std(ddof=ddof)
+
+    def list_var(self, x, /, *, ddof: int = 1):
+        return x.list.var(ddof=ddof)
+
+    def list_n_unique(self, x, /):
+        return x.list.n_unique()
+
+    def list_count_matches(self, x, /, item):
+        return x.list.count_matches(item)
+
+    def list_item(self, x, /, *, index: int = 0):
+        return x.list.get(index, null_on_oob=True)
+
+    def list_reverse(self, x, /):
+        return x.list.reverse()
+
+    def list_head(self, x, /, n):
+        return x.list.head(n)
+
+    def list_tail(self, x, /, n):
+        return x.list.tail(n)
+
+    def list_slice(self, x, /, offset, *, length=None):
+        return x.list.slice(offset, length)
+
+    def list_gather(self, x, /, indices, *, null_on_oob=False):
+        return x.list.gather(indices, null_on_oob=null_on_oob)
+
+    def list_gather_every(self, x, /, n, *, offset=0):
+        return x.list.gather_every(n, offset=offset)
+
+    def list_shift(self, x, /, n):
+        return x.list.shift(n)
+
+    def list_diff(self, x, /, *, n=1, null_behavior="ignore"):
+        return x.list.diff(n=n, null_behavior=null_behavior)
+
+    def list_set_union(self, x, /, other):
+        return x.list.set_union(other)
+
+    def list_set_intersection(self, x, /, other):
+        return x.list.set_intersection(other)
+
+    def list_set_difference(self, x, /, other):
+        return x.list.set_difference(other)
+
+    def list_set_symmetric_difference(self, x, /, other):
+        return x.list.set_symmetric_difference(other)
+
+    def list_concat(self, x, /, other):
+        return x.list.concat(other)
+
+    def list_filter(self, x, /, mask):
+        return x.list.filter(mask)
+
+    def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
+        kwargs = {}
+        if fields is not None:
+            kwargs["fields"] = fields
+        if upper_bound is not None:
+            kwargs["upper_bound"] = upper_bound
+        return x.list.to_struct(**kwargs)
+
+    def list_to_array(self, x, /, *, width):
+        return x.list.to_array(width)
+
+    def list_arg_min(self, x, /):
+        return x.list.arg_min()
+
+    def list_arg_max(self, x, /):
+        return x.list.arg_max()
+
+    def list_sample(self, x, /, n=None, *, fraction=None, with_replacement=False, shuffle=False, seed=None):
+        kwargs = {"with_replacement": with_replacement, "shuffle": shuffle}
+        if n is not None:
+            kwargs["n"] = n
+        if fraction is not None:
+            kwargs["fraction"] = fraction
+        if seed is not None:
+            kwargs["seed"] = seed
+        return x.list.sample(**kwargs)
+
+    def list_agg(self, x, /, expr):
+        return x.list.agg(expr)

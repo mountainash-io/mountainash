@@ -72,6 +72,8 @@ _POLARS_DTYPE_MAP = {
     "Binary": pl.Binary,
     "time": pl.Time,
     "Time": pl.Time,
+    "duration": pl.Duration,
+    "Duration": pl.Duration,
 }
 
 

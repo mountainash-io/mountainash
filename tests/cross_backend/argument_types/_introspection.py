@@ -92,7 +92,7 @@ def _classify_annotation(ann: Any) -> Kind:
     if s.startswith("typing.Optional[") and any(t in s for t in ("int", "str", "bool", "float", "bytes", "object")):
         return "option"
     # Literal collections (frozenset, set, list, tuple, Collection) carrying literal values
-    if any(tok in s for tok in ("FrozenSet", "frozenset", "typing.Collection", "collections.abc.Collection")):
+    if any(tok in s for tok in ("FrozenSet", "frozenset", "typing.Collection", "collections.abc.Collection", "list[str]", "list[int]")):
         return "option"
     if ann is typing.Any or s == "typing.Any":
         return "option"

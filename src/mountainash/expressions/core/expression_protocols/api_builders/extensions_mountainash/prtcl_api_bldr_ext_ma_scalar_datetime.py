@@ -553,3 +553,15 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def total_microseconds(self) -> BaseExpressionAPI:
         """Total microseconds in a duration."""
         ...
+
+    def total_days(self) -> BaseExpressionAPI:
+        """Total days in a duration."""
+        ...
+
+    def total_hours(self) -> BaseExpressionAPI:
+        """Total hours in a duration."""
+        ...
+
+    def total_nanoseconds(self) -> BaseExpressionAPI:
+        """Total nanoseconds in a duration."""
+        ...
