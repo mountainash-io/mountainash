@@ -801,6 +801,49 @@ KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {
         reason="Argument channel is tested, but function registry wiring remains aspirational",
         since="2026-05-12",
     ),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "assume_timezone"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): KnownGap(
+        reason="Argument channel is tested, but function registry wiring remains aspirational",
+        since="2026-05-12",
+    ),
+    **{
+        key: KnownGap(
+            reason="Argument channel is tested, but geometry function registry wiring remains aspirational",
+            since="2026-05-12",
+        )
+        for key in {
+            (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "collection_extract"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "dimension"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "envelope"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "flip_coordinates"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "geometry_type"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "is_closed"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "is_empty"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "is_ring"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "is_simple"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "is_valid"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "make_line"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "minimum_bounding_circle"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "num_points"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "point"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "remove_repeated_points"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "x_coordinate"),
+            (SubstraitScalarGeometryExpressionSystemProtocol, "y_coordinate"),
+        }
+    },
 }
 
 
@@ -1533,13 +1576,34 @@ class TestWiringAuditHelpers:
     def test_aspirational_methods_are_not_claimed_tested_without_exception(self):
         from cross_backend.argument_types.test_coverage_guard import (
             _CATEGORY_MODULES,
+            _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES,
+            _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES,
             _KNOWN_SPECIAL_NODE_UNWIRED_OPS,
         )
 
-        tested_ops = {
-            (ref.protocol_name, ref.op_name)
-            for ref in collect_tested_params(_CATEGORY_MODULES)
+        tested_refs = collect_tested_params(_CATEGORY_MODULES)
+        tested_protocol_keys = {
+            ref.protocol_param_key
+            for ref in tested_refs
             if ref.protocol_name is not None
+        }
+        unresolved_tested_keys = {
+            (ref.op_name, ref.param_name)
+            for ref in tested_refs
+            if ref.protocol_param_key is None
+        }
+        tested_param_keys = tested_protocol_keys | {
+            target_key
+            for source_key, target_key in _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES.items()
+            if source_key in tested_protocol_keys
+        } | {
+            target_key
+            for source_key, target_key in _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES.items()
+            if source_key in unresolved_tested_keys
+        }
+        tested_ops = {
+            (protocol_name, op_name)
+            for protocol_name, op_name, _param_name in tested_param_keys
         }
         tested_ops |= set(_KNOWN_SPECIAL_NODE_UNWIRED_OPS)
         aspirational_ops = {
