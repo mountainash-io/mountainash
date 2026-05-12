@@ -568,63 +568,137 @@ _KNOWN_SPECIAL_NODE_UNWIRED_OPS: dict[tuple[str, str], KnownGap] = {
 }
 
 
-_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_KEYS: dict[tuple[str, str, str], KnownGap] = {
-    key: KnownGap(
+_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES: dict[
+    tuple[str, str],
+    tuple[str, str, str],
+] = {
+    ("buffer", "buffer_radius"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "buffer",
+        "buffer_radius",
+    ),
+    ("buffer", "geom"): ("SubstraitScalarGeometryExpressionSystemProtocol", "buffer", "geom"),
+    ("cast", "x"): ("SubstraitCastExpressionSystemProtocol", "cast", "x"),
+    ("centroid", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "centroid",
+        "geom",
+    ),
+    ("col", "x"): ("SubstraitFieldReferenceExpressionSystemProtocol", "col", "x"),
+    ("collection_extract", "geom_collection"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "collection_extract",
+        "geom_collection",
+    ),
+    ("dimension", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "dimension",
+        "geom",
+    ),
+    ("envelope", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "envelope",
+        "geom",
+    ),
+    ("flip_coordinates", "geom_collection"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "flip_coordinates",
+        "geom_collection",
+    ),
+    ("geometry_type", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "geometry_type",
+        "geom",
+    ),
+    ("if_then_else", "condition"): (
+        "SubstraitConditionalExpressionSystemProtocol",
+        "if_then_else",
+        "condition",
+    ),
+    ("if_then_else", "if_false"): (
+        "SubstraitConditionalExpressionSystemProtocol",
+        "if_then_else",
+        "if_false",
+    ),
+    ("if_then_else", "if_true"): (
+        "SubstraitConditionalExpressionSystemProtocol",
+        "if_then_else",
+        "if_true",
+    ),
+    ("is_closed", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "is_closed",
+        "geom",
+    ),
+    ("is_empty", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "is_empty",
+        "geom",
+    ),
+    ("is_ring", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "is_ring",
+        "geom",
+    ),
+    ("is_simple", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "is_simple",
+        "geom",
+    ),
+    ("is_valid", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "is_valid",
+        "geom",
+    ),
+    ("make_line", "geom1"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "make_line",
+        "geom1",
+    ),
+    ("make_line", "geom2"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "make_line",
+        "geom2",
+    ),
+    ("minimum_bounding_circle", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "minimum_bounding_circle",
+        "geom",
+    ),
+    ("num_points", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "num_points",
+        "geom",
+    ),
+    ("point", "x"): ("SubstraitScalarGeometryExpressionSystemProtocol", "point", "x"),
+    ("point", "y"): ("SubstraitScalarGeometryExpressionSystemProtocol", "point", "y"),
+    ("remove_repeated_points", "geom"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "remove_repeated_points",
+        "geom",
+    ),
+    ("x_coordinate", "point"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "x_coordinate",
+        "point",
+    ),
+    ("y_coordinate", "point"): (
+        "SubstraitScalarGeometryExpressionSystemProtocol",
+        "y_coordinate",
+        "point",
+    ),
+}
+
+
+_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_GAPS: dict[tuple[str, str], KnownGap] = {
+    source: KnownGap(
         reason=(
             "String TESTED_PARAMS entry is covered but cannot yet be resolved to a "
             "protocol-qualified key by the category resolver"
         ),
         since="2026-05-12",
     )
-    for key in {
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "assume_timezone", "x"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "x"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "x"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "strftime", "x"),
-        ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "haystack"),
-        ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "needle"),
-        ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "haystack"),
-        ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "needle"),
-        ("SubstraitCastExpressionSystemProtocol", "cast", "x"),
-        ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "condition"),
-        ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "if_false"),
-        ("SubstraitConditionalExpressionSystemProtocol", "if_then_else", "if_true"),
-        ("SubstraitFieldReferenceExpressionSystemProtocol", "col", "x"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "buffer", "buffer_radius"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "buffer", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "centroid", "geom"),
-        (
-            "SubstraitScalarGeometryExpressionSystemProtocol",
-            "collection_extract",
-            "geom_collection",
-        ),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "dimension", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "envelope", "geom"),
-        (
-            "SubstraitScalarGeometryExpressionSystemProtocol",
-            "flip_coordinates",
-            "geom_collection",
-        ),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "geometry_type", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_closed", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_empty", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_ring", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_simple", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "is_valid", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "make_line", "geom1"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "make_line", "geom2"),
-        (
-            "SubstraitScalarGeometryExpressionSystemProtocol",
-            "minimum_bounding_circle",
-            "geom",
-        ),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "num_points", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "point", "x"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "point", "y"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "remove_repeated_points", "geom"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "x_coordinate", "point"),
-        ("SubstraitScalarGeometryExpressionSystemProtocol", "y_coordinate", "point"),
-    }
+    for source in _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES
 }
 
 
@@ -632,6 +706,26 @@ _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
     tuple[str, str, str],
     tuple[str, str, str],
 ] = {
+    (
+        "SubstraitScalarDatetimeExpressionSystemProtocol",
+        "assume_timezone",
+        "x",
+    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "assume_timezone", "x"),
+    (
+        "SubstraitScalarDatetimeExpressionSystemProtocol",
+        "extract",
+        "x",
+    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "x"),
+    (
+        "SubstraitScalarDatetimeExpressionSystemProtocol",
+        "extract_boolean",
+        "x",
+    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "x"),
+    (
+        "SubstraitScalarDatetimeExpressionSystemProtocol",
+        "strftime",
+        "x",
+    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "strftime", "x"),
     (
         "SubstraitScalarSetExpressionSystemProtocol",
         "is_in",
@@ -661,19 +755,40 @@ def test_every_argument_param_is_tested():
         for p in introspect_protocols()
         if p.kind == "argument"
     }
-    tested = {
-        _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES.get(
-            ref.protocol_param_key,
-            ref.protocol_param_key,
-        )
-        for ref in _collect_tested_param_refs()
+    tested_refs = _collect_tested_param_refs()
+    tested_protocol_keys = {
+        ref.protocol_param_key
+        for ref in tested_refs
         if ref.protocol_param_key is not None
-    } | set(_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_KEYS)
+    }
+    unresolved_tested_keys = {
+        (ref.op_name, ref.param_name)
+        for ref in tested_refs
+        if ref.protocol_param_key is None
+    }
+    tested = {
+        protocol_key
+        for protocol_key in tested_protocol_keys
+        if protocol_key not in _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES
+        or protocol_key in introspected
+    } | {
+        target_key
+        for source_key, target_key in _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES.items()
+        if source_key in tested_protocol_keys
+    } | {
+        target_key
+        for source_key, target_key in _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES.items()
+        if source_key in unresolved_tested_keys
+    }
     known = set(_KNOWN_UNTESTED_ARGUMENT_PARAMS)
     newly_missing = introspected - tested - known
     extra = tested - introspected
     stale_known = known - introspected
     overlap = known & tested
+    stale_unresolved_aliases = (
+        set(_KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES) - unresolved_tested_keys
+    )
+    stale_protocol_aliases = set(_KNOWN_TESTED_ARGUMENT_PARAM_ALIASES) - tested_protocol_keys
     assert not newly_missing, (
         "New argument params with no test "
         f"(add test or register in _KNOWN_UNTESTED_ARGUMENT_PARAMS): {sorted(newly_missing)}"
@@ -686,6 +801,14 @@ def test_every_argument_param_is_tested():
     assert not overlap, (
         "Entries in _KNOWN_UNTESTED_ARGUMENT_PARAMS that are already tested "
         f"(remove from _KNOWN_UNTESTED_ARGUMENT_PARAMS): {sorted(overlap)}"
+    )
+    assert not stale_unresolved_aliases, (
+        "Entries in _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES no longer match "
+        f"unresolved TESTED_PARAMS rows: {sorted(stale_unresolved_aliases)}"
+    )
+    assert not stale_protocol_aliases, (
+        "Entries in _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES no longer match tested "
+        f"protocol-qualified rows: {sorted(stale_protocol_aliases)}"
     )
 
 
