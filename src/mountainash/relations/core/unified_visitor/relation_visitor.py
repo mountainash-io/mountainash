@@ -150,6 +150,20 @@ class UnifiedRelationVisitor:
             out = self._apply_conform(out, node.resource.table_schema)
         return out
 
+    def visit_pipeline_step_rel(self, node: Any) -> Any:
+        """Visit a pipeline-step node — delegates to node's executor."""
+        if node.executor is None:
+            raise ValueError(
+                f"No executor provided for PipelineStepRelNode '{node.step_name}'. "
+                f"Pass an executor via source(..., executor=runner) or dag.add(..., executor=runner)."
+            )
+        return node.executor.execute(
+            pipeline=node.pipeline,
+            step_name=node.step_name,
+            predicates=node.pushed_predicates,
+            data_key=node.data_key,
+        )
+
     def _apply_conform(self, native: Any, schema: Any) -> Any:
         """Apply conform from a TypeSpec or raw frictionless schema dict.
 
