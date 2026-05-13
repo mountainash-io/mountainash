@@ -227,6 +227,10 @@ hatch build
 python scripts/audit_upstream_issues.py --skip-github                          # Local cross-reference only
 python scripts/audit_upstream_issues.py --report-file scripts/outputs/reconciliation-report.md  # Full audit with GitHub checks
 python scripts/validate_upstream_registry.py                                   # Validate YAML schema
+
+# Drift guard xfail report
+python scripts/report_drift_guards.py                                                     # Terminal summary
+python scripts/report_drift_guards.py --report-file scripts/outputs/drift-guards-report.md  # Save to file
 ```
 
 
