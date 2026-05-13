@@ -7,7 +7,7 @@ Substrait's relational algebra.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -36,6 +36,11 @@ class RelationNode(BaseModel, ABC):
         frozen=True,
         arbitrary_types_allowed=True,
     )
+
+    # Subclasses that are leaf nodes producing Polars LazyFrames should set
+    # this to True so that backend detection in RelationBase treats them like
+    # SourceRelNode (no ReadRelNode child, defaults to Polars backend).
+    _polars_leaf_node: ClassVar[bool] = False
 
     @abstractmethod
     def accept(self, visitor: Any) -> Any:

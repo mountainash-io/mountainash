@@ -56,6 +56,9 @@ class RelationBase:
         if isinstance(node, SourceRelNode):
             # SourceRelNode is a leaf with no backend — return None.
             return None
+        if getattr(node, "_polars_leaf_node", False):
+            # Extension leaf nodes that produce Polars data (e.g. PipelineStepRelNode).
+            return None
         if isinstance(node, RefRelNode):
             raise RelationDAGRequired(
                 f"Relation contains a RefRelNode ('{node.name}') and cannot be compiled "
