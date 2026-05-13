@@ -257,6 +257,12 @@ def _parse_set_assignment(source: str, var_name: str) -> set[tuple[str, str]]:
     return set()
 
 
+_FULLY_UNSUP_BACKEND_WEIGHT: dict[str, int] = {
+    "narwhals": 2,  # narwhals-polars + narwhals-pandas = 2 sub-backends
+    "ibis": 1,
+}
+
+
 def collect_fully_unsupported() -> list[FullyUnsupportedGap]:
     """Parse _NARWHALS_FULLY_UNSUPPORTED and _IBIS_FULLY_UNSUPPORTED from test_arg_types_string.py."""
     source = (ARG_TYPES_DIR / "test_arg_types_string.py").read_text()
@@ -270,11 +276,12 @@ def collect_fully_unsupported() -> list[FullyUnsupportedGap]:
             backends.append("narwhals")
         if (op, param) in ibis_set:
             backends.append("ibis")
+        sub_backend_count = sum(_FULLY_UNSUP_BACKEND_WEIGHT.get(b, 1) for b in backends)
         gaps.append(FullyUnsupportedGap(
             op_name=op,
             param_name=param,
             backends=tuple(backends),
-            est_cases=len(backends) * 4,
+            est_cases=sub_backend_count * 4,
         ))
     return gaps
 

@@ -1,16 +1,16 @@
 # Drift Guard Report
 
-Generated: 2026-05-13 03:18 UTC  |  Commit: fe065eb
+Generated: 2026-05-13 03:28 UTC  |  Commit: 91f46f8
 
 ## Summary
 
 | Suite | Logical gaps | Est. xfail cases |
 |-------|-------------|-----------------|
 | Protocol alignment (KNOWN_ASPIRATIONAL) | 42 | 42 |
-| Argument types — fully unsupported ops | 9 | 68 |
+| Argument types — fully unsupported ops | 9 | 104 |
 | Argument types — expression-limited ops (KEL) | 47 | 154 |
 | Argument types — manual xfail blocks (active) | 2 | ~8 |
-| **Total** | **100** | **~272** |
+| **Total** | **100** | **~308** |
 
 ## Protocol Alignment — KNOWN_ASPIRATIONAL
 
@@ -77,15 +77,15 @@ Source: `_NARWHALS_FULLY_UNSUPPORTED` and `_IBIS_FULLY_UNSUPPORTED` in `test_arg
 
 | Operation | Param | Backends | Est. cases |
 |-----------|-------|---------|-----------|
-| `decode` | `x` | narwhals, ibis | 8 |
-| `encode` | `x` | narwhals, ibis | 8 |
-| `extract_groups` | `x` | narwhals, ibis | 8 |
-| `json_path_match` | `x` | narwhals, ibis | 8 |
-| `regexp_count` | `pattern` | narwhals, ibis | 8 |
-| `regexp_match_all` | `pattern` | narwhals, ibis | 8 |
-| `regexp_strpos` | `pattern` | narwhals, ibis | 8 |
-| `repeat` | `count` | narwhals | 4 |
-| `to_time` | `x` | narwhals, ibis | 8 |
+| `decode` | `x` | narwhals, ibis | 12 |
+| `encode` | `x` | narwhals, ibis | 12 |
+| `extract_groups` | `x` | narwhals, ibis | 12 |
+| `json_path_match` | `x` | narwhals, ibis | 12 |
+| `regexp_count` | `pattern` | narwhals, ibis | 12 |
+| `regexp_match_all` | `pattern` | narwhals, ibis | 12 |
+| `regexp_strpos` | `pattern` | narwhals, ibis | 12 |
+| `repeat` | `count` | narwhals | 8 |
+| `to_time` | `x` | narwhals, ibis | 12 |
 
 ## Argument Types — Expression-Limited Operations (KEL)
 
