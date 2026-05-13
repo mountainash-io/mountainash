@@ -27,9 +27,17 @@ import pytest
 import inspect
 import importlib
 import pkgutil
+from datetime import date
 from pathlib import Path
 from typing import Protocol, Set, List, Type
 from dataclasses import dataclass, field
+import warnings
+
+from cross_backend.argument_types._coverage_guard_helpers import (
+    KnownGap,
+)
+
+pytestmark = pytest.mark.protocol_alignment
 
 
 # =============================================================================
@@ -265,6 +273,10 @@ def check_alignment(
 # =============================================================================
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitAggregateArithmeticExpressionSystemProtocol,
+    SubstraitAggregateBooleanExpressionSystemProtocol,
+    SubstraitAggregateGenericExpressionSystemProtocol,
+    SubstraitAggregateStringExpressionSystemProtocol,
     SubstraitCastExpressionSystemProtocol,
     SubstraitConditionalExpressionSystemProtocol,
     SubstraitFieldReferenceExpressionSystemProtocol,
@@ -274,10 +286,12 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
     SubstraitScalarBooleanExpressionSystemProtocol,
     SubstraitScalarComparisonExpressionSystemProtocol,
     SubstraitScalarDatetimeExpressionSystemProtocol,
+    SubstraitScalarGeometryExpressionSystemProtocol,
     SubstraitScalarLogarithmicExpressionSystemProtocol,
     SubstraitScalarRoundingExpressionSystemProtocol,
     SubstraitScalarSetExpressionSystemProtocol,
     SubstraitScalarStringExpressionSystemProtocol,
+    SubstraitWindowArithmeticExpressionSystemProtocol,
 )
 
 # =============================================================================
@@ -290,8 +304,14 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarArithmeticExpressionSystemProtocol,
     MountainAshScalarBooleanExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
+    MountainAshScalarListExpressionSystemProtocol,
+    MountainAshScalarSetExpressionSystemProtocol,
+    MountainAshScalarStringExpressionSystemProtocol,
+    MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
     # MountainAshScalarAggregateExpressionSystemProtocol,
+    MountainashExtensionAggregateExpressionSystemProtocol,
+    MountainashWindowExpressionSystemProtocol,
 )
 
 # =============================================================================
@@ -622,14 +642,20 @@ MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
 # Maps each ExpressionSystem protocol to its category label.
 # This is the source of truth for the wiring audit.
 WIRING_PROTOCOL_REGISTRY = {
+    SubstraitAggregateArithmeticExpressionSystemProtocol: "substrait_aggregate_arithmetic",
+    SubstraitAggregateBooleanExpressionSystemProtocol: "substrait_aggregate_boolean",
+    SubstraitAggregateGenericExpressionSystemProtocol: "substrait_aggregate_generic",
+    SubstraitAggregateStringExpressionSystemProtocol: "substrait_aggregate_string",
     SubstraitScalarComparisonExpressionSystemProtocol: "substrait_scalar_comparison",
     SubstraitScalarBooleanExpressionSystemProtocol: "substrait_scalar_boolean",
     SubstraitScalarArithmeticExpressionSystemProtocol: "substrait_scalar_arithmetic",
     SubstraitScalarStringExpressionSystemProtocol: "substrait_scalar_string",
     SubstraitScalarDatetimeExpressionSystemProtocol: "substrait_scalar_datetime",
+    SubstraitScalarGeometryExpressionSystemProtocol: "substrait_scalar_geometry",
     SubstraitScalarRoundingExpressionSystemProtocol: "substrait_scalar_rounding",
     SubstraitScalarLogarithmicExpressionSystemProtocol: "substrait_scalar_logarithmic",
     SubstraitScalarSetExpressionSystemProtocol: "substrait_scalar_set",
+    SubstraitWindowArithmeticExpressionSystemProtocol: "substrait_window_arithmetic",
     SubstraitCastExpressionSystemProtocol: "substrait_cast",
     SubstraitConditionalExpressionSystemProtocol: "substrait_conditional",
     SubstraitFieldReferenceExpressionSystemProtocol: "substrait_field_reference",
@@ -640,37 +666,98 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainAshScalarDatetimeExpressionSystemProtocol: "mountainash_scalar_datetime",
     MountainAshScalarArithmeticExpressionSystemProtocol: "mountainash_scalar_arithmetic",
     MountainAshScalarBooleanExpressionSystemProtocol: "mountainash_scalar_boolean",
+    MountainAshScalarListExpressionSystemProtocol: "mountainash_scalar_list",
+    MountainAshScalarSetExpressionSystemProtocol: "mountainash_scalar_set",
+    MountainAshScalarStringExpressionSystemProtocol: "mountainash_scalar_string",
+    MountainAshScalarStructExpressionSystemProtocol: "mountainash_scalar_struct",
+    MountainashExtensionAggregateExpressionSystemProtocol: "mountainash_aggregate",
+    MountainashWindowExpressionSystemProtocol: "mountainash_window",
 }
 
+
+def _alignment_category(registry_category: str, prefix: str) -> str:
+    return registry_category.removeprefix(prefix)
+
+
+# Keep signature-alignment parametrization in lockstep with the wiring registry.
+# Categories without backend implementation classes are still parametrized and
+# skipped by the backend-specific alignment tests until those layers exist.
+SUBSTRAIT_PROTOCOLS = [
+    (protocol_cls, _alignment_category(category, "substrait_"))
+    for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+    if category.startswith("substrait_")
+]
+
+MOUNTAINASH_PROTOCOLS = [
+    (protocol_cls, _alignment_category(category, "mountainash_"))
+    for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+    if category.startswith("mountainash_")
+]
+
 # Methods that exist in protocols but are intentionally not fully wired yet.
-# Each entry maps (protocol_cls, method_name) → reason string.
+# Each entry maps (protocol_cls, method_name) → known gap details.
 # These are xfailed in the wiring audit, not hard failures.
-KNOWN_ASPIRATIONAL: dict[tuple[type, str], str] = {
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): "No backend support yet",
+KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
+    # Substrait Aggregate Arithmetic — not yet in function registry
+    (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    # Substrait Aggregate String — not yet in function registry
+    (SubstraitAggregateStringExpressionSystemProtocol, "string_agg"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): KnownGap(reason="No backend support yet", since="2026-05-12"),
     # Substrait Scalar Comparison — distinct operations
-    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): "No ENUM, no function mapping, no API builder",
-    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): "No ENUM, no function mapping, no API builder",
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): KnownGap(reason="No ENUM, no function mapping, no API builder", since="2026-05-12"),
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): KnownGap(reason="No ENUM, no function mapping, no API builder", since="2026-05-12"),
     # Substrait Scalar Datetime — most methods use Mountainash extension dispatch
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): "Datetime dispatch via Mountainash extensions",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): "Datetime dispatch via Mountainash extensions",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): "Datetime dispatch via Mountainash extensions",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): "Datetime comparisons handled by scalar_comparison",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): "Datetime comparisons handled by scalar_comparison",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): "Datetime comparisons handled by scalar_comparison",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): "Datetime comparisons handled by scalar_comparison",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): "No function mapping registered",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): "No function mapping registered",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): "No function mapping registered",
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): "No function mapping registered",
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): KnownGap(reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): KnownGap(reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): KnownGap(reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    # Substrait Scalar Geometry — not yet in function registry
+    (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "collection_extract"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "dimension"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "envelope"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "flip_coordinates"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "geometry_type"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_closed"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_empty"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_ring"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_simple"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_valid"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "make_line"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "minimum_bounding_circle"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "num_points"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "point"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "remove_repeated_points"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "x_coordinate"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "y_coordinate"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
     # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode
-    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): "Special node type (FieldReferenceNode), not dispatched via function registry",
-    (SubstraitLiteralExpressionSystemProtocol, "lit"): "Special node type (LiteralNode), not dispatched via function registry",
+    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(reason="Special node type (FieldReferenceNode), not dispatched via function registry", since="2026-05-12"),
+    (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(reason="Special node type (LiteralNode), not dispatched via function registry", since="2026-05-12"),
     # Mountainash Scalar Datetime — methods not yet in function registry
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "assume_timezone"): "No function mapping registered",
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): "No function mapping registered",
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): "No function mapping registered",
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): "No function mapping registered",
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): "No function mapping registered",
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "assume_timezone"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+}
+
+KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {
+    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(
+        reason="Argument channel is tested, but expression node is intentionally not registry-dispatched",
+        since="2026-05-12",
+    ),
+    (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(
+        reason="Argument channel is tested, but literal node is intentionally not registry-dispatched",
+        since="2026-05-12",
+    ),
 }
 
 
@@ -1286,14 +1373,14 @@ class TestWiringAudit:
         )
 
     @pytest.mark.parametrize(
-        "protocol_cls,method_name,reason",
+        "protocol_cls,method_name,gap",
         [
-            pytest.param(cls, method, reason, id=f"{cls.__name__}.{method}")
-            for (cls, method), reason in KNOWN_ASPIRATIONAL.items()
+            pytest.param(cls, method, gap, id=f"{cls.__name__}.{method}")
+            for (cls, method), gap in KNOWN_ASPIRATIONAL.items()
         ],
     )
     @pytest.mark.xfail(strict=True, reason="Aspirational — not yet fully wired")
-    def test_aspirational_method(self, protocol_cls, method_name, reason):
+    def test_aspirational_method(self, protocol_cls, method_name, gap):
         """Aspirational methods: document and track wiring gaps."""
         missing = []
 
@@ -1305,7 +1392,7 @@ class TestWiringAudit:
                 missing.append(backend_name)
 
         assert not missing, (
-            f"{protocol_cls.__name__}.{method_name} ({reason}):\n"
+            f"{protocol_cls.__name__}.{method_name} ({gap.reason}; since {gap.since}):\n"
             f"  missing [{', '.join(missing)}]"
         )
 
@@ -1361,12 +1448,41 @@ class TestWiringAuditHelpers:
         assert len(enums) > 50
 
     def test_wiring_protocol_registry_complete(self):
-        """Registry should contain all 18 protocol classes."""
-        assert len(WIRING_PROTOCOL_REGISTRY) == 18
+        """Wiring audit registry should include every discovered expression-system protocol."""
+        from cross_backend.argument_types._introspection import _iter_protocol_classes
+
+        discovered = {protocol_cls for _, protocol_cls in _iter_protocol_classes()}
+        registered = set(WIRING_PROTOCOL_REGISTRY)
+        missing = discovered - registered
+        extra = registered - discovered
+        assert not missing, (
+            "Protocols missing from WIRING_PROTOCOL_REGISTRY "
+            f"(add them with aspirational entries for unwired methods): "
+            f"{sorted(cls.__name__ for cls in missing)}"
+        )
+        assert not extra, (
+            "WIRING_PROTOCOL_REGISTRY contains protocols not discovered by introspection: "
+            f"{sorted(cls.__name__ for cls in extra)}"
+        )
+
+    def test_signature_alignment_protocol_lists_follow_wiring_registry(self):
+        """Signature-alignment protocol lists should cover the same protocols as wiring."""
+        substrait_registered = {
+            protocol_cls
+            for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+            if category.startswith("substrait_")
+        }
+        mountainash_registered = {
+            protocol_cls
+            for protocol_cls, category in WIRING_PROTOCOL_REGISTRY.items()
+            if category.startswith("mountainash_")
+        }
+        assert {protocol for protocol, _ in SUBSTRAIT_PROTOCOLS} == substrait_registered
+        assert {protocol for protocol, _ in MOUNTAINASH_PROTOCOLS} == mountainash_registered
 
     def test_known_aspirational_references_valid_protocols(self):
         """Every protocol class in KNOWN_ASPIRATIONAL must be in WIRING_PROTOCOL_REGISTRY."""
-        for (protocol_cls, method_name), reason in KNOWN_ASPIRATIONAL.items():
+        for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
             assert protocol_cls in WIRING_PROTOCOL_REGISTRY, (
                 f"KNOWN_ASPIRATIONAL references {protocol_cls.__name__}.{method_name} "
                 f"but that protocol is not in WIRING_PROTOCOL_REGISTRY"
@@ -1374,9 +1490,81 @@ class TestWiringAuditHelpers:
 
     def test_known_aspirational_references_real_methods(self):
         """Every method in KNOWN_ASPIRATIONAL must actually exist on the protocol."""
-        for (protocol_cls, method_name), reason in KNOWN_ASPIRATIONAL.items():
+        for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
             methods = get_protocol_methods(protocol_cls)
             assert method_name in methods, (
                 f"KNOWN_ASPIRATIONAL references {protocol_cls.__name__}.{method_name} "
                 f"but that method does not exist on the protocol"
             )
+
+    def test_known_aspirational_entries_have_reason_and_since(self):
+        for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
+            assert gap.reason.strip(), f"{protocol_cls.__name__}.{method_name} has no reason"
+            date.fromisoformat(gap.since)
+
+    def test_aspirational_methods_are_not_claimed_tested_without_exception(self):
+        from cross_backend.argument_types.test_coverage_guard import (
+            _collect_matrix_executed_param_refs,
+            _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES,
+            _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES,
+            _KNOWN_SPECIAL_NODE_UNWIRED_OPS,
+        )
+
+        tested_refs = _collect_matrix_executed_param_refs()
+        tested_protocol_keys = {
+            ref.protocol_param_key
+            for ref in tested_refs
+            if ref.protocol_name is not None
+        }
+        unresolved_tested_keys = {
+            (ref.op_name, ref.param_name)
+            for ref in tested_refs
+            if ref.protocol_param_key is None
+        }
+        tested_param_keys = tested_protocol_keys | {
+            target_key
+            for source_key, target_key in _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES.items()
+            if source_key in tested_protocol_keys
+        } | {
+            target_key
+            for source_key, target_key in _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES.items()
+            if source_key in unresolved_tested_keys
+        }
+        tested_ops = {
+            (protocol_name, op_name)
+            for protocol_name, op_name, _param_name in tested_param_keys
+        }
+        tested_ops |= set(_KNOWN_SPECIAL_NODE_UNWIRED_OPS)
+        aspirational_ops = {
+            (protocol_cls.__name__, method_name)
+            for (protocol_cls, method_name) in KNOWN_ASPIRATIONAL
+        }
+        allowed = {
+            (protocol_cls.__name__, method_name)
+            for (protocol_cls, method_name) in KNOWN_ASPIRATIONAL_AND_TESTED
+        }
+        contradictions = (tested_ops & aspirational_ops) - allowed
+        stale_allowed = allowed - (tested_ops & aspirational_ops)
+        assert not contradictions, (
+            "Methods are both aspirational and TESTED_PARAMS-covered without an explicit exception: "
+            f"{sorted(contradictions)}"
+        )
+        assert not stale_allowed, (
+            "KNOWN_ASPIRATIONAL_AND_TESTED entries no longer need exceptions: "
+            f"{sorted(stale_allowed)}"
+        )
+
+    def test_known_aspirational_staleness_warns(self):
+        today = date(2026, 5, 12)
+        threshold_days = 183
+        for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
+            age_days = (today - date.fromisoformat(gap.since)).days
+            if age_days > threshold_days:
+                warnings.warn(
+                    (
+                        f"{protocol_cls.__name__}.{method_name} has been aspirational "
+                        f"for {age_days} days: {gap.reason}"
+                    ),
+                    UserWarning,
+                    stacklevel=2,
+                )

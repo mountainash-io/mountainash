@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 from cross_backend.argument_types.conftest import ALL_BACKENDS
@@ -23,7 +24,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.CONCAT_WS, "separator"),
     (FK_STR.CONTAINS, "substring"),
     # Mountainash string extensions — 8 ops (json_decode has no OP_SPEC; others have one)
-    ("strip_suffix", "x"),
+    (FK_MA_STR.STRIP_SUFFIX, "x"),
     ("to_integer", "x"),
     ("to_time", "x"),
     ("encode", "x"),
@@ -398,7 +399,7 @@ OP_SPECS: list[OpSpec] = [
     ),
     # -- Mountainash string extensions --
     OpSpec(
-        function_key="strip_suffix",
+        function_key=FK_MA_STR.STRIP_SUFFIX,
         op_name="strip_suffix",
         build=lambda col, _arg: col.str.strip_suffix("_old"),
         raw_arg=0,
