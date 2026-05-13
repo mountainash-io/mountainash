@@ -357,7 +357,103 @@ def collect_manual_xfail_blocks() -> list[ManualXfailBlock]:
 
 
 def render_report() -> str:
-    return "# Drift Guard Report\n\n(stub)\n"
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    sha = git_sha()
+
+    proto_gaps = collect_protocol_alignment()
+    kel_gaps = collect_kel_entries()
+    unsupported_gaps = collect_fully_unsupported()
+    manual_blocks = collect_manual_xfail_blocks()
+
+    active_manual = [b for b in manual_blocks if b.active]
+
+    proto_cases = len(proto_gaps)
+    unsup_cases = sum(g.est_cases for g in unsupported_gaps)
+    kel_cases = sum(g.est_cases for g in kel_gaps)
+    manual_cases = len(active_manual) * 4  # rough: active blocks × 4 input types
+
+    lines: list[str] = [
+        "# Drift Guard Report",
+        "",
+        f"Generated: {now}  |  Commit: {sha}",
+        "",
+        "## Summary",
+        "",
+        "| Suite | Logical gaps | Est. xfail cases |",
+        "|-------|-------------|-----------------|",
+        f"| Protocol alignment (KNOWN_ASPIRATIONAL) | {proto_cases} | {proto_cases} |",
+        f"| Argument types — fully unsupported ops | {len(unsupported_gaps)} | {unsup_cases} |",
+        f"| Argument types — expression-limited ops (KEL) | {len(kel_gaps)} | {kel_cases} |",
+        f"| Argument types — manual xfail blocks (active) | {len(active_manual)} | ~{manual_cases} |",
+        f"| **Total** | **{proto_cases + len(unsupported_gaps) + len(kel_gaps) + len(active_manual)}**"
+        f" | **~{proto_cases + unsup_cases + kel_cases + manual_cases}** |",
+        "",
+    ]
+
+    # ── Protocol Alignment ────────────────────────────────────────────────
+    lines += [
+        "## Protocol Alignment — KNOWN_ASPIRATIONAL",
+        "",
+        "Each entry generates one `test_aspirational_method` xfail case.",
+        "",
+        "| Protocol | Method | Reason | Since |",
+        "|----------|--------|--------|-------|",
+    ]
+    current_protocol = None
+    for g in proto_gaps:
+        if g.protocol_name != current_protocol:
+            current_protocol = g.protocol_name
+            lines.append(f"| **{g.protocol_name}** | | | |")
+        lines.append(f"| | `{g.method_name}` | {g.reason} | {g.since} |")
+    lines.append("")
+
+    # ── Argument Types: Fully Unsupported ─────────────────────────────────
+    lines += [
+        "## Argument Types — Fully Unsupported Operations",
+        "",
+        "Operations that raise for **all** input types on the listed backend(s).",
+        "Source: `_NARWHALS_FULLY_UNSUPPORTED` and `_IBIS_FULLY_UNSUPPORTED` in `test_arg_types_string.py`.",
+        "",
+        "| Operation | Param | Backends | Est. cases |",
+        "|-----------|-------|---------|-----------|",
+    ]
+    for g in unsupported_gaps:
+        backends_str = ", ".join(g.backends)
+        lines.append(f"| `{g.op_name}` | `{g.param_name}` | {backends_str} | {g.est_cases} |")
+    lines.append("")
+
+    # ── Argument Types: KEL (Expression-Limited) ──────────────────────────
+    lines += [
+        "## Argument Types — Expression-Limited Operations (KEL)",
+        "",
+        "Operations that accept raw/lit arguments but reject `col`/`complex` expressions.",
+        "Source: `KNOWN_EXPR_LIMITATIONS` in each backend base class.",
+        "Est. cases: polars=2, narwhals=4 (2 sub-backends), ibis=2 per entry.",
+        "",
+        "| Backend | Operation | Param | Est. cases | Message |",
+        "|---------|-----------|-------|-----------|---------|",
+    ]
+    for g in kel_gaps:
+        short_msg = g.message[:80] + "…" if len(g.message) > 80 else g.message
+        lines.append(f"| {g.backend} | `{g.op_name}` | `{g.param_name}` | {g.est_cases} | {short_msg} |")
+    lines.append("")
+
+    # ── Argument Types: Manual xfail blocks ───────────────────────────────
+    lines += [
+        "## Argument Types — Manual xfail Blocks",
+        "",
+        "Module-level `*_XFAIL` variables in `test_arg_types_*.py` files.",
+        "**Active**: referenced inside `_params()`. **Inactive**: dead code.",
+        "",
+        "| Variable | File | Active | Reason |",
+        "|----------|------|--------|--------|",
+    ]
+    for b in manual_blocks:
+        status = "✓ active" if b.active else "✗ inactive (dead code)"
+        lines.append(f"| `{b.variable_name}` | `{b.source_file}` | {status} | {b.reason} |")
+    lines.append("")
+
+    return "\n".join(lines)
 
 
 def main() -> None:
