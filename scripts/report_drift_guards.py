@@ -153,7 +153,7 @@ def _parse_kel_from_class_body(source: str, backend: str, est_cases: int) -> lis
                     if msg:
                         class_var_messages[target.id] = msg
 
-        for item in ast.walk(node):
+        for item in node.body:
             if isinstance(item, ast.Assign):
                 targets, value = item.targets, item.value
             elif isinstance(item, ast.AnnAssign):
@@ -322,13 +322,20 @@ def _collect_xfail_vars_from_file(path: Path) -> list[ManualXfailBlock]:
     if not xfail_vars:
         return []
 
-    # Find _params() and collect all Name references inside it
-    params_refs: set[str] = set()
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == "_params":
-            for child in ast.walk(node):
-                if isinstance(child, ast.Name):
-                    params_refs.add(child.id)
+    # Find _params() and collect all Name references inside it.
+    # If no _params() exists in this file, skip — we can't classify active vs dead.
+    params_func = next(
+        (n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_params"),
+        None,
+    )
+    if params_func is None:
+        return []
+
+    params_refs: set[str] = {
+        child.id
+        for child in ast.walk(params_func)
+        if isinstance(child, ast.Name)
+    }
 
     return [
         ManualXfailBlock(
