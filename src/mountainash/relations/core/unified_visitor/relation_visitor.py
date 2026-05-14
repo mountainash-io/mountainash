@@ -59,7 +59,7 @@ class UnifiedRelationVisitor:
     def visit_project_rel(self, node: ProjectRelNode) -> Any:
         """Visit a project node — dispatches on ProjectOperation variant."""
         relation = self.visit(node.input)
-        compiled_exprs = [self._compile_expression(e) for e in node.expressions]
+        compiled_exprs = [self.compile_expression(e) for e in node.expressions]
         match node.operation:
             case ProjectOperation.SELECT:
                 return self.backend.project_select(relation, compiled_exprs)
@@ -73,7 +73,7 @@ class UnifiedRelationVisitor:
     def visit_filter_rel(self, node: FilterRelNode) -> Any:
         """Visit a filter node — compiles the predicate expression."""
         relation = self.visit(node.input)
-        predicate = self._compile_expression(node.predicate)
+        predicate = self.compile_expression(node.predicate)
         return self.backend.filter(relation, predicate)
 
     def visit_sort_rel(self, node: SortRelNode) -> Any:
@@ -118,7 +118,7 @@ class UnifiedRelationVisitor:
         relation = self.visit(node.input)
         if not node.measures:
             return self.backend.distinct(relation, node.keys)
-        compiled_measures = [self._compile_expression(m) for m in node.measures]
+        compiled_measures = [self.compile_expression(m) for m in node.measures]
         return self.backend.aggregate(relation, node.keys, compiled_measures)
 
     def visit_set_rel(self, node: SetRelNode) -> Any:
@@ -147,7 +147,7 @@ class UnifiedRelationVisitor:
         """Visit a resource-read node — delegates to backend's read_resource."""
         out = self.backend.read_resource(node.resource)
         if node.resource.table_schema is not None:
-            out = self._apply_conform(out, node.resource.table_schema)
+            out = self.apply_conform(out, node.resource.table_schema)
         return out
 
     def visit_pipeline_step_rel(self, node: Any) -> Any:
@@ -164,7 +164,7 @@ class UnifiedRelationVisitor:
             data_key=node.data_key,
         )
 
-    def _apply_conform(self, native: Any, schema: Any) -> Any:
+    def apply_conform(self, native: Any, schema: Any) -> Any:
         """Apply conform from a TypeSpec or raw frictionless schema dict.
 
         ``compile_conform`` always returns a Polars DataFrame; wrap back to
@@ -245,7 +245,7 @@ class UnifiedRelationVisitor:
             )
         return value
 
-    def _compile_expression(self, expr: Any) -> Any:
+    def compile_expression(self, expr: Any) -> Any:
         """Compile an expression AST node, or pass through native/string expressions.
 
         Handles three cases:
