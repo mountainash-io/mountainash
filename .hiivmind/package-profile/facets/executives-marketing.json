@@ -1,0 +1,15 @@
+{
+  "audience": "executives-marketing",
+  "summary": "Capabilities, differentiators, roadmap signals, and credible proof points for positioning mountainash in the data tooling market.",
+  "concepts": [
+    {"name": "Cross-Backend Portability", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"], "recommended_docs": ["Write once, run on Polars/pandas/Ibis", "Same expression guarantees same result"], "evidence": ["Three full backend implementations, 2850+ tests"]},
+    {"name": "Substrait Alignment", "module_ids": ["expressions.core.expression_nodes", "relations.core.relation_nodes"], "recommended_docs": ["Industry-standard query plan representation", "Future interop with other Substrait tools"], "evidence": ["AST aligned with Substrait spec"]},
+    {"name": "Schema-First Data Quality", "module_ids": ["typespec", "conform", "datacontracts"], "recommended_docs": ["TypeSpec for universal schema", "Automatic conformance", "Validation contracts"], "evidence": ["TypeSpec, ConformBuilder, DataContract modules"]},
+    {"name": "Frictionless Data Integration", "module_ids": ["typespec", "relations.dag"], "recommended_docs": ["DataPackage support", "Multi-resource DAG workflows"], "evidence": ["DataPackage, RelationDAG implementations"]},
+    {"name": "Fluent API Design", "module_ids": ["expressions.core.expression_api", "relations.core.relation_api"], "recommended_docs": ["Polars-like API conventions", "Method chaining"], "evidence": ["API mirrors Polars conventions"]}
+  ],
+  "featured_modules": ["toplevel", "expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform"],
+  "hidden_or_internal_modules": ["core", "expressions.core.expression_nodes", "expressions.core.expression_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.core.relation_nodes", "relations.core.relation_protocols", "relations.core.unified_visitor", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
+  "documentation_plan": ["Product positioning page", "Feature comparison matrix", "Use case showcases"],
+  "open_questions": []
+}

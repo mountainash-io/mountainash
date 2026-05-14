@@ -22,4 +22,4 @@ class ResourceReadRelNode(RelationNode):
     resource: DataResource
 
     def accept(self, visitor: Any) -> Any:
-        return visitor.visit_resource_read_rel(self)
+        return visitor.visit(self)

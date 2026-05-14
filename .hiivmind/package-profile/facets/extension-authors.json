@@ -1,0 +1,14 @@
+{
+  "audience": "extension-authors",
+  "summary": "Extension points, registries, plugin APIs, contracts, and compatibility boundaries for authors adding new operations or backends to mountainash.",
+  "concepts": [
+    {"name": "Extension Model", "module_ids": ["expressions.core.expression_system", "expressions.core.expression_protocols"], "recommended_docs": ["Substrait vs Mountainash extension namespaces", "FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_* enums", "Physical directory separation"], "evidence": ["Enforced principle: substrait-vs-mountainash.md"]},
+    {"name": "Protocol Contracts", "module_ids": ["expressions.core.expression_protocols", "relations.core.relation_protocols"], "recommended_docs": ["What a backend must implement", "Protocol-as-contract principle"], "evidence": ["Enforced principle: protocol-as-contract.md"]},
+    {"name": "Function Registry", "module_ids": ["expressions.core.expression_system"], "recommended_docs": ["ExpressionFunctionRegistry", "Registering new function keys"], "evidence": ["Central dispatch mechanism"]},
+    {"name": "Custom Types", "module_ids": ["typespec"], "recommended_docs": ["CustomTypeRegistry", "TypeConverter protocol", "Adding semantic types"], "evidence": ["Extension point for type system"]}
+  ],
+  "featured_modules": ["expressions.core.expression_system", "expressions.core.expression_protocols", "relations.core.relation_protocols", "typespec"],
+  "hidden_or_internal_modules": ["pydata.ingress", "pydata.egress", "core"],
+  "documentation_plan": ["Extension author guide", "Adding a custom operation end-to-end", "Adding a new backend end-to-end"],
+  "open_questions": ["No public plugin/extension API yet — extension is by fork/contribution"]
+}

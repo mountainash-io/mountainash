@@ -7,9 +7,11 @@ Substrait's relational algebra.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar, Optional
 
 from pydantic import BaseModel, ConfigDict
+
+from mountainash.core.constants import CONST_BACKEND
 
 
 class RelationNode(BaseModel, ABC):
@@ -36,6 +38,8 @@ class RelationNode(BaseModel, ABC):
         frozen=True,
         arbitrary_types_allowed=True,
     )
+
+    _leaf_backend: ClassVar[Optional[CONST_BACKEND]] = None
 
     @abstractmethod
     def accept(self, visitor: Any) -> Any:

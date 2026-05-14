@@ -42,11 +42,12 @@ class RelationBase:
     def _detect_backend(self) -> CONST_BACKEND:
         """Walk the plan tree to find a ReadRelNode and identify its backend."""
         leaf = self._find_leaf_read_node(self._node)
-        if leaf is None:
-            # No ReadRelNode found (e.g. pure SourceRelNode tree).
-            # PydataIngress produces Polars DataFrames, so default to Polars.
-            return CONST_BACKEND.POLARS
-        return identify_backend(leaf.dataframe)
+        if leaf is not None:
+            return identify_backend(leaf.dataframe)
+        leaf_backend = self._find_leaf_backend(self._node)
+        if leaf_backend is not None:
+            return leaf_backend
+        return CONST_BACKEND.POLARS
 
     @staticmethod
     def _find_leaf_read_node(node: RelationNode) -> ReadRelNode | None:
@@ -55,6 +56,8 @@ class RelationBase:
             return node
         if isinstance(node, SourceRelNode):
             # SourceRelNode is a leaf with no backend — return None.
+            return None
+        if node._leaf_backend is not None:
             return None
         if isinstance(node, RefRelNode):
             raise RelationDAGRequired(
@@ -70,3 +73,20 @@ class RelationBase:
         raise ValueError(
             f"Cannot find ReadRelNode in plan tree from {type(node).__name__}"
         )
+
+    @staticmethod
+    def _find_leaf_backend(node: RelationNode) -> CONST_BACKEND | None:
+        """Recursively find the first node with _leaf_backend set."""
+        if node._leaf_backend is not None:
+            return node._leaf_backend
+        if isinstance(node, (ReadRelNode, SourceRelNode)):
+            return None
+        if isinstance(node, RefRelNode):
+            return None
+        if isinstance(node, JoinRelNode):
+            return RelationBase._find_leaf_backend(node.left)
+        if isinstance(node, SetRelNode):
+            return RelationBase._find_leaf_backend(node.inputs[0])
+        if hasattr(node, "input"):
+            return RelationBase._find_leaf_backend(node.input)
+        return None

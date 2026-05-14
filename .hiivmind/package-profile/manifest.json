@@ -1,0 +1,96 @@
+{
+  "profile_version": "1.0",
+  "generated_at": "2026-05-13T00:00:00Z",
+  "source": {
+    "root": "src/mountainash",
+    "git": {
+      "previous_hash": null,
+      "current_hash": "93258f69592c625af66015d8936dae44e88e497f",
+      "branch": "feature/protocol-drift-guards",
+      "working_tree_dirty": true
+    }
+  },
+  "scope": {
+    "include": ["src/mountainash/**/*.py"],
+    "exclude": ["**/__pycache__/**", "**/*.pyc"],
+    "package_roots": ["src/mountainash"]
+  },
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors",
+    "executives-marketing",
+    "broader-hype"
+  ],
+  "counts": {
+    "modules_discovered": 23,
+    "modules_profiled": 23,
+    "profiles_ignored": 0,
+    "facets_written": 7
+  },
+  "changed_scopes": {
+    "files": [],
+    "modules": [],
+    "facets": []
+  },
+  "ignored_paths": [
+    {
+      "path": "src/mountainash/pydata/mappers/",
+      "reason": "Supporting utilities folded into pydata-ingress profile"
+    },
+    {
+      "path": "src/mountainash/pydata/sanitizers/",
+      "reason": "Supporting utilities folded into pydata-ingress profile"
+    },
+    {
+      "path": "src/mountainash/pydata/utils/",
+      "reason": "Supporting utilities folded into pydata-ingress profile"
+    },
+    {
+      "path": "src/mountainash/expressions/core/utils/",
+      "reason": "Temporal utilities folded into expressions-system profile"
+    },
+    {
+      "path": "src/mountainash/relations/schema_inference.py",
+      "reason": "Schema inference folded into relations-api profile"
+    }
+  ],
+  "profile_files": {
+    "modules": {
+      "toplevel": "modules/toplevel-api.json",
+      "core": "modules/core.json",
+      "expressions.core.expression_api": "modules/expressions-api.json",
+      "expressions.core.expression_nodes": "modules/expressions-nodes.json",
+      "expressions.core.expression_protocols": "modules/expressions-protocols.json",
+      "expressions.core.expression_system": "modules/expressions-system.json",
+      "expressions.core.unified_visitor": "modules/expressions-visitor.json",
+      "expressions.backends.polars": "modules/expressions-backend-polars.json",
+      "expressions.backends.narwhals": "modules/expressions-backend-narwhals.json",
+      "expressions.backends.ibis": "modules/expressions-backend-ibis.json",
+      "relations.core.relation_api": "modules/relations-api.json",
+      "relations.core.relation_nodes": "modules/relations-nodes.json",
+      "relations.core.relation_protocols": "modules/relations-protocols.json",
+      "relations.core.unified_visitor": "modules/relations-visitor.json",
+      "relations.backends.polars": "modules/relations-backend-polars.json",
+      "relations.backends.narwhals": "modules/relations-backend-narwhals.json",
+      "relations.backends.ibis": "modules/relations-backend-ibis.json",
+      "relations.dag": "modules/relations-dag.json",
+      "typespec": "modules/typespec.json",
+      "conform": "modules/conform.json",
+      "pydata.ingress": "modules/pydata-ingress.json",
+      "pydata.egress": "modules/pydata-egress.json",
+      "datacontracts": "modules/datacontracts.json"
+    },
+    "facets": {
+      "users": "facets/users.json",
+      "maintainers": "facets/maintainers.json",
+      "contributors": "facets/contributors.json",
+      "backend-architecture": "facets/backend-architecture.json",
+      "extension-authors": "facets/extension-authors.json",
+      "executives-marketing": "facets/executives-marketing.json",
+      "broader-hype": "facets/broader-hype.json"
+    }
+  }
+}

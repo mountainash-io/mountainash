@@ -1,0 +1,31 @@
+{
+  "id": "relations.core.relation_nodes",
+  "path": "src/mountainash/relations/core/relation_nodes/",
+  "summary": "Pydantic-based relational AST: 8 Substrait-aligned node types (Read, Project, Filter, Aggregate, Join, Fetch, Sort, Set) plus 4 Mountainash extensions (ExtensionRelNode, SourceRelNode, RefRelNode, ResourceReadRelNode).",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["RelationNode", "ReadRelNode", "ProjectRelNode", "FilterRelNode", "AggregateRelNode", "JoinRelNode", "FetchRelNode", "SortRelNode", "SetRelNode", "ExtensionRelNode", "SourceRelNode", "RefRelNode", "ResourceReadRelNode"],
+  "key_functions": [],
+  "dependencies": ["core"],
+  "dependents": ["relations.core.relation_api", "relations.core.unified_visitor", "relations.core.relation_protocols", "relations.dag"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

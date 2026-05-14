@@ -1,0 +1,17 @@
+{
+  "audience": "backend-architecture",
+  "summary": "Protocol contracts, dispatch mechanisms, backend implementations, cross-type handling, and known divergences. Essential for understanding how the same expression produces identical results across Polars, Narwhals, and Ibis.",
+  "concepts": [
+    {"name": "Protocol-Driven Dispatch", "module_ids": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.core.expression_system"], "recommended_docs": ["ExpressionSystem protocol hierarchy", "RelationSystem protocol hierarchy", "Function key → protocol method mapping"], "evidence": ["Core architectural pattern"]},
+    {"name": "Backend Detection", "module_ids": ["core"], "recommended_docs": ["Automatic DataFrame type detection", "Backend registration via decorator", "Cross-type join coercion"], "evidence": ["Enforced principle: backend-detection.md"]},
+    {"name": "Polars Backend", "module_ids": ["expressions.backends.polars", "relations.backends.polars"], "recommended_docs": ["LazyFrame-based compilation", "Native Polars expression generation"], "evidence": ["Primary reference backend"]},
+    {"name": "Narwhals Backend", "module_ids": ["expressions.backends.narwhals", "relations.backends.narwhals"], "recommended_docs": ["Cross-library abstraction", "Known limitations (diff, cumulative in .over)"], "evidence": ["Known divergences tracked"]},
+    {"name": "Ibis Backend", "module_ids": ["expressions.backends.ibis", "relations.backends.ibis"], "recommended_docs": ["SQL-backed compilation", "DuckDB/SQLite support", "Type inference gaps"], "evidence": ["Known divergences tracked"]},
+    {"name": "Arguments vs Options", "module_ids": ["expressions.core.expression_nodes", "expressions.core.expression_system"], "recommended_docs": ["Arguments are visited expressions", "Options are raw literals", "KNOWN_EXPR_LIMITATIONS registry"], "evidence": ["Enforced principle: arguments-vs-options.md"]},
+    {"name": "Consistency Guarantees", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"], "recommended_docs": ["Same expression → same result across backends", "Known divergences list"], "evidence": ["Enforced principle: consistency-guarantees.md"]}
+  ],
+  "featured_modules": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "core"],
+  "hidden_or_internal_modules": ["pydata.ingress", "pydata.egress"],
+  "documentation_plan": ["Backend implementation deep dive", "Protocol contract reference", "Known divergences catalog", "Cross-type join mechanics"],
+  "open_questions": ["Ibis local fork dependency", "Narwhals backend limitations catalog completeness"]
+}

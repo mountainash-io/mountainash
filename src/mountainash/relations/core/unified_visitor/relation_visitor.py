@@ -42,24 +42,27 @@ class UnifiedRelationVisitor:
         self.ref_resolver = ref_resolver
 
     def visit(self, node: RelationNode) -> Any:
-        """Dispatch to the appropriate visit method via double-dispatch."""
+        """Dispatch to registered handler or fall back to accept()."""
+        from .visit_registry import RelationVisitRegistry
+
+        handler = RelationVisitRegistry.get(type(node))
+        if handler is not None:
+            try:
+                return handler(node, self)
+            except Exception as e:
+                raise type(e)(
+                    f"Error in registered handler for {type(node).__name__}: {e}"
+                ) from e
         return node.accept(self)
 
     def visit_read_rel(self, node: ReadRelNode) -> Any:
         """Visit a read (scan) node."""
         return self.backend.read(node.dataframe)
 
-    def visit_source_rel(self, node: Any) -> Any:
-        """Visit a source node — materialize Python data into a DataFrame."""
-        from mountainash.pydata.ingress.pydata_ingress import PydataIngress
-
-        df = PydataIngress.convert(node.data)
-        return self.backend.read(df)
-
     def visit_project_rel(self, node: ProjectRelNode) -> Any:
         """Visit a project node — dispatches on ProjectOperation variant."""
         relation = self.visit(node.input)
-        compiled_exprs = [self._compile_expression(e) for e in node.expressions]
+        compiled_exprs = [self.compile_expression(e) for e in node.expressions]
         match node.operation:
             case ProjectOperation.SELECT:
                 return self.backend.project_select(relation, compiled_exprs)
@@ -73,7 +76,7 @@ class UnifiedRelationVisitor:
     def visit_filter_rel(self, node: FilterRelNode) -> Any:
         """Visit a filter node — compiles the predicate expression."""
         relation = self.visit(node.input)
-        predicate = self._compile_expression(node.predicate)
+        predicate = self.compile_expression(node.predicate)
         return self.backend.filter(relation, predicate)
 
     def visit_sort_rel(self, node: SortRelNode) -> Any:
@@ -118,7 +121,7 @@ class UnifiedRelationVisitor:
         relation = self.visit(node.input)
         if not node.measures:
             return self.backend.distinct(relation, node.keys)
-        compiled_measures = [self._compile_expression(m) for m in node.measures]
+        compiled_measures = [self.compile_expression(m) for m in node.measures]
         return self.backend.aggregate(relation, node.keys, compiled_measures)
 
     def visit_set_rel(self, node: SetRelNode) -> Any:
@@ -133,24 +136,7 @@ class UnifiedRelationVisitor:
         method = getattr(self.backend, method_name)
         return method(relation, **node.options)
 
-    def visit_ref_rel(self, node: Any) -> Any:
-        """Visit a ref node — resolves via ref_resolver or raises RelationDAGRequired."""
-        if self.ref_resolver is None:
-            from mountainash.relations.dag.errors import RelationDAGRequired
-            raise RelationDAGRequired(
-                f"RefRelNode({node.name!r}) cannot be compiled standalone — "
-                "use RelationDAG.collect() or supply ref_resolver explicitly"
-            )
-        return self.ref_resolver(node.name)
-
-    def visit_resource_read_rel(self, node: Any) -> Any:
-        """Visit a resource-read node — delegates to backend's read_resource."""
-        out = self.backend.read_resource(node.resource)
-        if node.resource.table_schema is not None:
-            out = self._apply_conform(out, node.resource.table_schema)
-        return out
-
-    def _apply_conform(self, native: Any, schema: Any) -> Any:
+    def apply_conform(self, native: Any, schema: Any) -> Any:
         """Apply conform from a TypeSpec or raw frictionless schema dict.
 
         ``compile_conform`` always returns a Polars DataFrame; wrap back to
@@ -231,7 +217,7 @@ class UnifiedRelationVisitor:
             )
         return value
 
-    def _compile_expression(self, expr: Any) -> Any:
+    def compile_expression(self, expr: Any) -> Any:
         """Compile an expression AST node, or pass through native/string expressions.
 
         Handles three cases:

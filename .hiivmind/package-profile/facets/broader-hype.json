@@ -1,0 +1,14 @@
+{
+  "audience": "broader-hype",
+  "summary": "Simple narrative hooks, demos, before/after value, and memorable framing for mountainash as a cross-backend data expression and quality toolkit.",
+  "concepts": [
+    {"name": "Write Once, Run Anywhere", "module_ids": ["toplevel", "expressions.core.expression_api"], "recommended_docs": ["Same ma.col('x').gt(10) works on Polars, pandas, and SQL", "Zero backend lock-in"], "evidence": ["Three backend implementations with consistency guarantees"]},
+    {"name": "Schema as Code", "module_ids": ["typespec", "conform"], "recommended_docs": ["Define your schema once, apply everywhere", "Automatic type coercion and conformance"], "evidence": ["TypeSpec + ConformBuilder replace 1,400 lines of manual code with 130"]},
+    {"name": "Ternary Logic", "module_ids": ["expressions.core.expression_api"], "recommended_docs": ["True/False/Unknown — not just True/False/NULL", "Deterministic logic without NULL surprises"], "evidence": ["Unique three-valued logic system with sentinel integers"]},
+    {"name": "Data Products with DataPackage", "module_ids": ["relations.dag", "typespec"], "recommended_docs": ["Frictionless-standard data packages", "Multi-resource DAGs with FK validation"], "evidence": ["DataPackage + RelationDAG implementation"]}
+  ],
+  "featured_modules": ["toplevel", "expressions.core.expression_api", "typespec", "conform"],
+  "hidden_or_internal_modules": ["core", "expressions.core.expression_nodes", "expressions.core.expression_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.core.relation_nodes", "relations.core.relation_protocols", "relations.core.unified_visitor", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
+  "documentation_plan": ["Hero demo script", "Before/after comparison", "Twitter-friendly feature highlights"],
+  "open_questions": []
+}

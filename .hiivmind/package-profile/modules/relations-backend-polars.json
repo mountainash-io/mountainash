@@ -1,0 +1,31 @@
+{
+  "id": "relations.backends.polars",
+  "path": "src/mountainash/relations/backends/relation_systems/polars/",
+  "summary": "Polars relation backend: compiles relational AST to Polars LazyFrame operations. 8 Substrait + 1 extension implementation files.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["PolarsRelationSystem"],
+  "key_functions": [],
+  "dependencies": ["relations.core.relation_protocols", "relations.core.unified_visitor", "expressions.backends.polars"],
+  "dependents": ["relations.core.relation_api"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "datacontracts",
+  "path": "src/mountainash/datacontracts/",
+  "summary": "Data contract validation: compiles TypeSpec to Pandera-based validation rules. Supports custom rules via guarded() decorator and RuleRegistry. Experimental/new module.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": ["users", "maintainers"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["BaseDataContract", "Validator", "Rule", "RuleRegistry", "ValidationResult", "ValidationResultProcessor"],
+  "key_functions": ["compile_datacontract", "guarded"],
+  "dependencies": ["typespec", "core"],
+  "dependents": ["toplevel"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

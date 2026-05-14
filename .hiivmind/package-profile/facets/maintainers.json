@@ -1,0 +1,18 @@
+{
+  "audience": "maintainers",
+  "summary": "Architecture invariants, internal dependencies, test coverage, failure modes, and change risks. Maintainers need to understand the three-layer separation, protocol contracts, visitor composition, and known divergences across backends.",
+  "concepts": [
+    {"name": "Three-Layer Architecture", "module_ids": ["expressions.core.expression_api", "expressions.core.expression_protocols", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"], "recommended_docs": ["Protocol → API Builder → Backend separation", "How to add a new operation (six-step process)"], "evidence": ["Enforced principle: three-layer-separation.md"]},
+    {"name": "AST Node Model", "module_ids": ["expressions.core.expression_nodes", "relations.core.relation_nodes"], "recommended_docs": ["7 expression node types", "10 relation node types", "Minimal AST principle"], "evidence": ["Enforced principle: minimal-ast.md"]},
+    {"name": "Protocol Contracts", "module_ids": ["expressions.core.expression_protocols", "relations.core.relation_protocols"], "recommended_docs": ["Protocol-as-contract principle", "Expression system protocols", "Relation system protocols"], "evidence": ["Enforced principle: protocol-as-contract.md"]},
+    {"name": "Visitor Composition", "module_ids": ["expressions.core.unified_visitor", "relations.core.unified_visitor"], "recommended_docs": ["UnifiedExpressionVisitor", "UnifiedRelationVisitor", "Visitor + ref_resolver for DAG"], "evidence": ["Enforced principle: unified-visitor.md"]},
+    {"name": "Function Key System", "module_ids": ["expressions.core.expression_system"], "recommended_docs": ["FKEY enum organization", "Function registry", "Adding new function keys"], "evidence": ["Enforced principle: function-key-enums.md"]},
+    {"name": "Backend Implementations", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"], "recommended_docs": ["Backend detection and routing", "Known divergences", "Backend composition via multiple inheritance"], "evidence": ["Enforced principles: backend-detection.md, consistency-guarantees.md"]},
+    {"name": "Relation DAG Orchestration", "module_ids": ["relations.dag"], "recommended_docs": ["Two-edge graph model", "Dependency vs constraint edges", "Topological collection"], "evidence": ["Enforced principle: two-edge-graph-model.md"]},
+    {"name": "Type System", "module_ids": ["typespec", "core"], "recommended_docs": ["UniversalType mappings", "TypeSpec/FieldSpec structure", "Frictionless alignment"], "evidence": ["Enforced principle: frictionless-structural-fidelity.md"]}
+  ],
+  "featured_modules": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "relations.core.unified_visitor", "relations.dag", "core"],
+  "hidden_or_internal_modules": [],
+  "documentation_plan": ["Architecture overview", "Adding operations guide", "Backend implementation guide", "Known divergences reference", "Wiring matrix"],
+  "open_questions": ["Conform application is currently Polars-only on the DAG materialisation path", "Ibis uses a local fork — upstream dependency risk"]
+}

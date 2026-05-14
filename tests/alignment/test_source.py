@@ -29,7 +29,7 @@ class TestSourceRelNodeConstruction:
         node = SourceRelNode(data=data, detected_format=CONST_PYTHON_DATAFORMAT.PYLIST)
 
         class MockVisitor:
-            def visit_source_rel(self, node):
+            def visit(self, node):
                 return "visited"
 
         result = node.accept(MockVisitor())

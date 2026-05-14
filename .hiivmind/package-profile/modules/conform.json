@@ -1,0 +1,31 @@
+{
+  "id": "conform",
+  "path": "src/mountainash/conform/",
+  "summary": "Data conformance DSL: ConformBuilder compiles TypeSpec constraints to relation operations (~130 lines replacing ~1,400 lines of backend strategies). User-facing API is ma.conform({...}).apply(df).",
+  "role": "api-builder",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["ConformBuilder"],
+  "key_functions": ["compile_conform"],
+  "dependencies": ["typespec", "relations.core.relation_api", "expressions.core.expression_api"],
+  "dependents": ["toplevel"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
