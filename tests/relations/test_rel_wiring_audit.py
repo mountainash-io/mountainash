@@ -31,12 +31,15 @@ class TestVisitorCoversAllNodes:
         import mountainash.relations.core.relation_nodes.extensions_mountainash  # noqa: F401
 
         # Recursively collect all concrete RelationNode subclasses
+        # (excluding test helpers defined in test modules)
         all_nodes: set[type] = set()
 
         def collect(cls: type) -> None:
             for sub in cls.__subclasses__():
                 if not inspect.isabstract(sub):
-                    all_nodes.add(sub)
+                    mod = getattr(sub, "__module__", "") or ""
+                    if not mod.startswith("test") and "test_" not in mod:
+                        all_nodes.add(sub)
                 collect(sub)
 
         collect(RelationNode)

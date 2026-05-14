@@ -65,6 +65,19 @@ class TestProtection:
         RelationVisitRegistry.register(_AnotherFakeNode, lambda n, v: "ok")
         assert RelationVisitRegistry.get(_AnotherFakeNode) is not None
 
+    def test_substrait_nodes_are_protected(self):
+        from mountainash.relations.core.relation_nodes import (
+            ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
+            FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
+        )
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import ExtensionRelNode
+        for node_type in [
+            ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
+            FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
+            ExtensionRelNode,
+        ]:
+            assert node_type in _PROTECTED_NODE_TYPES, f"{node_type.__name__} not protected"
+
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
@@ -85,3 +98,61 @@ class TestLeafBackend:
 
     def test_leaf_backend_subclass_override(self):
         assert _LeafNodeWithBackend._leaf_backend == CONST_BACKEND.POLARS
+
+
+from pydantic import ConfigDict
+from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
+from mountainash.relations.backends.relation_systems.polars import PolarsRelationSystem
+
+
+class _RegistryTestNode(RelationNode):
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+    value: str = "test"
+
+    def accept(self, visitor):
+        return "accept_fallback"
+
+
+class TestVisitorDispatch:
+    def test_visitor_dispatches_to_registered_handler(self):
+        called_with = []
+
+        def handler(node, visitor):
+            called_with.append(node)
+            return "from_registry"
+
+        RelationVisitRegistry.register(_RegistryTestNode, handler)
+        try:
+            visitor = UnifiedRelationVisitor(
+                relation_system=PolarsRelationSystem(),
+                expression_visitor=None,
+            )
+            result = visitor.visit(_RegistryTestNode())
+            assert result == "from_registry"
+            assert len(called_with) == 1
+        finally:
+            RelationVisitRegistry.unregister(_RegistryTestNode)
+
+    def test_visitor_falls_back_to_accept_when_not_registered(self):
+        visitor = UnifiedRelationVisitor(
+            relation_system=PolarsRelationSystem(),
+            expression_visitor=None,
+        )
+        node = _RegistryTestNode()
+        result = visitor.visit(node)
+        assert result == "accept_fallback"
+
+    def test_handler_exception_includes_node_type(self):
+        def bad_handler(node, visitor):
+            raise RuntimeError("something broke")
+
+        RelationVisitRegistry.register(_RegistryTestNode, bad_handler)
+        try:
+            visitor = UnifiedRelationVisitor(
+                relation_system=PolarsRelationSystem(),
+                expression_visitor=None,
+            )
+            with pytest.raises(RuntimeError, match="_RegistryTestNode"):
+                visitor.visit(_RegistryTestNode())
+        finally:
+            RelationVisitRegistry.unregister(_RegistryTestNode)

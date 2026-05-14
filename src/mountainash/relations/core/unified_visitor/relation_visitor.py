@@ -42,7 +42,17 @@ class UnifiedRelationVisitor:
         self.ref_resolver = ref_resolver
 
     def visit(self, node: RelationNode) -> Any:
-        """Dispatch to the appropriate visit method via double-dispatch."""
+        """Dispatch to registered handler or fall back to accept()."""
+        from .visit_registry import RelationVisitRegistry
+
+        handler = RelationVisitRegistry.get(type(node))
+        if handler is not None:
+            try:
+                return handler(node, self)
+            except Exception as e:
+                raise type(e)(
+                    f"Error in registered handler for {type(node).__name__}: {e}"
+                ) from e
         return node.accept(self)
 
     def visit_read_rel(self, node: ReadRelNode) -> Any:

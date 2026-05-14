@@ -52,3 +52,18 @@ class RelationVisitRegistry:
     @classmethod
     def unregister(cls, node_type: type) -> None:
         cls._handlers.pop(node_type, None)
+
+
+def _protect_substrait_nodes() -> None:
+    from ..relation_nodes import (
+        ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
+        FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
+    )
+    from ..relation_nodes.extensions_mountainash import ExtensionRelNode
+    _protect(
+        ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
+        FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
+        ExtensionRelNode,
+    )
+
+_protect_substrait_nodes()
