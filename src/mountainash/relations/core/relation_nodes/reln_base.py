@@ -7,9 +7,11 @@ Substrait's relational algebra.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 
 from pydantic import BaseModel, ConfigDict
+
+from mountainash.core.constants import CONST_BACKEND
 
 
 class RelationNode(BaseModel, ABC):
@@ -37,10 +39,7 @@ class RelationNode(BaseModel, ABC):
         arbitrary_types_allowed=True,
     )
 
-    # Subclasses that are leaf nodes producing Polars LazyFrames should set
-    # this to True so that backend detection in RelationBase treats them like
-    # SourceRelNode (no ReadRelNode child, defaults to Polars backend).
-    _polars_leaf_node: ClassVar[bool] = False
+    _leaf_backend: ClassVar[Optional[CONST_BACKEND]] = None
 
     @abstractmethod
     def accept(self, visitor: Any) -> Any:

@@ -64,3 +64,24 @@ class TestProtection:
     def test_unprotected_node_type_registers_normally(self):
         RelationVisitRegistry.register(_AnotherFakeNode, lambda n, v: "ok")
         assert RelationVisitRegistry.get(_AnotherFakeNode) is not None
+
+
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.core.relation_nodes.reln_base import RelationNode
+
+
+class _LeafNodeWithBackend(RelationNode):
+    """Test subclass verifying _leaf_backend ClassVar override.
+
+    Intentionally left abstract (accept not implemented) so the wiring audit
+    skips it via inspect.isabstract().
+    """
+    _leaf_backend = CONST_BACKEND.POLARS
+
+
+class TestLeafBackend:
+    def test_leaf_backend_default_is_none(self):
+        assert RelationNode._leaf_backend is None
+
+    def test_leaf_backend_subclass_override(self):
+        assert _LeafNodeWithBackend._leaf_backend == CONST_BACKEND.POLARS
