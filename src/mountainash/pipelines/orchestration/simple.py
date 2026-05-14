@@ -95,6 +95,9 @@ class SimplePipelineRunner:
             resolution_timestamp=datetime.now(),
         )
 
+    def as_executor(self) -> _RunnerExecutorAdapter:
+        return _RunnerExecutorAdapter(self)
+
     def _check_empty(self, step_name: str, data: Any, policy: EmptyPolicy) -> None:
         is_empty = (
             (isinstance(data, list) and len(data) == 0)
@@ -109,3 +112,21 @@ class SimplePipelineRunner:
             raise StepEmptyError(f"Step '{step_name}' returned empty data")
         elif policy == EmptyPolicy.WARN:
             logger.warning("Step '%s' returned empty data", step_name)
+
+
+class _RunnerExecutorAdapter:
+    def __init__(self, runner: SimplePipelineRunner) -> None:
+        self._runner = runner
+
+    def execute(
+        self,
+        pipeline: PipelineSpec,
+        step_name: str,
+        predicates: PushedPredicates,
+        data_key: str | None,
+    ) -> Any:
+        results = self._runner.run(predicates=predicates)
+        target = data_key or step_name
+        if target not in results:
+            raise KeyError(f"Step '{target}' not found in pipeline results")
+        return results[target].data
