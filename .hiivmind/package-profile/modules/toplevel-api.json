@@ -1,0 +1,31 @@
+{
+  "id": "toplevel",
+  "path": "src/mountainash/__init__.py",
+  "summary": "Top-level package API: re-exports all user-facing symbols (col, lit, when, relation, conform, datacontract, TypeSpec, DataPackage, RelationDAG, etc.). Single import entry point.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "broader-hype"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [],
+  "key_functions": [],
+  "dependencies": ["expressions", "relations.core.relation_api", "relations.dag", "typespec", "conform", "datacontracts", "pydata.ingress", "pydata.egress", "core"],
+  "dependents": [],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

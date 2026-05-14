@@ -1,0 +1,31 @@
+{
+  "id": "typespec",
+  "path": "src/mountainash/typespec/",
+  "summary": "Universal type system: TypeSpec/FieldSpec for schema metadata, UniversalType enum for cross-backend type mapping, extraction from DataFrames/dataclasses/Pydantic, validation, Frictionless format support, and DataPackage container.",
+  "role": "model",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "contributors", "extension-authors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["TypeSpec", "FieldSpec", "FieldConstraints", "UniversalType", "ForeignKey", "ForeignKeyReference", "CustomTypeRegistry", "DataPackage", "DataResource", "TableDialect", "SchemaValidationError"],
+  "key_functions": ["extract_from_dataframe", "extract_from_dataclass", "extract_from_pydantic", "validate_match", "assert_match", "to_polars_schema", "to_pandas_dtypes", "to_arrow_schema", "to_ibis_schema", "typespec_from_frictionless", "compare_specs"],
+  "dependencies": ["core"],
+  "dependents": ["conform", "relations.dag", "datacontracts", "toplevel"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

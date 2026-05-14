@@ -1,0 +1,70 @@
+{
+  "id": "expressions.core.expression_api",
+  "path": "src/mountainash/expressions/core/expression_api/",
+  "summary": "Fluent expression API with BaseExpressionAPI, BooleanExpressionAPI, namespace descriptors (.str, .dt, .name), and factory functions (col, lit, when, coalesce, etc.)",
+  "role": "api-builder",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "contributors", "extension-authors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "BaseExpressionAPI",
+    "BooleanExpressionAPI",
+    "DatetimeAPIBuilder",
+    "StringAPIBuilder",
+    "StructAPIBuilder",
+    "ListAPIBuilder",
+    "NamespaceDescriptor"
+  ],
+  "key_functions": [
+    "col",
+    "lit",
+    "duration",
+    "coalesce",
+    "greatest",
+    "least",
+    "when",
+    "native",
+    "t_col",
+    "always_true",
+    "always_false",
+    "always_unknown",
+    "count_records",
+    "corr",
+    "median",
+    "quantile"
+  ],
+  "dependencies": [
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_system"
+  ],
+  "dependents": [
+    "relations.core.relation_api",
+    "conform"
+  ],
+  "extension_points": [
+    "API builders can be extended for new operation categories"
+  ],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/__init__.py",
+      "detail": "Re-exports col, lit, when, coalesce etc."
+    }
+  ],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

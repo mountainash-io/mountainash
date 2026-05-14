@@ -1,0 +1,31 @@
+{
+  "id": "relations.core.relation_api",
+  "path": "src/mountainash/relations/core/relation_api/",
+  "summary": "Fluent relation API: Relation class (method chaining for filter/sort/join/group_by/head/select/etc.), GroupedRelation, relation() factory, concat() function, and RelationProjectionBuilder.",
+  "role": "api-builder",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["Relation", "GroupedRelation", "RelationBase", "BaseRelationAPIBuilder", "RelationProjectionBuilder"],
+  "key_functions": ["relation", "concat"],
+  "dependencies": ["relations.core.relation_nodes", "expressions.core.expression_api"],
+  "dependents": ["relations.dag", "conform"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "audience": "users",
+  "summary": "What users import, configure, call, and learn first. Mountainash users write expressions via col/lit/when, build relational pipelines via relation(), conform DataFrames to schemas, and work with DataPackages.",
+  "concepts": [
+    {"name": "Expression API", "module_ids": ["toplevel", "expressions.core.expression_api"], "recommended_docs": ["Getting started with col/lit/when", "Namespace operations (.str, .dt, .name)", "Ternary logic (t_col, always_true)"], "evidence": ["Re-exported from __init__.py"]},
+    {"name": "Relation API", "module_ids": ["toplevel", "relations.core.relation_api"], "recommended_docs": ["Building pipelines with relation()", "GroupedRelation and aggregation", "Terminal operations (.to_polars, .collect)"], "evidence": ["Re-exported from __init__.py"]},
+    {"name": "TypeSpec and Schema", "module_ids": ["typespec"], "recommended_docs": ["Defining schemas with TypeSpec", "Type extraction from DataFrames", "Schema validation"], "evidence": ["Public API"]},
+    {"name": "Data Conformance", "module_ids": ["conform"], "recommended_docs": ["ma.conform({...}).apply(df)", "TypeSpec-driven column transforms"], "evidence": ["Public API"]},
+    {"name": "DataPackage and DAG", "module_ids": ["relations.dag", "typespec"], "recommended_docs": ["Loading Frictionless DataPackages", "Multi-resource workflows with RelationDAG"], "evidence": ["Public API"]},
+    {"name": "Data Contracts", "module_ids": ["datacontracts"], "recommended_docs": ["Compiling contracts from TypeSpec", "Custom validation rules"], "evidence": ["Public API"]},
+    {"name": "Python Data I/O", "module_ids": ["pydata.ingress", "pydata.egress"], "recommended_docs": ["Converting Python objects to DataFrames", "Exporting DataFrames to Python types"], "evidence": ["Public API"]}
+  ],
+  "featured_modules": ["toplevel", "expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform", "relations.dag", "datacontracts"],
+  "hidden_or_internal_modules": ["core", "expressions.core.expression_nodes", "expressions.core.expression_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.core.relation_nodes", "relations.core.relation_protocols", "relations.core.unified_visitor", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
+  "documentation_plan": ["Quick start guide", "Expression cookbook", "Relation pipeline tutorial", "Schema management guide", "DataPackage workflow guide"],
+  "open_questions": ["How should cross-backend behavior differences be surfaced to users?", "What level of DataPackage detail belongs in user docs vs architecture docs?"]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "relations.core.relation_protocols",
+  "path": "src/mountainash/relations/core/relation_protocols/",
+  "summary": "Protocol classes defining relation backend obligations: 8 Substrait relation system protocols, 1 Mountainash extension protocol, RelationAPIProtocol, GroupedRelationAPIProtocol, RelationProjectionBuilderProtocol.",
+  "role": "protocol",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "extension-authors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [],
+  "key_functions": [],
+  "dependencies": ["relations.core.relation_nodes", "core"],
+  "dependents": ["relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

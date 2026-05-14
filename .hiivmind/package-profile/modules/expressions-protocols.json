@@ -1,0 +1,35 @@
+{
+  "id": "expressions.core.expression_protocols",
+  "path": "src/mountainash/expressions/core/expression_protocols/",
+  "summary": "Protocol classes defining backend obligations: 13 Substrait API builder protocols, 13 Mountainash extension protocols, 20 Substrait expression system protocols, 12 Mountainash expression system protocols.",
+  "role": "protocol",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "extension-authors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [],
+  "key_functions": [],
+  "dependencies": [
+    "expressions.core.expression_nodes"
+  ],
+  "dependents": [
+    "expressions.backends"
+  ],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

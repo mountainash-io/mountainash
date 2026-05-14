@@ -1,0 +1,36 @@
+{
+  "id": "expressions.backends.narwhals",
+  "path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
+  "summary": "Narwhals backend expression system: compiles AST to narwhals expressions for pandas/PyArrow portability. 15 Substrait + 12 extension files. Some operations marked as known limitations.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "NarwhalsExpressionSystem"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system"
+  ],
+  "dependents": [],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
