@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from mountainash_pipelines.core.result import StepMetadata, StepResult
+from mountainash.pipelines.core.result import StepMetadata, StepResult
 
 
 class FileSystemPipelineStorage:

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from mountainash_pipelines.core.result import StepResult
-from mountainash_pipelines.storage.memory import MemoryPipelineStorage
-from mountainash_pipelines.storage.filesystem import FileSystemPipelineStorage
+from mountainash.pipelines.core.result import StepResult
+from mountainash.pipelines.storage.memory import MemoryPipelineStorage
+from mountainash.pipelines.storage.filesystem import FileSystemPipelineStorage
 
 
 class DualPipelineStorage:

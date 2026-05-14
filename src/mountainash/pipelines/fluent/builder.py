@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Callable
 
-from mountainash_pipelines.core.capabilities import StepCapabilities
-from mountainash_pipelines.core.policies import EmptyPolicy, RetryConfig
-from mountainash_pipelines.core.spec import PipelineSpec
-from mountainash_pipelines.core.step import StepDefinition
+from mountainash.pipelines.core.capabilities import StepCapabilities
+from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
+from mountainash.pipelines.core.spec import PipelineSpec
+from mountainash.pipelines.core.step import StepDefinition
 
 
 class PipelineBuilder:

@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Callable
 
-from mountainash_pipelines.core.capabilities import ResolvedPredicates, StepCapabilities
-from mountainash_pipelines.core.policies import EmptyPolicy, RetryConfig
+from mountainash.pipelines.core.capabilities import ResolvedPredicates, StepCapabilities
+from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
 
 
 @dataclass

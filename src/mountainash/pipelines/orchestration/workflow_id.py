@@ -3,8 +3,8 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-from mountainash_pipelines.core.capabilities import ResolvedPredicates
-from mountainash_pipelines.core.cache_key import _serialize_for_hash
+from mountainash.pipelines.core.capabilities import ResolvedPredicates
+from mountainash.pipelines.core.cache_key import _serialize_for_hash
 
 
 def compute_workflow_id(

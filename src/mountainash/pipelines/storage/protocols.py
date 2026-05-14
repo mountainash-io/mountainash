@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Protocol
 
-from mountainash_pipelines.core.result import StepResult
+from mountainash.pipelines.core.result import StepResult
 
 
 class PipelineStorage(Protocol):

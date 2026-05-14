@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from mountainash_pipelines.core.result import StepResult
+from mountainash.pipelines.core.result import StepResult
 
 
 class MemoryPipelineStorage:

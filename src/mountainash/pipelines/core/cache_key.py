@@ -5,7 +5,7 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-from mountainash_pipelines.core.capabilities import ResolvedPredicates
+from mountainash.pipelines.core.capabilities import ResolvedPredicates
 
 
 def _serialize_for_hash(obj: Any) -> str:

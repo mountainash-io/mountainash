@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections import deque
 
-from mountainash_pipelines.core.step import StepDefinition
+from mountainash.pipelines.core.step import StepDefinition
 
 
 @dataclass(frozen=True)

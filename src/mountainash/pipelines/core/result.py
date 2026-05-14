@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from mountainash_pipelines.core.capabilities import ResolvedPredicates
+from mountainash.pipelines.core.capabilities import ResolvedPredicates
 
 
 @dataclass(frozen=True)

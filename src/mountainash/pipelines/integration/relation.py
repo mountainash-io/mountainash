@@ -8,8 +8,8 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
 from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
 
-from mountainash_pipelines.core.capabilities import PushedPredicates, StepCapabilities
-from mountainash_pipelines.core.spec import PipelineSpec
+from mountainash.pipelines.core.capabilities import PushedPredicates, StepCapabilities
+from mountainash.pipelines.core.spec import PipelineSpec
 
 
 class PipelineStepRelNode(RelationNode):

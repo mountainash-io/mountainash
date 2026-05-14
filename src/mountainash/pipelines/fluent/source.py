@@ -4,8 +4,8 @@ from typing import Any
 
 from mountainash.relations.core.relation_api.relation import Relation
 
-from mountainash_pipelines.core.spec import PipelineSpec
-from mountainash_pipelines.integration.relation import PipelineStepRelNode
+from mountainash.pipelines.core.spec import PipelineSpec
+from mountainash.pipelines.integration.relation import PipelineStepRelNode
 
 
 def source(

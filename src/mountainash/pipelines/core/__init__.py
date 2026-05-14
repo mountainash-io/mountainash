@@ -1,4 +1,4 @@
-from mountainash_pipelines.core.capabilities import (
+from mountainash.pipelines.core.capabilities import (
     DateRangeCapability,
     FieldSelectionCapability,
     LimitCapability,
@@ -8,9 +8,9 @@ from mountainash_pipelines.core.capabilities import (
     ResolvedPredicates,
     StepCapabilities,
 )
-from mountainash_pipelines.core.policies import EmptyPolicy, RetryConfig
-from mountainash_pipelines.core.result import StepMetadata, StepResult
-from mountainash_pipelines.core.step import StepContext, StepDefinition, step
+from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
+from mountainash.pipelines.core.result import StepMetadata, StepResult
+from mountainash.pipelines.core.step import StepContext, StepDefinition, step
 
 __all__ = [
     "DateRangeCapability",

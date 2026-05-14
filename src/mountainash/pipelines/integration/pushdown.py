@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from mountainash_pipelines.core.capabilities import PaginationHint, PushedPredicates
-from mountainash_pipelines.integration.relation import PipelineStepRelNode
+from mountainash.pipelines.core.capabilities import PaginationHint, PushedPredicates
+from mountainash.pipelines.integration.relation import PipelineStepRelNode
 
 
 def apply_pushdown(node: Any) -> Any:
