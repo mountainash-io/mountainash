@@ -24,4 +24,4 @@ class RefRelNode(RelationNode):
     output_schema: Optional[Any] = None
 
     def accept(self, visitor: Any) -> Any:
-        return visitor.visit_ref_rel(self)
+        return visitor.visit(self)

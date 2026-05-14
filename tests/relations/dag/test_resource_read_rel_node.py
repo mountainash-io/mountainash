@@ -11,10 +11,11 @@ def test_resource_read_rel_node_holds_resource():
 
 
 def test_resource_read_rel_node_dispatches():
+    """ResourceReadRelNode.accept() routes through visitor.visit() (registry dispatch)."""
     seen = []
 
     class V:
-        def visit_resource_read_rel(self, node):
+        def visit(self, node):
             seen.append(node.resource.name)
             return "visited"
 

@@ -39,13 +39,13 @@ def _make_polars_visitor(ref_resolver=None):
 def test_ref_without_resolver_raises():
     visitor = _make_polars_visitor()
     with pytest.raises(RelationDAGRequired):
-        visitor.visit_ref_rel(RefRelNode(name="orders"))
+        visitor.visit(RefRelNode(name="orders"))
 
 
 def test_ref_with_resolver_returns_cached_value():
     cached = pl.DataFrame({"x": [1, 2]}).lazy()
     visitor = _make_polars_visitor(ref_resolver=lambda n: cached)
-    result = visitor.visit_ref_rel(RefRelNode(name="orders"))
+    result = visitor.visit(RefRelNode(name="orders"))
     assert result.collect()["x"].to_list() == [1, 2]
 
 
@@ -59,7 +59,7 @@ def test_ref_resolver_receives_correct_name():
         return cached
 
     visitor = _make_polars_visitor(ref_resolver=resolver)
-    visitor.visit_ref_rel(RefRelNode(name="customers"))
+    visitor.visit(RefRelNode(name="customers"))
     assert called_with == ["customers"]
 
 
@@ -70,7 +70,7 @@ def test_ref_resolver_receives_correct_name():
 def test_resource_read_rel_loads_inline_data():
     visitor = _make_polars_visitor()
     res = DataResource(name="orders", data=[{"a": 1}, {"a": 2}], format="json")
-    result = visitor.visit_resource_read_rel(ResourceReadRelNode(resource=res))
+    result = visitor.visit(ResourceReadRelNode(resource=res))
     df = result.collect() if isinstance(result, pl.LazyFrame) else result
     assert df["a"].to_list() == [1, 2]
 
@@ -80,7 +80,7 @@ def test_resource_read_rel_loads_csv_path(tmp_path):
     p.write_text("a,b\n1,2\n3,4\n")
     visitor = _make_polars_visitor()
     res = DataResource(name="t", path=str(p), format="csv")
-    result = visitor.visit_resource_read_rel(ResourceReadRelNode(resource=res))
+    result = visitor.visit(ResourceReadRelNode(resource=res))
     df = result.collect() if isinstance(result, pl.LazyFrame) else result
     assert df.shape == (2, 2)
 

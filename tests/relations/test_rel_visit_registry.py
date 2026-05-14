@@ -156,3 +156,42 @@ class TestVisitorDispatch:
                 visitor.visit(_RegistryTestNode())
         finally:
             RelationVisitRegistry.unregister(_RegistryTestNode)
+
+
+from mountainash.relations.core.unified_visitor._core_handlers import (
+    _visit_ref_rel,
+    _visit_resource_read_rel,
+    _visit_source_rel,
+)
+from mountainash.relations.dag.errors import RelationDAGRequired
+
+
+class TestCoreHandlers:
+    def test_visit_ref_rel_no_resolver_raises(self):
+        from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
+        node = RefRelNode(name="orders")
+        visitor = UnifiedRelationVisitor(
+            relation_system=PolarsRelationSystem(),
+            expression_visitor=None,
+        )
+        with pytest.raises(RelationDAGRequired):
+            _visit_ref_rel(node, visitor)
+
+    def test_visit_ref_rel_with_resolver(self):
+        from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
+        node = RefRelNode(name="orders")
+        visitor = UnifiedRelationVisitor(
+            relation_system=PolarsRelationSystem(),
+            expression_visitor=None,
+            ref_resolver=lambda name: f"resolved:{name}",
+        )
+        result = _visit_ref_rel(node, visitor)
+        assert result == "resolved:orders"
+
+    def test_core_handlers_registered_on_first_get(self):
+        from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
+        from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_resource_read import ResourceReadRelNode
+        handler = RelationVisitRegistry.get(RefRelNode)
+        assert handler is _visit_ref_rel
+        handler2 = RelationVisitRegistry.get(ResourceReadRelNode)
+        assert handler2 is _visit_resource_read_rel

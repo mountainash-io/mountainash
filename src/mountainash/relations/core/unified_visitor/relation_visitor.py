@@ -59,13 +59,6 @@ class UnifiedRelationVisitor:
         """Visit a read (scan) node."""
         return self.backend.read(node.dataframe)
 
-    def visit_source_rel(self, node: Any) -> Any:
-        """Visit a source node — materialize Python data into a DataFrame."""
-        from mountainash.pydata.ingress.pydata_ingress import PydataIngress
-
-        df = PydataIngress.convert(node.data)
-        return self.backend.read(df)
-
     def visit_project_rel(self, node: ProjectRelNode) -> Any:
         """Visit a project node — dispatches on ProjectOperation variant."""
         relation = self.visit(node.input)
@@ -142,37 +135,6 @@ class UnifiedRelationVisitor:
         method_name = node.operation.name.lower()
         method = getattr(self.backend, method_name)
         return method(relation, **node.options)
-
-    def visit_ref_rel(self, node: Any) -> Any:
-        """Visit a ref node — resolves via ref_resolver or raises RelationDAGRequired."""
-        if self.ref_resolver is None:
-            from mountainash.relations.dag.errors import RelationDAGRequired
-            raise RelationDAGRequired(
-                f"RefRelNode({node.name!r}) cannot be compiled standalone — "
-                "use RelationDAG.collect() or supply ref_resolver explicitly"
-            )
-        return self.ref_resolver(node.name)
-
-    def visit_resource_read_rel(self, node: Any) -> Any:
-        """Visit a resource-read node — delegates to backend's read_resource."""
-        out = self.backend.read_resource(node.resource)
-        if node.resource.table_schema is not None:
-            out = self.apply_conform(out, node.resource.table_schema)
-        return out
-
-    def visit_pipeline_step_rel(self, node: Any) -> Any:
-        """Visit a pipeline-step node — delegates to node's executor."""
-        if node.executor is None:
-            raise ValueError(
-                f"No executor provided for PipelineStepRelNode '{node.step_name}'. "
-                f"Pass an executor via source(..., executor=runner) or dag.add(..., executor=runner)."
-            )
-        return node.executor.execute(
-            pipeline=node.pipeline,
-            step_name=node.step_name,
-            predicates=node.pushed_predicates,
-            data_key=node.data_key,
-        )
 
     def apply_conform(self, native: Any, schema: Any) -> Any:
         """Apply conform from a TypeSpec or raw frictionless schema dict.

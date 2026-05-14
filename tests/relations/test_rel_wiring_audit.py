@@ -59,7 +59,16 @@ class TestVisitorCoversAllNodes:
             if name.startswith("visit_") and name != "visit"
         }
 
-        missing = expected_methods - visitor_methods
+        # Also accept node types handled via the registry
+        from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
+        registry_covered: set[str] = set()
+        for node_cls in all_nodes:
+            if RelationVisitRegistry.get(node_cls) is not None:
+                stem = node_cls.__name__.removesuffix("Node")
+                method_name = f"visit_{_camel_to_snake(stem)}"
+                registry_covered.add(method_name)
+
+        missing = expected_methods - visitor_methods - registry_covered
         assert not missing, (
             f"UnifiedRelationVisitor is missing methods for node types: {sorted(missing)}"
         )

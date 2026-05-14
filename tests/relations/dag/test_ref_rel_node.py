@@ -15,11 +15,12 @@ def test_ref_rel_node_with_schema_dict():
     assert node.output_schema == schema
 
 
-def test_ref_rel_node_dispatches_to_visit_ref_rel():
+def test_ref_rel_node_dispatches_to_visit():
+    """RefRelNode.accept() routes through visitor.visit() (registry dispatch)."""
     seen = []
 
     class V:
-        def visit_ref_rel(self, node):
+        def visit(self, node):
             seen.append(node.name)
             return "visited"
 
