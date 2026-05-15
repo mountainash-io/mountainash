@@ -61,7 +61,12 @@ class DbosPipelineRunner:
         predicates: PushedPredicates | None = None,
         config: dict[str, Any] | None = None,
         force: bool = False,
+        target: str | None = None,
     ) -> dict[str, StepResult]:
+        if target is not None and target not in self._spec.steps:
+            raise ValueError(
+                f"Target step '{target}' not found in pipeline '{self._spec.name}'"
+            )
         merged_config = {**self._config, **(config or {})}
         resolved = self._resolve_predicates(predicates)
 
@@ -83,6 +88,7 @@ class DbosPipelineRunner:
                 user_id=self._user_id,
                 resolved_predicates=resolved,
                 config=merged_config,
+                target=target,
             )
 
     def _resolve_predicates(self, pushed: PushedPredicates | None) -> ResolvedPredicates:
@@ -105,11 +111,12 @@ def _dbos_run_pipeline(
     user_id: str,
     resolved_predicates: ResolvedPredicates,
     config: dict[str, Any],
+    target: str | None = None,
 ) -> dict[str, StepResult]:
     deps = _global_registry.resolve(spec_name, user_id)
     spec: PipelineSpec = deps["spec"]
 
-    order = spec.topological_order()
+    order = spec.topological_order(target=target)
     layers = spec.parallel_layers(order)
     results: dict[str, StepResult] = {}
 

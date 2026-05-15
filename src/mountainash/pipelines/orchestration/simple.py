@@ -36,11 +36,16 @@ class SimplePipelineRunner:
         predicates: PushedPredicates | None = None,
         config: dict[str, Any] | None = None,
         force: bool = False,
+        target: str | None = None,
     ) -> dict[str, StepResult]:
+        if target is not None and target not in self._spec.steps:
+            raise ValueError(
+                f"Target step '{target}' not found in pipeline '{self._spec.name}'"
+            )
         merged_config = {**self._config, **(config or {})}
         resolved = self._resolve_predicates(predicates)
 
-        order = self._spec.topological_order()
+        order = self._spec.topological_order(target=target)
         results: dict[str, StepResult] = {}
 
         for step_name in order:
