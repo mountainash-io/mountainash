@@ -81,7 +81,6 @@ def compile_conform(spec: TypeSpec, df: Any) -> Any:
 
     if spec.unnest_fields:
         import polars as pl
-        from mountainash.typespec.spec import UnnestConfig
         polars_df = df if isinstance(df, pl.DataFrame) else pl.from_pandas(df)
         for entry in spec.unnest_fields:
             if isinstance(entry, str):
