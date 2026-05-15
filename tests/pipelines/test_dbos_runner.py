@@ -86,3 +86,41 @@ def test_dbos_runner_force_reruns():
     r2 = runner.run(force=True)
 
     assert r1["transform"].data == r2["transform"].data
+
+
+def test_dbos_runner_target_step():
+    @step(name="root")
+    def root(ctx: StepContext) -> list[dict]:
+        return [{"x": 1}]
+
+    @step(name="left", depends_on=["root"])
+    def left(ctx: StepContext, root: list[dict]) -> list[dict]:
+        return [{"left": r["x"] + 1} for r in root]
+
+    @step(name="right", depends_on=["root"])
+    def right(ctx: StepContext, root: list[dict]) -> list[dict]:
+        return [{"right": r["x"] * 2} for r in root]
+
+    spec = PipelineSpec(
+        name="test_dbos_target",
+        version="1.0.0",
+        steps={
+            "root": root._step_definition,
+            "left": left._step_definition,
+            "right": right._step_definition,
+        },
+    )
+    storage = MemoryPipelineStorage()
+    runner = DbosPipelineRunner(spec=spec, storage=storage, user_id="target_user")
+    results = runner.run(target="left")
+    assert "root" in results
+    assert "left" in results
+    assert "right" not in results
+
+
+def test_dbos_runner_target_nonexistent():
+    spec = _build_spec()
+    storage = MemoryPipelineStorage()
+    runner = DbosPipelineRunner(spec=spec, storage=storage, user_id="target_err_user")
+    with pytest.raises(ValueError, match="not found"):
+        runner.run(target="nonexistent")
