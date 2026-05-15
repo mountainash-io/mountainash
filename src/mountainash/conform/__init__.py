@@ -1,9 +1,11 @@
-"""Conform — compile type specifications to relation/expression operations.
+"""Conform — shared expression builder for TypeSpec conformance.
 
-Provides ConformBuilder, the user-facing DSL for conforming DataFrames
-to a TypeSpec via the mountainash relations/expressions layer.
+The primary API is Relation.conform(spec). This module provides the
+internal _build_conform_exprs helper used by both Relation.conform()
+and the DAG visitor's apply_conform.
 """
 from __future__ import annotations
-from mountainash.conform.builder import ConformBuilder
 
-__all__ = ["ConformBuilder"]
+from mountainash.conform.expressions import _build_conform_exprs
+
+__all__ = ["_build_conform_exprs"]

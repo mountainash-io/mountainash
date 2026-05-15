@@ -32,7 +32,7 @@ def separate_conversions(
         - python_only: Fields with a custom_cast that has no Narwhals implementation
           (row-by-row Python conversion required)
         - narwhals: Fields with a custom_cast that has a vectorized Narwhals implementation
-        - native: All other fields (no custom cast — handled by compile_conform)
+        - native: All other fields (no custom cast — handled by Relation.conform())
 
     Example:
         >>> spec = TypeSpec(fields=[
@@ -51,7 +51,7 @@ def separate_conversions(
         cast_type = field.custom_cast
 
         if cast_type is None:
-            # No custom cast — route to native (compile_conform handles type + rename)
+            # No custom cast — route to native (Relation.conform() handles type + rename)
             native[field.source_name] = field
             continue
 
@@ -61,7 +61,7 @@ def separate_conversions(
             else:
                 python_only[field.source_name] = field
         else:
-            # Unknown custom_cast — treat as native and let compile_conform handle it
+            # Unknown custom_cast — treat as native and let Relation.conform() handle it
             native[field.source_name] = field
 
     return python_only, narwhals, native
@@ -156,7 +156,7 @@ def apply_native_conversions_to_dataframe(
     This is TIER 1 (DataFrame layer) of the hybrid strategy:
     - Apply ONLY native conversions (string→int, float→bool)
     - Use vectorized operations (MUCH FASTER - 12x!)
-    - Apply other native operations (rename, null_fill) via compile_conform
+    - Apply other native operations (rename, null_fill) via Relation.conform()
 
     Args:
         df: Polars DataFrame
@@ -212,19 +212,19 @@ def apply_native_conversions_to_dataframe(
                         "Keeping original type."
                     )
 
-    # Apply other native operations (rename, null_fill) via compile_conform
+    # Apply other native operations (rename, null_fill) via Relation.conform()
+    import mountainash as ma
     from mountainash.typespec.spec import TypeSpec
-    from mountainash.conform.compiler import compile_conform
 
     native_spec = TypeSpec(
         fields=[f for f in native_conversions.values()],
         keep_only_mapped=False,
     )
     try:
-        df = compile_conform(native_spec, df)
+        df = ma.relation(df).conform(native_spec).to_polars()
     except Exception as e:
         logger.warning(
-            f"Error applying native operations via compile_conform: {e}. "
+            f"Error applying native operations via Relation.conform(): {e}. "
             "DataFrame may not have all operations applied."
         )
 
@@ -308,7 +308,7 @@ def apply_hybrid_conversion(
         - Apply NARWHALS CUSTOM converters (vectorized expressions, 2.5-10x faster!)
 
     TIER 1 (DataFrame Layer - CENTER):
-        - Apply NATIVE conversions (string→int, vectorized via compile_conform)
+        - Apply NATIVE conversions (string→int, vectorized via Relation.conform())
         - Apply other native operations (rename, null_fill)
 
     Args:
@@ -349,20 +349,20 @@ def apply_hybrid_conversion(
         df = _apply_narwhals_custom_converters(df, narwhals_custom)
         logger.debug(f"Applied {len(narwhals_custom)} Narwhals custom converters (vectorized)")
 
-    # STEP 5: Apply NATIVE operations via compile_conform (TIER 1)
+    # STEP 5: Apply NATIVE operations via Relation.conform() (TIER 1)
     if native:
+        import mountainash as ma
         from mountainash.typespec.spec import TypeSpec
-        from mountainash.conform.compiler import compile_conform
 
         native_spec = TypeSpec(
             fields=[f for f in native.values()],
             keep_only_mapped=False,
         )
         try:
-            df = compile_conform(native_spec, df)
+            df = ma.relation(df).conform(native_spec).to_polars()
         except Exception as e:
             logger.warning(
-                f"Error applying native operations via compile_conform: {e}. "
+                f"Error applying native operations via Relation.conform(): {e}. "
                 "DataFrame may not have all operations applied."
             )
 

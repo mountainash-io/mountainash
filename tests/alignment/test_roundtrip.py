@@ -97,13 +97,20 @@ class TestRoundTripWithSchema:
         # Raw data with string ages
         df = pl.DataFrame({"age": ["30", "25"], "name": ["Alice", "Bob"]})
 
-        # Apply conform to cast types
-        transformed = ma.conform({"age": {"cast": "integer"}}).apply(df)
+        # Apply conform to cast types, then filter
+        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import UniversalType
 
-        # Then use relation for further transforms
-        result = ma.relation(transformed).filter(
-            ma.col("age").gt(28)
-        ).to_dicts()
+        spec = TypeSpec(
+            fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
+            keep_only_mapped=False,
+        )
+        result = (
+            ma.relation(df)
+            .conform(spec)
+            .filter(ma.col("age").gt(28))
+            .to_dicts()
+        )
 
         assert len(result) == 1
         assert result[0]["name"] == "Alice"

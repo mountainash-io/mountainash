@@ -82,8 +82,8 @@ def apply_native_conversions_for_egress(
             fields=conform_fields,
             keep_only_mapped=spec.keep_only_mapped
         )
-        from mountainash.conform.compiler import compile_conform
-        df = compile_conform(conform_spec, df)
+        import mountainash as ma
+        df = ma.relation(df).conform(conform_spec).to_polars()
     elif not isinstance(df, pl.DataFrame):
         import mountainash as ma
         df = ma.relation(df).to_polars()
