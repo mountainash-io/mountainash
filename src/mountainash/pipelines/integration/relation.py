@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar, TYPE_CHECKING
+from typing import Any, ClassVar
 
 from pydantic import ConfigDict
 
@@ -10,9 +10,6 @@ from mountainash.relations.core.unified_visitor.visit_registry import RelationVi
 
 from mountainash.pipelines.core.capabilities import PushedPredicates, StepCapabilities
 
-if TYPE_CHECKING:
-    from mountainash.pipelines.core.spec import PipelineSpec
-
 
 class PipelineStepRelNode(RelationNode):
     model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
@@ -20,7 +17,7 @@ class PipelineStepRelNode(RelationNode):
     _leaf_backend: ClassVar[CONST_BACKEND | None] = CONST_BACKEND.POLARS
 
     step_name: str
-    pipeline: PipelineSpec
+    pipeline: Any  # PipelineSpec at runtime; Any to avoid Pydantic forward-ref resolution
     data_key: str | None = None
     executor: Any | None = None
     capabilities: StepCapabilities = StepCapabilities()
