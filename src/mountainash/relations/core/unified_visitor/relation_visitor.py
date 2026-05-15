@@ -137,29 +137,29 @@ class UnifiedRelationVisitor:
         return method(relation, **node.options)
 
     def apply_conform(self, native: Any, schema: Any) -> Any:
-        """Apply conform from a TypeSpec or raw frictionless schema dict.
+        """Apply conform from a TypeSpec or raw Frictionless schema dict.
 
-        ``compile_conform`` always returns a Polars DataFrame; wrap back to
-        LazyFrame so this method's return type is consistent with the Polars
-        path of ``visit_resource_read_rel``.
-
-        For non-Polars backends, conform is deferred.
-        # TODO: conform on non-Polars backends (narwhals, ibis)
+        Uses the shared _build_conform_exprs helper to build expressions,
+        then compiles them against the native backend object. Works for
+        all backends (Polars, Ibis, Narwhals).
         """
-        cls_name = type(self.backend).__name__
-        if "Narwhals" in cls_name or "Ibis" in cls_name:
-            # Conform on non-Polars backends is not yet supported.
-            return native
         if isinstance(schema, dict):
             from mountainash.typespec.frictionless import typespec_from_frictionless
             schema = typespec_from_frictionless(schema)
-        from mountainash.conform.compiler import compile_conform
-        import polars as pl
-        # compile_conform returns a Polars DataFrame; re-wrap as LazyFrame
-        result_df = compile_conform(schema, native)
-        if isinstance(result_df, pl.DataFrame):
-            return result_df.lazy()
-        return result_df
+
+        from mountainash.conform.expressions import _build_conform_exprs
+        import mountainash as ma
+
+        if hasattr(native, "collect_schema"):
+            source_cols = native.collect_schema().names()
+        elif hasattr(native, "columns"):
+            source_cols = list(native.columns)
+        else:
+            source_cols = []
+        exprs = _build_conform_exprs(schema, source_cols)
+
+        conformed = ma.relation(native).select(*exprs)
+        return conformed._compile_and_execute()
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:
         """Visit the right side of a join, coercing to match the left's type if needed.
