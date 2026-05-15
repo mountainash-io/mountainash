@@ -79,6 +79,26 @@ def compile_conform(spec: TypeSpec, df: Any) -> Any:
         MountainashDtype.FP32, MountainashDtype.FP64,
     }
 
+    if spec.unnest_fields:
+        import polars as pl
+        polars_df = df if isinstance(df, pl.DataFrame) else pl.from_pandas(df)
+        for entry in spec.unnest_fields:
+            if isinstance(entry, str):
+                col_name, prefix = entry, ""
+            else:
+                col_name, prefix = entry.column, entry.prefix
+            if col_name not in polars_df.columns:
+                continue
+            if prefix:
+                struct_fields = polars_df[col_name].struct.fields
+                prefixed = pl.col(col_name).struct.rename_fields(
+                    [f"{prefix}{f}" for f in struct_fields]
+                )
+                polars_df = polars_df.with_columns(prefixed).unnest(col_name)
+            else:
+                polars_df = polars_df.unnest(col_name)
+        df = polars_df
+
     r = ma.relation(df)
     source_columns = _get_source_columns(df)
 
