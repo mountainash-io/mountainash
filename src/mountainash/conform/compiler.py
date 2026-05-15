@@ -175,3 +175,32 @@ def compile_conform(spec: TypeSpec, df: Any) -> Any:
                 mapped_exprs.append(ma.col(col_name))
 
     return r.select(*mapped_exprs).to_polars()
+
+
+def compile_conform_with_skipped(spec: "TypeSpec", df: Any) -> tuple:
+    """Compile and execute conformance, separating skipped records.
+
+    Records with null values in any of spec.required_fields are moved
+    to the skipped DataFrame.
+
+    Returns:
+        (conformed_df, skipped_df) — both are Polars DataFrames
+    """
+    import polars as pl
+
+    if not spec.required_fields:
+        return compile_conform(spec, df), pl.DataFrame()
+
+    polars_df = df if isinstance(df, pl.DataFrame) else pl.from_pandas(df)
+
+    # Build a mask of rows that satisfy all required field conditions
+    mask = pl.lit(True)
+    for req_field in spec.required_fields:
+        if req_field in polars_df.columns:
+            mask = mask & polars_df[req_field].is_not_null()
+
+    kept_df = polars_df.filter(mask)
+    skipped_df = polars_df.filter(~mask)
+
+    conformed = compile_conform(spec, kept_df)
+    return conformed, skipped_df
