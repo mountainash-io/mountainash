@@ -32,14 +32,13 @@ class TestVisitorApplyConform:
             fields=[
                 FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id"),
             ],
-            keep_only_mapped=False,
         )
 
         result = visitor.apply_conform(lf, spec)
         assert hasattr(result, "collect")
         df = result.collect()
         assert df["user_id"].to_list() == [1, 2]
-        assert "extra" in df.columns
+        assert "extra" not in df.columns
 
     def test_apply_conform_from_dict(self):
         """apply_conform accepts a raw Frictionless schema dict."""
@@ -66,7 +65,6 @@ class TestVisitorApplyConform:
             "fields": [
                 {"name": "user_id", "type": "integer", "x-mountainash": {"rename_from": "raw_id"}},
             ],
-            "x-mountainash": {"keep_only_mapped": True},
         }
 
         result = visitor.apply_conform(lf, schema_dict)

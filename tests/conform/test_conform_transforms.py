@@ -24,7 +24,6 @@ class TestConformCast:
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, 2, 3]
@@ -33,7 +32,6 @@ class TestConformCast:
         df = backend_factory.create({"val": ["1.5", "2.5", "3.5"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.NUMBER)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1.5, 2.5, 3.5]
@@ -42,7 +40,6 @@ class TestConformCast:
         df = backend_factory.create({"val": ["hello", "world"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["hello", "world"]
@@ -54,20 +51,18 @@ class TestConformRename:
         df = backend_factory.create({"old_name": ["a", "b", "c"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="new_name", type=UniversalType.STRING, rename_from="old_name")],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["new_name"].to_list() == ["a", "b", "c"]
 
-    def test_rename_preserves_other_columns(self, backend_name, backend_factory):
+    def test_rename_drops_unmapped(self, backend_name, backend_factory):
         df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
-            keep_only_mapped=False,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert "new" in result.columns
-        assert "keep" in result.columns
+        assert "keep" not in result.columns
         assert "old" not in result.columns
 
 
@@ -77,7 +72,6 @@ class TestConformNullFill:
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
@@ -86,33 +80,21 @@ class TestConformNullFill:
         df = backend_factory.create({"val": ["x", None, "z"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.STRING, null_fill="unknown")],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["x", "unknown", "z"]
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-class TestConformKeepOnlyMapped:
-    def test_keep_only_mapped_drops_extra(self, backend_name, backend_factory):
+class TestConformOnlyMappedFields:
+    def test_conform_produces_only_spec_fields(self, backend_name, backend_factory):
         df = backend_factory.create({"keep": ["a", "b"], "drop": [1, 2]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
         assert "drop" not in result.columns
-
-    def test_keep_only_mapped_false_preserves_extra(self, backend_name, backend_factory):
-        df = backend_factory.create({"mapped": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="mapped", type=UniversalType.STRING)],
-            keep_only_mapped=False,
-        )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert "mapped" in result.columns
-        assert "extra" in result.columns
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -121,7 +103,6 @@ class TestConformMultiTransform:
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2, 3]
@@ -139,12 +120,11 @@ class TestConformMultiTransform:
                 FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
                 FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
             ],
-            keep_only_mapped=False,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == [1.5, 0.0, 3.5]
         assert result["label"].to_list() == ["foo", "bar", "n/a"]
-        assert "extra" in result.columns
+        assert "extra" not in result.columns
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -155,7 +135,6 @@ class TestConformFromFrictionless:
             "fields": [
                 {"name": "user_id", "type": "integer", "x-mountainash": {"rename_from": "raw_id"}},
             ],
-            "x-mountainash": {"keep_only_mapped": True},
         }
         spec = TypeSpec.from_frictionless(frictionless_data)
         result = ma.relation(df).conform(spec).to_polars()

@@ -23,7 +23,6 @@ class TestRelationConformBasic:
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2, 3]
@@ -35,26 +34,14 @@ class TestRelationConformBasic:
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
 
-    def test_keep_only_mapped_false(self, backend_name, backend_factory):
-        df = backend_factory.create({"mapped": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="mapped", type=UniversalType.STRING)],
-            keep_only_mapped=False,
-        )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert "mapped" in result.columns
-        assert "extra" in result.columns
-
-    def test_keep_only_mapped_true(self, backend_name, backend_factory):
+    def test_conform_produces_only_spec_fields(self, backend_name, backend_factory):
         df = backend_factory.create({"keep": ["a", "b"], "drop": [1, 2]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
@@ -67,7 +54,6 @@ class TestRelationConformComposition:
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-            keep_only_mapped=True,
         )
         result = (
             ma.relation(df)
@@ -81,7 +67,6 @@ class TestRelationConformComposition:
         df = backend_factory.create({"val": ["3", "1", "2"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-            keep_only_mapped=True,
         )
         result = (
             ma.relation(df)
@@ -105,7 +90,6 @@ class TestRelationConformStructAccess:
                 FieldSpec(name="id", type=UniversalType.INTEGER),
                 FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
             ],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["strain"].to_list() == [10.5, 8.2]
@@ -126,30 +110,21 @@ class TestRelationConformFullPipeline:
                 FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
                 FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
             ],
-            keep_only_mapped=False,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == [1.5, 0.0, 3.5]
         assert result["label"].to_list() == ["foo", "bar", "n/a"]
-        assert "extra" in result.columns
+        assert "extra" not in result.columns
 
 
 class TestRelationConformEdgeCases:
-    def test_empty_spec_keep_only_mapped_true(self):
+    def test_empty_spec_produces_no_columns(self):
         import polars as pl
 
         df = pl.DataFrame({"a": [1], "b": [2]})
-        spec = TypeSpec(fields=[], keep_only_mapped=True)
+        spec = TypeSpec(fields=[])
         result = ma.relation(df).conform(spec).to_polars()
         assert len(result.columns) == 0
-
-    def test_empty_spec_keep_only_mapped_false(self):
-        import polars as pl
-
-        df = pl.DataFrame({"a": [1], "b": [2]})
-        spec = TypeSpec(fields=[], keep_only_mapped=False)
-        result = ma.relation(df).conform(spec).to_polars()
-        assert set(result.columns) == {"a", "b"}
 
     def test_type_any_skips_cast(self):
         import polars as pl
@@ -157,7 +132,6 @@ class TestRelationConformEdgeCases:
         df = pl.DataFrame({"val": ["hello", "world"]})
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.ANY)],
-            keep_only_mapped=True,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["hello", "world"]

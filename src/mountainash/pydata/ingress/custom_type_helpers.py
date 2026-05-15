@@ -212,19 +212,18 @@ def apply_native_conversions_to_dataframe(
                         "Keeping original type."
                     )
 
-    # Apply other native operations (rename, null_fill) via Relation.conform()
+    # Apply other native operations (rename, null_fill) via expressions
     import mountainash as ma
     from mountainash.typespec.spec import TypeSpec
+    from mountainash.conform.expressions import _build_conform_exprs
 
-    native_spec = TypeSpec(
-        fields=[f for f in native_conversions.values()],
-        keep_only_mapped=False,
-    )
+    native_spec = TypeSpec(fields=[f for f in native_conversions.values()])
     try:
-        df = ma.relation(df).conform(native_spec).to_polars()
+        exprs = _build_conform_exprs(native_spec)
+        df = ma.relation(df).with_columns(*exprs).to_polars()
     except Exception as e:
         logger.warning(
-            f"Error applying native operations via Relation.conform(): {e}. "
+            f"Error applying native operations via expressions: {e}. "
             "DataFrame may not have all operations applied."
         )
 
@@ -349,20 +348,19 @@ def apply_hybrid_conversion(
         df = _apply_narwhals_custom_converters(df, narwhals_custom)
         logger.debug(f"Applied {len(narwhals_custom)} Narwhals custom converters (vectorized)")
 
-    # STEP 5: Apply NATIVE operations via Relation.conform() (TIER 1)
+    # STEP 5: Apply NATIVE operations via expressions (TIER 1)
     if native:
         import mountainash as ma
         from mountainash.typespec.spec import TypeSpec
+        from mountainash.conform.expressions import _build_conform_exprs
 
-        native_spec = TypeSpec(
-            fields=[f for f in native.values()],
-            keep_only_mapped=False,
-        )
+        native_spec = TypeSpec(fields=[f for f in native.values()])
         try:
-            df = ma.relation(df).conform(native_spec).to_polars()
+            exprs = _build_conform_exprs(native_spec)
+            df = ma.relation(df).with_columns(*exprs).to_polars()
         except Exception as e:
             logger.warning(
-                f"Error applying native operations via Relation.conform(): {e}. "
+                f"Error applying native operations via expressions: {e}. "
                 "DataFrame may not have all operations applied."
             )
 

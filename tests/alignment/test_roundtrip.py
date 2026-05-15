@@ -102,8 +102,10 @@ class TestRoundTripWithSchema:
         from mountainash.typespec.universal_types import UniversalType
 
         spec = TypeSpec(
-            fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
-            keep_only_mapped=False,
+            fields=[
+                FieldSpec(name="age", type=UniversalType.INTEGER),
+                FieldSpec(name="name", type=UniversalType.STRING),
+            ],
         )
         result = (
             ma.relation(df)

@@ -10,7 +10,6 @@ Key Features:
 - Full Frictionless Table Schema compliance (v1.0)
 - rename_from for column aliasing (source_name property)
 - null_fill for default null replacement
-- keep_only_mapped flag on TypeSpec
 - Schema comparison and diff utilities
 - Round-trip serialization (dict <-> Python objects)
 - Lazy frictionless import/export (Task 3 will provide frictionless.py)
@@ -152,8 +151,7 @@ class FieldSpec:
 class TypeSpec:
     """Schema definition for a dataset (Frictionless Table Schema representation).
 
-    Replaces the old TableSchema with additional features:
-    - keep_only_mapped: when True, only mapped fields are kept during conform
+    Replaces the old TableSchema with additional features.
     """
 
     fields: List[FieldSpec] = field(default_factory=list)
@@ -162,7 +160,6 @@ class TypeSpec:
     primary_key: Optional[Union[str, List[str]]] = None
     foreign_keys: Optional[List[ForeignKey]] = None
     missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
-    keep_only_mapped: bool = False
     fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
@@ -173,8 +170,7 @@ class TypeSpec:
 
         Args:
             columns: Dict mapping column names to type strings (e.g. "integer", "string")
-            **metadata: Additional metadata (title, description, primary_key,
-                        keep_only_mapped)
+            **metadata: Additional metadata (title, description, primary_key)
 
         Returns:
             TypeSpec with fields derived from the dict
@@ -191,7 +187,6 @@ class TypeSpec:
             title=metadata.get("title"),
             description=metadata.get("description"),
             primary_key=metadata.get("primary_key"),
-            keep_only_mapped=metadata.get("keep_only_mapped", False),
         )
 
     @classmethod
@@ -237,8 +232,6 @@ class TypeSpec:
             result["primaryKey"] = self.primary_key
         if self.missing_values:
             result["missingValues"] = self.missing_values
-        if self.keep_only_mapped:
-            result["keep_only_mapped"] = self.keep_only_mapped
         return result
 
 

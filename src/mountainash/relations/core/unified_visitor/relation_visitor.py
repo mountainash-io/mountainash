@@ -150,13 +150,7 @@ class UnifiedRelationVisitor:
         from mountainash.conform.expressions import _build_conform_exprs
         import mountainash as ma
 
-        if hasattr(native, "collect_schema"):
-            source_cols = native.collect_schema().names()
-        elif hasattr(native, "columns"):
-            source_cols = list(native.columns)
-        else:
-            source_cols = []
-        exprs = _build_conform_exprs(schema, source_cols)
+        exprs = _build_conform_exprs(schema)
 
         conformed = ma.relation(native).select(*exprs)
         return conformed._compile_and_execute()

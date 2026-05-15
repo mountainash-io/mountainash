@@ -53,8 +53,10 @@ class TestConformTransform:
     def test_cast_string_to_integer(self):
         df = pl.DataFrame({"age": ["25", "35"], "name": ["alice", "bob"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
-            keep_only_mapped=False,
+            fields=[
+                FieldSpec(name="age", type=UniversalType.INTEGER),
+                FieldSpec(name="name", type=UniversalType.STRING),
+            ],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
@@ -63,7 +65,6 @@ class TestConformTransform:
         df = pl.DataFrame({"score": ["88.5", "92.1"]})
         spec = TypeSpec(
             fields=[FieldSpec(name="score", type=UniversalType.NUMBER)],
-            keep_only_mapped=False,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].dtype == pl.Float64
@@ -74,8 +75,8 @@ class TestConformTransform:
             fields=[
                 FieldSpec(name="age", type=UniversalType.INTEGER),
                 FieldSpec(name="score", type=UniversalType.NUMBER),
+                FieldSpec(name="name", type=UniversalType.STRING),
             ],
-            keep_only_mapped=False,
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
@@ -137,8 +138,8 @@ class TestFullPipeline:
             fields=[
                 FieldSpec(name="age", type=UniversalType.INTEGER),
                 FieldSpec(name="score", type=UniversalType.NUMBER),
+                FieldSpec(name="name", type=UniversalType.STRING),
             ],
-            keep_only_mapped=False,
         )
         result = (
             ma.relation(df)
@@ -162,8 +163,10 @@ class TestFullPipeline:
 
         df = ingress_factory.convert(records)
         spec = TypeSpec(
-            fields=[FieldSpec(name="salary", type=UniversalType.INTEGER)],
-            keep_only_mapped=False,
+            fields=[
+                FieldSpec(name="salary", type=UniversalType.INTEGER),
+                FieldSpec(name="dept", type=UniversalType.STRING),
+            ],
         )
         df = ma.relation(df).conform(spec).to_polars()
 
@@ -181,8 +184,10 @@ class TestFullPipeline:
     def test_pipeline_with_select_and_rename(self, ingress_factory, sample_records):
         df = ingress_factory.convert(sample_records)
         spec = TypeSpec(
-            fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
-            keep_only_mapped=False,
+            fields=[
+                FieldSpec(name="age", type=UniversalType.INTEGER),
+                FieldSpec(name="name", type=UniversalType.STRING),
+            ],
         )
 
         result = (

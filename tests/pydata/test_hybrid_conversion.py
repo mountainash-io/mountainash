@@ -225,8 +225,10 @@ class TestHybridEndToEnd:
     def test_native_only(self):
         """TypeSpec with integer cast produces correct dtype."""
         spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
-            keep_only_mapped=False,
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(name="name", type=UniversalType.STRING),
+            ],
         )
         data = [{"id": "1", "name": "Alice"}, {"id": "2", "name": "Bob"}]
         df = apply_hybrid_conversion(data, spec)
@@ -245,8 +247,10 @@ class TestHybridEndToEnd:
     def test_safe_float_end_to_end(self):
         """apply_hybrid_conversion with safe_float produces Float64 column."""
         spec = TypeSpec(
-            fields=[FieldSpec(name="price", custom_cast="safe_float")],
-            keep_only_mapped=False,
+            fields=[
+                FieldSpec(name="price", custom_cast="safe_float"),
+                FieldSpec(name="name", type=UniversalType.STRING),
+            ],
         )
         data = [{"price": "9.99", "name": "Widget"}, {"price": "4.50", "name": "Gizmo"}]
         df = apply_hybrid_conversion(data, spec)
@@ -261,7 +265,6 @@ class TestHybridEndToEnd:
                 FieldSpec(name="id", type=UniversalType.INTEGER),
                 FieldSpec(name="tag", rename_from="label"),
             ],
-            keep_only_mapped=False,
         )
         python_only, narwhals_custom, native = separate_conversions(spec)
 
