@@ -129,19 +129,14 @@ def compile_conform(spec: TypeSpec, df: Any) -> Any:
             expr = ma.coalesce(*coalesce_exprs)
 
         # Duration from two timestamp columns (overrides rename_from)
-        # Uses polars native expressions for flexible ISO 8601 parsing.
         elif field.duration_from:
-            import polars as pl
             start_col, end_col = field.duration_from
             mapped_source_names.add(start_col)
             mapped_source_names.add(end_col)
-            start_pl = pl.col(start_col).cast(pl.String).str.to_datetime(time_unit="us", time_zone="UTC", strict=False)
-            end_pl = pl.col(end_col).cast(pl.String).str.to_datetime(time_unit="us", time_zone="UTC", strict=False)
-            # duration in seconds as integer, aliased directly
-            duration_pl = (end_pl - start_pl).dt.total_seconds().alias(field.name)
-            # Append as a native expression and skip normal processing for this field
-            mapped_exprs.append(ma.native(duration_pl))
-            continue
+            _ISO_FMT = "%Y-%m-%dT%H:%M:%S%.fZ"
+            start_expr = ma.col(start_col).cast(bridge_type(UniversalType.STRING)).str.to_datetime(_ISO_FMT)
+            end_expr = ma.col(end_col).cast(bridge_type(UniversalType.STRING)).str.to_datetime(_ISO_FMT)
+            expr = end_expr.dt.diff_seconds(start_expr)
 
         elif "." in source_name:
             parts = source_name.split(".")
