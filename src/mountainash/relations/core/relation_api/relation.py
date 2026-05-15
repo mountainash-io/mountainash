@@ -121,6 +121,27 @@ class Relation(RelationBase):
             )
         return result
 
+    # --- Conformance ---
+
+    def conform(self, spec: Any) -> Relation:
+        """Conform the relation to a TypeSpec.
+
+        Builds a projection from the TypeSpec's field definitions:
+        col(source) -> coalesce(null_fill) -> cast(type) -> alias(target).
+
+        Unmapped source columns pass through when spec.keep_only_mapped is False.
+
+        Args:
+            spec: A TypeSpec describing the target schema.
+
+        Returns:
+            A new Relation wrapping a ProjectRelNode.
+        """
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        exprs = _build_conform_exprs(spec, self.columns)
+        return self.select(*exprs)
+
     # --- Sorting ---
 
     def sort(
