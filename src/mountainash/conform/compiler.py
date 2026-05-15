@@ -89,13 +89,51 @@ def compile_conform(spec: TypeSpec, df: Any) -> Any:
         source_name = field.source_name
         mapped_source_names.add(source_name.split(".")[0] if "." in source_name else source_name)
 
-        if "." in source_name:
+        # --- Source expression resolution ---
+        # coalesce_from and duration_from override the default rename_from source.
+
+        # Coalesce from multiple source columns (overrides rename_from)
+        if field.coalesce_from:
+            coalesce_exprs = []
+            for src in field.coalesce_from:
+                if "." in src:
+                    parts = src.split(".")
+                    ce = ma.col(parts[0])
+                    for part in parts[1:]:
+                        ce = ce.struct.field(part)
+                    coalesce_exprs.append(ce)
+                    mapped_source_names.add(parts[0])
+                else:
+                    coalesce_exprs.append(ma.col(src))
+                    mapped_source_names.add(src)
+            expr = ma.coalesce(*coalesce_exprs)
+
+        # Duration from two timestamp columns (overrides rename_from)
+        # Uses polars native expressions for flexible ISO 8601 parsing.
+        elif field.duration_from:
+            import polars as pl
+            start_col, end_col = field.duration_from
+            mapped_source_names.add(start_col)
+            mapped_source_names.add(end_col)
+            start_pl = pl.col(start_col).cast(pl.String).str.to_datetime(time_unit="us", time_zone="UTC", strict=False)
+            end_pl = pl.col(end_col).cast(pl.String).str.to_datetime(time_unit="us", time_zone="UTC", strict=False)
+            # duration in seconds as integer, aliased directly
+            duration_pl = (end_pl - start_pl).dt.total_seconds().alias(field.name)
+            # Append as a native expression and skip normal processing for this field
+            mapped_exprs.append(ma.native(duration_pl))
+            continue
+
+        elif "." in source_name:
             parts = source_name.split(".")
             expr = ma.col(parts[0])
             for part in parts[1:]:
                 expr = expr.struct.field(part)
         else:
             expr = ma.col(source_name)
+
+        # Multiply by constant factor (applied after source resolution)
+        if field.multiply_by is not None:
+            expr = expr * ma.lit(field.multiply_by)
 
         has_cast = bool(field.type and field.type != UniversalType.ANY)
         dtype = bridge_type(field.type) if has_cast else None
