@@ -109,6 +109,21 @@ class ConformBuilder:
         from .compiler import compile_conform  # noqa: PLC0415 — lazy import (Task 6)
         return compile_conform(self._spec, df)
 
+    def apply_with_skipped(self, df: Any) -> tuple:
+        """Compile and apply conformance, separating skipped records.
+
+        Records with null values in required_fields are returned in the
+        second element. If no required_fields, skipped is an empty DataFrame.
+
+        Args:
+            df: A DataFrame (Polars, pandas, PyArrow, or Ibis table).
+
+        Returns:
+            (conformed_df, skipped_df)
+        """
+        from .compiler import compile_conform_with_skipped  # noqa: PLC0415
+        return compile_conform_with_skipped(self._spec, df)
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

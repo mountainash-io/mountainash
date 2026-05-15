@@ -166,6 +166,7 @@ class TypeSpec:
     foreign_keys: Optional[List[ForeignKey]] = None
     missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
     keep_only_mapped: bool = False
+    required_fields: Optional[List[str]] = None
     fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
