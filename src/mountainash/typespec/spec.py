@@ -95,6 +95,9 @@ class FieldSpec:
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
+    multiply_by: Optional[float] = None
+    coalesce_from: Optional[List[str]] = None
+    duration_from: Optional[tuple] = None
 
     @property
     def source_name(self) -> str:
