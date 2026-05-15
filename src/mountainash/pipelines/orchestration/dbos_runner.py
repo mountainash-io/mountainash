@@ -79,6 +79,7 @@ class DbosPipelineRunner:
                 self._user_id,
                 resolved,
                 merged_config,
+                target=target,
             )
 
         with SetWorkflowID(wf_id):
