@@ -1,3 +1,4 @@
+import pytest
 from datetime import date
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.spec import PipelineSpec
@@ -103,3 +104,31 @@ def test_simple_runner_respects_predicates():
     runner = SimplePipelineRunner(spec=spec, storage=storage)
     results = runner.run(predicates=PushedPredicates(date_start=date(2026, 1, 1)))
     assert results["extract"].data == [{"date_start": "2026-01-01"}]
+
+
+def test_simple_runner_target_leaf():
+    spec = _build_spec()
+    storage = MemoryPipelineStorage()
+    runner = SimplePipelineRunner(spec=spec, storage=storage)
+    results = runner.run(target="double")
+    assert "source" in results
+    assert "double" in results
+    assert "sum_values" not in results
+    assert results["double"].data == [{"id": 1, "value": 20}, {"id": 2, "value": 40}]
+
+
+def test_simple_runner_target_root():
+    spec = _build_spec()
+    storage = MemoryPipelineStorage()
+    runner = SimplePipelineRunner(spec=spec, storage=storage)
+    results = runner.run(target="source")
+    assert "source" in results
+    assert "double" not in results
+
+
+def test_simple_runner_target_nonexistent():
+    spec = _build_spec()
+    storage = MemoryPipelineStorage()
+    runner = SimplePipelineRunner(spec=spec, storage=storage)
+    with pytest.raises(ValueError, match="not found"):
+        runner.run(target="nonexistent")

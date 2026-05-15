@@ -95,6 +95,9 @@ class FieldSpec:
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
+    multiply_by: Optional[float] = None
+    coalesce_from: Optional[List[str]] = None
+    duration_from: Optional[tuple] = None
 
     @property
     def source_name(self) -> str:
@@ -163,6 +166,7 @@ class TypeSpec:
     foreign_keys: Optional[List[ForeignKey]] = None
     missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
     keep_only_mapped: bool = False
+    required_fields: Optional[List[str]] = None
     fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
