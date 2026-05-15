@@ -81,7 +81,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 |----------|--------|---------|
 | build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
 | build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
-| build-then-conform.md | ENFORCED | ma.conform({...}).apply(df) compiles TypeSpec to relation operations; replaces old schema backend strategies |
+| build-then-conform.md | ENFORCED | ma.relation(df).conform(spec).to_polars() — conform is a Relation method producing ProjectRelNode; cross-backend automatic |
 | fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
 | operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
 | short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
@@ -153,7 +153,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 
 ```
 src/mountainash/
-├── __init__.py                  # Top-level re-exports (col, lit, when, relation, conform, typespec, etc.)
+├── __init__.py                  # Top-level re-exports (col, lit, when, relation, typespec, etc.)
 ├── core/                        # Shared infrastructure (constants, types, enums, factories, io)
 ├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
@@ -182,9 +182,8 @@ src/mountainash/
 │   ├── validation.py           # Validate DataFrames against a TypeSpec
 │   ├── converters.py           # UniversalType -> backend-specific types
 │   └── custom_types.py         # CustomTypeRegistry, semantic type converters
-├── conform/                     # Data conformance — compiles TypeSpec to relation operations
-│   ├── builder.py              # ConformBuilder — user-facing DSL (ma.conform)
-│   └── compiler.py             # compile_conform() — ~130 lines replacing ~1,400 lines of backend strategies
+├── conform/                     # Shared helper for TypeSpec conformance
+│   └── expressions.py          # _build_conform_exprs — used by Relation.conform() and DAG visitor
 └── pydata/                      # Python data ingress/egress with three-tier hybrid conversion
     ├── ingress/                # Python data -> Polars DataFrame (11 handlers)
     └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
@@ -295,6 +294,7 @@ result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
 - 3 backends: Polars (LazyFrame-based), Narwhals (pandas/PyArrow), Ibis (SQL)
 - Cross-type joins: `relation(polars_df).join(pandas_df, on="id")` — automatic coercion
 - `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
+- **Conform** is a relation method: `ma.relation(df).conform(spec).to_polars()` — builds a `ProjectRelNode` from TypeSpec fields, cross-backend automatic
 
 **Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-03-28-relational-ast-design.md`
 
@@ -330,7 +330,7 @@ pkg2.write("./out/datapackage.json")
 - The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/relation-dag-orchestrator.md`.
 - `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/lossless-frictionless-storage.md`.
 - Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/two-edge-graph-model.md`.
-- **Caveat:** conform application is currently Polars-only on the materialisation path. Narwhals and Ibis backends pass through unchanged with a TODO marker; this is the only known gap in the relation-DAG wiring matrix.
+- Conform is cross-backend since the relation-native redesign (2026-05-15). The only known limitation is Ibis coalesce type strictness when `null_fill` mixes string columns with numeric literals.
 
 **Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`
 **Plan:** `mountainash-central/04.planning/mountainash/superpowers/plans/2026-04-07-frictionless-datapackage.md`
