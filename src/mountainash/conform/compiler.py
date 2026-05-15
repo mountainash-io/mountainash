@@ -87,9 +87,15 @@ def compile_conform(spec: TypeSpec, df: Any) -> Any:
 
     for field in spec.fields:
         source_name = field.source_name
-        mapped_source_names.add(source_name)
+        mapped_source_names.add(source_name.split(".")[0] if "." in source_name else source_name)
 
-        expr = ma.col(source_name)
+        if "." in source_name:
+            parts = source_name.split(".")
+            expr = ma.col(parts[0])
+            for part in parts[1:]:
+                expr = expr.struct.field(part)
+        else:
+            expr = ma.col(source_name)
 
         has_cast = bool(field.type and field.type != UniversalType.ANY)
         dtype = bridge_type(field.type) if has_cast else None
