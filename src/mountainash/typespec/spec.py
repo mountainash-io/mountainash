@@ -40,6 +40,13 @@ class FieldConstraints:
     enum_weights: Optional[Dict[str, float]] = None  # x-mountainash extension
 
 
+@dataclass(frozen=True)
+class UnnestConfig:
+    """Configuration for unnesting a struct column during conformance."""
+    column: str
+    prefix: str = ""
+
+
 @dataclass
 class ForeignKeyReference:
     """Reference target for a foreign key (Frictionless Table Schema compliant).
@@ -167,6 +174,7 @@ class TypeSpec:
     missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
     keep_only_mapped: bool = False
     required_fields: Optional[List[str]] = None
+    unnest_fields: Optional[List[Union[str, UnnestConfig]]] = None
     fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
