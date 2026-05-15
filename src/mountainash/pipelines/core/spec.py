@@ -7,7 +7,10 @@ from mountainash.graph.algorithms import (
     parallel_layers as _parallel_layers,
     topological_order as _topo_order,
 )
-from mountainash.pipelines.core.step import StepDefinition
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.step import StepDefinition
 
 
 @dataclass(frozen=True)

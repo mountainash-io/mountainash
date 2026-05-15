@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from mountainash.pipelines.core.result import StepResult
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.result import StepResult
 
 
 class MemoryPipelineStorage:

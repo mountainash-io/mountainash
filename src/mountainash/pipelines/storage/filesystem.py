@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from mountainash.pipelines.core.result import StepMetadata, StepResult
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class FileSystemPipelineStorage:

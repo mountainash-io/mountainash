@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from mountainash.pipelines.core.cache_key import compute_cache_key
 from mountainash.pipelines.core.capabilities import PushedPredicates, ResolvedPredicates
 from mountainash.pipelines.core.policies import EmptyPolicy
 from mountainash.pipelines.core.result import StepMetadata, StepResult
-from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import StepContext
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.spec import PipelineSpec
 
 logger = logging.getLogger(__name__)
 

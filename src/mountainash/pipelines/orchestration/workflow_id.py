@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import ResolvedPredicates
 from mountainash.pipelines.core.cache_key import _serialize_for_hash
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.capabilities import ResolvedPredicates
 
 
 def compute_workflow_id(

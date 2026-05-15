@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import date, datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import ResolvedPredicates
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.capabilities import ResolvedPredicates
 
 
 def _serialize_for_hash(obj: Any) -> str:

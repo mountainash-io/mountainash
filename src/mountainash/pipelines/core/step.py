@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import Any, Callable
+from typing import Any, Callable, TYPE_CHECKING
 
 from mountainash.pipelines.core.capabilities import ResolvedPredicates, StepCapabilities
 from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 
 @dataclass

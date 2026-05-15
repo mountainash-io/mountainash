@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TYPE_CHECKING
 
 from pydantic import ConfigDict
 
@@ -9,7 +9,9 @@ from mountainash.relations.core.relation_nodes.reln_base import RelationNode
 from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
 
 from mountainash.pipelines.core.capabilities import PushedPredicates, StepCapabilities
-from mountainash.pipelines.core.spec import PipelineSpec
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.spec import PipelineSpec
 
 
 class PipelineStepRelNode(RelationNode):

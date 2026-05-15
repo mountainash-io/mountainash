@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from datetime import timedelta
-from typing import Protocol
+from typing import Protocol, TYPE_CHECKING
 
-from mountainash.pipelines.core.result import StepResult
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.result import StepResult
+    from datetime import timedelta
 
 
 class PipelineStorage(Protocol):

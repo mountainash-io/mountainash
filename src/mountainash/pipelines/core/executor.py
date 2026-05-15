@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import PushedPredicates
-from mountainash.pipelines.core.spec import PipelineSpec
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.spec import PipelineSpec
+    from mountainash.pipelines.core.capabilities import PushedPredicates
 
 
 class PipelineExecutor(Protocol):

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import ResolvedPredicates
+
+if TYPE_CHECKING:
+    from mountainash.pipelines.core.capabilities import ResolvedPredicates
+    from datetime import datetime
 
 
 @dataclass(frozen=True)
