@@ -15,6 +15,7 @@ def compute_workflow_id(
     user_id: str,
     resolved_predicates: ResolvedPredicates,
     config: dict[str, Any],
+    target: str | None = None,
 ) -> str:
     """
     Compute a deterministic workflow ID based on pipeline identity and execution context.
@@ -25,6 +26,7 @@ def compute_workflow_id(
     - User ID (execution scope)
     - Resolved predicates (data fetch parameters)
     - Configuration (execution environment)
+    - Target step (if running a subgraph)
 
     Args:
         pipeline_name: Name of the pipeline
@@ -32,6 +34,7 @@ def compute_workflow_id(
         user_id: User ID scoping the workflow
         resolved_predicates: Resolved fetch predicates (date range, limit, fields, etc.)
         config: Runtime configuration dictionary
+        target: Optional target step name for subgraph execution
 
     Returns:
         24-character hex string (SHA256 truncated)
@@ -46,6 +49,7 @@ def compute_workflow_id(
         _serialize_for_hash(resolved_predicates.selected_fields),
         _serialize_for_hash(resolved_predicates.resolution_timestamp),
         _serialize_for_hash(config),
+        _serialize_for_hash(target),
     ]
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
