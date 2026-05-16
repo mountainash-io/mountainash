@@ -1,16 +1,29 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
+from typing import Any, Literal
+
+
+Operator = Literal["gt", "gte", "lt", "lte", "eq"]
 
 
 @dataclass(frozen=True)
-class DateRangeCapability:
+class PushableParam:
+    """A filter parameter that can be pushed to the data source."""
     column: str
-    granularity: str = "day"
-    supports_open_start: bool = True
-    supports_open_end: bool = True
-    timezone: str = "UTC"
+    api_param: str
+    operators: tuple[Operator, ...] = ("gt", "gte", "lt", "lte", "eq")
+    format: str | None = None
+    pagination_stop: bool = False
+
+
+@dataclass(frozen=True)
+class PushedParam:
+    """A single extracted parameter value with operator context."""
+    value: Any
+    operator: Operator
+    format: str | None = None
 
 
 @dataclass(frozen=True)
@@ -35,7 +48,7 @@ class PaginationCapability:
 
 @dataclass(frozen=True)
 class StepCapabilities:
-    date_range: DateRangeCapability | None = None
+    pushable_params: tuple[PushableParam, ...] = ()
     limit: LimitCapability | None = None
     field_selection: FieldSelectionCapability | None = None
     pagination: PaginationCapability | None = None
@@ -44,13 +57,12 @@ class StepCapabilities:
 @dataclass(frozen=True)
 class PaginationHint:
     stop_after_records: int | None = None
-    stop_after_date: date | datetime | None = None
+    stop_after_date: Any = None
 
 
 @dataclass(frozen=True)
 class PushedPredicates:
-    date_start: date | datetime | None = None
-    date_end: date | datetime | None = None
+    params: dict[str, PushedParam] = field(default_factory=dict)
     limit: int | None = None
     selected_fields: list[str] | None = None
     pagination_hint: PaginationHint | None = None
@@ -58,8 +70,7 @@ class PushedPredicates:
 
 @dataclass(frozen=True)
 class ResolvedPredicates:
-    date_start: date | datetime | None = None
-    date_end: date | datetime | None = None
+    params: dict[str, PushedParam] = field(default_factory=dict)
     limit: int | None = None
     selected_fields: list[str] | None = None
     pagination_hint: PaginationHint | None = None
