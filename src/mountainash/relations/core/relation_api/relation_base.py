@@ -88,6 +88,7 @@ class RelationBase:
         if not hasattr(node, "input") and not isinstance(node, (JoinRelNode, SetRelNode)):
             return node
 
+        rebuilt: RelationNode
         if isinstance(node, JoinRelNode):
             new_left = self._walk_and_push(node.left, transform_fn)
             new_right = self._walk_and_push(node.right, transform_fn)
