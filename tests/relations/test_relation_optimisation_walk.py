@@ -59,6 +59,15 @@ def test_walk_reconstructs_frozen_nodes():
     assert result.input.pushed_predicates.date_start == date(2024, 1, 1)
 
 
+def test_pipeline_pushdown_registered_on_import():
+    """Importing mountainash.pipelines registers the pushdown pass."""
+    import mountainash.pipelines  # noqa: F401
+    from mountainash.relations.core.relation_api.optimisation_registry import get_registered_node_types
+    from mountainash.pipelines.integration.relation import PipelineStepRelNode
+
+    assert PipelineStepRelNode in get_registered_node_types()
+
+
 def test_detect_backend_from_uses_provided_node():
     """_detect_backend_from reads from the given node, not self._node."""
     from mountainash.core.constants import CONST_BACKEND
