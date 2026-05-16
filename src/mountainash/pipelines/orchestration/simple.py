@@ -132,8 +132,23 @@ class _RunnerExecutorAdapter:
         predicates: PushedPredicates,
         data_key: str | None,
     ) -> Any:
-        results = self._runner.run(predicates=predicates)
-        target = data_key or step_name
-        if target not in results:
-            raise KeyError(f"Step '{target}' not found in pipeline results")
-        return results[target].data
+        import polars as pl
+
+        results = self._runner.run(predicates=predicates, target=step_name)
+        if step_name not in results:
+            raise KeyError(f"Step '{step_name}' not found in pipeline results")
+        data = results[step_name].data
+        if data_key is not None:
+            if not isinstance(data, dict) or data_key not in data:
+                raise KeyError(
+                    f"data_key '{data_key}' not found in step '{step_name}' output"
+                )
+            data = data[data_key]
+        if isinstance(data, pl.LazyFrame):
+            return data
+        if isinstance(data, pl.DataFrame):
+            return data.lazy()
+        if isinstance(data, list) and len(data) == 0:
+            return pl.DataFrame().lazy()
+        from mountainash.pydata.ingress import PydataIngress
+        return PydataIngress.convert(data).lazy()

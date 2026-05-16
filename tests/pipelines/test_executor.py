@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import polars as pl
 import pytest
 
 from mountainash.pipelines.core.step import StepContext
@@ -12,8 +13,15 @@ def _identity_step(ctx: StepContext) -> list[dict]:
     return [{"value": 1}]
 
 
+def _multi_output_step(ctx: StepContext) -> dict:
+    return {
+        "records": [{"value": 1}],
+        "summary": {"count": 1},
+    }
+
+
 class TestRunnerExecutorAdapter:
-    def test_as_executor_returns_step_data(self):
+    def test_as_executor_returns_lazyframe(self):
         spec = pipeline("test", "v1").step("fetch", _identity_step).build()
         runner = SimplePipelineRunner(spec, MemoryPipelineStorage())
         executor = runner.as_executor()
@@ -24,20 +32,24 @@ class TestRunnerExecutorAdapter:
             predicates=None,
             data_key=None,
         )
-        assert result == [{"value": 1}]
+        assert isinstance(result, pl.LazyFrame)
+        df = result.collect()
+        assert df.to_dicts() == [{"value": 1}]
 
     def test_as_executor_with_data_key(self):
-        spec = pipeline("test", "v1").step("fetch", _identity_step).build()
+        spec = pipeline("test", "v1").step("multi", _multi_output_step).build()
         runner = SimplePipelineRunner(spec, MemoryPipelineStorage())
         executor = runner.as_executor()
 
         result = executor.execute(
             pipeline=spec,
-            step_name="fetch",
+            step_name="multi",
             predicates=None,
-            data_key="fetch",
+            data_key="records",
         )
-        assert result == [{"value": 1}]
+        assert isinstance(result, pl.LazyFrame)
+        df = result.collect()
+        assert df.to_dicts() == [{"value": 1}]
 
     def test_as_executor_missing_step_raises(self):
         spec = pipeline("test", "v1").step("fetch", _identity_step).build()
