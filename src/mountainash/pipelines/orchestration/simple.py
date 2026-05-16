@@ -94,8 +94,7 @@ class SimplePipelineRunner:
         if pushed is None:
             return ResolvedPredicates(resolution_timestamp=datetime.now())
         return ResolvedPredicates(
-            date_start=pushed.date_start,
-            date_end=pushed.date_end,
+            params=pushed.params,
             limit=pushed.limit,
             selected_fields=pushed.selected_fields,
             pagination_hint=pushed.pagination_hint,
