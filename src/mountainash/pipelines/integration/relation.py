@@ -43,3 +43,10 @@ def _visit_pipeline_step(node: Any, visitor: Any) -> Any:
 
 def register_pipeline_bridge() -> None:
     RelationVisitRegistry.register(PipelineStepRelNode, _visit_pipeline_step)
+
+
+def register_pipeline_optimisations() -> None:
+    from mountainash.relations.core.relation_api.optimisation_registry import register_optimisation
+    from mountainash.pipelines.integration.pushdown import apply_pushdown
+
+    register_optimisation(PipelineStepRelNode, apply_pushdown)
