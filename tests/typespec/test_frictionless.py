@@ -80,15 +80,6 @@ class TestToFrictionless:
         assert "x-mountainash" in field_result
         assert field_result["x-mountainash"]["null_fill"] == 0.0
 
-    def test_keep_only_mapped_in_x_mountainash(self):
-        spec = TypeSpec(
-            fields=[FieldSpec(name="col", type=UniversalType.STRING)],
-            keep_only_mapped=True,
-        )
-        result = typespec_to_frictionless(spec)
-        assert "x-mountainash" in result
-        assert result["x-mountainash"]["keep_only_mapped"] is True
-
     def test_no_x_mountainash_when_no_extensions(self):
         spec = TypeSpec.from_simple_dict({"id": "integer"})
         result = typespec_to_frictionless(spec)
@@ -222,14 +213,6 @@ class TestFromFrictionless:
         spec = typespec_from_frictionless(descriptor)
         assert spec.fields[0].null_fill == 0.0
 
-    def test_x_mountainash_keep_only_mapped_imported(self):
-        descriptor = {
-            "x-mountainash": {"keep_only_mapped": True},
-            "fields": [{"name": "col", "type": "string"}],
-        }
-        spec = typespec_from_frictionless(descriptor)
-        assert spec.keep_only_mapped is True
-
     def test_missing_type_defaults_to_string(self):
         descriptor = {
             "fields": [{"name": "mystery_col"}]
@@ -337,7 +320,6 @@ class TestRoundTrip:
             title="Test Schema",
             description="Round-trip test",
             primary_key="id",
-            keep_only_mapped=True,
         )
 
         exported = typespec_to_frictionless(original)
@@ -346,7 +328,6 @@ class TestRoundTrip:
         assert reimported.title == original.title
         assert reimported.description == original.description
         assert reimported.primary_key == original.primary_key
-        assert reimported.keep_only_mapped == original.keep_only_mapped
         assert len(reimported.fields) == len(original.fields)
 
         id_field = reimported.get_field("id")
@@ -378,7 +359,6 @@ class TestRoundTrip:
             ],
             title="JSON Test",
             primary_key="id",
-            keep_only_mapped=True,
         )
 
         exported = typespec_to_frictionless(spec)
@@ -389,7 +369,6 @@ class TestRoundTrip:
 
         assert reimported.title == spec.title
         assert reimported.primary_key == spec.primary_key
-        assert reimported.keep_only_mapped is True
         id_field = reimported.get_field("id")
         assert id_field is not None
         assert id_field.rename_from == "ID"

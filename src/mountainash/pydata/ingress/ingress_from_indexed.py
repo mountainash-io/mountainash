@@ -185,7 +185,7 @@ class DataframeFromIndexedData(BasePydataIngressHandler):
 
         # Apply column transformations if provided
         if type_spec is not None:
-            from mountainash.conform.compiler import compile_conform
-            df = compile_conform(type_spec, df)
+            import mountainash as ma
+            df = ma.relation(df).conform(type_spec).to_polars()
 
         return df

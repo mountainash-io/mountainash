@@ -103,10 +103,6 @@ class TestTypeSpec:
         spec = TypeSpec.from_simple_dict({"score": "number"})
         assert spec.get_field("nonexistent") is None
 
-    def test_keep_only_mapped_default_false(self):
-        spec = TypeSpec(fields=[])
-        assert spec.keep_only_mapped is False
-
     def test_to_dict(self):
         spec = TypeSpec.from_simple_dict({"id": "integer"}, title="My Spec")
         d = spec.to_dict()

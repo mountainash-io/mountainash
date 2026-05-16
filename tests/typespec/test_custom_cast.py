@@ -6,7 +6,6 @@ import pytest
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType, normalize_type
 from mountainash.typespec.frictionless import typespec_to_frictionless, typespec_from_frictionless
-from mountainash.conform.builder import ConformBuilder
 
 
 # ---------------------------------------------------------------------------
@@ -74,45 +73,3 @@ class TestFrictionlessCustomCast:
         descriptor = typespec_to_frictionless(spec)
         field_dict = descriptor["fields"][0]
         assert "x-mountainash" not in field_dict
-
-
-# ---------------------------------------------------------------------------
-# TestConformBuilderCustomCast
-# ---------------------------------------------------------------------------
-
-class TestConformBuilderCustomCast:
-    def test_recognized_type_is_standard(self):
-        """A recognized type string maps to a UniversalType with custom_cast=None."""
-        builder = ConformBuilder({"id": {"cast": "integer"}})
-        field = builder.spec.fields[0]
-        assert field.type == UniversalType.INTEGER
-        assert field.custom_cast is None
-
-    def test_unrecognized_type_is_custom(self):
-        """An unrecognized type string maps to ANY with custom_cast set to the string."""
-        builder = ConformBuilder({"amount": {"cast": "safe_float"}})
-        field = builder.spec.fields[0]
-        assert field.type == UniversalType.ANY
-        assert field.custom_cast == "safe_float"
-
-    def test_mixed_standard_and_custom(self):
-        """Mix of standard and custom cast types all resolve correctly."""
-        builder = ConformBuilder({
-            "id": {"cast": "integer"},
-            "amount": {"cast": "safe_float"},
-            "active": {"cast": "boolean"},
-            "label": {"cast": "rich_boolean"},
-        })
-        fields = {f.name: f for f in builder.spec.fields}
-
-        assert fields["id"].type == UniversalType.INTEGER
-        assert fields["id"].custom_cast is None
-
-        assert fields["amount"].type == UniversalType.ANY
-        assert fields["amount"].custom_cast == "safe_float"
-
-        assert fields["active"].type == UniversalType.BOOLEAN
-        assert fields["active"].custom_cast is None
-
-        assert fields["label"].type == UniversalType.ANY
-        assert fields["label"].custom_cast == "rich_boolean"

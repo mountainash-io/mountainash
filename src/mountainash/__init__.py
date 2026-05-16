@@ -55,18 +55,9 @@ from mountainash.typespec.datapackage import (  # noqa: F401
 # RelationDAG — orchestrator for named, interconnected Relations
 from mountainash.relations.dag import RelationDAG, ResourceRef  # noqa: F401
 
-# Conform - compile type specifications to relation operations
-from mountainash.conform.builder import ConformBuilder  # noqa: F401
-
-
 def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
     """Create a TypeSpec from a simple {name: type_string} dict."""
     return TypeSpec.from_simple_dict(columns, **metadata)
-
-
-def conform(source: dict | TypeSpec) -> ConformBuilder:
-    """Create a ConformBuilder from a dict or TypeSpec."""
-    return ConformBuilder(source)
 
 
 def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDataContract]":

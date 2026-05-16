@@ -5,7 +5,7 @@ Provides two public functions:
 - typespec_to_frictionless(spec) → dict
 - typespec_from_frictionless(data) → TypeSpec
 
-Mountainash-specific extensions (rename_from, null_fill, keep_only_mapped)
+Mountainash-specific extensions (rename_from, null_fill)
 are stored under the ``x-mountainash`` namespace key, following the
 Frictionless custom extension convention.
 
@@ -77,9 +77,9 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     """Convert a TypeSpec to a Frictionless Table Schema descriptor dict.
 
     Standard Frictionless fields are placed at their canonical locations.
-    Mountainash extensions (rename_from, null_fill per-field; keep_only_mapped
-    at spec level) are stored under ``x-mountainash`` keys — added only when
-    there are actual extensions to store.
+    Mountainash extensions (rename_from, null_fill per-field) are stored
+    under ``x-mountainash`` keys — added only when there are actual
+    extensions to store.
 
     Args:
         spec: The TypeSpec to export.
@@ -119,12 +119,6 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     if spec.missing_values is not None and spec.missing_values != [""]:
         descriptor["missingValues"] = spec.missing_values
 
-    # Spec-level x-mountainash
-    spec_extensions: Dict[str, Any] = {}
-    if spec.keep_only_mapped:
-        spec_extensions["keep_only_mapped"] = spec.keep_only_mapped
-    if spec_extensions:
-        descriptor["x-mountainash"] = spec_extensions
 
     # Fields
     fields_list: List[Dict[str, Any]] = []
@@ -234,9 +228,8 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     unique_keys: Optional[List[List[str]]] = descriptor.get("uniqueKeys")  # Gap 4
     schema_url: Optional[str] = descriptor.get("$schema")
 
-    # Spec-level x-mountainash extensions
-    spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}
-    keep_only_mapped: bool = bool(spec_ext.get("keep_only_mapped", False))
+    # Spec-level x-mountainash extensions (reserved for future use)
+    spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}  # noqa: F841
 
     # Foreign keys
     raw_fks = descriptor.get("foreignKeys")
@@ -322,7 +315,6 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         primary_key=primary_key,
         foreign_keys=foreign_keys,
         missing_values=missing_values,
-        keep_only_mapped=keep_only_mapped,
         fields_match=fields_match,
         unique_keys=unique_keys,
         schema_url=schema_url,

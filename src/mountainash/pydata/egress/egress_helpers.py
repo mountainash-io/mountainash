@@ -78,12 +78,9 @@ def apply_native_conversions_for_egress(
     # Build conform spec for all non-python-only fields
     conform_fields = [f for f in spec.fields if f.source_name not in python_only_custom]
     if conform_fields:
-        conform_spec = TypeSpec(
-            fields=conform_fields,
-            keep_only_mapped=spec.keep_only_mapped
-        )
-        from mountainash.conform.compiler import compile_conform
-        df = compile_conform(conform_spec, df)
+        conform_spec = TypeSpec(fields=conform_fields)
+        import mountainash as ma
+        df = ma.relation(df).conform(conform_spec).to_polars()
     elif not isinstance(df, pl.DataFrame):
         import mountainash as ma
         df = ma.relation(df).to_polars()
