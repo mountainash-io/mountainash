@@ -1,14 +1,12 @@
-"""Integration tests: source() → Relation → collect() end-to-end."""
+"""Integration tests: source() -> Relation -> collect() end-to-end."""
 import polars as pl
-from datetime import date
 
 import mountainash as ma
 from mountainash.pipelines import source, pipeline
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.capabilities import (
     StepCapabilities,
-    DateRangeCapability,
-    ResolvedPredicates,
+    PushableParam,
 )
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
 from mountainash.pipelines.orchestration.simple import SimplePipelineRunner
@@ -19,13 +17,16 @@ def fetch(ctx: StepContext) -> list[dict]:
     return [{"id": 1, "value": 42}]
 
 
-received_predicates: list[ResolvedPredicates] = []
+received_predicates: list = []
 
 
 @step(
     name="fetch_dated",
     pushdown=StepCapabilities(
-        date_range=DateRangeCapability(column="start"),
+        pushable_params=(
+            PushableParam(column="start", api_param="start", operators=("gt", "gte"), format="iso_datetime"),
+            PushableParam(column="start", api_param="end", operators=("lt", "lte"), format="iso_datetime_eod"),
+        ),
     ),
 )
 def fetch_dated(ctx: StepContext) -> list[dict]:
@@ -81,4 +82,5 @@ class TestAutomaticPushdown:
 
         assert isinstance(result, pl.DataFrame)
         assert len(received_predicates) == 1
-        assert received_predicates[0].date_start == date(2024, 2, 1)
+        assert "start" in received_predicates[0].params
+        assert received_predicates[0].params["start"].value == "2024-02-01"

@@ -34,12 +34,9 @@ def compute_cache_key(
         spec_version,
         step_name,
         _serialize_for_hash(upstream_cache_keys),
-        _serialize_for_hash(resolved_predicates.date_start),
-        _serialize_for_hash(resolved_predicates.date_end),
+        _serialize_for_hash({k: (v.value, v.operator) for k, v in resolved_predicates.params.items()} if resolved_predicates.params else None),
         _serialize_for_hash(resolved_predicates.limit),
         _serialize_for_hash(resolved_predicates.selected_fields),
-        # resolution_timestamp is excluded: it records when predicates were resolved
-        # but does not affect what data would be fetched, so must not affect the key.
     ]
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode()).hexdigest()[:16]

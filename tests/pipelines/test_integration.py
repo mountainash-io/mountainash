@@ -4,7 +4,8 @@ from mountainash.pipelines import step, pipeline
 from mountainash.pipelines.core.step import StepContext
 from mountainash.pipelines.core.capabilities import (
     StepCapabilities,
-    DateRangeCapability,
+    PushableParam,
+    PushedParam,
     PushedPredicates,
 )
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
@@ -39,7 +40,7 @@ def test_end_to_end_pipeline():
     spec = (
         pipeline("wearables_test", version="1.0.0")
         .step("extract_data", extract_data, pushdown=StepCapabilities(
-            date_range=DateRangeCapability(column="date"),
+            pushable_params=(PushableParam(column="date", api_param="start", operators=("gt", "gte")),),
         ))
         .step("conform_data", conform_data, depends_on=["extract_data"])
         .build()
@@ -48,7 +49,7 @@ def test_end_to_end_pipeline():
     storage = MemoryPipelineStorage()
     runner = SimplePipelineRunner(spec=spec, storage=storage)
 
-    results = runner.run(predicates=PushedPredicates(date_start=date(2026, 1, 1)))
+    results = runner.run(predicates=PushedPredicates(params={"start": PushedParam(value=date(2026, 1, 1), operator="gte")}))
 
     assert "extract_data" in results
     assert "conform_data" in results
@@ -57,7 +58,7 @@ def test_end_to_end_pipeline():
     assert "sleep" in conformed
     assert conformed["sleep"][0]["duration_hours"] == 8.0
 
-    results2 = runner.run(predicates=PushedPredicates(date_start=date(2026, 1, 1)))
+    results2 = runner.run(predicates=PushedPredicates(params={"start": PushedParam(value=date(2026, 1, 1), operator="gte")}))
     assert results2["conform_data"].cache_key == results["conform_data"].cache_key
 
 
