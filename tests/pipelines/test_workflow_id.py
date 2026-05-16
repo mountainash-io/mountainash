@@ -1,12 +1,12 @@
 from datetime import date, datetime
 
 from mountainash.pipelines.orchestration.workflow_id import compute_workflow_id
-from mountainash.pipelines.core.capabilities import ResolvedPredicates
+from mountainash.pipelines.core.capabilities import ResolvedPredicates, PushedParam
 
 
 def test_deterministic_same_inputs():
     rp = ResolvedPredicates(
-        date_start=date(2026, 1, 1),
+        params={"start": PushedParam(value=date(2026, 1, 1), operator="gte")},
         resolution_timestamp=datetime(2026, 5, 13, 10, 0, 0),
     )
     config = {"storage_path": "/data/fitbit"}
@@ -36,11 +36,11 @@ def test_different_versions_different_ids():
 
 def test_different_predicates_different_ids():
     rp1 = ResolvedPredicates(
-        date_start=date(2026, 1, 1),
+        params={"start": PushedParam(value=date(2026, 1, 1), operator="gte")},
         resolution_timestamp=datetime(2026, 5, 13, 10, 0, 0),
     )
     rp2 = ResolvedPredicates(
-        date_start=date(2026, 3, 1),
+        params={"start": PushedParam(value=date(2026, 3, 1), operator="gte")},
         resolution_timestamp=datetime(2026, 5, 13, 10, 0, 0),
     )
     config = {}

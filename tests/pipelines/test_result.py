@@ -17,8 +17,6 @@ def test_step_metadata():
 
 def test_step_metadata_with_predicates():
     predicates = ResolvedPredicates(
-        date_start=None,
-        date_end=None,
         limit=100,
     )
     meta = StepMetadata(

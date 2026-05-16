@@ -1,7 +1,7 @@
 from mountainash.pipelines.core.step import step, StepContext, StepDefinition
 from mountainash.pipelines.core.capabilities import (
     StepCapabilities,
-    DateRangeCapability,
+    PushableParam,
     ResolvedPredicates,
 )
 from mountainash.pipelines.core.policies import EmptyPolicy
@@ -35,7 +35,7 @@ def test_step_decorator_with_capabilities():
     @step(
         name="extract",
         pushdown=StepCapabilities(
-            date_range=DateRangeCapability(column="date"),
+            pushable_params=(PushableParam(column="date", api_param="start"),),
         ),
         cache_ttl=timedelta(hours=1),
         empty_policy=EmptyPolicy.FAIL,
@@ -44,7 +44,7 @@ def test_step_decorator_with_capabilities():
         return []
 
     defn = extract._step_definition
-    assert defn.capabilities.date_range.column == "date"
+    assert defn.capabilities.pushable_params[0].column == "date"
     assert defn.cache_ttl == timedelta(hours=1)
     assert defn.empty_policy == EmptyPolicy.FAIL
 

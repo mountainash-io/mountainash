@@ -24,7 +24,7 @@ def test_walk_reconstructs_frozen_nodes():
     """Walk must use model_copy to rebuild frozen nodes with new children."""
     from mountainash.pipelines.integration.relation import PipelineStepRelNode
     from mountainash.pipelines.integration.pushdown import apply_pushdown
-    from mountainash.pipelines.core.capabilities import StepCapabilities, DateRangeCapability
+    from mountainash.pipelines.core.capabilities import StepCapabilities, PushableParam
     from mountainash.relations.core.relation_api.optimisation_registry import (
         register_optimisation, _reset_registry,
     )
@@ -32,7 +32,9 @@ def test_walk_reconstructs_frozen_nodes():
     _reset_registry()
     register_optimisation(PipelineStepRelNode, apply_pushdown)
 
-    caps = StepCapabilities(date_range=DateRangeCapability(column="start"))
+    caps = StepCapabilities(pushable_params=(
+        PushableParam(column="start", api_param="start", operators=("gt", "gte")),
+    ))
     pipeline_node = PipelineStepRelNode(
         step_name="fetch",
         pipeline=None,
@@ -56,7 +58,7 @@ def test_walk_reconstructs_frozen_nodes():
 
     assert isinstance(result, FilterRelNode)
     assert isinstance(result.input, PipelineStepRelNode)
-    assert result.input.pushed_predicates.date_start == date(2024, 1, 1)
+    assert result.input.pushed_predicates.params["start"].value == date(2024, 1, 1)
 
 
 def test_pipeline_pushdown_registered_on_import():

@@ -2,7 +2,7 @@ import pytest
 from mountainash.pipelines.fluent.builder import pipeline
 from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import step, StepContext
-from mountainash.pipelines.core.capabilities import StepCapabilities, DateRangeCapability
+from mountainash.pipelines.core.capabilities import StepCapabilities, PushableParam
 
 
 def _noop(ctx: StepContext) -> list[dict]:
@@ -28,11 +28,11 @@ def test_pipeline_builder_with_capabilities():
     spec = (
         pipeline("test", version="2.0.0")
         .step("extract", _noop, pushdown=StepCapabilities(
-            date_range=DateRangeCapability(column="date"),
+            pushable_params=(PushableParam(column="date", api_param="start"),),
         ))
         .build()
     )
-    assert spec.steps["extract"].capabilities.date_range.column == "date"
+    assert spec.steps["extract"].capabilities.pushable_params[0].column == "date"
 
 
 def test_pipeline_builder_with_decorated_steps():
