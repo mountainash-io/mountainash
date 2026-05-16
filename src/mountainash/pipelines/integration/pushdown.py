@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from mountainash.pipelines.core.capabilities import PaginationHint, PushedPredicates
+from mountainash.pipelines.core.capabilities import (
+    PaginationHint,
+    PushableParam,
+    PushedParam,
+    PushedPredicates,
+)
 from mountainash.pipelines.integration.relation import PipelineStepRelNode
 
 
@@ -30,27 +35,26 @@ def _pushdown_filter(node: Any) -> Any:
     pipeline_node: PipelineStepRelNode = node.input
     caps = pipeline_node.capabilities
 
-    if caps.date_range is None:
+    if not caps.pushable_params:
         return node
 
-    predicates = _extract_date_predicates(node.predicate, caps.date_range.column)
+    extracted = _extract_predicates(node.predicate, caps.pushable_params)
 
-    if predicates.date_start is None and predicates.date_end is None:
+    if not extracted:
         return node
 
+    merged_params = {**pipeline_node.pushed_predicates.params, **extracted}
     merged = PushedPredicates(
-        date_start=predicates.date_start or pipeline_node.pushed_predicates.date_start,
-        date_end=predicates.date_end or pipeline_node.pushed_predicates.date_end,
+        params=merged_params,
         limit=pipeline_node.pushed_predicates.limit,
         selected_fields=pipeline_node.pushed_predicates.selected_fields,
         pagination_hint=pipeline_node.pushed_predicates.pagination_hint,
     )
 
-    hint = synthesise_pagination_hint(merged)
+    hint = synthesise_pagination_hint(merged, caps.pushable_params)
     if hint is not None:
         merged = PushedPredicates(
-            date_start=merged.date_start,
-            date_end=merged.date_end,
+            params=merged.params,
             limit=merged.limit,
             selected_fields=merged.selected_fields,
             pagination_hint=hint,
@@ -97,8 +101,7 @@ def _pushdown_project(node: Any) -> Any:
         pushable |= set(caps.field_selection.always_included)
 
     merged = PushedPredicates(
-        date_start=pipeline_node.pushed_predicates.date_start,
-        date_end=pipeline_node.pushed_predicates.date_end,
+        params=pipeline_node.pushed_predicates.params,
         limit=pipeline_node.pushed_predicates.limit,
         selected_fields=sorted(pushable),
         pagination_hint=pipeline_node.pushed_predicates.pagination_hint,
@@ -141,18 +144,16 @@ def _pushdown_fetch(node: Any) -> Any:
         count = caps.limit.max_limit
 
     merged = PushedPredicates(
-        date_start=pipeline_node.pushed_predicates.date_start,
-        date_end=pipeline_node.pushed_predicates.date_end,
+        params=pipeline_node.pushed_predicates.params,
         limit=count,
         selected_fields=pipeline_node.pushed_predicates.selected_fields,
         pagination_hint=pipeline_node.pushed_predicates.pagination_hint,
     )
 
-    hint = synthesise_pagination_hint(merged)
+    hint = synthesise_pagination_hint(merged, caps.pushable_params)
     if hint is not None:
         merged = PushedPredicates(
-            date_start=merged.date_start,
-            date_end=merged.date_end,
+            params=merged.params,
             limit=merged.limit,
             selected_fields=merged.selected_fields,
             pagination_hint=hint,
@@ -175,66 +176,105 @@ def _pushdown_fetch(node: Any) -> Any:
     )
 
 
-def _extract_date_predicates(expr: Any, column: str) -> PushedPredicates:
+def _extract_predicates(
+    expr: Any,
+    pushable: tuple[PushableParam, ...],
+) -> dict[str, PushedParam]:
     from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import ScalarFunctionNode
     from mountainash.expressions.core.expression_nodes.substrait.exn_field_reference import FieldReferenceNode
     from mountainash.expressions.core.expression_nodes.substrait.exn_literal import LiteralNode
-    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+        FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+    )
     from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 
-    # Unwrap expression API wrappers (e.g. BooleanExpressionAPI) to get the node
     if isinstance(expr, BaseExpressionAPI):
         expr = expr._node
 
     if not isinstance(expr, ScalarFunctionNode):
-        return PushedPredicates()
+        return {}
 
     fk = expr.function_key
+    params: dict[str, PushedParam] = {}
 
-    # Handle BETWEEN: 3 arguments (column, low, high)
+    # AND: recurse both arms, merge
+    if fk == FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND:
+        for arg in expr.arguments:
+            params.update(_extract_predicates(arg, pushable))
+        return params
+
+    # OR: cannot decompose safely
+    if fk == FKEY_SUBSTRAIT_SCALAR_BOOLEAN.OR:
+        return {}
+
+    # NOT: inversion is unsafe to push
+    if fk == FKEY_SUBSTRAIT_SCALAR_BOOLEAN.NOT:
+        return {}
+
+    # BETWEEN: 3 arguments (column, low, high)
     if fk == FKEY_SUBSTRAIT_SCALAR_COMPARISON.BETWEEN and len(expr.arguments) == 3:
         col_node, low_node, high_node = expr.arguments
-        if isinstance(col_node, FieldReferenceNode) and col_node.field == column:
-            low_val = _literal_to_date(low_node) if isinstance(low_node, LiteralNode) else None
-            high_val = _literal_to_date(high_node) if isinstance(high_node, LiteralNode) else None
-            return PushedPredicates(date_start=low_val, date_end=high_val)
-        return PushedPredicates()
+        if isinstance(col_node, FieldReferenceNode) and isinstance(low_node, LiteralNode) and isinstance(high_node, LiteralNode):
+            for p in pushable:
+                if p.column == col_node.field and "gte" in p.operators:
+                    params[p.api_param] = PushedParam(
+                        value=low_node.value, operator="gte", format=p.format,
+                    )
+                    break
+            for p in pushable:
+                if p.column == col_node.field and "lte" in p.operators:
+                    params[p.api_param] = PushedParam(
+                        value=high_node.value, operator="lte", format=p.format,
+                    )
+                    break
+        return params
 
-    # Handle binary comparisons: 2 arguments (column, value)
+    # Binary comparisons: 2 arguments
     if len(expr.arguments) == 2:
         left, right = expr.arguments
+        if isinstance(left, FieldReferenceNode) and isinstance(right, LiteralNode):
+            op = _fkey_to_operator(fk)
+            if op is not None:
+                for p in pushable:
+                    if p.column == left.field and op in p.operators:
+                        params[p.api_param] = PushedParam(
+                            value=right.value, operator=op, format=p.format,
+                        )
+                        break
 
-        if isinstance(left, FieldReferenceNode) and left.field == column and isinstance(right, LiteralNode):
-            lit_date = _literal_to_date(right)
-            if lit_date is None:
-                return PushedPredicates()
-
-            if fk in (FKEY_SUBSTRAIT_SCALAR_COMPARISON.GT, FKEY_SUBSTRAIT_SCALAR_COMPARISON.GTE):
-                return PushedPredicates(date_start=lit_date)
-            elif fk in (FKEY_SUBSTRAIT_SCALAR_COMPARISON.LT, FKEY_SUBSTRAIT_SCALAR_COMPARISON.LTE):
-                return PushedPredicates(date_end=lit_date)
-
-    return PushedPredicates()
-
-
-def _literal_to_date(node: Any) -> date | None:
-    val = node.value
-    if isinstance(val, date) and not isinstance(val, datetime):
-        return val
-    if isinstance(val, datetime):
-        return val.date()
-    if isinstance(val, str):
-        try:
-            return date.fromisoformat(val[:10])
-        except ValueError:
-            return None
-    return None
+    return params
 
 
-def synthesise_pagination_hint(predicates: PushedPredicates) -> PaginationHint | None:
-    if predicates.date_end is None and predicates.limit is None:
+def _fkey_to_operator(fk: Any) -> str | None:
+    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
+
+    mapping = {
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON.GT: "gt",
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON.GTE: "gte",
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON.LT: "lt",
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON.LTE: "lte",
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON.EQUAL: "eq",
+    }
+    return mapping.get(fk)
+
+
+def synthesise_pagination_hint(
+    predicates: PushedPredicates,
+    pushable_params: tuple[PushableParam, ...] = (),
+) -> PaginationHint | None:
+    stop_date = None
+    for api_param, pushed in predicates.params.items():
+        if pushed.operator in ("lt", "lte"):
+            for p in pushable_params:
+                if p.api_param == api_param and p.pagination_stop:
+                    if isinstance(pushed.value, (date, datetime)):
+                        stop_date = pushed.value
+                    break
+
+    if stop_date is None and predicates.limit is None:
         return None
     return PaginationHint(
         stop_after_records=predicates.limit,
-        stop_after_date=predicates.date_end,
+        stop_after_date=stop_date,
     )
