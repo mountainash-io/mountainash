@@ -99,11 +99,6 @@ class TestDrop:
 
 
 class TestRename:
-    @pytest.mark.xfail(
-        reason="Ibis backend rename mapping is inverted: Ibis expects {new: old} "
-               "but the Relation API passes {old: new}. See relsys_ib_project.py.",
-        strict=True,
-    )
     def test_rename_columns(self, ibis_table):
         result = _to_polars(relation(ibis_table).rename({"name": "full_name", "score": "grade"}))
         assert "full_name" in result.columns
@@ -216,11 +211,6 @@ class TestPipeline:
         assert scores == sorted(scores, reverse=True)
         assert all(s > 70 for s in scores)
 
-    @pytest.mark.xfail(
-        reason="Ibis backend rename mapping is inverted: Ibis expects {new: old} "
-               "but the Relation API passes {old: new}. See relsys_ib_project.py.",
-        strict=True,
-    )
     def test_select_rename_sort(self, ibis_table):
         """Chain select -> rename -> sort."""
         result = _to_polars(
