@@ -125,3 +125,94 @@ class TestListLen:
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.len())
         assert actual == [3, 2]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListFirst:
+    def test_first_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"arr": [[10, 20, 30], [40, 50], [60]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.first())
+        assert actual == [10, 40, 60]
+
+    def test_first_with_null_first(self, backend_name, backend_factory, collect_expr):
+        data = {"arr": [[None, 20, 30], [10, None]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.first())
+        assert actual == [None, 10]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListLast:
+    def test_last_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("Narwhals list.get() rejects negative index (-1) needed for last()")
+        data = {"arr": [[10, 20, 30], [40, 50], [60]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.last())
+        assert actual == [30, 50, 60]
+
+    def test_last_with_null_last(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("Narwhals list.get() rejects negative index (-1) needed for last()")
+        data = {"arr": [[10, 20, None], [None, 50]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.last())
+        assert actual == [None, 50]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListSort:
+    def test_sort_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"arr": [[3, 1, 2], [9, 5, 7], [4, 8, 6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.sort())
+        assert actual == [[1, 2, 3], [5, 7, 9], [4, 6, 8]]
+
+    def test_sort_already_sorted(self, backend_name, backend_factory, collect_expr):
+        data = {"arr": [[1, 2, 3], [4, 5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.sort())
+        assert actual == [[1, 2, 3], [4, 5, 6]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListReverse:
+    def test_reverse_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.reverse() not supported on {backend_name}")
+        data = {"arr": [[1, 2, 3], [4, 5], [6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.reverse())
+        assert actual == [[3, 2, 1], [5, 4], [6]]
+
+    def test_reverse_empty(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.reverse() not supported on {backend_name}")
+        data = {"arr": [[], [1], [1, 2]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.reverse())
+        assert actual == [[], [1], [2, 1]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListUnique:
+    def test_unique_basic(self, backend_name, backend_factory, collect_expr):
+        data = {"arr": [[1, 2, 2, 3, 3, 3], [4, 4, 5]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.unique())
+        # Order may vary — sort for comparison
+        assert sorted(actual[0]) == [1, 2, 3]
+        assert sorted(actual[1]) == [4, 5]
+
+    def test_unique_no_duplicates(self, backend_name, backend_factory, collect_expr):
+        data = {"arr": [[1, 2, 3], [4, 5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.unique())
+        assert sorted(actual[0]) == [1, 2, 3]
+        assert sorted(actual[1]) == [4, 5, 6]
