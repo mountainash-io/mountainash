@@ -56,47 +56,26 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
             # Cross join or no predicate.
             predicates = []
 
-        result = left.join(right, predicates=predicates, how=how, lname="", rname=suffix or "{name}_right")
+        rname = "{name}" + suffix if suffix else "{name}_right"
+        result = left.join(right, predicates=predicates, how=how, lname="", rname=rname)
 
-        # Ibis keeps the right-side join key column in the output for non-inner
-        # joins (named with the suffix, e.g. ``"_right"`` for shared key ``"id"``).
-        # Inner joins deduplicate automatically; others do not.
-        # We must drop the right-side duplicate key so the schema matches the
-        # expectation of every other backend (single unified key column).
+        # Ibis keeps the right-side join key as a separate column for non-inner
+        # joins (e.g. ``id_right`` alongside ``id``).  Polars and Narwhals
+        # deduplicate automatically; we do it here to match.
         if on is not None and how not in ("inner", "semi", "anti", "cross"):
             effective_suffix = suffix or "_right"
-            cols_to_drop = []
-            for key in on:
-                candidate_suffixed = f"{key}{effective_suffix}"
-                # When `rname=suffix` (not `rname="{name}_right"`), ibis names
-                # the right key column exactly `suffix` (e.g. ``"_right"``).
-                if effective_suffix in result.columns and effective_suffix != f"{key}{effective_suffix}":
-                    cols_to_drop.append(effective_suffix)
-                    break  # Only one ``_right`` column exists when a bare suffix is used.
-                elif candidate_suffixed in result.columns:
-                    cols_to_drop.append(candidate_suffixed)
+            right_keys = [f"{k}{effective_suffix}" for k in on]
+            right_keys = [rk for rk in right_keys if rk in result.columns]
 
             if how in ("right", "outer"):
-                # For right and outer joins, either side's key can be NULL for
-                # non-matching rows; coalesce left and right keys into a single
-                # unified key column.
                 import ibis
-
-                for key in on:
-                    candidate_suffixed = f"{key}{effective_suffix}"
-                    bare_suffix = effective_suffix
-                    right_col_name = (
-                        bare_suffix
-                        if (bare_suffix in result.columns and bare_suffix != candidate_suffixed)
-                        else candidate_suffixed
+                for key, rk in zip(on, right_keys):
+                    result = result.mutate(
+                        **{key: ibis.coalesce(result[key], result[rk])}
                     )
-                    if right_col_name in result.columns:
-                        result = result.mutate(
-                            **{key: ibis.coalesce(result[key], result[right_col_name])}
-                        )
 
-            if cols_to_drop:
-                result = result.drop(*cols_to_drop)
+            if right_keys:
+                result = result.drop(*right_keys)
 
         return result
 
