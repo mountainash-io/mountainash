@@ -44,6 +44,8 @@ class MountainashExtensionRelationSystemProtocol(Protocol):
 
     def top_k(self, relation: Any, /, *, k: int, by: str, descending: bool = True) -> Any: ...
 
+    def unnest(self, relation: Any, /, *, columns: list[str], separator: str) -> Any: ...
+
     def read_resource(self, resource: Any) -> Any:
         """Load a DataResource into the backend's native relation type.
 

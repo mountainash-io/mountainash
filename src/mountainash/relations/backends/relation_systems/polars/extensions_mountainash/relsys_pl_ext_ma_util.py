@@ -94,6 +94,11 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
     ) -> pl.LazyFrame:
         return relation.sort(by, descending=descending).head(k)
 
+    def unnest(
+        self, relation: pl.LazyFrame, /, *, columns: list[str], separator: str
+    ) -> pl.LazyFrame:
+        return relation.unnest(columns, separator=separator if separator else None)
+
     # ------------------------------------------------------------------
     # read_resource — load a DataResource into a Polars LazyFrame
     # ------------------------------------------------------------------

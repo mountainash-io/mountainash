@@ -294,6 +294,22 @@ class Relation(RelationBase):
             )
         )
 
+    def unnest(self, *columns: str, separator: str) -> Relation:
+        """Expand struct columns into top-level columns.
+
+        Each field in the struct becomes a new column named
+        ``{struct_col}{separator}{field_name}``.
+        """
+        if not columns:
+            raise ValueError("unnest requires at least one column")
+        return Relation(
+            ExtensionRelNode(
+                input=self._node,
+                operation=ExtensionRelOperation.UNNEST,
+                options={"columns": list(columns), "separator": separator},
+            )
+        )
+
     def sample(
         self,
         *,
