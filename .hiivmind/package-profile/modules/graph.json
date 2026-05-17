@@ -1,0 +1,34 @@
+{
+  "id": "graph",
+  "path": "src/mountainash/graph/",
+  "summary": "Graph algorithms utility: topological ordering (Kahn's algorithm), ancestor discovery (BFS), and parallel layer computation for DAG scheduling. Used by pipelines PipelineSpec for step ordering.",
+  "role": "orchestration",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["topological_order", "ancestors", "parallel_layers"],
+  "key_classes": [],
+  "key_functions": ["topological_order", "ancestors", "parallel_layers"],
+  "dependencies": [],
+  "dependents": ["pipelines"],
+  "extension_points": [],
+  "lifecycle_notes": ["New module 2026-05: extracted from pipelines for reuse. Also mirrored at utils/graph/ for backward compatibility."],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/graph/algorithms.py", "detail": "topological_order, ancestors, parallel_layers functions"},
+    {"kind": "import", "path": "src/mountainash/pipelines/core/spec.py", "detail": "PipelineSpec uses graph algorithms for step ordering"}
+  ],
+  "source_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

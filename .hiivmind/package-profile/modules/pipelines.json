@@ -1,0 +1,66 @@
+{
+  "id": "pipelines",
+  "path": "src/mountainash/pipelines/",
+  "summary": "Pipeline framework: declarative multi-step data pipelines with DAG ordering, capability-based pushdown (filter/limit/field-selection to data sources), caching via PipelineStorage, and integration with the relation AST via PipelineStepRelNode. Fluent builder API: PipelineBuilder.step(...).build() -> PipelineSpec -> SimplePipelineRunner.run().",
+  "role": "orchestration",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": ["users", "maintainers", "backend-architecture", "extension-authors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": ["PipelineBuilder", "step", "source", "PipelineSpec", "SimplePipelineRunner", "PipelineStorage", "MemoryPipelineStorage", "FileSystemPipelineStorage", "StepCapabilities", "PushableParam"],
+  "key_classes": [
+    "PipelineBuilder",
+    "PipelineSpec",
+    "StepDefinition",
+    "StepContext",
+    "StepResult",
+    "SimplePipelineRunner",
+    "PipelineStepRelNode",
+    "StepCapabilities",
+    "PushableParam",
+    "PushedParam",
+    "ResolverRegistry",
+    "MemoryPipelineStorage",
+    "FileSystemPipelineStorage",
+    "DualPipelineStorage"
+  ],
+  "key_functions": ["step", "source", "apply_pushdown", "register_pipeline_bridge", "register_pipeline_optimisations"],
+  "dependencies": [
+    "graph",
+    "relations.core.relation_nodes",
+    "relations.core.relation_api",
+    "relations.core.unified_visitor"
+  ],
+  "dependents": [],
+  "extension_points": [
+    "StepCapabilities.pushable_params defines what predicates a source can accept",
+    "PipelineStorage protocol for custom caching backends",
+    "ResolverRegistry for multi-tenant pipeline resolution",
+    "RelationVisitRegistry integration via register_pipeline_bridge()"
+  ],
+  "lifecycle_notes": ["New module 2026-05: full pipeline orchestration with relation integration"],
+  "documentation_hooks": [
+    "Pipeline integrates with relations via source() which returns a Relation wrapping PipelineStepRelNode",
+    "Pushdown optimisation rewrites filter/fetch/project nodes above PipelineStepRelNode into pushed predicates"
+  ],
+  "examples": [],
+  "tests": [
+    {"kind": "test", "path": "tests/pipelines/", "detail": "~20 test files covering builder, spec, executor, pushdown, storage, orchestration"}
+  ],
+  "risks": ["Evolving module — API surface may change"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/pipelines/__init__.py", "detail": "Exports step, PipelineBuilder, source; auto-registers pipeline bridge and optimisations"},
+    {"kind": "test", "path": "tests/pipelines/test_fluent_builder.py", "detail": "Tests for PipelineBuilder fluent API"},
+    {"kind": "test", "path": "tests/pipelines/test_e2e_pushdown.py", "detail": "End-to-end pushdown integration tests"},
+    {"kind": "test", "path": "tests/integration/test_end_to_end_pipeline.py", "detail": "Full pipeline integration test"}
+  ],
+  "source_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

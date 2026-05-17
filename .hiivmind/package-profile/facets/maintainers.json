@@ -9,10 +9,12 @@
     {"name": "Function Key System", "module_ids": ["expressions.core.expression_system"], "recommended_docs": ["FKEY enum organization", "Function registry", "Adding new function keys"], "evidence": ["Enforced principle: function-key-enums.md"]},
     {"name": "Backend Implementations", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"], "recommended_docs": ["Backend detection and routing", "Known divergences", "Backend composition via multiple inheritance"], "evidence": ["Enforced principles: backend-detection.md, consistency-guarantees.md"]},
     {"name": "Relation DAG Orchestration", "module_ids": ["relations.dag"], "recommended_docs": ["Two-edge graph model", "Dependency vs constraint edges", "Topological collection"], "evidence": ["Enforced principle: two-edge-graph-model.md"]},
+    {"name": "Pipeline Framework", "module_ids": ["pipelines", "graph"], "recommended_docs": ["PipelineSpec DAG ordering via graph module", "Capability-based pushdown architecture", "OptimisationRegistry and RelationVisitRegistry extension points", "Pipeline-Relation integration via PipelineStepRelNode"], "evidence": ["New module with relation visitor integration"]},
+    {"name": "Extensible Visitor Dispatch", "module_ids": ["relations.core.unified_visitor"], "recommended_docs": ["RelationVisitRegistry pattern", "Registering external node handlers", "OptimisationRegistry for AST rewriting"], "evidence": ["New extension point enabling pipeline integration"]},
     {"name": "Type System", "module_ids": ["typespec", "core"], "recommended_docs": ["UniversalType mappings", "TypeSpec/FieldSpec structure", "Frictionless alignment"], "evidence": ["Enforced principle: frictionless-structural-fidelity.md"]}
   ],
-  "featured_modules": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "relations.core.unified_visitor", "relations.dag", "core"],
+  "featured_modules": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "relations.core.unified_visitor", "relations.dag", "pipelines", "graph", "core"],
   "hidden_or_internal_modules": [],
   "documentation_plan": ["Architecture overview", "Adding operations guide", "Backend implementation guide", "Known divergences reference", "Wiring matrix"],
-  "open_questions": ["Conform application is currently Polars-only on the DAG materialisation path", "Ibis uses a local fork — upstream dependency risk"]
+  "open_questions": ["Ibis uses a local fork — upstream dependency risk", "Pipeline module stability — evolving API surface"]
 }

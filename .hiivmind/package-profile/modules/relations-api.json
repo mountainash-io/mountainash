@@ -1,27 +1,47 @@
 {
   "id": "relations.core.relation_api",
   "path": "src/mountainash/relations/core/relation_api/",
-  "summary": "Fluent relation API: Relation class (method chaining for filter/sort/join/group_by/head/select/etc.), GroupedRelation, relation() factory, concat() function, and RelationProjectionBuilder.",
+  "summary": "Fluent relation API: Relation class (method chaining for filter/sort/join/group_by/head/select/conform/etc.), GroupedRelation, relation() factory, concat() function, RelationProjectionBuilder, and OptimisationRegistry for extensible AST rewriting (used by pipeline pushdown).",
   "role": "api-builder",
   "visibility": "public",
   "stability": "stable",
-  "audiences": ["users", "maintainers", "contributors"],
+  "audiences": ["users", "maintainers", "backend-architecture"],
   "doc_priority": "essential",
   "confidence": "high",
-  "public_api": [],
-  "key_classes": ["Relation", "GroupedRelation", "RelationBase", "BaseRelationAPIBuilder", "RelationProjectionBuilder"],
+  "public_api": ["Relation", "GroupedRelation", "relation", "concat"],
+  "key_classes": [
+    "Relation",
+    "GroupedRelation",
+    "RelationBase",
+    "BaseRelationAPIBuilder",
+    "RelationProjectionBuilder",
+    "OptimisationRegistry"
+  ],
   "key_functions": ["relation", "concat"],
-  "dependencies": ["relations.core.relation_nodes", "expressions.core.expression_api"],
-  "dependents": ["relations.dag", "conform"],
-  "extension_points": [],
-  "lifecycle_notes": [],
+  "dependencies": [
+    "relations.core.relation_nodes",
+    "expressions.core.expression_api",
+    "conform"
+  ],
+  "dependents": [
+    "relations.dag",
+    "pipelines.fluent",
+    "pipelines.integration"
+  ],
+  "extension_points": [
+    "OptimisationRegistry allows pipeline/extension modules to register AST rewriting passes without modifying the relation API"
+  ],
+  "lifecycle_notes": ["2026-05: Added OptimisationRegistry, Relation.conform() now delegates to conform._build_conform_exprs"],
   "documentation_hooks": [],
   "examples": [],
   "tests": [],
   "risks": [],
   "open_questions": [],
-  "evidence": [],
-  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_api/optimisation_registry.py", "detail": "OptimisationRegistry with register_optimisation/apply_optimisations"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_api/relation_base.py", "detail": "RelationBase.conform() method using _build_conform_exprs"}
+  ],
+  "source_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
   "manual": {
     "notes": "",
     "editorial_status": "",

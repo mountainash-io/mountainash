@@ -1,13 +1,13 @@
 {
   "profile_version": "1.0",
-  "generated_at": "2026-05-13T00:00:00Z",
+  "generated_at": "2026-05-17T00:00:00Z",
   "source": {
     "root": "src/mountainash",
     "git": {
-      "previous_hash": null,
-      "current_hash": "93258f69592c625af66015d8936dae44e88e497f",
-      "branch": "feature/protocol-drift-guards",
-      "working_tree_dirty": true
+      "previous_hash": "93258f69592c625af66015d8936dae44e88e497f",
+      "current_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+      "branch": "develop",
+      "working_tree_dirty": false
     }
   },
   "scope": {
@@ -25,15 +25,39 @@
     "broader-hype"
   ],
   "counts": {
-    "modules_discovered": 23,
-    "modules_profiled": 23,
+    "modules_discovered": 25,
+    "modules_profiled": 25,
     "profiles_ignored": 0,
     "facets_written": 7
   },
   "changed_scopes": {
-    "files": [],
-    "modules": [],
-    "facets": []
+    "files": [
+      "src/mountainash/pipelines/**",
+      "src/mountainash/graph/**",
+      "src/mountainash/utils/graph/**",
+      "src/mountainash/conform/expressions.py",
+      "src/mountainash/relations/core/relation_api/optimisation_registry.py",
+      "src/mountainash/relations/core/unified_visitor/visit_registry.py",
+      "src/mountainash/relations/core/unified_visitor/_core_handlers.py"
+    ],
+    "modules": [
+      "pipelines",
+      "graph",
+      "conform",
+      "relations.core.relation_api",
+      "relations.core.unified_visitor",
+      "relations.core.relation_nodes",
+      "typespec",
+      "toplevel"
+    ],
+    "facets": [
+      "users",
+      "maintainers",
+      "backend-architecture",
+      "extension-authors",
+      "executives-marketing",
+      "broader-hype"
+    ]
   },
   "ignored_paths": [
     {
@@ -55,6 +79,10 @@
     {
       "path": "src/mountainash/relations/schema_inference.py",
       "reason": "Schema inference folded into relations-api profile"
+    },
+    {
+      "path": "src/mountainash/utils/graph/",
+      "reason": "Mirror of graph module for backward compat; folded into graph profile"
     }
   ],
   "profile_files": {
@@ -81,7 +109,9 @@
       "conform": "modules/conform.json",
       "pydata.ingress": "modules/pydata-ingress.json",
       "pydata.egress": "modules/pydata-egress.json",
-      "datacontracts": "modules/datacontracts.json"
+      "datacontracts": "modules/datacontracts.json",
+      "pipelines": "modules/pipelines.json",
+      "graph": "modules/graph.json"
     },
     "facets": {
       "users": "facets/users.json",
