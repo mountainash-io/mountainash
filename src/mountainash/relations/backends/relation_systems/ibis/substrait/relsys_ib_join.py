@@ -86,10 +86,12 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
                 elif candidate_suffixed in result.columns:
                     cols_to_drop.append(candidate_suffixed)
 
-            if how == "right":
-                # For right joins the left-side key can be NULL for non-matching
-                # rows; the canonical key value lives in the right-side column.
-                # Replace the left key with the right key then drop the right copy.
+            if how in ("right", "outer"):
+                # For right and outer joins, either side's key can be NULL for
+                # non-matching rows; coalesce left and right keys into a single
+                # unified key column.
+                import ibis
+
                 for key in on:
                     candidate_suffixed = f"{key}{effective_suffix}"
                     bare_suffix = effective_suffix
@@ -99,7 +101,9 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
                         else candidate_suffixed
                     )
                     if right_col_name in result.columns:
-                        result = result.mutate(**{key: result[right_col_name]})
+                        result = result.mutate(
+                            **{key: ibis.coalesce(result[key], result[right_col_name])}
+                        )
 
             if cols_to_drop:
                 result = result.drop(*cols_to_drop)

@@ -112,3 +112,75 @@ class TestJoinRight:
             {"id": 2, "val": "b", "score": 20},
             {"id": 3, "val": None, "score": 30},
         ]
+
+
+# ---------------------------------------------------------------------------
+# Outer Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinOuter:
+    def test_outer_both_side_null_fill(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2], "val": ["a", "b"]},
+            {"id": [2, 3], "score": [20, 30]},
+            backend_name,
+        )
+        result = ma.relation(left).join(
+            right, on="id", how="outer"
+        ).to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "val": "a", "score": None},
+            {"id": 2, "val": "b", "score": 20},
+            {"id": 3, "val": None, "score": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Semi Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinSemi:
+    def test_semi_returns_left_columns_only(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2, 3], "val": ["a", "b", "c"]},
+            {"id": [2, 3, 4], "score": [20, 30, 40]},
+            backend_name,
+        )
+        result = ma.relation(left).join(
+            right, on="id", how="semi"
+        ).to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 2, "val": "b"},
+            {"id": 3, "val": "c"},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Anti Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinAnti:
+    def test_anti_excludes_matching(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2, 3], "val": ["a", "b", "c"]},
+            {"id": [2, 3, 4], "score": [20, 30, 40]},
+            backend_name,
+        )
+        result = ma.relation(left).join(
+            right, on="id", how="anti"
+        ).to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "val": "a"},
+        ]
