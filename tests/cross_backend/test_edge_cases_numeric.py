@@ -77,3 +77,71 @@ class TestIntegerDivision:
         # SQL (truncate toward zero): [-3, -3]
         assert actual[0] in [-4, -3]
         assert actual[1] in [-4, -3]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestFloatPrecision:
+
+    def test_sum_tenths(self, backend_name, backend_factory):
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import AggregateRelNode
+
+        data = {"a": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]}
+        df = backend_factory.create(data, backend_name)
+        r = ma.relation(df)
+        aggregated = Relation(
+            AggregateRelNode(input=r._node, keys=[], measures=[ma.col("a").sum().alias("s")])
+        )
+        actual = aggregated.item("s")
+        assert actual == pytest.approx(1.0, abs=1e-10)
+
+    def test_large_minus_large(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [1e15 + 1.0], "b": [1e15]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a") - ma.col("b"))
+        assert actual == pytest.approx([1.0], abs=1e-3)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestRoundingModes:
+
+    def test_round_half(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [1.5, 2.5, 3.5, 4.5]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").round(0))
+        # Banker's rounding → [2, 2, 4, 4]; or round-half-away → [2, 3, 4, 5]
+        for v in actual:
+            assert v in [1, 2, 3, 4, 5]
+
+    def test_round_decimals(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [3.14159, 2.71828]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").round(2))
+        assert actual == pytest.approx([3.14, 2.72], abs=0.005)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestModuloSign:
+
+    def test_negative_mod_positive(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [-7], "b": [3]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a") % ma.col("b"))
+        # Python: -7 % 3 = 2 (sign of divisor); C/SQL: -1 (sign of dividend)
+        assert actual[0] in [2, -1]
+
+    def test_positive_mod_negative(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [7], "b": [-3]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a") % ma.col("b"))
+        # Python: 7 % -3 = -2; C/SQL: 1
+        assert actual[0] in [-2, 1]
+
+    def test_both_positive(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [7], "b": [3]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a") % ma.col("b"))
+        assert actual == [1]
