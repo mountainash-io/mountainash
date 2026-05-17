@@ -29,6 +29,7 @@ ALL_BACKENDS = [
 ]
 
 IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
+NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
 
 
 @pytest.mark.cross_backend
@@ -169,3 +170,208 @@ class TestWindowRowNumber:
             .to_dict()
         )
         assert result["rn"] == [1, 2, 3]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowLead:
+    """Test lead(n) — next value in partition."""
+
+    def test_lead_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "B", "B", "B"],
+                "score": [10, 20, 30, 15, 25, 35]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").lead(1).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("lead_val"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["lead_val"] == [20, 30, None, 25, 35, None]
+
+    def test_lead_n2(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 40]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").lead(2).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("lead_val"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["lead_val"] == [30, 40, None, None]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowLag:
+    """Test lag(n) — previous value in partition."""
+
+    def test_lag_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "B", "B", "B"],
+                "score": [10, 20, 30, 15, 25, 35]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").lag(1).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("lag_val"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["lag_val"] == [None, 10, 20, None, 15, 25]
+
+    def test_lag_n2(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 40]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").lag(2).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("lag_val"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["lag_val"] == [None, None, 10, 20]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowShift:
+    """Test shift(n) — shift values in partition (positive=lag, negative=lead)."""
+
+    def test_shift_forward(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "A", "A"],
+                "score": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").shift(1).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("shifted"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["shifted"] == [None, 10, 20, 30, 40]
+
+    def test_shift_backward(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "A", "A"],
+                "score": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").shift(-1).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("shifted"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["shifted"] == [20, 30, 40, 50, None]
+
+    def test_shift_n2(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "A", "A"],
+                "score": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").shift(2).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("shifted"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["shifted"] == [None, None, 10, 20, 30]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowFirstValue:
+    """Test first_value() — first value in partition."""
+
+    def test_first_value_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "B", "B"],
+                "score": [10, 20, 30, 15, 25]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").first_value().over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("fv"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["fv"] == [10, 10, 10, 15, 15]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowLastValue:
+    """Test last_value() — last value in partition."""
+
+    def test_last_value_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "B", "B"],
+                "score": [10, 20, 30, 15, 25]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").last_value().over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("lv"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["lv"] == [30, 30, 30, 25, 25]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowNtile:
+    """Test ntile(n) — divide partition into n roughly equal buckets."""
+
+    def test_ntile_2(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: ntile() not supported")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 40]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").ntile(2).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("bucket"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["bucket"] == [1, 1, 2, 2]
+
+    def test_ntile_3(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: ntile() not supported")
+        data = {"group": ["A", "A", "A", "A", "A", "A"],
+                "score": [10, 20, 30, 40, 50, 60]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").ntile(3).over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("bucket"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["bucket"] == [1, 1, 2, 2, 3, 3]
