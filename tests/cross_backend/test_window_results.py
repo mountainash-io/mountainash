@@ -375,3 +375,155 @@ class TestWindowNtile:
             .to_dict()
         )
         assert result["bucket"] == [1, 1, 2, 2, 3, 3]
+
+
+# ─── Cumulative Operations ─────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowCumSum:
+    """Test cum_sum — cumulative sum."""
+
+    def test_cum_sum_plain(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [1, 2, 3, 4, 5]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").cum_sum().alias("cs"))
+            .to_dict()
+        )
+        assert result["cs"] == [1, 3, 6, 10, 15]
+
+    def test_cum_sum_over_partition(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"group": ["A", "A", "A", "B", "B"],
+                "val": [1, 2, 3, 10, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("val").cum_sum().over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("val"), expr.alias("cs"))
+            .sort("group", "val")
+            .to_dict()
+        )
+        assert result["cs"] == [1, 3, 6, 10, 30]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowCumMax:
+    """Test cum_max — cumulative maximum."""
+
+    def test_cum_max_plain(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [3, 1, 4, 1, 5]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").cum_max().alias("cm"))
+            .to_dict()
+        )
+        assert result["cm"] == [3, 3, 4, 4, 5]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowCumMin:
+    """Test cum_min — cumulative minimum."""
+
+    def test_cum_min_plain(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [5, 3, 4, 1, 2]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").cum_min().alias("cm"))
+            .to_dict()
+        )
+        assert result["cm"] == [5, 3, 3, 1, 1]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowCumCount:
+    """Test cum_count — cumulative count (non-null values)."""
+
+    def test_cum_count_plain(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").cum_count().alias("cc"))
+            .to_dict()
+        )
+        assert result["cc"] == [1, 2, 3, 4, 5]
+
+    def test_cum_count_with_nulls(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [10, None, 30, None, 50]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").cum_count().alias("cc"))
+            .to_dict()
+        )
+        assert result["cc"] == [1, 1, 2, 2, 3]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowCumProd:
+    """Test cum_prod — cumulative product."""
+
+    def test_cum_prod_plain(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [1, 2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").cum_prod().alias("cp"))
+            .to_dict()
+        )
+        assert result["cp"] == [1, 2, 6, 24]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowDiff:
+    """Test diff — element-wise difference with lag."""
+
+    def test_diff_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        data = {"a": [10, 20, 35, 50]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").diff().alias("d"))
+            .to_dict()
+        )
+        assert result["d"] == [None, 10, 15, 15]
+
+    def test_diff_n2(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: diff() only supports n=1")
+        data = {"a": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("a"), ma.col("a").diff(n=2).alias("d"))
+            .to_dict()
+        )
+        assert result["d"] == [None, None, 20, 20, 20]
