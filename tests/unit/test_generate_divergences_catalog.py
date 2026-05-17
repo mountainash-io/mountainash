@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 # Allow importing from scripts/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
@@ -13,8 +15,10 @@ from generate_divergences_catalog import (
     CATEGORY_ORDER,
     STATUS_DISPLAY,
     WORKAROUND_DISPLAY,
+    YAML_REGISTRY,
     DivergenceEntry,
     group_by_category,
+    load_yaml_registry,
     parse_entries,
     render_catalog,
     render_detail_section,
@@ -219,3 +223,41 @@ class TestRenderCatalog:
         str_pos = catalog.index("String Operations")
         math_pos = catalog.index("Math Operations")
         assert str_pos < math_pos
+
+
+# ---------------------------------------------------------------------------
+# TestIntegration — runs against real upstream-issues.yaml
+# ---------------------------------------------------------------------------
+
+
+class TestIntegration:
+    @pytest.fixture()
+    def yaml_path(self):
+        try:
+            import yaml  # noqa: F401
+        except ModuleNotFoundError:
+            pytest.skip("PyYAML not available in this test environment")
+        if not YAML_REGISTRY.exists():
+            pytest.skip("upstream-issues.yaml not available in this checkout")
+        return YAML_REGISTRY
+
+    def test_generates_from_real_yaml(self, yaml_path):
+        raw_issues = load_yaml_registry(yaml_path)
+        entries = parse_entries(raw_issues)
+        assert len(entries) >= 70
+
+        catalog = render_catalog(entries)
+        assert "# Known Cross-Backend Divergences" in catalog
+        assert "## Overview" in catalog
+        assert "## Summary" in catalog
+        assert "## Detailed Reference" in catalog
+        assert "String Operations" in catalog
+
+    def test_all_entries_appear_in_both_layers(self, yaml_path):
+        raw_issues = load_yaml_registry(yaml_path)
+        entries = parse_entries(raw_issues)
+        catalog = render_catalog(entries)
+
+        for entry in entries:
+            assert f"| {entry.id} |" in catalog, f"{entry.id} missing from summary table"
+            assert f"### {entry.id}:" in catalog, f"{entry.id} missing from detail section"
