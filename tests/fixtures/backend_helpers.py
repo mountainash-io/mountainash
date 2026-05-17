@@ -281,6 +281,53 @@ class BackendDataFrameFactory:
             raise ValueError(f"Unknown backend: {backend_name}")
 
     @staticmethod
+    def create_pair(
+        left_data: Dict[str, List],
+        right_data: Dict[str, List],
+        backend_name: str,
+        left_name: str = "left_table",
+        right_name: str = "right_table",
+    ) -> tuple:
+        """
+        Create two DataFrames on the same backend connection.
+
+        For ibis backends, both tables are registered on the same connection so
+        cross-table operations (e.g. joins) work correctly. For other backends,
+        this is equivalent to calling ``create()`` twice.
+
+        Args:
+            left_data: Data for the left DataFrame.
+            right_data: Data for the right DataFrame.
+            backend_name: Backend identifier.
+            left_name: Table name for ibis left table (default ``"left_table"``).
+            right_name: Table name for ibis right table (default ``"right_table"``).
+
+        Returns:
+            Tuple of (left_df, right_df) for the requested backend.
+        """
+        if backend_name == "ibis-duckdb":
+            conn = ibis.duckdb.connect()
+            left = conn.create_table(left_name, left_data, overwrite=True)
+            right = conn.create_table(right_name, right_data, overwrite=True)
+            return left, right
+        elif backend_name == "ibis-polars":
+            conn = ibis.polars.connect()
+            left = conn.create_table(left_name, pl.DataFrame(left_data), overwrite=True)
+            right = conn.create_table(right_name, pl.DataFrame(right_data), overwrite=True)
+            return left, right
+        elif backend_name == "ibis-sqlite":
+            conn = ibis.sqlite.connect(":memory:")
+            left = conn.create_table(left_name, left_data, overwrite=True)
+            right = conn.create_table(right_name, right_data, overwrite=True)
+            return left, right
+        else:
+            # Non-ibis backends: independent DataFrames, no shared connection needed.
+            return (
+                BackendDataFrameFactory.create(left_data, backend_name),
+                BackendDataFrameFactory.create(right_data, backend_name),
+            )
+
+    @staticmethod
     def create_empty(columns: List[str], backend_name: str) -> Any:
         """
         Create empty DataFrame with specified columns.

@@ -53,7 +53,7 @@ class SubstraitNarwhalsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
                 f"Unsupported join type for Narwhals: {join_type!r}. "
                 f"Supported: {list(_JOIN_TYPE_MAP.keys()) + [JoinType.RIGHT]}"
             )
-        return left.join(
+        result = left.join(
             right,
             on=on,
             left_on=left_on,
@@ -61,6 +61,28 @@ class SubstraitNarwhalsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
             how=how,
             suffix=suffix,
         )
+
+        # For outer (full) joins, Narwhals keeps both key columns when rows are
+        # unmatched — e.g. ``id`` (left, NULL for right-only rows) and
+        # ``id_right`` (right, NULL for left-only rows).  Coalesce them into a
+        # single unified key column and drop the duplicate.
+        if how == "full" and on is not None:
+            import narwhals as nw
+
+            effective_suffix = suffix or "_right"
+            cols_to_drop = []
+            select_exprs = []
+            for key in on:
+                right_key = f"{key}{effective_suffix}"
+                if right_key in result.columns:
+                    select_exprs.append(
+                        nw.coalesce(nw.col(key), nw.col(right_key)).alias(key)
+                    )
+                    cols_to_drop.append(right_key)
+            if select_exprs:
+                result = result.with_columns(select_exprs).drop(cols_to_drop)
+
+        return result
 
     def join_asof(
         self,

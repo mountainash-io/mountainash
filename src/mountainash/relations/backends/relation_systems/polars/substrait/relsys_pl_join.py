@@ -44,7 +44,7 @@ class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
                 f"Unsupported join type for Polars: {join_type!r}. "
                 f"Supported: {list(_JOIN_TYPE_MAP.keys())}"
             )
-        return left.join(
+        result = left.join(
             right,
             on=on,
             left_on=left_on,
@@ -52,6 +52,22 @@ class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
             how=how,
             suffix=suffix,
         )
+
+        # For outer (full) joins, Polars keeps both key columns when rows are
+        # unmatched — e.g. ``id`` (left, NULL for right-only rows) and
+        # ``id_right`` (right, NULL for left-only rows).  Coalesce them into a
+        # single unified key column and drop the duplicate.
+        if how == "full" and on is not None:
+            effective_suffix = suffix or "_right"
+            result_cols = result.collect_schema().names()
+            for key in on:
+                right_key = f"{key}{effective_suffix}"
+                if right_key in result_cols:
+                    result = result.with_columns(
+                        pl.coalesce([key, right_key]).alias(key)
+                    ).drop(right_key)
+
+        return result
 
     def join_asof(
         self,
