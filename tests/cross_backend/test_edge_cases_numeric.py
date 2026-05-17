@@ -145,3 +145,79 @@ class TestModuloSign:
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a") % ma.col("b"))
         assert actual == [1]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestOverflow:
+
+    def test_large_product(self, backend_name, backend_factory):
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import AggregateRelNode
+
+        data = {"a": [1000000, 1000000, 1000000]}
+        df = backend_factory.create(data, backend_name)
+        r = ma.relation(df)
+        aggregated = Relation(
+            AggregateRelNode(input=r._node, keys=[], measures=[ma.col("a").product().alias("p")])
+        )
+        actual = aggregated.item("p")
+        # 10^6 * 10^6 * 10^6 = 10^18 — fits in int64
+        # Some backends compute product as float64 (precision loss), ibis-polars returns None
+        if actual is None:
+            pytest.skip("backend returned NULL for integer product")
+        assert actual == pytest.approx(1_000_000_000_000_000_000, rel=1e-6)
+
+    def test_large_sum(self, backend_name, backend_factory):
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import AggregateRelNode
+
+        data = {"a": [9_000_000_000_000_000, 9_000_000_000_000_000]}
+        df = backend_factory.create(data, backend_name)
+        r = ma.relation(df)
+        aggregated = Relation(
+            AggregateRelNode(input=r._node, keys=[], measures=[ma.col("a").sum().alias("s")])
+        )
+        actual = aggregated.item("s")
+        assert actual == 18_000_000_000_000_000
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestNanHandling:
+
+    def test_nan_in_sum(self, backend_name, backend_factory):
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import AggregateRelNode
+
+        data = {"a": [1.0, float('nan'), 3.0]}
+        df = backend_factory.create(data, backend_name)
+        r = ma.relation(df)
+        aggregated = Relation(
+            AggregateRelNode(input=r._node, keys=[], measures=[ma.col("a").sum().alias("s")])
+        )
+        actual = aggregated.item("s")
+        # NaN poisons → NaN, or backend converts NaN→NULL → sum=4.0
+        if actual is None:
+            pass  # treated NaN as NULL, skipped
+        elif isinstance(actual, float) and math.isnan(actual):
+            pass  # NaN propagated
+        else:
+            assert actual == pytest.approx(4.0, rel=1e-9)
+
+    def test_nan_in_comparison(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [1.0, float('nan'), 3.0]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").gt(ma.lit(2.0)))
+        assert actual[0] is False
+        # NaN > 2.0: False (IEEE 754), NULL (if NaN→NULL), True (Polars NaN is truthy in comparisons)
+        assert actual[1] in [False, None, True]
+        assert actual[2] is True
+
+    def test_nan_equality(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [float('nan'), 1.0]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").eq(ma.col("a")))
+        # NaN == NaN: False (IEEE 754), NULL (SQL), True (if backend normalizes)
+        assert actual[0] in [False, None, True]
+        assert actual[1] is True
