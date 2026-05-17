@@ -191,3 +191,112 @@ class TestListDropNulls:
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.drop_nulls())
         assert actual == [[1, 2, 3], [4, 5]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListSetUnion:
+    def test_set_union_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.set_union() not supported on narwhals")
+        data = {"a": [[1, 2, 3], [4, 5]], "b": [[2, 3, 4], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.set_union(ma.col("b")))
+        assert sorted(actual[0]) == [1, 2, 3, 4]
+        assert sorted(actual[1]) == [4, 5, 6]
+
+    def test_set_union_no_overlap(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.set_union() not supported on narwhals")
+        data = {"a": [[1, 2]], "b": [[3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.set_union(ma.col("b")))
+        assert sorted(actual[0]) == [1, 2, 3, 4]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListSetIntersection:
+    def test_set_intersection_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.set_intersection() not supported on narwhals")
+        data = {"a": [[1, 2, 3], [4, 5]], "b": [[2, 3, 4], [5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.set_intersection(ma.col("b")))
+        assert sorted(actual[0]) == [2, 3]
+        assert sorted(actual[1]) == [5]
+
+    def test_set_intersection_no_overlap(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.set_intersection() not supported on narwhals")
+        data = {"a": [[1, 2]], "b": [[3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.set_intersection(ma.col("b")))
+        assert actual == [[]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListSetDifference:
+    def test_set_difference_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.set_difference() not supported on {backend_name}")
+        data = {"a": [[1, 2, 3], [4, 5, 6]], "b": [[2, 3], [6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.set_difference(ma.col("b")))
+        assert sorted(actual[0]) == [1]
+        assert sorted(actual[1]) == [4, 5]
+
+    def test_set_difference_complete(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.set_difference() not supported on {backend_name}")
+        data = {"a": [[1, 2, 3]], "b": [[1, 2, 3]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.set_difference(ma.col("b")))
+        assert actual == [[]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListMedian:
+    def test_median_odd(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "ibis-duckdb":
+            pytest.xfail("list.median() not supported on ibis")
+        data = {"arr": [[1, 3, 5], [2, 4, 6, 8, 10]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.median())
+        assert actual == pytest.approx([3.0, 6.0])
+
+    def test_median_even(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "ibis-duckdb":
+            pytest.xfail("list.median() not supported on ibis")
+        data = {"arr": [[1, 3, 5, 7], [2, 4]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.median())
+        assert actual == pytest.approx([4.0, 3.0])
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListStd:
+    def test_std_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.std() not supported on {backend_name}")
+        data = {"arr": [[2, 4, 4, 4, 5, 5, 7, 9]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.std())
+        assert actual[0] is not None
+        assert actual == pytest.approx([2.0], rel=0.15)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListVar:
+    def test_var_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.var() not supported on {backend_name}")
+        data = {"arr": [[2, 4, 4, 4, 5, 5, 7, 9]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.var())
+        assert actual[0] is not None
+        assert actual == pytest.approx([4.0], rel=0.2)
