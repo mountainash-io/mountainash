@@ -334,3 +334,32 @@ class TestSlice:
             {"a": 3, "b": 30},
             {"a": 4, "b": 40},
         ]
+
+
+# ---------------------------------------------------------------------------
+# Unique
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestUnique:
+    def test_unique_single_column(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, 2, 2, 3, 3, 3]}, backend_name
+        )
+        result = ma.relation(df).unique("a").to_dicts()
+        result_sorted = sorted_dicts(result, "a")
+        assert result_sorted == [{"a": 1}, {"a": 2}, {"a": 3}]
+
+    def test_unique_multi_column(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, 1, 2, 2], "b": ["x", "x", "x", "y"]}, backend_name
+        )
+        result = ma.relation(df).unique("a", "b").to_dicts()
+        result_sorted = sorted_dicts(result, ["a", "b"])
+        assert result_sorted == [
+            {"a": 1, "b": "x"},
+            {"a": 2, "b": "x"},
+            {"a": 2, "b": "y"},
+        ]
