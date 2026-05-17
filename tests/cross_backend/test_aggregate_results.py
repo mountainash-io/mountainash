@@ -202,3 +202,138 @@ class TestAggregateCount:
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").count())
         assert actual == 1
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateStdDev:
+    def test_std_dev_default(self, backend_name, backend_factory):
+        data = {"a": [2, 4, 4, 4, 5, 5, 7, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").std_dev())
+        # Sample std dev (ddof=1) of [2,4,4,4,5,5,7,9] ≈ 2.138
+        assert actual == pytest.approx(2.138089935299395, rel=1e-6)
+
+    def test_std_dev_sample_explicit(self, backend_name, backend_factory):
+        data = {"a": [2, 4, 4, 4, 5, 5, 7, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").std_dev(distribution="SAMPLE"))
+        assert actual == pytest.approx(2.138089935299395, rel=1e-6)
+
+    def test_std_dev_with_nulls(self, backend_name, backend_factory):
+        data = {"a": [2, None, 4, 4, None, 5, 5, 7, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").std_dev())
+        # After NULL removal: [2,4,4,5,5,7,9] → sample std ≈ 2.268
+        assert actual is not None
+        assert actual == pytest.approx(2.2677868380553634, rel=1e-6)
+
+    def test_std_dev_all_nulls(self, backend_name, backend_factory):
+        if backend_name == "ibis-duckdb":
+            pytest.xfail("ibis-duckdb: cannot create tables with all-NULL columns")
+        if backend_name in ("ibis-polars", "ibis-sqlite"):
+            pytest.xfail("ibis: NullColumn has no 'std' attribute")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").std_dev())
+        assert actual is None
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateVariance:
+    def test_variance_default(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("narwhals: variance() uses Expr.pow() which Narwhals lacks")
+        data = {"a": [2, 4, 4, 4, 5, 5, 7, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").variance())
+        # Sample variance (ddof=1) = 32/7 ≈ 4.571
+        assert actual == pytest.approx(4.571428571428571, rel=1e-6)
+
+    def test_variance_sample_explicit(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("narwhals: variance() uses Expr.pow() which Narwhals lacks")
+        data = {"a": [2, 4, 4, 4, 5, 5, 7, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").variance(distribution="SAMPLE"))
+        assert actual == pytest.approx(4.571428571428571, rel=1e-6)
+
+    def test_variance_all_nulls(self, backend_name, backend_factory):
+        if backend_name == "ibis-duckdb":
+            pytest.xfail("ibis-duckdb: cannot create tables with all-NULL columns")
+        if backend_name in ("ibis-polars", "ibis-sqlite"):
+            pytest.xfail("ibis: NullColumn has no 'var' attribute")
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("narwhals: variance() uses Expr.pow() which Narwhals lacks")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").variance())
+        assert actual is None
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateMedian:
+    def test_median_odd_count(self, backend_name, backend_factory):
+        pytest.xfail("median() not available as col().median() — Substrait signature mismatch")
+        data = {"a": [1, 3, 5, 7, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").median())
+        assert actual == pytest.approx(5.0, rel=1e-9)
+
+    def test_median_even_count(self, backend_name, backend_factory):
+        pytest.xfail("median() not available as col().median() — Substrait signature mismatch")
+        data = {"a": [1, 3, 5, 7]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").median())
+        assert actual == pytest.approx(4.0, rel=1e-9)
+
+    def test_median_with_nulls(self, backend_name, backend_factory):
+        pytest.xfail("median() not available as col().median() — Substrait signature mismatch")
+        data = {"a": [1, None, 5, None, 9]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").median())
+        assert actual == pytest.approx(5.0, rel=1e-9)
+
+    def test_median_all_nulls(self, backend_name, backend_factory):
+        pytest.xfail("median() not available as col().median() — Substrait signature mismatch")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").median())
+        assert actual is None
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateNUnique:
+    def test_n_unique_distinct(self, backend_name, backend_factory):
+        data = {"a": [1, 2, 3, 4, 5]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").n_unique())
+        assert actual == 5
+
+    def test_n_unique_with_duplicates(self, backend_name, backend_factory):
+        data = {"a": [1, 2, 2, 3, 3, 3]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").n_unique())
+        assert actual == 3
+
+    def test_n_unique_with_nulls(self, backend_name, backend_factory):
+        data = {"a": [1, None, 2, None, 2]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").n_unique())
+        # Backends differ on whether NULL counts as a unique value
+        # Polars: NULL is a unique value → 3; SQL: NULL not counted → 2
+        assert actual in [2, 3]
+
+    def test_n_unique_all_nulls(self, backend_name, backend_factory):
+        if backend_name == "ibis-duckdb":
+            pytest.xfail("ibis-duckdb: cannot create tables with all-NULL columns")
+        if backend_name in ("ibis-polars", "ibis-sqlite"):
+            pytest.xfail("ibis: NullColumn has no 'nunique' attribute")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").n_unique())
+        # Either 0 (SQL) or 1 (Polars counts NULL as unique)
+        assert actual in [0, 1]
