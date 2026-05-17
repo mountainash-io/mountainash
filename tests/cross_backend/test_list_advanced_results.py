@@ -300,3 +300,94 @@ class TestListVar:
         actual = collect_expr(df, ma.col("arr").list.var())
         assert actual[0] is not None
         assert actual == pytest.approx([4.0], rel=0.2)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListShift:
+    def test_shift_forward(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.shift() not supported on {backend_name}")
+        data = {"arr": [[1, 2, 3, 4], [10, 20, 30]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.shift(1))
+        assert actual == [[None, 1, 2, 3], [None, 10, 20]]
+
+    def test_shift_backward(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.shift() not supported on {backend_name}")
+        data = {"arr": [[1, 2, 3, 4], [10, 20, 30]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.shift(-1))
+        assert actual == [[2, 3, 4, None], [20, 30, None]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListDiff:
+    def test_diff_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.diff() not supported on {backend_name}")
+        data = {"arr": [[10, 20, 35, 50], [1, 3, 6]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.diff())
+        assert actual == [[None, 10, 15, 15], [None, 2, 3]]
+
+    def test_diff_constant(self, backend_name, backend_factory, collect_expr):
+        if backend_name in ("narwhals-polars", "ibis-duckdb"):
+            pytest.xfail(f"list.diff() not supported on {backend_name}")
+        data = {"arr": [[5, 5, 5, 5]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("arr").list.diff())
+        assert actual == [[None, 0, 0, 0]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListConcat:
+    def test_concat_basic(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.concat() not supported on narwhals-polars")
+        data = {"a": [[1, 2], [3, 4]], "b": [[5, 6], [7, 8]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.concat(ma.col("b")))
+        assert actual == [[1, 2, 5, 6], [3, 4, 7, 8]]
+
+    def test_concat_empty(self, backend_name, backend_factory, collect_expr):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.concat() not supported on narwhals-polars")
+        data = {"a": [[1, 2], []], "b": [[], [3, 4]]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("a").list.concat(ma.col("b")))
+        assert actual == [[1, 2], [3, 4]]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestListExplode:
+    def test_explode_basic(self, backend_name, backend_factory):
+        if backend_name == "polars":
+            pytest.xfail("Polars expression-level explode in multi-column select causes ShapeError")
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.explode() not supported on narwhals-polars")
+        data = {"id": [1, 2, 3], "arr": [[10, 20], [30], [40, 50, 60]]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("id"), ma.col("arr").list.explode().name.alias("val"))
+            .to_dict()
+        )
+        assert result["id"] == [1, 1, 2, 3, 3, 3]
+        assert result["val"] == [10, 20, 30, 40, 50, 60]
+
+    def test_explode_single_element_lists(self, backend_name, backend_factory):
+        if backend_name == "narwhals-polars":
+            pytest.xfail("list.explode() not supported on narwhals-polars")
+        data = {"arr": [[1], [2], [3]]}
+        df = backend_factory.create(data, backend_name)
+        result = (
+            ma.relation(df)
+            .select(ma.col("arr").list.explode().name.alias("val"))
+            .to_dict()
+        )
+        assert result["val"] == [1, 2, 3]
