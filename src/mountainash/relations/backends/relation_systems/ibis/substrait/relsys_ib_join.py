@@ -56,7 +56,55 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
             # Cross join or no predicate.
             predicates = []
 
-        return left.join(right, predicates=predicates, how=how, lname="", rname=suffix or "{name}_right")
+        result = left.join(right, predicates=predicates, how=how, lname="", rname=suffix or "{name}_right")
+
+        # Ibis keeps the right-side join key column in the output for non-inner
+        # joins (named with the suffix, e.g. ``"_right"`` for shared key ``"id"``).
+        # Inner joins deduplicate automatically; others do not.
+        # We must drop the right-side duplicate key so the schema matches the
+        # expectation of every other backend (single unified key column).
+        if on is not None and how not in ("inner", "semi", "anti", "cross"):
+            effective_suffix = suffix or "_right"
+            right_key_cols = [
+                col
+                for col in on
+                if (
+                    # Case 1: The whole key name was used as the suffix (rname=suffix).
+                    effective_suffix in result.columns
+                    # Case 2: The key column was renamed to ``{key}{suffix}``.
+                    or f"{col}{effective_suffix}" in result.columns
+                )
+            ]
+            cols_to_drop = []
+            for key in on:
+                candidate_suffixed = f"{key}{effective_suffix}"
+                # When `rname=suffix` (not `rname="{name}_right"`), ibis names
+                # the right key column exactly `suffix` (e.g. ``"_right"``).
+                if effective_suffix in result.columns and effective_suffix != f"{key}{effective_suffix}":
+                    cols_to_drop.append(effective_suffix)
+                    break  # Only one ``_right`` column exists when a bare suffix is used.
+                elif candidate_suffixed in result.columns:
+                    cols_to_drop.append(candidate_suffixed)
+
+            if how == "right":
+                # For right joins the left-side key can be NULL for non-matching
+                # rows; the canonical key value lives in the right-side column.
+                # Replace the left key with the right key then drop the right copy.
+                for key in on:
+                    candidate_suffixed = f"{key}{effective_suffix}"
+                    bare_suffix = effective_suffix
+                    right_col_name = (
+                        bare_suffix
+                        if (bare_suffix in result.columns and bare_suffix != candidate_suffixed)
+                        else candidate_suffixed
+                    )
+                    if right_col_name in result.columns:
+                        result = result.mutate(**{key: result[right_col_name]})
+
+            if cols_to_drop:
+                result = result.drop(*cols_to_drop)
+
+        return result
 
     def join_asof(
         self,
