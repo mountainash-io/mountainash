@@ -337,3 +337,192 @@ class TestAggregateNUnique:
         actual = _collect_agg(df, ma.col("a").n_unique())
         # Either 0 (SQL) or 1 (Polars counts NULL as unique)
         assert actual in [0, 1]
+
+
+# ─── First ──────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateFirst:
+    def test_first_integers(self, backend_name, backend_factory):
+        pytest.xfail("first() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").first())
+        assert actual == 10
+
+    def test_first_strings(self, backend_name, backend_factory):
+        pytest.xfail("first() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": ["apple", "banana", "cherry"]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").first())
+        assert actual == "apple"
+
+    def test_first_with_leading_null(self, backend_name, backend_factory):
+        pytest.xfail("first() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": [None, 20, 30]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").first())
+        # Some backends return NULL (first value is NULL), others skip nulls
+        assert actual in [None, 20]
+
+    def test_first_all_nulls(self, backend_name, backend_factory):
+        pytest.xfail("first() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").first())
+        assert actual is None
+
+
+# ─── Last ───────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateLast:
+    def test_last_integers(self, backend_name, backend_factory):
+        pytest.xfail("last() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").last())
+        assert actual == 50
+
+    def test_last_strings(self, backend_name, backend_factory):
+        pytest.xfail("last() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": ["apple", "banana", "cherry"]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").last())
+        assert actual == "cherry"
+
+    def test_last_with_trailing_null(self, backend_name, backend_factory):
+        pytest.xfail("last() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": [10, 20, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").last())
+        # Some backends return NULL (last value is NULL), others skip nulls
+        assert actual in [None, 20]
+
+    def test_last_all_nulls(self, backend_name, backend_factory):
+        pytest.xfail("last() is window-only — requires .over(); not usable as aggregate")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").last())
+        assert actual is None
+
+
+# ─── Mode ───────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateMode:
+    def test_mode_single_mode(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("mode() not supported by Narwhals backend")
+        data = {"a": [1, 2, 2, 3, 3, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").mode())
+        # Handle structural differences — Polars may return list, others scalar
+        if isinstance(actual, list):
+            assert 3 in actual
+        else:
+            assert actual == 3
+
+    def test_mode_all_same(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("mode() not supported by Narwhals backend")
+        data = {"a": [7, 7, 7, 7]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").mode())
+        if isinstance(actual, list):
+            assert 7 in actual
+        else:
+            assert actual == 7
+
+    def test_mode_strings(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("mode() not supported by Narwhals backend")
+        data = {"a": ["x", "y", "y", "z", "y"]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").mode())
+        if isinstance(actual, list):
+            assert "y" in actual
+        else:
+            assert actual == "y"
+
+
+# ─── Product ────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateProduct:
+    def test_product_integers(self, backend_name, backend_factory):
+        if backend_name in ("ibis-polars", "ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis backends: product() returns None (not implemented as aggregate)")
+        data = {"a": [2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").product())
+        # pandas/narwhals compute via log/exp — allow float approximation
+        assert actual == pytest.approx(24)
+
+    def test_product_with_one(self, backend_name, backend_factory):
+        if backend_name in ("ibis-polars", "ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis backends: product() returns None (not implemented as aggregate)")
+        data = {"a": [5, 1, 1, 1]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").product())
+        assert actual == pytest.approx(5)
+
+    def test_product_with_zero(self, backend_name, backend_factory):
+        if backend_name in ("ibis-polars", "ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis backends: product() returns None (not implemented as aggregate)")
+        data = {"a": [10, 20, 0, 30]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").product())
+        assert actual == 0
+
+    def test_product_single_element(self, backend_name, backend_factory):
+        if backend_name in ("ibis-polars", "ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis backends: product() returns None (not implemented as aggregate)")
+        data = {"a": [42]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").product())
+        assert actual == pytest.approx(42)
+
+
+# ─── AnyValue ───────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestAggregateAnyValue:
+    def test_any_value_returns_valid_element(self, backend_name, backend_factory):
+        data = {"a": [10, 20, 30, 40, 50]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").any_value())
+        assert actual in [10, 20, 30, 40, 50]
+
+    def test_any_value_strings(self, backend_name, backend_factory):
+        data = {"a": ["alpha", "beta", "gamma"]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").any_value())
+        assert actual in ["alpha", "beta", "gamma"]
+
+    def test_any_value_with_nulls(self, backend_name, backend_factory):
+        data = {"a": [None, 20, None, 40]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").any_value())
+        # May return None or any non-null value
+        assert actual in [None, 20, 40]
+
+    def test_any_value_all_nulls(self, backend_name, backend_factory):
+        if backend_name == "ibis-duckdb":
+            pytest.xfail("ibis-duckdb: cannot create tables with all-NULL columns")
+        if backend_name in ("ibis-polars", "ibis-sqlite"):
+            pytest.xfail("ibis: NullColumn attribute error")
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").any_value())
+        assert actual is None
