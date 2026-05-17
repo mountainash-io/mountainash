@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from mountainash.pipelines.core.step import StepContext
-from mountainash.pipelines.fluent.builder import pipeline
+from mountainash.pipelines.fluent.builder import PipelineBuilder
 from mountainash.pipelines.orchestration.simple import SimplePipelineRunner
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
 
@@ -22,7 +22,7 @@ def _multi_output_step(ctx: StepContext) -> dict:
 
 class TestRunnerExecutorAdapter:
     def test_as_executor_returns_lazyframe(self):
-        spec = pipeline("test", "v1").step("fetch", _identity_step).build()
+        spec = PipelineBuilder("test", "v1").step("fetch", _identity_step).build()
         runner = SimplePipelineRunner(spec, MemoryPipelineStorage())
         executor = runner.as_executor()
 
@@ -37,7 +37,7 @@ class TestRunnerExecutorAdapter:
         assert df.to_dicts() == [{"value": 1}]
 
     def test_as_executor_with_data_key(self):
-        spec = pipeline("test", "v1").step("multi", _multi_output_step).build()
+        spec = PipelineBuilder("test", "v1").step("multi", _multi_output_step).build()
         runner = SimplePipelineRunner(spec, MemoryPipelineStorage())
         executor = runner.as_executor()
 
@@ -52,7 +52,7 @@ class TestRunnerExecutorAdapter:
         assert df.to_dicts() == [{"value": 1}]
 
     def test_as_executor_missing_step_raises(self):
-        spec = pipeline("test", "v1").step("fetch", _identity_step).build()
+        spec = PipelineBuilder("test", "v1").step("fetch", _identity_step).build()
         runner = SimplePipelineRunner(spec, MemoryPipelineStorage())
         executor = runner.as_executor()
 

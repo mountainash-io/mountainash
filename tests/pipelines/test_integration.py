@@ -1,6 +1,6 @@
 from datetime import date
 
-from mountainash.pipelines import step, pipeline
+from mountainash.pipelines import step, PipelineBuilder
 from mountainash.pipelines.core.step import StepContext
 from mountainash.pipelines.core.capabilities import (
     StepCapabilities,
@@ -38,7 +38,7 @@ def conform_data(ctx: StepContext, extract_data: dict) -> dict[str, list[dict]]:
 
 def test_end_to_end_pipeline():
     spec = (
-        pipeline("wearables_test", version="1.0.0")
+        PipelineBuilder("wearables_test", version="1.0.0")
         .step("extract_data", extract_data, pushdown=StepCapabilities(
             pushable_params=(PushableParam(column="date", api_param="start", operators=("gt", "gte")),),
         ))
@@ -63,7 +63,7 @@ def test_end_to_end_pipeline():
 
 
 def test_public_api_imports():
-    from mountainash.pipelines import step, pipeline, source
+    from mountainash.pipelines import step, PipelineBuilder, source
     assert callable(step)
-    assert callable(pipeline)
+    assert callable(PipelineBuilder)
     assert callable(source)

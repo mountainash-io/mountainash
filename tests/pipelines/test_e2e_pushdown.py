@@ -5,7 +5,7 @@ import mountainash as ma
 from mountainash.relations.core.relation_api.relation import Relation
 from mountainash.relations.core.relation_nodes.substrait.reln_filter import FilterRelNode
 
-from mountainash.pipelines import source, pipeline, step
+from mountainash.pipelines import source, PipelineBuilder, step
 from mountainash.pipelines.core.step import StepContext
 from mountainash.pipelines.core.capabilities import (
     StepCapabilities,
@@ -58,7 +58,7 @@ class PushdownAwareExecutor:
 
 def test_date_filter_pushdown_e2e():
     """Full end-to-end: filter expression -> pushdown -> step execution -> result collection."""
-    spec = pipeline("test", version="1.0.0").step("extract", extract).build()
+    spec = PipelineBuilder("test", version="1.0.0").step("extract", extract).build()
     executor = PushdownAwareExecutor(spec=spec)
 
     rel = source("extract", pipeline=spec, executor=executor)
@@ -78,7 +78,7 @@ def test_date_filter_pushdown_e2e():
 
 def test_pushdown_preserves_filter_semantics():
     """After pushdown, the residual filter still applies."""
-    spec = pipeline("test", version="1.0.0").step("extract", extract).build()
+    spec = PipelineBuilder("test", version="1.0.0").step("extract", extract).build()
     executor = PushdownAwareExecutor(spec=spec)
 
     rel = source("extract", pipeline=spec, executor=executor)
@@ -97,7 +97,7 @@ def test_no_pushdown_when_no_capability():
     def plain(ctx: StepContext) -> list[dict]:
         return [{"date": "2026-01-15", "value": 1}]
 
-    spec = pipeline("test", version="1.0.0").step("plain", plain).build()
+    spec = PipelineBuilder("test", version="1.0.0").step("plain", plain).build()
     executor = PushdownAwareExecutor(spec=spec)
 
     rel = source("plain", pipeline=spec, executor=executor)

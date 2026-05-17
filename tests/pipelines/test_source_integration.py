@@ -2,7 +2,7 @@
 import polars as pl
 
 import mountainash as ma
-from mountainash.pipelines import source, pipeline
+from mountainash.pipelines import source, PipelineBuilder
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.capabilities import (
     StepCapabilities,
@@ -38,7 +38,7 @@ def fetch_dated(ctx: StepContext) -> list[dict]:
 
 
 def _make_runner(*steps):
-    builder = pipeline("test", version="1.0.0")
+    builder = PipelineBuilder("test", version="1.0.0")
     for s in steps:
         builder = builder.step(s._step_definition.name, s)
     spec = builder.build()

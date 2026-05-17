@@ -4,7 +4,7 @@ import pytest
 
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.capabilities import PushedPredicates
-from mountainash.pipelines.fluent.builder import pipeline
+from mountainash.pipelines.fluent.builder import PipelineBuilder
 from mountainash.pipelines.orchestration.simple import SimplePipelineRunner
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
 
@@ -33,7 +33,7 @@ def fetch_dataframe(ctx: StepContext) -> pl.DataFrame:
 
 
 def _make_runner(*steps):
-    builder = pipeline("test", version="1.0.0")
+    builder = PipelineBuilder("test", version="1.0.0")
     for s in steps:
         builder = builder.step(s._step_definition.name, s)
     spec = builder.build()

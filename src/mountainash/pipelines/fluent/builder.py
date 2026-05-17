@@ -58,7 +58,3 @@ class PipelineBuilder:
 
     def build(self) -> PipelineSpec:
         return PipelineSpec(name=self._name, version=self._version, steps=self._steps)
-
-
-def pipeline(name: str, version: str) -> PipelineBuilder:
-    return PipelineBuilder(name, version)

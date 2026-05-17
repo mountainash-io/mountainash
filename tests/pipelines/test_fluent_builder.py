@@ -1,5 +1,5 @@
 import pytest
-from mountainash.pipelines.fluent.builder import pipeline
+from mountainash.pipelines.fluent.builder import PipelineBuilder
 from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.capabilities import StepCapabilities, PushableParam
@@ -11,7 +11,7 @@ def _noop(ctx: StepContext) -> list[dict]:
 
 def test_pipeline_builder_basic():
     spec = (
-        pipeline("test", version="1.0.0")
+        PipelineBuilder("test", version="1.0.0")
         .step("a", _noop)
         .step("b", _noop, depends_on=["a"])
         .build()
@@ -26,7 +26,7 @@ def test_pipeline_builder_basic():
 
 def test_pipeline_builder_with_capabilities():
     spec = (
-        pipeline("test", version="2.0.0")
+        PipelineBuilder("test", version="2.0.0")
         .step("extract", _noop, pushdown=StepCapabilities(
             pushable_params=(PushableParam(column="date", api_param="start"),),
         ))
@@ -45,7 +45,7 @@ def test_pipeline_builder_with_decorated_steps():
         return src
 
     spec = (
-        pipeline("test", version="1.0.0")
+        PipelineBuilder("test", version="1.0.0")
         .step("src", src)
         .step("transform", transform, depends_on=["src"])
         .build()
@@ -55,11 +55,11 @@ def test_pipeline_builder_with_decorated_steps():
 
 
 def test_pipeline_builder_returns_new_builder():
-    b1 = pipeline("test", version="1.0.0")
+    b1 = PipelineBuilder("test", version="1.0.0")
     b2 = b1.step("a", _noop)
     assert b1 is not b2
 
 
 def test_pipeline_builder_duplicate_name_raises():
     with pytest.raises(ValueError, match="already exists"):
-        pipeline("test", version="1.0.0").step("a", _noop).step("a", _noop).build()
+        PipelineBuilder("test", version="1.0.0").step("a", _noop).step("a", _noop).build()
