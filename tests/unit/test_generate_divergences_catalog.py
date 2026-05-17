@@ -16,7 +16,6 @@ from generate_divergences_catalog import (
     STATUS_DISPLAY,
     WORKAROUND_DISPLAY,
     YAML_REGISTRY,
-    DivergenceEntry,
     group_by_category,
     load_yaml_registry,
     parse_entries,
