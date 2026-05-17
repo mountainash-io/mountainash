@@ -89,6 +89,12 @@ class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSys
     ) -> Any:
         return relation.sort(by, descending=descending).head(k)
 
+    def unnest(self, relation: Any, /, *, columns: list[str], separator: str) -> Any:
+        raise NotImplementedError(
+            "unnest is not supported on the Narwhals backend. "
+            "Narwhals has no frame-level unnest — requires schema introspection synthesis (Phase 2)."
+        )
+
     def read_resource(self, resource: Any) -> Any:
         """Load a DataResource via Polars, then coerce to Narwhals native."""
         import narwhals as nw

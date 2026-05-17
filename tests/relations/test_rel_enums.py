@@ -55,7 +55,7 @@ class TestExtensionRelOperation:
         assert ExtensionRelOperation.READ_RESOURCE is not None
         assert ExtensionRelOperation.DROP_NANS is not None
     def test_member_count(self):
-        assert len(ExtensionRelOperation) == 10
+        assert len(ExtensionRelOperation) == 11
 
 class TestSortField:
     def test_creation(self):

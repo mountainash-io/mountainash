@@ -99,6 +99,20 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         order_key = ibis.desc(by) if descending else by
         return relation.order_by(order_key).limit(k)
 
+    def unnest(
+        self, relation: ir.Table, /, *, columns: list[str], separator: str
+    ) -> ir.Table:
+        result = relation
+        for col in columns:
+            struct_col = result[col]
+            field_names = struct_col.type().names
+            prefix = f"{col}{separator}" if separator else ""
+            result = result.mutate(
+                **{f"{prefix}{field}": struct_col[field] for field in field_names}
+            )
+            result = result.drop(col)
+        return result
+
     def read_resource(self, resource: Any) -> ir.Table:
         """Load a DataResource via Polars, then coerce to Ibis memtable."""
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
