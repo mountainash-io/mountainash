@@ -193,3 +193,69 @@ class TestRename:
         )
         result = ma.relation(df).rename({"a": "x", "b": "y"}).to_dicts()
         assert result == [{"x": 1, "y": 10}, {"x": 2, "y": 20}]
+
+
+# ---------------------------------------------------------------------------
+# Sort
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestSort:
+    def test_sort_ascending(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [3, 1, 2], "b": [30, 10, 20]}, backend_name
+        )
+        result = ma.relation(df).sort("a").to_dicts()
+        assert result == [
+            {"a": 1, "b": 10},
+            {"a": 2, "b": 20},
+            {"a": 3, "b": 30},
+        ]
+
+    def test_sort_descending(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [3, 1, 2], "b": [30, 10, 20]}, backend_name
+        )
+        result = ma.relation(df).sort("a", descending=True).to_dicts()
+        assert result == [
+            {"a": 3, "b": 30},
+            {"a": 2, "b": 20},
+            {"a": 1, "b": 10},
+        ]
+
+    def test_sort_multi_column(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"group": ["b", "a", "a", "b"], "val": [2, 1, 2, 1]},
+            backend_name,
+        )
+        result = ma.relation(df).sort("group", "val").to_dicts()
+        assert result == [
+            {"group": "a", "val": 1},
+            {"group": "a", "val": 2},
+            {"group": "b", "val": 1},
+            {"group": "b", "val": 2},
+        ]
+
+    def test_sort_with_nulls(self, backend_name, backend_factory):
+        """Test null ordering in sort.
+
+        Polars default is nulls_last=True (nulls at end).
+        Narwhals ignores nulls_last — narwhals.sort() has no such parameter.
+        Ibis uses SQL default (typically nulls last for ASC, varies by engine).
+
+        This test verifies that each backend returns nulls somewhere consistent
+        without asserting a specific null position, since the API does not
+        expose nulls_last to the user and backends diverge.
+        """
+        df = backend_factory.create(
+            {"a": [3, None, 1, None, 2], "b": [30, 90, 10, 80, 20]},
+            backend_name,
+        )
+        result = ma.relation(df).sort("a").to_dicts()
+        non_null_rows = [r for r in result if r["a"] is not None]
+        null_rows = [r for r in result if r["a"] is None]
+        assert len(non_null_rows) == 3
+        assert len(null_rows) == 2
+        assert [r["a"] for r in non_null_rows] == [1, 2, 3]
