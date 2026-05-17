@@ -259,3 +259,78 @@ class TestSort:
         assert len(non_null_rows) == 3
         assert len(null_rows) == 2
         assert [r["a"] for r in non_null_rows] == [1, 2, 3]
+
+
+# ---------------------------------------------------------------------------
+# Head
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestHead:
+    def test_head_default(self, backend_name, backend_factory):
+        data = {"a": list(range(10)), "b": list(range(10, 20))}
+        df = backend_factory.create(data, backend_name)
+        result = ma.relation(df).head().to_dicts()
+        assert len(result) == 5
+        assert result[0] == {"a": 0, "b": 10}
+        assert result[4] == {"a": 4, "b": 14}
+
+    def test_head_custom_n(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]}, backend_name
+        )
+        result = ma.relation(df).head(3).to_dicts()
+        assert result == [
+            {"a": 1, "b": 10},
+            {"a": 2, "b": 20},
+            {"a": 3, "b": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Tail
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestTail:
+    def test_tail_default(self, backend_name, backend_factory):
+        data = {"a": list(range(10)), "b": list(range(10, 20))}
+        df = backend_factory.create(data, backend_name)
+        result = ma.relation(df).tail().to_dicts()
+        assert len(result) == 5
+        assert result[0] == {"a": 5, "b": 15}
+        assert result[4] == {"a": 9, "b": 19}
+
+    def test_tail_custom_n(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]}, backend_name
+        )
+        result = ma.relation(df).tail(2).to_dicts()
+        assert result == [
+            {"a": 4, "b": 40},
+            {"a": 5, "b": 50},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Slice
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestSlice:
+    def test_slice_offset_and_length(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]}, backend_name
+        )
+        result = ma.relation(df).slice(1, 3).to_dicts()
+        assert result == [
+            {"a": 2, "b": 20},
+            {"a": 3, "b": 30},
+            {"a": 4, "b": 40},
+        ]
