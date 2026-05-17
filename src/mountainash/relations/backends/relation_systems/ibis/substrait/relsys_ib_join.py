@@ -65,16 +65,6 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
         # expectation of every other backend (single unified key column).
         if on is not None and how not in ("inner", "semi", "anti", "cross"):
             effective_suffix = suffix or "_right"
-            right_key_cols = [
-                col
-                for col in on
-                if (
-                    # Case 1: The whole key name was used as the suffix (rname=suffix).
-                    effective_suffix in result.columns
-                    # Case 2: The key column was renamed to ``{key}{suffix}``.
-                    or f"{col}{effective_suffix}" in result.columns
-                )
-            ]
             cols_to_drop = []
             for key in on:
                 candidate_suffixed = f"{key}{effective_suffix}"
