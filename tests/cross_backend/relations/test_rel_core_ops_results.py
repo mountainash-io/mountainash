@@ -363,3 +363,23 @@ class TestUnique:
             {"a": 2, "b": "x"},
             {"a": 2, "b": "y"},
         ]
+
+
+# ---------------------------------------------------------------------------
+# Pipe
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestPipe:
+    def test_pipe_transform(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]}, backend_name
+        )
+
+        def top_two(rel):
+            return rel.sort("a", descending=True).head(2)
+
+        result = ma.relation(df).pipe(top_two).to_dicts()
+        assert result == [{"a": 5, "b": 50}, {"a": 4, "b": 40}]
