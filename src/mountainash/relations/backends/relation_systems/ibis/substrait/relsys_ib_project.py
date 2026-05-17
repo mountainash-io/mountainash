@@ -28,4 +28,5 @@ class SubstraitIbisProjectRelationSystem(SubstraitProjectRelationSystemProtocol)
     def project_rename(
         self, relation: ir.Table, mapping: dict[str, str], /
     ) -> ir.Table:
-        return relation.rename(mapping)
+        # Ibis rename() uses {new_name: old_name}; mountainash convention is {old_name: new_name}
+        return relation.rename({v: k for k, v in mapping.items()})
