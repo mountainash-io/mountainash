@@ -627,14 +627,10 @@ def pytest_collection_modifyitems(config, items):
         test_path = str(item.fspath)
 
         # Auto-apply markers based on directory
-        if "/unit/" in test_path:
-            item.add_marker(pytest.mark.unit)
-        elif "/integration/" in test_path:
+        if "/integration/" in test_path:
             item.add_marker(pytest.mark.integration)
         elif "/cross_backend/" in test_path:
             item.add_marker(pytest.mark.cross_backend)
-        elif "/backends/" in test_path:
-            item.add_marker(pytest.mark.backend)
 
         # Auto-apply feature markers based on filename
         test_name = item.nodeid.lower()

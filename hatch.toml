@@ -151,7 +151,6 @@ test-perf = "pytest --benchmark-only"
 test-perf-target = "pytest --benchmark-only {args}"
 
 # Specific test markers
-test-unit = "pytest -m unit"
 test-integration = "pytest -m integration"
 test-performance = "pytest -m performance"
 
