@@ -13,7 +13,7 @@ def _make_spec():
 
 
 class MockExecutor:
-    def execute(self, pipeline, step_name, predicates, data_key=None):
+    def execute(self, pipeline, step_name, params, data_key=None):
         return pl.DataFrame([{"id": 1, "value": 42}]).lazy()
 
 

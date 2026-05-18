@@ -4,7 +4,6 @@ from pathlib import Path
 from datetime import datetime
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.spec import PipelineSpec
-from mountainash.pipelines.core.capabilities import PushedPredicates, ResolvedPredicates
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
 
 try:

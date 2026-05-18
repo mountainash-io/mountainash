@@ -1,11 +1,7 @@
 from mountainash.pipelines.core.step import step, StepContext, StepDefinition
-from mountainash.pipelines.core.capabilities import (
-    StepCapabilities,
-    PushableParam,
-    ResolvedPredicates,
-)
+from mountainash.pipelines.core.capabilities import ParamSpec
 from mountainash.pipelines.core.policies import EmptyPolicy
-from datetime import timedelta, datetime
+from datetime import date, timedelta
 
 
 def test_step_decorator_basic():
@@ -18,7 +14,7 @@ def test_step_decorator_basic():
     assert isinstance(defn, StepDefinition)
     assert defn.name == "my_step"
     assert defn.depends_on == []
-    assert defn.capabilities == StepCapabilities()
+    assert defn.params == ()
     assert defn.empty_policy == EmptyPolicy.WARN
 
 
@@ -31,12 +27,10 @@ def test_step_decorator_with_deps():
     assert defn.depends_on == ["parent1", "parent2"]
 
 
-def test_step_decorator_with_capabilities():
+def test_step_decorator_with_params():
     @step(
         name="extract",
-        pushdown=StepCapabilities(
-            pushable_params=(PushableParam(column="date", api_param="start"),),
-        ),
+        params=(ParamSpec(name="start", type=date),),
         cache_ttl=timedelta(hours=1),
         empty_policy=EmptyPolicy.FAIL,
     )
@@ -44,7 +38,7 @@ def test_step_decorator_with_capabilities():
         return []
 
     defn = extract._step_definition
-    assert defn.capabilities.pushable_params[0].column == "date"
+    assert defn.params[0].name == "start"
     assert defn.cache_ttl == timedelta(hours=1)
     assert defn.empty_policy == EmptyPolicy.FAIL
 
@@ -55,7 +49,7 @@ def test_step_function_remains_callable():
         return [{"result": True}]
 
     ctx = StepContext(
-        predicates=ResolvedPredicates(resolution_timestamp=datetime.now()),
+        params={},
         pipeline_storage=None,
         storage_facade=None,
         config={},
@@ -68,7 +62,7 @@ def test_step_function_remains_callable():
 
 def test_step_context_fields():
     ctx = StepContext(
-        predicates=ResolvedPredicates(resolution_timestamp=datetime.now()),
+        params={"start": date(2026, 1, 1)},
         pipeline_storage=None,
         storage_facade=None,
         config={"key": "value"},
@@ -78,3 +72,4 @@ def test_step_context_fields():
     assert ctx.step_name == "test"
     assert ctx.workflow_id == "wf-123"
     assert ctx.config["key"] == "value"
+    assert ctx.params["start"] == date(2026, 1, 1)

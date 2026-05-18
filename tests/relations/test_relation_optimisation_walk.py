@@ -22,52 +22,44 @@ def test_walk_no_pipeline_node_returns_unchanged():
 
 def test_walk_reconstructs_frozen_nodes():
     """Walk must use model_copy to rebuild frozen nodes with new children."""
-    from mountainash.pipelines.integration.relation import PipelineStepRelNode
-    from mountainash.pipelines.integration.pushdown import apply_pushdown
-    from mountainash.pipelines.core.capabilities import StepCapabilities, PushableParam
+    from mountainash.pipelines.integration.relation import (
+        PipelineStepRelNode,
+        ParamsRelNode,
+        fold_params,
+    )
+    from mountainash.pipelines.core.capabilities import ParamSpec
     from mountainash.relations.core.relation_api.optimisation_registry import (
         register_optimisation, _reset_registry,
     )
 
     _reset_registry()
-    register_optimisation(PipelineStepRelNode, apply_pushdown)
+    register_optimisation(ParamsRelNode, fold_params)
 
-    caps = StepCapabilities(pushable_params=(
-        PushableParam(column="start", api_param="start", operators=("gt", "gte")),
-    ))
+    specs = (ParamSpec(name="start", type=date),)
     pipeline_node = PipelineStepRelNode(
         step_name="fetch",
         pipeline=None,
         executor=None,
-        capabilities=caps,
+        param_specs=specs,
     )
-    from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import ScalarFunctionNode
-    from mountainash.expressions.core.expression_nodes.substrait.exn_field_reference import FieldReferenceNode
-    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
-
-    pred = ScalarFunctionNode(
-        function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GT,
-        arguments=[
-            FieldReferenceNode(field="start"),
-            LiteralNode(value=date(2024, 1, 1)),
-        ],
+    params_node = ParamsRelNode(
+        input=pipeline_node,
+        params={"start": date(2024, 1, 1)},
     )
-    filt = FilterRelNode(input=pipeline_node, predicate=pred)
-    base = RelationBase(filt)
+    base = RelationBase(params_node)
     result = base._apply_optimisations(base._node)
 
-    assert isinstance(result, FilterRelNode)
-    assert isinstance(result.input, PipelineStepRelNode)
-    assert result.input.pushed_predicates.params["start"].value == date(2024, 1, 1)
+    assert isinstance(result, PipelineStepRelNode)
+    assert result.bound_params["start"] == date(2024, 1, 1)
 
 
-def test_pipeline_pushdown_registered_on_import():
-    """Importing mountainash.pipelines registers the pushdown pass."""
+def test_pipeline_params_registered_on_import():
+    """Importing mountainash.pipelines registers the params optimisation pass."""
     import mountainash.pipelines  # noqa: F401
     from mountainash.relations.core.relation_api.optimisation_registry import get_registered_node_types
-    from mountainash.pipelines.integration.relation import PipelineStepRelNode
+    from mountainash.pipelines.integration.relation import ParamsRelNode
 
-    assert PipelineStepRelNode in get_registered_node_types()
+    assert ParamsRelNode in get_registered_node_types()
 
 
 def test_detect_backend_from_uses_provided_node():

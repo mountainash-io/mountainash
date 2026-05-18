@@ -3,7 +3,6 @@ import polars as pl
 import pytest
 
 from mountainash.pipelines.core.step import step, StepContext
-from mountainash.pipelines.core.capabilities import PushedPredicates
 from mountainash.pipelines.fluent.builder import PipelineBuilder
 from mountainash.pipelines.orchestration.simple import SimplePipelineRunner
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
@@ -48,7 +47,7 @@ class TestExecutorAdapterReturnsLazyFrame:
         result = executor.execute(
             pipeline=runner._spec,
             step_name="fetch_list",
-            predicates=PushedPredicates(),
+            params={},
             data_key=None,
         )
         assert isinstance(result, pl.LazyFrame)
@@ -62,7 +61,7 @@ class TestExecutorAdapterReturnsLazyFrame:
         result = executor.execute(
             pipeline=runner._spec,
             step_name="fetch_empty",
-            predicates=PushedPredicates(),
+            params={},
             data_key=None,
         )
         assert isinstance(result, pl.LazyFrame)
@@ -75,7 +74,7 @@ class TestExecutorAdapterReturnsLazyFrame:
         result = executor.execute(
             pipeline=runner._spec,
             step_name="fetch_dataframe",
-            predicates=PushedPredicates(),
+            params={},
             data_key=None,
         )
         assert isinstance(result, pl.LazyFrame)
@@ -88,7 +87,7 @@ class TestExecutorAdapterReturnsLazyFrame:
         result = executor.execute(
             pipeline=runner._spec,
             step_name="fetch_dict_multi",
-            predicates=PushedPredicates(),
+            params={},
             data_key="activities",
         )
         assert isinstance(result, pl.LazyFrame)
@@ -103,7 +102,7 @@ class TestExecutorAdapterReturnsLazyFrame:
             executor.execute(
                 pipeline=runner._spec,
                 step_name="fetch_dict_multi",
-                predicates=PushedPredicates(),
+                params={},
                 data_key="nope",
             )
 
@@ -114,7 +113,7 @@ class TestExecutorAdapterReturnsLazyFrame:
             executor.execute(
                 pipeline=runner._spec,
                 step_name="missing",
-                predicates=PushedPredicates(),
+                params={},
                 data_key=None,
             )
 
@@ -139,7 +138,7 @@ class TestExecutorPassesTarget:
         executor.execute(
             pipeline=runner._spec,
             step_name="cheap",
-            predicates=PushedPredicates(),
+            params={},
             data_key=None,
         )
         assert "cheap" in call_log

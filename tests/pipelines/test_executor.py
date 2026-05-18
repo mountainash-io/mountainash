@@ -29,7 +29,7 @@ class TestRunnerExecutorAdapter:
         result = executor.execute(
             pipeline=spec,
             step_name="fetch",
-            predicates=None,
+            params={},
             data_key=None,
         )
         assert isinstance(result, pl.LazyFrame)
@@ -44,7 +44,7 @@ class TestRunnerExecutorAdapter:
         result = executor.execute(
             pipeline=spec,
             step_name="multi",
-            predicates=None,
+            params={},
             data_key="records",
         )
         assert isinstance(result, pl.LazyFrame)
@@ -60,6 +60,6 @@ class TestRunnerExecutorAdapter:
             executor.execute(
                 pipeline=spec,
                 step_name="fetch",
-                predicates=None,
+                params={},
                 data_key="nonexistent",
             )
