@@ -134,7 +134,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 |----------|---------|
 | polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
 | frictionless-typespec-gaps-deferred.md | 5 Low-severity FieldSpec round-trip gaps deferred from the 2026-04-07 DataPackage work (`$schema`, `example`, `rdfType`, `categoriesOrdered`, type-specific number/integer/list parsing properties) |
-| wiring-verification-results.md | 497 compile smoke failures + 48 signature conformance xfails inventoried with categorized root causes and prioritized remediation plan |
+| wiring-verification-results.md | Expression: 497 compile smoke + 48 signature xfails. Relation: 13 collect smoke + 0 signature xfails. Categorized root causes and prioritized remediation. |
 
 ### i. Competitor Analysis
 
