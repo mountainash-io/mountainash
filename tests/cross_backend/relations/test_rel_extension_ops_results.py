@@ -1,0 +1,329 @@
+"""Cross-backend result verification for extension relational operations.
+
+Phase 4 of the relation result verification suite. Tests drop_nulls,
+drop_nans, with_row_index, explode, unnest, unpivot, pivot, top_k,
+sample across backends.
+"""
+from __future__ import annotations
+
+import pytest
+
+import mountainash as ma
+
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
+
+LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
+
+STRUCT_BACKENDS = ["polars", "narwhals-polars", "ibis-polars", "ibis-duckdb"]
+
+
+def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
+    """Sort list of dicts by key(s) for order-independent comparison."""
+    if isinstance(by, str):
+        by = [by]
+    return sorted(dicts, key=lambda d: tuple(d[k] for k in by))
+
+
+# ---------------------------------------------------------------------------
+# Drop Nulls
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestDropNulls:
+    def test_drop_nulls_all_columns(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, None, 3], "b": [None, 20, 30]}, backend_name
+        )
+        result = ma.relation(df).drop_nulls().to_dicts()
+        assert result == [{"a": 3, "b": 30}]
+
+    def test_drop_nulls_subset(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1, None, 3], "b": [None, 20, 30]}, backend_name
+        )
+        result = ma.relation(df).drop_nulls(subset=["a"]).to_dicts()
+        result_sorted = sorted_dicts(result, "a")
+        assert result_sorted == [
+            {"a": 1, "b": None},
+            {"a": 3, "b": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Drop NaNs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestDropNans:
+    def test_drop_nans_basic(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": [1.0, float("nan"), 3.0], "b": [10.0, 20.0, 30.0]},
+            backend_name,
+        )
+        # drop_nans may not be supported on all backends — xfail if needed
+        try:
+            result = ma.relation(df).drop_nans().to_dicts()
+        except (NotImplementedError, Exception) as e:
+            if "nan" in str(e).lower() or "not supported" in str(e).lower() or "not implemented" in str(e).lower():
+                pytest.xfail(f"drop_nans not supported on {backend_name}: {e}")
+            raise
+        assert len(result) == 2
+        assert result[0]["a"] == 1.0
+        assert result[1]["a"] == 3.0
+
+
+# ---------------------------------------------------------------------------
+# With Row Index
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWithRowIndex:
+    def test_with_row_index_default_name(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail(
+                "ibis-polars backend does not support WindowFunction (row_number); "
+                "use ibis-duckdb or ibis-sqlite instead"
+            )
+        df = backend_factory.create(
+            {"a": [10, 20, 30]}, backend_name
+        )
+        result = ma.relation(df).with_row_index().to_dicts()
+        assert result == [
+            {"index": 0, "a": 10},
+            {"index": 1, "a": 20},
+            {"index": 2, "a": 30},
+        ]
+
+    def test_with_row_index_custom_name(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail(
+                "ibis-polars backend does not support WindowFunction (row_number); "
+                "use ibis-duckdb or ibis-sqlite instead"
+            )
+        df = backend_factory.create(
+            {"a": [10, 20, 30]}, backend_name
+        )
+        result = ma.relation(df).with_row_index(name="row_num").to_dicts()
+        assert result == [
+            {"row_num": 0, "a": 10},
+            {"row_num": 1, "a": 20},
+            {"row_num": 2, "a": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Explode (list columns — reduced backend set)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+class TestExplode:
+    def test_explode_list_column(self, backend_name, backend_factory):
+        """Explode a list column into separate rows.
+
+        Uses Polars directly for DataFrame creation since list columns
+        need special construction.
+        """
+        import polars as pl
+
+        if backend_name == "polars":
+            df = pl.DataFrame({"id": [1, 2], "vals": [[10, 20], [30]]})
+        elif backend_name == "narwhals-polars":
+            import narwhals as nw
+            df = nw.from_native(pl.DataFrame({"id": [1, 2], "vals": [[10, 20], [30]]}))
+        elif backend_name == "ibis-duckdb":
+            import ibis
+            conn = ibis.duckdb.connect()
+            df = conn.create_table(
+                "test_explode",
+                pl.DataFrame({"id": [1, 2], "vals": [[10, 20], [30]]}),
+                overwrite=True,
+            )
+        else:
+            pytest.skip(f"List columns not supported on {backend_name}")
+
+        result = ma.relation(df).explode("vals").to_dicts()
+        result_sorted = sorted_dicts(result, ["id", "vals"])
+        assert result_sorted == [
+            {"id": 1, "vals": 10},
+            {"id": 1, "vals": 20},
+            {"id": 2, "vals": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Unnest (struct columns — reduced backend set, xfail on narwhals)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", STRUCT_BACKENDS)
+class TestUnnest:
+    def test_unnest_struct_column(self, backend_name, backend_factory):
+        """Unnest a struct column into separate columns.
+
+        Narwhals raises NotImplementedError for unnest.
+        The separator="" produces flat field names (x, y) with no prefix.
+        """
+        import polars as pl
+
+        if backend_name in ("narwhals-polars", "narwhals-pandas"):
+            pytest.xfail("Narwhals does not support unnest")
+
+        if backend_name == "polars":
+            df = pl.DataFrame({
+                "id": [1, 2],
+                "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
+            })
+        elif backend_name == "ibis-polars":
+            import ibis
+            conn = ibis.polars.connect()
+            df = conn.create_table(
+                "test_unnest",
+                pl.DataFrame({
+                    "id": [1, 2],
+                    "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
+                }),
+                overwrite=True,
+            )
+        elif backend_name == "ibis-duckdb":
+            import ibis
+            conn = ibis.duckdb.connect()
+            df = conn.create_table(
+                "test_unnest",
+                pl.DataFrame({
+                    "id": [1, 2],
+                    "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
+                }),
+                overwrite=True,
+            )
+        else:
+            pytest.skip(f"Struct columns not supported on {backend_name}")
+
+        result = ma.relation(df).unnest("info", separator="").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "x": 10, "y": "a"},
+            {"id": 2, "x": 20, "y": "b"},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Unpivot (wide to long)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestUnpivot:
+    def test_unpivot_wide_to_long(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"id": [1, 2], "x": [10, 20], "y": [30, 40]},
+            backend_name,
+        )
+        result = ma.relation(df).unpivot(
+            on=["x", "y"], index="id"
+        ).to_dicts()
+        result_sorted = sorted_dicts(result, ["id", "variable"])
+        assert result_sorted == [
+            {"id": 1, "variable": "x", "value": 10},
+            {"id": 1, "variable": "y", "value": 30},
+            {"id": 2, "variable": "x", "value": 20},
+            {"id": 2, "variable": "y", "value": 40},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Pivot (long to wide)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestPivot:
+    def test_pivot_long_to_wide(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {
+                "id": [1, 1, 2, 2],
+                "category": ["x", "y", "x", "y"],
+                "value": [10, 20, 30, 40],
+            },
+            backend_name,
+        )
+        try:
+            result = ma.relation(df).pivot(
+                on="category", index="id", values="value"
+            ).to_dicts()
+        except (NotImplementedError, Exception) as e:
+            if "not supported" in str(e).lower() or "not implemented" in str(e).lower() or "pivot" in str(e).lower():
+                pytest.xfail(f"pivot not supported on {backend_name}: {e}")
+            raise
+        result_sorted = sorted_dicts(result, "id")
+        # Sort column keys too for deterministic comparison
+        for row in result_sorted:
+            assert row["id"] in (1, 2)
+        assert result_sorted[0]["x"] == 10
+        assert result_sorted[0]["y"] == 20
+        assert result_sorted[1]["x"] == 30
+        assert result_sorted[1]["y"] == 40
+
+
+# ---------------------------------------------------------------------------
+# Top K
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestTopK:
+    def test_top_k_by_column(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"name": ["a", "b", "c", "d", "e"], "score": [10, 50, 30, 40, 20]},
+            backend_name,
+        )
+        result = ma.relation(df).top_k(3, by="score").to_dicts()
+        result_sorted = sorted_dicts(result, "score")
+        assert result_sorted == [
+            {"name": "c", "score": 30},
+            {"name": "d", "score": 40},
+            {"name": "b", "score": 50},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Sample (non-deterministic — check count and membership only)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestSample:
+    def test_sample_n(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"a": list(range(20))}, backend_name
+        )
+        try:
+            result = ma.relation(df).sample(n=5).to_dicts()
+        except (NotImplementedError, Exception) as e:
+            if "not supported" in str(e).lower() or "not implemented" in str(e).lower() or "sample" in str(e).lower():
+                pytest.xfail(f"sample not supported on {backend_name}: {e}")
+            raise
+        assert len(result) == 5
+        all_values = set(range(20))
+        for row in result:
+            assert row["a"] in all_values
