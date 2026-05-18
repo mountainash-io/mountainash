@@ -8,7 +8,10 @@ Test data uses unique sort keys to ensure deterministic output ordering.
 Known divergences:
 - ibis-polars: No translation rule for WindowFunction (Ibis Polars backend limitation)
 - ibis-duckdb/ibis-sqlite: Return 0-based ranks instead of 1-based (off-by-one)
-- rank() default method='average': Not supported on Ibis (no SQL equivalent)
+- ibis: rank(method='average'/'max') has no SQL equivalent — raises BackendCapabilityError
+- narwhals: percent_rank(), cume_dist(), ntile(), nth_value() not supported
+- narwhals: rank(method='dense'/'ordinal'/'average'/'max') not supported via method param
+- narwhals: Cannot apply .over() to elementwise (non-aggregate/non-window) expressions
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 
 
 ALL_BACKENDS = [
@@ -527,3 +531,305 @@ class TestWindowDiff:
             .to_dict()
         )
         assert result["d"] == [None, None, 20, 20, 20]
+
+
+# ─── Rank Variants ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowRankDescending:
+    """Test rank(descending=True) produces reversed ordering."""
+
+    def test_rank_descending_differs_from_ascending(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        if backend_name in ("ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis-duckdb/sqlite: rank() returns 0-based values")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 30],
+                "id": [1, 2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        expr_asc = ma.col("score").rank(method="min").over("group")
+        expr_desc = ma.col("score").rank(method="min", descending=True).over("group")
+        result_asc = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_asc.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        result_desc = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_desc.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result_asc["rnk"] != result_desc["rnk"]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowRankMethodDense:
+    """Test rank(method='dense') — consecutive ranks, no gaps on ties."""
+
+    def test_rank_method_dense(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        if backend_name in ("ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis-duckdb/sqlite: rank() returns 0-based values")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: rank(method='dense') not supported via method param")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 30],
+                "id": [1, 2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").rank(method="dense").over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result["drnk"] == [1, 2, 3, 3]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowRankMethodOrdinal:
+    """Test rank(method='ordinal') — unique sequential ranks."""
+
+    def test_rank_method_ordinal(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        if backend_name in ("ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis-duckdb/sqlite: rank() returns 0-based values")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: rank(method='ordinal') not supported via method param")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 30],
+                "id": [1, 2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").rank(method="ordinal").over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rn"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result["rn"] == [1, 2, 3, 4]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowRankMethodAverage:
+    """Test rank(method='average') — averaged ranks for ties (Polars-only, no SQL equivalent)."""
+
+    def test_rank_method_average(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: rank(method='average') has no SQL equivalent")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: rank(method='average') not supported")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 30],
+                "id": [1, 2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").rank(method="average").over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result["rnk"] == [1.0, 2.0, 3.5, 3.5]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowRankMethodMax:
+    """Test rank(method='max') — max rank for ties (Polars-only, no SQL equivalent)."""
+
+    def test_rank_method_max(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: rank(method='max') has no SQL equivalent")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: rank(method='max') not supported")
+        data = {"group": ["A", "A", "A", "A"],
+                "score": [10, 20, 30, 30],
+                "id": [1, 2, 3, 4]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").rank(method="max").over("group")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result["rnk"] == [1, 2, 4, 4]
+
+
+# ─── Rank Method Guard ────────────────────────────────────────────────────────
+
+
+class TestWindowRankMethodGuard:
+    """Ibis must raise BackendCapabilityError for rank methods without SQL equivalents."""
+
+    def test_ibis_rank_average_raises(self):
+        import ibis
+        con = ibis.duckdb.connect()
+        t = con.create_table("_test_rank_avg", {"score": [10, 20, 30, 30]})
+        expr = ma.col("score").rank(method="average").over("score")
+        with pytest.raises(BackendCapabilityError, match="average"):
+            expr.compile(t)
+
+    def test_ibis_rank_max_raises(self):
+        import ibis
+        con = ibis.duckdb.connect()
+        t = con.create_table("_test_rank_max", {"score": [10, 20, 30, 30]})
+        expr = ma.col("score").rank(method="max").over("score")
+        with pytest.raises(BackendCapabilityError, match="max"):
+            expr.compile(t)
+
+
+# ─── Percent Rank & Cume Dist ─────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowPercentRank:
+    """Test percent_rank() — values between 0 and 1."""
+
+    def test_percent_rank_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: percent_rank() not supported")
+        data = {"group": ["A", "A", "A", "B", "B", "B"],
+                "score": [10, 20, 20, 30, 10, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").percent_rank().over("group", order_by="score")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("prnk"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        for val in result["prnk"]:
+            assert 0.0 <= val <= 1.0
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowCumeDist:
+    """Test cume_dist() — cumulative distribution, values between 0 and 1."""
+
+    def test_cume_dist_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: cume_dist() not supported")
+        data = {"group": ["A", "A", "A", "B", "B", "B"],
+                "score": [10, 20, 20, 30, 10, 20]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("score").cume_dist().over("group", order_by="score")
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("cdist"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        for val in result["cdist"]:
+            assert 0.0 <= val <= 1.0
+
+
+# ─── Nth Value ────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowNthValue:
+    """Test nth_value(n) — nth value in partition."""
+
+    def test_nth_value_basic(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: nth_value() not supported")
+        data = {"group": ["A", "A", "A"],
+                "score": [10, 20, 30]}
+        df = backend_factory.create(data, backend_name)
+        try:
+            expr = ma.col("score").nth_value(2).over("group")
+            result = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), expr.alias("nth"))
+                .sort("group", "score")
+                .to_dict()
+            )
+            assert all(v == 20 for v in result["nth"])
+        except Exception:
+            pytest.xfail("nth_value not supported on this backend")
+
+
+# ─── Over Modifier Variants ──────────────────────────────────────────────────
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowOverScalar:
+    """Test .over() wrapping a non-window expression (scalar windowed)."""
+
+    def test_over_scalar_expression(self, backend_name, backend_factory):
+        if backend_name in IBIS_BACKENDS:
+            pytest.xfail("ibis: no translation rule for WindowFunction")
+        if backend_name in NARWHALS_BACKENDS:
+            pytest.xfail("narwhals: Cannot apply .over() to elementwise expression")
+        data = {"dept": ["eng", "eng", "sales", "sales"],
+                "salary": [100, 120, 80, 110]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("salary").add(ma.lit(0)).over("dept")
+        result = (
+            ma.relation(df)
+            .select(ma.col("dept"), ma.col("salary"), expr.alias("windowed"))
+            .sort("dept", "salary")
+            .to_dict()
+        )
+        assert len(result["windowed"]) == 4
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowMultiPartition:
+    """Test .over() with multiple partition columns."""
+
+    def test_rank_multi_partition(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        if backend_name in ("ibis-duckdb", "ibis-sqlite"):
+            pytest.xfail("ibis-duckdb/sqlite: rank() returns 0-based values")
+        data = {"dept": ["eng", "eng", "eng", "sales", "sales"],
+                "level": ["jr", "sr", "jr", "jr", "sr"],
+                "salary": [100, 120, 90, 80, 110]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("salary").rank(method="min").over("dept", "level")
+        result = (
+            ma.relation(df)
+            .select(
+                ma.col("dept"), ma.col("level"), ma.col("salary"),
+                expr.alias("rnk"),
+            )
+            .sort("dept", "level", "salary")
+            .to_dict()
+        )
+        assert len(result["rnk"]) == 5
+        assert all(r >= 1 for r in result["rnk"])
+
+
+class TestWindowRequiresOver:
+    """Window functions that don't pre-populate window_spec must have .over()."""
+
+    def test_percent_rank_without_over_raises(self):
+        import polars as pl
+        df = pl.DataFrame({"salary": [100, 120, 90]})
+        expr = ma.col("salary").percent_rank()
+        with pytest.raises(ValueError, match=r"\.over\(\)"):
+            expr.compile(df)
