@@ -171,3 +171,131 @@ class TestRelProtocolVsBackendSignatures:
             assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
                 f"_KNOWN_REL_SIGNATURE_DIVERGENCES[{key}] has no date: {reason!r}"
             )
+
+
+from mountainash.relations.core.relation_nodes.reln_base import RelationNode
+from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
+from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
+from mountainash.core.constants import ExtensionRelOperation
+
+
+def _camel_to_snake(name: str) -> str:
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+_REGISTRY_HANDLED_OPS = {"REF", "READ_RESOURCE"}
+
+
+# ── R-A2a: Node type → visitor ──────────────────────────────────────────
+
+
+def _collect_all_node_types() -> set[type]:
+    import mountainash.relations.core.relation_nodes.substrait  # noqa: F401
+    import mountainash.relations.core.relation_nodes.extensions_mountainash  # noqa: F401
+
+    all_nodes: set[type] = set()
+
+    def collect(cls: type) -> None:
+        for sub in cls.__subclasses__():
+            if not inspect.isabstract(sub):
+                mod = getattr(sub, "__module__", "") or ""
+                if not mod.startswith("test") and "test_" not in mod:
+                    all_nodes.add(sub)
+            collect(sub)
+
+    collect(RelationNode)
+    return all_nodes
+
+
+_ALL_NODE_TYPES = _collect_all_node_types()
+
+# node_class_name → "reason. Since YYYY-MM-DD."
+_KNOWN_UNHANDLED_NODES: dict[str, str] = {}
+
+
+def _collect_ra2a_cases() -> list[tuple[str, type]]:
+    return [(cls.__name__, cls) for cls in sorted(_ALL_NODE_TYPES, key=lambda c: c.__name__)]
+
+
+_RA2A_CASES = _collect_ra2a_cases()
+
+
+class TestRelVisitorDispatchCoverage:
+    """R-A2a: Every concrete RelationNode subclass must be handled."""
+
+    @pytest.mark.parametrize(
+        ("node_name", "node_cls"),
+        _RA2A_CASES,
+        ids=[name for name, _ in _RA2A_CASES],
+    )
+    def test_node_has_visitor_handler(self, node_name: str, node_cls: type) -> None:
+        if node_name in _KNOWN_UNHANDLED_NODES:
+            pytest.xfail(_KNOWN_UNHANDLED_NODES[node_name])
+
+        stem = node_name.removesuffix("Node")
+        method_name = f"visit_{_camel_to_snake(stem)}"
+
+        has_visitor_method = hasattr(UnifiedRelationVisitor, method_name)
+        has_registry_handler = RelationVisitRegistry.get(node_cls) is not None
+
+        assert has_visitor_method or has_registry_handler, (
+            f"{node_name} has no visit method ({method_name}) on "
+            f"UnifiedRelationVisitor and no RelationVisitRegistry handler"
+        )
+
+    def test_no_stale_unhandled_entries(self) -> None:
+        all_names = {name for name, _ in _RA2A_CASES}
+        for key in _KNOWN_UNHANDLED_NODES:
+            assert key in all_names, (
+                f"Stale _KNOWN_UNHANDLED_NODES entry: {key}"
+            )
+
+
+# ── R-A2b: Extension ops → backend methods ──────────────────────────────
+
+
+def _collect_ra2b_cases() -> list[tuple[str, str]]:
+    cases = []
+    for op in ExtensionRelOperation:
+        if op.name in _REGISTRY_HANDLED_OPS:
+            continue
+        method_name = op.name.lower()
+        for backend_name in BACKEND_LEAF_CLASSES:
+            cases.append((method_name, backend_name))
+    return cases
+
+
+_RA2B_CASES = _collect_ra2b_cases()
+
+# (operation_name, backend_name) → "reason. Since YYYY-MM-DD."
+_KNOWN_DISPATCH_GAPS: dict[tuple[str, str], str] = {}
+
+
+class TestRelExtensionDispatch:
+    """R-A2b: Every ExtensionRelOperation must dispatch to a backend method."""
+
+    @pytest.mark.parametrize(
+        ("method_name", "backend_name"),
+        _RA2B_CASES,
+        ids=[f"{m}/{b}" for m, b in _RA2B_CASES],
+    )
+    def test_extension_op_resolves(
+        self, method_name: str, backend_name: str
+    ) -> None:
+        key = (method_name, backend_name)
+        if key in _KNOWN_DISPATCH_GAPS:
+            pytest.xfail(_KNOWN_DISPATCH_GAPS[key])
+
+        backend_cls = BACKEND_LEAF_CLASSES[backend_name]
+        assert hasattr(backend_cls, method_name), (
+            f"ExtensionRelOperation.{method_name.upper()} has no method "
+            f"'{method_name}' on {backend_name} ({backend_cls.__name__})"
+        )
+
+    def test_no_stale_dispatch_gap_entries(self) -> None:
+        all_keys = set(_RA2B_CASES)
+        for key in _KNOWN_DISPATCH_GAPS:
+            assert key in all_keys, (
+                f"Stale _KNOWN_DISPATCH_GAPS entry: {key}"
+            )
