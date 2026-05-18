@@ -16,7 +16,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
     """Mountainash-specific relation operations for the Ibis backend."""
 
     def drop_nulls(self, relation: ir.Table, /, *, subset: Optional[list[str]] = None) -> ir.Table:
-        return relation.dropna(subset=subset)
+        return relation.drop_null(subset)
 
     def drop_nans(
         self, relation: ir.Table, /, *, subset: Optional[list[str]] = None
@@ -65,11 +65,12 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         variable_name: str = "variable",
         value_name: str = "value",
     ) -> ir.Table:
-        return relation.unpivot(
-            on=on,
-            index=index if index is not None else [],
-            variable_name=variable_name,
-            value_name=value_name,
+        from ibis import selectors as s
+
+        return relation.pivot_longer(
+            s.cols(*on),
+            names_to=variable_name,
+            values_to=value_name,
         )
 
     def pivot(
@@ -94,10 +95,10 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         return relation.pivot_wider(**kwargs)
 
     def top_k(
-        self, relation: ir.Table, /, *, k: int, by: str, descending: bool = True
+        self, relation: ir.Table, /, *, k: int, by: list[str], descending: bool = True
     ) -> ir.Table:
-        order_key = ibis.desc(by) if descending else by
-        return relation.order_by(order_key).limit(k)
+        order_keys = [ibis.desc(col) if descending else col for col in by]
+        return relation.order_by(order_keys).limit(k)
 
     def unnest(
         self, relation: ir.Table, /, *, columns: list[str], separator: str

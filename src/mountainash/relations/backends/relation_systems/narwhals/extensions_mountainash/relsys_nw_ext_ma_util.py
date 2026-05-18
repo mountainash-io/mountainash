@@ -31,7 +31,7 @@ class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSys
             ]
         if not subset:
             return relation
-        mask = nw.all_horizontal(*[~nw.col(c).is_nan() for c in subset])
+        mask = nw.all_horizontal(*[~nw.col(c).is_nan() for c in subset], ignore_nulls=True)
         return relation.filter(mask)
 
     def with_row_index(self, relation: Any, /, *, name: str = "index") -> Any:
