@@ -4,10 +4,10 @@ import functools
 from dataclasses import dataclass, field
 from typing import Any, Callable, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import ParamSpec
 from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
 
 if TYPE_CHECKING:
+    from mountainash.pipelines.core.capabilities import ParamSpec
     from datetime import timedelta
 
 

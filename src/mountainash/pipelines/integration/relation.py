@@ -8,7 +8,7 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
 from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
 
-from mountainash.pipelines.core.capabilities import ParamSpec
+from mountainash.pipelines.core.capabilities import ParamSpec  # noqa: TCH001 — Pydantic needs this at runtime
 
 
 class PipelineStepRelNode(RelationNode):

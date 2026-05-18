@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Callable, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import ParamSpec
 from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
 from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import StepDefinition
 
 if TYPE_CHECKING:
     from datetime import timedelta
+
+    from mountainash.pipelines.core.capabilities import ParamSpec
 
 
 class PipelineBuilder:
