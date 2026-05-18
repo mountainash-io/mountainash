@@ -244,11 +244,33 @@ class TestRelVisitorDispatchCoverage:
             f"UnifiedRelationVisitor and no RelationVisitRegistry handler"
         )
 
+    def test_unhandled_nodes_still_unhandled(self) -> None:
+        for node_name, node_cls in _RA2A_CASES:
+            if node_name not in _KNOWN_UNHANDLED_NODES:
+                continue
+            stem = node_name.removesuffix("Node")
+            method_name = f"visit_{_camel_to_snake(stem)}"
+            has_visitor = hasattr(UnifiedRelationVisitor, method_name)
+            has_registry = RelationVisitRegistry.get(node_cls) is not None
+            assert not has_visitor and not has_registry, (
+                f"Stale: {node_name} is now handled! "
+                f"Remove from _KNOWN_UNHANDLED_NODES."
+            )
+
     def test_no_stale_unhandled_entries(self) -> None:
         all_names = {name for name, _ in _RA2A_CASES}
         for key in _KNOWN_UNHANDLED_NODES:
             assert key in all_names, (
                 f"Stale _KNOWN_UNHANDLED_NODES entry: {key}"
+            )
+
+    def test_every_unhandled_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_UNHANDLED_NODES.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_UNHANDLED_NODES[{key}] missing date: {reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_UNHANDLED_NODES[{key}] has no date: {reason!r}"
             )
 
 
@@ -293,11 +315,31 @@ class TestRelExtensionDispatch:
             f"'{method_name}' on {backend_name} ({backend_cls.__name__})"
         )
 
+    def test_dispatch_gaps_still_missing(self) -> None:
+        for method_name, backend_name in _RA2B_CASES:
+            key = (method_name, backend_name)
+            if key not in _KNOWN_DISPATCH_GAPS:
+                continue
+            backend_cls = BACKEND_LEAF_CLASSES[backend_name]
+            assert not hasattr(backend_cls, method_name), (
+                f"Stale: {backend_name} now has '{method_name}'! "
+                f"Remove from _KNOWN_DISPATCH_GAPS."
+            )
+
     def test_no_stale_dispatch_gap_entries(self) -> None:
         all_keys = set(_RA2B_CASES)
         for key in _KNOWN_DISPATCH_GAPS:
             assert key in all_keys, (
                 f"Stale _KNOWN_DISPATCH_GAPS entry: {key}"
+            )
+
+    def test_every_dispatch_gap_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_DISPATCH_GAPS.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_DISPATCH_GAPS[{key}] missing date: {reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_DISPATCH_GAPS[{key}] has no date: {reason!r}"
             )
 
 

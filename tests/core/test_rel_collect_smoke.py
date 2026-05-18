@@ -284,6 +284,14 @@ _KNOWN_REL_SMOKE_FAILURES: dict[tuple[str, str], str] = {
         "UnsupportedBackendType: Struct types aren't supported in SQLite. "
         "Since 2026-05-18."
     ),
+    # source: SourceRelNode always materialises via Polars (pydata ingress).
+    # Non-Polars backends pass silently without exercising their backend path.
+    ("source", "pandas"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
+    ("source", "narwhals-polars"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
+    ("source", "narwhals-pandas"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
+    ("source", "ibis-polars"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
+    ("source", "ibis-duckdb"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
+    ("source", "ibis-sqlite"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
 }
 
 
@@ -370,3 +378,20 @@ class TestRelSmokeExceptionSetIntegrity:
             assert bn in valid_backends, (
                 f"_KNOWN_REL_SMOKE_FAILURES: backend {bn!r} not valid"
             )
+
+    def test_extension_ops_covered_in_operations(self) -> None:
+        """Every non-registry-handled ExtensionRelOperation must have a smoke test."""
+        from mountainash.core.constants import ExtensionRelOperation
+
+        _REGISTRY_HANDLED = {"REF", "READ_RESOURCE"}
+        enum_ops = {
+            op.name.lower()
+            for op in ExtensionRelOperation
+            if op.name not in _REGISTRY_HANDLED
+        }
+        covered = set(_OPERATIONS.keys())
+        missing = enum_ops - covered
+        assert not missing, (
+            f"ExtensionRelOperation members without smoke test: {sorted(missing)}. "
+            f"Add a builder to _OPERATIONS or document in the exception set."
+        )
