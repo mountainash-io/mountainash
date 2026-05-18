@@ -405,3 +405,151 @@ class TestProtocolVsVisitorCallPattern:
             assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
                 f"_KNOWN_CALL_PATTERN_MISMATCHES[{key}] has no date: {reason!r}"
             )
+
+
+# ── A3: Options Registry Consistency ─────────────────────────────────────
+
+
+def _collect_a3_cases() -> list[tuple[str, tuple[str, ...], list[str], list[str]]]:
+    """Collect (fkey_str, registered_options, protocol_option_params, required_protocol_options).
+
+    Protocol option params are identified by _classify_annotation returning
+    "option" or "unclassified", or by being KEYWORD_ONLY.
+    Required options are those without a default value.
+    """
+    from expressions.argument_types._introspection import _classify_annotation
+
+    ExpressionFunctionRegistry._init_registry()
+    cases = []
+    for fkey, fdef in ExpressionFunctionRegistry._functions.items():
+        if fdef.protocol_method is None:
+            continue
+        sig = inspect.signature(fdef.protocol_method)
+        hints = get_type_hints(fdef.protocol_method)
+        option_params = []
+        required_options = []
+        for pname, param in sig.parameters.items():
+            if pname == "self":
+                continue
+            if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                continue
+            is_option = False
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                is_option = True
+            else:
+                ann = hints.get(pname, param.annotation)
+                if _classify_annotation(ann) in ("option", "unclassified"):
+                    is_option = True
+            if is_option:
+                option_params.append(pname)
+                if param.default is inspect.Parameter.empty:
+                    required_options.append(pname)
+        cases.append((str(fkey), fdef.options, option_params, required_options))
+    return cases
+
+
+_A3_CASES = _collect_a3_cases()
+
+# (fkey_str) → "reason. Since YYYY-MM-DD."
+_KNOWN_OPTIONS_DRIFT: dict[str, str] = {
+    "FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT":
+        "Registry has 'separator' but protocol has 'null_handling' — different option sets. Since 2026-05-18.",
+    "FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING":
+        "Registry has 'start','length' but protocol has 'negative_start' — options not aligned. Since 2026-05-18.",
+    "FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME":
+        "Protocol has required 'timezone' option not in registry — timezone handled by API builder. Since 2026-05-18.",
+    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT":
+        "Protocol extract(component, input) — component is a required positional option not in registry. Since 2026-05-18.",
+    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN":
+        "Protocol extract_boolean(component, input) — component is a required positional option not in registry. Since 2026-05-18.",
+    "FKEY_MOUNTAINASH_NAME.ALIAS":
+        "Protocol has required 'name' kwarg not in registry — handled by API builder directly. Since 2026-05-18.",
+    "FKEY_MOUNTAINASH_NAME.PREFIX":
+        "Protocol has required 'prefix' kwarg not in registry — handled by API builder directly. Since 2026-05-18.",
+    "FKEY_MOUNTAINASH_NAME.SUFFIX":
+        "Protocol has required 'suffix' kwarg not in registry — handled by API builder directly. Since 2026-05-18.",
+}
+
+
+class TestOptionsRegistryConsistency:
+    """A3: ExpressionFunctionDef.options must match protocol option params."""
+
+    @pytest.mark.parametrize(
+        ("fkey_str", "registered_options", "protocol_options", "required_options"),
+        _A3_CASES,
+        ids=[fk for fk, _, _, _ in _A3_CASES],
+    )
+    def test_registered_options_exist_in_protocol(
+        self,
+        fkey_str: str,
+        registered_options: tuple[str, ...],
+        protocol_options: list[str],
+        required_options: list[str],
+    ) -> None:
+        """Every option in the registry must correspond to a protocol param."""
+        if fkey_str in _KNOWN_OPTIONS_DRIFT:
+            pytest.xfail(_KNOWN_OPTIONS_DRIFT[fkey_str])
+
+        registered = set(registered_options)
+        protocol = set(protocol_options)
+
+        extra = registered - protocol
+        assert not extra, (
+            f"{fkey_str}: options {extra} in registry but not in protocol. "
+            f"Registry: {registered}, Protocol: {protocol}"
+        )
+
+    @pytest.mark.parametrize(
+        ("fkey_str", "registered_options", "protocol_options", "required_options"),
+        _A3_CASES,
+        ids=[fk for fk, _, _, _ in _A3_CASES],
+    )
+    def test_required_protocol_options_registered(
+        self,
+        fkey_str: str,
+        registered_options: tuple[str, ...],
+        protocol_options: list[str],
+        required_options: list[str],
+    ) -> None:
+        """Required protocol options (no default) must be in the registry."""
+        if fkey_str in _KNOWN_OPTIONS_DRIFT:
+            pytest.xfail(_KNOWN_OPTIONS_DRIFT[fkey_str])
+
+        registered = set(registered_options)
+        missing_required = set(required_options) - registered
+        assert not missing_required, (
+            f"{fkey_str}: required options {missing_required} in protocol but "
+            f"not in registry. Registry: {registered}, Required: {set(required_options)}"
+        )
+
+    def test_drift_entries_still_drift(self) -> None:
+        """Every exception must still actually drift — if fixed, remove it."""
+        from expressions.argument_types._introspection import _classify_annotation
+
+        for fkey_str, registered_options, protocol_options, required_options in _A3_CASES:
+            if fkey_str not in _KNOWN_OPTIONS_DRIFT:
+                continue
+            registered = set(registered_options)
+            protocol = set(protocol_options)
+            extra = registered - protocol
+            missing_required = set(required_options) - registered
+            assert extra or missing_required, (
+                f"Stale drift: {fkey_str} — options now match! "
+                f"Remove from _KNOWN_OPTIONS_DRIFT."
+            )
+
+    def test_no_stale_options_drift_entries(self) -> None:
+        all_fkeys = {fk for fk, _, _, _ in _A3_CASES}
+        for key in _KNOWN_OPTIONS_DRIFT:
+            assert key in all_fkeys, (
+                f"Stale _KNOWN_OPTIONS_DRIFT entry: {key}"
+            )
+
+    def test_every_drift_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_OPTIONS_DRIFT.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_OPTIONS_DRIFT[{key}] missing date: {reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_OPTIONS_DRIFT[{key}] has no date: {reason!r}"
+            )
