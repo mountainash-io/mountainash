@@ -2,7 +2,8 @@ import pytest
 from mountainash.pipelines.fluent.builder import PipelineBuilder
 from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import step, StepContext
-from mountainash.pipelines.core.capabilities import StepCapabilities, PushableParam
+from mountainash.pipelines.core.capabilities import ParamSpec
+from datetime import date
 
 
 def _noop(ctx: StepContext) -> list[dict]:
@@ -24,15 +25,15 @@ def test_pipeline_builder_basic():
     assert spec.steps["b"].depends_on == ["a"]
 
 
-def test_pipeline_builder_with_capabilities():
+def test_pipeline_builder_with_params():
     spec = (
         PipelineBuilder("test", version="2.0.0")
-        .step("extract", _noop, pushdown=StepCapabilities(
-            pushable_params=(PushableParam(column="date", api_param="start"),),
+        .step("extract", _noop, params=(
+            ParamSpec(name="start", type=date),
         ))
         .build()
     )
-    assert spec.steps["extract"].capabilities.pushable_params[0].column == "date"
+    assert spec.steps["extract"].params[0].name == "start"
 
 
 def test_pipeline_builder_with_decorated_steps():

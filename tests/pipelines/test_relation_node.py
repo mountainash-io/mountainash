@@ -1,7 +1,6 @@
 from mountainash.pipelines.integration.relation import PipelineStepRelNode
 from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import StepDefinition
-from mountainash.pipelines.core.capabilities import StepCapabilities, PushedPredicates
 
 
 def _make_spec() -> PipelineSpec:
@@ -20,7 +19,7 @@ def test_pipeline_step_rel_node_creation():
     )
     assert node.step_name == "fetch"
     assert node.data_key == "sleep"
-    assert node.pushed_predicates == PushedPredicates()
+    assert node.bound_params == {}
 
 
 class MockVisitor:

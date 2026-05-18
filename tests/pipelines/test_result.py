@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from mountainash.pipelines.core.capabilities import ResolvedPredicates
 from mountainash.pipelines.core.result import StepMetadata, StepResult
 
 
@@ -15,17 +14,14 @@ def test_step_metadata():
     assert meta.input_cache_keys == {}
 
 
-def test_step_metadata_with_predicates():
-    predicates = ResolvedPredicates(
-        limit=100,
-    )
+def test_step_metadata_with_params():
     meta = StepMetadata(
         step_name="query_data",
         completed_at=datetime(2026, 5, 13, 10, 0, 0),
-        resolved_predicates=predicates,
+        params={"limit": 100},
     )
-    assert meta.resolved_predicates is not None
-    assert meta.resolved_predicates.limit == 100
+    assert meta.params is not None
+    assert meta.params["limit"] == 100
 
 
 def test_step_result():
@@ -60,4 +56,4 @@ def test_step_metadata_defaults():
     )
     assert meta.record_count is None
     assert meta.input_cache_keys == {}
-    assert meta.resolved_predicates is None
+    assert meta.params is None

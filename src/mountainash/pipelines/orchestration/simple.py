@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from mountainash.pipelines.core.cache_key import compute_cache_key
-from mountainash.pipelines.core.capabilities import PushedPredicates, ResolvedPredicates
 from mountainash.pipelines.core.policies import EmptyPolicy
 from mountainash.pipelines.core.result import StepMetadata, StepResult
 from mountainash.pipelines.core.step import StepContext
@@ -33,7 +32,7 @@ class SimplePipelineRunner:
 
     def run(
         self,
-        predicates: PushedPredicates | None = None,
+        params: dict[str, Any] | None = None,
         config: dict[str, Any] | None = None,
         force: bool = False,
         target: str | None = None,
@@ -43,7 +42,7 @@ class SimplePipelineRunner:
                 f"Target step '{target}' not found in pipeline '{self._spec.name}'"
             )
         merged_config = {**self._config, **(config or {})}
-        resolved = self._resolve_predicates(predicates)
+        resolved_params = params or {}
 
         order = self._spec.topological_order(target=target)
         results: dict[str, StepResult] = {}
@@ -53,7 +52,7 @@ class SimplePipelineRunner:
 
             upstream_keys = {dep: results[dep].cache_key for dep in defn.depends_on}
             cache_key = compute_cache_key(
-                self._spec.version, step_name, upstream_keys, resolved,
+                self._spec.version, step_name, upstream_keys, resolved_params,
             )
 
             if not force:
@@ -64,7 +63,7 @@ class SimplePipelineRunner:
 
             upstream_data = {dep: results[dep].data for dep in defn.depends_on}
             ctx = StepContext(
-                predicates=resolved,
+                params=resolved_params,
                 pipeline_storage=self._storage,
                 storage_facade=merged_config.get("storage_facade"),
                 config=merged_config,
@@ -82,24 +81,13 @@ class SimplePipelineRunner:
                 completed_at=datetime.now(),
                 record_count=record_count,
                 input_cache_keys=upstream_keys,
-                resolved_predicates=resolved,
+                params=resolved_params,
             )
             result = StepResult(data=data, metadata=metadata, cache_key=cache_key)
             self._storage.write_step_output(step_name, result)
             results[step_name] = result
 
         return results
-
-    def _resolve_predicates(self, pushed: PushedPredicates | None) -> ResolvedPredicates:
-        if pushed is None:
-            return ResolvedPredicates(resolution_timestamp=datetime.now())
-        return ResolvedPredicates(
-            params=pushed.params,
-            limit=pushed.limit,
-            selected_fields=pushed.selected_fields,
-            pagination_hint=pushed.pagination_hint,
-            resolution_timestamp=datetime.now(),
-        )
 
     def as_executor(self) -> _RunnerExecutorAdapter:
         return _RunnerExecutorAdapter(self)
@@ -128,12 +116,12 @@ class _RunnerExecutorAdapter:
         self,
         pipeline: PipelineSpec,
         step_name: str,
-        predicates: PushedPredicates,
+        params: dict[str, Any],
         data_key: str | None,
     ) -> Any:
         import polars as pl
 
-        results = self._runner.run(predicates=predicates, target=step_name)
+        results = self._runner.run(params=params, target=step_name)
         if step_name not in results:
             raise KeyError(f"Step '{step_name}' not found in pipeline results")
         data = results[step_name].data

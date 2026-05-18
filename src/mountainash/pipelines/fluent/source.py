@@ -20,13 +20,13 @@ def source(
     if step_name not in pipeline.steps:
         raise ValueError(f"Step '{step_name}' not found in pipeline '{pipeline.name}'")
 
-    caps = pipeline.steps[step_name].capabilities
+    specs = pipeline.steps[step_name].params
     node = PipelineStepRelNode(
         step_name=step_name,
         pipeline=pipeline,
         data_key=data_key,
         executor=executor,
-        capabilities=caps,
+        param_specs=specs,
     )
 
     return Relation(node)

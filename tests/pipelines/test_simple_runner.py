@@ -2,7 +2,6 @@ import pytest
 from datetime import date
 from mountainash.pipelines.core.step import step, StepContext
 from mountainash.pipelines.core.spec import PipelineSpec
-from mountainash.pipelines.core.capabilities import PushedPredicates, PushedParam
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
 from mountainash.pipelines.orchestration.simple import SimplePipelineRunner
 
@@ -90,11 +89,11 @@ def test_simple_runner_fan_out_fan_in():
     assert results["merge"].data == [{"a": 6, "b": 10}]
 
 
-def test_simple_runner_respects_predicates():
+def test_simple_runner_respects_params():
     @step(name="extract")
     def extract(ctx: StepContext) -> list[dict]:
-        start = ctx.predicates.params.get("start")
-        return [{"date_start": str(start.value) if start else "None"}]
+        start = ctx.params.get("start")
+        return [{"date_start": str(start) if start else "None"}]
 
     spec = PipelineSpec(
         name="pred",
@@ -103,9 +102,7 @@ def test_simple_runner_respects_predicates():
     )
     storage = MemoryPipelineStorage()
     runner = SimplePipelineRunner(spec=spec, storage=storage)
-    results = runner.run(predicates=PushedPredicates(
-        params={"start": PushedParam(value=date(2026, 1, 1), operator="gte")},
-    ))
+    results = runner.run(params={"start": date(2026, 1, 1)})
     assert results["extract"].data == [{"date_start": "2026-01-01"}]
 
 

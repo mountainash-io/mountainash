@@ -51,8 +51,8 @@ class RelationBase:
             return node
 
         passes = get_passes()
-        for _node_type, transform_fn in passes:
-            node = self._walk_and_push(node, transform_fn)
+        for node_type, transform_fn in passes:
+            node = self._walk_and_push(node, transform_fn, node_type)
         return node
 
     def _contains_registered_node(
@@ -76,7 +76,7 @@ class RelationBase:
         return False
 
     def _walk_and_push(
-        self, node: RelationNode, transform_fn: Callable[[Any], Any]
+        self, node: RelationNode, transform_fn: Callable[[Any], Any], target_type: type | None = None,
     ) -> RelationNode:
         """Bottom-up walk: reconstruct frozen nodes with rewritten children, then transform."""
         from ..relation_nodes.substrait.reln_filter import FilterRelNode
@@ -90,20 +90,20 @@ class RelationBase:
 
         rebuilt: RelationNode
         if isinstance(node, JoinRelNode):
-            new_left = self._walk_and_push(node.left, transform_fn)
-            new_right = self._walk_and_push(node.right, transform_fn)
+            new_left = self._walk_and_push(node.left, transform_fn, target_type)
+            new_right = self._walk_and_push(node.right, transform_fn, target_type)
             if new_left is node.left and new_right is node.right:
                 rebuilt = node
             else:
                 rebuilt = node.model_copy(update={"left": new_left, "right": new_right})
         elif isinstance(node, SetRelNode):
-            new_inputs = [self._walk_and_push(inp, transform_fn) for inp in node.inputs]
+            new_inputs = [self._walk_and_push(inp, transform_fn, target_type) for inp in node.inputs]
             if all(n is o for n, o in zip(new_inputs, node.inputs)):
                 rebuilt = node
             else:
                 rebuilt = node.model_copy(update={"inputs": new_inputs})
         elif hasattr(node, "input"):
-            new_input = self._walk_and_push(node.input, transform_fn)
+            new_input = self._walk_and_push(node.input, transform_fn, target_type)
             if new_input is node.input:
                 rebuilt = node
             else:
@@ -111,6 +111,9 @@ class RelationBase:
         else:
             rebuilt = node
 
+        # Apply transform to matching node type or legacy Filter/Project/Fetch types
+        if target_type is not None and isinstance(rebuilt, target_type):
+            return transform_fn(rebuilt)
         if isinstance(rebuilt, (FilterRelNode, ProjectRelNode, FetchRelNode)):
             return transform_fn(rebuilt)
         return rebuilt
