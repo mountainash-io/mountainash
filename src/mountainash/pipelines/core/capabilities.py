@@ -5,12 +5,25 @@ from datetime import datetime
 from typing import Any, Literal
 
 
+@dataclass(frozen=True)
+class ParamSpec:
+    """Declares one parameter a pipeline step accepts."""
+    name: str
+    type: type
+    required: bool = True
+    default: Any = None
+
+
+# ---------------------------------------------------------------------------
+# Stubs retained for backward compatibility — will be removed in Tasks 2–5
+# when step.py, executor.py, integration/, and orchestration/ are migrated.
+# ---------------------------------------------------------------------------
+
 Operator = Literal["gt", "gte", "lt", "lte", "eq"]
 
 
 @dataclass(frozen=True)
 class PushableParam:
-    """A filter parameter that can be pushed to the data source."""
     column: str
     api_param: str
     operators: tuple[Operator, ...] = ("gt", "gte", "lt", "lte", "eq")
@@ -20,7 +33,6 @@ class PushableParam:
 
 @dataclass(frozen=True)
 class PushedParam:
-    """A single extracted parameter value with operator context."""
     value: Any
     operator: Operator
     format: str | None = None
