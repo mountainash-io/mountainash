@@ -1,5 +1,5 @@
-from cross_backend.argument_types._introspection import ProtocolParam, introspect_protocols
-from cross_backend.argument_types._coverage_guard_helpers import (
+from expressions.argument_types._introspection import ProtocolParam, introspect_protocols
+from expressions.argument_types._coverage_guard_helpers import (
     canonicalize_tested_param,
     registry_protocol_ref,
 )

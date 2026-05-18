@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from cross_backend.argument_types._introspection import introspect_protocols
+from expressions.argument_types._introspection import introspect_protocols
 
 # Build a list of (op_name, param_name, annotation) for every option-kind param
 _OPTION_PARAMS = [

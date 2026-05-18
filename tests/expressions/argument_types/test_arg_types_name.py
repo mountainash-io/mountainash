@@ -1,4 +1,4 @@
-"""Argument channel tests for logarithmic operations.
+"""Argument channel tests for name operations.
 
 OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
 which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
@@ -10,11 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC as FK_LOG,
-)
-from cross_backend.argument_types.conftest import ALL_BACKENDS
-from cross_backend.argument_types._test_template import (
+from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,
@@ -22,12 +19,7 @@ from cross_backend.argument_types._test_template import (
 )
 
 TESTED_PARAMS: list[tuple] = [
-    ("ln", "x"),
-    (FK_LOG.LOG10, "x"),
-    ("log1p", "x"),
-    (FK_LOG.LOG2, "x"),
-    (FK_LOG.LOGB, "base"),
-    (FK_LOG.LOGB, "x"),
+
 ]
 
 OP_SPECS: list[OpSpec] = []

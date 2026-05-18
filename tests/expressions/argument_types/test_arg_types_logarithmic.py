@@ -1,4 +1,4 @@
-"""Argument channel tests for aggregate operations.
+"""Argument channel tests for logarithmic operations.
 
 OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
 which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
@@ -11,10 +11,10 @@ from __future__ import annotations
 import pytest
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_AGGREGATE as FK_AGG,
+    FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC as FK_LOG,
 )
-from cross_backend.argument_types.conftest import ALL_BACKENDS
-from cross_backend.argument_types._test_template import (
+from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,
@@ -22,29 +22,12 @@ from cross_backend.argument_types._test_template import (
 )
 
 TESTED_PARAMS: list[tuple] = [
-    (FK_AGG.ANY_VALUE, "x"),
-    (FK_AGG.AVG, "x"),
-    (FK_AGG.BOOL_AND, "a"),
-    (FK_AGG.BOOL_OR, "a"),
-    (FK_AGG.CORR, "x"),
-    (FK_AGG.CORR, "y"),
-    (FK_AGG.COUNT, "x"),
-    (FK_AGG.MAX, "x"),
-    (FK_AGG.MEDIAN, "precision"),
-    (FK_AGG.MEDIAN, "x"),
-    (FK_AGG.MIN, "x"),
-    (FK_AGG.MODE, "x"),
-    (FK_AGG.PRODUCT, "x"),
-    (FK_AGG.QUANTILE, "boundaries"),
-    (FK_AGG.QUANTILE, "distribution"),
-    (FK_AGG.QUANTILE, "n"),
-    (FK_AGG.QUANTILE, "precision"),
-    (FK_AGG.STD_DEV, "x"),
-    (FK_AGG.SUM, "x"),
-    (FK_AGG.SUM0, "x"),
-    (FK_AGG.VARIANCE, "x"),
-    # Mountainash aggregate extensions
-    ("n_unique", "x"),
+    ("ln", "x"),
+    (FK_LOG.LOG10, "x"),
+    ("log1p", "x"),
+    (FK_LOG.LOG2, "x"),
+    (FK_LOG.LOGB, "base"),
+    (FK_LOG.LOGB, "x"),
 ]
 
 OP_SPECS: list[OpSpec] = []

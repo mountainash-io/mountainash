@@ -6,7 +6,7 @@ from enum import Enum
 import importlib
 from typing import Any, Iterable
 
-from cross_backend.argument_types._introspection import ProtocolParam, introspect_protocols
+from expressions.argument_types._introspection import ProtocolParam, introspect_protocols
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )

@@ -12,14 +12,14 @@ import inspect
 import typing
 from typing import get_type_hints
 
-from cross_backend.argument_types._coverage_guard_helpers import (
+from expressions.argument_types._coverage_guard_helpers import (
     KnownGap,
     TestedParamRef,
     canonicalize_tested_param,
     collect_tested_params,
     protocol_params_by_category,
 )
-from cross_backend.argument_types._introspection import (
+from expressions.argument_types._introspection import (
     introspect_protocols,
     _iter_protocol_classes,
     _CATEGORY_MAP,
@@ -1308,7 +1308,7 @@ def test_all_protocols_registered_in_category_map():
     _introspection._CATEGORY_MAP. Add it with the appropriate category
     so drift detection covers it.
     """
-    from cross_backend.argument_types._introspection import _iter_protocol_classes, _CATEGORY_MAP
+    from expressions.argument_types._introspection import _iter_protocol_classes, _CATEGORY_MAP
 
     unregistered = [
         name for name, _ in _iter_protocol_classes()

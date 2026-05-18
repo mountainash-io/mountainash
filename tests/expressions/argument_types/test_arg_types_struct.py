@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from cross_backend.argument_types.conftest import ALL_BACKENDS
-from cross_backend.argument_types._test_template import (
+from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,

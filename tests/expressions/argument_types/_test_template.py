@@ -134,7 +134,7 @@ def _materialize_result(df, compiled, backend: str) -> None:
 
 def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     """Execute one cell of the (operation × backend × input_type) matrix."""
-    from cross_backend.argument_types.conftest import make_df
+    from expressions.argument_types.conftest import make_df
 
     df = make_df(op.data, backend)
     arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name, op.complex_builder)

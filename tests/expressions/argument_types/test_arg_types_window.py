@@ -6,8 +6,8 @@ import pytest
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     SUBSTRAIT_ARITHMETIC_WINDOW as FK_WIN,
 )
-from cross_backend.argument_types.conftest import ALL_BACKENDS
-from cross_backend.argument_types._test_template import (
+from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,

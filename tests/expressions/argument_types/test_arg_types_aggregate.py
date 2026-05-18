@@ -1,4 +1,4 @@
-"""Argument channel tests for comparison operations.
+"""Argument channel tests for aggregate operations.
 
 OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
 which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
@@ -11,10 +11,10 @@ from __future__ import annotations
 import pytest
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_COMPARISON as FK_CMP,
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE as FK_AGG,
 )
-from cross_backend.argument_types.conftest import ALL_BACKENDS
-from cross_backend.argument_types._test_template import (
+from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,
@@ -22,41 +22,29 @@ from cross_backend.argument_types._test_template import (
 )
 
 TESTED_PARAMS: list[tuple] = [
-    (FK_CMP.BETWEEN, "high"),
-    (FK_CMP.BETWEEN, "low"),
-    (FK_CMP.BETWEEN, "x"),
-    (FK_CMP.COALESCE, "args"),
-    (FK_CMP.EQUAL, "x"),
-    (FK_CMP.EQUAL, "y"),
-    (FK_CMP.GREATEST, "args"),
-    (FK_CMP.GREATEST_SKIP_NULL, "args"),
-    (FK_CMP.GT, "x"),
-    (FK_CMP.GT, "y"),
-    (FK_CMP.GTE, "x"),
-    (FK_CMP.GTE, "y"),
-    ("is_distinct_from", "x"),
-    ("is_distinct_from", "y"),
-    (FK_CMP.IS_FALSE, "x"),
-    (FK_CMP.IS_FINITE, "x"),
-    (FK_CMP.IS_INFINITE, "x"),
-    (FK_CMP.IS_NAN, "x"),
-    ("is_not_distinct_from", "x"),
-    ("is_not_distinct_from", "y"),
-    (FK_CMP.IS_NOT_FALSE, "x"),
-    (FK_CMP.IS_NOT_NULL, "x"),
-    (FK_CMP.IS_NOT_TRUE, "x"),
-    (FK_CMP.IS_NULL, "x"),
-    (FK_CMP.IS_TRUE, "x"),
-    (FK_CMP.LEAST, "args"),
-    (FK_CMP.LEAST_SKIP_NULL, "args"),
-    (FK_CMP.LT, "x"),
-    (FK_CMP.LT, "y"),
-    (FK_CMP.LTE, "x"),
-    (FK_CMP.LTE, "y"),
-    (FK_CMP.NOT_EQUAL, "x"),
-    (FK_CMP.NOT_EQUAL, "y"),
-    ("nullif", "x"),
-    ("nullif", "y"),
+    (FK_AGG.ANY_VALUE, "x"),
+    (FK_AGG.AVG, "x"),
+    (FK_AGG.BOOL_AND, "a"),
+    (FK_AGG.BOOL_OR, "a"),
+    (FK_AGG.CORR, "x"),
+    (FK_AGG.CORR, "y"),
+    (FK_AGG.COUNT, "x"),
+    (FK_AGG.MAX, "x"),
+    (FK_AGG.MEDIAN, "precision"),
+    (FK_AGG.MEDIAN, "x"),
+    (FK_AGG.MIN, "x"),
+    (FK_AGG.MODE, "x"),
+    (FK_AGG.PRODUCT, "x"),
+    (FK_AGG.QUANTILE, "boundaries"),
+    (FK_AGG.QUANTILE, "distribution"),
+    (FK_AGG.QUANTILE, "n"),
+    (FK_AGG.QUANTILE, "precision"),
+    (FK_AGG.STD_DEV, "x"),
+    (FK_AGG.SUM, "x"),
+    (FK_AGG.SUM0, "x"),
+    (FK_AGG.VARIANCE, "x"),
+    # Mountainash aggregate extensions
+    ("n_unique", "x"),
 ]
 
 OP_SPECS: list[OpSpec] = []

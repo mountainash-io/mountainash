@@ -33,7 +33,7 @@ from typing import Protocol, Set, List, Type
 from dataclasses import dataclass, field
 import warnings
 
-from cross_backend.argument_types._coverage_guard_helpers import (
+from expressions.argument_types._coverage_guard_helpers import (
     KnownGap,
 )
 
@@ -1449,7 +1449,7 @@ class TestWiringAuditHelpers:
 
     def test_wiring_protocol_registry_complete(self):
         """Wiring audit registry should include every discovered expression-system protocol."""
-        from cross_backend.argument_types._introspection import _iter_protocol_classes
+        from expressions.argument_types._introspection import _iter_protocol_classes
 
         discovered = {protocol_cls for _, protocol_cls in _iter_protocol_classes()}
         registered = set(WIRING_PROTOCOL_REGISTRY)
@@ -1503,7 +1503,7 @@ class TestWiringAuditHelpers:
             date.fromisoformat(gap.since)
 
     def test_aspirational_methods_are_not_claimed_tested_without_exception(self):
-        from cross_backend.argument_types.test_coverage_guard import (
+        from expressions.argument_types.test_coverage_guard import (
             _collect_matrix_executed_param_refs,
             _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES,
             _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES,
