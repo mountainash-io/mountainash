@@ -18,8 +18,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 TESTS_DIR = PROJECT_ROOT / "tests"
-ARG_TYPES_DIR = TESTS_DIR / "cross_backend" / "argument_types"
-PROTOCOL_ALIGNMENT_FILE = TESTS_DIR / "unit" / "test_protocol_alignment.py"
+ARG_TYPES_DIR = TESTS_DIR / "expressions" / "argument_types"
+PROTOCOL_ALIGNMENT_FILE = TESTS_DIR / "core" / "test_protocol_alignment.py"
 BACKEND_BASE_FILES = {
     "polars": PROJECT_ROOT / "src/mountainash/expressions/backends/expression_systems/polars/base.py",
     "narwhals": PROJECT_ROOT / "src/mountainash/expressions/backends/expression_systems/narwhals/base.py",

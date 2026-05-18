@@ -614,9 +614,8 @@ def pytest_collection_modifyitems(config, items):
     Modify test items during collection.
 
     Auto-applies markers based on test path:
-    - tests/unit/* → @pytest.mark.unit
     - tests/integration/* → @pytest.mark.integration
-    - tests/cross_backend/* → @pytest.mark.cross_backend
+    - tests/*/cross_backend/* → @pytest.mark.cross_backend
 
     Auto-skips tests with known external issues:
     - pandas: Visitor factory doesn't support pandas backend yet
@@ -627,14 +626,10 @@ def pytest_collection_modifyitems(config, items):
         test_path = str(item.fspath)
 
         # Auto-apply markers based on directory
-        if "/unit/" in test_path:
-            item.add_marker(pytest.mark.unit)
-        elif "/integration/" in test_path:
+        if "/integration/" in test_path:
             item.add_marker(pytest.mark.integration)
         elif "/cross_backend/" in test_path:
             item.add_marker(pytest.mark.cross_backend)
-        elif "/backends/" in test_path:
-            item.add_marker(pytest.mark.backend)
 
         # Auto-apply feature markers based on filename
         test_name = item.nodeid.lower()
