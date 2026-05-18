@@ -652,10 +652,13 @@ class Relation(RelationBase):
 
     def to_pandas(self) -> Any:
         """Execute and return a Pandas DataFrame."""
-        result = self._compile_and_execute()
+        result = self.collect()
         if hasattr(result, "to_pandas"):
             return result.to_pandas()
-        return result
+        import pandas as pd
+        if isinstance(result, pd.DataFrame):
+            return result
+        return pd.DataFrame(result)
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""
