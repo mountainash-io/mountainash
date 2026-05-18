@@ -5,7 +5,6 @@ from typing import Any, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mountainash.pipelines.core.spec import PipelineSpec
-    from mountainash.pipelines.core.capabilities import PushedPredicates
 
 
 class PipelineExecutor(Protocol):
@@ -13,6 +12,6 @@ class PipelineExecutor(Protocol):
         self,
         pipeline: PipelineSpec,
         step_name: str,
-        predicates: PushedPredicates,
+        params: dict[str, Any],
         data_key: str | None,
     ) -> Any: ...

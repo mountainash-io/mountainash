@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from mountainash.pipelines.core.cache_key import compute_cache_key
-from mountainash.pipelines.core.capabilities import PushedPredicates, ResolvedPredicates
 from mountainash.pipelines.core.result import StepMetadata, StepResult
 from mountainash.pipelines.core.step import StepContext
 from mountainash.pipelines.orchestration.resolver import _global_registry
@@ -58,7 +57,7 @@ class DbosPipelineRunner:
 
     def run(
         self,
-        predicates: PushedPredicates | None = None,
+        params: dict[str, Any] | None = None,
         config: dict[str, Any] | None = None,
         force: bool = False,
         target: str | None = None,
@@ -68,7 +67,7 @@ class DbosPipelineRunner:
                 f"Target step '{target}' not found in pipeline '{self._spec.name}'"
             )
         merged_config = {**self._config, **(config or {})}
-        resolved = self._resolve_predicates(predicates)
+        resolved_params = params or {}
 
         if force:
             wf_id = str(uuid.uuid4())
@@ -77,7 +76,7 @@ class DbosPipelineRunner:
                 self._spec.name,
                 self._spec.version,
                 self._user_id,
-                resolved,
+                resolved_params,
                 merged_config,
                 target=target,
             )
@@ -87,21 +86,10 @@ class DbosPipelineRunner:
                 spec_name=self._spec.name,
                 spec_version=self._spec.version,
                 user_id=self._user_id,
-                resolved_predicates=resolved,
+                params=resolved_params,
                 config=merged_config,
                 target=target,
             )
-
-    def _resolve_predicates(self, pushed: PushedPredicates | None) -> ResolvedPredicates:
-        if pushed is None:
-            return ResolvedPredicates(resolution_timestamp=datetime.now())
-        return ResolvedPredicates(
-            params=pushed.params,
-            limit=pushed.limit,
-            selected_fields=pushed.selected_fields,
-            pagination_hint=pushed.pagination_hint,
-            resolution_timestamp=datetime.now(),
-        )
 
 
 @DBOS.workflow()
@@ -109,7 +97,7 @@ def _dbos_run_pipeline(
     spec_name: str,
     spec_version: str,
     user_id: str,
-    resolved_predicates: ResolvedPredicates,
+    params: dict[str, Any],
     config: dict[str, Any],
     target: str | None = None,
 ) -> dict[str, StepResult]:
@@ -134,7 +122,7 @@ def _dbos_run_pipeline(
                     dep: results[dep].data
                     for dep in spec.steps[step_name].depends_on
                 },
-                resolved_predicates=resolved_predicates,
+                params=params,
                 config=config,
                 spec_version=spec_version,
             )
@@ -150,7 +138,7 @@ def _dbos_execute_step(
     step_name: str,
     upstream_cache_keys: dict[str, str],
     upstream_data: dict[str, Any],
-    resolved_predicates: ResolvedPredicates,
+    params: dict[str, Any],
     config: dict[str, Any],
     spec_version: str,
 ) -> StepResult:
@@ -160,7 +148,7 @@ def _dbos_execute_step(
     defn = spec.steps[step_name]
 
     cache_key = compute_cache_key(
-        spec_version, step_name, upstream_cache_keys, resolved_predicates
+        spec_version, step_name, upstream_cache_keys, params
     )
 
     cached = storage.read_step_output(step_name, cache_key)
@@ -168,7 +156,7 @@ def _dbos_execute_step(
         return cached
 
     ctx = StepContext(
-        predicates=resolved_predicates,
+        params=params,
         pipeline_storage=storage,
         storage_facade=config.get("storage_facade"),
         config=config,
@@ -184,7 +172,7 @@ def _dbos_execute_step(
         completed_at=datetime.now(),
         record_count=record_count,
         input_cache_keys=upstream_cache_keys,
-        resolved_predicates=resolved_predicates,
+        params=params,
     )
 
     result = StepResult(data=data, metadata=metadata, cache_key=cache_key)
