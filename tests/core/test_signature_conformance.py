@@ -1,0 +1,254 @@
+"""Signature conformance tests — closed-by-default wiring verification.
+
+A1: Protocol vs backend method signatures (arity + names)
+A2: Protocol vs visitor call pattern (AST argument count)
+A3: Options registry consistency
+"""
+from __future__ import annotations
+
+import inspect
+import re
+from typing import get_type_hints
+
+import pytest
+
+from mountainash.expressions.backends.expression_systems.ibis import (
+    IbisExpressionSystem,
+)
+from mountainash.expressions.backends.expression_systems.narwhals import (
+    NarwhalsExpressionSystem,
+)
+from mountainash.expressions.backends.expression_systems.polars import (
+    PolarsExpressionSystem,
+)
+import sys
+from pathlib import Path
+
+_TESTS_DIR = str(Path(__file__).resolve().parent.parent)
+if _TESTS_DIR not in sys.path:
+    sys.path.insert(0, _TESTS_DIR)
+
+from expressions.argument_types._introspection import (
+    _CATEGORY_MAP,
+    _iter_protocol_classes,
+)
+
+BACKEND_LEAF_CLASSES = {
+    "polars": PolarsExpressionSystem,
+    "ibis": IbisExpressionSystem,
+    "narwhals": NarwhalsExpressionSystem,
+}
+
+# ── A1 Exception set ─────────────────────────────────────────────────────
+# (protocol_name, method_name, backend_name) → "reason. Since YYYY-MM-DD."
+_KNOWN_SIGNATURE_DIVERGENCES: dict[tuple[str, str, str], str] = {
+    # median: protocol median(precision, x) vs backends median(x)
+    ("SubstraitAggregateArithmeticExpressionSystemProtocol", "median", "polars"):
+        "Protocol median(precision, x) vs Polars median(x) — Substrait 2-arg not wired. Since 2026-05-18.",
+    ("SubstraitAggregateArithmeticExpressionSystemProtocol", "median", "ibis"):
+        "Protocol median(precision, x) vs Ibis median(x) — Substrait 2-arg not wired. Since 2026-05-18.",
+    ("SubstraitAggregateArithmeticExpressionSystemProtocol", "median", "narwhals"):
+        "Protocol median(precision, x) vs Narwhals median(x) — Substrait 2-arg not wired. Since 2026-05-18.",
+    # quantile: protocol quantile(boundaries, precision, n, distribution) vs backends quantile(x, ...)
+    ("SubstraitAggregateArithmeticExpressionSystemProtocol", "quantile", "polars"):
+        "Protocol quantile(boundaries, precision, n, distribution) vs Polars quantile(x, q, interpolation). Since 2026-05-18.",
+    ("SubstraitAggregateArithmeticExpressionSystemProtocol", "quantile", "ibis"):
+        "Protocol quantile(boundaries, precision, n, distribution) vs Ibis quantile(x, quantile). Since 2026-05-18.",
+    ("SubstraitAggregateArithmeticExpressionSystemProtocol", "quantile", "narwhals"):
+        "Protocol quantile(boundaries, precision, n, distribution) vs Narwhals quantile(x, quantile). Since 2026-05-18.",
+    # bool_and/bool_or: protocol variadic *a, backends single arg
+    ("SubstraitAggregateBooleanExpressionSystemProtocol", "bool_and", "polars"):
+        "Protocol bool_and(*a) variadic vs Polars bool_and(x) single-arg. Since 2026-05-18.",
+    ("SubstraitAggregateBooleanExpressionSystemProtocol", "bool_and", "ibis"):
+        "Protocol bool_and(*a) variadic vs Ibis bool_and(x) single-arg. Since 2026-05-18.",
+    ("SubstraitAggregateBooleanExpressionSystemProtocol", "bool_and", "narwhals"):
+        "Protocol bool_and(*a) variadic vs Narwhals bool_and(x) single-arg. Since 2026-05-18.",
+    ("SubstraitAggregateBooleanExpressionSystemProtocol", "bool_or", "polars"):
+        "Protocol bool_or(*a) variadic vs Polars bool_or(x) single-arg. Since 2026-05-18.",
+    ("SubstraitAggregateBooleanExpressionSystemProtocol", "bool_or", "ibis"):
+        "Protocol bool_or(*a) variadic vs Ibis bool_or(x) single-arg. Since 2026-05-18.",
+    ("SubstraitAggregateBooleanExpressionSystemProtocol", "bool_or", "narwhals"):
+        "Protocol bool_or(*a) variadic vs Narwhals bool_or(x) single-arg. Since 2026-05-18.",
+    # string_agg: protocol string_agg(input, separator, ordering) vs backends string_agg(x)
+    ("SubstraitAggregateStringExpressionSystemProtocol", "string_agg", "polars"):
+        "Protocol string_agg(input, separator, ordering) 3-arg vs Polars string_agg(x) 1-arg. Since 2026-05-18.",
+    ("SubstraitAggregateStringExpressionSystemProtocol", "string_agg", "ibis"):
+        "Protocol string_agg(input, separator, ordering) 3-arg vs Ibis string_agg(x) 1-arg. Since 2026-05-18.",
+    ("SubstraitAggregateStringExpressionSystemProtocol", "string_agg", "narwhals"):
+        "Protocol string_agg(input, separator, ordering) 3-arg vs Narwhals string_agg(x) 1-arg. Since 2026-05-18.",
+    # extract: protocol extract(component, input) vs backends extract(input) — component is an option
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "polars"):
+        "Protocol extract(component, input) vs Polars extract(input) — component passed as option. Since 2026-05-18.",
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "ibis"):
+        "Protocol extract(component, input) vs Ibis extract(input) — component passed as option. Since 2026-05-18.",
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "narwhals"):
+        "Protocol extract(component, input) vs Narwhals extract(input) — component passed as option. Since 2026-05-18.",
+    # strptime_timestamp: protocol strptime_timestamp(input, format, timezone) vs backends strptime_timestamp(input)
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "polars"):
+        "Protocol strptime_timestamp(input, format, timezone) 3-arg vs Polars strptime_timestamp(input) 1-arg. Since 2026-05-18.",
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "ibis"):
+        "Protocol strptime_timestamp(input, format, timezone) 3-arg vs Ibis strptime_timestamp(input) 1-arg. Since 2026-05-18.",
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "narwhals"):
+        "Protocol strptime_timestamp(input, format, timezone) 3-arg vs Narwhals strptime_timestamp(input) 1-arg. Since 2026-05-18.",
+    # round: protocol round(x, s) vs backends round(x) — s passed as option
+    ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "polars"):
+        "Protocol round(x, s) vs Polars round(x) — s passed as option. Since 2026-05-18.",
+    ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "ibis"):
+        "Protocol round(x, s) vs Ibis round(x) — s passed as option. Since 2026-05-18.",
+    ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "narwhals"):
+        "Protocol round(x, s) vs Narwhals round(x) — s passed as option. Since 2026-05-18.",
+    # nth_value: protocol nth_value(x, window_offset) vs backends nth_value(x) — offset via visitor
+    ("SubstraitWindowArithmeticExpressionSystemProtocol", "nth_value", "polars"):
+        "Protocol nth_value(x, window_offset) vs Polars nth_value(x) — offset injected by visitor. Since 2026-05-18.",
+    ("SubstraitWindowArithmeticExpressionSystemProtocol", "nth_value", "ibis"):
+        "Protocol nth_value(x, window_offset) vs Ibis nth_value(x) — offset injected by visitor. Since 2026-05-18.",
+    ("SubstraitWindowArithmeticExpressionSystemProtocol", "nth_value", "narwhals"):
+        "Protocol nth_value(x, window_offset) vs Narwhals nth_value(x) — offset injected by visitor. Since 2026-05-18.",
+    # list_sample: protocol list_sample(input, n, with_replacement, seed) vs backends list_sample(input)
+    ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "polars"):
+        "Protocol list_sample(input, n, with_replacement, seed) 4-arg vs Polars list_sample(input) 1-arg. Since 2026-05-18.",
+    ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "ibis"):
+        "Protocol list_sample(input, n, with_replacement, seed) 4-arg vs Ibis list_sample(input) 1-arg. Since 2026-05-18.",
+    ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "narwhals"):
+        "Protocol list_sample(input, n, with_replacement, seed) 4-arg vs Narwhals list_sample(input) 1-arg. Since 2026-05-18.",
+}
+
+
+def _resolve_backend_method(
+    backend_cls: type, method_name: str
+) -> tuple[type, object] | None:
+    for cls in type.mro(backend_cls):
+        if cls.__name__.endswith("Protocol"):
+            continue
+        if method_name in cls.__dict__:
+            return cls, cls.__dict__[method_name]
+    return None
+
+
+def _get_positional_params(sig: inspect.Signature) -> list[tuple[str, str]]:
+    """Extract non-self positional params as (name, kind_str) tuples."""
+    result = []
+    for pname, param in sig.parameters.items():
+        if pname == "self":
+            continue
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            result.append((f"*{pname}", "variadic"))
+            continue
+        if param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.VAR_KEYWORD):
+            continue
+        if param.default is not inspect.Parameter.empty:
+            ann_str = str(param.annotation)
+            if "ExpressionT" not in ann_str and "Expr" not in ann_str:
+                continue
+        result.append((pname, "positional"))
+    return result
+
+
+def _collect_a1_cases() -> (
+    list[tuple[str, str, str, inspect.Signature, inspect.Signature]]
+):
+    cases = []
+    for proto_name, proto_cls in _iter_protocol_classes():
+        if proto_name not in _CATEGORY_MAP:
+            continue
+        for method_name, method in inspect.getmembers(
+            proto_cls, predicate=inspect.isfunction
+        ):
+            if method_name.startswith("_"):
+                continue
+            proto_sig = inspect.signature(method)
+            for backend_name, backend_cls in BACKEND_LEAF_CLASSES.items():
+                resolved = _resolve_backend_method(backend_cls, method_name)
+                if resolved is None:
+                    continue
+                defining_cls, backend_method = resolved
+                assert not defining_cls.__name__.endswith("Protocol"), (
+                    f"MRO resolution returned protocol class {defining_cls.__name__} "
+                    f"for {method_name} on {backend_name}"
+                )
+                backend_sig = inspect.signature(backend_method)
+                cases.append(
+                    (proto_name, method_name, backend_name, proto_sig, backend_sig)
+                )
+    return cases
+
+
+_A1_CASES = _collect_a1_cases()
+
+
+class TestProtocolVsBackendSignatures:
+    """A1: Every backend method must match its protocol's signature."""
+
+    @pytest.mark.parametrize(
+        ("proto_name", "method_name", "backend_name", "proto_sig", "backend_sig"),
+        _A1_CASES,
+        ids=[f"{p}/{m}/{b}" for p, m, b, _, _ in _A1_CASES],
+    )
+    def test_signature_matches(
+        self,
+        proto_name: str,
+        method_name: str,
+        backend_name: str,
+        proto_sig: inspect.Signature,
+        backend_sig: inspect.Signature,
+    ) -> None:
+        key = (proto_name, method_name, backend_name)
+        if key in _KNOWN_SIGNATURE_DIVERGENCES:
+            pytest.xfail(_KNOWN_SIGNATURE_DIVERGENCES[key])
+
+        proto_params = _get_positional_params(proto_sig)
+        backend_params = _get_positional_params(backend_sig)
+
+        proto_variadic = any(k == "variadic" for _, k in proto_params)
+        backend_variadic = any(k == "variadic" for _, k in backend_params)
+
+        if proto_variadic:
+            if not backend_variadic:
+                assert len(backend_params) >= 2, (
+                    f"{proto_name}.{method_name} on {backend_name}: "
+                    f"protocol is variadic but backend has {len(backend_params)} "
+                    f"fixed params (need >= 2)"
+                )
+            return
+
+        assert len(proto_params) == len(backend_params), (
+            f"{proto_name}.{method_name} on {backend_name}: "
+            f"protocol has {len(proto_params)} positional params "
+            f"{[n for n, _ in proto_params]}, "
+            f"backend has {len(backend_params)} "
+            f"{[n for n, _ in backend_params]}"
+        )
+
+    def test_no_stale_divergence_entries(self) -> None:
+        all_keys = {(p, m, b) for p, m, b, _, _ in _A1_CASES}
+        for key in _KNOWN_SIGNATURE_DIVERGENCES:
+            assert key in all_keys, (
+                f"Stale _KNOWN_SIGNATURE_DIVERGENCES entry: {key} — "
+                f"protocol/method/backend combo no longer exists"
+            )
+
+    def test_divergences_still_diverge(self) -> None:
+        """Every exception must still actually diverge — if fixed, remove it."""
+        for proto_name, method_name, backend_name, proto_sig, backend_sig in _A1_CASES:
+            key = (proto_name, method_name, backend_name)
+            if key not in _KNOWN_SIGNATURE_DIVERGENCES:
+                continue
+            proto_params = _get_positional_params(proto_sig)
+            backend_params = _get_positional_params(backend_sig)
+            proto_variadic = any(k == "variadic" for _, k in proto_params)
+            if proto_variadic:
+                continue
+            assert len(proto_params) != len(backend_params), (
+                f"Stale divergence: {key} — signatures now match! "
+                f"Remove from _KNOWN_SIGNATURE_DIVERGENCES."
+            )
+
+    def test_every_divergence_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_SIGNATURE_DIVERGENCES.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_SIGNATURE_DIVERGENCES[{key}] missing 'Since YYYY-MM-DD': "
+                f"{reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_SIGNATURE_DIVERGENCES[{key}] has no date: {reason!r}"
+            )

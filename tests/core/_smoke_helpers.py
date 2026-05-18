@@ -16,7 +16,14 @@ from mountainash.expressions.core.expression_system.function_mapping.registry im
     ExpressionFunctionDef,
     ExpressionFunctionRegistry,
 )
-from tests.expressions.argument_types._introspection import _classify_annotation
+import sys
+from pathlib import Path
+
+_TESTS_DIR = str(Path(__file__).resolve().parent.parent)
+if _TESTS_DIR not in sys.path:
+    sys.path.insert(0, _TESTS_DIR)
+
+from expressions.argument_types._introspection import _classify_annotation
 
 _STRING_CATEGORIES = {"string"}
 _BOOLEAN_CATEGORIES = {"boolean"}
@@ -30,7 +37,7 @@ _SMOKE_ARG_OVERRIDES: dict[Enum, tuple[list[Any], dict[str, Any]]] = {}
 
 
 def _get_category_for_fkey(fkey: Enum) -> str | None:
-    from tests.expressions.argument_types._introspection import _CATEGORY_MAP
+    from expressions.argument_types._introspection import _CATEGORY_MAP
 
     fdef = ExpressionFunctionRegistry.get(fkey)
     if fdef.protocol_method is None:
