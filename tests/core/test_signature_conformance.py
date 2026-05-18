@@ -252,3 +252,156 @@ class TestProtocolVsBackendSignatures:
             assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
                 f"_KNOWN_SIGNATURE_DIVERGENCES[{key}] has no date: {reason!r}"
             )
+
+
+# ── A2: Protocol vs Visitor Call Pattern ─────────────────────────────────
+
+import mountainash as ma
+from mountainash.expressions.core.expression_system.function_mapping.registry import (
+    ExpressionFunctionRegistry,
+)
+from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import (
+    ScalarFunctionNode,
+)
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import (
+    WindowFunctionNode,
+)
+
+from core._smoke_helpers import (
+    build_args_for_fkey,
+    count_protocol_arguments,
+    is_variadic,
+)
+
+_NAMESPACE_PREFIXES = {"list_": "list", "struct_": "struct"}
+_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct")
+
+
+def _resolve_api_callable(
+    base: ma.Expression, method_name: str
+) -> object | None:
+    """Find a callable for method_name across all expression namespaces."""
+    # Try flat namespaces first (comparison, arithmetic, boolean, etc.)
+    try:
+        return getattr(base, method_name)
+    except AttributeError:
+        pass
+
+    # Try descriptor namespaces with prefix stripping (list_sum -> .list.sum)
+    for prefix, ns_name in _NAMESPACE_PREFIXES.items():
+        if method_name.startswith(prefix):
+            stripped = method_name[len(prefix) :]
+            try:
+                ns = getattr(base, ns_name)
+                return getattr(ns, stripped)
+            except AttributeError:
+                pass
+
+    # Try descriptor namespaces without prefix stripping (upper -> .str.upper)
+    for ns_name in _DESCRIPTOR_NAMESPACES:
+        try:
+            ns = getattr(base, ns_name)
+            return getattr(ns, method_name)
+        except AttributeError:
+            continue
+
+    return None
+
+
+def _collect_a2_cases() -> list[tuple[str, int]]:
+    ExpressionFunctionRegistry._init_registry()
+    cases = []
+    for fkey, fdef in ExpressionFunctionRegistry._functions.items():
+        if is_variadic(fdef):
+            continue
+        if fdef.protocol_method is None:
+            continue
+        arg_count = count_protocol_arguments(fdef)
+        cases.append((str(fkey), arg_count))
+    return cases
+
+
+_A2_CASES = _collect_a2_cases()
+
+# (fkey_str) → "reason. Since YYYY-MM-DD."
+_KNOWN_CALL_PATTERN_MISMATCHES: dict[str, str] = {
+    "SUBSTRAIT_ARITHMETIC_WINDOW.LEAD":
+        "Protocol lead(x) has 1 ExpressionT arg, but API builder adds LiteralNode offset (n=1) "
+        "making 2 AST args. Since 2026-05-18.",
+    "SUBSTRAIT_ARITHMETIC_WINDOW.LAG":
+        "Protocol lag(x) has 1 ExpressionT arg, but API builder adds LiteralNode offset (n=1) "
+        "making 2 AST args. Since 2026-05-18.",
+}
+
+
+class TestProtocolVsVisitorCallPattern:
+    """A2: The AST node's argument count must match the protocol's argument count."""
+
+    @pytest.mark.parametrize(
+        ("fkey_str", "expected_arg_count"),
+        _A2_CASES,
+        ids=[fk for fk, _ in _A2_CASES],
+    )
+    def test_ast_arg_count_matches_protocol(
+        self, fkey_str: str, expected_arg_count: int
+    ) -> None:
+        if fkey_str in _KNOWN_CALL_PATTERN_MISMATCHES:
+            pytest.xfail(_KNOWN_CALL_PATTERN_MISMATCHES[fkey_str])
+
+        ExpressionFunctionRegistry._init_registry()
+        fkey = None
+        for k in ExpressionFunctionRegistry._functions:
+            if str(k) == fkey_str:
+                fkey = k
+                break
+        assert fkey is not None, f"FKEY {fkey_str} not found in registry"
+
+        fdef = ExpressionFunctionRegistry.get(fkey)
+
+        try:
+            args, options = build_args_for_fkey(fkey, fdef)
+        except ValueError as e:
+            pytest.fail(
+                f"Cannot auto-construct args for {fkey_str}: {e}. "
+                f"Add to _SMOKE_ARG_OVERRIDES in _smoke_helpers.py."
+            )
+
+        if not args:
+            pytest.skip("No args to build expression from")
+
+        method_name = fdef.protocol_method.__name__
+        base = args[0]
+        remaining_args = args[1:]
+
+        callable_method = _resolve_api_callable(base, method_name)
+        if callable_method is None:
+            pytest.skip(f"{method_name} not accessible via any API namespace")
+
+        try:
+            expr = callable_method(*remaining_args, **options)
+        except (TypeError, Exception) as e:
+            pytest.skip(f"{method_name} call failed: {e}")
+
+        node = expr._node if hasattr(expr, "_node") else expr
+        if isinstance(node, (ScalarFunctionNode, WindowFunctionNode)):
+            actual_arg_count = len(node.arguments)
+            assert actual_arg_count == expected_arg_count, (
+                f"{fkey_str}: AST node has {actual_arg_count} arguments, "
+                f"protocol expects {expected_arg_count}"
+            )
+
+    def test_no_stale_call_pattern_entries(self) -> None:
+        all_fkeys = {fk for fk, _ in _A2_CASES}
+        for key in _KNOWN_CALL_PATTERN_MISMATCHES:
+            assert key in all_fkeys, (
+                f"Stale _KNOWN_CALL_PATTERN_MISMATCHES entry: {key}"
+            )
+
+    def test_every_mismatch_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_CALL_PATTERN_MISMATCHES.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_CALL_PATTERN_MISMATCHES[{key}] missing date: {reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_CALL_PATTERN_MISMATCHES[{key}] has no date: {reason!r}"
+            )

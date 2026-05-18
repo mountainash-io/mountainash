@@ -33,7 +33,17 @@ _STRING_COLS = ["c"]
 _FLOAT_COLS = ["d"]
 _BOOL_COLS = ["e"]
 
-_SMOKE_ARG_OVERRIDES: dict[Enum, tuple[list[Any], dict[str, Any]]] = {}
+def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_CAST,
+    )
+
+    return {
+        FKEY_SUBSTRAIT_CAST.CAST: ([ma.col("a")], {"dtype": "str"}),
+    }
+
+
+_SMOKE_ARG_OVERRIDES: dict[Enum, tuple[list[Any], dict[str, Any]]] = _init_smoke_overrides()
 
 
 def _get_category_for_fkey(fkey: Enum) -> str | None:
