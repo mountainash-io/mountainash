@@ -126,7 +126,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | cross-backend-test-coverage.md | ENFORCED | Every new expression test must be cross-backend parametrized; Polars-only tests require explicit justification; use xfail not omission for backend limitations |
 | file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
 | import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
-| closed-by-default-verification.md | PROPOSED | Verification systems must fail on undiscovered items, not silently skip; introspection-driven scope; exception sets with reasons and dates |
+| closed-by-default-verification.md | ADOPTED | Verification systems must fail on undiscovered items, not silently skip; introspection-driven scope; exception sets with reasons and dates |
 
 ### h. Backlog
 
