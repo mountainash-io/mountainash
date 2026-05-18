@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, TYPE_CHECKING
 
-from mountainash.pipelines.core.capabilities import StepCapabilities
+from mountainash.pipelines.core.capabilities import ParamSpec
 from mountainash.pipelines.core.policies import EmptyPolicy, RetryConfig
 from mountainash.pipelines.core.spec import PipelineSpec
 from mountainash.pipelines.core.step import StepDefinition
@@ -23,7 +23,7 @@ class PipelineBuilder:
         fn: Callable,
         *,
         depends_on: list[str] | None = None,
-        pushdown: StepCapabilities | None = None,
+        params: tuple[ParamSpec, ...] | None = None,
         retry: RetryConfig | None = None,
         cache_ttl: timedelta | None = None,
         empty_policy: EmptyPolicy = EmptyPolicy.WARN,
@@ -33,15 +33,18 @@ class PipelineBuilder:
 
         actual_fn = fn
         actual_deps = depends_on
-        actual_caps = pushdown
+        actual_params = params
 
         if hasattr(fn, "_step_definition"):
             defn: StepDefinition = fn._step_definition
             actual_fn = defn.fn
             if actual_deps is None:
                 actual_deps = defn.depends_on
-            if actual_caps is None:
-                actual_caps = defn.capabilities
+            if actual_params is None:
+                actual_params = defn.params
+
+        if actual_params is None and hasattr(fn, "_param_specs"):
+            actual_params = fn._param_specs
 
         new_builder = PipelineBuilder(self._name, self._version)
         new_builder._steps = dict(self._steps)
@@ -49,7 +52,7 @@ class PipelineBuilder:
             name=name,
             fn=actual_fn,
             depends_on=actual_deps or [],
-            capabilities=actual_caps or StepCapabilities(),
+            params=actual_params or (),
             retry=retry,
             cache_ttl=cache_ttl,
             empty_policy=empty_policy,
