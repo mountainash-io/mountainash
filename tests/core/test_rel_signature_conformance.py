@@ -299,3 +299,75 @@ class TestRelExtensionDispatch:
             assert key in all_keys, (
                 f"Stale _KNOWN_DISPATCH_GAPS entry: {key}"
             )
+
+
+from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
+    MountainashExtensionRelationSystemProtocol,
+)
+
+
+def _get_extension_protocol_methods() -> set[str]:
+    return {
+        name
+        for name, val in MountainashExtensionRelationSystemProtocol.__dict__.items()
+        if not name.startswith("_") and callable(val)
+    }
+
+
+def _get_extension_enum_names() -> set[str]:
+    return {
+        op.name.lower()
+        for op in ExtensionRelOperation
+        if op.name not in _REGISTRY_HANDLED_OPS
+    }
+
+
+# item_name → "reason. Since YYYY-MM-DD."
+_KNOWN_ENUM_PROTOCOL_DRIFT: dict[str, str] = {}
+
+
+class TestRelExtensionEnumProtocolConsistency:
+    """R-A3: ExtensionRelOperation enum and extension protocol must be consistent."""
+
+    def test_every_enum_has_protocol_method(self) -> None:
+        enum_names = _get_extension_enum_names()
+        protocol_methods = _get_extension_protocol_methods()
+        for name in sorted(enum_names):
+            if name in _KNOWN_ENUM_PROTOCOL_DRIFT:
+                continue
+            assert name in protocol_methods, (
+                f"ExtensionRelOperation.{name.upper()} has no matching method "
+                f"'{name}' on MountainashExtensionRelationSystemProtocol"
+            )
+
+    def test_every_protocol_method_has_enum(self) -> None:
+        enum_names = _get_extension_enum_names()
+        protocol_methods = _get_extension_protocol_methods()
+        registry_handled_lower = {op.lower() for op in _REGISTRY_HANDLED_OPS}
+        for name in sorted(protocol_methods):
+            if name in registry_handled_lower:
+                continue
+            if name in _KNOWN_ENUM_PROTOCOL_DRIFT:
+                continue
+            assert name in enum_names, (
+                f"Protocol method '{name}' has no matching "
+                f"ExtensionRelOperation enum member"
+            )
+
+    def test_no_stale_drift_entries(self) -> None:
+        enum_names = _get_extension_enum_names()
+        protocol_methods = _get_extension_protocol_methods()
+        all_names = enum_names | protocol_methods
+        for key in _KNOWN_ENUM_PROTOCOL_DRIFT:
+            assert key in all_names, (
+                f"Stale _KNOWN_ENUM_PROTOCOL_DRIFT entry: {key}"
+            )
+
+    def test_every_drift_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_ENUM_PROTOCOL_DRIFT.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_ENUM_PROTOCOL_DRIFT[{key}] missing date: {reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_ENUM_PROTOCOL_DRIFT[{key}] has no date: {reason!r}"
+            )
