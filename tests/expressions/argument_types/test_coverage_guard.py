@@ -61,7 +61,7 @@ def _collect_matrix_executed_param_refs() -> set[TestedParamRef]:
     executed_params: set[tuple[str, str | None, str, str]] = set()
     params_by_category = protocol_params_by_category()
     for module_name in _CATEGORY_MODULES:
-        mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
+        mod = importlib.import_module(f"expressions.argument_types.{module_name}")
         for op_spec in getattr(mod, "OP_SPECS", []):
             executed_params.add(
                 _param_identity(
@@ -79,7 +79,7 @@ def _collect_matrix_executed_param_refs() -> set[TestedParamRef]:
 def _collect_tested_option_params() -> set[tuple[str, str, str]]:
     tested: set[tuple[str, str, str]] = set()
     for module_name in _CATEGORY_MODULES:
-        mod = importlib.import_module(f"cross_backend.argument_types.{module_name}")
+        mod = importlib.import_module(f"expressions.argument_types.{module_name}")
         tested.update(getattr(mod, "TESTED_OPTION_PARAMS", []))
     return tested
 

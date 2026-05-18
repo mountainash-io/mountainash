@@ -614,9 +614,8 @@ def pytest_collection_modifyitems(config, items):
     Modify test items during collection.
 
     Auto-applies markers based on test path:
-    - tests/unit/* → @pytest.mark.unit
     - tests/integration/* → @pytest.mark.integration
-    - tests/cross_backend/* → @pytest.mark.cross_backend
+    - tests/*/cross_backend/* → @pytest.mark.cross_backend
 
     Auto-skips tests with known external issues:
     - pandas: Visitor factory doesn't support pandas backend yet
