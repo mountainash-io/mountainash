@@ -12,8 +12,10 @@ import pytest
 import mountainash.expressions as ma
 
 
+# Custom list: narwhals-pandas excluded — str.contains rejects columnar pattern (pre-existing xfail)
 ALL_BACKENDS = [
     "polars",
+    "polars-lazy",
     "pandas",
     "narwhals-polars",
     "ibis-polars",
