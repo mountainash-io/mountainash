@@ -22,15 +22,10 @@ from typing import Any, Callable, Dict, List
 # Constants
 # =============================================================================
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-]
+from fixtures.backend_registry import (
+    REGISTRY as BACKEND_REGISTRY,
+    ALL_BACKENDS,
+)
 TEMPORAL_BACKENDS = [
     "polars",
     "narwhals-polars",
@@ -244,115 +239,26 @@ def ibis_sqlite_df(sample_data) -> Any:
 
 @pytest.fixture
 def backend_df(backend_name: str, sample_data) -> Any:
-    """
-    Create DataFrame for the specified backend.
-
-    Args:
-        backend_name: One of ["polars", "pandas", "narwhals", "ibis-duckdb", "ibis-polars", "ibis-sqlite"]
-        sample_data: Test data dictionary
-
-    Returns:
-        Backend-specific DataFrame object
-    """
-    if backend_name == "polars":
-        return pl.DataFrame(sample_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(sample_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(sample_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(sample_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("sample", sample_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(sample_data)
-        return conn.create_table("sample", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("sample", sample_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    """Create DataFrame for the specified backend via the central registry."""
+    return BACKEND_REGISTRY[backend_name].build(sample_data, table_name="sample")
 
 
 @pytest.fixture
 def backend_temporal_df(backend_name: str, temporal_data) -> Any:
     """Create temporal DataFrame for the specified backend."""
-    if backend_name == "polars":
-        return pl.DataFrame(temporal_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(temporal_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(temporal_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(temporal_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("temporal", temporal_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(temporal_data)
-        return conn.create_table("temporal", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("temporal", temporal_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    return BACKEND_REGISTRY[backend_name].build(temporal_data, table_name="temporal")
 
 
 @pytest.fixture
 def backend_arithmetic_df(backend_name: str, arithmetic_data) -> Any:
     """Create arithmetic DataFrame for the specified backend."""
-    if backend_name == "polars":
-        return pl.DataFrame(arithmetic_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(arithmetic_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(arithmetic_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(arithmetic_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("arithmetic", arithmetic_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(arithmetic_data)
-        return conn.create_table("arithmetic", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("arithmetic", arithmetic_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    return BACKEND_REGISTRY[backend_name].build(arithmetic_data, table_name="arithmetic")
 
 
 @pytest.fixture
 def backend_string_df(backend_name: str, string_data) -> Any:
     """Create string DataFrame for the specified backend."""
-    if backend_name == "polars":
-        return pl.DataFrame(string_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(string_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(string_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(string_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("strings", string_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(string_data)
-        return conn.create_table("strings", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("strings", string_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    return BACKEND_REGISTRY[backend_name].build(string_data, table_name="strings")
 
 
 # =============================================================================
@@ -372,12 +278,14 @@ def get_result_count() -> Callable:
         assert count == 3
     """
     def _get_count(df: Any, backend_name: str) -> int:
-        if backend_name.startswith("ibis-"):
+        spec = BACKEND_REGISTRY[backend_name]
+        if spec.materialization == "deferred":  # ibis
             return df.count().execute()
-        elif backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
+        if spec.materialization == "lazy":      # polars-lazy
+            return df.collect().shape[0]
+        if spec.family == "narwhals":
             return df.shape[0]
-        else:
-            return len(df)
+        return df.shape[0] if hasattr(df, "shape") else len(df)
     return _get_count
 
 
@@ -393,11 +301,13 @@ def get_result() -> Callable:
         count = get_result_count(result_df, "polars")
         assert count == 3
     """
-    def _get_result(df: Any, backend_name: str) -> int:
-        if backend_name.startswith("ibis-"):
+    def _get_result(df: Any, backend_name: str) -> Any:
+        spec = BACKEND_REGISTRY[backend_name]
+        if spec.materialization == "deferred":  # ibis
             return df.execute()
-        else: # backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
-            return df
+        if spec.materialization == "lazy":      # polars-lazy
+            return df.collect()
+        return df
     return _get_result
 
 
@@ -416,24 +326,27 @@ def select_and_extract() -> Callable:
         actual = select_and_extract(df, backend_expr, "result", backend_name)
     """
     def _select_and_extract(df: Any, backend_expr: Any, column_alias: str, backend_name: str) -> List:
-        # Handle each backend type completely in one place
-        if backend_name.startswith("ibis-"):
+        spec = BACKEND_REGISTRY[backend_name]
+        family = spec.family
+        materialization = spec.materialization
+
+        if family == "ibis":
             # Ibis: use .name(), then PyArrow to avoid pandas NaN/null conflation
             result = df.select(backend_expr.name(column_alias))
             return result.to_pyarrow()[column_alias].to_pylist()
 
-        elif backend_name == "pandas":
+        if family == "pandas":
             # Pandas (via narwhals): use PyArrow to avoid NaN/null conflation
             result = df.select(backend_expr.alias(column_alias))
             return result.to_arrow()[column_alias].to_pylist()
 
-        elif backend_name in ("polars", "narwhals-polars", "narwhals-pandas"):
-            # Polars/Narwhals: .to_list() preserves nulls correctly
+        if family in ("polars-eager", "polars-lazy", "narwhals"):
             result = df.select(backend_expr.alias(column_alias))
+            if materialization == "lazy":
+                result = result.collect()
             return result[column_alias].to_list()
 
-        else:
-            raise ValueError(f"Unknown backend: {backend_name}")
+        raise ValueError(f"Unknown backend: {backend_name}")
 
     return _select_and_extract
 
@@ -514,16 +427,12 @@ def get_scalar_result() -> Callable:
         assert max_val == 45
     """
     def _get_scalar(result: Any, backend_name: str) -> Any:
-        if backend_name.startswith("ibis-"):
+        spec = BACKEND_REGISTRY[backend_name]
+        if spec.materialization == "deferred":  # ibis
             return result.execute()
-        elif backend_name == "polars":
-            return result
-        elif backend_name == "pandas":
-            return result
-        elif backend_name in ("narwhals-polars", "narwhals-pandas"):
-            return result
-        else:
-            raise ValueError(f"Unknown backend: {backend_name}")
+        if spec.materialization == "lazy":
+            return result.collect() if hasattr(result, "collect") else result
+        return result
     return _get_scalar
 
 

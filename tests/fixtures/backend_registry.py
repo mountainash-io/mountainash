@@ -78,9 +78,12 @@ REGISTRY: dict[str, BackendSpec] = {
     "pandas":          BackendSpec("pandas",          "pandas",       "eager",    _build_pandas),
     "narwhals-polars": BackendSpec("narwhals-polars", "narwhals",     "eager",    _build_narwhals_polars),
     "narwhals-pandas": BackendSpec("narwhals-pandas", "narwhals",     "eager",    _build_narwhals_pandas),
+    "ibis-duckdb":     BackendSpec("ibis-duckdb",     "ibis",         "deferred", _build_ibis_duckdb),
     "ibis-polars":     BackendSpec("ibis-polars",     "ibis",         "deferred", _build_ibis_polars),
     "ibis-sqlite":     BackendSpec("ibis-sqlite",     "ibis",         "deferred", _build_ibis_sqlite),
-    "ibis-duckdb":     BackendSpec("ibis-duckdb",     "ibis",         "deferred", _build_ibis_duckdb),
+    # Legacy alias: "narwhals" resolves to narwhals-polars for pre-existing
+    # tests that hardcode this name in their @parametrize lists.
+    "narwhals":        BackendSpec("narwhals",        "narwhals",     "eager",    _build_narwhals_polars),
 }
 
-ALL_BACKENDS: list[str] = list(REGISTRY.keys())
+ALL_BACKENDS: list[str] = [k for k in REGISTRY if k != "narwhals"]

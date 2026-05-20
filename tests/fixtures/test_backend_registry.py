@@ -24,7 +24,11 @@ def test_registry_has_expected_backends():
 
 
 def test_all_backends_is_keys_of_registry_in_order():
-    assert ALL_BACKENDS == list(REGISTRY.keys())
+    # ALL_BACKENDS excludes legacy aliases (e.g. "narwhals") that exist in
+    # REGISTRY for backward-compat with tests that hardcode them in @parametrize.
+    # Verify: every ALL_BACKENDS entry is in REGISTRY, in the same relative order.
+    registry_keys = [k for k in REGISTRY if k in set(ALL_BACKENDS)]
+    assert ALL_BACKENDS == registry_keys
 
 
 @pytest.mark.parametrize("backend_name", [
