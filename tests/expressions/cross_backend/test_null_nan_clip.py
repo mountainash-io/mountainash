@@ -7,20 +7,14 @@ they are not pure expression transforms.
 
 import pytest
 import mountainash.expressions as ma
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 FLOAT_BACKENDS = [
     "polars",
+    "polars-lazy",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
 ]

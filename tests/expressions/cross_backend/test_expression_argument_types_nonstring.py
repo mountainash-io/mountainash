@@ -7,16 +7,7 @@ Category B params (log base, datetime offsets, fill_null) accept expressions whe
 
 import pytest
 import mountainash as ma
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
+from fixtures.backend_registry import ALL_BACKENDS
 
 # =============================================================================
 # Rounding — decimals is now an option (always literal)

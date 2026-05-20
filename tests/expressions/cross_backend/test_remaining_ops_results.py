@@ -18,20 +18,12 @@ from mountainash.relations.core.relation_api.relation import Relation
 from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
+from fixtures.backend_registry import ALL_BACKENDS
 
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
 
 TEMPORAL_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-polars",

@@ -16,17 +16,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.relations import relation
-
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 @pytest.mark.cross_backend

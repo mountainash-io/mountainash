@@ -20,17 +20,8 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
+from fixtures.backend_registry import ALL_BACKENDS
 
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
 
 IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
 NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}

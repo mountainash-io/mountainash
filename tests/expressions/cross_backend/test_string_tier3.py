@@ -11,27 +11,23 @@ from __future__ import annotations
 
 import pytest
 import mountainash.expressions as ma
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 # ---------------------------------------------------------------------------
 # Backend lists
 # ---------------------------------------------------------------------------
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
 POLARS_ONLY = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(
         strict=True, reason="Polars-only operation — raises BackendCapabilityError on Narwhals",
     )),
-    pytest.param("narwhals", marks=pytest.mark.xfail(
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
+        strict=True, reason="Polars-only operation — raises BackendCapabilityError on Narwhals",
+    )),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(
         strict=True, reason="Polars-only operation — raises BackendCapabilityError on Narwhals",
     )),
     pytest.param("ibis-polars", marks=pytest.mark.xfail(
@@ -47,10 +43,14 @@ POLARS_ONLY = [
 
 POLARS_ONLY_HEX = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(
         strict=True, reason="to_integer(base=16) not supported on Narwhals",
     )),
-    pytest.param("narwhals", marks=pytest.mark.xfail(
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
+        strict=True, reason="to_integer(base=16) not supported on Narwhals",
+    )),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(
         strict=True, reason="to_integer(base=16) not supported on Narwhals",
     )),
     pytest.param("ibis-polars", marks=pytest.mark.xfail(

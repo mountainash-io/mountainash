@@ -19,20 +19,10 @@ import pytest
 
 import mountainash as ma
 from mountainash.relations import relation
+from fixtures.backend_registry import ALL_BACKENDS
 
 STRING_SENTINELS = {"?", "<UNKNOWN>"}
 NUMERIC_SENTINELS = {-999, -999.0}
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
