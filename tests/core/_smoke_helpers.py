@@ -157,6 +157,76 @@ def build_args_for_fkey(
     return args, options
 
 
+_SENTINEL_MISSING = object()
+
+_SMOKE_EXPR_BUILDERS: dict[Enum, Any] | None = None
+
+
+def _init_smoke_expr_builders() -> dict[Enum, Any]:
+    """FKEY -> expression factory for FKEYs where protocol method name
+    doesn't match the public API accessor.
+
+    Returns a dict mapping FKEY -> zero-arg callable returning an Expression,
+    or None for FKEYs not reachable via the public API.
+    """
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        FKEY_MOUNTAINASH_SCALAR_STRING,
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
+        FKEY_MOUNTAINASH_WINDOW,
+        FKEY_SUBSTRAIT_CONDITIONAL,
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
+        SUBSTRAIT_ARITHMETIC_WINDOW,
+    )
+
+    c = ma.col("a")
+    s = ma.col("c")
+    b = ma.col("e")
+
+    return {
+        # Category A: name mismatch
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE: lambda: ma.always_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE: lambda: ma.always_false(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE: lambda: c.t_is_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE: lambda: c.t_is_false(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN: lambda: c.t_is_unknown(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN: lambda: c.t_is_known(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE: lambda: c.t_maybe_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE: lambda: c.t_maybe_false(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND: lambda: b.all(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR: lambda: b.any(),
+        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
+        FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE: lambda: s.str.to_date("%Y-%m-%d"),
+        FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME: lambda: s.str.to_datetime("%Y-%m-%d"),
+        # Category B: composite API pattern
+        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.is_leap_year(),
+        # Category C: not reachable via public API
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW: None,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY: None,
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST: None,
+        # Category D: window functions needing .over()
+        SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER: lambda: c.row_number().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK: lambda: c.dense_rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK: lambda: c.percent_rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST: lambda: c.cume_dist().over("b"),
+        FKEY_MOUNTAINASH_WINDOW.RANK_MAX: lambda: c.rank(method="max").over("b"),
+        FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE: lambda: c.rank(method="average").over("b"),
+    }
+
+
+def get_smoke_expr_builder(fkey: Enum) -> Any:
+    """Return an expression builder for fkey, or _SENTINEL_MISSING if not mapped."""
+    global _SMOKE_EXPR_BUILDERS
+    if _SMOKE_EXPR_BUILDERS is None:
+        _SMOKE_EXPR_BUILDERS = _init_smoke_expr_builders()
+    return _SMOKE_EXPR_BUILDERS.get(fkey, _SENTINEL_MISSING)
+
+
 def is_variadic(fdef: ExpressionFunctionDef) -> bool:
     if fdef.protocol_method is None:
         return False
