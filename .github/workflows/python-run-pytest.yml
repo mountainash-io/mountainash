@@ -14,6 +14,14 @@ on:
         options:
           - develop
           - main
+      test_scope:
+        description: "Test scope (smoke = ~2k tests, full = ~15k tests)"
+        required: true
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - full
 
 permissions:
   contents: read
@@ -58,8 +66,25 @@ jobs:
       - name: Create virtual environment
         run: hatch env create test_github
 
-      - name: Run Coverage Tests
-        run: hatch run test_github:test-cov
+      - name: Determine test scope
+        id: scope
+        run: |
+          # Default to smoke for PRs; honour workflow_dispatch input otherwise.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            scope="${{ github.event.inputs.test_scope }}"
+          else
+            scope="smoke"
+          fi
+          echo "scope=$scope" >> $GITHUB_OUTPUT
+          echo "Running test scope: $scope"
+
+      - name: Run Coverage Tests (smoke)
+        if: steps.scope.outputs.scope == 'smoke'
+        run: hatch run test_github:test-cov-smoke
+
+      - name: Run Coverage Tests (full)
+        if: steps.scope.outputs.scope == 'full'
+        run: hatch run test_github:test-cov-full
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

@@ -5,16 +5,7 @@ All three are AST-level composition methods — no backend-specific implementati
 
 import pytest
 import mountainash.expressions as ma
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
+from fixtures.backend_registry import ALL_BACKENDS
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -56,8 +47,10 @@ class TestNeMissing:
 
 IS_CLOSE_BACKENDS = [
     "polars",
+    "polars-lazy",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="Ibis type inference fails on nested abs() expressions")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="Ibis type inference fails on nested abs() expressions")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="Ibis type inference fails on nested abs() expressions")),

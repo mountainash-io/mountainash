@@ -8,12 +8,14 @@ import mountainash as ma
 
 BITWISE_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "ibis-duckdb",
 ]
 
 BITWISE_XOR_BACKENDS = [
     "polars",
+    "polars-lazy",
     pytest.param("narwhals-polars", marks=pytest.mark.xfail(
         strict=True,
         raises=Exception,
@@ -28,6 +30,11 @@ SHIFT_BACKENDS_IBIS_ONLY = [
         raises=Exception,
         reason="Polars does not support bitwise shift operations",
     )),
+    pytest.param("polars-lazy", marks=pytest.mark.xfail(
+        strict=True,
+        raises=Exception,
+        reason="Polars does not support bitwise shift operations",
+    )),
     pytest.param("narwhals-polars", marks=pytest.mark.xfail(
         strict=True,
         raises=Exception,
@@ -38,6 +45,11 @@ SHIFT_BACKENDS_IBIS_ONLY = [
 
 SHIFT_UNSIGNED_BACKENDS = [
     pytest.param("polars", marks=pytest.mark.xfail(
+        strict=True,
+        raises=Exception,
+        reason="No backend supports shift_right_unsigned",
+    )),
+    pytest.param("polars-lazy", marks=pytest.mark.xfail(
         strict=True,
         raises=Exception,
         reason="No backend supports shift_right_unsigned",

@@ -8,6 +8,7 @@ import mountainash as ma
 
 STRUCT_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "ibis-duckdb",
 ]

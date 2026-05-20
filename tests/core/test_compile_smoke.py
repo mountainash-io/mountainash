@@ -24,7 +24,9 @@ if _TESTS_DIR not in sys.path:
     sys.path.insert(0, _TESTS_DIR)
 
 from core._smoke_helpers import (
+    _SENTINEL_MISSING,
     build_args_for_fkey,
+    get_smoke_expr_builder,
     is_variadic,
 )
 
@@ -589,6 +591,53 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "ibis-duckdb"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "ibis-sqlite"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
 
+    # ── Newly surfaced after the free-function dispatch fallback was added
+    # to the smoke runner (2026-05-20). These were previously hidden behind
+    # "not on public API" skips because the helper only tried base-method
+    # dispatch. See cross-backend-matrix-followups.md "Smoke helper" cluster.
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR", "polars"): "NotImplementedError: corr() requires struct context in Polars; use DataFrame.corr() instead. Tracked in cross-backend-result-verification-deferred.md. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR", "pandas"): "NotImplementedError: corr() requires struct/aggregation context. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR", "narwhals-polars"): "NotImplementedError: corr() requires struct/aggregation context. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR", "narwhals-pandas"): "NotImplementedError: corr() requires struct/aggregation context. Since 2026-05-20.",
+    # QUANTILE: helper's free-function dispatch passes too many positional
+    # args (5) — protocol method is variadic over columns, but ma.quantile
+    # takes 2 positional args (x, q). Helper needs override; for now,
+    # record as known smoke failure pending arg-builder enhancement.
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "polars"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "pandas"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "narwhals-polars"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "narwhals-pandas"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-polars"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-duckdb"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-sqlite"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
+    # ── Smoke expr builder: newly-exposed backend limitations (21 entries) ──
+    # TO_DATE / TO_DATETIME — Narwhals backend does not implement strptime
+    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE", "pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE", "narwhals-polars"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE", "narwhals-pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME", "pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME", "narwhals-polars"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME", "narwhals-pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    # RANK (average method) — Ibis SQL has no rank(method='average') equivalent
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
+    # PERCENT_RANK — Narwhals backend does not implement percent_rank()
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "pandas"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "narwhals-polars"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "narwhals-pandas"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",
+    # CUME_DIST — Narwhals backend does not implement cume_dist()
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST", "pandas"): "NotImplementedError: cume_dist() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST", "narwhals-polars"): "NotImplementedError: cume_dist() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST", "narwhals-pandas"): "NotImplementedError: cume_dist() is not supported by the Narwhals backend. Since 2026-05-20.",
+    # RANK_MAX — Ibis SQL has no rank(method='max') equivalent
+    ("FKEY_MOUNTAINASH_WINDOW.RANK_MAX", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='max'). Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_WINDOW.RANK_MAX", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='max'). Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_WINDOW.RANK_MAX", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='max'). Since 2026-05-20.",
+    # RANK_AVERAGE — Ibis SQL has no rank(method='average') equivalent
+    ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
+    ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
 }
 
 
@@ -657,15 +706,72 @@ class TestCompileSmoke:
         }
         df = backend_factory.create(data, backend_name)
 
+        builder = get_smoke_expr_builder(fkey)
+        if builder is not _SENTINEL_MISSING:
+            if builder is None:
+                method_name = fdef.protocol_method.__name__
+                pytest.fail(
+                    f"{fkey_str}: {method_name} not reachable via public API "
+                    f"(API builder stub or internal utility)"
+                )
+            expr = builder()
+            try:
+                expr.compile(df)
+            except Exception as e:
+                pytest.fail(
+                    f"{fkey_str} on {backend_name}: compile() raised "
+                    f"{type(e).__name__}: {e}"
+                )
+            return
+
         method_name = fdef.protocol_method.__name__
+
+        # Zero-arg FKEYs (e.g. count_records, always_true, now): try free-function
+        # dispatch on the ma namespace before giving up.
         if not args:
-            pytest.skip(f"{fkey_str}: no args, cannot build expression")
+            free_fn = getattr(ma, method_name, None)
+            if free_fn is None:
+                pytest.skip(f"{fkey_str}: no args and ma.{method_name} not on public API")
+            try:
+                expr = free_fn(**options)
+            except TypeError as e:
+                pytest.fail(
+                    f"{fkey_str}: ma.{method_name}(**{options}) raised TypeError: {e}"
+                )
+            try:
+                expr.compile(df)
+            except Exception as e:
+                pytest.fail(
+                    f"{fkey_str} on {backend_name}: compile() raised "
+                    f"{type(e).__name__}: {e}"
+                )
+            return
 
         base = args[0]
         remaining_args = args[1:]
 
         callable_method = _resolve_api_callable(base, method_name)
+
+        # Free-function fallback: if the FKEY isn't a method on the base expression
+        # or any namespace, try ma.<method_name>(*args, **options) — covers free
+        # functions like ma.corr(x, y), ma.quantile(x, q), ma.coalesce(...).
         if callable_method is None:
+            free_fn = getattr(ma, method_name, None)
+            if free_fn is not None:
+                try:
+                    expr = free_fn(*args, **options)
+                except TypeError as e:
+                    pytest.fail(
+                        f"{fkey_str}: ma.{method_name}(*args, **options) raised TypeError: {e}"
+                    )
+                try:
+                    expr.compile(df)
+                except Exception as e:
+                    pytest.fail(
+                        f"{fkey_str} on {backend_name}: compile() raised "
+                        f"{type(e).__name__}: {e}"
+                    )
+                return
             pytest.skip(f"{method_name} not on public API")
 
         try:

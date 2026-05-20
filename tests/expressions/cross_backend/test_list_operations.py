@@ -9,6 +9,7 @@ from mountainash.core.types import BackendCapabilityError
 
 LIST_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "ibis-duckdb",
 ]
@@ -265,6 +266,7 @@ class TestNarwhalsExplodeJoinGuard:
 # Backends where all/any work: Polars + Ibis (Narwhals lacks these ops)
 LIST_BACKENDS_POLARS_IBIS = [
     "polars",
+    "polars-lazy",
     pytest.param(
         "narwhals-polars",
         marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks list.all()/any()"),
@@ -275,6 +277,7 @@ LIST_BACKENDS_POLARS_IBIS = [
 # Backends where median works: Polars + Narwhals (Ibis lacks it)
 LIST_BACKENDS_POLARS_NARWHALS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     pytest.param(
         "ibis-duckdb",
@@ -285,6 +288,7 @@ LIST_BACKENDS_POLARS_NARWHALS = [
 # Polars-only ops (both Narwhals and Ibis lack them)
 LIST_BACKENDS_POLARS_ONLY = [
     "polars",
+    "polars-lazy",
     pytest.param(
         "narwhals-polars",
         marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks this list op"),
@@ -483,6 +487,7 @@ class TestListPositionalOps:
 # Backends where set ops work: Polars + Ibis (Narwhals lacks these ops)
 LIST_BACKENDS_SET_OPS = [
     "polars",
+    "polars-lazy",
     pytest.param(
         "narwhals-polars",
         marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks list set operations"),
@@ -493,6 +498,7 @@ LIST_BACKENDS_SET_OPS = [
 # set_difference and set_symmetric_difference: Polars only
 LIST_BACKENDS_SET_DIFF = [
     "polars",
+    "polars-lazy",
     pytest.param(
         "narwhals-polars",
         marks=pytest.mark.xfail(strict=True, reason="Narwhals lacks list.set_difference()"),

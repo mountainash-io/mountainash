@@ -48,6 +48,8 @@ class BackendResultHelper:
         """
         if backend_name.startswith("ibis-"):
             return df.count().execute()
+        elif backend_name == "polars-lazy":
+            return df.collect().shape[0]
         elif backend_name in ["polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas"]:
             return df.shape[0]
         else:
@@ -75,6 +77,9 @@ class BackendResultHelper:
             return df[column].execute().tolist()
         elif backend_name == "polars":
             return df[column].to_list()
+        elif backend_name == "polars-lazy":
+            # LazyFrame can't be column-indexed; collect first.
+            return df.select(column).collect()[column].to_list()
         elif backend_name == "pandas":
             return df[column].tolist()
         elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas"):
@@ -120,6 +125,11 @@ class BackendResultHelper:
             result = df.select(backend_expr.name(column_alias))
             return result[column_alias].execute().tolist()
 
+        elif backend_name == "polars-lazy":
+            # LazyFrame.select() returns LazyFrame; collect before column extract.
+            result = df.select(backend_expr.alias(column_alias)).collect()
+            return result[column_alias].to_list()
+
         elif backend_name in ("polars", "narwhals", "narwhals-polars", "narwhals-pandas", "pandas"):
             # Polars/Narwhals/Pandas: use .alias(), then to_list()
             # (pandas is routed through narwhals in factory)
@@ -151,6 +161,13 @@ class BackendResultHelper:
             return result.execute()
         elif backend_name == "polars":
             # Polars aggregation returns DataFrame, need to extract
+            if isinstance(result, pl.DataFrame):
+                return result.item()
+            return result
+        elif backend_name == "polars-lazy":
+            # Polars-lazy aggregation returns LazyFrame; collect, then extract.
+            if isinstance(result, pl.LazyFrame):
+                return result.collect().item()
             if isinstance(result, pl.DataFrame):
                 return result.item()
             return result
@@ -256,6 +273,8 @@ class BackendDataFrameFactory:
         """
         if backend_name == "polars":
             return pl.DataFrame(data)
+        elif backend_name == "polars-lazy":
+            return pl.DataFrame(data).lazy()
         elif backend_name == "pandas":
             # Route pandas through narwhals for visitor compatibility
             pd_df = pd.DataFrame(data)

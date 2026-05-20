@@ -8,16 +8,8 @@ across all backends.
 import pytest
 import mountainash.expressions as ma
 from mountainash.core.dtypes import MountainashDtype
+from fixtures.backend_registry import ALL_BACKENDS
 
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
 
 INT_CASTABLE_TYPES = [
     ("i8", [1, 2, 3]),

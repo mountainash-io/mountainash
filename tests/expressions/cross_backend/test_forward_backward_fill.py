@@ -7,6 +7,7 @@ import mountainash as ma
 
 FILL_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
 ]
 

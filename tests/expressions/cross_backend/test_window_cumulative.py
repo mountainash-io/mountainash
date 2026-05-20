@@ -7,7 +7,7 @@ import pytest
 
 import mountainash as ma
 
-BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
+BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
 
 # =============================================================================

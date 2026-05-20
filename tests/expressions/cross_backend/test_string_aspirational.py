@@ -5,20 +5,14 @@ Tests for newly wired string operations. Backend support varies significantly.
 
 import pytest
 import mountainash.expressions as ma
+from fixtures.backend_registry import ALL_BACKENDS
 
 POLARS_IBIS = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals fallback")),
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals fallback")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals fallback")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -26,21 +20,17 @@ ALL_BACKENDS = [
 
 POLARS_ONLY = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals fallback")),
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals fallback")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals fallback")),
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis backend issues")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis backend issues")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="sqlite fallback")),
 ]
 
-POLARS_NARWHALS_IBIS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+# All backends passing — use ALL_BACKENDS (was POLARS_NARWHALS_IBIS, all entries passing)
+POLARS_NARWHALS_IBIS = ALL_BACKENDS
 
 
 # =============================================================================

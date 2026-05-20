@@ -69,6 +69,12 @@ dependencies = [
 [envs.test_github.scripts]
 test = "pytest"
 test-cov = "pytest --cov --junitxml=junit.xml -o junit_family=legacy --cov-report=xml"
+# Default CI script — runs only the compile smoke suite (~2k tests). The
+# full suite (~15k tests) blew out CI runtime once the cross-backend
+# matrix expanded to 8 backends; use test-cov-full for the comprehensive
+# run (gated via workflow_dispatch input in python-run-pytest.yml).
+test-cov-smoke = "pytest tests/core/test_compile_smoke.py --cov --junitxml=junit.xml -o junit_family=legacy --cov-report=xml"
+test-cov-full = "pytest --cov --junitxml=junit.xml -o junit_family=legacy --cov-report=xml"
 
 
 #================

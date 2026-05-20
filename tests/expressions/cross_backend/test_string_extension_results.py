@@ -5,16 +5,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 # -- Known divergences --
 # Ibis backends: custom chars argument is silently ignored by strip_chars,

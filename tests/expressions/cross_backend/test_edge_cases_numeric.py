@@ -11,17 +11,7 @@ import math
 import pytest
 
 import mountainash as ma
-
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 @pytest.mark.cross_backend

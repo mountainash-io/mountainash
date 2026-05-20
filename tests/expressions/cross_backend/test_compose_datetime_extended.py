@@ -3,16 +3,7 @@
 import pytest
 from datetime import datetime
 import mountainash.expressions as ma
-
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 @pytest.mark.cross_backend

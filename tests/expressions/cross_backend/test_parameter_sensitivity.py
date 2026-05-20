@@ -13,6 +13,7 @@ import pytest
 from datetime import datetime
 
 import mountainash.expressions as ma
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 def _xfail_sqlite_time_shift(backend_name: str) -> None:
@@ -23,19 +24,12 @@ def _xfail_sqlite_time_shift(backend_name: str) -> None:
         )
 
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
-
 POLARS_IBIS = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals limited")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals limited")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -43,7 +37,9 @@ POLARS_IBIS = [
 
 TEMPORAL_BACKENDS = [
     "polars",
-    "narwhals",
+    "polars-lazy",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -132,8 +128,10 @@ class TestLogParameterSensitivity:
 
 TRIM_CUSTOM_CHARS_BACKENDS = [
     "polars",
+    "polars-lazy",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
@@ -141,8 +139,10 @@ TRIM_CUSTOM_CHARS_BACKENDS = [
 
 LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS = [
     "polars",
+    "polars-lazy",
     "pandas",
-    "narwhals",
+    "narwhals-polars",
+    "narwhals-pandas",
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),

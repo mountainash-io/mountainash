@@ -10,12 +10,14 @@ import mountainash as ma
 
 DURATION_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "ibis-duckdb",
 ]
 
 DURATION_COMPARISON_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(
         strict=True,
@@ -25,6 +27,7 @@ DURATION_COMPARISON_BACKENDS = [
 
 DURATION_EXTRACTION_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(
         strict=True,
@@ -147,6 +150,7 @@ class TestDurationExtractionNew:
 
 DURATION_POLARS_AND_NARWHALS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     pytest.param(
         "ibis-duckdb",

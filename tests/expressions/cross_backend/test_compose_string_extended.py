@@ -9,16 +9,7 @@ enums that don't exist yet — these are aspirational and excluded from coverage
 
 import pytest
 import mountainash.expressions as ma
-
-
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 @pytest.mark.cross_backend

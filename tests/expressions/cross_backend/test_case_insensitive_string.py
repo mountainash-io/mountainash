@@ -5,11 +5,10 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from fixtures.backend_registry import ALL_BACKENDS
 
-BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
-
-@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCaseInsensitiveContains:
     def test_case_insensitive_contains(self, backend_name, backend_factory, collect_expr):
         """str.contains(case_sensitive=False) matches regardless of case."""
