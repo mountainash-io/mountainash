@@ -1,14 +1,14 @@
 {
   "id": "pipelines",
   "path": "src/mountainash/pipelines/",
-  "summary": "Pipeline framework: declarative multi-step data pipelines with DAG ordering, capability-based pushdown (filter/limit/field-selection to data sources), caching via PipelineStorage, and integration with the relation AST via PipelineStepRelNode. Fluent builder API: PipelineBuilder.step(...).build() -> PipelineSpec -> SimplePipelineRunner.run().",
+  "summary": "Pipeline framework: declarative multi-step data pipelines with DAG ordering, typed parameter binding via ParamSpec, caching via PipelineStorage, and integration with the relation AST via PipelineStepRelNode + ParamsRelNode. Fluent builder API: PipelineBuilder.step(...).build() -> PipelineSpec -> SimplePipelineRunner.run(). Parameter binding via relation.params(key=value) replaces the former pushdown capability system.",
   "role": "orchestration",
   "visibility": "public",
   "stability": "evolving",
   "audiences": ["users", "maintainers", "backend-architecture", "extension-authors"],
   "doc_priority": "essential",
   "confidence": "high",
-  "public_api": ["PipelineBuilder", "step", "source", "PipelineSpec", "SimplePipelineRunner", "PipelineStorage", "MemoryPipelineStorage", "FileSystemPipelineStorage", "StepCapabilities", "PushableParam"],
+  "public_api": ["PipelineBuilder", "step", "source", "PipelineSpec", "SimplePipelineRunner", "PipelineStorage", "MemoryPipelineStorage", "FileSystemPipelineStorage", "ParamSpec"],
   "key_classes": [
     "PipelineBuilder",
     "PipelineSpec",
@@ -17,15 +17,14 @@
     "StepResult",
     "SimplePipelineRunner",
     "PipelineStepRelNode",
-    "StepCapabilities",
-    "PushableParam",
-    "PushedParam",
+    "ParamsRelNode",
+    "ParamSpec",
     "ResolverRegistry",
     "MemoryPipelineStorage",
     "FileSystemPipelineStorage",
     "DualPipelineStorage"
   ],
-  "key_functions": ["step", "source", "apply_pushdown", "register_pipeline_bridge", "register_pipeline_optimisations"],
+  "key_functions": ["step", "source", "fold_params", "register_pipeline_bridge", "register_params_optimisation"],
   "dependencies": [
     "graph",
     "relations.core.relation_nodes",
@@ -34,29 +33,35 @@
   ],
   "dependents": [],
   "extension_points": [
-    "StepCapabilities.pushable_params defines what predicates a source can accept",
+    "ParamSpec defines typed parameters a step accepts; validated at .params() call time",
     "PipelineStorage protocol for custom caching backends",
     "ResolverRegistry for multi-tenant pipeline resolution",
     "RelationVisitRegistry integration via register_pipeline_bridge()"
   ],
-  "lifecycle_notes": ["New module 2026-05: full pipeline orchestration with relation integration"],
+  "lifecycle_notes": [
+    "New module 2026-05: full pipeline orchestration with relation integration",
+    "2026-05 (PR #160): Pushdown capability system (StepCapabilities, PushableParam, PushedPredicates, apply_pushdown, pushdown.py) removed; replaced with dict-based ParamSpec system. StepDefinition.capabilities -> .params; StepContext.predicates -> .params; PipelineExecutor.predicates -> .params. ParamsRelNode added to pipelines.integration.relation for relation.params() AST node."
+  ],
   "documentation_hooks": [
     "Pipeline integrates with relations via source() which returns a Relation wrapping PipelineStepRelNode",
-    "Pushdown optimisation rewrites filter/fetch/project nodes above PipelineStepRelNode into pushed predicates"
+    "Parameter binding: relation.params(key=value) wraps the node in a ParamsRelNode; fold_params() validates and merges into PipelineStepRelNode.bound_params at collect time",
+    "Removed: pushdown optimisation; params are now explicit caller-supplied values, not inferred from filter predicates"
   ],
   "examples": [],
   "tests": [
-    {"kind": "test", "path": "tests/pipelines/", "detail": "~20 test files covering builder, spec, executor, pushdown, storage, orchestration"}
+    {"kind": "test", "path": "tests/pipelines/", "detail": "~20 test files covering builder, spec, executor, params, storage, orchestration"}
   ],
-  "risks": ["Evolving module — API surface may change"],
+  "risks": ["Evolving module — API surface may still change as params system matures"],
   "open_questions": [],
   "evidence": [
-    {"kind": "symbol", "path": "src/mountainash/pipelines/__init__.py", "detail": "Exports step, PipelineBuilder, source; auto-registers pipeline bridge and optimisations"},
+    {"kind": "symbol", "path": "src/mountainash/pipelines/__init__.py", "detail": "Exports step, PipelineBuilder, source; auto-registers pipeline bridge and params optimisation"},
+    {"kind": "symbol", "path": "src/mountainash/pipelines/core/capabilities.py", "detail": "ParamSpec: frozen dataclass with name, type, required, default"},
+    {"kind": "symbol", "path": "src/mountainash/pipelines/integration/relation.py", "detail": "PipelineStepRelNode (param_specs/bound_params), ParamsRelNode, fold_params, _visit_params"},
+    {"kind": "symbol", "path": "src/mountainash/pipelines/core/step.py", "detail": "StepDefinition.params: tuple[ParamSpec, ...]; step() decorator accepts params kwarg"},
     {"kind": "test", "path": "tests/pipelines/test_fluent_builder.py", "detail": "Tests for PipelineBuilder fluent API"},
-    {"kind": "test", "path": "tests/pipelines/test_e2e_pushdown.py", "detail": "End-to-end pushdown integration tests"},
     {"kind": "test", "path": "tests/integration/test_end_to_end_pipeline.py", "detail": "Full pipeline integration test"}
   ],
-  "source_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
   "manual": {
     "notes": "",
     "editorial_status": "",

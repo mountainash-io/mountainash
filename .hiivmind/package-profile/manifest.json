@@ -1,11 +1,11 @@
 {
   "profile_version": "1.0",
-  "generated_at": "2026-05-17T00:00:00Z",
+  "generated_at": "2026-05-20T00:00:00Z",
   "source": {
     "root": "src/mountainash",
     "git": {
-      "previous_hash": "93258f69592c625af66015d8936dae44e88e497f",
-      "current_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+      "previous_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+      "current_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
       "branch": "develop",
       "working_tree_dirty": false
     }
@@ -32,31 +32,46 @@
   },
   "changed_scopes": {
     "files": [
-      "src/mountainash/pipelines/**",
-      "src/mountainash/graph/**",
-      "src/mountainash/utils/graph/**",
-      "src/mountainash/conform/expressions.py",
-      "src/mountainash/relations/core/relation_api/optimisation_registry.py",
-      "src/mountainash/relations/core/unified_visitor/visit_registry.py",
-      "src/mountainash/relations/core/unified_visitor/_core_handlers.py"
+      "src/mountainash/core/constants.py",
+      "src/mountainash/pipelines/__init__.py",
+      "src/mountainash/pipelines/core/__init__.py",
+      "src/mountainash/pipelines/core/capabilities.py",
+      "src/mountainash/pipelines/core/executor.py",
+      "src/mountainash/pipelines/core/result.py",
+      "src/mountainash/pipelines/core/step.py",
+      "src/mountainash/pipelines/fluent/builder.py",
+      "src/mountainash/pipelines/fluent/source.py",
+      "src/mountainash/pipelines/integration/pushdown.py",
+      "src/mountainash/pipelines/integration/relation.py",
+      "src/mountainash/pipelines/orchestration/dbos_runner.py",
+      "src/mountainash/pipelines/orchestration/simple.py",
+      "src/mountainash/pipelines/orchestration/workflow_id.py",
+      "src/mountainash/relations/backends/relation_systems/ibis/extensions_mountainash/relsys_ib_ext_ma_util.py",
+      "src/mountainash/relations/backends/relation_systems/ibis/substrait/relsys_ib_join.py",
+      "src/mountainash/relations/backends/relation_systems/ibis/substrait/relsys_ib_project.py",
+      "src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py",
+      "src/mountainash/relations/backends/relation_systems/narwhals/substrait/relsys_nw_join.py",
+      "src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py",
+      "src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_join.py",
+      "src/mountainash/relations/core/relation_api/relation.py",
+      "src/mountainash/relations/core/relation_api/relation_base.py",
+      "src/mountainash/relations/core/relation_protocols/prtcl_relation_api.py",
+      "src/mountainash/relations/core/relation_protocols/relation_systems/extensions_mountainash/prtcl_relsys_ext_ma_util.py"
     ],
     "modules": [
+      "core",
       "pipelines",
-      "graph",
-      "conform",
       "relations.core.relation_api",
-      "relations.core.unified_visitor",
-      "relations.core.relation_nodes",
-      "typespec",
-      "toplevel"
+      "relations.core.relation_protocols",
+      "relations.backends.polars",
+      "relations.backends.narwhals",
+      "relations.backends.ibis"
     ],
     "facets": [
       "users",
       "maintainers",
       "backend-architecture",
-      "extension-authors",
-      "executives-marketing",
-      "broader-hype"
+      "extension-authors"
     ]
   },
   "ignored_paths": [

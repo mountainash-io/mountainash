@@ -1,7 +1,7 @@
 {
   "id": "relations.backends.polars",
   "path": "src/mountainash/relations/backends/relation_systems/polars/",
-  "summary": "Polars relation backend: compiles relational AST to Polars LazyFrame operations. 8 Substrait + 1 extension implementation files.",
+  "summary": "Polars relation backend: compiles relational AST to Polars LazyFrame operations. 8 Substrait + 1 extension implementation files. Supports unnest() for struct column expansion.",
   "role": "backend",
   "visibility": "internal",
   "stability": "stable",
@@ -14,14 +14,20 @@
   "dependencies": ["relations.core.relation_protocols", "relations.core.unified_visitor", "expressions.backends.polars"],
   "dependents": ["relations.core.relation_api"],
   "extension_points": [],
-  "lifecycle_notes": [],
+  "lifecycle_notes": [
+    "2026-05 (PR #147): Added unnest() — delegates to pl.LazyFrame.unnest(columns, separator=separator)",
+    "2026-05: Fixed full (outer) join — coalesces duplicate key columns when right-side key column has suffix after unmatched rows"
+  ],
   "documentation_hooks": [],
   "examples": [],
   "tests": [],
   "risks": [],
   "open_questions": [],
-  "evidence": [],
-  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_join.py", "detail": "Full join key coalescing for outer joins"},
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py", "detail": "unnest() implementation"}
+  ],
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
   "manual": {
     "notes": "",
     "editorial_status": "",

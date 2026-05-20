@@ -1,7 +1,7 @@
 {
   "id": "relations.backends.narwhals",
   "path": "src/mountainash/relations/backends/relation_systems/narwhals/",
-  "summary": "Narwhals relation backend: compiles relational AST to Narwhals operations for pandas/PyArrow portability.",
+  "summary": "Narwhals relation backend: compiles relational AST to Narwhals operations for pandas/PyArrow portability. unnest() not yet supported (NotImplementedError — requires schema introspection synthesis).",
   "role": "backend",
   "visibility": "internal",
   "stability": "evolving",
@@ -14,14 +14,19 @@
   "dependencies": ["relations.core.relation_protocols", "relations.core.unified_visitor", "expressions.backends.narwhals"],
   "dependents": ["relations.core.relation_api"],
   "extension_points": [],
-  "lifecycle_notes": [],
+  "lifecycle_notes": [
+    "2026-05 (PR #147): Added unnest() stub — raises NotImplementedError; frame-level unnest requires schema introspection synthesis (Phase 2)",
+    "2026-05: Fixed drop_nans — added ignore_nulls=True to nw.all_horizontal() call"
+  ],
   "documentation_hooks": [],
   "examples": [],
   "tests": [],
-  "risks": [],
-  "open_questions": [],
-  "evidence": [],
-  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "risks": ["unnest() is not yet implemented on Narwhals backend"],
+  "open_questions": ["unnest() on Narwhals requires schema introspection to enumerate struct fields at build time"],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py", "detail": "unnest() stub and drop_nans fix"}
+  ],
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
   "manual": {
     "notes": "",
     "editorial_status": "",
