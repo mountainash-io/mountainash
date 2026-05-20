@@ -83,3 +83,21 @@ def test_eager_backends_have_eager_materialization():
 def test_ibis_backends_have_deferred_materialization():
     for name in ["ibis-polars", "ibis-sqlite", "ibis-duckdb"]:
         assert REGISTRY[name].materialization == "deferred"
+
+
+def test_polars_lazy_registered():
+    assert "polars-lazy" in REGISTRY
+    spec = REGISTRY["polars-lazy"]
+    assert spec.family == "polars-lazy"
+    assert spec.materialization == "lazy"
+
+
+def test_polars_lazy_build_returns_lazyframe():
+    df = REGISTRY["polars-lazy"].build({"x": [1, 2, 3]}, table_name="sample")
+    assert isinstance(df, pl.LazyFrame)
+
+
+def test_polars_lazy_ordering_in_all_backends():
+    # Convention: place polars-lazy right after polars for readability.
+    idx = ALL_BACKENDS.index("polars")
+    assert ALL_BACKENDS[idx + 1] == "polars-lazy"
