@@ -19,6 +19,7 @@ import mountainash as ma
 
 DURATION_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
 ]
@@ -222,6 +223,7 @@ class TestDtTotalNanoseconds:
 
 TIMESTAMP_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",

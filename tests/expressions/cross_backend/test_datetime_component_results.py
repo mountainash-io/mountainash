@@ -14,6 +14,7 @@ import mountainash as ma
 
 TEMPORAL_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",

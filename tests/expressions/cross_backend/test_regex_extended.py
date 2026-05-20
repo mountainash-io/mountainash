@@ -18,6 +18,7 @@ import mountainash as ma
 
 REGEX_POLARS_ONLY = [
     "polars",
+    "polars-lazy",
     pytest.param("narwhals-polars", marks=pytest.mark.xfail(
         strict=True,
         reason="Narwhals does not support regexp_match_substring_all/regexp_strpos/regexp_count_substring — raises BackendCapabilityError",

@@ -19,8 +19,10 @@ def _xfail_sqlite_time_shift(backend_name: str) -> None:
 
 POLARS_NARWHALS_IBIS = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    "narwhals",
+    "narwhals-polars",
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="pandas-backed narwhals limited")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -28,8 +30,10 @@ POLARS_NARWHALS_IBIS = [
 
 POLARS_AND_IBIS = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals NotImplementedError")),
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals NotImplementedError")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals NotImplementedError")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -37,8 +41,10 @@ POLARS_AND_IBIS = [
 
 POLARS_IBIS_DUCKDB_SQLITE = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals NotImplementedError")),
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals NotImplementedError")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals NotImplementedError")),
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis-polars month_end/days_in_month interval issue")),
     "ibis-duckdb",
     "ibis-sqlite",

@@ -12,7 +12,7 @@ import pytest
 import mountainash as ma
 
 
-LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
+LIST_BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
 
 @pytest.mark.cross_backend

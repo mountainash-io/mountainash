@@ -8,8 +8,10 @@ import mountainash.expressions as ma
 # Polars + Ibis have native trig support (including SQLite via ibis)
 TRIG_BACKENDS = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals lacks trig methods")),
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals lacks trig methods")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals lacks trig methods")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -18,8 +20,10 @@ TRIG_BACKENDS = [
 # Only Polars has native hyperbolic support
 HYPERBOLIC_BACKENDS = [
     "polars",
+    "polars-lazy",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals lacks hyperbolic methods")),
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals lacks hyperbolic methods")),
+    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals lacks hyperbolic methods")),
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis lacks hyperbolic methods")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis lacks hyperbolic methods")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="sqlite lacks hyperbolic functions")),
