@@ -638,31 +638,6 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
     ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
     ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
-    # ── Unwired API builder methods (21 entries) ──
-    # These FKEYs have backend implementations but the API builder method is a
-    # stub (returns None) or the function is an internal utility. The smoke test
-    # correctly surfaces these as failures. Tracked in backlog Cluster 10.
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "polars"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "pandas"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "narwhals-polars"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "narwhals-pandas"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "ibis-polars"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "ibis-duckdb"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW", "ibis-sqlite"): "API builder stub: now() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "polars"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "pandas"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "narwhals-polars"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "narwhals-pandas"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "ibis-polars"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "ibis-duckdb"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY", "ibis-sqlite"): "API builder stub: today() not wired through build-then-compile path. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "polars"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "pandas"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "narwhals-polars"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "narwhals-pandas"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "ibis-polars"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "ibis-duckdb"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST", "ibis-sqlite"): "Internal utility: collect_values() returns Python list, not an Expression. Since 2026-05-20.",
 }
 
 
