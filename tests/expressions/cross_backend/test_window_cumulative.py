@@ -6,8 +6,9 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from fixtures.backend_registry import ALL_BACKENDS
 
-BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
+# BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
 
 # =============================================================================
@@ -15,7 +16,7 @@ BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCumSum:
     def test_cum_sum_basic(self, backend_name, backend_factory, collect_expr):
         """cum_sum() computes running total."""
@@ -39,7 +40,7 @@ class TestCumSum:
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCumMax:
     def test_cum_max_basic(self, backend_name, backend_factory, collect_expr):
         """cum_max() computes running maximum."""
@@ -55,7 +56,7 @@ class TestCumMax:
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCumMin:
     def test_cum_min_basic(self, backend_name, backend_factory, collect_expr):
         """cum_min() computes running minimum."""

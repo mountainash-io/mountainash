@@ -15,6 +15,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 import pytest
 import mountainash.expressions as ma
 
+from fixtures.backend_registry import ALL_BACKENDS
 
 # =============================================================================
 # Cross-Backend Tests - Basic Arithmetic
@@ -22,15 +23,7 @@ import mountainash.expressions as ma
 
 @pytest.mark.cross_backend
 @pytest.mark.arithmetic
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBasicArithmetic:
     """Test basic arithmetic operations across all backends."""
 
@@ -164,15 +157,7 @@ class TestBasicArithmetic:
 
 @pytest.mark.cross_backend
 @pytest.mark.arithmetic
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestPythonMagicOperators:
     """Test Python magic operators (+, -, *, /, etc.)."""
 
@@ -253,15 +238,7 @@ class TestPythonMagicOperators:
 
 @pytest.mark.integration
 @pytest.mark.arithmetic
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComplexArithmetic:
     """Test chaining and complex arithmetic operations."""
 
@@ -308,15 +285,7 @@ class TestComplexArithmetic:
 
 @pytest.mark.cross_backend
 @pytest.mark.arithmetic
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestArithmeticEdgeCases:
     """Test edge cases for arithmetic operations."""
 
