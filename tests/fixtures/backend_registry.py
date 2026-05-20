@@ -75,6 +75,7 @@ def _build_ibis_duckdb(data: DataDict, table_name: str):
 
 REGISTRY: dict[str, BackendSpec] = {
     "polars":          BackendSpec("polars",          "polars-eager", "eager",    _build_polars_eager),
+    "polars-lazy":     BackendSpec("polars-lazy",     "polars-lazy",  "lazy",     _build_polars_lazy),
     "pandas":          BackendSpec("pandas",          "pandas",       "eager",    _build_pandas),
     "narwhals-polars": BackendSpec("narwhals-polars", "narwhals",     "eager",    _build_narwhals_polars),
     "narwhals-pandas": BackendSpec("narwhals-pandas", "narwhals",     "eager",    _build_narwhals_pandas),
