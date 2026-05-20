@@ -11,7 +11,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
-
+from fixtures.backend_registry import ALL_BACKENDS
 
 # =============================================================================
 # Cross-Backend Tests - Case Conversion
@@ -19,15 +19,7 @@ import mountainash as ma_top
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCaseConversion:
     """Test upper and lower case conversion."""
 
@@ -68,15 +60,7 @@ class TestCaseConversion:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestTrimOperations:
     """Test trim, ltrim, and rtrim operations."""
 
@@ -102,15 +86,7 @@ class TestTrimOperations:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringLength:
     """Test string length operation."""
 
@@ -136,15 +112,7 @@ class TestStringLength:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringContains:
     """Test string contains check (returns boolean)."""
 
@@ -183,15 +151,7 @@ class TestStringContains:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringStartsEndsWith:
     """Test starts_with and ends_with checks."""
 
@@ -230,15 +190,7 @@ class TestStringStartsEndsWith:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringReplace:
     """Test string replace operation."""
 
@@ -279,15 +231,7 @@ class TestStringReplace:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringSubstring:
     """Test substring extraction."""
 
@@ -328,15 +272,7 @@ class TestStringSubstring:
 
 @pytest.mark.integration
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestChainingStringOperations:
     """Test chaining multiple string operations."""
 
@@ -378,15 +314,7 @@ class TestChainingStringOperations:
 
 @pytest.mark.integration
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringWithBooleanFilter:
     """Test combining string operations with boolean filtering."""
 
@@ -434,15 +362,7 @@ class TestStringWithBooleanFilter:
 
 @pytest.mark.integration
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringWithArithmetic:
     """Test combining string operations with arithmetic."""
 
@@ -471,15 +391,7 @@ class TestStringWithArithmetic:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStringEdgeCases:
     """Test edge cases for string operations."""
 

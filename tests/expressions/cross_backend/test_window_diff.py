@@ -6,8 +6,9 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from fixtures.backend_registry import ALL_BACKENDS
 
-BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
+# BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
 
 # =============================================================================
@@ -15,7 +16,7 @@ BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDiff:
     def test_diff_basic(self, backend_name, backend_factory, collect_expr):
         """diff() computes consecutive differences."""

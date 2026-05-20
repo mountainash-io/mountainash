@@ -16,6 +16,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 # =============================================================================
@@ -23,15 +24,7 @@ import mountainash as ma_top
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComparisonOperators:
     """Test comparison operators: ==, !=, <, <=, >, >="""
 
@@ -132,15 +125,7 @@ class TestComparisonOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestLogicalOperators:
     """Test logical operators: AND, OR, NOT"""
 
@@ -218,15 +203,7 @@ class TestLogicalOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCollectionOperators:
     """Test collection operators: IN, NOT IN"""
 
@@ -282,15 +259,7 @@ class TestCollectionOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullChecks:
     """Test null check operators: IS NULL, IS NOT NULL"""
 
@@ -347,15 +316,7 @@ class TestNullChecks:
 # =============================================================================
 
 @pytest.mark.integration
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBooleanWithArithmetic:
     """Test boolean operators combined with arithmetic operations."""
 
@@ -399,15 +360,7 @@ class TestBooleanWithArithmetic:
 # =============================================================================
 
 @pytest.mark.integration
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBooleanWithStringOperations:
     """Test boolean operators combined with string operations."""
 
@@ -450,15 +403,7 @@ class TestBooleanWithStringOperations:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBooleanEdgeCases:
     """Test edge cases for boolean operations."""
 
@@ -535,15 +480,7 @@ class TestBooleanEdgeCases:
 # =============================================================================
 
 @pytest.mark.integration
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComplexBooleanExpressions:
     """Test complex real-world boolean expressions."""
 
