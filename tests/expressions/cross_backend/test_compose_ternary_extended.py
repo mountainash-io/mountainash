@@ -2,14 +2,7 @@
 
 import pytest
 import mountainash.expressions as ma
-
-
-TERNARY_BACKENDS = [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-]
+from fixtures.backend_registry import ALL_BACKENDS
 
 T_TRUE = 1
 T_UNKNOWN = 0
@@ -17,7 +10,7 @@ T_FALSE = -1
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TERNARY_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComposeTernarySet:
     """Test ternary set operations: t_is_in, t_is_not_in."""
 
@@ -48,7 +41,7 @@ class TestComposeTernarySet:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TERNARY_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComposeTernaryLogicMultiArg:
     """Test multi-arg ternary logic: t_and(*args), t_or(*args)."""
 
@@ -86,7 +79,7 @@ class TestComposeTernaryLogicMultiArg:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TERNARY_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComposeTernaryXor:
     """Test t_xor."""
 
