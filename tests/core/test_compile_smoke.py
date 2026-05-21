@@ -27,6 +27,7 @@ from core._smoke_helpers import (
     _SENTINEL_MISSING,
     build_args_for_fkey,
     get_smoke_expr_builder,
+    is_non_expression_fkey,
     is_variadic,
 )
 
@@ -684,6 +685,10 @@ class TestCompileSmoke:
 
         ExpressionFunctionRegistry._init_registry()
         fkey = _resolve_fkey(fkey_str)
+        if is_non_expression_fkey(fkey):
+            pytest.xfail(
+                f"{fkey_str}: AST-internal node, not a compilable expression"
+            )
         fdef = ExpressionFunctionRegistry.get(fkey)
 
         try:
