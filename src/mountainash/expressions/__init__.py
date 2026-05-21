@@ -44,6 +44,9 @@ from .core.expression_api.entrypoints import (
     always_true,
     always_false,
     always_unknown,
+    # Datetime entry points
+    today,
+    now,
 )
 
 # ========================================
@@ -131,6 +134,10 @@ __all__ = [
     "always_true",
     "always_false",
     "always_unknown",
+
+    # Datetime entry points
+    "today",
+    "now",
 
     # Constants
     "CONST_VISITOR_BACKENDS",

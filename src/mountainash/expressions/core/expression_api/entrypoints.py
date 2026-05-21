@@ -596,6 +596,38 @@ def always_unknown() -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
+def today() -> "BaseExpressionAPI":
+    """Return today's date as a literal expression.
+
+    Example:
+        >>> expr = today()  # Current date for all rows
+    """
+    from ..expression_api import BooleanExpressionAPI
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+
+    node = ScalarFunctionNode(
+        function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY,
+        arguments=[],
+    )
+    return BooleanExpressionAPI(node)
+
+
+def now() -> "BaseExpressionAPI":
+    """Return the current datetime as a literal expression.
+
+    Example:
+        >>> expr = now()  # Current timestamp for all rows
+    """
+    from ..expression_api import BooleanExpressionAPI
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+
+    node = ScalarFunctionNode(
+        function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW,
+        arguments=[],
+    )
+    return BooleanExpressionAPI(node)
+
+
 # ============================================================================
 # Exports
 # ============================================================================
@@ -630,4 +662,7 @@ __all__ = [
     "always_true",
     "always_false",
     "always_unknown",
+    # Datetime entry points
+    "today",
+    "now",
 ]
