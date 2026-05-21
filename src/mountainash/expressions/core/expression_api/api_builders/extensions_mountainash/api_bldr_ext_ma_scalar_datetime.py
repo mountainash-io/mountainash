@@ -800,6 +800,24 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         return self._build(node)
 
     # ========================================
+    # Snapshot
+    # ========================================
+
+    def today(self) -> BaseExpressionAPI:
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY,
+            arguments=[],
+        )
+        return self._build(node)
+
+    def now(self) -> BaseExpressionAPI:
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW,
+            arguments=[],
+        )
+        return self._build(node)
+
+    # ========================================
     # Timezone Operations
     # ========================================
 
