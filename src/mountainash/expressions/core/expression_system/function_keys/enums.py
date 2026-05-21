@@ -719,7 +719,7 @@ class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
     ALWAYS_UNKNOWN = "always_unknown"
 
     # Helper
-    LIST = "list"
+    COLLECT_VALUES = "collect_values"
 
 
 # =============================================================================

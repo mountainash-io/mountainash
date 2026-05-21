@@ -335,7 +335,7 @@ class UnifiedExpressionVisitor:
         # backend literals like pl.lit("A") instead of raw values like "A")
         from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_SET
         _raw_value_functions = {
-            FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+            FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
             FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
             FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
         }
