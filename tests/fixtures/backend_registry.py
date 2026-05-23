@@ -53,6 +53,9 @@ def _build_pandas(data: DataDict, table_name: str) -> pd.DataFrame:
 def _build_narwhals_polars(data: DataDict, table_name: str):
     return nw.from_native(pl.DataFrame(data))
 
+def _build_narwhals_polars_lazy(data: DataDict, table_name: str):
+    return nw.from_native(pl.DataFrame(data).lazy())
+
 
 def _build_narwhals_pandas(data: DataDict, table_name: str):
     return nw.from_native(pd.DataFrame(data), eager_only=True)
@@ -84,7 +87,8 @@ REGISTRY: dict[str, BackendSpec] = {
     "ibis-sqlite":     BackendSpec("ibis-sqlite",     "ibis",         "deferred", _build_ibis_sqlite),
     # Legacy alias: "narwhals" resolves to narwhals-polars for pre-existing
     # tests that hardcode this name in their @parametrize lists.
-    "narwhals":        BackendSpec("narwhals",        "narwhals",     "eager",    _build_narwhals_polars),
+    # "narwhals":        BackendSpec("narwhals",        "narwhals",     "eager",    _build_narwhals_polars),
+    "narwhals-lazy":   BackendSpec("narwhals-lazy",   "narwhals",     "lazy",    _build_narwhals_polars_lazy),
 }
 
 ALL_BACKENDS: list[str] = [k for k in REGISTRY if k != "narwhals"]

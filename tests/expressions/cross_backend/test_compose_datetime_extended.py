@@ -33,7 +33,7 @@ class TestComposeDatetimeCalendar:
 
     def test_week_of_year(self, backend_name, backend_factory, collect_expr):
         """Test week_of_year extraction."""
-        if backend_name in ("pandas", "narwhals"):
+        if backend_name in ("pandas"): #, "narwhals" originally xfailked
             pytest.xfail(f"{backend_name}: week_of_year not supported.")
         data = {"ts": [datetime(2024, 1, 1), datetime(2024, 1, 7), datetime(2024, 6, 15)]}
         df = backend_factory.create(data, backend_name)
@@ -138,7 +138,7 @@ class TestComposeDatetimeDiff:
         """Test diff_days between two date columns."""
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite has no native datetime type.")
-        if backend_name in ("pandas", "narwhals"):
+        if backend_name in ("pandas"):#, "narwhals" originally xfailked
             pytest.xfail(f"{backend_name}: diff_days not supported.")
         if backend_name == "ibis-polars":
             pytest.xfail("Ibis Polars: TimestampDelta not supported.")
@@ -163,8 +163,8 @@ class TestComposeDatetimeFormat:
         """Test strftime formatting."""
         if backend_name == "ibis-sqlite":
             pytest.xfail("SQLite has no native datetime type.")
-        if backend_name == "narwhals":
-            pytest.xfail("Narwhals: strftime not supported.")
+        # if backend_name == "narwhals":
+        #     pytest.xfail("Narwhals: strftime not supported.")
         data = {"ts": [datetime(2024, 3, 15), datetime(2024, 12, 25)]}
         df = backend_factory.create(data, backend_name)
 

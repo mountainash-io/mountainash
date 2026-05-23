@@ -16,7 +16,7 @@ import pytest
 import mountainash.expressions as ma
 from typing import Any, List
 
-
+from fixtures.backend_registry import ALL_BACKENDS
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -25,7 +25,7 @@ def get_column_names(df: Any, backend_name: str) -> List[str]:
     """Extract column names from a DataFrame for any backend."""
     if backend_name.startswith("ibis-"):
         return list(df.columns)
-    elif backend_name in ("polars", "pandas", "narwhals"):
+    elif backend_name in ("polars", "pandas"): #  "narwhals" oroginally xfailed
         return df.columns if hasattr(df, 'columns') else list(df.schema.names())
     else:
         raise ValueError(f"Unknown backend: {backend_name}")
@@ -53,14 +53,7 @@ def get_values_from_result(result: Any, column: str, backend_name: str) -> List:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAliasOperation:
     """Test .name.alias() operation."""
 
@@ -145,14 +138,7 @@ class TestAliasOperation:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestPrefixOperation:
     """Test .name.prefix() operation."""
 
@@ -208,14 +194,7 @@ class TestPrefixOperation:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestSuffixOperation:
     """Test .name.suffix() operation."""
 
@@ -270,14 +249,7 @@ class TestSuffixOperation:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestToUpperOperation:
     """Test .name.name_to_upper() operation."""
 
@@ -332,14 +304,7 @@ class TestToUpperOperation:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestToLowerOperation:
     """Test .name.name_to_lower() operation."""
 
@@ -394,14 +359,7 @@ class TestToLowerOperation:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestChainedNameOperations:
     """Test chaining name operations with other operations."""
 
@@ -463,14 +421,7 @@ class TestChainedNameOperations:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNameEdgeCases:
     """Test edge cases for name operations."""
 

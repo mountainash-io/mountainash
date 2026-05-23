@@ -1,7 +1,7 @@
 {
   "id": "relations.core.relation_protocols",
   "path": "src/mountainash/relations/core/relation_protocols/",
-  "summary": "Protocol classes defining relation backend obligations: 8 Substrait relation system protocols, 1 Mountainash extension protocol, RelationAPIProtocol, GroupedRelationAPIProtocol, RelationProjectionBuilderProtocol.",
+  "summary": "Protocol classes defining relation backend obligations: 8 Substrait relation system protocols, 1 Mountainash extension protocol (including unnest), RelationAPIProtocol (including params and unnest), GroupedRelationAPIProtocol, RelationProjectionBuilderProtocol.",
   "role": "protocol",
   "visibility": "semi-public",
   "stability": "stable",
@@ -14,14 +14,21 @@
   "dependencies": ["relations.core.relation_nodes", "core"],
   "dependents": ["relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
   "extension_points": [],
-  "lifecycle_notes": [],
+  "lifecycle_notes": [
+    "2026-05 (PR #147): Added unnest(*columns, separator) to RelationAPIProtocol",
+    "2026-05 (PR #147): Added unnest(relation, /, *, columns, separator) to MountainashExtensionRelationSystemProtocol",
+    "2026-05 (PR #160): Added params(**kwargs) to RelationAPIProtocol"
+  ],
   "documentation_hooks": [],
   "examples": [],
   "tests": [],
   "risks": [],
   "open_questions": [],
-  "evidence": [],
-  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_protocols/prtcl_relation_api.py", "detail": "params() and unnest() added to RelationAPIProtocol"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_protocols/relation_systems/extensions_mountainash/prtcl_relsys_ext_ma_util.py", "detail": "unnest() added to MountainashExtensionRelationSystemProtocol"}
+  ],
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
   "manual": {
     "notes": "",
     "editorial_status": "",

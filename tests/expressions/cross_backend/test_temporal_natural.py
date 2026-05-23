@@ -23,7 +23,7 @@ from mountainash.expressions.core.utils.temporal import (
     older_than,
     between_last,
 )
-
+from fixtures.backend_registry import ALL_BACKENDS
 
 # =============================================================================
 # Unit Tests - Parsing and Conversion (Backend-Independent)
@@ -77,14 +77,7 @@ class TestTimeExpressionParsing:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithinLastFilter:
     """Test 'within last X time' filtering across all backends."""
 
@@ -132,14 +125,7 @@ class TestWithinLastFilter:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-])
+@pytest.mark.parametrize("backend_name",ALL_BACKENDS)
 class TestOlderThanFilter:
     """Test 'older than X time' filtering across all backends."""
 
@@ -177,14 +163,7 @@ class TestOlderThanFilter:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBetweenLastFilter:
     """Test 'between X and Y ago' filtering across all backends."""
 
@@ -235,14 +214,7 @@ class TestBetweenLastFilter:
 
 @pytest.mark.integration
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestRealWorldLogFiltering:
     """Test realistic log filtering scenarios."""
 
@@ -346,14 +318,7 @@ class TestRealWorldLogFiltering:
 
 @pytest.mark.integration
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-])
+@pytest.mark.parametrize("backend_name",ALL_BACKENDS)
 class TestChainingTemporalWithOtherOperations:
     """Test that temporal filters chain with other operations."""
 

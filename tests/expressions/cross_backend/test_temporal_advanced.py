@@ -16,7 +16,7 @@ import sqlite3
 import pytest
 from datetime import datetime, timedelta
 import mountainash.expressions as ma
-
+from fixtures.backend_registry import ALL_BACKENDS
 
 def _xfail_sqlite_time_shift(backend_name: str) -> None:
     """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
@@ -32,14 +32,7 @@ def _xfail_sqlite_time_shift(backend_name: str) -> None:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAddTimeComponents:
     """Test adding hours, minutes, seconds to datetimes."""
 
@@ -116,14 +109,7 @@ class TestAddTimeComponents:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestTimeDifferences:
     """Test calculating time differences in various units."""
 
@@ -200,14 +186,7 @@ class TestTimeDifferences:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDateTimeTruncation:
     """Test truncating datetimes to different units."""
 
@@ -265,14 +244,7 @@ class TestDateTimeTruncation:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestFlexibleOffsetBy:
     """Test flexible duration offsets using string format."""
 
@@ -337,14 +309,7 @@ class TestFlexibleOffsetBy:
 
 @pytest.mark.integration
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestChainingTimeOperations:
     """Test chaining multiple temporal operations."""
 
@@ -403,14 +368,7 @@ class TestChainingTimeOperations:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestTemporalEdgeCases:
     """Test edge cases for temporal operations."""
 
@@ -455,14 +413,7 @@ class TestTemporalEdgeCases:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDateTimeExtraction:
     """Test extracting components from date/time values."""
 

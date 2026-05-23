@@ -21,22 +21,14 @@ across all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite)
 import pytest
 import mountainash.expressions as ma
 from ibis.common.exceptions import InputTypeError
-
+from fixtures.backend_registry import ALL_BACKENDS
 
 # =============================================================================
 # Cross-Backend Tests - Dunder Methods (Comparison)
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDunderComparisonOperators:
     """Test magic methods for comparison operators."""
 
@@ -138,15 +130,7 @@ class TestDunderComparisonOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDunderLogicalOperators:
     """Test magic methods for logical operators."""
 
@@ -208,15 +192,7 @@ class TestDunderLogicalOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDunderArithmeticOperators:
     """Test magic methods for arithmetic operators."""
 
@@ -310,15 +286,7 @@ class TestDunderArithmeticOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestReverseArithmeticOperators:
     """Test reverse arithmetic operators (when left operand is not ExpressionBuilder)."""
 
@@ -450,15 +418,7 @@ class TestReverseArithmeticOperators:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestMethodBasedComparison:
     """Test method-based comparison API (eq, ne, gt, lt, ge, le)."""
 
@@ -540,15 +500,7 @@ class TestMethodBasedComparison:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestPropertiesAndHelpers:
     """Test properties and helper methods of ExpressionBuilder."""
 
@@ -582,15 +534,7 @@ class TestPropertiesAndHelpers:
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestOperatorChainingAndPrecedence:
     """Test complex operator chaining and precedence."""
 
@@ -658,15 +602,7 @@ class TestOperatorChainingAndPrecedence:
 # =============================================================================
 
 @pytest.mark.integration
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
+@pytest.mark.parametrize("backend_name",ALL_BACKENDS)
 class TestRealWorldAPIPatterns:
     """Test real-world usage patterns of the API."""
 

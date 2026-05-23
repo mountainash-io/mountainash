@@ -116,7 +116,7 @@ class TestComposeComparisonNumeric:
 
     def test_is_finite(self, backend_name, backend_factory, get_result_count):
         """Test is_finite on float column."""
-        if backend_name in ("pandas", "narwhals", "ibis-sqlite"):
+        if backend_name in ("pandas", "ibis-sqlite"): #, "narwhals" originally xfailked
             pytest.xfail(f"{backend_name}: is_finite not supported or Inf handling differs.")
         data = {"val": [1.0, float("inf"), 3.0, float("-inf"), 5.0]}
         df = backend_factory.create(data, backend_name)
@@ -128,7 +128,7 @@ class TestComposeComparisonNumeric:
 
     def test_is_infinite(self, backend_name, backend_factory, get_result_count):
         """Test is_infinite on float column."""
-        if backend_name in ("pandas", "narwhals", "ibis-sqlite"):
+        if backend_name in ("pandas", "ibis-sqlite"): #, "narwhals" originally xfailked
             pytest.xfail(f"{backend_name}: is_infinite not supported or Inf handling differs.")
         data = {"val": [1.0, float("inf"), 3.0, float("-inf"), 5.0]}
         df = backend_factory.create(data, backend_name)

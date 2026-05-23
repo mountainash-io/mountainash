@@ -1,7 +1,7 @@
 {
   "id": "relations.core.relation_api",
   "path": "src/mountainash/relations/core/relation_api/",
-  "summary": "Fluent relation API: Relation class (method chaining for filter/sort/join/group_by/head/select/conform/etc.), GroupedRelation, relation() factory, concat() function, RelationProjectionBuilder, and OptimisationRegistry for extensible AST rewriting (used by pipeline pushdown).",
+  "summary": "Fluent relation API: Relation class (method chaining for filter/sort/join/group_by/head/select/conform/unnest/params/etc.), GroupedRelation, relation() factory, concat() function, RelationProjectionBuilder, and OptimisationRegistry for extensible AST rewriting.",
   "role": "api-builder",
   "visibility": "public",
   "stability": "stable",
@@ -21,7 +21,8 @@
   "dependencies": [
     "relations.core.relation_nodes",
     "expressions.core.expression_api",
-    "conform"
+    "conform",
+    "pipelines.integration"
   ],
   "dependents": [
     "relations.dag",
@@ -31,17 +32,26 @@
   "extension_points": [
     "OptimisationRegistry allows pipeline/extension modules to register AST rewriting passes without modifying the relation API"
   ],
-  "lifecycle_notes": ["2026-05: Added OptimisationRegistry, Relation.conform() now delegates to conform._build_conform_exprs"],
-  "documentation_hooks": [],
+  "lifecycle_notes": [
+    "2026-05: Added OptimisationRegistry, Relation.conform() now delegates to conform._build_conform_exprs",
+    "2026-05 (PR #160): Added Relation.params(**kwargs) — wraps node in ParamsRelNode from pipelines.integration",
+    "2026-05 (PR #147): Added Relation.unnest(*columns, separator) — expands struct columns via ExtensionRelNode(UNNEST)",
+    "2026-05: to_pandas() now calls self.collect() and handles pd.DataFrame directly"
+  ],
+  "documentation_hooks": [
+    "Relation.params(**kwargs): pipeline parameter binding; requires an upstream PipelineStepRelNode to fold into",
+    "Relation.unnest(*columns, separator=sep): struct expansion; not yet supported on Narwhals backend"
+  ],
   "examples": [],
   "tests": [],
   "risks": [],
   "open_questions": [],
   "evidence": [
     {"kind": "symbol", "path": "src/mountainash/relations/core/relation_api/optimisation_registry.py", "detail": "OptimisationRegistry with register_optimisation/apply_optimisations"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_api/relation.py", "detail": "Relation.params(), Relation.unnest(), Relation.to_pandas() updated"},
     {"kind": "symbol", "path": "src/mountainash/relations/core/relation_api/relation_base.py", "detail": "RelationBase.conform() method using _build_conform_exprs"}
   ],
-  "source_hash": "c5562d49801a9679150ddee8da7c1a1649d3d947",
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
   "manual": {
     "notes": "",
     "editorial_status": "",

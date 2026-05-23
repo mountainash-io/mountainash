@@ -50,9 +50,14 @@ class UnifiedRelationVisitor:
             try:
                 return handler(node, self)
             except Exception as e:
-                raise type(e)(
-                    f"Error in registered handler for {type(node).__name__}: {e}"
-                ) from e
+                # Re-raise with context. Use add_note when available (Python 3.11+)
+                # rather than reconstructing the exception (which breaks custom __init__
+                # signatures that don't accept a single positional string).
+                try:
+                    e.add_note(f"Error in registered handler for {type(node).__name__}")
+                except AttributeError:
+                    pass
+                raise
         return node.accept(self)
 
     def visit_read_rel(self, node: ReadRelNode) -> Any:

@@ -1,7 +1,7 @@
 {
   "id": "relations.backends.ibis",
   "path": "src/mountainash/relations/backends/relation_systems/ibis/",
-  "summary": "Ibis relation backend: compiles relational AST to Ibis table expressions for SQL-backed analytics.",
+  "summary": "Ibis relation backend: compiles relational AST to Ibis table expressions for SQL-backed analytics. Supports unnest() via struct field expansion (mutate + drop). Several Ibis API fixes applied.",
   "role": "backend",
   "visibility": "internal",
   "stability": "evolving",
@@ -14,14 +14,23 @@
   "dependencies": ["relations.core.relation_protocols", "relations.core.unified_visitor", "expressions.backends.ibis"],
   "dependents": ["relations.core.relation_api"],
   "extension_points": [],
-  "lifecycle_notes": [],
+  "lifecycle_notes": [
+    "2026-05 (PR #147): Added unnest() — iterates struct columns, mutates field expansions with prefix, drops original",
+    "2026-05: Fixed drop_nulls — Ibis API changed from relation.dropna() to relation.drop_null(subset)",
+    "2026-05: Fixed unpivot — migrated from relation.unpivot() to relation.pivot_longer() using ibis.selectors",
+    "2026-05: Fixed top_k — by parameter changed from str to list[str]",
+    "2026-05: Fixed join key handling (relsys_ib_join.py)"
+  ],
   "documentation_hooks": [],
   "examples": [],
   "tests": [],
-  "risks": [],
+  "risks": ["Still evolving; Ibis API surface changes occasionally require fixes"],
   "open_questions": [],
-  "evidence": [],
-  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/ibis/extensions_mountainash/relsys_ib_ext_ma_util.py", "detail": "unnest(), drop_nulls, unpivot, top_k fixes"},
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/ibis/substrait/relsys_ib_join.py", "detail": "Join key handling update"}
+  ],
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
   "manual": {
     "notes": "",
     "editorial_status": "",
