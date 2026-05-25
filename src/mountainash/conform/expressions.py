@@ -5,13 +5,17 @@ Relation.conform() and the DAG visitor's apply_conform.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
 
 
-def _build_conform_exprs(spec: "TypeSpec") -> list[Any]:
+def _build_conform_exprs(
+    spec: "TypeSpec",
+    *,
+    available_columns: Optional[set[str]] = None,
+) -> list[Any]:
     """Build the expression list for a TypeSpec conformance projection.
 
     For each field in the spec, constructs an expression chain:
@@ -22,6 +26,10 @@ def _build_conform_exprs(spec: "TypeSpec") -> list[Any]:
 
     Args:
         spec: The TypeSpec describing the target schema.
+        available_columns: When provided, fields whose source column is not
+            in this set are silently skipped. Useful when the source data
+            may not contain every column the spec describes (e.g. partial
+            API responses).
 
     Returns:
         List of mountainash expressions ready for Relation.select().
@@ -34,6 +42,11 @@ def _build_conform_exprs(spec: "TypeSpec") -> list[Any]:
 
     for field in spec.fields:
         source_name = field.source_name
+
+        if available_columns is not None:
+            root_col = source_name.split(".")[0] if "." in source_name else source_name
+            if root_col not in available_columns:
+                continue
 
         if "." in source_name:
             parts = source_name.split(".")

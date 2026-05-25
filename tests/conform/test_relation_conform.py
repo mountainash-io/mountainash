@@ -135,3 +135,80 @@ class TestRelationConformEdgeCases:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["hello", "world"]
+
+
+class TestRelationConformMissingColumns:
+    """Tests for conform with available_columns — skipping missing source columns."""
+
+    def test_available_columns_skips_missing(self):
+        import polars as pl
+
+        df = pl.DataFrame({"keep": [1, 2], "extra": [10, 20]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="keep", type=UniversalType.INTEGER),
+                FieldSpec(name="gone", type=UniversalType.STRING),
+            ],
+        )
+        result = ma.relation(df).conform(
+            spec, available_columns={"keep", "extra"},
+        ).to_polars()
+        assert list(result.columns) == ["keep"]
+        assert result["keep"].to_list() == [1, 2]
+
+    def test_available_columns_skips_missing_rename_from(self):
+        import polars as pl
+
+        df = pl.DataFrame({"raw_id": ["1", "2"]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id"),
+                FieldSpec(name="duration", type=UniversalType.NUMBER, rename_from="stress_duration"),
+            ],
+        )
+        result = ma.relation(df).conform(
+            spec, available_columns={"raw_id"},
+        ).to_polars()
+        assert list(result.columns) == ["id"]
+        assert result["id"].to_list() == [1, 2]
+
+    def test_available_columns_skips_dotted_source(self):
+        import polars as pl
+
+        df = pl.DataFrame({"id": [1, 2]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
+            ],
+        )
+        result = ma.relation(df).conform(
+            spec, available_columns={"id"},
+        ).to_polars()
+        assert list(result.columns) == ["id"]
+
+    def test_available_columns_none_is_strict(self):
+        """Without available_columns, missing columns still raise."""
+        import polars as pl
+
+        df = pl.DataFrame({"a": [1]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="missing", type=UniversalType.STRING)],
+        )
+        with pytest.raises(Exception):
+            ma.relation(df).conform(spec).to_polars()
+
+    def test_all_columns_missing_produces_empty(self):
+        import polars as pl
+
+        df = pl.DataFrame({"a": [1, 2]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="x", type=UniversalType.INTEGER),
+                FieldSpec(name="y", type=UniversalType.STRING),
+            ],
+        )
+        result = ma.relation(df).conform(
+            spec, available_columns={"a"},
+        ).to_polars()
+        assert len(result.columns) == 0
