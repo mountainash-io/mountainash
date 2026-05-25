@@ -147,6 +147,10 @@ class UnifiedRelationVisitor:
         Uses the shared _build_conform_exprs helper to build expressions,
         then compiles them against the native backend object. Works for
         all backends (Polars, Ibis, Narwhals).
+
+        Fields whose source column is missing from the native object are
+        silently skipped so that partial data (e.g. API responses missing
+        optional fields) conforms without raising ColumnNotFoundError.
         """
         if isinstance(schema, dict):
             from mountainash.typespec.frictionless import typespec_from_frictionless
@@ -155,7 +159,13 @@ class UnifiedRelationVisitor:
         from mountainash.conform.expressions import _build_conform_exprs
         import mountainash as ma
 
-        exprs = _build_conform_exprs(schema)
+        if hasattr(native, "collect_schema"):
+            available = set(native.collect_schema().names())
+        elif hasattr(native, "columns"):
+            available = set(native.columns)
+        else:
+            available = None
+        exprs = _build_conform_exprs(schema, available_columns=available)
 
         conformed = ma.relation(native).select(*exprs)
         return conformed._compile_and_execute()

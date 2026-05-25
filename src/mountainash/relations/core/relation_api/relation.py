@@ -129,7 +129,12 @@ class Relation(RelationBase):
 
     # --- Conformance ---
 
-    def conform(self, spec: Any) -> Relation:
+    def conform(
+        self,
+        spec: Any,
+        *,
+        available_columns: Optional[set[str]] = None,
+    ) -> Relation:
         """Conform the relation to a TypeSpec.
 
         Builds a SELECT projection from the TypeSpec's field definitions:
@@ -141,13 +146,17 @@ class Relation(RelationBase):
 
         Args:
             spec: A TypeSpec describing the target schema.
+            available_columns: When provided, fields whose source column is
+                not in this set are silently skipped. Useful when the source
+                data may not contain every column the spec describes (e.g.
+                partial API responses).
 
         Returns:
             A new Relation wrapping a ProjectRelNode.
         """
         from mountainash.conform.expressions import _build_conform_exprs
 
-        exprs = _build_conform_exprs(spec)
+        exprs = _build_conform_exprs(spec, available_columns=available_columns)
         return self.select(*exprs)
 
     # --- Sorting ---
