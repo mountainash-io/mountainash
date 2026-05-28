@@ -4,7 +4,7 @@ Verifies that operation parameters actually reach the backend and affect output.
 Each test uses discriminating data: if the parameter were silently dropped or
 defaulted, the assertion would fail.
 
-See: g.development-practices/testing-philosophy.md § Discriminating Test Data
+See: f.development-practices/testing-philosophy.md § Discriminating Test Data
 """
 
 import math

@@ -9,7 +9,7 @@ This test pins the divergence: when upstream ibis#10513 lands, the
 `ibis-polars` xfail here flips to xpass and this marker should be
 removed in the same PR that bumps the ibis pin.
 
-See principle `e.cross-backend/known-divergences.md` §8.
+See principle `d.cross-backend/known-divergences.md` §8.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class TestWithRowIndex:
             pytest.xfail(
                 "ibis-polars has no WindowFunction translator — tracked "
                 "upstream at ibis-project/ibis#10513. See "
-                "e.cross-backend/known-divergences.md §8."
+                "d.cross-backend/known-divergences.md §8."
             )
         data = {"name": ["a", "b", "c", "d"]}
         df = backend_factory.create(data, backend_name)

@@ -136,7 +136,7 @@ class SubstraitScalarAggregateAPIBuilder(
         """Most common value. Substrait ``mode(x)``.
 
         Note: behaviour on ties varies across backends — see
-        ``e.cross-backend/known-divergences.md``.
+        ``d.cross-backend/known-divergences.md``.
         """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE,

@@ -89,7 +89,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | free-function-entrypoints.md | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
 | polars-api-substrait-ast.md | ADOPTED | Public API mirrors Polars conventions; internal AST stays Substrait-aligned; API builder is the translation boundary |
 
-### d. Ternary Logic
+### b.type-system/expressions/ternary (Ternary Logic — now under Type System)
 
 | Document | Status | Summary |
 |----------|--------|---------|
@@ -98,7 +98,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | sentinel-values.md | ADOPTED | t_col(name, unknown={...}) treats custom values as UNKNOWN |
 | bidirectional-coercion.md | ADOPTED | Boolean↔ternary coercion happens automatically at the API builder level |
 
-### e. Cross-Backend
+### d. Cross-Backend
 
 | Document | Status | Summary |
 |----------|--------|---------|
@@ -109,7 +109,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
 | upstream-fix-monitoring.md | ADOPTED | Link upstream issues, understand upstream fix patterns vs our centralized registry approach, proactively monitor changelogs to prevent xfail→xpass CI surprises; reconciliation audit cross-references xfails, KEL entries, and YAML registry via concrete linkages |
 
-### f. Extension Model
+### e. Extension Model
 
 | Document | Status | Summary |
 |----------|--------|---------|
@@ -117,7 +117,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 | adding-operations.md | ADOPTED | Six-step process: enum → protocol → API builder → all backends → function mapping → tests |
 | backend-composition.md | ENFORCED | Each backend composes all protocol implementations via multiple inheritance |
 
-### g. Development Practices
+### f. Development Practices
 
 | Document | Status | Summary |
 |----------|--------|---------|
@@ -190,7 +190,7 @@ src/mountainash/
     └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
 ```
 
-For detailed file organisation see principle: `g.development-practices/file-organisation.md`
+For detailed file organisation see principle: `f.development-practices/file-organisation.md`
 
 
 ## Dependencies
@@ -323,9 +323,9 @@ pkg2.write("./out/datapackage.json")
 ```
 
 **Architectural notes:**
-- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/relation-dag-orchestrator.md`.
-- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/lossless-frictionless-storage.md`.
-- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/two-edge-graph-model.md`.
+- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/dag/relation-dag-orchestrator.md`.
+- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/typespec/lossless-frictionless-storage.md`.
+- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/dag/two-edge-graph-model.md`.
 - **Caveat:** conform application is currently Polars-only on the materialisation path. Narwhals and Ibis backends pass through unchanged with a TODO marker; this is the only known gap in the relation-DAG wiring matrix.
 
 **Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`

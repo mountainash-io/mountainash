@@ -1374,7 +1374,7 @@ def test_option_params_not_widened_by_backends():
 
     If a backend accepts expressions for a parameter that the protocol types as
     option (concrete int/str/bool), the protocol needs updating to argument channel.
-    See: e.cross-backend/arguments-vs-options.md "Mixed-capability parameters".
+    See: d.cross-backend/arguments-vs-options.md "Mixed-capability parameters".
     """
     option_params = [p for p in introspect_protocols() if p.kind == "option"]
     mismatches = []

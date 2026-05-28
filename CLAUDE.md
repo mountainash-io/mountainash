@@ -48,106 +48,99 @@ This is not advisory. Do not rely on summaries, memory, or assumptions — read 
 
 See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
 
+Each category has `core/` (cross-cutting) and module-specific subdirectories. See each category's INDEX.md for details and the root README.md for a by-module view.
+
 ### a. Architecture
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| substrait-first-design.md | ENFORCED | All operations align with Substrait specification; custom ops in separate extension namespace |
-| minimal-ast.md | ENFORCED | Only 7 node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
-| three-layer-separation.md | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
-| unified-visitor.md | ADOPTED | Single visitor dispatches all node types via function registry lookup |
-| relational-ast.md | ENFORCED | 10 relational node types mapping to Substrait logical relations; ExtensionRelNode for non-Substrait ops |
-| relation-visitor-composition.md | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
-| wiring-matrix.md | ADOPTED | Every operation must be wired through all six architecture layers |
-| unified-package-roadmap.md | ADOPTED | Prioritized roadmap: wiring → shared infra → operations → alignment → release |
-| relation-dag-orchestrator.md | ADOPTED | RelationDAG is a thin orchestrator over the existing visitor (+1 ref_resolver param, +2 leaf nodes); not a parallel visitor stack |
-| two-edge-graph-model.md | ENFORCED | RelationDAG keeps `dependency_edges` (drive collect order) and `constraint_edges` (FK metadata) sharply separate; no `dag.edges` shortcut |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| substrait-first-design.md | core | ENFORCED | All operations align with Substrait specification; custom ops in separate extension namespace |
+| three-layer-separation.md | core | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
+| minimal-ast.md | expressions | ENFORCED | 9 expression node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
+| unified-visitor.md | expressions | ADOPTED | Single visitor dispatches all expression node types via function registry lookup |
+| wiring-matrix.md | expressions | ADOPTED | Every expression operation must be wired through all six architecture layers |
+| relational-ast.md | relations | ENFORCED | 10 core Substrait-aligned relation nodes plus Mountainash extension leaf nodes |
+| relation-visitor-composition.md | relations | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
+| relation-dag-orchestrator.md | dag | ADOPTED | RelationDAG is a thin orchestrator over the existing visitor (+1 ref_resolver param, +2 leaf nodes) |
+| two-edge-graph-model.md | dag | ENFORCED | RelationDAG keeps `dependency_edges` and `constraint_edges` sharply separate |
 
 ### b. Type System
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| function-key-enums.md | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
-| protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
-| expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
-| node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
-| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types; ForeignKey/ForeignKeyReference for cross-table relationships; enum_weights for weighted enums |
-| lossless-frictionless-storage.md | ADOPTED | `DataResource.table_schema` stores raw Frictionless schema dicts (not TypeSpec) so byte-equivalent round-trip is preserved; conversion to TypeSpec is lazy at consumer site |
-| frictionless-structural-fidelity.md | ENFORCED | TypeSpec mirrors Frictionless Table Schema structurally; flat fields matching Frictionless layout, no custom submodels |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| protocol-as-contract.md | core | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
+| function-key-enums.md | expressions | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
+| expression-type-generics.md | expressions | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types |
+| node-type-design.md | expressions | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
+| three-valued-semantics.md | expressions | ENFORCED | TRUE=1, UNKNOWN=0, FALSE=-1; sentinel integer values, not NULL propagation |
+| booleanization.md | expressions | ENFORCED | Ternary expressions auto-booleanize at compile time; six built-in booleanizers |
+| sentinel-values.md | expressions | ADOPTED | t_col(name, unknown={...}) treats custom values as UNKNOWN |
+| bidirectional-coercion.md | expressions | ADOPTED | Boolean↔ternary coercion happens automatically at the API builder level |
+| typespec-metadata-standard.md | typespec | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification |
+| lossless-frictionless-storage.md | typespec | ADOPTED | `DataResource.table_schema` stores raw Frictionless schema dicts; conversion to TypeSpec is lazy |
+| frictionless-structural-fidelity.md | typespec | ENFORCED | TypeSpec mirrors Frictionless Table Schema structurally; flat fields, no custom submodels |
 
 ### c. API Design
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
-| build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
-| build-then-conform.md | ENFORCED | ma.relation(df).conform(spec).to_polars() — conform is a Relation method producing ProjectRelNode; cross-backend automatic |
-| fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
-| operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
-| short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
-| scalar-terminal-composition.md | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions; no per-backend dispatch |
-| free-function-entrypoints.md | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
-| polars-api-substrait-ast.md | ADOPTED | Public API mirrors Polars conventions; internal AST stays Substrait-aligned; API builder is the translation boundary |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| fluent-builder-pattern.md | core | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
+| polars-api-substrait-ast.md | core | ADOPTED | Public API mirrors Polars conventions; internal AST stays Substrait-aligned; API builder is the translation boundary |
+| build-then-compile.md | expressions | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
+| operator-overloading.md | expressions | ENFORCED | Python operators map to named methods; reversed operators supported |
+| short-aliases.md | expressions | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
+| free-function-entrypoints.md | expressions | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
+| build-then-collect.md | relations | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
+| scalar-terminal-composition.md | relations | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions |
+| build-then-conform.md | conform | ENFORCED | ma.relation(df).conform(spec).to_polars() — conform is a Relation method producing ProjectRelNode; cross-backend automatic |
 
-### d. Ternary Logic
+### d. Cross-Backend
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| three-valued-semantics.md | ENFORCED | TRUE=1, UNKNOWN=0, FALSE=-1; sentinel integer values, not NULL propagation |
-| booleanization.md | ENFORCED | Ternary expressions auto-booleanize at compile time; six built-in booleanizers |
-| sentinel-values.md | ADOPTED | t_col(name, unknown={...}) treats custom values as UNKNOWN |
-| bidirectional-coercion.md | ADOPTED | Boolean↔ternary coercion happens automatically at the API builder level |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| backend-detection.md | core | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
+| consistency-guarantees.md | core | ENFORCED | Same expression/relation must produce same logical result across all backends |
+| known-divergences.md | core | ADOPTED | Backend-specific quirks tracked via `KNOWN_EXPR_LIMITATIONS` registries and xfail markers |
+| upstream-fix-monitoring.md | core | ADOPTED | Link upstream issues, monitor changelogs, reconciliation audit for xfails |
+| arguments-vs-options.md | expressions | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options |
+| cross-type-joins.md | relations | ADOPTED | Joins accept any data type; automatic coercion at visit time |
 
-### e. Cross-Backend
+### e. Extension Model
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| backend-detection.md | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
-| consistency-guarantees.md | ENFORCED | Same expression must produce same logical result across all backends |
-| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries; Narwhals diff(n>1), Polars .over() frame bounds, Narwhals cumulative in .over(), rank(method="average") on Ibis |
-| cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
-| arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
-| upstream-fix-monitoring.md | ADOPTED | Link upstream issues, understand upstream fix patterns vs our centralized registry approach, proactively monitor changelogs to prevent xfail→xpass CI surprises; reconciliation audit cross-references xfails, KEL entries, and YAML registry via concrete linkages |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| substrait-vs-mountainash.md | core | ENFORCED | Physical directory separation at every layer; FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_* enums |
+| adding-operations.md | core | ADOPTED | Six-step process: enum → protocol → API builder → all backends → function mapping → tests |
+| backend-composition.md | core | ENFORCED | Each backend composes all protocol implementations via multiple inheritance |
 
-### f. Extension Model
-
-| Document | Status | Summary |
-|----------|--------|---------|
-| substrait-vs-mountainash.md | ENFORCED | Physical directory separation at every layer; FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_* enums |
-| adding-operations.md | ADOPTED | Six-step process: enum → protocol → API builder → all backends → function mapping → tests |
-| backend-composition.md | ENFORCED | Each backend composes all protocol implementations via multiple inheritance |
-
-### g. Development Practices
+### f. Development Practices
 
 | Document | Status | Summary |
 |----------|--------|---------|
 | naming-conventions.md | ENFORCED | File prefixes (exn_, prtcl_, api_bldr_, expsys_), backend prefixes (pl_, ib_, nw_) |
 | testing-philosophy.md | ENFORCED | Cross-backend parametrized tests; xfail for known quirks; never skip or disable |
-| cross-backend-test-coverage.md | ENFORCED | Every new expression test must be cross-backend parametrized; Polars-only tests require explicit justification; use xfail not omission for backend limitations |
+| cross-backend-test-coverage.md | ENFORCED | Every new expression test must be cross-backend parametrized; Polars-only tests require explicit justification |
 | file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
-| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
-| closed-by-default-verification.md | ADOPTED | Verification systems must fail on undiscovered items, not silently skip; introspection-driven scope; exception sets with reasons and dates |
+| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends |
+| closed-by-default-verification.md | ADOPTED | Verification systems must fail on undiscovered items, not silently skip |
 
 ### h. Backlog
 
-| Document | Summary |
-|----------|---------|
-| polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
-| frictionless-typespec-gaps-deferred.md | 5 Low-severity FieldSpec round-trip gaps deferred from the 2026-04-07 DataPackage work (`$schema`, `example`, `rdfType`, `categoriesOrdered`, type-specific number/integer/list parsing properties) |
-| wiring-verification-results.md | Expression: 497 compile smoke + 48 signature xfails. Relation: 13 collect smoke + 0 signature xfails. Categorized root causes and prioritized remediation. |
+See [BACKLOG_INDEX.md](../mountainash-central/01.principles/mountainash/h.backlog/BACKLOG_INDEX.md) for prioritized items. Items organized into `active/`, `deferred/`, and `archive/` subdirectories.
 
 ### i. Competitor Analysis
 
 | Document | Status | Summary |
 |----------|--------|---------|
-| competitive-positioning.md | ADOPTED | Market landscape, Socratic strengths/weaknesses, feature gaps, positioning as "abstract data products" alongside Ibis/Narwhals/Pandera |
+| competitive-positioning.md | ADOPTED | Market landscape, strengths/weaknesses, positioning as "abstract data products" |
 
 ### j. Research
 
 | Document | Status | Summary |
 |----------|--------|---------|
-| introspection-driven-verification-patterns.md | REFERENCE | Prior art survey: 9 patterns for protocol/reflection-based test completeness (interface contract testing, Go compile-time assertions, Rust exhaustiveness, Spring GraphQL SchemaMappingInspector, gRPC reflection coverage, Django metaclass registry, etc.) |
-| r-ast-expression-architecture-comparison.md | REFERENCE | R's dplyr/data.table AST manipulation vs Python expression systems; lessons for mountainash: AST rewriting opportunities, expression templates, strategic positioning as programmable IR |
+| introspection-driven-verification-patterns.md | REFERENCE | Prior art: 9 patterns for protocol/reflection-based test completeness |
+| r-ast-expression-architecture-comparison.md | REFERENCE | R's dplyr/data.table AST vs Python expression systems |
+| unified-package-roadmap.md | REFERENCE | Historical roadmap from the unified package migration |
 
 
 ## Package Structure
@@ -190,7 +183,7 @@ src/mountainash/
     └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
 ```
 
-For detailed file organisation see principle: `g.development-practices/file-organisation.md`
+For detailed file organisation see principle: `f.development-practices/file-organisation.md`
 
 
 ## Dependencies
@@ -328,9 +321,9 @@ pkg2.write("./out/datapackage.json")
 ```
 
 **Architectural notes:**
-- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/relation-dag-orchestrator.md`.
-- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/lossless-frictionless-storage.md`.
-- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/two-edge-graph-model.md`.
+- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/dag/relation-dag-orchestrator.md`.
+- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/typespec/lossless-frictionless-storage.md`.
+- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/dag/two-edge-graph-model.md`.
 - Conform is cross-backend since the relation-native redesign (2026-05-15). The only known limitation is Ibis coalesce type strictness when `null_fill` mixes string columns with numeric literals.
 
 **Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`

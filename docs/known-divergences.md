@@ -520,7 +520,7 @@ Total divergences tracked: **94**
 | Workaround | Enhanced error message |
 | Known Expr Limitations | ibis base.py: add_years years, add_months months, add_days days, add_hours hours, add_minutes minutes, add_seconds seconds, add_milliseconds milliseconds, add_microseconds microseconds (ib_datetime_offset_literal_only) |
 | Xfail Refs | tests/cross_backend/argument_types/test_arg_types_datetime.py |
-| Notes | Parameter-width issue. See e.cross-backend/arguments-vs-options.md. |
+| Notes | Parameter-width issue. See d.cross-backend/arguments-vs-options.md. |
 | Last Verified | 2026-05-11 |
 
 ### IB-DT-02: Ibis Polars backend doesn't support calendar-based intervals (months, years)
