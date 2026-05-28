@@ -91,4 +91,4 @@ REGISTRY: dict[str, BackendSpec] = {
     "narwhals-lazy":   BackendSpec("narwhals-lazy",   "narwhals",     "lazy",    _build_narwhals_polars_lazy),
 }
 
-ALL_BACKENDS: list[str] = [k for k in REGISTRY if k != "narwhals"]
+ALL_BACKENDS: list[str] = [k for k in REGISTRY]

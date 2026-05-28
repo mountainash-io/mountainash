@@ -341,7 +341,7 @@ def select_and_extract() -> Callable:
             result = df.select(backend_expr.alias(column_alias))
             return result.to_arrow()[column_alias].to_pylist()
 
-        if family in ("polars-eager", "polars-lazy", "narwhals"):
+        if family in ("polars-eager", "polars-lazy", "narwhals-lazy"):
             result = df.select(backend_expr.alias(column_alias))
             if materialization == "lazy":
                 result = result.collect()

@@ -279,9 +279,13 @@ class BackendDataFrameFactory:
             # Route pandas through narwhals for visitor compatibility
             pd_df = pd.DataFrame(data)
             return nw.from_native(pd_df)
-        elif backend_name in ("narwhals", "narwhals-polars"):
+        elif backend_name in ("narwhals-polars"):
             # Narwhals wrapping a polars frame
             pl_df = pl.DataFrame(data)
+            return nw.from_native(pl_df)
+        elif backend_name in ("narwhals-lazy"):
+            # Narwhals wrapping a polars lazyframe
+            pl_df = pl.DataFrame(data).lazy()
             return nw.from_native(pl_df)
         elif backend_name == "narwhals-pandas":
             # Narwhals wrapping a pandas frame
