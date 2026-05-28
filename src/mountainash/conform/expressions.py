@@ -1,7 +1,42 @@
-"""Shared conform expression builder.
+"""Conform expression builder — the single authoritative interpreter of
+the Frictionless Table Schema transform pipeline.
 
-Builds expression lists from TypeSpec fields. Used by both
-Relation.conform() and the DAG visitor's apply_conform.
+This module builds backend-agnostic mountainash expressions that transform
+source data to match a TypeSpec schema.  It is the core of the conform
+pipeline, used by ``Relation.conform()``, the DAG visitor's
+``apply_conform()``, pydata ingress/egress, and ``custom_type_helpers``.
+
+The 7-stage pipeline processes each field in order:
+
+  0. FIELDS-MATCH GUARD — validate source columns against fieldsMatch mode
+  1. RESOLVE SOURCE    — ``col(source_name)`` or positional for exact mode;
+                         struct field access for dotted names
+  2. MISSING VALUES    — sentinel strings -> null (Frictionless §missingValues)
+  3. STRING PARSING    — numeric format normalisation (§number, §integer):
+                         bareNumber strip, groupChar remove, decimalChar replace
+  4. NULL FILL         — ``coalesce(expr, lit(null_fill))``
+  5. TYPE CAST         — boolean (§boolean trueValues/falseValues)
+                         temporal format (§datetime/date/time)
+                         categories (§categories/categoriesOrdered)
+                         list split + element cast (§list)
+                         default ``bridge_type`` cast
+  6. ALIAS             — ``expr.name.alias(target_name)``
+
+Ordering invariants:
+  - Stage 2 MUST precede stages 3-5 (Frictionless spec: missingValues
+    conversion happens before any type-specific string conversion)
+  - Stage 3 MUST precede stage 5 (strings cleaned before casting)
+  - Stage 4 (null fill) sits between parsing and casting so that fill
+    values are applied to the parsed-but-not-yet-cast column; callers
+    needing post-cast null fill should use the typed source directly
+  - Stage 5 branches are mutually exclusive per field
+  - Stage 6 always runs last
+
+Reference: https://datapackage.org/standard/table-schema/
+
+See also:
+  - mountainash-central/04.planning/mountainash/superpowers/
+    specs/2026-05-29-conform-full-typespec-runtime-design.md
 """
 from __future__ import annotations
 
@@ -46,21 +81,37 @@ def _build_conform_exprs(
 ) -> ConformResult:
     """Build the expression list for a TypeSpec conformance projection.
 
-    For each field in the spec, constructs an expression chain:
-    col(source) -> coalesce(fill) -> cast(type) -> alias(target)
-
-    Produces exactly one expression per field in the spec (or fewer when
-    fields are skipped due to the fieldsMatch mode).
+    Constructs one mountainash expression per spec field, chaining the
+    stages documented in the module docstring.  The expressions are
+    backend-agnostic — they compile to Polars, Ibis, or Narwhals when
+    a terminal (e.g. ``.to_polars()``) triggers the visitor.
 
     Args:
-        spec: The TypeSpec describing the target schema.
+        spec: The TypeSpec describing the target schema.  Key attributes
+            consumed: ``fields``, ``fields_match``, ``missing_values``.
         available_columns: Ordered column names from the source data.
-            Required for all fieldsMatch modes except "open".
-            Sequence preserves order (needed for "exact" positional mapping).
+            Required for all ``fieldsMatch`` modes except ``"open"``.
+            Sequence order matters for ``"exact"`` (positional mapping).
 
     Returns:
-        ConformResult with expressions, resolved fields_match mode,
-        and set of renamed source columns.
+        A :class:`ConformResult` containing:
+        - ``exprs`` — list of mountainash expressions, one per matched field
+        - ``fields_match`` — the resolved mode string (never ``None``)
+        - ``renamed_sources`` — set of source column names that were aliased
+          to a different target name (used by callers to drop originals in
+          ``"open"`` mode)
+
+    Raises:
+        ConformError: Invalid ``fields_match`` value, or ``available_columns``
+            not provided when required.
+        ExactFieldCountError: ``fields_match="exact"`` and column count
+            does not match spec field count.
+        MissingFieldsError: ``fields_match`` in ``{"equal", "subset"}`` and
+            required source columns are absent.
+        ExtraFieldsError: ``fields_match`` in ``{"equal", "superset"}`` and
+            unmapped columns are present.
+        NoMatchingFieldsError: ``fields_match="partial"`` and zero spec
+            fields match available columns.
     """
     import mountainash as ma
     from mountainash.typespec.type_bridge import bridge_type
