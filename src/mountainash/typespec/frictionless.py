@@ -95,7 +95,7 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["description"] = spec.description
     if spec.primary_key is not None:
         descriptor["primaryKey"] = spec.primary_key
-    if spec.fields_match is not None:  # Gap 3
+    if spec.fields_match is not None and spec.fields_match != "exact":
         descriptor["fieldsMatch"] = spec.fields_match
     if spec.unique_keys is not None:  # Gap 4
         descriptor["uniqueKeys"] = spec.unique_keys
@@ -224,7 +224,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     description: Optional[str] = descriptor.get("description")
     primary_key = descriptor.get("primaryKey")
     missing_values: Optional[List[str]] = descriptor.get("missingValues")
-    fields_match: Optional[str] = descriptor.get("fieldsMatch")  # Gap 3
+    fields_match: Optional[str] = descriptor.get("fieldsMatch", "exact")  # Gap 3
     unique_keys: Optional[List[List[str]]] = descriptor.get("uniqueKeys")  # Gap 4
     schema_url: Optional[str] = descriptor.get("$schema")
 
