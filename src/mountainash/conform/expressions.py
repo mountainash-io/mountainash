@@ -226,11 +226,26 @@ def _build_conform_exprs(
                 .otherwise(expr)
             )
 
-        # Stage 3: NULL FILL — replace nulls with default value
+        # Stage 3: STRING PARSING — numeric format normalization
+        # Frictionless Table Schema §number, §integer
+        # Only emitted when non-default values are set.
+        # Order: bareNumber strip → groupChar remove → decimalChar normalize
+        if fld.type in (UniversalType.NUMBER, UniversalType.INTEGER):
+            if fld.bare_number is False:
+                # Strip leading non-numeric chars (except -, +, .)
+                expr = expr.str.regexp_replace(r"^[^\d\-+.]+", "")
+                # Strip trailing non-numeric chars
+                expr = expr.str.regexp_replace(r"[^\d.]+$", "")
+            if fld.group_char is not None:
+                expr = expr.str.replace(fld.group_char, "")
+            if fld.decimal_char is not None and fld.decimal_char != ".":
+                expr = expr.str.replace(fld.decimal_char, ".")
+
+        # Stage 4: NULL FILL — replace nulls with default value
         if fld.null_fill is not None:
             expr = ma.coalesce(expr, ma.lit(fld.null_fill))
 
-        # Stage 4a: BOOLEAN — trueValues/falseValues mapping
+        # Stage 5a: BOOLEAN — trueValues/falseValues mapping
         # Frictionless Table Schema §boolean: string values are "to be cast
         # to their logical representation as booleans."
         # Uses cast(str).is_in() so it works on both string and boolean sources.
