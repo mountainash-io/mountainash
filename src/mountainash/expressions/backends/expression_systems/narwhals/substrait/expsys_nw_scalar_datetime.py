@@ -414,22 +414,10 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        format: str,
+        format: str = "%Y-%m-%d %H:%M:%S",
     ) -> NarwhalsExpr:
-        """Format datetime as string.
-
-        Args:
-            x: Datetime expression.
-            format: strftime format string.
-
-        Returns:
-            Formatted string.
-
-        Note:
-            Narwhals may not have strftime. Returns string representation.
-        """
-        # Narwhals doesn't have strftime - fallback to string conversion
-        return x.cast(nw.String)
+        """Format datetime as string."""
+        return x.dt.to_string(format)
 
 
     # =========================================================================
