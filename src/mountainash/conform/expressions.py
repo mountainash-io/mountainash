@@ -34,11 +34,31 @@ def _build_conform_exprs(
     Returns:
         List of mountainash expressions ready for Relation.select().
     """
+    exprs, _ = _build_conform_exprs_with_sources(
+        spec, available_columns=available_columns,
+    )
+    return exprs
+
+
+def _build_conform_exprs_with_sources(
+    spec: "TypeSpec",
+    *,
+    available_columns: Optional[set[str]] = None,
+) -> tuple[list[Any], set[str]]:
+    """Build conform expressions and track which source columns were renamed.
+
+    Returns:
+        Tuple of (expressions, renamed_sources) where renamed_sources is the
+        set of top-level source column names that were renamed to a different
+        target name. Dotted sources (struct access) are excluded since the
+        parent column may have other sub-fields in use.
+    """
     import mountainash as ma
     from mountainash.typespec.universal_types import UniversalType
     from mountainash.typespec.type_bridge import bridge_type
 
     exprs: list[Any] = []
+    renamed_sources: set[str] = set()
 
     for field in spec.fields:
         source_name = field.source_name
@@ -48,13 +68,16 @@ def _build_conform_exprs(
             if root_col not in available_columns:
                 continue
 
-        if "." in source_name:
+        is_dotted = "." in source_name
+        if is_dotted:
             parts = source_name.split(".")
             expr = ma.col(parts[0])
             for part in parts[1:]:
                 expr = expr.struct.field(part)
         else:
             expr = ma.col(source_name)
+            if source_name != field.name:
+                renamed_sources.add(source_name)
 
         if field.null_fill is not None:
             expr = ma.coalesce(expr, ma.lit(field.null_fill))
@@ -65,4 +88,4 @@ def _build_conform_exprs(
         expr = expr.name.alias(field.name)
         exprs.append(expr)
 
-    return exprs
+    return exprs, renamed_sources

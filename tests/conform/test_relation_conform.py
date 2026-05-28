@@ -212,3 +212,94 @@ class TestRelationConformMissingColumns:
             spec, available_columns={"a"},
         ).to_polars()
         assert len(result.columns) == 0
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestRelationConformKeepUnmapped:
+    """Tests for keep_unmapped=True — preserving columns not in the TypeSpec."""
+
+    def test_unmapped_columns_preserved(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"raw_id": ["1", "2"], "extra": [10, 20]}, backend_name,
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
+        )
+        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        assert "id" in result.columns
+        assert "extra" in result.columns
+        assert "raw_id" not in result.columns
+        assert result["id"].to_list() == [1, 2]
+        assert result["extra"].to_list() == [10, 20]
+
+    def test_keep_unmapped_false_drops_extra(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"raw_id": ["1", "2"], "extra": [10, 20]}, backend_name,
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
+        )
+        result = ma.relation(df).conform(spec, keep_unmapped=False).to_polars()
+        assert list(result.columns) == ["id"]
+
+    def test_same_name_field_overwrites_in_place(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"val": ["1", "2"], "other": ["a", "b"]}, backend_name,
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
+        )
+        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        assert result["val"].to_list() == [1, 2]
+        assert result["other"].to_list() == ["a", "b"]
+
+    def test_null_fill_with_keep_unmapped(self, backend_name, backend_factory):
+        if backend_name.startswith("ibis"):
+            pytest.xfail("Ibis coalesce cannot mix column type with different literal type")
+        df = backend_factory.create(
+            {"val": [1, None, 3], "tag": ["a", "b", "c"]}, backend_name,
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
+        )
+        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        assert result["val"].to_list() == [1, -1, 3]
+        assert result["tag"].to_list() == ["a", "b", "c"]
+
+    def test_multiple_renames_with_unmapped(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"src_a": [1, 2], "src_b": ["x", "y"], "keep": [10, 20]},
+            backend_name,
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="a", type=UniversalType.INTEGER, rename_from="src_a"),
+                FieldSpec(name="b", type=UniversalType.STRING, rename_from="src_b"),
+            ],
+        )
+        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        assert "a" in result.columns
+        assert "b" in result.columns
+        assert "keep" in result.columns
+        assert "src_a" not in result.columns
+        assert "src_b" not in result.columns
+
+
+class TestRelationConformKeepUnmappedStructAccess:
+    def test_dotted_source_preserves_parent_struct(self):
+        import polars as pl
+
+        df = pl.DataFrame([
+            {"id": 1, "score": {"strain": 10.5, "recovery": 80}},
+            {"id": 2, "score": {"strain": 8.2, "recovery": 90}},
+        ])
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
+            ],
+        )
+        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        assert "id" in result.columns
+        assert "strain" in result.columns
+        assert "score" in result.columns

@@ -134,15 +134,12 @@ class Relation(RelationBase):
         spec: Any,
         *,
         available_columns: Optional[set[str]] = None,
+        keep_unmapped: bool = False,
     ) -> Relation:
         """Conform the relation to a TypeSpec.
 
-        Builds a SELECT projection from the TypeSpec's field definitions:
+        Builds a projection from the TypeSpec's field definitions:
         col(source) -> coalesce(null_fill) -> cast(type) -> alias(target).
-
-        Produces exactly the columns defined in the spec. Unmapped source
-        columns are dropped. To preserve additional columns, chain
-        .with_columns() or use .select() explicitly.
 
         Args:
             spec: A TypeSpec describing the target schema.
@@ -150,14 +147,29 @@ class Relation(RelationBase):
                 not in this set are silently skipped. Useful when the source
                 data may not contain every column the spec describes (e.g.
                 partial API responses).
+            keep_unmapped: When True, columns not referenced by the TypeSpec
+                are preserved in the output. Renamed source columns are
+                dropped (only the new name appears). Default False produces
+                exactly the columns defined in the spec.
 
         Returns:
             A new Relation wrapping a ProjectRelNode.
         """
-        from mountainash.conform.expressions import _build_conform_exprs
+        if not keep_unmapped:
+            from mountainash.conform.expressions import _build_conform_exprs
 
-        exprs = _build_conform_exprs(spec, available_columns=available_columns)
-        return self.select(*exprs)
+            exprs = _build_conform_exprs(spec, available_columns=available_columns)
+            return self.select(*exprs)
+
+        from mountainash.conform.expressions import _build_conform_exprs_with_sources
+
+        exprs, renamed_sources = _build_conform_exprs_with_sources(
+            spec, available_columns=available_columns,
+        )
+        result = self.with_columns(*exprs)
+        if renamed_sources:
+            result = result.drop(*renamed_sources)
+        return result
 
     # --- Sorting ---
 
