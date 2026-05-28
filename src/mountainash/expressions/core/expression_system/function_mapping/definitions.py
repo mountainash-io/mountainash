@@ -1529,7 +1529,7 @@ def register_all_functions() -> None:
         ),
         # Utility function for collecting values in t_is_in/t_is_not_in
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+            function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="list",
             is_extension=True,

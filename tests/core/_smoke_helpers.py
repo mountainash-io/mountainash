@@ -170,7 +170,6 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
     or None for FKEYs not reachable via the public API.
     """
     from mountainash.expressions.core.expression_system.function_keys.enums import (
-        FKEY_MOUNTAINASH_SCALAR_DATETIME,
         FKEY_MOUNTAINASH_SCALAR_STRING,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
         FKEY_MOUNTAINASH_WINDOW,
@@ -204,10 +203,6 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
         FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.is_leap_year(),
-        # Category C: not reachable via public API
-        FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW: None,
-        FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY: None,
-        FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST: None,
         # Category D: window functions needing .over()
         SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER: lambda: c.row_number().over("b"),
         SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank().over("b"),
@@ -225,6 +220,27 @@ def get_smoke_expr_builder(fkey: Enum) -> Any:
     if _SMOKE_EXPR_BUILDERS is None:
         _SMOKE_EXPR_BUILDERS = _init_smoke_expr_builders()
     return _SMOKE_EXPR_BUILDERS.get(fkey, _SENTINEL_MISSING)
+
+
+def _init_smoke_non_expression_fkeys() -> set[Enum]:
+    """FKEYs that are AST-internal markers and don't produce compilable expressions."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
+    )
+    return {
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
+    }
+
+
+_SMOKE_NON_EXPRESSION_FKEYS: set[Enum] | None = None
+
+
+def is_non_expression_fkey(fkey: Enum) -> bool:
+    """Return True if fkey is an AST-internal marker that cannot be compiled."""
+    global _SMOKE_NON_EXPRESSION_FKEYS
+    if _SMOKE_NON_EXPRESSION_FKEYS is None:
+        _SMOKE_NON_EXPRESSION_FKEYS = _init_smoke_non_expression_fkeys()
+    return fkey in _SMOKE_NON_EXPRESSION_FKEYS
 
 
 def is_variadic(fdef: ExpressionFunctionDef) -> bool:

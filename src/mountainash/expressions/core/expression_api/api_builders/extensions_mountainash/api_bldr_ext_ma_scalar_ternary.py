@@ -207,7 +207,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
             # Literal path — wrap in LIST node; visitor will extract raw values.
             literal_nodes: list["ExpressionNode"] = [LiteralNode(value=v) for v in values]
             collection_arg: "ExpressionNode" = ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
                 arguments=literal_nodes,
             )
         else:
@@ -237,7 +237,7 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
         if isinstance(values, (list, tuple, set)):
             literal_nodes: list["ExpressionNode"] = [LiteralNode(value=v) for v in values]
             collection_arg: "ExpressionNode" = ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
+                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
                 arguments=literal_nodes,
             )
         else:
