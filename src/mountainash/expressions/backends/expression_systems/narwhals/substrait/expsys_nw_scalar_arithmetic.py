@@ -184,9 +184,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
         """Square root of the value."""
-        raise NotImplementedError(
-            "sqrt() is not supported by the Narwhals backend."
-        )
+        return x.sqrt()
 
     def exp(
         self,
@@ -195,9 +193,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
     ) -> NarwhalsExpr:
         """The mathematical constant e raised to the power of x."""
-        raise NotImplementedError(
-            "exp() is not supported by the Narwhals backend."
-        )
+        return x.exp()
 
     def abs(
         self,
@@ -214,9 +210,8 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
     ) -> NarwhalsExpr:
         """Return the sign of the value (-1, 0, or 1)."""
-        raise NotImplementedError(
-            "sign() is not supported by the Narwhals backend."
-        )
+        import narwhals as nw
+        return (x > 0).cast(nw.Int64) - (x < 0).cast(nw.Int64)
 
     def factorial(
         self,

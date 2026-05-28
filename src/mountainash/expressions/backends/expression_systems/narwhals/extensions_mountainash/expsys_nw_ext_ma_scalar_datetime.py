@@ -101,7 +101,6 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             "DAY": lambda e: e.dt.day(),
             "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
             "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),
-            "ISO_WEEK": lambda e: e.dt.week(),
             "HOUR": lambda e: e.dt.hour(),
             "MINUTE": lambda e: e.dt.minute(),
             "SECOND": lambda e: e.dt.second(),
@@ -109,6 +108,15 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             "MICROSECOND": lambda e: e.dt.microsecond(),
             "NANOSECOND": lambda e: e.dt.nanosecond(),
         }
+
+        if comp == "ISO_WEEK":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+            raise BackendCapabilityError(
+                "Narwhals does not support ISO week extraction",
+                backend="narwhals",
+                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT,
+            )
 
         if comp in component_map:
             return component_map[comp](x)
@@ -196,7 +204,13 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
     def week_of_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract ISO week of year (1-53)."""
-        return x.dt.week()
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+        raise BackendCapabilityError(
+            "Narwhals does not support ISO week extraction",
+            backend="narwhals",
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
+        )
 
     def iso_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract ISO 8601 week-numbering year."""

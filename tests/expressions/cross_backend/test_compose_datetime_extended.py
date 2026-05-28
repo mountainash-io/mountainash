@@ -33,8 +33,8 @@ class TestComposeDatetimeCalendar:
 
     def test_week_of_year(self, backend_name, backend_factory, collect_expr):
         """Test week_of_year extraction."""
-        if backend_name in ("pandas"): #, "narwhals" originally xfailked
-            pytest.xfail(f"{backend_name}: week_of_year not supported.")
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"):
+            pytest.xfail(f"{backend_name}: week_of_year not supported — no ISO week in Narwhals/pandas")
         data = {"ts": [datetime(2024, 1, 1), datetime(2024, 1, 7), datetime(2024, 6, 15)]}
         df = backend_factory.create(data, backend_name)
 
