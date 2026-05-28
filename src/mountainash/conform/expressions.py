@@ -5,6 +5,7 @@ Relation.conform() and the DAG visitor's apply_conform.
 """
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field as dataclass_field
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
@@ -132,6 +133,24 @@ def _build_conform_exprs(
     exprs: list[Any] = []
     renamed_sources: set[str] = set()
 
+    # Resolve schema-level missingValues once.
+    # The Frictionless default is [""] but TypeSpec.missing_values defaults
+    # to [""] via its factory.  We only activate the sentinel pipeline when
+    # the spec carries a non-empty list — an explicit empty list [] or None
+    # both mean "no sentinels".  This avoids emitting is_in([""])  on
+    # already-typed (non-string) columns where the comparison would raise.
+    schema_missing_values: list[str] = spec.missing_values or []
+
+    # Types eligible for missingValues sentinel replacement.
+    # Non-scalar types (ARRAY, OBJECT, ANY) are excluded because
+    # is_in on those types may raise backend errors.
+    _SCALAR_TYPES = {
+        UniversalType.STRING, UniversalType.NUMBER, UniversalType.INTEGER,
+        UniversalType.BOOLEAN, UniversalType.DATE, UniversalType.DATETIME,
+        UniversalType.TIME, UniversalType.YEAR, UniversalType.YEARMONTH,
+        UniversalType.DURATION,
+    }
+
     for idx, fld in enumerate(spec.fields):
         # Determine source column name
         if fields_match == "exact":
@@ -160,6 +179,54 @@ def _build_conform_exprs(
             if source_name != fld.name:
                 renamed_sources.add(source_name)
 
+        # Stage 2: MISSING VALUES — sentinel strings → null
+        # Frictionless Table Schema §missingValues: conversion to null MUST
+        # happen before any type-specific string conversion.
+        # Field-level missing_values completely replaces schema-level.
+        sentinels = (
+            fld.missing_values
+            if fld.missing_values is not None
+            else schema_missing_values
+        )
+        # Only emit sentinel replacement when:
+        # 1. There are sentinel values to check, AND
+        # 2. The field is a scalar type (not array/object/any), AND
+        # 3. The sentinel list is explicitly set beyond the Frictionless
+        #    default [""] — OR the field is already string-typed.
+        # The default [""] only makes sense for string-sourced data;
+        # emitting is_in([""]) on a non-string column raises at runtime.
+        _has_explicit_sentinels = (
+            fld.missing_values is not None  # field-level always explicit
+            or sentinels != [""]            # schema-level beyond default
+        )
+        _sentinel_applicable = (
+            _has_explicit_sentinels or fld.type == UniversalType.STRING
+        )
+        if sentinels and fld.type in _SCALAR_TYPES and _sentinel_applicable:
+            # Warn if boolean field's sentinels overlap with true/false values
+            if fld.type == UniversalType.BOOLEAN:
+                true_vals = fld.true_values or [
+                    "true", "True", "TRUE", "1",
+                ]
+                false_vals = fld.false_values or [
+                    "false", "False", "FALSE", "0",
+                ]
+                overlap = set(sentinels) & set(true_vals + false_vals)
+                if overlap:
+                    warnings.warn(
+                        f"Field {fld.name!r}: missingValues {sorted(overlap)} "
+                        f"overlap with trueValues/falseValues — these values "
+                        f"will become null, not boolean.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+            expr = (
+                ma.when(expr.is_in(*sentinels))
+                .then(ma.lit(None))
+                .otherwise(expr)
+            )
+
+        # Stage 3: NULL FILL — replace nulls with default value
         if fld.null_fill is not None:
             expr = ma.coalesce(expr, ma.lit(fld.null_fill))
 
