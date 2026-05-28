@@ -230,7 +230,20 @@ def _build_conform_exprs(
         if fld.null_fill is not None:
             expr = ma.coalesce(expr, ma.lit(fld.null_fill))
 
-        if fld.type and fld.type != UniversalType.ANY:
+        # Stage 4a: BOOLEAN — trueValues/falseValues mapping
+        # Frictionless Table Schema §boolean: string values are "to be cast
+        # to their logical representation as booleans."
+        # Uses cast(str).is_in() so it works on both string and boolean sources.
+        if fld.type == UniversalType.BOOLEAN:
+            true_vals = fld.true_values or ["true", "True", "TRUE", "1"]
+            false_vals = fld.false_values or ["false", "False", "FALSE", "0"]
+            str_expr = expr.cast(bridge_type(UniversalType.STRING))
+            expr = (
+                ma.when(str_expr.is_in(*true_vals)).then(ma.lit(True))
+                .when(str_expr.is_in(*false_vals)).then(ma.lit(False))
+                .otherwise(ma.lit(None))
+            )
+        elif fld.type and fld.type != UniversalType.ANY:
             expr = expr.cast(bridge_type(fld.type))
 
         expr = expr.name.alias(fld.name)
