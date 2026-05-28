@@ -173,15 +173,14 @@ class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns null if x is null.
         """
-        # Narwhals doesn't have is_finite, simulate with is_nan and is_infinite
-        return ~x.is_nan() & ~x.is_infinite()
+        return x.is_finite()
 
     def is_infinite(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is infinite.
 
         Returns null if x is null.
         """
-        return x.is_infinite()
+        return ~x.is_finite() & ~x.is_nan()
 
     # =========================================================================
     # Null Handling Operations
