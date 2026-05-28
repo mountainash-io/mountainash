@@ -10,7 +10,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of list operations."""
 
-    def list_sum(self, x, /):
+    def list_sum(self, x: NarwhalsExpr, /):
         return x.list.sum()
 
     def list_min(self, x, /):

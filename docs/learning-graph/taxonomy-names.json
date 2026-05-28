@@ -1,0 +1,13 @@
+{
+  "FOUND": "Foundation Concepts",
+  "CORE": "Core Infrastructure",
+  "EXAPI": "Expression API",
+  "EXAST": "Expression AST & System",
+  "EXBKD": "Expression Backends",
+  "RELAP": "Relation API",
+  "REAST": "Relation AST & System",
+  "RELBK": "Relation Backends",
+  "TSPEC": "Type System & Schema",
+  "DAGPK": "DAG & DataPackage",
+  "PIPE": "Pipeline Framework"
+}

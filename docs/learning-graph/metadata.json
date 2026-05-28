@@ -1,0 +1,10 @@
+{
+  "title": "Mountainash Package Concept Graph",
+  "description": "A concept dependency graph covering the mountainash cross-backend data expression and relational pipeline library. 200 concepts across 11 taxonomy categories spanning core infrastructure, expression system, relation system, type system, DAG orchestration, and pipeline framework.",
+  "creator": "Nathaniel Ramm",
+  "date": "2026-05-21",
+  "version": "1.0",
+  "format": "Learning Graph JSON v1.0",
+  "schema": "https://raw.githubusercontent.com/dmccreary/learning-graphs/refs/heads/main/src/schema/learning-graph-schema.json",
+  "license": "CC BY-NC-SA 4.0 DEED"
+}
