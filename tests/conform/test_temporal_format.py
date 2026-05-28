@@ -1,0 +1,255 @@
+"""Tests for temporal format parsing in conform pipeline.
+
+Frictionless Table Schema specifies that date/datetime/time fields may carry
+a ``format`` string with strptime patterns.  When format is "default" or None
+the existing bridge_type cast handles ISO parsing; when a custom pattern is
+provided, the conform pipeline should use ``str.to_date``/``str.to_datetime``/
+``str.to_time`` for explicit parsing.
+
+Backend support:
+- Polars: full support for str.to_date, str.to_datetime, str.to_time
+- Narwhals: strptime not supported (raises NotImplementedError)
+- Ibis: strptime not supported (falls back to cast)
+
+Custom format tests are therefore Polars-only.  Default/None format tests run
+on all backends since they use bridge_type cast.
+"""
+from __future__ import annotations
+
+from datetime import date, datetime, time
+
+import pytest
+import polars as pl
+import mountainash as ma
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
+
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
+
+# Custom strptime format parsing only works on Polars (Narwhals/Ibis lack
+# str.to_date/to_datetime/to_time support).
+POLARS_ONLY = ["polars"]
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: _build_conform_exprs emits temporal format expressions
+# ---------------------------------------------------------------------------
+
+
+class TestBuildConformExprsTemporalFormat:
+    """Unit tests that the expression builder emits temporal format logic."""
+
+    def test_emits_expr_for_custom_date_format(self):
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="%d/%m/%Y"),
+            ],
+        )
+        result = _build_conform_exprs(spec)
+        assert len(result.exprs) == 1
+
+    def test_emits_expr_for_custom_datetime_format(self):
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="ts",
+                    type=UniversalType.DATETIME,
+                    format="%d/%m/%Y %H:%M:%S",
+                ),
+            ],
+        )
+        result = _build_conform_exprs(spec)
+        assert len(result.exprs) == 1
+
+    def test_emits_expr_for_custom_time_format(self):
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="t", type=UniversalType.TIME, format="%H-%M-%S"),
+            ],
+        )
+        result = _build_conform_exprs(spec)
+        assert len(result.exprs) == 1
+
+    def test_default_format_does_not_use_strptime(self):
+        """Default format should fall through to bridge_type cast."""
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="default"),
+            ],
+        )
+        result = _build_conform_exprs(spec)
+        assert len(result.exprs) == 1
+
+    def test_none_format_does_not_use_strptime(self):
+        """None format should fall through to bridge_type cast."""
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format=None),
+            ],
+        )
+        result = _build_conform_exprs(spec)
+        assert len(result.exprs) == 1
+
+    def test_any_format_does_not_use_strptime(self):
+        """'any' format should fall through to bridge_type cast (best-effort)."""
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="any"),
+            ],
+        )
+        result = _build_conform_exprs(spec)
+        assert len(result.exprs) == 1
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: custom date format parsing
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+class TestDateFormatParsing:
+    """Custom strptime format for date fields (Polars-only)."""
+
+    def test_strptime_date_dmy(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"dt": ["26/01/2024", "15/06/2023"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="%d/%m/%Y"),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
+
+    def test_strptime_date_mdy(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"dt": ["01-26-2024", "06-15-2023"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="%m-%d-%Y"),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: custom datetime format parsing
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+class TestDatetimeFormatParsing:
+    """Custom strptime format for datetime fields (Polars-only)."""
+
+    def test_strptime_datetime_format(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"ts": ["26/01/2024 09:15:00"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="ts",
+                    type=UniversalType.DATETIME,
+                    format="%d/%m/%Y %H:%M:%S",
+                ),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        vals = result["ts"].to_list()
+        assert vals[0].year == 2024
+        assert vals[0].month == 1
+        assert vals[0].day == 26
+        assert vals[0].hour == 9
+        assert vals[0].minute == 15
+        assert vals[0].second == 0
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: custom time format parsing
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+class TestTimeFormatParsing:
+    """Custom strptime format for time fields (Polars-only)."""
+
+    def test_strptime_time_format(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"t": ["09-15-30", "14-30-00"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="t", type=UniversalType.TIME, format="%H-%M-%S"),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["t"].to_list() == [time(9, 15, 30), time(14, 30, 0)]
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: default/None format uses bridge_type cast
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+class TestDefaultFormatFallback:
+    """Default and None formats use bridge_type cast (ISO parsing)."""
+
+    def test_default_format_uses_cast(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="default"),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
+
+    def test_none_format_uses_cast(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
+
+    def test_any_format_uses_cast(self, backend_name, backend_factory):
+        """'any' format falls through to bridge_type cast."""
+        df = backend_factory.create(
+            {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="dt", type=UniversalType.DATE, format="any"),
+            ],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
