@@ -686,6 +686,19 @@ class TestCompileSmoke:
         ExpressionFunctionRegistry._init_registry()
         fkey = _resolve_fkey(fkey_str)
         if is_non_expression_fkey(fkey):
+            data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+            test_df = backend_factory.create(data, backend_name)
+            builder = get_smoke_expr_builder(fkey)
+            if builder is not _SENTINEL_MISSING and builder is not None:
+                try:
+                    builder().compile(test_df)
+                except Exception:
+                    pass
+                else:
+                    pytest.fail(
+                        f"{fkey_str}: was non-expression FKEY but now compiles — "
+                        "remove from _SMOKE_NON_EXPRESSION_FKEYS"
+                    )
             pytest.xfail(
                 f"{fkey_str}: AST-internal node, not a compilable expression"
             )
