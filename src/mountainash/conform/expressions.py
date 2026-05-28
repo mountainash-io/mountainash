@@ -245,14 +245,43 @@ def _build_conform_exprs(
         if fld.null_fill is not None:
             expr = ma.coalesce(expr, ma.lit(fld.null_fill))
 
-        # Stage 5a: CATEGORIES — base cast then categorical wrapper
+        # Stage 5a: LIST — split delimited string and cast elements
+        # Frictionless Table Schema §list: an ordered one-level depth
+        # collection of primitive values serialised as a delimited string.
+        # delimiter defaults to ","; itemType defaults to "string".
+        # List elements get raw casts only — no full scalar pipeline.
+        #
+        # Uses mountainash str.string_split for the split.  Element-level
+        # casting uses list.agg with a native pl.element().cast() expression
+        # — acknowledged as Polars-specific, same as the categorical stage.
+        if fld.type == UniversalType.ARRAY:
+            delimiter = fld.delimiter or ","
+            expr = expr.str.string_split(ma.lit(delimiter))
+
+            # Cast each element to itemType (skip if string — already correct)
+            item_type_str = fld.item_type or "string"
+            if item_type_str != "string":
+                from mountainash.typespec.universal_types import (
+                    get_polars_type,
+                    normalize_type as _norm,
+                )
+
+                import polars as pl
+
+                item_utype = _norm(item_type_str)
+                polars_type = get_polars_type(item_utype)
+                expr = expr.list.agg(
+                    ma.native(pl.element().cast(polars_type))
+                )
+
+        # Stage 5b: CATEGORIES — base cast then categorical wrapper
         # Frictionless Table Schema §categories, §categoriesOrdered:
         # categories can be a simple array ["a", "b"] or object array
         # [{"value": 0, "label": "Low"}, ...].  categoriesOrdered=true
         # means the order defines natural sort order.
         # Backend mapping: Polars Enum (ordered) / Categorical (unordered).
         # Other backends fall through to base type cast only.
-        if fld.categories is not None:
+        elif fld.categories is not None:
             # Extract values from categories (handles both simple and object forms)
             cat_values: list[Any] = []
             for cat in fld.categories:
