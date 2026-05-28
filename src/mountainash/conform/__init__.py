@@ -7,5 +7,21 @@ and the DAG visitor's apply_conform.
 from __future__ import annotations
 
 from mountainash.conform.expressions import _build_conform_exprs
+from mountainash.conform.errors import (
+    ConformError,
+    MissingFieldsError,
+    ExtraFieldsError,
+    ExactFieldCountError,
+    NoMatchingFieldsError,
+    ConformTransformError,
+)
 
-__all__ = ["_build_conform_exprs"]
+__all__ = [
+    "_build_conform_exprs",
+    "ConformError",
+    "MissingFieldsError",
+    "ExtraFieldsError",
+    "ExactFieldCountError",
+    "NoMatchingFieldsError",
+    "ConformTransformError",
+]
