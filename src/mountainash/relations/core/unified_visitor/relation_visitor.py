@@ -148,6 +148,10 @@ class UnifiedRelationVisitor:
         then compiles them against the native backend object. Works for
         all backends (Polars, Ibis, Narwhals).
 
+        Dispatch is driven by ConformResult.fields_match:
+        - "open" → with_columns (keep unmapped) + drop renamed sources
+        - all others → select (projection, drops unmapped)
+
         Fields whose source column is missing from the native object are
         silently skipped so that partial data (e.g. API responses missing
         optional fields) conforms without raising ColumnNotFoundError.
@@ -157,18 +161,53 @@ class UnifiedRelationVisitor:
             schema = typespec_from_frictionless(schema)
 
         from mountainash.conform.expressions import _build_conform_exprs
+        from mountainash.conform.errors import ConformTransformError
         import mountainash as ma
 
+        # Detect columns as ordered list (preserves sequence for "exact" mode)
         if hasattr(native, "collect_schema"):
-            available = set(native.collect_schema().names())
+            available = list(native.collect_schema().names())
         elif hasattr(native, "columns"):
-            available = set(native.columns)
+            available = list(native.columns)
         else:
             available = None
+
         conform_result = _build_conform_exprs(schema, available_columns=available)
 
-        conformed = ma.relation(native).select(*conform_result.exprs)
-        return conformed._compile_and_execute()
+        # Dispatch: only use with_columns when the spec *explicitly* says "open".
+        # fields_match=None defaults to "open" inside _build_conform_exprs for
+        # expression-building purposes, but we treat it as projection (select)
+        # to preserve backwards-compatible behaviour.
+        spec_fields_match = getattr(schema, "fields_match", None)
+        use_open = spec_fields_match == "open"
+
+        try:
+            if use_open:
+                rel = ma.relation(native).with_columns(*conform_result.exprs)
+                if conform_result.renamed_sources:
+                    rel = rel.drop(*conform_result.renamed_sources)
+                return rel._compile_and_execute()
+            else:
+                conformed = ma.relation(native).select(*conform_result.exprs)
+                return conformed._compile_and_execute()
+        except Exception as e:
+            # Build spec summary for diagnostic (parsing properties only)
+            parsing_props = []
+            for f in schema.fields:
+                if getattr(f, "decimal_char", None) and f.decimal_char != ".":
+                    parsing_props.append(f"decimalChar={f.decimal_char!r}")
+                if getattr(f, "group_char", None):
+                    parsing_props.append(f"groupChar={f.group_char!r}")
+                if getattr(f, "bare_number", None) is False:
+                    parsing_props.append("bareNumber=false")
+                if getattr(f, "delimiter", None) and f.delimiter != ",":
+                    parsing_props.append(f"delimiter={f.delimiter!r}")
+            if parsing_props:
+                raise ConformTransformError(
+                    original_error=e,
+                    spec_summary=", ".join(parsing_props),
+                ) from e
+            raise
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:
         """Visit the right side of a join, coercing to match the left's type if needed.

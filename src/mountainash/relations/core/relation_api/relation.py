@@ -27,6 +27,14 @@ from .api_builders import RelationProjectionBuilder
 
 _T = TypeVar("_T")
 
+_SENTINEL = object()  # sentinel for keep_unmapped deprecation detection
+
+
+def _copy_spec_with_fields_match(spec: Any, fields_match: str) -> Any:
+    """Return a shallow copy of spec with a different fields_match value."""
+    from dataclasses import replace
+    return replace(spec, fields_match=fields_match)
+
 
 """Relation fluent API, factory functions, and helpers.
 
@@ -134,38 +142,92 @@ class Relation(RelationBase):
         spec: Any,
         *,
         available_columns: Optional[set[str]] = None,
-        keep_unmapped: bool = False,
+        keep_unmapped: Any = _SENTINEL,
     ) -> Relation:
         """Conform the relation to a TypeSpec.
 
         Builds a projection from the TypeSpec's field definitions:
         col(source) -> coalesce(null_fill) -> cast(type) -> alias(target).
 
+        Dispatch is driven by ``spec.fields_match``:
+        - ``"open"``  → ``with_columns`` (keeps unmapped columns) + drop renamed sources
+        - all others  → ``select`` (projects only spec-declared columns)
+
         Args:
             spec: A TypeSpec describing the target schema.
-            available_columns: When provided, fields whose source column is
-                not in this set are silently skipped. Useful when the source
-                data may not contain every column the spec describes (e.g.
-                partial API responses).
-            keep_unmapped: When True, columns not referenced by the TypeSpec
-                are preserved in the output. Renamed source columns are
-                dropped (only the new name appears). Default False produces
-                exactly the columns defined in the spec.
+            available_columns: Deprecated. Column detection is now automatic
+                at the visitor level for compile-time-known schemas.
+            keep_unmapped: Deprecated. Use ``fields_match`` on the TypeSpec
+                instead: ``"open"`` to keep unmapped columns,
+                ``"partial"`` to drop them.
 
         Returns:
             A new Relation wrapping a ProjectRelNode.
         """
+        import warnings
         from mountainash.conform.expressions import _build_conform_exprs
 
+        # --- 1. Handle keep_unmapped deprecation ---
+        keep_unmapped_passed = keep_unmapped is not _SENTINEL
+        available_columns_passed = available_columns is not None
+
+        # Tracks the forced dispatch mode when keep_unmapped overrides fields_match.
+        # None means dispatch uses conform_result.fields_match normally.
+        _forced_dispatch: Optional[str] = None
+
+        if keep_unmapped_passed:
+            keep_unmapped_bool = bool(keep_unmapped)
+            if keep_unmapped_bool and getattr(spec, "fields_match", None) is not None:
+                raise ValueError(
+                    "Conflicting directives: keep_unmapped=True and "
+                    f"fields_match={spec.fields_match!r}. Remove keep_unmapped "
+                    "and set fields_match on the TypeSpec instead."
+                )
+            warnings.warn(
+                "keep_unmapped is deprecated. Use fields_match on the TypeSpec: "
+                "'open' to keep unmapped columns, 'partial' to drop them.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if not keep_unmapped_bool and getattr(spec, "fields_match", None) is None:
+                # keep_unmapped=False, no fields_match → build in open mode (no column
+                # guard needed) but dispatch with select to drop unmapped columns.
+                _forced_dispatch = "select"
+            elif keep_unmapped_bool and getattr(spec, "fields_match", None) is None:
+                # keep_unmapped=True, no fields_match → open (keep unmapped columns)
+                _forced_dispatch = "open"
+
+        if available_columns_passed:
+            warnings.warn(
+                "available_columns on Relation.conform() is deprecated. "
+                "Column detection is now automatic.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # --- 2. Build expressions (available_columns passed through or None) ---
         conform_result = _build_conform_exprs(spec, available_columns=available_columns)
 
-        if not keep_unmapped:
-            return self.select(*conform_result.exprs)
+        # --- 3. Dispatch based on fields_match (or forced legacy dispatch) ---
+        # Only use with_columns when the spec *explicitly* says "open".
+        # fields_match=None (unset) defaults to "open" inside _build_conform_exprs
+        # for expression-building purposes, but Relation.conform() treats it as
+        # projection (select) unless explicitly requested.
+        spec_fields_match = getattr(spec, "fields_match", None)
+        if _forced_dispatch is not None:
+            effective_mode = _forced_dispatch
+        elif spec_fields_match == "open":
+            effective_mode = "open"
+        else:
+            effective_mode = "select"
 
-        result = self.with_columns(*conform_result.exprs)
-        if conform_result.renamed_sources:
-            result = result.drop(*conform_result.renamed_sources)
-        return result
+        if effective_mode == "open":
+            result = self.with_columns(*conform_result.exprs)
+            if conform_result.renamed_sources:
+                result = result.drop(*conform_result.renamed_sources)
+            return result
+        else:
+            return self.select(*conform_result.exprs)
 
     # --- Sorting ---
 
