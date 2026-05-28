@@ -155,20 +155,16 @@ class Relation(RelationBase):
         Returns:
             A new Relation wrapping a ProjectRelNode.
         """
+        from mountainash.conform.expressions import _build_conform_exprs
+
+        conform_result = _build_conform_exprs(spec, available_columns=available_columns)
+
         if not keep_unmapped:
-            from mountainash.conform.expressions import _build_conform_exprs
+            return self.select(*conform_result.exprs)
 
-            exprs = _build_conform_exprs(spec, available_columns=available_columns)
-            return self.select(*exprs)
-
-        from mountainash.conform.expressions import _build_conform_exprs_with_sources
-
-        exprs, renamed_sources = _build_conform_exprs_with_sources(
-            spec, available_columns=available_columns,
-        )
-        result = self.with_columns(*exprs)
-        if renamed_sources:
-            result = result.drop(*renamed_sources)
+        result = self.with_columns(*conform_result.exprs)
+        if conform_result.renamed_sources:
+            result = result.drop(*conform_result.renamed_sources)
         return result
 
     # --- Sorting ---

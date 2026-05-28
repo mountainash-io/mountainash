@@ -165,9 +165,9 @@ class UnifiedRelationVisitor:
             available = set(native.columns)
         else:
             available = None
-        exprs = _build_conform_exprs(schema, available_columns=available)
+        conform_result = _build_conform_exprs(schema, available_columns=available)
 
-        conformed = ma.relation(native).select(*exprs)
+        conformed = ma.relation(native).select(*conform_result.exprs)
         return conformed._compile_and_execute()
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:

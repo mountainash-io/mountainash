@@ -5,69 +5,150 @@ Relation.conform() and the DAG visitor's apply_conform.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from dataclasses import dataclass, field as dataclass_field
+from typing import TYPE_CHECKING, Any, Optional, Sequence
+
+from mountainash.conform.errors import (
+    ConformError,
+    ExactFieldCountError,
+    ExtraFieldsError,
+    MissingFieldsError,
+    NoMatchingFieldsError,
+)
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
+
+_VALID_FIELDS_MATCH = frozenset(
+    {"open", "exact", "equal", "subset", "superset", "partial"}
+)
+
+
+@dataclass
+class ConformResult:
+    """Result of building conform expressions.
+
+    Callers use fields_match to dispatch select() vs with_columns():
+    - "open" → with_columns (keeps unmapped) + drop renamed sources
+    - all others → select (projection, drops unmapped)
+    """
+
+    exprs: list  # mountainash expressions
+    fields_match: str  # resolved mode (never None)
+    renamed_sources: set = dataclass_field(default_factory=set)
 
 
 def _build_conform_exprs(
     spec: "TypeSpec",
     *,
-    available_columns: Optional[set[str]] = None,
-) -> list[Any]:
+    available_columns: Optional[Sequence[str]] = None,
+) -> ConformResult:
     """Build the expression list for a TypeSpec conformance projection.
 
     For each field in the spec, constructs an expression chain:
     col(source) -> coalesce(fill) -> cast(type) -> alias(target)
 
-    Produces exactly one expression per field in the spec. Unmapped source
-    columns are not included — conform produces only what the spec defines.
+    Produces exactly one expression per field in the spec (or fewer when
+    fields are skipped due to the fieldsMatch mode).
 
     Args:
         spec: The TypeSpec describing the target schema.
-        available_columns: When provided, fields whose source column is not
-            in this set are silently skipped. Useful when the source data
-            may not contain every column the spec describes (e.g. partial
-            API responses).
+        available_columns: Ordered column names from the source data.
+            Required for all fieldsMatch modes except "open".
+            Sequence preserves order (needed for "exact" positional mapping).
 
     Returns:
-        List of mountainash expressions ready for Relation.select().
-    """
-    exprs, _ = _build_conform_exprs_with_sources(
-        spec, available_columns=available_columns,
-    )
-    return exprs
-
-
-def _build_conform_exprs_with_sources(
-    spec: "TypeSpec",
-    *,
-    available_columns: Optional[set[str]] = None,
-) -> tuple[list[Any], set[str]]:
-    """Build conform expressions and track which source columns were renamed.
-
-    Returns:
-        Tuple of (expressions, renamed_sources) where renamed_sources is the
-        set of top-level source column names that were renamed to a different
-        target name. Dotted sources (struct access) are excluded since the
-        parent column may have other sub-fields in use.
+        ConformResult with expressions, resolved fields_match mode,
+        and set of renamed source columns.
     """
     import mountainash as ma
-    from mountainash.typespec.universal_types import UniversalType
     from mountainash.typespec.type_bridge import bridge_type
+    from mountainash.typespec.universal_types import UniversalType
 
+    # --- 1. Resolve and validate fields_match mode ---
+    fields_match = spec.fields_match if spec.fields_match is not None else "open"
+    if fields_match not in _VALID_FIELDS_MATCH:
+        raise ConformError(
+            f"Invalid fields_match={fields_match!r}. "
+            f"Must be one of: {sorted(_VALID_FIELDS_MATCH)}"
+        )
+
+    # --- 2. Enforce fieldsMatch guard ---
+    if fields_match != "open" and available_columns is None:
+        raise ConformError(
+            f"fieldsMatch={fields_match!r} requires available_columns to be "
+            f"provided. Only 'open' mode works without column information."
+        )
+
+    if available_columns is not None:
+        available_set: set[str] = set(available_columns)
+        # Source names the spec expects to find in the data
+        spec_source_names = {f.source_name for f in spec.fields}
+
+        if fields_match == "exact":
+            if len(available_columns) != len(spec.fields):
+                raise ExactFieldCountError(
+                    expected_count=len(spec.fields),
+                    actual_count=len(available_columns),
+                )
+
+        elif fields_match == "equal":
+            missing = sorted(spec_source_names - available_set)
+            if missing:
+                raise MissingFieldsError(
+                    missing_fields=missing, fields_match=fields_match,
+                )
+            extra = sorted(available_set - spec_source_names)
+            if extra:
+                raise ExtraFieldsError(
+                    extra_fields=extra, fields_match=fields_match,
+                )
+
+        elif fields_match == "subset":
+            missing = sorted(spec_source_names - available_set)
+            if missing:
+                raise MissingFieldsError(
+                    missing_fields=missing, fields_match=fields_match,
+                )
+
+        elif fields_match == "superset":
+            extra = sorted(available_set - spec_source_names)
+            if extra:
+                raise ExtraFieldsError(
+                    extra_fields=extra, fields_match=fields_match,
+                )
+
+        elif fields_match == "partial":
+            if not spec_source_names & available_set:
+                raise NoMatchingFieldsError(
+                    spec_fields=sorted(spec_source_names),
+                    available_columns=sorted(available_set),
+                )
+        # "open" — no guard
+    else:
+        available_set = None  # type: ignore[assignment]
+
+    # --- 3. Build per-field expressions ---
     exprs: list[Any] = []
     renamed_sources: set[str] = set()
 
-    for field in spec.fields:
-        source_name = field.source_name
+    for idx, fld in enumerate(spec.fields):
+        # Determine source column name
+        if fields_match == "exact":
+            # Positional mapping: use the i-th available column
+            source_name = available_columns[idx]  # type: ignore[index]
+        else:
+            source_name = fld.source_name
 
-        if available_columns is not None:
-            root_col = source_name.split(".")[0] if "." in source_name else source_name
-            if root_col not in available_columns:
+        # Skip fields whose source isn't available (open/partial/superset)
+        if available_set is not None:
+            root_col = (
+                source_name.split(".")[0] if "." in source_name else source_name
+            )
+            if root_col not in available_set:
                 continue
 
+        # Build the expression
         is_dotted = "." in source_name
         if is_dotted:
             parts = source_name.split(".")
@@ -76,16 +157,20 @@ def _build_conform_exprs_with_sources(
                 expr = expr.struct.field(part)
         else:
             expr = ma.col(source_name)
-            if source_name != field.name:
+            if source_name != fld.name:
                 renamed_sources.add(source_name)
 
-        if field.null_fill is not None:
-            expr = ma.coalesce(expr, ma.lit(field.null_fill))
+        if fld.null_fill is not None:
+            expr = ma.coalesce(expr, ma.lit(fld.null_fill))
 
-        if field.type and field.type != UniversalType.ANY:
-            expr = expr.cast(bridge_type(field.type))
+        if fld.type and fld.type != UniversalType.ANY:
+            expr = expr.cast(bridge_type(fld.type))
 
-        expr = expr.name.alias(field.name)
+        expr = expr.name.alias(fld.name)
         exprs.append(expr)
 
-    return exprs, renamed_sources
+    return ConformResult(
+        exprs=exprs,
+        fields_match=fields_match,
+        renamed_sources=renamed_sources,
+    )
