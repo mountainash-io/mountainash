@@ -245,19 +245,46 @@ def _build_conform_exprs(
         if fld.null_fill is not None:
             expr = ma.coalesce(expr, ma.lit(fld.null_fill))
 
-        # Stage 5a: TEMPORAL — custom format parsing
+        # Stage 5a: CATEGORIES — base cast then categorical wrapper
+        # Frictionless Table Schema §categories, §categoriesOrdered:
+        # categories can be a simple array ["a", "b"] or object array
+        # [{"value": 0, "label": "Low"}, ...].  categoriesOrdered=true
+        # means the order defines natural sort order.
+        # Backend mapping: Polars Enum (ordered) / Categorical (unordered).
+        # Other backends fall through to base type cast only.
+        if fld.categories is not None:
+            # Extract values from categories (handles both simple and object forms)
+            cat_values: list[Any] = []
+            for cat in fld.categories:
+                if isinstance(cat, dict):
+                    cat_values.append(cat["value"])
+                else:
+                    cat_values.append(cat)
+
+            # Step 1: base type cast (if needed)
+            if fld.type and fld.type != UniversalType.ANY:
+                expr = expr.cast(bridge_type(fld.type))
+
+            # Step 2: categorical wrapper (Polars-specific)
+            # This uses native Polars types — acknowledged as a known
+            # divergence from backend-agnosticism.  Abstraction via the
+            # expression type system is deferred.
+            import polars as pl
+
+            if fld.categories_ordered:
+                cat_str_values = [str(v) for v in cat_values]
+                expr = expr.cast(pl.Enum(cat_str_values))
+            else:
+                expr = expr.cast(pl.Categorical)
+
+        # Stage 5b: TEMPORAL — custom format parsing
         # Frictionless Table Schema §date, §datetime, §time: when format is
         # a strptime pattern (not "default" or None), parse via str.to_date/
         # str.to_datetime/str.to_time.  "any" falls through to bridge_type
         # cast (best-effort; Frictionless marks "any" as NOT RECOMMENDED).
-        _TEMPORAL_TYPES = {
+        elif fld.type in {
             UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME,
-        }
-        _has_custom_format = (
-            fld.type in _TEMPORAL_TYPES
-            and fld.format not in ("default", None, "any")
-        )
-        if _has_custom_format:
+        } and fld.format not in ("default", None, "any"):
             if fld.type == UniversalType.DATE:
                 expr = expr.str.to_date(fld.format)
             elif fld.type == UniversalType.DATETIME:
@@ -265,7 +292,7 @@ def _build_conform_exprs(
             else:  # TIME
                 expr = expr.str.to_time(fld.format)
 
-        # Stage 5b: BOOLEAN — trueValues/falseValues mapping
+        # Stage 5c: BOOLEAN — trueValues/falseValues mapping
         # Frictionless Table Schema §boolean: string values are "to be cast
         # to their logical representation as booleans."
         # Uses cast(str).is_in() so it works on both string and boolean sources.
@@ -278,6 +305,8 @@ def _build_conform_exprs(
                 .when(str_expr.is_in(*false_vals)).then(ma.lit(False))
                 .otherwise(ma.lit(None))
             )
+
+        # Stage 5d: DEFAULT TYPE CAST
         elif fld.type and fld.type != UniversalType.ANY:
             expr = expr.cast(bridge_type(fld.type))
 

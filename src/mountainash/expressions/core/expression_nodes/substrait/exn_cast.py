@@ -27,7 +27,7 @@ class CastNode(ExpressionNode):
     """
 
     input: ExpressionNode
-    target_type: str
+    target_type: Any  # str for canonical types, native backend dtype for passthrough
     failure_behavior: Literal["throw", "null"] = "throw"
 
     def accept(self, visitor: Any) -> Any:
