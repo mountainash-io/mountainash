@@ -137,5 +137,8 @@ class TestConformFromFrictionless:
             ],
         }
         spec = TypeSpec.from_frictionless(frictionless_data)
+        # Frictionless default is "exact" which requires available_columns.
+        # Override to None for Relation.conform() which doesn't have column info.
+        spec.fields_match = None
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2]
