@@ -38,7 +38,8 @@ class TestVisitorApplyConform:
         assert hasattr(result, "collect")
         df = result.collect()
         assert df["user_id"].to_list() == [1, 2]
-        assert "extra" not in df.columns
+        assert "extra" in df.columns
+        assert "raw_id" not in df.columns
 
     def test_apply_conform_from_dict(self):
         """apply_conform accepts a raw Frictionless schema dict."""

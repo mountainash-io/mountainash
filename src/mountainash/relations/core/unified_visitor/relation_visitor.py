@@ -174,12 +174,7 @@ class UnifiedRelationVisitor:
 
         conform_result = _build_conform_exprs(schema, available_columns=available)
 
-        # Dispatch: only use with_columns when the spec *explicitly* says "open".
-        # fields_match=None defaults to "open" inside _build_conform_exprs for
-        # expression-building purposes, but we treat it as projection (select)
-        # to preserve backwards-compatible behaviour.
-        spec_fields_match = getattr(schema, "fields_match", None)
-        use_open = spec_fields_match == "open"
+        use_open = conform_result.fields_match == "open"
 
         try:
             if use_open:
