@@ -736,6 +736,80 @@ class Relation(RelationBase):
             auto_derive_schema=auto_derive_schema,
         )
 
+    # --- Egress: collection terminals ---
+
+    def to_named_tuples(self) -> Sequence[tuple]:
+        """Execute and return rows as a list of named tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_list_of_named_tuples(df)
+
+    def to_typed_named_tuples(self, *, preserve_dates: bool = False) -> Sequence[tuple]:
+        """Execute and return rows as typed named tuples with __annotations__."""
+        df = self.to_polars()
+        return self._egress_strategy()._to_list_of_typed_named_tuples(
+            df, preserve_dates=preserve_dates,
+        )
+
+    def to_pyarrow(self) -> Any:
+        """Execute and return a PyArrow Table."""
+        df = self.to_polars()
+        return self._egress_strategy().to_pyarrow(df)
+
+    def to_narwhals(self, *, as_lazy: Optional[bool] = None) -> Any:
+        """Execute and return a narwhals DataFrame or LazyFrame."""
+        df = self.to_polars()
+        return self._egress_strategy().to_narwhals(df, as_lazy=as_lazy)
+
+    def to_ibis(self) -> Any:
+        """Execute and return an Ibis memtable."""
+        df = self.to_polars()
+        return self._egress_strategy().to_ibis(df)
+
+    def to_dict_of_series_polars(self) -> dict[str, Any]:
+        """Execute and return a dict of column name -> Polars Series."""
+        df = self.to_polars()
+        return self._egress_strategy().to_dictionary_of_series_polars(df)
+
+    def to_dict_of_series_pandas(self) -> dict[str, Any]:
+        """Execute and return a dict of column name -> Pandas Series."""
+        df = self.to_polars()
+        return self._egress_strategy().to_dictionary_of_series_pandas(df)
+
+    # --- Egress: indexed terminals ---
+
+    def to_index_of_dicts(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as dicts."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_dictionaries(
+            df, index_fields=index_fields,
+        )
+
+    def to_index_of_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_tuples(
+            df, index_fields=index_fields,
+        )
+
+    def to_index_of_named_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as named tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_named_tuples(
+            df, index_fields=index_fields,
+        )
+
+    def to_index_of_typed_named_tuples(
+        self,
+        index_fields: Union[str, list[str]],
+        *,
+        preserve_dates: bool = False,
+    ) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as typed named tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_typed_named_tuples(
+            df, index_fields=index_fields, preserve_dates=preserve_dates,
+        )
+
     # --- Introspection ---
 
     @property
