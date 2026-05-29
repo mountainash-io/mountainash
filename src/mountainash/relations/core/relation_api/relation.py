@@ -639,6 +639,13 @@ class Relation(RelationBase):
         import mountainash as ma
         return self._scalar_aggregate(ma.col(col).any_value())
 
+    # --- Egress delegation ---
+
+    @staticmethod
+    def _egress_strategy():
+        from mountainash.pydata.egress.egress_pydata_from_polars import EgressFromPolars
+        return EgressFromPolars
+
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame."""
         from mountainash.core.types import (
@@ -656,55 +663,78 @@ class Relation(RelationBase):
 
     def to_pandas(self) -> Any:
         """Execute and return a Pandas DataFrame."""
-        result = self.collect()
-        if hasattr(result, "to_pandas"):
-            return result.to_pandas()
-        import pandas as pd
-        if isinstance(result, pd.DataFrame):
-            return result
-        return pd.DataFrame(result)
+        df = self.to_polars()
+        return self._egress_strategy().to_pandas(df)
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""
-        return self.to_polars().to_dict(as_series=False)
+        df = self.to_polars()
+        return self._egress_strategy().to_dictionary_of_lists(df)
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """Execute and return a list of row dicts."""
-        return self.to_polars().to_dicts()
+        df = self.to_polars()
+        return self._egress_strategy().to_list_of_dictionaries(df)
 
     def to_tuples(self) -> list[tuple]:
         """Execute the plan and return rows as a list of tuples."""
         df = self.to_polars()
-        return df.rows()
+        return self._egress_strategy()._to_list_of_tuples(df)
 
-    def to_dataclasses(self, cls: type[_T]) -> list[_T]:
-        """Execute the plan and return rows as a list of dataclass instances.
+    def to_dataclasses(
+        self,
+        cls: type[_T],
+        *,
+        spec: Optional[Any] = None,
+        auto_derive_schema: bool = True,
+        apply_defaults: bool = False,
+    ) -> list[_T]:
+        """Execute the plan and return rows as dataclass instances.
 
         Args:
             cls: The dataclass type to instantiate for each row.
+            spec: Optional TypeSpec for schema-aware transformations.
+            auto_derive_schema: Auto-derive TypeSpec from the dataclass if
+                no *spec* is provided (default ``True``).
+            apply_defaults: Whether to apply dataclass field defaults.
 
         Returns:
             List of dataclass instances.
         """
-        rows = self.to_dicts()
-        return [cls(**row) for row in rows]
+        df = self.to_polars()
+        return self._egress_strategy()._to_list_of_dataclasses(
+            df,
+            cls,
+            spec=spec,
+            auto_derive_schema=auto_derive_schema,
+            apply_defaults=apply_defaults,
+        )
 
-    def to_pydantic(self, cls: type[_T]) -> list[_T]:
-        """Execute the plan and return rows as a list of Pydantic model instances.
-
-        Uses model_validate for Pydantic models (proper validation),
-        falls back to direct construction for other types.
+    def to_pydantic(
+        self,
+        cls: type[_T],
+        *,
+        spec: Optional[Any] = None,
+        auto_derive_schema: bool = True,
+    ) -> list[_T]:
+        """Execute the plan and return rows as Pydantic model instances.
 
         Args:
             cls: The Pydantic model class to instantiate for each row.
+            spec: Optional TypeSpec for schema-aware transformations.
+            auto_derive_schema: Auto-derive TypeSpec from the model if
+                no *spec* is provided (default ``True``).
 
         Returns:
             List of Pydantic model instances.
         """
-        rows = self.to_dicts()
-        if hasattr(cls, "model_validate"):
-            return [cls.model_validate(row) for row in rows]
-        return [cls(**row) for row in rows]
+        df = self.to_polars()
+        return self._egress_strategy()._to_list_of_pydantic(
+            df,
+            cls,
+            spec=spec,
+            auto_derive_schema=auto_derive_schema,
+        )
 
     # --- Introspection ---
 
