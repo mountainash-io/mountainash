@@ -55,10 +55,23 @@ class TestConformRename:
         result = ma.relation(df).conform(spec).to_polars()
         assert result["new_name"].to_list() == ["a", "b", "c"]
 
-    def test_rename_drops_unmapped(self, backend_name, backend_factory):
+    def test_rename_default_keeps_unmapped(self, backend_name, backend_factory):
+        """Unset fields_match defaults to open — unmapped columns preserved, renamed source dropped."""
         df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert "new" in result.columns
+        assert "keep" in result.columns
+        assert "old" not in result.columns
+
+    def test_rename_partial_drops_unmapped(self, backend_name, backend_factory):
+        """Explicit fields_match='partial' drops unmapped columns."""
+        df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
+        spec = TypeSpec(
+            fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
+            fields_match="partial",
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert "new" in result.columns
@@ -87,10 +100,22 @@ class TestConformNullFill:
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestConformOnlyMappedFields:
-    def test_conform_produces_only_spec_fields(self, backend_name, backend_factory):
+    def test_default_keeps_unmapped(self, backend_name, backend_factory):
+        """Unset fields_match defaults to open — unmapped columns preserved."""
+        df = backend_factory.create({"keep": ["a", "b"], "extra": [1, 2]}, backend_name)
+        spec = TypeSpec(
+            fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert "keep" in result.columns
+        assert "extra" in result.columns
+
+    def test_partial_drops_unmapped(self, backend_name, backend_factory):
+        """Explicit fields_match='partial' produces only spec fields."""
         df = backend_factory.create({"keep": ["a", "b"], "drop": [1, 2]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
+            fields_match="partial",
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
@@ -124,7 +149,7 @@ class TestConformMultiTransform:
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == [1.5, 0.0, 3.5]
         assert result["label"].to_list() == ["foo", "bar", "n/a"]
-        assert "extra" not in result.columns
+        assert "extra" in result.columns
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
