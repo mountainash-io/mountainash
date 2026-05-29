@@ -138,9 +138,9 @@ class TestRelationConformEdgeCases:
 
 
 class TestRelationConformMissingColumns:
-    """Tests for conform with available_columns — skipping missing source columns."""
+    """Missing spec fields are silently skipped — the visitor auto-detects columns."""
 
-    def test_available_columns_skips_missing(self):
+    def test_missing_spec_field_skipped(self):
         import polars as pl
 
         df = pl.DataFrame({"keep": [1, 2], "extra": [10, 20]})
@@ -150,13 +150,11 @@ class TestRelationConformMissingColumns:
                 FieldSpec(name="gone", type=UniversalType.STRING),
             ],
         )
-        result = ma.relation(df).conform(
-            spec, available_columns={"keep", "extra"},
-        ).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["keep"]
         assert result["keep"].to_list() == [1, 2]
 
-    def test_available_columns_skips_missing_rename_from(self):
+    def test_missing_rename_from_skipped(self):
         import polars as pl
 
         df = pl.DataFrame({"raw_id": ["1", "2"]})
@@ -166,13 +164,11 @@ class TestRelationConformMissingColumns:
                 FieldSpec(name="duration", type=UniversalType.NUMBER, rename_from="stress_duration"),
             ],
         )
-        result = ma.relation(df).conform(
-            spec, available_columns={"raw_id"},
-        ).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["id"]
         assert result["id"].to_list() == [1, 2]
 
-    def test_available_columns_skips_dotted_source(self):
+    def test_missing_dotted_source_skipped(self):
         import polars as pl
 
         df = pl.DataFrame({"id": [1, 2]})
@@ -182,23 +178,10 @@ class TestRelationConformMissingColumns:
                 FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
             ],
         )
-        result = ma.relation(df).conform(
-            spec, available_columns={"id"},
-        ).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["id"]
 
-    def test_available_columns_none_is_strict(self):
-        """Without available_columns, missing columns still raise."""
-        import polars as pl
-
-        df = pl.DataFrame({"a": [1]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="missing", type=UniversalType.STRING)],
-        )
-        with pytest.raises(Exception):
-            ma.relation(df).conform(spec).to_polars()
-
-    def test_all_columns_missing_produces_empty(self):
+    def test_all_spec_fields_missing_produces_empty(self):
         import polars as pl
 
         df = pl.DataFrame({"a": [1, 2]})
@@ -208,15 +191,13 @@ class TestRelationConformMissingColumns:
                 FieldSpec(name="y", type=UniversalType.STRING),
             ],
         )
-        result = ma.relation(df).conform(
-            spec, available_columns={"a"},
-        ).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert len(result.columns) == 0
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-class TestRelationConformKeepUnmapped:
-    """Tests for keep_unmapped=True — preserving columns not in the TypeSpec."""
+class TestRelationConformFieldsMatchOpen:
+    """Tests for fields_match='open' — preserving columns not in the TypeSpec."""
 
     def test_unmapped_columns_preserved(self, backend_name, backend_factory):
         df = backend_factory.create(
@@ -224,22 +205,23 @@ class TestRelationConformKeepUnmapped:
         )
         spec = TypeSpec(
             fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
+            fields_match="open",
         )
-        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
         assert "extra" in result.columns
         assert "raw_id" not in result.columns
         assert result["id"].to_list() == [1, 2]
         assert result["extra"].to_list() == [10, 20]
 
-    def test_keep_unmapped_false_drops_extra(self, backend_name, backend_factory):
+    def test_default_fields_match_drops_extra(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"raw_id": ["1", "2"], "extra": [10, 20]}, backend_name,
         )
         spec = TypeSpec(
             fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
         )
-        result = ma.relation(df).conform(spec, keep_unmapped=False).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["id"]
 
     def test_same_name_field_overwrites_in_place(self, backend_name, backend_factory):
@@ -248,12 +230,13 @@ class TestRelationConformKeepUnmapped:
         )
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
+            fields_match="open",
         )
-        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, 2]
         assert result["other"].to_list() == ["a", "b"]
 
-    def test_null_fill_with_keep_unmapped(self, backend_name, backend_factory):
+    def test_null_fill_with_open(self, backend_name, backend_factory):
         if backend_name.startswith("ibis"):
             pytest.xfail("Ibis coalesce cannot mix column type with different literal type")
         df = backend_factory.create(
@@ -261,8 +244,9 @@ class TestRelationConformKeepUnmapped:
         )
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
+            fields_match="open",
         )
-        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
         assert result["tag"].to_list() == ["a", "b", "c"]
 
@@ -276,8 +260,9 @@ class TestRelationConformKeepUnmapped:
                 FieldSpec(name="a", type=UniversalType.INTEGER, rename_from="src_a"),
                 FieldSpec(name="b", type=UniversalType.STRING, rename_from="src_b"),
             ],
+            fields_match="open",
         )
-        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert "a" in result.columns
         assert "b" in result.columns
         assert "keep" in result.columns
@@ -285,7 +270,7 @@ class TestRelationConformKeepUnmapped:
         assert "src_b" not in result.columns
 
 
-class TestRelationConformKeepUnmappedStructAccess:
+class TestRelationConformOpenStructAccess:
     def test_dotted_source_preserves_parent_struct(self):
         import polars as pl
 
@@ -298,8 +283,9 @@ class TestRelationConformKeepUnmappedStructAccess:
                 FieldSpec(name="id", type=UniversalType.INTEGER),
                 FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
             ],
+            fields_match="open",
         )
-        result = ma.relation(df).conform(spec, keep_unmapped=True).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
         assert "strain" in result.columns
         assert "score" in result.columns
