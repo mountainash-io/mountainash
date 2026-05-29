@@ -30,12 +30,19 @@ def _visit_source_rel(node: Any, visitor: Any) -> Any:
     return visitor.backend.read(df)
 
 
+def _visit_conform_rel(node: Any, visitor: Any) -> Any:
+    native = visitor.visit(node.input)
+    return visitor.apply_conform(native, node.spec)
+
+
 def _register_core_handlers() -> None:
     from .visit_registry import RelationVisitRegistry
+    from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
     from ..relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
     from ..relation_nodes.extensions_mountainash.reln_ext_resource_read import ResourceReadRelNode
     from ..relation_nodes.extensions_mountainash.reln_ext_source import SourceRelNode
 
+    RelationVisitRegistry._handlers[ConformRelNode] = _visit_conform_rel
     RelationVisitRegistry._handlers[RefRelNode] = _visit_ref_rel
     RelationVisitRegistry._handlers[ResourceReadRelNode] = _visit_resource_read_rel
     RelationVisitRegistry._handlers[SourceRelNode] = _visit_source_rel

@@ -17,7 +17,7 @@ from .substrait import (
     SetRelNode,
 )
 
-from .extensions_mountainash import ExtensionRelNode, SourceRelNode
+from .extensions_mountainash import ConformRelNode, ExtensionRelNode, SourceRelNode
 
 __all__ = [
     "RelationNode",
@@ -29,6 +29,7 @@ __all__ = [
     "JoinRelNode",
     "AggregateRelNode",
     "SetRelNode",
+    "ConformRelNode",
     "ExtensionRelNode",
     "SourceRelNode",
 ]
