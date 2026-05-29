@@ -215,3 +215,24 @@ class TestToDict:
         ts = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
         d = ts.to_dict()
         assert "$schema" not in d
+
+
+def test_missing_fields_match_defaults_to_exact():
+    """Frictionless descriptors without fieldsMatch get exact per spec."""
+    from mountainash.typespec.frictionless import typespec_from_frictionless
+
+    descriptor = {"fields": [{"name": "a", "type": "string"}]}
+    spec = typespec_from_frictionless(descriptor)
+    assert spec.fields_match == "exact"
+
+
+def test_explicit_fields_match_preserved():
+    """Explicit fieldsMatch in descriptor is preserved."""
+    from mountainash.typespec.frictionless import typespec_from_frictionless
+
+    descriptor = {
+        "fields": [{"name": "a", "type": "string"}],
+        "fieldsMatch": "subset",
+    }
+    spec = typespec_from_frictionless(descriptor)
+    assert spec.fields_match == "subset"

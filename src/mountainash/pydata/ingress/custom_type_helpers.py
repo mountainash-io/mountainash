@@ -356,8 +356,8 @@ def apply_hybrid_conversion(
 
         native_spec = TypeSpec(fields=[f for f in native.values()])
         try:
-            exprs = _build_conform_exprs(native_spec)
-            df = ma.relation(df).with_columns(*exprs).to_polars()
+            conform_result = _build_conform_exprs(native_spec)
+            df = ma.relation(df).with_columns(*conform_result.exprs).to_polars()
         except Exception as e:
             logger.warning(
                 f"Error applying native operations via expressions: {e}. "
