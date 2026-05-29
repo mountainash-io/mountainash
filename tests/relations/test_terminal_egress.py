@@ -208,3 +208,34 @@ class TestToIndexOfTypedNamedTuples:
         result = sample_rel.to_index_of_typed_named_tuples(index_fields="name")
         assert "Alice" in result
         assert hasattr(result["Alice"][0], "__annotations__")
+
+
+# ---------------------------------------------------------------------------
+# Edge cases (Task 6 — to_dicts behavioral equivalence)
+# ---------------------------------------------------------------------------
+
+
+class TestToDictsEdgeCases:
+    def test_nested_struct(self):
+        df = pl.DataFrame([
+            {"id": 1, "meta": {"score": 10.5, "label": "high"}},
+            {"id": 2, "meta": {"score": 3.2, "label": "low"}},
+        ])
+        rel = ma.relation(df)
+        old_result = df.to_dicts()
+        new_result = rel.to_dicts()
+        assert new_result == old_result
+
+    def test_list_column(self):
+        df = pl.DataFrame({"tags": [["a", "b"], ["c"]], "id": [1, 2]})
+        rel = ma.relation(df)
+        old_result = df.to_dicts()
+        new_result = rel.to_dicts()
+        assert new_result == old_result
+
+    def test_null_values(self):
+        df = pl.DataFrame({"a": [1, None, 3], "b": [None, "x", None]})
+        rel = ma.relation(df)
+        old_result = df.to_dicts()
+        new_result = rel.to_dicts()
+        assert new_result == old_result
