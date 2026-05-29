@@ -75,8 +75,18 @@ def apply_native_conversions_for_egress(
         f"(Python-only: {len(python_only)}, Narwhals: {len(narwhals_custom)})"
     )
 
-    # Build conform spec for all non-python-only fields
-    conform_fields = [f for f in spec.fields if f.source_name not in python_only_custom]
+    # Build conform spec for all non-python-only fields.
+    # Custom-cast fields that need renaming are included as rename-only entries
+    # (custom_cast stripped) so conform's projection keeps them in the output.
+    native_fields = [f for f in spec.fields if f.source_name not in python_only_custom]
+    from dataclasses import replace as _dc_replace
+    rename_only_fields = [
+        _dc_replace(f, custom_cast=None)
+        for f in spec.fields
+        if f.source_name in python_only_custom and f.source_name != f.name
+    ]
+    conform_fields = native_fields + rename_only_fields
+
     if conform_fields:
         conform_spec = TypeSpec(fields=conform_fields)
         import mountainash as ma
@@ -84,6 +94,10 @@ def apply_native_conversions_for_egress(
     elif not isinstance(df, pl.DataFrame):
         import mountainash as ma
         df = ma.relation(df).to_polars()
+    else:
+        # No conform needed; but custom fields with source_name == name are already
+        # correctly named — nothing to do.
+        pass
 
     return df, python_only_custom
 
