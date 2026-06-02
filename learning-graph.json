@@ -1,0 +1,2502 @@
+{
+  "metadata": {
+    "title": "Mountainash Package Concept Graph",
+    "description": "A concept dependency graph covering the mountainash cross-backend data expression and relational pipeline library. 200 concepts across 11 taxonomy categories spanning core infrastructure, expression system, relation system, type system, DAG orchestration, and pipeline framework.",
+    "creator": "Nathaniel Ramm",
+    "date": "2026-05-21",
+    "version": "1.0",
+    "format": "Learning Graph JSON v1.0",
+    "schema": "https://raw.githubusercontent.com/dmccreary/learning-graphs/refs/heads/main/src/schema/learning-graph-schema.json",
+    "license": "CC BY-NC-SA 4.0 DEED"
+  },
+  "groups": {
+    "FOUND": {
+      "classifierName": "Foundation Concepts",
+      "color": "SteelBlue",
+      "font": {
+        "color": "white"
+      }
+    },
+    "CORE": {
+      "classifierName": "Core Infrastructure",
+      "color": "DarkSlateBlue",
+      "font": {
+        "color": "white"
+      }
+    },
+    "EXAPI": {
+      "classifierName": "Expression API",
+      "color": "DarkGreen",
+      "font": {
+        "color": "white"
+      }
+    },
+    "EXAST": {
+      "classifierName": "Expression AST & System",
+      "color": "LimeGreen",
+      "font": {
+        "color": "black"
+      }
+    },
+    "EXBKD": {
+      "classifierName": "Expression Backends",
+      "color": "Gold",
+      "font": {
+        "color": "black"
+      }
+    },
+    "RELAP": {
+      "classifierName": "Relation API",
+      "color": "Teal",
+      "font": {
+        "color": "white"
+      }
+    },
+    "REAST": {
+      "classifierName": "Relation AST & System",
+      "color": "DodgerBlue",
+      "font": {
+        "color": "white"
+      }
+    },
+    "RELBK": {
+      "classifierName": "Relation Backends",
+      "color": "Crimson",
+      "font": {
+        "color": "white"
+      }
+    },
+    "TSPEC": {
+      "classifierName": "Type System & Schema",
+      "color": "MediumPurple",
+      "font": {
+        "color": "white"
+      }
+    },
+    "DAGPK": {
+      "classifierName": "DAG & DataPackage",
+      "color": "Orange",
+      "font": {
+        "color": "black"
+      }
+    },
+    "PIPE": {
+      "classifierName": "Pipeline Framework",
+      "color": "DarkOrchid",
+      "font": {
+        "color": "white"
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "label": "Python Type Hints",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 2,
+      "label": "Protocol Classes",
+      "group": "FOUND"
+    },
+    {
+      "id": 3,
+      "label": "Pydantic Models",
+      "group": "FOUND"
+    },
+    {
+      "id": 4,
+      "label": "DataFrames",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 5,
+      "label": "Polars Library",
+      "group": "FOUND"
+    },
+    {
+      "id": 6,
+      "label": "Pandas Library",
+      "group": "FOUND"
+    },
+    {
+      "id": 7,
+      "label": "Apache Arrow",
+      "group": "FOUND"
+    },
+    {
+      "id": 8,
+      "label": "SQL Databases",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 9,
+      "label": "Lazy Evaluation",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 10,
+      "label": "Method Chaining",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 11,
+      "label": "Visitor Pattern",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 12,
+      "label": "Directed Acyclic Graph",
+      "group": "FOUND",
+      "shape": "box"
+    },
+    {
+      "id": 13,
+      "label": "Constants Module",
+      "group": "CORE"
+    },
+    {
+      "id": 14,
+      "label": "Backend Enum",
+      "group": "CORE"
+    },
+    {
+      "id": 15,
+      "label": "Backend System Enum",
+      "group": "CORE"
+    },
+    {
+      "id": 16,
+      "label": "Backend Detection",
+      "group": "CORE"
+    },
+    {
+      "id": 17,
+      "label": "DataFrame Type Guards",
+      "group": "CORE"
+    },
+    {
+      "id": 18,
+      "label": "MountainashDtype",
+      "group": "CORE"
+    },
+    {
+      "id": 19,
+      "label": "Lazy Import System",
+      "group": "CORE"
+    },
+    {
+      "id": 20,
+      "label": "Factory Pattern",
+      "group": "CORE"
+    },
+    {
+      "id": 21,
+      "label": "BaseFactoryMixin",
+      "group": "CORE"
+    },
+    {
+      "id": 22,
+      "label": "Operation Enums",
+      "group": "CORE"
+    },
+    {
+      "id": 23,
+      "label": "JoinType Enum",
+      "group": "CORE"
+    },
+    {
+      "id": 24,
+      "label": "SetType Enum",
+      "group": "CORE"
+    },
+    {
+      "id": 25,
+      "label": "col Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 26,
+      "label": "lit Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 27,
+      "label": "Expression Building",
+      "group": "EXAPI"
+    },
+    {
+      "id": 28,
+      "label": "BaseExpressionAPI",
+      "group": "EXAPI"
+    },
+    {
+      "id": 29,
+      "label": "BooleanExpressionAPI",
+      "group": "EXAPI"
+    },
+    {
+      "id": 30,
+      "label": "Fluent Expression Chain",
+      "group": "EXAPI"
+    },
+    {
+      "id": 31,
+      "label": "Operator Overloading",
+      "group": "EXAPI"
+    },
+    {
+      "id": 32,
+      "label": "String Namespace",
+      "group": "EXAPI"
+    },
+    {
+      "id": 33,
+      "label": "Datetime Namespace",
+      "group": "EXAPI"
+    },
+    {
+      "id": 34,
+      "label": "Struct Namespace",
+      "group": "EXAPI"
+    },
+    {
+      "id": 35,
+      "label": "List Namespace",
+      "group": "EXAPI"
+    },
+    {
+      "id": 36,
+      "label": "Name Namespace",
+      "group": "EXAPI"
+    },
+    {
+      "id": 37,
+      "label": "NamespaceDescriptor",
+      "group": "EXAPI"
+    },
+    {
+      "id": 38,
+      "label": "when Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 39,
+      "label": "coalesce Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 40,
+      "label": "greatest Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 41,
+      "label": "least Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 42,
+      "label": "native Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 43,
+      "label": "Comparison Operations",
+      "group": "EXAPI"
+    },
+    {
+      "id": 44,
+      "label": "Arithmetic Operations",
+      "group": "EXAPI"
+    },
+    {
+      "id": 45,
+      "label": "Boolean Operations",
+      "group": "EXAPI"
+    },
+    {
+      "id": 46,
+      "label": "String Operations",
+      "group": "EXAPI"
+    },
+    {
+      "id": 47,
+      "label": "Datetime Operations",
+      "group": "EXAPI"
+    },
+    {
+      "id": 48,
+      "label": "Aggregation Functions",
+      "group": "EXAPI"
+    },
+    {
+      "id": 49,
+      "label": "Window Functions",
+      "group": "EXAPI"
+    },
+    {
+      "id": 50,
+      "label": "cast Operation",
+      "group": "EXAPI"
+    },
+    {
+      "id": 51,
+      "label": "Null Handling",
+      "group": "EXAPI"
+    },
+    {
+      "id": 52,
+      "label": "duration Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 53,
+      "label": "count_records Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 54,
+      "label": "corr Function",
+      "group": "EXAPI"
+    },
+    {
+      "id": 55,
+      "label": "ExpressionNode Base",
+      "group": "EXAST"
+    },
+    {
+      "id": 56,
+      "label": "ScalarFunctionNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 57,
+      "label": "FieldReferenceNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 58,
+      "label": "LiteralNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 59,
+      "label": "CastNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 60,
+      "label": "IfThenNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 61,
+      "label": "SingularOrListNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 62,
+      "label": "WindowFunctionNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 63,
+      "label": "WindowSpec",
+      "group": "EXAST"
+    },
+    {
+      "id": 64,
+      "label": "WindowBound",
+      "group": "EXAST"
+    },
+    {
+      "id": 65,
+      "label": "OverNode",
+      "group": "EXAST"
+    },
+    {
+      "id": 66,
+      "label": "Function Key Enums",
+      "group": "EXAST"
+    },
+    {
+      "id": 67,
+      "label": "FKEY Substrait Prefix",
+      "group": "EXAST"
+    },
+    {
+      "id": 68,
+      "label": "FKEY Mountainash Prefix",
+      "group": "EXAST"
+    },
+    {
+      "id": 69,
+      "label": "ExpressionFunctionDef",
+      "group": "EXAST"
+    },
+    {
+      "id": 70,
+      "label": "ExpressionFunctionRegistry",
+      "group": "EXAST"
+    },
+    {
+      "id": 71,
+      "label": "Function Registry Lookup",
+      "group": "EXAST"
+    },
+    {
+      "id": 72,
+      "label": "Substrait Spec Alignment",
+      "group": "EXAST"
+    },
+    {
+      "id": 73,
+      "label": "Build Then Compile",
+      "group": "EXAST"
+    },
+    {
+      "id": 74,
+      "label": "Expression Compilation",
+      "group": "EXAST"
+    },
+    {
+      "id": 75,
+      "label": "Unified Expression Visitor",
+      "group": "EXAST"
+    },
+    {
+      "id": 76,
+      "label": "API Builder Protocols",
+      "group": "EXAST"
+    },
+    {
+      "id": 77,
+      "label": "Expression System Protocols",
+      "group": "EXAST"
+    },
+    {
+      "id": 78,
+      "label": "Mountainash Extensions",
+      "group": "EXAST"
+    },
+    {
+      "id": 79,
+      "label": "PolarsExpressionSystem",
+      "group": "EXBKD"
+    },
+    {
+      "id": 80,
+      "label": "NarwhalsExpressionSystem",
+      "group": "EXBKD"
+    },
+    {
+      "id": 81,
+      "label": "IbisExpressionSystem",
+      "group": "EXBKD"
+    },
+    {
+      "id": 82,
+      "label": "Polars Expr Compilation",
+      "group": "EXBKD"
+    },
+    {
+      "id": 83,
+      "label": "Narwhals Expr Compilation",
+      "group": "EXBKD"
+    },
+    {
+      "id": 84,
+      "label": "Ibis Expr Compilation",
+      "group": "EXBKD"
+    },
+    {
+      "id": 85,
+      "label": "Backend Composition",
+      "group": "EXBKD"
+    },
+    {
+      "id": 86,
+      "label": "Multiple Inheritance",
+      "group": "EXBKD"
+    },
+    {
+      "id": 87,
+      "label": "Substrait Compile Files",
+      "group": "EXBKD"
+    },
+    {
+      "id": 88,
+      "label": "Extension Compile Files",
+      "group": "EXBKD"
+    },
+    {
+      "id": 89,
+      "label": "Known Expr Limitations",
+      "group": "EXBKD"
+    },
+    {
+      "id": 90,
+      "label": "Expression Testing",
+      "group": "EXBKD"
+    },
+    {
+      "id": 91,
+      "label": "Cross-Backend Parametrize",
+      "group": "EXBKD"
+    },
+    {
+      "id": 92,
+      "label": "xfail Known Quirks",
+      "group": "EXBKD"
+    },
+    {
+      "id": 93,
+      "label": "Arguments vs Options",
+      "group": "EXBKD"
+    },
+    {
+      "id": 94,
+      "label": "Expression Type Generics",
+      "group": "EXBKD"
+    },
+    {
+      "id": 95,
+      "label": "relation Factory",
+      "group": "RELAP"
+    },
+    {
+      "id": 96,
+      "label": "Relation Class",
+      "group": "RELAP"
+    },
+    {
+      "id": 97,
+      "label": "RelationBase",
+      "group": "RELAP"
+    },
+    {
+      "id": 98,
+      "label": "Filter Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 99,
+      "label": "Sort Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 100,
+      "label": "Head Fetch Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 101,
+      "label": "Select Project Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 102,
+      "label": "Join Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 103,
+      "label": "Group By Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 104,
+      "label": "GroupedRelation",
+      "group": "RELAP"
+    },
+    {
+      "id": 105,
+      "label": "Aggregation on Groups",
+      "group": "RELAP"
+    },
+    {
+      "id": 106,
+      "label": "Set Operations",
+      "group": "RELAP"
+    },
+    {
+      "id": 107,
+      "label": "concat Function",
+      "group": "RELAP"
+    },
+    {
+      "id": 108,
+      "label": "Conform Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 109,
+      "label": "Unnest Operation",
+      "group": "RELAP"
+    },
+    {
+      "id": 110,
+      "label": "Build Then Collect",
+      "group": "RELAP"
+    },
+    {
+      "id": 111,
+      "label": "Terminal Operations",
+      "group": "RELAP"
+    },
+    {
+      "id": 112,
+      "label": "to_polars Method",
+      "group": "RELAP"
+    },
+    {
+      "id": 113,
+      "label": "to_pandas Method",
+      "group": "RELAP"
+    },
+    {
+      "id": 114,
+      "label": "collect Method",
+      "group": "RELAP"
+    },
+    {
+      "id": 115,
+      "label": "RelationNode Base",
+      "group": "REAST"
+    },
+    {
+      "id": 116,
+      "label": "ReadRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 117,
+      "label": "ProjectRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 118,
+      "label": "FilterRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 119,
+      "label": "AggregateRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 120,
+      "label": "JoinRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 121,
+      "label": "FetchRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 122,
+      "label": "SortRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 123,
+      "label": "SetRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 124,
+      "label": "ExtensionRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 125,
+      "label": "SourceRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 126,
+      "label": "RefRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 127,
+      "label": "ResourceReadRelNode",
+      "group": "REAST"
+    },
+    {
+      "id": 128,
+      "label": "Relation Protocols",
+      "group": "REAST"
+    },
+    {
+      "id": 129,
+      "label": "UnifiedRelationVisitor",
+      "group": "REAST"
+    },
+    {
+      "id": 130,
+      "label": "Visitor Composition",
+      "group": "REAST"
+    },
+    {
+      "id": 131,
+      "label": "RelationVisitRegistry",
+      "group": "REAST"
+    },
+    {
+      "id": 132,
+      "label": "OptimisationRegistry",
+      "group": "REAST"
+    },
+    {
+      "id": 133,
+      "label": "Relation System Base",
+      "group": "REAST"
+    },
+    {
+      "id": 134,
+      "label": "ExtensionRelOperation",
+      "group": "REAST"
+    },
+    {
+      "id": 135,
+      "label": "PolarsRelationSystem",
+      "group": "RELBK"
+    },
+    {
+      "id": 136,
+      "label": "NarwhalsRelationSystem",
+      "group": "RELBK"
+    },
+    {
+      "id": 137,
+      "label": "IbisRelationSystem",
+      "group": "RELBK"
+    },
+    {
+      "id": 138,
+      "label": "LazyFrame Operations",
+      "group": "RELBK"
+    },
+    {
+      "id": 139,
+      "label": "Narwhals Portability",
+      "group": "RELBK"
+    },
+    {
+      "id": 140,
+      "label": "Ibis SQL Compilation",
+      "group": "RELBK"
+    },
+    {
+      "id": 141,
+      "label": "Cross-Type Joins",
+      "group": "RELBK"
+    },
+    {
+      "id": 142,
+      "label": "Join Key Coalescing",
+      "group": "RELBK"
+    },
+    {
+      "id": 143,
+      "label": "Backend Relation Testing",
+      "group": "RELBK"
+    },
+    {
+      "id": 144,
+      "label": "Backend Divergences",
+      "group": "RELBK"
+    },
+    {
+      "id": 145,
+      "label": "Execution Target",
+      "group": "RELBK"
+    },
+    {
+      "id": 146,
+      "label": "execute_on Parameter",
+      "group": "RELBK"
+    },
+    {
+      "id": 147,
+      "label": "TypeSpec",
+      "group": "TSPEC"
+    },
+    {
+      "id": 148,
+      "label": "FieldSpec",
+      "group": "TSPEC"
+    },
+    {
+      "id": 149,
+      "label": "FieldConstraints",
+      "group": "TSPEC"
+    },
+    {
+      "id": 150,
+      "label": "UniversalType Enum",
+      "group": "TSPEC"
+    },
+    {
+      "id": 151,
+      "label": "Type Bridge",
+      "group": "TSPEC"
+    },
+    {
+      "id": 152,
+      "label": "Backend Type Mapping",
+      "group": "TSPEC"
+    },
+    {
+      "id": 153,
+      "label": "Foreign Keys",
+      "group": "TSPEC"
+    },
+    {
+      "id": 154,
+      "label": "ForeignKeyReference",
+      "group": "TSPEC"
+    },
+    {
+      "id": 155,
+      "label": "Custom Type Registry",
+      "group": "TSPEC"
+    },
+    {
+      "id": 156,
+      "label": "Type Converters",
+      "group": "TSPEC"
+    },
+    {
+      "id": 157,
+      "label": "Frictionless Standard",
+      "group": "TSPEC"
+    },
+    {
+      "id": 158,
+      "label": "Table Schema",
+      "group": "TSPEC"
+    },
+    {
+      "id": 159,
+      "label": "Schema Extraction",
+      "group": "TSPEC"
+    },
+    {
+      "id": 160,
+      "label": "DataFrame Extraction",
+      "group": "TSPEC"
+    },
+    {
+      "id": 161,
+      "label": "Dataclass Extraction",
+      "group": "TSPEC"
+    },
+    {
+      "id": 162,
+      "label": "Pydantic Extraction",
+      "group": "TSPEC"
+    },
+    {
+      "id": 163,
+      "label": "Schema Validation",
+      "group": "TSPEC"
+    },
+    {
+      "id": 164,
+      "label": "validate_match Function",
+      "group": "TSPEC"
+    },
+    {
+      "id": 165,
+      "label": "Schema Comparison",
+      "group": "TSPEC"
+    },
+    {
+      "id": 166,
+      "label": "Polars Schema Convert",
+      "group": "TSPEC"
+    },
+    {
+      "id": 167,
+      "label": "Pandas Dtypes Convert",
+      "group": "TSPEC"
+    },
+    {
+      "id": 168,
+      "label": "Arrow Schema Convert",
+      "group": "TSPEC"
+    },
+    {
+      "id": 169,
+      "label": "RelationDAG",
+      "group": "DAGPK"
+    },
+    {
+      "id": 170,
+      "label": "Named Relations",
+      "group": "DAGPK"
+    },
+    {
+      "id": 171,
+      "label": "dag.ref Method",
+      "group": "DAGPK"
+    },
+    {
+      "id": 172,
+      "label": "Dependency Edges",
+      "group": "DAGPK"
+    },
+    {
+      "id": 173,
+      "label": "Constraint Edges",
+      "group": "DAGPK"
+    },
+    {
+      "id": 174,
+      "label": "Two-Edge Graph Model",
+      "group": "DAGPK"
+    },
+    {
+      "id": 175,
+      "label": "Topological Collection",
+      "group": "DAGPK"
+    },
+    {
+      "id": 176,
+      "label": "dag.collect Method",
+      "group": "DAGPK"
+    },
+    {
+      "id": 177,
+      "label": "ref_resolver Parameter",
+      "group": "DAGPK"
+    },
+    {
+      "id": 178,
+      "label": "DataPackage",
+      "group": "DAGPK"
+    },
+    {
+      "id": 179,
+      "label": "DataResource",
+      "group": "DAGPK"
+    },
+    {
+      "id": 180,
+      "label": "TableDialect",
+      "group": "DAGPK"
+    },
+    {
+      "id": 181,
+      "label": "from_descriptor Method",
+      "group": "DAGPK"
+    },
+    {
+      "id": 182,
+      "label": "to_relation_dag Method",
+      "group": "DAGPK"
+    },
+    {
+      "id": 183,
+      "label": "Resource Overrides",
+      "group": "DAGPK"
+    },
+    {
+      "id": 184,
+      "label": "dag.add Method",
+      "group": "DAGPK"
+    },
+    {
+      "id": 185,
+      "label": "to_package Method",
+      "group": "DAGPK"
+    },
+    {
+      "id": 186,
+      "label": "FK Integrity Check",
+      "group": "DAGPK"
+    },
+    {
+      "id": 187,
+      "label": "PipelineBuilder",
+      "group": "PIPE"
+    },
+    {
+      "id": 188,
+      "label": "step Decorator",
+      "group": "PIPE"
+    },
+    {
+      "id": 189,
+      "label": "source Function",
+      "group": "PIPE"
+    },
+    {
+      "id": 190,
+      "label": "PipelineSpec",
+      "group": "PIPE"
+    },
+    {
+      "id": 191,
+      "label": "StepDefinition",
+      "group": "PIPE"
+    },
+    {
+      "id": 192,
+      "label": "StepContext",
+      "group": "PIPE"
+    },
+    {
+      "id": 193,
+      "label": "StepResult",
+      "group": "PIPE"
+    },
+    {
+      "id": 194,
+      "label": "SimplePipelineRunner",
+      "group": "PIPE"
+    },
+    {
+      "id": 195,
+      "label": "ParamSpec",
+      "group": "PIPE"
+    },
+    {
+      "id": 196,
+      "label": "Parameter Binding",
+      "group": "PIPE"
+    },
+    {
+      "id": 197,
+      "label": "relation.params Method",
+      "group": "PIPE"
+    },
+    {
+      "id": 198,
+      "label": "ParamsRelNode",
+      "group": "PIPE"
+    },
+    {
+      "id": 199,
+      "label": "PipelineStepRelNode",
+      "group": "PIPE"
+    },
+    {
+      "id": 200,
+      "label": "fold_params Function",
+      "group": "PIPE"
+    }
+  ],
+  "edges": [
+    {
+      "from": 2,
+      "to": 1
+    },
+    {
+      "from": 3,
+      "to": 1
+    },
+    {
+      "from": 5,
+      "to": 4
+    },
+    {
+      "from": 5,
+      "to": 9
+    },
+    {
+      "from": 6,
+      "to": 4
+    },
+    {
+      "from": 7,
+      "to": 4
+    },
+    {
+      "from": 13,
+      "to": 1
+    },
+    {
+      "from": 14,
+      "to": 13
+    },
+    {
+      "from": 15,
+      "to": 14
+    },
+    {
+      "from": 16,
+      "to": 14
+    },
+    {
+      "from": 16,
+      "to": 17
+    },
+    {
+      "from": 17,
+      "to": 4
+    },
+    {
+      "from": 17,
+      "to": 1
+    },
+    {
+      "from": 18,
+      "to": 13
+    },
+    {
+      "from": 18,
+      "to": 1
+    },
+    {
+      "from": 19,
+      "to": 1
+    },
+    {
+      "from": 20,
+      "to": 1
+    },
+    {
+      "from": 21,
+      "to": 20
+    },
+    {
+      "from": 22,
+      "to": 13
+    },
+    {
+      "from": 23,
+      "to": 22
+    },
+    {
+      "from": 23,
+      "to": 8
+    },
+    {
+      "from": 24,
+      "to": 22
+    },
+    {
+      "from": 25,
+      "to": 4
+    },
+    {
+      "from": 25,
+      "to": 10
+    },
+    {
+      "from": 26,
+      "to": 4
+    },
+    {
+      "from": 27,
+      "to": 25
+    },
+    {
+      "from": 27,
+      "to": 26
+    },
+    {
+      "from": 27,
+      "to": 10
+    },
+    {
+      "from": 28,
+      "to": 27
+    },
+    {
+      "from": 28,
+      "to": 2
+    },
+    {
+      "from": 29,
+      "to": 28
+    },
+    {
+      "from": 29,
+      "to": 45
+    },
+    {
+      "from": 30,
+      "to": 28
+    },
+    {
+      "from": 30,
+      "to": 10
+    },
+    {
+      "from": 31,
+      "to": 28
+    },
+    {
+      "from": 32,
+      "to": 28
+    },
+    {
+      "from": 32,
+      "to": 37
+    },
+    {
+      "from": 33,
+      "to": 28
+    },
+    {
+      "from": 33,
+      "to": 37
+    },
+    {
+      "from": 34,
+      "to": 28
+    },
+    {
+      "from": 34,
+      "to": 37
+    },
+    {
+      "from": 35,
+      "to": 28
+    },
+    {
+      "from": 35,
+      "to": 37
+    },
+    {
+      "from": 36,
+      "to": 28
+    },
+    {
+      "from": 36,
+      "to": 37
+    },
+    {
+      "from": 37,
+      "to": 28
+    },
+    {
+      "from": 38,
+      "to": 27
+    },
+    {
+      "from": 38,
+      "to": 60
+    },
+    {
+      "from": 39,
+      "to": 27
+    },
+    {
+      "from": 39,
+      "to": 51
+    },
+    {
+      "from": 40,
+      "to": 27
+    },
+    {
+      "from": 41,
+      "to": 27
+    },
+    {
+      "from": 42,
+      "to": 27
+    },
+    {
+      "from": 42,
+      "to": 16
+    },
+    {
+      "from": 43,
+      "to": 28
+    },
+    {
+      "from": 44,
+      "to": 28
+    },
+    {
+      "from": 45,
+      "to": 28
+    },
+    {
+      "from": 46,
+      "to": 32
+    },
+    {
+      "from": 47,
+      "to": 33
+    },
+    {
+      "from": 47,
+      "to": 52
+    },
+    {
+      "from": 48,
+      "to": 28
+    },
+    {
+      "from": 49,
+      "to": 28
+    },
+    {
+      "from": 49,
+      "to": 62
+    },
+    {
+      "from": 50,
+      "to": 28
+    },
+    {
+      "from": 50,
+      "to": 18
+    },
+    {
+      "from": 51,
+      "to": 28
+    },
+    {
+      "from": 52,
+      "to": 26
+    },
+    {
+      "from": 52,
+      "to": 33
+    },
+    {
+      "from": 53,
+      "to": 48
+    },
+    {
+      "from": 54,
+      "to": 48
+    },
+    {
+      "from": 55,
+      "to": 3
+    },
+    {
+      "from": 55,
+      "to": 11
+    },
+    {
+      "from": 56,
+      "to": 55
+    },
+    {
+      "from": 56,
+      "to": 66
+    },
+    {
+      "from": 57,
+      "to": 55
+    },
+    {
+      "from": 58,
+      "to": 55
+    },
+    {
+      "from": 59,
+      "to": 55
+    },
+    {
+      "from": 59,
+      "to": 18
+    },
+    {
+      "from": 60,
+      "to": 55
+    },
+    {
+      "from": 61,
+      "to": 55
+    },
+    {
+      "from": 62,
+      "to": 55
+    },
+    {
+      "from": 62,
+      "to": 63
+    },
+    {
+      "from": 62,
+      "to": 64
+    },
+    {
+      "from": 63,
+      "to": 55
+    },
+    {
+      "from": 64,
+      "to": 63
+    },
+    {
+      "from": 65,
+      "to": 55
+    },
+    {
+      "from": 65,
+      "to": 62
+    },
+    {
+      "from": 66,
+      "to": 22
+    },
+    {
+      "from": 66,
+      "to": 13
+    },
+    {
+      "from": 67,
+      "to": 66
+    },
+    {
+      "from": 67,
+      "to": 72
+    },
+    {
+      "from": 68,
+      "to": 66
+    },
+    {
+      "from": 68,
+      "to": 78
+    },
+    {
+      "from": 69,
+      "to": 66
+    },
+    {
+      "from": 69,
+      "to": 56
+    },
+    {
+      "from": 70,
+      "to": 69
+    },
+    {
+      "from": 71,
+      "to": 70
+    },
+    {
+      "from": 71,
+      "to": 11
+    },
+    {
+      "from": 72,
+      "to": 55
+    },
+    {
+      "from": 73,
+      "to": 27
+    },
+    {
+      "from": 73,
+      "to": 74
+    },
+    {
+      "from": 74,
+      "to": 75
+    },
+    {
+      "from": 74,
+      "to": 70
+    },
+    {
+      "from": 75,
+      "to": 11
+    },
+    {
+      "from": 75,
+      "to": 55
+    },
+    {
+      "from": 75,
+      "to": 71
+    },
+    {
+      "from": 76,
+      "to": 2
+    },
+    {
+      "from": 76,
+      "to": 28
+    },
+    {
+      "from": 77,
+      "to": 2
+    },
+    {
+      "from": 77,
+      "to": 70
+    },
+    {
+      "from": 78,
+      "to": 72
+    },
+    {
+      "from": 78,
+      "to": 66
+    },
+    {
+      "from": 79,
+      "to": 77
+    },
+    {
+      "from": 79,
+      "to": 5
+    },
+    {
+      "from": 79,
+      "to": 85
+    },
+    {
+      "from": 80,
+      "to": 77
+    },
+    {
+      "from": 80,
+      "to": 6
+    },
+    {
+      "from": 80,
+      "to": 7
+    },
+    {
+      "from": 80,
+      "to": 85
+    },
+    {
+      "from": 81,
+      "to": 77
+    },
+    {
+      "from": 81,
+      "to": 8
+    },
+    {
+      "from": 81,
+      "to": 85
+    },
+    {
+      "from": 82,
+      "to": 79
+    },
+    {
+      "from": 82,
+      "to": 74
+    },
+    {
+      "from": 83,
+      "to": 80
+    },
+    {
+      "from": 83,
+      "to": 74
+    },
+    {
+      "from": 84,
+      "to": 81
+    },
+    {
+      "from": 84,
+      "to": 74
+    },
+    {
+      "from": 85,
+      "to": 2
+    },
+    {
+      "from": 85,
+      "to": 86
+    },
+    {
+      "from": 86,
+      "to": 2
+    },
+    {
+      "from": 87,
+      "to": 67
+    },
+    {
+      "from": 87,
+      "to": 82
+    },
+    {
+      "from": 87,
+      "to": 83
+    },
+    {
+      "from": 87,
+      "to": 84
+    },
+    {
+      "from": 88,
+      "to": 68
+    },
+    {
+      "from": 88,
+      "to": 82
+    },
+    {
+      "from": 88,
+      "to": 83
+    },
+    {
+      "from": 88,
+      "to": 84
+    },
+    {
+      "from": 89,
+      "to": 93
+    },
+    {
+      "from": 89,
+      "to": 91
+    },
+    {
+      "from": 90,
+      "to": 91
+    },
+    {
+      "from": 90,
+      "to": 92
+    },
+    {
+      "from": 91,
+      "to": 82
+    },
+    {
+      "from": 91,
+      "to": 83
+    },
+    {
+      "from": 91,
+      "to": 84
+    },
+    {
+      "from": 92,
+      "to": 89
+    },
+    {
+      "from": 93,
+      "to": 56
+    },
+    {
+      "from": 93,
+      "to": 58
+    },
+    {
+      "from": 94,
+      "to": 77
+    },
+    {
+      "from": 94,
+      "to": 1
+    },
+    {
+      "from": 95,
+      "to": 4
+    },
+    {
+      "from": 95,
+      "to": 10
+    },
+    {
+      "from": 95,
+      "to": 16
+    },
+    {
+      "from": 96,
+      "to": 97
+    },
+    {
+      "from": 96,
+      "to": 95
+    },
+    {
+      "from": 97,
+      "to": 2
+    },
+    {
+      "from": 97,
+      "to": 115
+    },
+    {
+      "from": 98,
+      "to": 96
+    },
+    {
+      "from": 98,
+      "to": 30
+    },
+    {
+      "from": 99,
+      "to": 96
+    },
+    {
+      "from": 100,
+      "to": 96
+    },
+    {
+      "from": 101,
+      "to": 96
+    },
+    {
+      "from": 101,
+      "to": 30
+    },
+    {
+      "from": 102,
+      "to": 96
+    },
+    {
+      "from": 102,
+      "to": 23
+    },
+    {
+      "from": 103,
+      "to": 96
+    },
+    {
+      "from": 104,
+      "to": 103
+    },
+    {
+      "from": 105,
+      "to": 104
+    },
+    {
+      "from": 105,
+      "to": 48
+    },
+    {
+      "from": 106,
+      "to": 96
+    },
+    {
+      "from": 106,
+      "to": 24
+    },
+    {
+      "from": 107,
+      "to": 96
+    },
+    {
+      "from": 107,
+      "to": 24
+    },
+    {
+      "from": 108,
+      "to": 96
+    },
+    {
+      "from": 108,
+      "to": 147
+    },
+    {
+      "from": 109,
+      "to": 96
+    },
+    {
+      "from": 109,
+      "to": 134
+    },
+    {
+      "from": 110,
+      "to": 96
+    },
+    {
+      "from": 110,
+      "to": 111
+    },
+    {
+      "from": 111,
+      "to": 129
+    },
+    {
+      "from": 111,
+      "to": 16
+    },
+    {
+      "from": 112,
+      "to": 111
+    },
+    {
+      "from": 112,
+      "to": 5
+    },
+    {
+      "from": 113,
+      "to": 111
+    },
+    {
+      "from": 113,
+      "to": 6
+    },
+    {
+      "from": 114,
+      "to": 111
+    },
+    {
+      "from": 115,
+      "to": 3
+    },
+    {
+      "from": 115,
+      "to": 11
+    },
+    {
+      "from": 116,
+      "to": 115
+    },
+    {
+      "from": 117,
+      "to": 115
+    },
+    {
+      "from": 118,
+      "to": 115
+    },
+    {
+      "from": 119,
+      "to": 115
+    },
+    {
+      "from": 120,
+      "to": 115
+    },
+    {
+      "from": 120,
+      "to": 23
+    },
+    {
+      "from": 121,
+      "to": 115
+    },
+    {
+      "from": 122,
+      "to": 115
+    },
+    {
+      "from": 123,
+      "to": 115
+    },
+    {
+      "from": 123,
+      "to": 24
+    },
+    {
+      "from": 124,
+      "to": 115
+    },
+    {
+      "from": 124,
+      "to": 134
+    },
+    {
+      "from": 125,
+      "to": 115
+    },
+    {
+      "from": 126,
+      "to": 115
+    },
+    {
+      "from": 127,
+      "to": 115
+    },
+    {
+      "from": 128,
+      "to": 2
+    },
+    {
+      "from": 128,
+      "to": 115
+    },
+    {
+      "from": 129,
+      "to": 11
+    },
+    {
+      "from": 129,
+      "to": 115
+    },
+    {
+      "from": 129,
+      "to": 75
+    },
+    {
+      "from": 130,
+      "to": 75
+    },
+    {
+      "from": 130,
+      "to": 129
+    },
+    {
+      "from": 131,
+      "to": 129
+    },
+    {
+      "from": 132,
+      "to": 96
+    },
+    {
+      "from": 132,
+      "to": 131
+    },
+    {
+      "from": 133,
+      "to": 128
+    },
+    {
+      "from": 133,
+      "to": 77
+    },
+    {
+      "from": 134,
+      "to": 22
+    },
+    {
+      "from": 135,
+      "to": 133
+    },
+    {
+      "from": 135,
+      "to": 5
+    },
+    {
+      "from": 135,
+      "to": 85
+    },
+    {
+      "from": 136,
+      "to": 133
+    },
+    {
+      "from": 136,
+      "to": 6
+    },
+    {
+      "from": 136,
+      "to": 7
+    },
+    {
+      "from": 136,
+      "to": 85
+    },
+    {
+      "from": 137,
+      "to": 133
+    },
+    {
+      "from": 137,
+      "to": 8
+    },
+    {
+      "from": 137,
+      "to": 85
+    },
+    {
+      "from": 138,
+      "to": 135
+    },
+    {
+      "from": 138,
+      "to": 9
+    },
+    {
+      "from": 139,
+      "to": 136
+    },
+    {
+      "from": 139,
+      "to": 6
+    },
+    {
+      "from": 139,
+      "to": 7
+    },
+    {
+      "from": 140,
+      "to": 137
+    },
+    {
+      "from": 140,
+      "to": 8
+    },
+    {
+      "from": 141,
+      "to": 16
+    },
+    {
+      "from": 141,
+      "to": 102
+    },
+    {
+      "from": 142,
+      "to": 102
+    },
+    {
+      "from": 142,
+      "to": 135
+    },
+    {
+      "from": 143,
+      "to": 135
+    },
+    {
+      "from": 143,
+      "to": 136
+    },
+    {
+      "from": 143,
+      "to": 137
+    },
+    {
+      "from": 144,
+      "to": 143
+    },
+    {
+      "from": 144,
+      "to": 89
+    },
+    {
+      "from": 145,
+      "to": 16
+    },
+    {
+      "from": 145,
+      "to": 141
+    },
+    {
+      "from": 146,
+      "to": 145
+    },
+    {
+      "from": 146,
+      "to": 102
+    },
+    {
+      "from": 147,
+      "to": 3
+    },
+    {
+      "from": 147,
+      "to": 1
+    },
+    {
+      "from": 148,
+      "to": 147
+    },
+    {
+      "from": 149,
+      "to": 148
+    },
+    {
+      "from": 150,
+      "to": 147
+    },
+    {
+      "from": 150,
+      "to": 18
+    },
+    {
+      "from": 151,
+      "to": 150
+    },
+    {
+      "from": 151,
+      "to": 18
+    },
+    {
+      "from": 152,
+      "to": 150
+    },
+    {
+      "from": 152,
+      "to": 14
+    },
+    {
+      "from": 153,
+      "to": 148
+    },
+    {
+      "from": 153,
+      "to": 8
+    },
+    {
+      "from": 154,
+      "to": 153
+    },
+    {
+      "from": 155,
+      "to": 147
+    },
+    {
+      "from": 155,
+      "to": 20
+    },
+    {
+      "from": 156,
+      "to": 155
+    },
+    {
+      "from": 156,
+      "to": 150
+    },
+    {
+      "from": 157,
+      "to": 147
+    },
+    {
+      "from": 157,
+      "to": 158
+    },
+    {
+      "from": 158,
+      "to": 147
+    },
+    {
+      "from": 159,
+      "to": 147
+    },
+    {
+      "from": 159,
+      "to": 4
+    },
+    {
+      "from": 160,
+      "to": 159
+    },
+    {
+      "from": 160,
+      "to": 4
+    },
+    {
+      "from": 161,
+      "to": 159
+    },
+    {
+      "from": 161,
+      "to": 1
+    },
+    {
+      "from": 162,
+      "to": 159
+    },
+    {
+      "from": 162,
+      "to": 3
+    },
+    {
+      "from": 163,
+      "to": 147
+    },
+    {
+      "from": 163,
+      "to": 4
+    },
+    {
+      "from": 164,
+      "to": 163
+    },
+    {
+      "from": 165,
+      "to": 147
+    },
+    {
+      "from": 166,
+      "to": 152
+    },
+    {
+      "from": 166,
+      "to": 5
+    },
+    {
+      "from": 167,
+      "to": 152
+    },
+    {
+      "from": 167,
+      "to": 6
+    },
+    {
+      "from": 168,
+      "to": 152
+    },
+    {
+      "from": 168,
+      "to": 7
+    },
+    {
+      "from": 169,
+      "to": 12
+    },
+    {
+      "from": 169,
+      "to": 96
+    },
+    {
+      "from": 169,
+      "to": 170
+    },
+    {
+      "from": 170,
+      "to": 96
+    },
+    {
+      "from": 171,
+      "to": 169
+    },
+    {
+      "from": 171,
+      "to": 126
+    },
+    {
+      "from": 172,
+      "to": 169
+    },
+    {
+      "from": 173,
+      "to": 169
+    },
+    {
+      "from": 173,
+      "to": 153
+    },
+    {
+      "from": 174,
+      "to": 172
+    },
+    {
+      "from": 174,
+      "to": 173
+    },
+    {
+      "from": 175,
+      "to": 169
+    },
+    {
+      "from": 175,
+      "to": 12
+    },
+    {
+      "from": 176,
+      "to": 175
+    },
+    {
+      "from": 176,
+      "to": 177
+    },
+    {
+      "from": 176,
+      "to": 111
+    },
+    {
+      "from": 177,
+      "to": 129
+    },
+    {
+      "from": 177,
+      "to": 171
+    },
+    {
+      "from": 178,
+      "to": 157
+    },
+    {
+      "from": 178,
+      "to": 179
+    },
+    {
+      "from": 179,
+      "to": 157
+    },
+    {
+      "from": 179,
+      "to": 158
+    },
+    {
+      "from": 179,
+      "to": 148
+    },
+    {
+      "from": 180,
+      "to": 179
+    },
+    {
+      "from": 181,
+      "to": 178
+    },
+    {
+      "from": 182,
+      "to": 178
+    },
+    {
+      "from": 182,
+      "to": 169
+    },
+    {
+      "from": 183,
+      "to": 182
+    },
+    {
+      "from": 184,
+      "to": 169
+    },
+    {
+      "from": 184,
+      "to": 170
+    },
+    {
+      "from": 185,
+      "to": 169
+    },
+    {
+      "from": 185,
+      "to": 178
+    },
+    {
+      "from": 186,
+      "to": 169
+    },
+    {
+      "from": 186,
+      "to": 153
+    },
+    {
+      "from": 186,
+      "to": 154
+    },
+    {
+      "from": 187,
+      "to": 10
+    },
+    {
+      "from": 187,
+      "to": 12
+    },
+    {
+      "from": 187,
+      "to": 96
+    },
+    {
+      "from": 188,
+      "to": 187
+    },
+    {
+      "from": 188,
+      "to": 191
+    },
+    {
+      "from": 189,
+      "to": 187
+    },
+    {
+      "from": 189,
+      "to": 125
+    },
+    {
+      "from": 189,
+      "to": 96
+    },
+    {
+      "from": 190,
+      "to": 188
+    },
+    {
+      "from": 190,
+      "to": 12
+    },
+    {
+      "from": 191,
+      "to": 195
+    },
+    {
+      "from": 192,
+      "to": 191
+    },
+    {
+      "from": 192,
+      "to": 196
+    },
+    {
+      "from": 193,
+      "to": 192
+    },
+    {
+      "from": 194,
+      "to": 190
+    },
+    {
+      "from": 194,
+      "to": 175
+    },
+    {
+      "from": 195,
+      "to": 1
+    },
+    {
+      "from": 195,
+      "to": 20
+    },
+    {
+      "from": 196,
+      "to": 195
+    },
+    {
+      "from": 196,
+      "to": 197
+    },
+    {
+      "from": 197,
+      "to": 96
+    },
+    {
+      "from": 197,
+      "to": 198
+    },
+    {
+      "from": 198,
+      "to": 115
+    },
+    {
+      "from": 198,
+      "to": 195
+    },
+    {
+      "from": 199,
+      "to": 115
+    },
+    {
+      "from": 199,
+      "to": 191
+    },
+    {
+      "from": 199,
+      "to": 131
+    },
+    {
+      "from": 200,
+      "to": 198
+    },
+    {
+      "from": 200,
+      "to": 199
+    },
+    {
+      "from": 200,
+      "to": 132
+    }
+  ]
+}
