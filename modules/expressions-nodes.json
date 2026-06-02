@@ -1,0 +1,48 @@
+{
+  "id": "expressions.core.expression_nodes",
+  "path": "src/mountainash/expressions/core/expression_nodes/",
+  "summary": "Minimal Substrait-aligned AST: 9 node types using frozen Pydantic BaseModel. ScalarFunctionNode handles 90% of operations via function key ENUMs. Other nodes: FieldReferenceNode, LiteralNode, CastNode, IfThenNode, SingularOrListNode, WindowFunctionNode, WindowSpec/WindowBound, and OverNode (extension).",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "contributors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "ExpressionNode", "ScalarFunctionNode", "FieldReferenceNode", "LiteralNode",
+    "CastNode", "IfThenNode", "SingularOrListNode",
+    "WindowFunctionNode", "WindowSpec", "WindowBound", "OverNode"
+  ],
+  "key_classes": [
+    {"name": "ScalarFunctionNode", "purpose": "Universal node for most operations; carries function_key enum, arguments list, and options dict"},
+    {"name": "FieldReferenceNode", "purpose": "Column reference by name; optional unknown_values set for ternary sentinels"},
+    {"name": "LiteralNode", "purpose": "Constant value wrapper; dtype='native' for backend-native passthrough"},
+    {"name": "IfThenNode", "purpose": "Conditional when-then-otherwise expression"},
+    {"name": "CastNode", "purpose": "Type conversion node"},
+    {"name": "OverNode", "purpose": "Mountainash extension for .over() window operations"}
+  ],
+  "key_functions": [],
+  "dependencies": ["expressions.core.expression_system (function key enums)", "pydantic"],
+  "dependents": ["expressions.core.expression_api", "expressions.core.unified_visitor"],
+  "extension_points": ["New node types for fundamentally new expression kinds"],
+  "lifecycle_notes": [
+    "Per minimal-ast principle: 9 node types is the target; new operations use ScalarFunctionNode with new function keys",
+    "to_substrait()/from_substrait() placeholder for future serialization (raises NotImplementedError)"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Substrait serialization not yet implemented"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_nodes/", "detail": "14 Python files, ~594 lines"},
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_nodes/substrait/exn_base.py", "detail": "Pydantic BaseModel with frozen=True; all nodes immutable"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

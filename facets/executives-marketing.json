@@ -1,0 +1,15 @@
+{
+  "audience": "executives-marketing",
+  "summary": "Capabilities, differentiators, roadmap signals, and credible proof points for positioning mountainash in the data tooling market.",
+  "concepts": [
+    {"name": "Cross-Backend Expression Engine", "module_ids": ["expressions.core.expression_api", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"], "recommended_docs": ["Write once, run on Polars/pandas/PyArrow/SQL", "84 function key operations with consistent semantics", "Three-valued logic for real-world data quality"], "evidence": ["3 backend implementations, 84 FKEY entries, ternary logic system"]},
+    {"name": "Relational Pipeline Builder", "module_ids": ["relations.core.relation_api"], "recommended_docs": ["Polars-like fluent API with cross-backend portability", "18 terminal methods for flexible output", "Cross-type joins (e.g. Polars + pandas in one join)"], "evidence": ["18 terminals, cross-type join support"]},
+    {"name": "Frictionless Data Standards", "module_ids": ["typespec", "conform", "relations.dag"], "recommended_docs": ["TypeSpec aligned with Frictionless Table Schema", "Full conform pipeline (missingValues, boolean/numeric/temporal parsing, fieldsMatch)", "DataPackage multi-resource orchestration"], "evidence": ["Frictionless structural fidelity principle, 7-stage pipeline"]},
+    {"name": "Data Contract Validation", "module_ids": ["datacontracts"], "recommended_docs": ["TypeSpec-to-pandera compilation", "Expression-backed custom validation rules", "Context-aware rule exclusions for environment-specific validation"], "evidence": ["Validator, RuleRegistry, ValidationResultProcessor"]},
+    {"name": "Pipeline Framework", "module_ids": ["pipelines"], "recommended_docs": ["Declarative DAG-based pipelines", "Typed parameters and caching", "Relation integration for composability"], "evidence": ["PipelineBuilder, SimplePipelineRunner"]}
+  ],
+  "featured_modules": ["expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform", "datacontracts", "pipelines"],
+  "hidden_or_internal_modules": ["core", "graph", "all backend/protocol/visitor/node modules"],
+  "documentation_plan": ["Product positioning page", "Feature comparison matrix", "Use case narratives (data migration, quality, cross-backend)"],
+  "open_questions": []
+}

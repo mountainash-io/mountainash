@@ -1,0 +1,57 @@
+{
+  "id": "expressions.core.expression_api",
+  "path": "src/mountainash/expressions/core/expression_api/",
+  "summary": "Fluent expression API with BaseExpressionAPI, BooleanExpressionAPI, namespace descriptors (.str, .dt, .name, .struct, .list), and factory functions (col, lit, when, coalesce, today, now, etc.). 36 Python files providing method-chaining interface that builds backend-agnostic AST nodes. Mirrors Polars conventions per polars-api-substrait-ast principle.",
+  "role": "api-builder",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "col", "lit", "duration", "native", "coalesce", "greatest", "least",
+    "min_horizontal", "max_horizontal", "all_horizontal", "any_horizontal",
+    "len", "sum_horizontal", "count_records", "corr", "median", "quantile",
+    "when", "t_col", "always_true", "always_false", "always_unknown",
+    "today", "now",
+    "BaseExpressionAPI", "BooleanExpressionAPI", "NamespaceDescriptor"
+  ],
+  "key_classes": [
+    {"name": "BooleanExpressionAPI", "purpose": "Primary user-facing expression API with operator overloads, 20+ flat namespace builders, 5 explicit namespace descriptors (.str, .dt, .name, .struct, .list)"},
+    {"name": "BaseExpressionAPI", "purpose": "Abstract base holding _node, providing __getattr__ dispatch and create() factory"},
+    {"name": "NamespaceDescriptor", "purpose": "Python descriptor for lazy namespace binding (.str, .dt, etc.)"}
+  ],
+  "key_functions": [
+    {"name": "col(name)", "purpose": "Create column reference expression (FieldReferenceNode)"},
+    {"name": "lit(value)", "purpose": "Create literal value expression (LiteralNode)"},
+    {"name": "when(condition)", "purpose": "Start conditional when-then-otherwise chain"},
+    {"name": "t_col(name, unknown=...)", "purpose": "Ternary-aware column reference with custom sentinel values"},
+    {"name": "today()", "purpose": "Current date free function (new)"},
+    {"name": "now()", "purpose": "Current datetime free function (new)"}
+  ],
+  "dependencies": ["expressions.core.expression_nodes", "expressions.core.expression_system"],
+  "dependents": ["toplevel-api", "relations", "conform"],
+  "extension_points": ["New flat namespace builder class in _FLAT_NAMESPACES", "New explicit namespace descriptor", "New free-function entrypoint"],
+  "lifecycle_notes": [
+    "today() and now() free functions added 2026-05",
+    "Substrait builders in substrait/, extension builders in extensions_mountainash/",
+    "API mirrors Polars conventions per polars-api-substrait-ast principle"
+  ],
+  "documentation_hooks": ["Entry points with examples", "Namespace operations catalogue"],
+  "examples": [],
+  "tests": [],
+  "risks": ["__getattr__ dispatch order in _FLAT_NAMESPACES determines method resolution priority"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_api/", "detail": "36 Python files, ~9000 lines"},
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_api/entrypoints.py", "detail": "Free functions including today() and now() (new)"},
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_api/boolean.py", "detail": "BooleanExpressionAPI composing 20+ flat namespaces"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

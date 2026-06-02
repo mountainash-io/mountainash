@@ -1,0 +1,43 @@
+{
+  "id": "pydata.ingress",
+  "path": "src/mountainash/pydata/ingress/",
+  "summary": "Python data ingress: 11 handlers converting Python types (dicts, lists, dataclasses, Pydantic models, named tuples, tuples, Series, indexed data, scalar collections) to Polars DataFrames via strategy-factory pattern with three-tier hybrid conversion for custom types.",
+  "role": "io",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["users", "contributors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": ["PydataIngress", "PydataIngressFactory"],
+  "key_classes": [
+    {"name": "PydataIngress", "purpose": "Thin facade delegating to PydataIngressFactory"},
+    {"name": "PydataIngressFactory", "purpose": "Strategy factory auto-detecting Python data format and dispatching to correct handler"}
+  ],
+  "key_functions": [
+    {"name": "PydataIngress.convert(data, type_spec=None)", "purpose": "Convert any Python data to Polars DataFrame with optional TypeSpec coercion"},
+    {"name": "separate_conversions(type_spec)", "purpose": "Splits TypeSpec into three tiers: python_only, narwhals-vectorized, native"}
+  ],
+  "dependencies": ["core.factories", "typespec", "polars"],
+  "dependents": ["relations (Relation constructor for Python data)", "pipelines", "pydata.egress"],
+  "extension_points": ["BasePydataIngressHandler ABC for new Python data formats"],
+  "lifecycle_notes": [
+    "11 handlers cover comprehensive Python data types",
+    "Three-tier hybrid conversion strategy (Python custom -> DataFrame native -> final) is mature"
+  ],
+  "documentation_hooks": ["TypeSpec-driven type coercion during ingress", "Auto-detection logic"],
+  "examples": [],
+  "tests": [],
+  "risks": ["All ingress goes through Polars — no direct path for Ibis or Narwhals"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/pydata/ingress/pydata_ingress_factory.py", "detail": "Strategy factory with duck-typing detection for 10 data formats"},
+    {"kind": "symbol", "path": "src/mountainash/pydata/ingress/custom_type_helpers.py", "detail": "Three-tier separation logic for TypeSpec custom casts"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

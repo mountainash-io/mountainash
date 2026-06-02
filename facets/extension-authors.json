@@ -1,0 +1,16 @@
+{
+  "audience": "extension-authors",
+  "summary": "Extension points, registries, plugin APIs, contracts, and compatibility boundaries for authors adding new operations, backends, or custom types to mountainash.",
+  "concepts": [
+    {"name": "Adding Operations", "module_ids": ["expressions.core.expression_system", "expressions.core.expression_protocols"], "recommended_docs": ["Function key enum extension", "Protocol interface addition", "Backend mixin implementation", "FunctionDef wiring in definitions.py"], "evidence": ["Adding-operations principle"]},
+    {"name": "Backend Registration", "module_ids": ["expressions.core.expression_system", "relations.core.relation_protocols"], "recommended_docs": ["@register_expression_system decorator", "@register_relation_system decorator", "ExpressionSystem / RelationSystem base classes"], "evidence": ["System modules"]},
+    {"name": "Relation Visit Registry", "module_ids": ["relations.core.unified_visitor"], "recommended_docs": ["RelationVisitRegistry.register() for custom node types", "PipelineStepRelNode as example of external registration"], "evidence": ["Visit registry"]},
+    {"name": "Custom Types", "module_ids": ["typespec"], "recommended_docs": ["CustomTypeRegistry.register()", "Dual-mode converters (Python row-by-row + Narwhals vectorized)", "TypeConverterSpec"], "evidence": ["Custom type registry"]},
+    {"name": "Relation Extensions", "module_ids": ["relations.core.relation_nodes"], "recommended_docs": ["ExtensionRelNode with ExtensionRelOperation enum", "ConformRelNode pattern for compile-time-deferred operations"], "evidence": ["Extension node types"]},
+    {"name": "Pipeline Extensions", "module_ids": ["pipelines"], "recommended_docs": ["PipelineExecutor protocol for custom execution backends", "PipelineStorage protocol for custom storage", "OptimisationRegistry for AST rewriting passes"], "evidence": ["Pipeline extension points"]}
+  ],
+  "featured_modules": ["expressions.core.expression_system", "expressions.core.expression_protocols", "relations.core.relation_protocols", "relations.core.unified_visitor", "typespec", "relations.core.relation_nodes"],
+  "hidden_or_internal_modules": ["pydata.ingress", "pydata.egress", "graph"],
+  "documentation_plan": ["Extension author guide", "Adding a custom backend", "Custom type converter tutorial", "Pipeline extension examples"],
+  "open_questions": []
+}

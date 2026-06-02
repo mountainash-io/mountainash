@@ -1,0 +1,15 @@
+{
+  "audience": "broader-hype",
+  "summary": "Simple narrative hooks, demos, before/after value, and memorable framing for mountainash as a cross-backend data expression, quality, and pipeline toolkit.",
+  "concepts": [
+    {"name": "Write Once, Run Anywhere", "module_ids": ["expressions.core.expression_api", "relations.core.relation_api"], "recommended_docs": ["Same expression runs on Polars, pandas, PyArrow, DuckDB, SQLite, PostgreSQL", "Cross-type joins: join Polars DataFrame with pandas DataFrame in one line"], "evidence": ["3 expression backends, 3 relation backends"]},
+    {"name": "Schema-as-Code", "module_ids": ["typespec", "conform", "datacontracts"], "recommended_docs": ["TypeSpec defines your data contract", "Conform transforms raw data to match schema automatically", "Validate with expression-backed rules"], "evidence": ["TypeSpec, ConformRelNode, Data Contracts"]},
+    {"name": "Frictionless Integration", "module_ids": ["typespec", "relations.dag"], "recommended_docs": ["Load a datapackage.json and query it in Python", "Multi-resource DAG with FK validation", "Conform implements the full Frictionless transform pipeline"], "evidence": ["DataPackage, RelationDAG, 7-stage conform pipeline"]},
+    {"name": "18 Ways to Get Your Data Out", "module_ids": ["relations.core.relation_api", "pydata.egress"], "recommended_docs": ["Terminal methods: to_polars, to_pandas, to_dicts, to_dataclasses, to_pydantic, to_pyarrow, to_narwhals, to_ibis, etc.", "Schema-aware conversion to dataclasses and Pydantic models"], "evidence": ["18 terminal methods on Relation"]},
+    {"name": "Three-Valued Logic", "module_ids": ["expressions.core.expression_api"], "recommended_docs": ["Handle UNKNOWN separately from NULL", "t_col with custom sentinel values", "Auto-booleanisation at compile time"], "evidence": ["Ternary expression system with TRUE=1, UNKNOWN=0, FALSE=-1"]}
+  ],
+  "featured_modules": ["expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform", "relations.dag"],
+  "hidden_or_internal_modules": ["All internal modules — focus on user-facing capabilities"],
+  "documentation_plan": ["Hero demo (3-line cross-backend example)", "Before/after comparison (raw pandas vs mountainash)", "Feature highlight reel"],
+  "open_questions": []
+}

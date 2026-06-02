@@ -1,0 +1,38 @@
+{
+  "id": "expressions.backends.polars",
+  "path": "src/mountainash/expressions/backends/expression_systems/polars/",
+  "summary": "Polars backend expression system: PolarsExpressionSystem composes 30+ mixin classes via multiple inheritance implementing all protocol interfaces. Translates AST nodes to pl.Expr method calls. Primary/reference backend. 33 files, ~6200 lines. Includes KNOWN_EXPR_LIMITATIONS registry for backend-specific quirks.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["PolarsExpressionSystem"],
+  "key_classes": [
+    {"name": "PolarsExpressionSystem", "purpose": "Composed backend registered for POLARS; inherits 30+ mixin classes covering all protocol categories"}
+  ],
+  "key_functions": [],
+  "dependencies": ["polars", "expressions.core.expression_protocols", "expressions.core.expression_system"],
+  "dependents": ["expressions.core.unified_visitor"],
+  "extension_points": ["New mixin for new protocol", "KNOWN_EXPR_LIMITATIONS entries"],
+  "lifecycle_notes": [
+    "Primary/reference backend — most complete implementation",
+    "Uses pl.Expr throughout (LazyFrame-based)"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["30+ inheritance diamond via multiple inheritance — MRO must be carefully maintained"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/backends/expression_systems/polars/", "detail": "33 Python files, ~6200 lines"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

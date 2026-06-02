@@ -1,0 +1,15 @@
+{
+  "audience": "backend-architecture",
+  "summary": "Protocol contracts, dispatch mechanisms, backend implementations, cross-type handling, and known divergences. Essential for understanding how the same expression/relation produces identical results across Polars, Narwhals, and Ibis.",
+  "concepts": [
+    {"name": "Protocol Hierarchy", "module_ids": ["expressions.core.expression_protocols", "relations.core.relation_protocols"], "recommended_docs": ["57 expression protocol files (api_builders + expression_systems)", "9 relation protocol files + RelationAPIProtocol with 18 terminals", "Substrait vs Mountainash extension separation"], "evidence": ["Protocol files"]},
+    {"name": "Backend Composition", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"], "recommended_docs": ["30+ mixin multiple inheritance pattern", "Backend registration decorator", "KNOWN_EXPR_LIMITATIONS registries"], "evidence": ["Backend modules"]},
+    {"name": "Expression Dispatch", "module_ids": ["expressions.core.expression_system", "expressions.core.unified_visitor"], "recommended_docs": ["Function key enums for type-safe dispatch", "FunctionRegistry resolution", "Protocol-aware argument introspection via inspect.signature()"], "evidence": ["System module"]},
+    {"name": "Relation Dispatch", "module_ids": ["relations.core.unified_visitor", "relations.core.relation_protocols"], "recommended_docs": ["Visit registry for extensible dispatch", "Cross-type join coercion", "ConformRelNode apply_conform at compile time"], "evidence": ["Visitor module"]},
+    {"name": "Cross-Backend Guarantees", "module_ids": ["core"], "recommended_docs": ["Consistency guarantees principle", "Known divergences registry", "Upstream fix monitoring", "Arguments vs options separation"], "evidence": ["Design principles"]}
+  ],
+  "featured_modules": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.core.expression_system", "relations.core.unified_visitor", "core"],
+  "hidden_or_internal_modules": ["toplevel", "pydata.ingress", "pydata.egress", "pipelines", "graph", "datacontracts"],
+  "documentation_plan": ["Backend implementation guide", "Protocol reference", "Known divergences catalogue", "Cross-type coercion mechanics"],
+  "open_questions": []
+}

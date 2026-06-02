@@ -1,0 +1,51 @@
+{
+  "id": "pipelines",
+  "path": "src/mountainash/pipelines/",
+  "summary": "Pipeline framework: declarative multi-step data pipelines with DAG ordering, typed parameter binding via ParamSpec, caching via PipelineStorage, and integration with the relation AST via PipelineStepRelNode + ParamsRelNode. Fluent builder: PipelineBuilder.step(...).build() -> PipelineSpec -> SimplePipelineRunner.run(). DBOS runner for durable execution. source() bridges pipeline outputs into the relation API.",
+  "role": "orchestration",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": ["users", "maintainers", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "step", "PipelineBuilder", "PipelineSpec", "source", "ParamSpec",
+    "SimplePipelineRunner", "PipelineStorage", "PipelineExecutor"
+  ],
+  "key_classes": [
+    {"name": "PipelineBuilder", "purpose": "Immutable fluent builder — .step() returns new builder; .build() produces PipelineSpec"},
+    {"name": "PipelineSpec", "purpose": "Frozen spec with topological_order(), parallel_layers(), ancestors() delegates"},
+    {"name": "SimplePipelineRunner", "purpose": "Sequential executor with caching, empty-data policy, and topological ordering"},
+    {"name": "PipelineStepRelNode", "purpose": "Relation AST leaf bridging pipelines into the visitor system"},
+    {"name": "ParamSpec", "purpose": "Declares step parameters: name, type, required, default"}
+  ],
+  "key_functions": [
+    {"name": "step(name, depends_on=...)", "purpose": "Decorator creating StepDefinition metadata on a function"},
+    {"name": "source(step_name, pipeline=...)", "purpose": "Creates a Relation from a pipeline step output"}
+  ],
+  "dependencies": ["graph.algorithms", "relations.core.relation_nodes", "relations.core.unified_visitor", "pydata.ingress"],
+  "dependents": ["relations (via registered visitors)"],
+  "extension_points": ["PipelineExecutor protocol for custom execution backends", "PipelineStorage protocol for custom storage"],
+  "lifecycle_notes": [
+    "Evolving — has core, fluent, integration, orchestration, and storage sub-packages",
+    "Bridge registration at import time in __init__.py",
+    "DBOS runner exists for durable execution"
+  ],
+  "documentation_hooks": ["Fluent builder pattern", "Relation integration via source()", "Cache-key computation"],
+  "examples": [],
+  "tests": [],
+  "risks": ["Pipeline execution sequential only — parallel_layers() exists but no parallel executor"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/pipelines/fluent/builder.py", "detail": "Immutable PipelineBuilder"},
+    {"kind": "symbol", "path": "src/mountainash/pipelines/integration/relation.py", "detail": "PipelineStepRelNode, ParamsRelNode, fold_params optimisation"},
+    {"kind": "symbol", "path": "src/mountainash/pipelines/orchestration/simple.py", "detail": "SimplePipelineRunner with caching and topological ordering"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "audience": "maintainers",
+  "summary": "Architecture invariants, internal dependencies, test coverage, failure modes, and change risks. Maintainers need to understand the three-layer separation, protocol contracts, visitor composition, the conform rearchitecture, egress delegation, and known divergences across backends.",
+  "concepts": [
+    {"name": "Three-Layer Architecture", "module_ids": ["expressions.core.expression_protocols", "expressions.core.expression_api", "expressions.backends.polars", "relations.core.relation_protocols", "relations.core.relation_api", "relations.backends.polars"], "recommended_docs": ["Three-layer separation principle", "Protocol as contract", "Backend composition via multiple inheritance"], "evidence": ["Design principles"]},
+    {"name": "Visitor Composition", "module_ids": ["expressions.core.unified_visitor", "relations.core.unified_visitor"], "recommended_docs": ["Expression visitor dispatch via function registry", "Relation visitor composition with expression visitor", "ref_resolver for DAG integration", "apply_conform dispatch at compile time"], "evidence": ["Visitor principle docs"]},
+    {"name": "Function Key Wiring", "module_ids": ["expressions.core.expression_system"], "recommended_docs": ["Adding a new operation (six-step process)", "Function key enums FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_*", "definitions.py central wiring (2458 lines)"], "evidence": ["enums.py: 84 FKEY entries"]},
+    {"name": "Conform Rearchitecture", "module_ids": ["conform", "relations.core.relation_nodes", "relations.core.unified_visitor"], "recommended_docs": ["ConformRelNode: defer to compile time when column info available", "7-stage Frictionless transform pipeline", "fieldsMatch enforcement (6 modes)", "apply_conform bridges conform pipeline to backend operations"], "evidence": ["Major rearchitecture 2026-05; ConformRelNode, ConformResult, error hierarchy"]},
+    {"name": "Egress Delegation", "module_ids": ["relations.core.relation_api", "pydata.egress"], "recommended_docs": ["18 terminal methods delegate to pydata.egress", "Three-tier hybrid conversion (native vectorized -> extraction -> Python custom)", "Column name sanitization for namedtuple extraction"], "evidence": ["11 new terminals added 2026-05; refactored delegation"]},
+    {"name": "Backend Detection & Registration", "module_ids": ["core", "expressions.core.expression_system", "relations.core.relation_protocols"], "recommended_docs": ["CONST_BACKEND detection chain", "Backend registration decorators", "Strategy factory pattern"], "evidence": ["Core module"]},
+    {"name": "Cross-Backend Testing", "module_ids": ["core"], "recommended_docs": ["Cross-backend parametrised tests", "xfail for known quirks", "KNOWN_EXPR_LIMITATIONS registries", "Known divergences tracking", "Upstream fix monitoring"], "evidence": ["Testing philosophy principle"]}
+  ],
+  "featured_modules": ["core", "expressions.core.expression_system", "expressions.core.unified_visitor", "relations.core.unified_visitor", "conform", "relations.core.relation_nodes", "pydata.egress"],
+  "hidden_or_internal_modules": [],
+  "documentation_plan": ["Architecture overview with layer diagram", "Adding a new operation walkthrough", "Backend implementation guide", "Conform pipeline internals", "Known divergences catalogue"],
+  "open_questions": ["How to document definitions.py (2458 lines) without it becoming stale?"]
+}

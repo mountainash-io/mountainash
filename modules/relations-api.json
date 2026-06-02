@@ -1,0 +1,58 @@
+{
+  "id": "relations.core.relation_api",
+  "path": "src/mountainash/relations/core/relation_api/",
+  "summary": "Fluent relational API: Relation class provides method-chaining (filter/sort/head/join/group_by/agg/select/with_columns/rename/drop/concat/conform/unnest/params) building a backend-agnostic plan tree. 18 terminal methods (to_polars/pandas/dicts/tuples/dataclasses/pydantic/named_tuples/typed_named_tuples/pyarrow/narwhals/ibis/dict_of_series_*/index_of_*/dict) trigger visitor compilation. GroupedRelation restricts API to .agg(). OptimisationRegistry for extensible AST rewriting.",
+  "role": "api-builder",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": ["users", "maintainers", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "Relation", "GroupedRelation", "relation", "concat",
+    "RelationProjectionBuilder", "OptimisationRegistry"
+  ],
+  "key_classes": [
+    {"name": "Relation", "purpose": "Primary fluent API — method chaining builds plan tree, 18 terminals trigger compilation"},
+    {"name": "GroupedRelation", "purpose": "Restricted API after group_by() — only agg() available"},
+    {"name": "RelationProjectionBuilder", "purpose": "Builder for select/with_columns projections with expression binding"},
+    {"name": "OptimisationRegistry", "purpose": "Extensible AST rewriting registry for pre-compilation optimisations"}
+  ],
+  "key_functions": [
+    {"name": "relation(df)", "purpose": "Entry point: wraps a DataFrame in a Relation"},
+    {"name": "concat([r1, r2])", "purpose": "Entry point: builds SetRelNode from multiple Relations"},
+    {"name": "Relation.conform(spec)", "purpose": "Defers to ConformRelNode for compile-time schema conformance"},
+    {"name": "Relation.to_dicts()", "purpose": "Terminal: collect and convert to list of dicts (new)"},
+    {"name": "Relation.to_dataclasses(cls)", "purpose": "Terminal: collect and convert to dataclass instances (new)"},
+    {"name": "Relation.to_pydantic(cls)", "purpose": "Terminal: collect and convert to Pydantic model instances (new)"}
+  ],
+  "dependencies": ["relations.core.relation_nodes", "expressions.core.expression_api", "conform", "pydata.egress"],
+  "dependents": ["toplevel-api", "relations.dag", "pipelines"],
+  "extension_points": [
+    "Terminal methods delegate to pydata.egress for Python object conversion",
+    "OptimisationRegistry for custom AST rewriting passes"
+  ],
+  "lifecycle_notes": [
+    "2026-05: Added 11 new egress terminal methods — total now 18",
+    "2026-05: Terminal methods refactored to delegate to pydata.egress module",
+    "2026-05: Relation.conform() now defers to ConformRelNode instead of building ProjectRelNode directly",
+    "2026-05: Protocol signatures updated to include all 18 terminal methods"
+  ],
+  "documentation_hooks": ["Build-then-collect pattern", "Terminal method catalogue", "Cross-type joins", "Conform integration"],
+  "examples": [],
+  "tests": [],
+  "risks": ["Large terminal method surface — each must be tested across backends"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_api/relation.py", "detail": "Relation class with 18 terminal methods"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_protocols/prtcl_relation_api.py", "detail": "Protocol declaring all 18 terminal method signatures"},
+    {"kind": "import", "path": "src/mountainash/__init__.py", "detail": "Top-level re-exports relation() and concat()"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

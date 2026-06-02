@@ -1,0 +1,16 @@
+{
+  "audience": "contributors",
+  "summary": "Where to add features, how modules fit together, naming conventions, test patterns, and what to update when making changes. Updated to reflect conform rearchitecture and new egress terminal methods.",
+  "concepts": [
+    {"name": "Adding Operations", "module_ids": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols"], "recommended_docs": ["Six-step process: enum -> protocol -> API builder -> all backends -> function mapping -> tests", "Wiring matrix principle"], "evidence": ["Adding-operations principle"]},
+    {"name": "File Organisation", "module_ids": ["core"], "recommended_docs": ["File prefixes (exn_, prtcl_, api_bldr_, expsys_, reln_, relsys_)", "Backend prefixes (pl_, ib_, nw_)", "Three-layer mirror structure", "Substrait vs extensions_mountainash directory separation"], "evidence": ["Naming conventions principle"]},
+    {"name": "Testing Patterns", "module_ids": ["core"], "recommended_docs": ["Cross-backend parametrised tests", "xfail for known quirks (never skip)", "Test file naming conventions"], "evidence": ["Testing philosophy principle"]},
+    {"name": "Import Conventions", "module_ids": ["core"], "recommended_docs": ["Four import categories", "lazy_loader for __init__.py", "lazy_imports for runtime optional backends"], "evidence": ["Import conventions principle"]},
+    {"name": "Adding Terminal Methods", "module_ids": ["relations.core.relation_api", "relations.core.relation_protocols", "pydata.egress"], "recommended_docs": ["Add to RelationAPIProtocol", "Implement in Relation class delegating to egress", "Add cross-backend tests"], "evidence": ["11 new terminals added 2026-05"]},
+    {"name": "Adding Conform Stages", "module_ids": ["conform"], "recommended_docs": ["7-stage pipeline in _build_conform_exprs", "Stage ordering invariants", "ConformResult dataclass"], "evidence": ["Conform rearchitecture 2026-05"]}
+  ],
+  "featured_modules": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols", "relations.core.relation_api", "relations.core.relation_protocols", "conform", "typespec"],
+  "hidden_or_internal_modules": [],
+  "documentation_plan": ["Contributor onboarding guide", "Adding an operation walkthrough", "Adding a terminal method walkthrough", "Test writing guide"],
+  "open_questions": []
+}
