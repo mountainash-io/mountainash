@@ -4,10 +4,10 @@
 
 - **Total Concepts**: 200
 - **Foundational Concepts** (no prerequisites, other concepts depend on them): 7
-- **Terminal Nodes** (nothing depends on them, but have prerequisites): 84
+- **Terminal Nodes** (nothing depends on them, but have prerequisites): 81
 - **Orphaned Nodes** (completely disconnected, no edges): 0
 - **Concepts with Dependencies**: 193
-- **Average Dependencies per Concept**: 1.81
+- **Average Dependencies per Concept**: 1.98
 
 ## Graph Structure Validation
 
@@ -29,57 +29,53 @@ These concepts have no prerequisites:
 
 ## Dependency Chain Analysis
 
-- **Maximum Dependency Chain Length**: 15
+- **Maximum Dependency Chain Length**: 11
 
 ### Longest Learning Path:
 
-1. **Python Type Hints** (ID: 1)
-2. **Constants Module** (ID: 13)
-3. **Operation Enums** (ID: 22)
-4. **Function Key Enums** (ID: 66)
-5. **ScalarFunctionNode** (ID: 56)
-6. **ExpressionFunctionDef** (ID: 69)
-7. **ExpressionFunctionRegistry** (ID: 70)
-8. **Function Registry Lookup** (ID: 71)
-9. **Unified Expression Visitor** (ID: 75)
-10. **Expression Compilation** (ID: 74)
-11. **Polars Expr Compilation** (ID: 82)
-12. **Cross-Backend Parametrize** (ID: 91)
-13. **Known Expr Limitations** (ID: 89)
-14. **xfail Known Quirks** (ID: 92)
-15. **Expression Testing** (ID: 90)
+1. **Method Chaining** (ID: 10)
+2. **col Function** (ID: 25)
+3. **Expression Building** (ID: 27)
+4. **BaseExpressionAPI** (ID: 28)
+5. **API Builder Protocols** (ID: 76)
+6. **Expression System Protocols** (ID: 77)
+7. **PolarsExpressionSystem** (ID: 79)
+8. **Polars Expr Compilation** (ID: 82)
+9. **Expression Testing** (ID: 90)
+10. **Cross-Backend Parametrize** (ID: 91)
+11. **xfail Known Quirks** (ID: 92)
 
 ## Terminal Nodes Analysis
 
 Terminal nodes are concepts that nothing else depends on but have prerequisites. They represent natural endpoints of learning paths — culminating or specialized concepts.
 
-- **Total Terminal Nodes**: 84 (42.0% of all concepts)
+- **Total Terminal Nodes**: 81 (40.5% of all concepts)
 - **Healthy Range**: 5-40% of total concepts
 
 Concepts at the end of learning paths:
 
-- **15**: Backend System Enum
+- **17**: DataFrame Type Guards
 - **19**: Lazy Import System
 - **21**: BaseFactoryMixin
-- **29**: BooleanExpressionAPI
-- **31**: Operator Overloading
-- **34**: Struct Namespace
+- **30**: Fluent Expression Chain
 - **35**: List Namespace
 - **36**: Name Namespace
-- **38**: when Function
 - **39**: coalesce Function
 - **40**: greatest Function
 - **41**: least Function
 - **42**: native Function
 - **43**: Comparison Operations
 - **44**: Arithmetic Operations
+- **45**: Boolean Operations
 - **46**: String Operations
-- **47**: Datetime Operations
-- **49**: Window Functions
-- **50**: cast Operation
+- **52**: duration Function
 - **53**: count_records Function
+- **54**: corr Function
+- **56**: ScalarFunctionNode
+- **57**: FieldReferenceNode
+- **58**: LiteralNode
 
-*...and 64 more*
+*...and 61 more*
 
 ## Orphaned Nodes Analysis
 
@@ -101,30 +97,31 @@ Top 10 concepts that are prerequisites for the most other concepts:
 
 | Rank | Concept ID | Concept Label | Indegree |
 |------|-----------|---------------|----------|
-| 1 | 28 | BaseExpressionAPI | 17 |
-| 2 | 96 | Relation Class | 17 |
-| 3 | 115 | RelationNode Base | 17 |
-| 4 | 1 | Python Type Hints | 11 |
-| 5 | 55 | ExpressionNode Base | 11 |
-| 6 | 4 | DataFrames | 10 |
-| 7 | 147 | TypeSpec | 9 |
-| 8 | 169 | RelationDAG | 8 |
-| 9 | 2 | Protocol Classes | 7 |
-| 10 | 27 | Expression Building | 7 |
+| 1 | 1 | Python Type Hints | 19 |
+| 2 | 28 | BaseExpressionAPI | 18 |
+| 3 | 96 | Relation Class | 17 |
+| 4 | 115 | RelationNode Base | 15 |
+| 5 | 4 | DataFrames | 10 |
+| 6 | 2 | Protocol Classes | 9 |
+| 7 | 55 | ExpressionNode Base | 9 |
+| 8 | 169 | RelationDAG | 9 |
+| 9 | 3 | Pydantic Models | 8 |
+| 10 | 27 | Expression Building | 8 |
 
 ## Outdegree Distribution
 
 | Dependencies | Number of Concepts |
 |--------------|--------------------|
 | 0 | 7 |
-| 1 | 64 |
-| 2 | 105 |
-| 3 | 20 |
+| 1 | 38 |
+| 2 | 128 |
+| 3 | 21 |
 | 4 | 4 |
+| 5 | 2 |
 
 ## Recommendations
 
-- ℹ️ **High terminal node percentage** (42.0%): Consider if some terminal concepts should be prerequisites for advanced concepts
+- ℹ️ **High terminal node percentage** (40.5%): Consider if some terminal concepts should be prerequisites for advanced concepts
 - ✅ **DAG structure verified**: Graph supports valid learning progressions
 
 ---

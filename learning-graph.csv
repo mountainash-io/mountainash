@@ -3,7 +3,7 @@ ConceptID,ConceptLabel,Dependencies,TaxonomyID
 2,Protocol Classes,1,FOUND
 3,Pydantic Models,1,FOUND
 4,DataFrames,,FOUND
-5,Polars Library,4|9,FOUND
+5,Polars Library,4,FOUND
 6,Pandas Library,4,FOUND
 7,Apache Arrow,4,FOUND
 8,SQL Databases,,FOUND
@@ -11,191 +11,191 @@ ConceptID,ConceptLabel,Dependencies,TaxonomyID
 10,Method Chaining,,FOUND
 11,Visitor Pattern,,FOUND
 12,Directed Acyclic Graph,,FOUND
-13,Constants Module,1,CORE
-14,Backend Enum,13,CORE
-15,Backend System Enum,14,CORE
-16,Backend Detection,14|17,CORE
-17,DataFrame Type Guards,4|1,CORE
-18,MountainashDtype,13|1,CORE
-19,Lazy Import System,1,CORE
-20,Factory Pattern,1,CORE
-21,BaseFactoryMixin,20,CORE
-22,Operation Enums,13,CORE
-23,JoinType Enum,22|8,CORE
-24,SetType Enum,22,CORE
-25,col Function,4|10,EXAPI
-26,lit Function,4,EXAPI
+13,Constants Module,1,INFRA
+14,Backend Enum,13,INFRA
+15,Backend System Enum,14,INFRA
+16,Backend Detection,14|15|5|6|7,INFRA
+17,DataFrame Type Guards,1|4|16,INFRA
+18,MountainashDtype,1|4,INFRA
+19,Lazy Import System,1,INFRA
+20,Factory Pattern,1|2,INFRA
+21,BaseFactoryMixin,20|2,INFRA
+22,Operation Enums,13,INFRA
+23,JoinType Enum,22|8,INFRA
+24,SetType Enum,22,INFRA
+25,col Function,10|4,EXAPI
+26,lit Function,10|1,EXAPI
 27,Expression Building,25|26|10,EXAPI
-28,BaseExpressionAPI,27|2,EXAPI
-29,BooleanExpressionAPI,28|45,EXAPI
-30,Fluent Expression Chain,28|10,EXAPI
-31,Operator Overloading,28,EXAPI
+28,BaseExpressionAPI,2|27|10,EXAPI
+29,BooleanExpressionAPI,28,EXAPI
+30,Fluent Expression Chain,27|10|28,EXAPI
+31,Operator Overloading,28|1,EXAPI
 32,String Namespace,28|37,EXAPI
 33,Datetime Namespace,28|37,EXAPI
 34,Struct Namespace,28|37,EXAPI
 35,List Namespace,28|37,EXAPI
 36,Name Namespace,28|37,EXAPI
-37,NamespaceDescriptor,28,EXAPI
-38,when Function,27|60,EXAPI
+37,NamespaceDescriptor,28|1,EXAPI
+38,when Function,27|29,EXAPI
 39,coalesce Function,27|51,EXAPI
 40,greatest Function,27,EXAPI
 41,least Function,27,EXAPI
 42,native Function,27|16,EXAPI
-43,Comparison Operations,28,EXAPI
-44,Arithmetic Operations,28,EXAPI
-45,Boolean Operations,28,EXAPI
+43,Comparison Operations,28|31,EXAPI
+44,Arithmetic Operations,28|31,EXAPI
+45,Boolean Operations,29|31,EXAPI
 46,String Operations,32,EXAPI
-47,Datetime Operations,33|52,EXAPI
+47,Datetime Operations,33,EXAPI
 48,Aggregation Functions,28,EXAPI
-49,Window Functions,28|62,EXAPI
+49,Window Functions,28|48,EXAPI
 50,cast Operation,28|18,EXAPI
-51,Null Handling,28,EXAPI
-52,duration Function,26|33,EXAPI
+51,Null Handling,28|29,EXAPI
+52,duration Function,33|47,EXAPI
 53,count_records Function,48,EXAPI
 54,corr Function,48,EXAPI
-55,ExpressionNode Base,3|11,EXAST
+55,ExpressionNode Base,3|1,EXAST
 56,ScalarFunctionNode,55|66,EXAST
-57,FieldReferenceNode,55,EXAST
-58,LiteralNode,55,EXAST
-59,CastNode,55|18,EXAST
-60,IfThenNode,55,EXAST
+57,FieldReferenceNode,55|25,EXAST
+58,LiteralNode,55|26,EXAST
+59,CastNode,55|50,EXAST
+60,IfThenNode,55|38,EXAST
 61,SingularOrListNode,55,EXAST
-62,WindowFunctionNode,55|63|64,EXAST
-63,WindowSpec,55,EXAST
+62,WindowFunctionNode,55|63|49,EXAST
+63,WindowSpec,3,EXAST
 64,WindowBound,63,EXAST
-65,OverNode,55|62,EXAST
-66,Function Key Enums,22|13,EXAST
+65,OverNode,62|63|64,EXAST
+66,Function Key Enums,13,EXAST
 67,FKEY Substrait Prefix,66|72,EXAST
 68,FKEY Mountainash Prefix,66|78,EXAST
-69,ExpressionFunctionDef,66|56,EXAST
-70,ExpressionFunctionRegistry,69,EXAST
-71,Function Registry Lookup,70|11,EXAST
-72,Substrait Spec Alignment,55,EXAST
-73,Build Then Compile,27|74,EXAST
-74,Expression Compilation,75|70,EXAST
-75,Unified Expression Visitor,11|55|71,EXAST
+69,ExpressionFunctionDef,66|1,EXAST
+70,ExpressionFunctionRegistry,69|9,EXAST
+71,Function Registry Lookup,70|66,EXAST
+72,Substrait Spec Alignment,66,EXAST
+73,Build Then Compile,27|55|70,EXAST
+74,Expression Compilation,73|75|71,EXAST
+75,Unified Expression Visitor,11|55|70,EXAST
 76,API Builder Protocols,2|28,EXAST
-77,Expression System Protocols,2|70,EXAST
+77,Expression System Protocols,2|76,EXAST
 78,Mountainash Extensions,72|66,EXAST
-79,PolarsExpressionSystem,77|5|85,EXBKD
-80,NarwhalsExpressionSystem,77|6|7|85,EXBKD
-81,IbisExpressionSystem,77|8|85,EXBKD
-82,Polars Expr Compilation,79|74,EXBKD
-83,Narwhals Expr Compilation,80|74,EXBKD
-84,Ibis Expr Compilation,81|74,EXBKD
-85,Backend Composition,2|86,EXBKD
-86,Multiple Inheritance,2,EXBKD
-87,Substrait Compile Files,67|82|83|84,EXBKD
-88,Extension Compile Files,68|82|83|84,EXBKD
-89,Known Expr Limitations,93|91,EXBKD
-90,Expression Testing,91|92,EXBKD
-91,Cross-Backend Parametrize,82|83|84,EXBKD
-92,xfail Known Quirks,89,EXBKD
-93,Arguments vs Options,56|58,EXBKD
-94,Expression Type Generics,77|1,EXBKD
-95,relation Factory,4|10|16,RELAP
-96,Relation Class,97|95,RELAP
-97,RelationBase,2|115,RELAP
-98,Filter Operation,96|30,RELAP
-99,Sort Operation,96,RELAP
-100,Head Fetch Operation,96,RELAP
-101,Select Project Operation,96|30,RELAP
-102,Join Operation,96|23,RELAP
-103,Group By Operation,96,RELAP
-104,GroupedRelation,103,RELAP
-105,Aggregation on Groups,104|48,RELAP
-106,Set Operations,96|24,RELAP
-107,concat Function,96|24,RELAP
-108,Conform Operation,96|147,RELAP
-109,Unnest Operation,96|134,RELAP
-110,Build Then Collect,96|111,RELAP
-111,Terminal Operations,129|16,RELAP
-112,to_polars Method,111|5,RELAP
-113,to_pandas Method,111|6,RELAP
-114,collect Method,111,RELAP
-115,RelationNode Base,3|11,REAST
-116,ReadRelNode,115,REAST
-117,ProjectRelNode,115,REAST
-118,FilterRelNode,115,REAST
-119,AggregateRelNode,115,REAST
-120,JoinRelNode,115|23,REAST
-121,FetchRelNode,115,REAST
-122,SortRelNode,115,REAST
-123,SetRelNode,115|24,REAST
-124,ExtensionRelNode,115|134,REAST
-125,SourceRelNode,115,REAST
-126,RefRelNode,115,REAST
-127,ResourceReadRelNode,115,REAST
-128,Relation Protocols,2|115,REAST
-129,UnifiedRelationVisitor,11|115|75,REAST
-130,Visitor Composition,75|129,REAST
-131,RelationVisitRegistry,129,REAST
-132,OptimisationRegistry,96|131,REAST
-133,Relation System Base,128|77,REAST
-134,ExtensionRelOperation,22,REAST
-135,PolarsRelationSystem,133|5|85,RELBK
-136,NarwhalsRelationSystem,133|6|7|85,RELBK
-137,IbisRelationSystem,133|8|85,RELBK
-138,LazyFrame Operations,135|9,RELBK
-139,Narwhals Portability,136|6|7,RELBK
-140,Ibis SQL Compilation,137|8,RELBK
-141,Cross-Type Joins,16|102,RELBK
-142,Join Key Coalescing,102|135,RELBK
-143,Backend Relation Testing,135|136|137,RELBK
-144,Backend Divergences,143|89,RELBK
-145,Execution Target,16|141,RELBK
-146,execute_on Parameter,145|102,RELBK
-147,TypeSpec,3|1,TSPEC
-148,FieldSpec,147,TSPEC
-149,FieldConstraints,148,TSPEC
-150,UniversalType Enum,147|18,TSPEC
-151,Type Bridge,150|18,TSPEC
-152,Backend Type Mapping,150|14,TSPEC
-153,Foreign Keys,148|8,TSPEC
-154,ForeignKeyReference,153,TSPEC
-155,Custom Type Registry,147|20,TSPEC
-156,Type Converters,155|150,TSPEC
-157,Frictionless Standard,147|158,TSPEC
-158,Table Schema,147,TSPEC
-159,Schema Extraction,147|4,TSPEC
-160,DataFrame Extraction,159|4,TSPEC
-161,Dataclass Extraction,159|1,TSPEC
-162,Pydantic Extraction,159|3,TSPEC
-163,Schema Validation,147|4,TSPEC
-164,validate_match Function,163,TSPEC
-165,Schema Comparison,147,TSPEC
-166,Polars Schema Convert,152|5,TSPEC
-167,Pandas Dtypes Convert,152|6,TSPEC
-168,Arrow Schema Convert,152|7,TSPEC
-169,RelationDAG,12|96|170,DAGPK
-170,Named Relations,96,DAGPK
-171,dag.ref Method,169|126,DAGPK
-172,Dependency Edges,169,DAGPK
-173,Constraint Edges,169|153,DAGPK
-174,Two-Edge Graph Model,172|173,DAGPK
-175,Topological Collection,169|12,DAGPK
-176,dag.collect Method,175|177|111,DAGPK
-177,ref_resolver Parameter,129|171,DAGPK
-178,DataPackage,157|179,DAGPK
-179,DataResource,157|158|148,DAGPK
-180,TableDialect,179,DAGPK
-181,from_descriptor Method,178,DAGPK
-182,to_relation_dag Method,178|169,DAGPK
-183,Resource Overrides,182,DAGPK
-184,dag.add Method,169|170,DAGPK
-185,to_package Method,169|178,DAGPK
-186,FK Integrity Check,169|153|154,DAGPK
-187,PipelineBuilder,10|12|96,PIPE
-188,step Decorator,187|191,PIPE
-189,source Function,187|125|96,PIPE
-190,PipelineSpec,188|12,PIPE
-191,StepDefinition,195,PIPE
-192,StepContext,191|196,PIPE
-193,StepResult,192,PIPE
-194,SimplePipelineRunner,190|175,PIPE
-195,ParamSpec,1|20,PIPE
-196,Parameter Binding,195|197,PIPE
-197,relation.params Method,96|198,PIPE
+79,PolarsExpressionSystem,77|5|85,EXBAK
+80,NarwhalsExpressionSystem,77|6|7|85,EXBAK
+81,IbisExpressionSystem,77|8|85,EXBAK
+82,Polars Expr Compilation,79|74,EXBAK
+83,Narwhals Expr Compilation,80|74,EXBAK
+84,Ibis Expr Compilation,81|74,EXBAK
+85,Backend Composition,86|2,EXBAK
+86,Multiple Inheritance,1,EXBAK
+87,Substrait Compile Files,82|83|84|72,EXBAK
+88,Extension Compile Files,82|83|84|78,EXBAK
+89,Known Expr Limitations,82|83|84,EXBAK
+90,Expression Testing,82|83|84,EXBAK
+91,Cross-Backend Parametrize,90|16,EXBAK
+92,xfail Known Quirks,91|89,EXBAK
+93,Arguments vs Options,69|28,EXBAK
+94,Expression Type Generics,1|28,EXBAK
+95,relation Factory,4|10|96,RLAPI
+96,Relation Class,97|2,RLAPI
+97,RelationBase,2|10,RLAPI
+98,Filter Operation,96|29,RLAPI
+99,Sort Operation,96,RLAPI
+100,Head Fetch Operation,96,RLAPI
+101,Select Project Operation,96|25,RLAPI
+102,Join Operation,96|23,RLAPI
+103,Group By Operation,96|104,RLAPI
+104,GroupedRelation,96|48,RLAPI
+105,Aggregation on Groups,104|48,RLAPI
+106,Set Operations,96|24,RLAPI
+107,concat Function,96|106,RLAPI
+108,Conform Operation,96|147|162,RLAPI
+109,Unnest Operation,96|34,RLAPI
+110,Build Then Collect,95|73,RLAPI
+111,Terminal Operations,96|110,RLAPI
+112,to_polars Method,111|5,RLAPI
+113,to_pandas Method,111|6,RLAPI
+114,collect Method,111,RLAPI
+115,RelationNode Base,3|1,RLAST
+116,ReadRelNode,115|4,RLAST
+117,ProjectRelNode,115|101,RLAST
+118,FilterRelNode,115|98,RLAST
+119,AggregateRelNode,115|105,RLAST
+120,JoinRelNode,115|102,RLAST
+121,FetchRelNode,115|100,RLAST
+122,SortRelNode,115|99,RLAST
+123,SetRelNode,115|106,RLAST
+124,ExtensionRelNode,115|78,RLAST
+125,SourceRelNode,115|187,RLAST
+126,RefRelNode,115|171,RLAST
+127,ResourceReadRelNode,115|179,RLAST
+128,Relation Protocols,2|96,RLAST
+129,UnifiedRelationVisitor,11|115|128,RLAST
+130,Visitor Composition,129|85,RLAST
+131,RelationVisitRegistry,129|9,RLAST
+132,OptimisationRegistry,129|131,RLAST
+133,Relation System Base,128|129,RLAST
+134,ExtensionRelOperation,124|131,RLAST
+135,PolarsRelationSystem,133|5|130,RLBAK
+136,NarwhalsRelationSystem,133|6|7|130,RLBAK
+137,IbisRelationSystem,133|8|130,RLBAK
+138,LazyFrame Operations,135|9,RLBAK
+139,Narwhals Portability,136|6|7,RLBAK
+140,Ibis SQL Compilation,137|8,RLBAK
+141,Cross-Type Joins,102|16|135|136|137,RLBAK
+142,Join Key Coalescing,141|102,RLBAK
+143,Backend Relation Testing,135|136|137,RLBAK
+144,Backend Divergences,143|89,RLBAK
+145,Execution Target,16|111,RLBAK
+146,execute_on Parameter,145|95,RLBAK
+147,TypeSpec,3|1,TYPES
+148,FieldSpec,147,TYPES
+149,FieldConstraints,148,TYPES
+150,UniversalType Enum,147|13,TYPES
+151,Type Bridge,150|18,TYPES
+152,Backend Type Mapping,151|16,TYPES
+153,Foreign Keys,148|8,TYPES
+154,ForeignKeyReference,153,TYPES
+155,Custom Type Registry,147|9,TYPES
+156,Type Converters,155|150,TYPES
+157,Frictionless Standard,147,TYPES
+158,Table Schema,157|148,TYPES
+159,Schema Extraction,147|4,TYPES
+160,DataFrame Extraction,159|4,TYPES
+161,Dataclass Extraction,159|1,TYPES
+162,Pydantic Extraction,159|3,TYPES
+163,Schema Validation,147|149,TYPES
+164,validate_match Function,163|172,TYPES
+165,Schema Comparison,163|158,TYPES
+166,Polars Schema Convert,152|5,TYPES
+167,Pandas Dtypes Convert,152|6,TYPES
+168,Arrow Schema Convert,152|7,TYPES
+169,RelationDAG,12|96|170,DAG
+170,Named Relations,96,DAG
+171,dag.ref Method,169,DAG
+172,Dependency Edges,169|12,DAG
+173,Constraint Edges,169|12,DAG
+174,Two-Edge Graph Model,172|173,DAG
+175,Topological Collection,169|12,DAG
+176,dag.collect Method,175|111,DAG
+177,ref_resolver Parameter,169|171,DAG
+178,DataPackage,157|3,DAG
+179,DataResource,178|148,DAG
+180,TableDialect,179,DAG
+181,from_descriptor Method,178|179,DAG
+182,to_relation_dag Method,181|169,DAG
+183,Resource Overrides,182|179,DAG
+184,dag.add Method,169|170,DAG
+185,to_package Method,169|178,DAG
+186,FK Integrity Check,153|169,DAG
+187,PipelineBuilder,12|96,PIPE
+188,step Decorator,187|1,PIPE
+189,source Function,187,PIPE
+190,PipelineSpec,187|3,PIPE
+191,StepDefinition,190|188,PIPE
+192,StepContext,191,PIPE
+193,StepResult,191,PIPE
+194,SimplePipelineRunner,190|12,PIPE
+195,ParamSpec,3|1,PIPE
+196,Parameter Binding,195|188,PIPE
+197,relation.params Method,196|95,PIPE
 198,ParamsRelNode,115|195,PIPE
-199,PipelineStepRelNode,115|191|131,PIPE
-200,fold_params Function,198|199|132,PIPE
+199,PipelineStepRelNode,115|188,PIPE
+200,fold_params Function,196|197,PIPE

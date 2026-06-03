@@ -12,15 +12,15 @@
 |----------|-----------|-------|------------|--------|
 | Expression API | EXAPI | 30 | 15.0% | ✅ |
 | Expression AST & System | EXAST | 24 | 12.0% | ✅ |
-| Type System & Schema | TSPEC | 22 | 11.0% | ✅ |
-| Relation API | RELAP | 20 | 10.0% | ✅ |
-| Relation AST & System | REAST | 20 | 10.0% | ✅ |
-| DAG & DataPackage | DAGPK | 18 | 9.0% | ✅ |
-| Expression Backends | EXBKD | 16 | 8.0% | ✅ |
+| Type System & Schema | TYPES | 22 | 11.0% | ✅ |
+| Relation API | RLAPI | 20 | 10.0% | ✅ |
+| Relation AST & System | RLAST | 20 | 10.0% | ✅ |
+| DAG & DataPackage | DAG | 18 | 9.0% | ✅ |
+| Expression Backends | EXBAK | 16 | 8.0% | ✅ |
 | Pipeline Framework | PIPE | 14 | 7.0% | ✅ |
 | Foundation Concepts | FOUND | 12 | 6.0% | ✅ |
-| Core Infrastructure | CORE | 12 | 6.0% | ✅ |
-| Relation Backends | RELBK | 12 | 6.0% | ✅ |
+| Core Infrastructure | INFRA | 12 | 6.0% | ✅ |
+| Relation Backends | RLBAK | 12 | 6.0% | ✅ |
 
 ## Visual Distribution
 
@@ -92,7 +92,7 @@ All categories are under the 30% threshold. Good balance!
 - 69. ExpressionFunctionDef
 - *...and 9 more*
 
-### Type System & Schema (TSPEC)
+### Type System & Schema (TYPES)
 
 **Count**: 22 concepts (11.0%)
 
@@ -115,7 +115,7 @@ All categories are under the 30% threshold. Good balance!
 - 161. Dataclass Extraction
 - *...and 7 more*
 
-### Relation API (RELAP)
+### Relation API (RLAPI)
 
 **Count**: 20 concepts (10.0%)
 
@@ -138,7 +138,7 @@ All categories are under the 30% threshold. Good balance!
 - 109. Unnest Operation
 - *...and 5 more*
 
-### Relation AST & System (REAST)
+### Relation AST & System (RLAST)
 
 **Count**: 20 concepts (10.0%)
 
@@ -161,7 +161,7 @@ All categories are under the 30% threshold. Good balance!
 - 129. UnifiedRelationVisitor
 - *...and 5 more*
 
-### DAG & DataPackage (DAGPK)
+### DAG & DataPackage (DAG)
 
 **Count**: 18 concepts (9.0%)
 
@@ -184,7 +184,7 @@ All categories are under the 30% threshold. Good balance!
 - 183. Resource Overrides
 - *...and 3 more*
 
-### Expression Backends (EXBKD)
+### Expression Backends (EXBAK)
 
 **Count**: 16 concepts (8.0%)
 
@@ -247,7 +247,7 @@ All categories are under the 30% threshold. Good balance!
 - 11. Visitor Pattern
 - 12. Directed Acyclic Graph
 
-### Core Infrastructure (CORE)
+### Core Infrastructure (INFRA)
 
 **Count**: 12 concepts (6.0%)
 
@@ -266,7 +266,7 @@ All categories are under the 30% threshold. Good balance!
 - 23. JoinType Enum
 - 24. SetType Enum
 
-### Relation Backends (RELBK)
+### Relation Backends (RLBAK)
 
 **Count**: 12 concepts (6.0%)
 

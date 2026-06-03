@@ -1,13 +1,13 @@
 {
   "FOUND": "SteelBlue",
-  "CORE": "DarkSlateBlue",
+  "INFRA": "DarkSlateBlue",
   "EXAPI": "DarkGreen",
   "EXAST": "LimeGreen",
-  "EXBKD": "Gold",
-  "RELAP": "Teal",
-  "REAST": "DodgerBlue",
-  "RELBK": "Crimson",
-  "TSPEC": "MediumPurple",
-  "DAGPK": "Orange",
+  "EXBAK": "Gold",
+  "RLAPI": "Teal",
+  "RLAST": "DodgerBlue",
+  "RLBAK": "Crimson",
+  "TYPES": "MediumPurple",
+  "DAG": "Orange",
   "PIPE": "DarkOrchid"
 }
