@@ -33,3 +33,27 @@ def test_inline_data_cannot_read_bytes():
     ref = ResourceRef(res)
     with pytest.raises(ValueError, match="inline"):
         ref.read_bytes()
+
+
+def test_resource_ref_import_paths_share_same_class():
+    from mountainash import ResourceRef as PublicResourceRef
+    from mountainash.core.resource_ref import ResourceRef as CoreResourceRef
+    from mountainash.relations.dag.resource_ref import ResourceRef as DagResourceRef
+
+    assert PublicResourceRef is CoreResourceRef
+    assert DagResourceRef is CoreResourceRef
+
+
+def test_resource_ref_relation_compatibility_method(tmp_path):
+    from mountainash.core.resource_ref import ResourceRef
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+        ResourceReadRelNode,
+    )
+
+    p = tmp_path / "orders.csv"
+    p.write_text("id\n1\n")
+    res = DataResource(name="orders", path=str(p), type="table", format="csv")
+
+    rel = ResourceRef(res).relation()
+
+    assert isinstance(rel._node, ResourceReadRelNode)

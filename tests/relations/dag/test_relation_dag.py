@@ -33,6 +33,38 @@ def test_ref_creates_dependency_edge():
     assert ("orders", "active_orders") in dag.dependency_edges
 
 
+def test_source_registers_relation_and_returns_ref():
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    dag = RelationDAG()
+    raw = dag.source("raw", [{"id": 1, "status": "active"}])
+
+    assert "raw" in dag.relations
+    assert isinstance(raw._node, RefRelNode)
+    assert raw._node.name == "raw"
+
+
+def test_source_returned_ref_records_dependency_when_derived_relation_added():
+    dag = RelationDAG()
+    raw = dag.source("raw", [{"id": 1, "status": "active"}])
+    dag.add("active", raw.filter(ma.col("status").eq("active")))
+
+    assert ("raw", "active") in dag.dependency_edges
+
+
+def test_add_discovers_ref_under_conform_node():
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+        ConformRelNode,
+    )
+
+    dag = RelationDAG()
+    dag.add("raw", ma.relation([{"id": 1}]))
+    dag.add("conformed", Relation(ConformRelNode(input=dag.ref("raw")._node, spec={})))
+
+    assert ("raw", "conformed") in dag.dependency_edges
+
+
 def test_topological_order_simple_chain():
     dag = RelationDAG()
     dag.add("a", ma.relation([{"x": 1}]))

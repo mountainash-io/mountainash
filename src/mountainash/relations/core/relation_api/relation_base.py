@@ -61,19 +61,10 @@ class RelationBase:
         """Check if the tree contains any node of a registered type."""
         if isinstance(node, tuple(registered_types)):
             return True
-        if isinstance(node, JoinRelNode):
-            return (
-                self._contains_registered_node(node.left, registered_types)
-                or self._contains_registered_node(node.right, registered_types)
-            )
-        if isinstance(node, SetRelNode):
-            return any(
-                self._contains_registered_node(inp, registered_types)
-                for inp in node.inputs
-            )
-        if hasattr(node, "input"):
-            return self._contains_registered_node(node.input, registered_types)
-        return False
+        return any(
+            self._contains_registered_node(child, registered_types)
+            for child in node.children()
+        )
 
     def _walk_and_push(
         self, node: RelationNode, transform_fn: Callable[[Any], Any], target_type: type | None = None,
@@ -85,7 +76,7 @@ class RelationBase:
 
         if isinstance(node, (ReadRelNode, SourceRelNode, RefRelNode)):
             return node
-        if not hasattr(node, "input") and not isinstance(node, (JoinRelNode, SetRelNode)):
+        if not node.children():
             return node
 
         rebuilt: RelationNode
@@ -146,12 +137,9 @@ class RelationBase:
                 f"Relation contains a RefRelNode ('{node.name}') and cannot be compiled "
                 "standalone. Use RelationDAG.collect() to resolve named references."
             )
-        if isinstance(node, JoinRelNode):
-            return RelationBase._find_leaf_read_node(node.left)
-        if isinstance(node, SetRelNode):
-            return RelationBase._find_leaf_read_node(node.inputs[0])
-        if hasattr(node, "input"):
-            return RelationBase._find_leaf_read_node(node.input)
+        children = node.children()
+        if children:
+            return RelationBase._find_leaf_read_node(children[0])
         raise ValueError(
             f"Cannot find ReadRelNode in plan tree from {type(node).__name__}"
         )
@@ -165,10 +153,7 @@ class RelationBase:
             return None
         if isinstance(node, RefRelNode):
             return None
-        if isinstance(node, JoinRelNode):
-            return RelationBase._find_leaf_backend(node.left)
-        if isinstance(node, SetRelNode):
-            return RelationBase._find_leaf_backend(node.inputs[0])
-        if hasattr(node, "input"):
-            return RelationBase._find_leaf_backend(node.input)
+        children = node.children()
+        if children:
+            return RelationBase._find_leaf_backend(children[0])
         return None

@@ -7,11 +7,13 @@ from .errors import (
     RelationDAGRequired,
     UnsupportedResourceFormat,
 )
+from .protocol import RelationDAGProtocol
 from .resource_ref import ResourceRef
 from .validation import DAGValidationResult, FKViolation
 
 __all__ = [
     "RelationDAG",
+    "RelationDAGProtocol",
     "ResourceRef",
     "RelationDAGRequired",
     "MissingResourceSchema",

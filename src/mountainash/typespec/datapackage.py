@@ -246,12 +246,9 @@ class DataPackage(BaseModel):
         The ``overrides`` mapping replaces a resource's data with an in-memory
         DataFrame, useful for testing or for substituting trusted local data.
         """
-        from mountainash.relations.core.relation_api.relation import Relation
-        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
-            ResourceReadRelNode,
-        )
+        from mountainash.core.resource_ref import ResourceRef
         from mountainash.relations.dag.dag import RelationDAG
-        from mountainash.relations.dag.resource_ref import ResourceRef
+        from mountainash.relations.dag.packaging import resource_to_relation
         import mountainash as ma
 
         overrides = overrides or {}
@@ -265,7 +262,7 @@ class DataPackage(BaseModel):
             if r.name in overrides:
                 dag.add(r.name, ma.relation(overrides[r.name]))
             else:
-                dag.add(r.name, Relation(ResourceReadRelNode(resource=r)))
+                dag.add(r.name, resource_to_relation(r))
 
         # Constraint edges from foreignKeys (parsed straight out of the raw
         # schema dict — no need to round-trip through TypeSpec).
