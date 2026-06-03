@@ -1,15 +1,54 @@
 {
   "audience": "backend-architecture",
-  "summary": "Protocol contracts, dispatch mechanisms, backend implementations, cross-type handling, and known divergences. Essential for understanding how the same expression/relation produces identical results across Polars, Narwhals, and Ibis.",
+  "summary": "Mountainash compiles a single expression and relation AST into native operations across Polars, Narwhals (pandas/PyArrow/cuDF), and Ibis (SQL backends). A layered protocol system, composable dispatch, and explicit divergence tracking ensure consistent semantics wherever your data lives.",
   "concepts": [
-    {"name": "Protocol Hierarchy", "module_ids": ["expressions.core.expression_protocols", "relations.core.relation_protocols"], "recommended_docs": ["57 expression protocol files (api_builders + expression_systems)", "9 relation protocol files + RelationAPIProtocol with 18 terminals", "Substrait vs Mountainash extension separation"], "evidence": ["Protocol files"]},
-    {"name": "Backend Composition", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"], "recommended_docs": ["30+ mixin multiple inheritance pattern", "Backend registration decorator", "KNOWN_EXPR_LIMITATIONS registries"], "evidence": ["Backend modules"]},
-    {"name": "Expression Dispatch", "module_ids": ["expressions.core.expression_system", "expressions.core.unified_visitor"], "recommended_docs": ["Function key enums for type-safe dispatch", "FunctionRegistry resolution", "Protocol-aware argument introspection via inspect.signature()"], "evidence": ["System module"]},
-    {"name": "Relation Dispatch", "module_ids": ["relations.core.unified_visitor", "relations.core.relation_protocols"], "recommended_docs": ["Visit registry for extensible dispatch", "Cross-type join coercion", "ConformRelNode apply_conform at compile time"], "evidence": ["Visitor module"]},
-    {"name": "Cross-Backend Guarantees", "module_ids": ["core"], "recommended_docs": ["Consistency guarantees principle", "Known divergences registry", "Upstream fix monitoring", "Arguments vs options separation"], "evidence": ["Design principles"]}
+    {
+      "name": "Protocol Hierarchy",
+      "module_ids": ["expressions.core.expression_protocols", "relations.core.relation_protocols"],
+      "description": "The protocol layer defines the contract every backend must fulfill. Expression protocols specify the full surface area of supported operations — from arithmetic to string manipulation to temporal logic. Relation protocols define the pipeline operations (filter, join, aggregate, window, conform) and terminal methods that produce output. This separation means adding a new backend is a matter of fulfilling existing contracts, and adding a new operation means extending a protocol that all backends then implement.",
+      "stories": [
+        "Understanding the protocol split: Substrait-aligned operations live in their own protocol namespace, while mountainash extensions (three-valued logic, conform, custom aggregates) have a separate extension hierarchy. This keeps the standards-aligned core clean while allowing mountainash-specific innovation.",
+        "Tracing a method call: when you write .filter(col('x') > 5), the relation protocol defines what filter means, the expression protocol defines what > means, and the backend provides the native implementation. The protocols are the connective tissue."
+      ]
+    },
+    {
+      "name": "Backend Composition",
+      "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
+      "description": "Each backend is assembled from focused mixins via multiple inheritance — one mixin per operation category (string ops, temporal ops, aggregation, etc.). This composition pattern means backends share structure while allowing each to specialize where the underlying engine requires it. Backend registration decorators wire implementations into the dispatch system, and KNOWN_EXPR_LIMITATIONS registries document where a backend intentionally diverges from the common contract.",
+      "stories": [
+        "Adding Ibis temporal support: the Ibis backend's temporal mixin implements date arithmetic differently from Polars because SQL backends handle intervals natively. The mixin pattern isolates this difference to a single file, keeping the rest of the backend unchanged.",
+        "Diagnosing a divergence: when a cross-backend test fails on Narwhals, the KNOWN_EXPR_LIMITATIONS registry tells you immediately whether this is a known upstream limitation or a genuine bug in the mountainash layer."
+      ]
+    },
+    {
+      "name": "Expression Dispatch",
+      "module_ids": ["expressions.core.expression_system", "expressions.core.unified_visitor"],
+      "description": "Expressions compile through a type-safe dispatch system built on function key enums. Each operation has a unique key, and the FunctionRegistry resolves it to the correct backend implementation at compile time. Protocol-aware argument introspection ensures that the arguments you pass match what the backend expects, catching mismatches early rather than at runtime.",
+      "stories": [
+        "Following a coalesce() call: the expression system looks up the FKEY for coalesce, resolves it to the active backend's implementation, and generates the native operation — Polars coalesce, SQL COALESCE, or pandas combine_first, depending on context.",
+        "Extending the dispatch: when you add a new function key, the registry pattern ensures it's wired consistently across all backends, and the enum-based keys prevent stringly-typed dispatch errors."
+      ]
+    },
+    {
+      "name": "Relation Dispatch",
+      "module_ids": ["relations.core.unified_visitor", "relations.core.relation_protocols"],
+      "description": "Relation nodes compile through a visit registry that maps each node type to its backend-specific compilation logic. The visitor pattern supports extensibility — external packages can register new node types without modifying core code. Cross-type join coercion handles the case where you join data from different backends, and ConformRelNode demonstrates compile-time-deferred operations where the full transformation is resolved only when column metadata is available.",
+      "stories": [
+        "Cross-type joins in practice: when you join a Polars DataFrame with a pandas DataFrame, the relation dispatch detects the mismatch, coerces to a common backend, and executes the join — all transparently.",
+        "Conform at compile time: ConformRelNode defers its transformation until the visitor has full column information, then generates the complete conform pipeline as native backend operations. This avoids runtime overhead while supporting dynamic schema alignment."
+      ]
+    },
+    {
+      "name": "Cross-Backend Guarantees",
+      "module_ids": ["core"],
+      "description": "Mountainash maintains a consistency contract: the same expression should produce the same result regardless of backend, within documented boundaries. A known divergences registry tracks where backends genuinely differ (e.g., floating-point edge cases, NULL handling subtleties), and upstream fix monitoring flags when a backend library update might resolve a tracked divergence. The arguments-vs-options separation keeps the core API stable even as backend capabilities evolve.",
+      "stories": [
+        "The consistency audit cycle: when a new Polars release ships, maintainers check the known divergences registry to see if any tracked limitations have been resolved upstream, then update tests and remove workarounds.",
+        "Arguments vs options: the core API separates what an operation does (arguments) from how a backend does it (options). This means adding backend-specific optimizations never changes the user-facing API signature."
+      ]
+    }
   ],
   "featured_modules": ["expressions.core.expression_protocols", "relations.core.relation_protocols", "expressions.core.expression_system", "relations.core.unified_visitor", "core"],
   "hidden_or_internal_modules": ["toplevel", "pydata.ingress", "pydata.egress", "pipelines", "graph", "datacontracts"],
-  "documentation_plan": ["Backend implementation guide", "Protocol reference", "Known divergences catalogue", "Cross-type coercion mechanics"],
   "open_questions": []
 }

@@ -1,15 +1,54 @@
 {
   "audience": "executives-marketing",
-  "summary": "Capabilities, differentiators, roadmap signals, and credible proof points for positioning mountainash in the data tooling market.",
+  "summary": "Mountainash is a composable data platform that lets teams write data logic once and run it on any engine — from in-memory analytics to cloud SQL warehouses. It brings schema governance, data quality contracts, and pipeline orchestration into a single, cohesive toolkit.",
   "concepts": [
-    {"name": "Cross-Backend Expression Engine", "module_ids": ["expressions.core.expression_api", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"], "recommended_docs": ["Write once, run on Polars/pandas/PyArrow/SQL", "84 function key operations with consistent semantics", "Three-valued logic for real-world data quality"], "evidence": ["3 backend implementations, 84 FKEY entries, ternary logic system"]},
-    {"name": "Relational Pipeline Builder", "module_ids": ["relations.core.relation_api"], "recommended_docs": ["Polars-like fluent API with cross-backend portability", "18 terminal methods for flexible output", "Cross-type joins (e.g. Polars + pandas in one join)"], "evidence": ["18 terminals, cross-type join support"]},
-    {"name": "Frictionless Data Standards", "module_ids": ["typespec", "conform", "relations.dag"], "recommended_docs": ["TypeSpec aligned with Frictionless Table Schema", "Full conform pipeline (missingValues, boolean/numeric/temporal parsing, fieldsMatch)", "DataPackage multi-resource orchestration"], "evidence": ["Frictionless structural fidelity principle, 7-stage pipeline"]},
-    {"name": "Data Contract Validation", "module_ids": ["datacontracts"], "recommended_docs": ["TypeSpec-to-pandera compilation", "Expression-backed custom validation rules", "Context-aware rule exclusions for environment-specific validation"], "evidence": ["Validator, RuleRegistry, ValidationResultProcessor"]},
-    {"name": "Pipeline Framework", "module_ids": ["pipelines"], "recommended_docs": ["Declarative DAG-based pipelines", "Typed parameters and caching", "Relation integration for composability"], "evidence": ["PipelineBuilder, SimplePipelineRunner"]}
+    {
+      "name": "Cross-Backend Expression Engine",
+      "module_ids": ["expressions.core.expression_api", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"],
+      "description": "The expression engine is the core of mountainash's portability story. Data teams write transformation logic once using a clean, Pythonic API, and that logic compiles to native operations on Polars, pandas, PyArrow, cuDF, or any of the SQL backends supported through Ibis — including PostgreSQL, BigQuery, Snowflake, and DuckDB. Three-valued logic handles missing and uncertain data honestly, which is essential for real-world data quality work.",
+      "stories": [
+        "A data team migrating from pandas to Polars rewrites zero transformation logic — they update their backend configuration and their existing expressions compile to Polars natively, with immediate performance gains.",
+        "A company running analytics on PostgreSQL in development and BigQuery in production uses the same mountainash expressions in both environments, eliminating the 'works on my machine' class of data bugs."
+      ]
+    },
+    {
+      "name": "Relational Pipeline Builder",
+      "module_ids": ["relations.core.relation_api"],
+      "description": "The Relation API provides a fluent, composable interface for building data pipelines — filter, join, aggregate, window, conform — that feels familiar to anyone who has used Polars or SQL. Terminal methods deliver results in whatever format the application needs: DataFrames, Python dicts, dataclasses, Pydantic models, Arrow tables, and more. Cross-type joins let teams combine data from different sources and engines in a single operation, removing integration friction.",
+      "stories": [
+        "An analytics team builds a customer segmentation pipeline that reads from a SQL warehouse, joins with real-time Polars data, and outputs Pydantic models for an API endpoint — all in one composable pipeline.",
+        "A data platform team standardizes on mountainash's Relation API as their internal abstraction, allowing individual teams to choose their preferred backend while sharing pipeline components."
+      ]
+    },
+    {
+      "name": "Frictionless Data Standards",
+      "module_ids": ["typespec", "conform", "relations.dag"],
+      "description": "Mountainash aligns with the Frictionless Data standards for schema definition and data packaging. TypeSpec provides portable, declarative schemas. The conform pipeline handles the messy reality of real-world data — missing value normalization, type parsing, category enforcement — transforming raw inputs into clean, schema-aligned outputs. DataPackage support enables multi-resource workflows with foreign key integrity, making mountainash a natural fit for data governance initiatives.",
+      "stories": [
+        "A healthcare organization uses TypeSpec schemas as the single source of truth for their data contracts, shared between the data engineering team (who produce the data) and the analytics team (who consume it). The conform pipeline catches schema drift at ingestion time.",
+        "A data marketplace publishes datasets as Frictionless DataPackages. Consumers load them into mountainash and get validated, queryable data with full relationship integrity — ready for analysis immediately."
+      ]
+    },
+    {
+      "name": "Data Contract Validation",
+      "module_ids": ["datacontracts"],
+      "description": "Data contracts let teams define and enforce quality expectations as code. Contracts compile from TypeSpec schemas and can be extended with custom validation rules — business logic checks, statistical bounds, referential integrity. Context-aware rule exclusions allow different validation strictness per environment, so development stays fast while production stays protected.",
+      "stories": [
+        "A fintech company embeds data contracts in their CI pipeline. Every PR that changes a data transformation is validated against the contract — breaking changes are caught before they reach production, and the contract serves as living documentation of data expectations.",
+        "An enterprise data team uses context-aware exclusions to run full validation in production while allowing partial data in staging, giving developers fast iteration cycles without compromising production quality."
+      ]
+    },
+    {
+      "name": "Pipeline Framework",
+      "module_ids": ["pipelines"],
+      "description": "The pipeline framework provides declarative, DAG-based orchestration for multi-step data workflows. Typed parameters make pipelines self-documenting and safe to compose. Caching and storage integrations support efficient incremental processing, and the direct integration with the Relation API means every pipeline step benefits from full backend portability and expression engine power.",
+      "stories": [
+        "A retail company builds their daily ETL as a mountainash pipeline with typed parameters for date ranges and store filters. The same pipeline definition runs in development (on local Polars), staging (on DuckDB), and production (on BigQuery) — with caching that avoids reprocessing unchanged data.",
+        "A data platform team uses the pipeline framework to build composable, reusable data products. Individual teams author pipeline steps, and the DAG framework handles ordering, dependencies, and caching — reducing operational overhead while maintaining data lineage."
+      ]
+    }
   ],
   "featured_modules": ["expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform", "datacontracts", "pipelines"],
   "hidden_or_internal_modules": ["core", "graph", "all backend/protocol/visitor/node modules"],
-  "documentation_plan": ["Product positioning page", "Feature comparison matrix", "Use case narratives (data migration, quality, cross-backend)"],
   "open_questions": []
 }

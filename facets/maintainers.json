@@ -1,17 +1,72 @@
 {
   "audience": "maintainers",
-  "summary": "Architecture invariants, internal dependencies, test coverage, failure modes, and change risks. Maintainers need to understand the three-layer separation, protocol contracts, visitor composition, the conform rearchitecture, egress delegation, and known divergences across backends.",
+  "summary": "Mountainash is built on a disciplined three-layer architecture — protocols, API surface, and backend implementations — that keeps the codebase navigable as the expression engine and relation system grow. This facet covers the invariants, composition patterns, and change-risk areas that maintainers work with daily.",
   "concepts": [
-    {"name": "Three-Layer Architecture", "module_ids": ["expressions.core.expression_protocols", "expressions.core.expression_api", "expressions.backends.polars", "relations.core.relation_protocols", "relations.core.relation_api", "relations.backends.polars"], "recommended_docs": ["Three-layer separation principle", "Protocol as contract", "Backend composition via multiple inheritance"], "evidence": ["Design principles"]},
-    {"name": "Visitor Composition", "module_ids": ["expressions.core.unified_visitor", "relations.core.unified_visitor"], "recommended_docs": ["Expression visitor dispatch via function registry", "Relation visitor composition with expression visitor", "ref_resolver for DAG integration", "apply_conform dispatch at compile time"], "evidence": ["Visitor principle docs"]},
-    {"name": "Function Key Wiring", "module_ids": ["expressions.core.expression_system"], "recommended_docs": ["Adding a new operation (six-step process)", "Function key enums FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_*", "definitions.py central wiring (2458 lines)"], "evidence": ["enums.py: 84 FKEY entries"]},
-    {"name": "Conform Rearchitecture", "module_ids": ["conform", "relations.core.relation_nodes", "relations.core.unified_visitor"], "recommended_docs": ["ConformRelNode: defer to compile time when column info available", "7-stage Frictionless transform pipeline", "fieldsMatch enforcement (6 modes)", "apply_conform bridges conform pipeline to backend operations"], "evidence": ["Major rearchitecture 2026-05; ConformRelNode, ConformResult, error hierarchy"]},
-    {"name": "Egress Delegation", "module_ids": ["relations.core.relation_api", "pydata.egress"], "recommended_docs": ["18 terminal methods delegate to pydata.egress", "Three-tier hybrid conversion (native vectorized -> extraction -> Python custom)", "Column name sanitization for namedtuple extraction"], "evidence": ["11 new terminals added 2026-05; refactored delegation"]},
-    {"name": "Backend Detection & Registration", "module_ids": ["core", "expressions.core.expression_system", "relations.core.relation_protocols"], "recommended_docs": ["CONST_BACKEND detection chain", "Backend registration decorators", "Strategy factory pattern"], "evidence": ["Core module"]},
-    {"name": "Cross-Backend Testing", "module_ids": ["core"], "recommended_docs": ["Cross-backend parametrised tests", "xfail for known quirks", "KNOWN_EXPR_LIMITATIONS registries", "Known divergences tracking", "Upstream fix monitoring"], "evidence": ["Testing philosophy principle"]}
+    {
+      "name": "Three-Layer Architecture",
+      "module_ids": ["expressions.core.expression_protocols", "expressions.core.expression_api", "expressions.backends.polars", "relations.core.relation_protocols", "relations.core.relation_api", "relations.backends.polars"],
+      "description": "Every capability in mountainash lives in exactly one of three layers: the protocol layer (contracts), the API layer (user-facing surface), and the backend layer (native implementations). Protocols define what must exist, the API layer provides the ergonomic interface users import, and backends fulfill the protocol contracts for a specific engine. This separation means changes in one layer have predictable, contained impact on the others.",
+      "stories": [
+        "Triaging a bug report: a user reports that .str.contains() behaves differently on Ibis. You check the protocol (is the contract ambiguous?), the API builder (is it wiring arguments correctly?), and the Ibis backend mixin (is the translation wrong?) — the three-layer structure tells you exactly where to look.",
+        "Reviewing a PR that adds a new expression: you verify the protocol addition, check that the API builder exposes it consistently, confirm all backend mixins implement it, and review cross-backend tests — the layers provide a natural review checklist."
+      ]
+    },
+    {
+      "name": "Visitor Composition",
+      "module_ids": ["expressions.core.unified_visitor", "relations.core.unified_visitor"],
+      "description": "The unified visitor compiles expression and relation ASTs into backend-native operations. Expression visitors dispatch through the function registry, while relation visitors compose with expression visitors to compile full pipelines. The ref_resolver integration connects the visitor to DAG-level operations, and apply_conform handles compile-time-deferred conformance transformations. Understanding how visitors compose is essential for debugging compilation issues.",
+      "stories": [
+        "Debugging a compilation failure: a relation pipeline produces unexpected SQL. You trace through the relation visitor to find the node that compiles incorrectly, check whether the expression visitor it delegates to is handling the nested expression, and identify a missing case in the Ibis mixin.",
+        "Adding DAG support for a new node type: you register a new visitor handler, implement the ref_resolver integration so the DAG can resolve references through it, and add tests that exercise the node in both standalone and DAG contexts."
+      ]
+    },
+    {
+      "name": "Function Key Wiring",
+      "module_ids": ["expressions.core.expression_system"],
+      "description": "Every expression operation is identified by a function key enum — a type-safe identifier that connects the user-facing API to the backend implementation through a central wiring layer (definitions.py). Substrait-aligned operations and mountainash extensions use separate key namespaces. Adding a new operation means adding a key, a protocol method, an API builder, backend implementations, the wiring entry, and tests — a structured process that prevents accidental gaps.",
+      "stories": [
+        "Adding a new string operation: you add the FKEY enum entry, define the protocol method with its signature, implement the API builder, add the mixin method in each backend, wire it in definitions.py, and write cross-backend tests. The process is mechanical and well-defined — the risk is in missing a step, not in figuring out what the steps are.",
+        "Investigating a dispatch miss: a function call raises 'unregistered key'. You check the enum (does the key exist?), definitions.py (is it wired?), and the backend (is the mixin method registered?) — the wiring chain is linear and traceable."
+      ]
+    },
+    {
+      "name": "Conform Rearchitecture",
+      "module_ids": ["conform", "relations.core.relation_nodes", "relations.core.unified_visitor"],
+      "description": "The conform system was rearchitected to defer transformation to compile time via ConformRelNode. Rather than eagerly transforming data, the conform pipeline builds a sequence of expression operations that the backend compiles natively. The multi-stage Frictionless transform pipeline (missing values, booleans, numerics, temporals, categories, list delimiters, field matching) executes as backend-native operations, giving full optimization opportunities. ConformResult and a structured error hierarchy provide clear diagnostics when conformance fails.",
+      "stories": [
+        "Debugging a conform failure: a user's DataFrame fails conformance with an unclear error. You trace through the conform stages to find which stage rejected the data, check the fieldsMatch mode, and discover the schema has a stricter mode than the data supports.",
+        "Optimizing conform performance: because conform compiles to native backend expressions, you can profile it with the backend's own tools — Polars explain(), SQL EXPLAIN — and identify which transform stage is the bottleneck."
+      ]
+    },
+    {
+      "name": "Egress Delegation",
+      "module_ids": ["relations.core.relation_api", "pydata.egress"],
+      "description": "Terminal methods on the Relation API (.to_polars, .to_dicts, .to_dataclasses, .to_pydantic, etc.) delegate to the pydata.egress module, which implements a three-tier hybrid conversion strategy: native vectorized extraction where the backend supports it, structured extraction for complex types, and Python-level custom conversion as a fallback. Column name sanitization handles edge cases like reserved words and special characters in namedtuple extraction.",
+      "stories": [
+        "Investigating slow .to_dataclasses(): you check which conversion tier the egress module is using — if it falls back to Python-level custom conversion, you look for opportunities to add a vectorized path for the specific type pattern.",
+        "Adding a new terminal method: you add the method to RelationAPIProtocol, implement it in the Relation class by delegating to an egress function, and write cross-backend tests. The delegation pattern keeps terminal methods thin and testable."
+      ]
+    },
+    {
+      "name": "Backend Detection and Registration",
+      "module_ids": ["core", "expressions.core.expression_system", "relations.core.relation_protocols"],
+      "description": "The CONST_BACKEND detection chain identifies which backend to use for a given input, and registration decorators wire backend implementations into the dispatch system. The strategy factory pattern allows backends to be loaded lazily and registered dynamically, supporting optional dependencies without import-time overhead.",
+      "stories": [
+        "Troubleshooting 'backend not found': you check the detection chain to see if the input type is recognized, verify the backend module is importable, and confirm the registration decorator ran during module initialization.",
+        "Adding a new backend: you implement the required protocol mixins, add a detection rule to CONST_BACKEND, register with the strategy factory, and verify that existing cross-backend tests pass with the new backend included."
+      ]
+    },
+    {
+      "name": "Cross-Backend Testing",
+      "module_ids": ["core"],
+      "description": "The test suite parametrizes across all supported backends, ensuring every expression and relation operation produces consistent results everywhere. Known backend quirks are tracked with xfail markers (never skip — the test must still run so regressions are caught). KNOWN_EXPR_LIMITATIONS registries document intentional divergences, and upstream fix monitoring flags when a backend library update might resolve a tracked limitation.",
+      "stories": [
+        "A new Polars release breaks a test: you check whether the test was xfail'd for a known limitation that Polars just fixed (in which case, remove the xfail and celebrate) or whether Polars introduced a regression (in which case, report upstream and add a new xfail with a tracking issue).",
+        "Expanding coverage: when adding tests for a new operation, you run across all backends to discover which ones support it natively and which need mountainash-level workarounds — the parametrized pattern handles this automatically."
+      ]
+    }
   ],
   "featured_modules": ["core", "expressions.core.expression_system", "expressions.core.unified_visitor", "relations.core.unified_visitor", "conform", "relations.core.relation_nodes", "pydata.egress"],
   "hidden_or_internal_modules": [],
-  "documentation_plan": ["Architecture overview with layer diagram", "Adding a new operation walkthrough", "Backend implementation guide", "Conform pipeline internals", "Known divergences catalogue"],
-  "open_questions": ["How to document definitions.py (2458 lines) without it becoming stale?"]
+  "open_questions": []
 }

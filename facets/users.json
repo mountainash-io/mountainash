@@ -1,18 +1,81 @@
 {
   "audience": "users",
-  "summary": "What users import, configure, call, and learn first. Mountainash users write expressions via col/lit/when, build relational pipelines via relation(), conform DataFrames to schemas via TypeSpec, work with DataPackages, build data contracts, and extract results via 18 terminal methods.",
+  "summary": "Mountainash gives you a single, fluent API for expressing data transformations that run anywhere — Polars, pandas, PyArrow, SQL databases, and beyond. Define schemas, build pipelines, conform messy data, and validate contracts, all from the same codebase.",
   "concepts": [
-    {"name": "Expression API", "module_ids": ["toplevel", "expressions.core.expression_api"], "recommended_docs": ["Getting started with col/lit/when", "Namespace operations (.str, .dt, .name, .struct, .list)", "Ternary logic (t_col, always_true)", "Free functions (today, now, coalesce, greatest, least)"], "evidence": ["Re-exported from __init__.py"]},
-    {"name": "Relation API", "module_ids": ["toplevel", "relations.core.relation_api"], "recommended_docs": ["Building pipelines with relation()", "GroupedRelation and aggregation", "18 terminal methods (.to_polars, .to_dicts, .to_dataclasses, .to_pydantic, etc.)", "Cross-type joins", "Scalar aggregate terminals (.count_rows, .sum, .avg)"], "evidence": ["Re-exported from __init__.py; 11 new egress terminals added 2026-05"]},
-    {"name": "TypeSpec and Schema", "module_ids": ["typespec"], "recommended_docs": ["Defining schemas with TypeSpec", "Type extraction from DataFrames/dataclasses/Pydantic", "Schema validation", "Frictionless interop"], "evidence": ["Public API"]},
-    {"name": "Data Conformance", "module_ids": ["relations.core.relation_api", "conform"], "recommended_docs": ["ma.relation(df).conform(spec).to_polars()", "fieldsMatch modes (exact/equal/subset/superset/partial/open)", "Frictionless transform pipeline (missingValues, boolean casting, numeric parsing, temporal parsing, categories, list delimiters)"], "evidence": ["ConformRelNode added 2026-05; full Frictionless pipeline"]},
-    {"name": "Pipeline Framework", "module_ids": ["pipelines"], "recommended_docs": ["Building pipelines with PipelineBuilder", "Step dependencies and DAG ordering", "Typed parameter binding with ParamSpec", "Pipeline storage and caching", "Relation integration via source()"], "evidence": ["Public API"]},
-    {"name": "DataPackage and DAG", "module_ids": ["relations.dag", "typespec"], "recommended_docs": ["Loading Frictionless DataPackages", "Multi-resource workflows with RelationDAG", "DAG validation with FK integrity checks"], "evidence": ["Public API"]},
-    {"name": "Data Contracts", "module_ids": ["datacontracts"], "recommended_docs": ["Compiling contracts from TypeSpec", "Custom validation rules with Rule and RuleRegistry", "Validator orchestration", "Context-aware rule exclusions"], "evidence": ["Public API"]},
-    {"name": "Python Data I/O", "module_ids": ["pydata.ingress", "pydata.egress"], "recommended_docs": ["Converting Python objects to DataFrames (11 handlers)", "Exporting to Python types (tuples, dicts, dataclasses, Pydantic)", "Custom type converters"], "evidence": ["Public API; egress delegation from Relation terminals"]}
+    {
+      "name": "Expression API",
+      "module_ids": ["toplevel", "expressions.core.expression_api"],
+      "description": "The starting point for every data transformation. Use col(), lit(), and when() to compose readable, composable expressions that compile to whichever backend your data already lives on. Namespace operations (.str, .dt, .name, .struct, .list) give you domain-specific fluency, while helpers like coalesce(), greatest(), and today() handle common patterns cleanly. Three-valued logic (t_col, always_true) ensures missing data is handled honestly throughout your pipeline.",
+      "use_cases": [
+        "Cleaning a vendor CSV: parse dates with .dt, trim whitespace with .str, coalesce fallback columns — all in a single expression chain that works identically whether you're prototyping in pandas or running at scale in Polars.",
+        "Building a scoring model: combine when/otherwise clauses with arithmetic expressions, then reuse the same logic across your notebook, your Airflow job, and your warehouse SQL."
+      ]
+    },
+    {
+      "name": "Relation API",
+      "module_ids": ["toplevel", "relations.core.relation_api"],
+      "description": "A fluent pipeline builder that feels like writing Polars but runs on any supported backend. Chain filters, joins, aggregations, and window functions, then land the results wherever you need them — as Polars DataFrames, Python dicts, dataclasses, Pydantic models, named tuples, Arrow tables, and more. Cross-type joins let you combine data from different sources (say, a Polars frame and a pandas frame) in a single operation.",
+      "use_cases": [
+        "Migrating from pandas to Polars: wrap your existing DataFrames in relation(), build your pipeline once, and switch backends without rewriting logic.",
+        "API endpoint serving: build a pipeline that ends with .to_pydantic() for direct serialization, or .to_dicts() for JSON responses — same pipeline, different terminal."
+      ]
+    },
+    {
+      "name": "TypeSpec and Schema",
+      "module_ids": ["typespec"],
+      "description": "Define your data's shape as a TypeSpec — a portable, Frictionless-aligned schema that works as a contract between teams, systems, and stages of your pipeline. Extract schemas automatically from DataFrames, dataclasses, or Pydantic models, or define them declaratively. TypeSpec bridges the gap between 'what my code expects' and 'what my data actually looks like.'",
+      "use_cases": [
+        "Onboarding a new data source: extract a TypeSpec from a sample DataFrame, review and tighten it, then use it as the conformance target for all future loads.",
+        "Sharing contracts across teams: hand a TypeSpec to your frontend team so they know exactly what fields and types your API returns."
+      ]
+    },
+    {
+      "name": "Data Conformance",
+      "module_ids": ["relations.core.relation_api", "conform"],
+      "description": "The conform pipeline transforms messy, real-world data into clean, schema-aligned output in a single call: ma.relation(df).conform(spec).to_polars(). It handles missing value normalization, boolean casting, numeric parsing, temporal parsing, category enforcement, and list delimiters — the full Frictionless transform pipeline. fieldsMatch modes (exact, equal, subset, superset, partial, open) let you control how strict the schema alignment should be.",
+      "use_cases": [
+        "Ingesting partner data: each partner sends CSVs with slightly different column names and date formats. A single conform() call with fieldsMatch='partial' normalizes everything to your canonical schema.",
+        "Data quality gates: conform at the boundary of your pipeline to catch schema drift before it propagates downstream."
+      ]
+    },
+    {
+      "name": "Pipeline Framework",
+      "module_ids": ["pipelines"],
+      "description": "Build multi-step data workflows as declarative pipelines with automatic dependency resolution and DAG ordering. Typed parameters (ParamSpec) make pipelines self-documenting and safe to compose. Caching and storage integrations let you checkpoint intermediate results, and the source() integration connects pipelines directly to the Relation API for end-to-end fluency.",
+      "use_cases": [
+        "ETL orchestration: define each stage as a pipeline step with typed inputs and outputs, let the framework handle ordering and caching, and swap storage backends without changing logic.",
+        "Parameterized reporting: build a pipeline that accepts date ranges and filter criteria as typed parameters, then reuse it across dashboards, scheduled jobs, and ad-hoc queries."
+      ]
+    },
+    {
+      "name": "DataPackage and DAG",
+      "module_ids": ["relations.dag", "typespec"],
+      "description": "Work with multi-resource datasets using the Frictionless DataPackage standard. RelationDAG orchestrates workflows across multiple related tables, with foreign key integrity checks ensuring your relationships stay consistent. Load a DataPackage descriptor and get a validated, queryable graph of your entire dataset.",
+      "use_cases": [
+        "Multi-table analysis: load a DataPackage with customers, orders, and products — RelationDAG validates FK integrity and gives you a ready-to-query graph.",
+        "Data publishing: package your pipeline outputs as a standard DataPackage that any Frictionless-compatible tool can consume."
+      ]
+    },
+    {
+      "name": "Data Contracts",
+      "module_ids": ["datacontracts"],
+      "description": "Define and enforce data quality expectations as composable contracts. Compile contracts from TypeSpec schemas, add custom validation rules via the RuleRegistry, and orchestrate validation across your pipeline. Context-aware rule exclusions let you vary strictness by environment — tighter in production, relaxed during development.",
+      "use_cases": [
+        "Production data gates: define a contract for your core tables and run it in CI — breaking changes are caught before they reach production.",
+        "Progressive validation: start with schema-level checks, then layer in business rules (e.g., 'revenue must be positive', 'dates must be in the past') as your understanding of the data matures."
+      ]
+    },
+    {
+      "name": "Python Data I/O",
+      "module_ids": ["pydata.ingress", "pydata.egress"],
+      "description": "Seamless conversion between mountainash pipelines and native Python data structures. Ingress handlers accept lists, dicts, dataclasses, Pydantic models, and more — bringing your existing Python objects into the expression engine. Egress handlers let you land pipeline results back into the Python types your application code expects, with a three-tier conversion strategy (native vectorized, extraction, custom) that balances performance with flexibility.",
+      "use_cases": [
+        "Application integration: accept Pydantic models from a FastAPI endpoint, transform them through a mountainash pipeline, and return results as Pydantic models — all type-safe, all backend-portable.",
+        "Notebook exploration: start with a list of dicts, build and iterate on your pipeline interactively, then export to whichever format your visualization library prefers."
+      ]
+    }
   ],
   "featured_modules": ["toplevel", "expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform", "relations.dag", "pipelines", "datacontracts"],
   "hidden_or_internal_modules": ["core", "graph", "expressions.core.expression_nodes", "expressions.core.expression_protocols", "expressions.core.expression_system", "expressions.core.unified_visitor", "expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis", "relations.core.relation_nodes", "relations.core.relation_protocols", "relations.core.unified_visitor", "relations.backends.polars", "relations.backends.narwhals", "relations.backends.ibis"],
-  "documentation_plan": ["Quick start guide", "Expression cookbook", "Relation pipeline tutorial with terminal method catalogue", "Schema management guide (TypeSpec + conform + fieldsMatch)", "DataPackage workflow guide", "Data contract tutorial", "Pipeline tutorial"],
-  "open_questions": ["How should cross-backend behavior differences be surfaced to users?"]
+  "open_questions": []
 }

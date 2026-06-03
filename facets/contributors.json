@@ -1,16 +1,61 @@
 {
   "audience": "contributors",
-  "summary": "Where to add features, how modules fit together, naming conventions, test patterns, and what to update when making changes. Updated to reflect conform rearchitecture and new egress terminal methods.",
+  "summary": "Mountainash is designed to make contributions predictable. Consistent naming conventions, a structured process for adding operations, clear module boundaries, and comprehensive cross-backend testing mean you can contribute confidently — even if you're new to the codebase.",
   "concepts": [
-    {"name": "Adding Operations", "module_ids": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols"], "recommended_docs": ["Six-step process: enum -> protocol -> API builder -> all backends -> function mapping -> tests", "Wiring matrix principle"], "evidence": ["Adding-operations principle"]},
-    {"name": "File Organisation", "module_ids": ["core"], "recommended_docs": ["File prefixes (exn_, prtcl_, api_bldr_, expsys_, reln_, relsys_)", "Backend prefixes (pl_, ib_, nw_)", "Three-layer mirror structure", "Substrait vs extensions_mountainash directory separation"], "evidence": ["Naming conventions principle"]},
-    {"name": "Testing Patterns", "module_ids": ["core"], "recommended_docs": ["Cross-backend parametrised tests", "xfail for known quirks (never skip)", "Test file naming conventions"], "evidence": ["Testing philosophy principle"]},
-    {"name": "Import Conventions", "module_ids": ["core"], "recommended_docs": ["Four import categories", "lazy_loader for __init__.py", "lazy_imports for runtime optional backends"], "evidence": ["Import conventions principle"]},
-    {"name": "Adding Terminal Methods", "module_ids": ["relations.core.relation_api", "relations.core.relation_protocols", "pydata.egress"], "recommended_docs": ["Add to RelationAPIProtocol", "Implement in Relation class delegating to egress", "Add cross-backend tests"], "evidence": ["11 new terminals added 2026-05"]},
-    {"name": "Adding Conform Stages", "module_ids": ["conform"], "recommended_docs": ["7-stage pipeline in _build_conform_exprs", "Stage ordering invariants", "ConformResult dataclass"], "evidence": ["Conform rearchitecture 2026-05"]}
+    {
+      "name": "Adding Operations",
+      "module_ids": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols"],
+      "description": "Adding a new expression operation follows a well-defined process: define the function key enum, add the protocol method, implement the API builder, add backend mixins for each supported engine, wire the function mapping in the central definitions, and write cross-backend tests. The wiring matrix principle ensures nothing is missed — each step feeds the next, and the test suite catches gaps.",
+      "stories": [
+        "Your first operation: you pick an unimplemented string function from the issue tracker. The function key enum tells you the naming pattern, the existing protocol methods show you the signature style, and the API builder pattern is consistent enough that you can copy-and-adapt. The cross-backend tests confirm you got it right.",
+        "Finding the right files: the file naming conventions (exn_, prtcl_, api_bldr_, pl_, ib_, nw_) mean you can navigate to the right file by prefix alone — no need to memorize the full module tree."
+      ]
+    },
+    {
+      "name": "File Organisation",
+      "module_ids": ["core"],
+      "description": "The codebase follows a consistent naming scheme that mirrors the three-layer architecture. File prefixes indicate the layer (exn_ for expression nodes, prtcl_ for protocols, api_bldr_ for API builders, expsys_ for expression system, reln_ for relation nodes, relsys_ for relation system) and backend prefixes (pl_, ib_, nw_) identify which engine a file implements. The three-layer mirror structure means expressions and relations share the same organizational pattern, so learning one teaches you both. Substrait-aligned and mountainash-extension directories are kept separate to preserve standards alignment.",
+      "stories": [
+        "Orienting yourself: you want to understand how .str.upper() works. Start at the API builder (api_bldr_string), check the protocol (prtcl_string), then look at each backend (pl_string, ib_string, nw_string). The naming pattern gets you there without searching.",
+        "Reviewing a PR: the file prefixes tell you immediately which layer and backend each changed file belongs to, making it easy to verify that all layers were updated consistently."
+      ]
+    },
+    {
+      "name": "Testing Patterns",
+      "module_ids": ["core"],
+      "description": "Tests are parametrized across all backends — every assertion runs against Polars, Narwhals, and Ibis. Known backend quirks use xfail markers (never skip), so the test always executes and regressions are caught even for known limitations. Test file naming follows a consistent convention that makes it easy to find the tests for any given module.",
+      "stories": [
+        "Writing your first test: you follow the existing test patterns — create a small DataFrame fixture, write your assertion, and the parametrize decorator ensures it runs against every backend. If a backend has a known limitation, you add an xfail with a comment explaining why.",
+        "A test you wrote is failing on Ibis: you check whether it's a genuine bug or a known limitation. The xfail registry and KNOWN_EXPR_LIMITATIONS make this distinction clear — if it's known, you document it; if it's new, you investigate."
+      ]
+    },
+    {
+      "name": "Import Conventions",
+      "module_ids": ["core"],
+      "description": "Imports follow a structured pattern with four categories, lazy_loader for __init__.py modules to keep import times fast, and lazy_imports for runtime-optional backends so that missing dependencies are detected at use time rather than import time. Following these conventions ensures your contributions integrate cleanly and don't introduce unexpected import-time side effects.",
+      "stories": [
+        "Adding a new public API: you add the symbol to the appropriate __init__.py using the lazy_loader pattern, ensuring it's discoverable but doesn't slow down import time for users who don't need it.",
+        "Working with optional backends: you use lazy_imports to gate backend-specific code, so users without Ibis installed don't see import errors when they only use Polars."
+      ]
+    },
+    {
+      "name": "Adding Terminal Methods",
+      "module_ids": ["relations.core.relation_api", "relations.core.relation_protocols", "pydata.egress"],
+      "description": "New terminal methods follow a clear path: define the method in RelationAPIProtocol, implement it in the Relation class with delegation to the pydata.egress module, and add cross-backend tests. The delegation pattern keeps terminal methods thin — the conversion logic lives in egress, and the relation API stays focused on pipeline orchestration.",
+      "stories": [
+        "Adding .to_arrow(): you define the protocol method, implement a one-line delegation in the Relation class, write the egress function that handles each backend's native Arrow export, and add tests that verify round-trip fidelity across backends."
+      ]
+    },
+    {
+      "name": "Adding Conform Stages",
+      "module_ids": ["conform"],
+      "description": "The conform pipeline processes data through ordered stages, each handling a specific transformation (missing values, booleans, numerics, temporals, categories, list delimiters, field matching). Adding a new stage means implementing the transformation, placing it at the correct point in the stage ordering (ordering invariants are documented), and updating ConformResult to capture any new diagnostic information.",
+      "stories": [
+        "Adding a new parsing stage: you identify where in the pipeline ordering your stage belongs (e.g., after missing value normalization but before type casting), implement the expression generation, and add tests that exercise the stage in isolation and as part of the full pipeline."
+      ]
+    }
   ],
   "featured_modules": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols", "relations.core.relation_api", "relations.core.relation_protocols", "conform", "typespec"],
   "hidden_or_internal_modules": [],
-  "documentation_plan": ["Contributor onboarding guide", "Adding an operation walkthrough", "Adding a terminal method walkthrough", "Test writing guide"],
   "open_questions": []
 }
