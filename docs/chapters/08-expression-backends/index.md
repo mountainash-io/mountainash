@@ -42,6 +42,7 @@ Backend expression systems (Polars, Narwhals, Ibis), their compilation implement
 
 The expression system protocols defined in Chapter 7 describe what backends must implement. This chapter examines how the three concrete backends (Polars, Narwhals, Ibis) satisfy those protocols, how their implementations are organized via multiple inheritance, and how mountainash tests expression behavior across all backends simultaneously.
 
+<!-- concept:79 -->
 ## PolarsExpressionSystem
 
 The `PolarsExpressionSystem` is the primary expression backend. It compiles mountainash expression ASTs into native Polars expression objects (`pl.Expr`). Because mountainash's expression API was originally modeled on Polars, this backend provides the most natural and complete mapping.
@@ -62,6 +63,7 @@ def compile_add(self, args, options):
 
 The Polars backend supports the full operation catalog including window functions, advanced string operations, and all temporal operations. It serves as the reference implementation against which other backends are compared.
 
+<!-- concept:80 -->
 ## NarwhalsExpressionSystem
 
 The `NarwhalsExpressionSystem` handles compilation for pandas DataFrames and PyArrow tables by routing through the Narwhals compatibility layer. Narwhals provides a Polars-like API on top of other DataFrame libraries, so the compilation output closely mirrors the Polars backend.
@@ -77,6 +79,7 @@ def compile_literal(self, node):
 
 The Narwhals backend has some limitations compared to Polars. Certain advanced operations (complex window frames, some string regex operations) may not have Narwhals equivalents. When this occurs, the backend either raises a clear error or falls back to a less efficient implementation.
 
+<!-- concept:81 -->
 ## IbisExpressionSystem
 
 The `IbisExpressionSystem` compiles expression ASTs into Ibis expression objects that ultimately translate to SQL. This backend enables mountainash expressions to execute against SQL databases (DuckDB, PostgreSQL, SQLite, and others).
@@ -100,6 +103,7 @@ def compile_add(self, args, options):
 | Window frames | Full support | Limited | Full SQL support |
 | Null semantics | Polars rules | Follows wrapped lib | SQL NULL rules |
 
+<!-- concept:82 -->
 ## Polars Expr Compilation
 
 Polars expression compilation translates each mountainash AST node into the corresponding Polars expression API call. The compilation is mostly a one-to-one mapping because mountainash's API was designed to align with Polars.
@@ -115,12 +119,14 @@ For arithmetic operations, compilation produces Polars operator expressions. For
 
 Note that method names may differ between the mountainash API and Polars. For example, mountainash uses `upper()` while Polars uses `to_uppercase()`. The compilation layer handles these name translations transparently.
 
+<!-- concept:83 -->
 ## Narwhals Expr Compilation
 
 Narwhals expression compilation translates to the Narwhals expression API, which itself is a Polars-compatible interface over pandas, PyArrow, and other backends. The output is `nw.Expr` objects that Narwhals can then lower to the underlying library.
 
 The double-layer translation (mountainash -> Narwhals -> backend) adds some overhead but provides broad compatibility. Any DataFrame library that Narwhals supports becomes automatically available to mountainash without a dedicated expression system implementation.
 
+<!-- concept:84 -->
 ## Ibis Expr Compilation
 
 Ibis expression compilation takes a fundamentally different approach. Instead of producing expression objects that operate on in-memory data, it produces Ibis expression objects that compile to SQL strings for execution on database engines.
@@ -133,6 +139,7 @@ Key differences in Ibis compilation include:
 - Window functions compile to SQL OVER clauses
 - Some operations have no SQL equivalent and raise NotImplementedError
 
+<!-- concept:85 -->
 ## Backend Composition
 
 Backend composition is the pattern by which each expression system class is assembled from multiple mixin classes, each implementing a specific protocol. Rather than a single monolithic class, each backend is composed from focused, testable components.
@@ -155,6 +162,7 @@ class PolarsExpressionSystem(
 
 This composition enables independent development and testing of each operation category. A change to string compilation affects only the string mixin, reducing merge conflicts and cognitive load.
 
+<!-- concept:86 -->
 ## Multiple Inheritance
 
 Multiple inheritance is the Python mechanism that enables backend composition. Each expression system class inherits from many mixin classes simultaneously, combining their methods into a single interface.
@@ -173,6 +181,7 @@ A class hierarchy diagram showing three expression system classes (Polars, Narwh
 
 Python's Method Resolution Order (MRO) determines which implementation wins when multiple parent classes define the same method. In practice, mountainash's mixins have non-overlapping method names (each mixin handles a distinct function category), so MRO conflicts do not arise.
 
+<!-- concept:87 -->
 ## Substrait Compile Files
 
 Substrait compile files are the source modules that implement compilation for Substrait-standard operations. They are organized by function category, with one file per category per backend.
@@ -187,6 +196,7 @@ The naming convention follows a predictable pattern:
 
 Each file defines a mixin class containing compile methods for all functions in that category. The mixin satisfies the corresponding expression system protocol.
 
+<!-- concept:88 -->
 ## Extension Compile Files
 
 Extension compile files implement compilation for mountainash-specific extensions that go beyond the Substrait specification. They follow the same pattern as Substrait compile files but use the `extensions_mountainash` namespace.
@@ -199,6 +209,7 @@ Extension compile files implement compilation for mountainash-specific extension
 
 The separation between Substrait and extension compile files makes it immediately clear which operations are standardized and which are mountainash-specific. This clarity helps when evaluating portability across different Substrait-compatible systems.
 
+<!-- concept:89 -->
 ## Known Expr Limitations
 
 Known expression limitations are operations where backends diverge in behavior or where certain operations are unsupported on specific backends. Mountainash tracks these systematically rather than hiding them.
@@ -213,6 +224,7 @@ Common limitation categories include:
 
 These limitations are documented in the test suite and enforced through the `xfail` mechanism (described below).
 
+<!-- concept:90 -->
 ## Expression Testing
 
 Expression testing verifies that the compilation output is correct across all backends. The test suite constructs expression ASTs, compiles them against each backend, executes the compiled expressions on sample data, and asserts that results match expected values.
@@ -227,6 +239,7 @@ def test_addition(backend_fixture):
 
 The testing strategy emphasizes behavioral equivalence: the same expression should produce the same results regardless of backend, within the bounds of known limitations.
 
+<!-- concept:91 -->
 ## Cross-Backend Parametrize
 
 Cross-backend parametrize is a pytest pattern that runs the same test against all three backends automatically. Using `@pytest.mark.parametrize`, each test case executes once per backend, catching divergences early.
@@ -242,6 +255,7 @@ def test_string_upper(backend):
 
 This pattern multiplies the effective test coverage by the number of backends. A single logical test case produces three test executions, one per backend. Failures indicate backend-specific bugs or unimplemented features.
 
+<!-- concept:92 -->
 ## xfail Known Quirks
 
 The `xfail` (expected failure) mechanism marks tests that are known to fail on specific backends due to fundamental behavioral differences. Rather than skipping these tests entirely, `xfail` documents the divergence and alerts developers if a previously-failing test starts passing (indicating the underlying issue was fixed).
@@ -256,6 +270,7 @@ def test_regex_lookahead(backend):
 
 The xfail annotations serve as living documentation of backend divergences. They prevent test suite noise from known issues while still running the tests (so improvements are detected automatically).
 
+<!-- concept:93 -->
 ## Arguments vs Options
 
 In the expression AST, the distinction between arguments and options determines how data flows through function compilation. Arguments are expression nodes (compiled recursively by the visitor). Options are plain Python values (passed directly to the compile method).
@@ -271,6 +286,7 @@ Arguments represent data dependencies (column references, literal values, sub-ex
 
 For example, `substring(offset, length)` stores the source expression as an argument but may store offset and length as options if they are always integer literals rather than expressions.
 
+<!-- concept:94 -->
 ## Expression Type Generics
 
 Expression type generics use Python's `TypeVar` and `Generic` to preserve type information through expression chains. This enables static type checkers to know that a comparison operation returns a `BooleanExpressionAPI` rather than a generic `BaseExpressionAPI`.

@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "project": "mountainash",
+  "baseline": {
+    "source_commit": "00e99834097053e30395b1943913b8b4a74a6e28",
+    "refresh_date": "2026-06-04",
+    "tool_versions": {
+      "chapter-content-generator": "0.09",
+      "learning-graph-generator": "0.05",
+      "faq-generator": "1.0",
+      "textbook-refresh": "1.0"
+    }
+  },
+  "chapter_state": {
+    "01-foundations": {
+      "content_hash": "229d6e2883716a17213e94155514a6e2bd25823a704e8633762be5a13109169f",
+      "word_count": 2685,
+      "has_concept_markers": true
+    },
+    "02-core-infrastructure": {
+      "content_hash": "0208fd4907f20a1cce79dfe18933e19b67ee5f6432acb204751b2315ef670361",
+      "word_count": 2329,
+      "has_concept_markers": true
+    },
+    "03-expression-api-basics": {
+      "content_hash": "d91b65ab22a90a22937e7c607a318a090c159cc97d4ae5e04dbe6588a352ed47",
+      "word_count": 2021,
+      "has_concept_markers": true
+    },
+    "04-expression-namespaces-and-functions": {
+      "content_hash": "e3e3948e26db5ef6685e7e96bc98d73b1e54cadbea36c57ec1637cdefd9ca9af",
+      "word_count": 2032,
+      "has_concept_markers": true
+    },
+    "05-expression-operations": {
+      "content_hash": "a4fc9ff53027d61c4ed3d600dfff11b7d7f44ef58cdc0cbbda7e38f05cb6ead6",
+      "word_count": 2094,
+      "has_concept_markers": true
+    },
+    "06-expression-ast-and-function-keys": {
+      "content_hash": "28f11bff6680c7539ad8dad7903cdbe8a9ef8529cf25483be8b91388dbebeeb0",
+      "word_count": 2110,
+      "has_concept_markers": true
+    },
+    "07-expression-function-registry": {
+      "content_hash": "b70a36f2c326eb703edb7f8f25ab8e018a81f54ca832206385fc63ea1b19277e",
+      "word_count": 2254,
+      "has_concept_markers": true
+    },
+    "08-expression-backends": {
+      "content_hash": "e385e7cfc229485aaa74a19bee2b86210f0e1dcb5ff20249764fd1d7d44ba1cd",
+      "word_count": 2108,
+      "has_concept_markers": true
+    },
+    "09-type-system-and-schema": {
+      "content_hash": "0838b05aae8cab5bf3d49294b78e350b1765fa3af64dbd3fcc3455bc69a9255b",
+      "word_count": 2440,
+      "has_concept_markers": true
+    },
+    "10-relation-api-core": {
+      "content_hash": "26a73223e6b0cde21c032ef950e8bdaec10c36244cb7e389f471e2c9f009a2a0",
+      "word_count": 1977,
+      "has_concept_markers": true
+    },
+    "11-relation-api-advanced": {
+      "content_hash": "d8dca30ac0887f7952840424a5ab4cadf5e2cea88dabbb0e016c739160976369",
+      "word_count": 1647,
+      "has_concept_markers": true
+    },
+    "12-pipeline-framework": {
+      "content_hash": "ad833f262d4b7d7165736797e0da1dcfdba4ffd906a307f820628c329113811a",
+      "word_count": 1621,
+      "has_concept_markers": true
+    },
+    "13-dag-and-datapackage": {
+      "content_hash": "125d188e0db8b345a4eda3c3d8781a69dfa6818a4092d733c3d8d46173897964",
+      "word_count": 3550,
+      "has_concept_markers": true
+    },
+    "14-relation-ast-and-system": {
+      "content_hash": "df42c15d0b95d2608107776b948613c64a0a4430b6e7c0714a5ba5951fb3d858",
+      "word_count": 3390,
+      "has_concept_markers": true
+    },
+    "15-relation-backends": {
+      "content_hash": "71b5baa3d8de9bc9a64c87f65776f8964912ea8b8c859fb7839f5febbb656817",
+      "word_count": 3181,
+      "has_concept_markers": true
+    }
+  },
+  "learning_graph_state": {
+    "concept_count": 200,
+    "edge_count": 383,
+    "enriched_count": 110,
+    "content_hash": "3ac015b9ca83ecd9166fb1226f2e886727e47f2efc63691d63e43f00a7a27af4"
+  },
+  "faq_state": {
+    "question_count": 72,
+    "content_hash": "50250cb827f57607f0d488377ffb64a499b21ec30ab99198707b02ecbf3a12f6"
+  },
+  "refresh_history": []
+}

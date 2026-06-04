@@ -39,6 +39,7 @@ Mountainash is a cross-backend data expression and relational pipeline library t
 
 We begin with Python's type system, which provides the structural backbone for the entire library. We then examine the DataFrame abstraction and the specific backend libraries mountainash supports. Finally, we explore four design patterns that recur throughout the architecture: lazy evaluation, method chaining, the visitor pattern, and directed acyclic graphs.
 
+<!-- concept:1 -->
 ## Python Type Hints
 
 Python type hints are annotations that describe the expected types of variables, function parameters, and return values. Introduced in PEP 484 and expanded in subsequent proposals, type hints do not affect runtime behavior by default but provide valuable information to static analysis tools, editors, and documentation generators.
@@ -67,6 +68,7 @@ Modern Python (3.10+) also supports union types with the pipe operator (`str | N
 | TypeVar | `T = TypeVar("T")` | Generic type parameter |
 | Callable | `Callable[[int], str]` | Function signature |
 
+<!-- concept:2 -->
 ## Protocol Classes
 
 A protocol class defines a structural interface that any class can satisfy without explicit inheritance. This is Python's formalization of "duck typing" into the type system, introduced in PEP 544. If a class has the right methods with the right signatures, it satisfies the protocol, regardless of its class hierarchy.
@@ -91,6 +93,7 @@ The advantage of protocols over abstract base classes is decoupling. A backend i
 - **Runtime checking**: `isinstance()` works with `@runtime_checkable` protocols
 - **Composition**: A class can satisfy multiple protocols simultaneously
 
+<!-- concept:3 -->
 ## Pydantic Models
 
 Pydantic is a data validation and settings management library that uses Python type annotations to define data models. When you create a Pydantic `BaseModel` subclass, each field's type annotation becomes a validation rule applied at instantiation time.
@@ -116,6 +119,7 @@ Key Pydantic features used in mountainash include:
 - **Computed fields**: Properties derived from validated data
 - **Aliases**: Field names that differ between Python and external formats
 
+<!-- concept:4 -->
 ## DataFrames
 
 A DataFrame is a two-dimensional, size-mutable, tabular data structure with labeled columns. Each column holds homogeneously-typed data, while the overall table can contain columns of different types. DataFrames are the dominant abstraction for structured data manipulation in the Python data ecosystem.
@@ -136,6 +140,7 @@ A network diagram showing how a single logical DataFrame concept maps to concret
 
 The key distinction mountainash cares about is whether a DataFrame is **eager** (data is materialized in memory) or **lazy** (transformations are recorded as a plan and executed only when results are requested).
 
+<!-- concept:5 -->
 ## Polars Library
 
 Polars is a high-performance DataFrame library written in Rust with Python bindings. It provides both eager and lazy execution modes, columnar memory layout based on Apache Arrow, and a rich expression API.
@@ -157,6 +162,7 @@ result = lf.collect()
 
 Polars operates on Apache Arrow arrays internally, enabling zero-copy interoperability with other Arrow-based tools. Its lazy mode constructs a query plan that the Polars optimizer can rewrite before execution.
 
+<!-- concept:6 -->
 ## Pandas Library
 
 Pandas is the most widely adopted DataFrame library in Python. It provides an eager, row-indexed DataFrame with extensive I/O support, statistical functions, and integration with the broader scientific Python ecosystem.
@@ -168,6 +174,7 @@ In mountainash, pandas DataFrames are routed through the Narwhals adapter layer.
 - Rich ecosystem of extensions (GeoPandas, modin, etc.)
 - String-based indexing can cause subtle type mismatches
 
+<!-- concept:7 -->
 ## Apache Arrow
 
 Apache Arrow is a cross-language columnar memory format specification. It defines how tabular data should be laid out in memory for efficient analytical operations, including zero-copy reads between processes and libraries.
@@ -181,6 +188,7 @@ Mountainash relies on Arrow at multiple levels. Polars uses Arrow arrays as its 
 | IPC format | Standardized file and streaming formats |
 | Type system | Rich type definitions including nested and temporal types |
 
+<!-- concept:8 -->
 ## SQL Databases
 
 SQL databases store and query relational data using the Structured Query Language. They enforce schemas, support transactions, and optimize queries through cost-based planners.
@@ -190,6 +198,7 @@ Mountainash supports SQL databases through the Ibis backend. Ibis translates Pyt
 !!! note "Ibis as a SQL Abstraction"
     Ibis itself is a Python expression library that generates SQL. Mountainash wraps Ibis, adding its own expression AST and relational operators on top. This means mountainash expressions compile to Ibis expressions, which then compile to SQL for the target database engine.
 
+<!-- concept:9 -->
 ## Lazy Evaluation
 
 Lazy evaluation is a strategy where expressions are not computed until their results are actually needed. Instead of executing operations immediately, the system records them as a plan or tree of operations. Execution happens only when a terminal operation explicitly requests results.
@@ -218,6 +227,7 @@ plan = (
 result = plan.to_polars()
 ```
 
+<!-- concept:10 -->
 ## Method Chaining
 
 Method chaining is a programming pattern where each method returns the object itself (or a new instance of the same type), allowing multiple method calls to be linked in a single expression. This creates a fluent interface that reads as a sequence of transformations.
@@ -249,6 +259,7 @@ Type: diagram
 An interactive diagram showing the correspondence between a method chain (displayed as Python code on the left) and the resulting AST tree (displayed as connected nodes on the right). Hovering over a method call highlights the corresponding AST node. Nodes are arranged vertically with the terminal operation at the top and ReadRelNode at the bottom. Each node displays its type (ReadRelNode, FilterRelNode, ProjectRelNode, SortRelNode, FetchRelNode). Clicking a node shows its properties in a tooltip. Colors follow the RLAPI taxonomy (Teal family). Learning objective: Trace how fluent method calls produce an immutable AST of relational nodes (Bloom: Analyze).
 </details>
 
+<!-- concept:11 -->
 ## Visitor Pattern
 
 The visitor pattern is a behavioral design pattern that separates an algorithm from the object structure it operates on. A visitor object is passed to each node in a data structure, and each node calls the appropriate method on the visitor based on its own type. This double-dispatch mechanism allows new operations to be added without modifying the node classes.
@@ -272,6 +283,7 @@ class LiteralNode(ExpressionNode):
 
 The key benefit is extensibility in two dimensions. New node types require adding one `accept` method and one visitor method per backend. New backends require implementing a new visitor (or expression system) without touching any node classes.
 
+<!-- concept:12 -->
 ## Directed Acyclic Graph
 
 A directed acyclic graph (DAG) is a graph structure where edges have direction and no cycles exist. Every path through the graph eventually terminates; you cannot follow edges and return to a node you have already visited.

@@ -38,6 +38,7 @@ While the base expression API provides arithmetic, comparison, and boolean opera
 
 This chapter covers the five built-in namespaces, explains how the namespace descriptor mechanism works internally, and introduces module-level helper functions that operate across multiple expressions.
 
+<!-- concept:37 -->
 ## NamespaceDescriptor
 
 Before exploring individual namespaces, it is important to understand how they are implemented. The `NamespaceDescriptor` is a Python descriptor that provides lazy access to namespace objects. When you access `.str` on an expression, the descriptor creates a namespace instance bound to that expression and returns it.
@@ -71,6 +72,7 @@ Type: workflow
 A sequence diagram showing the interaction between user code, the expression object, the NamespaceDescriptor, and the namespace class. Step 1: user accesses `.str`. Step 2: descriptor `__get__` is called with the expression instance. Step 3: descriptor instantiates the namespace class with the expression. Step 4: user calls `.upper()` on the namespace. Step 5: namespace method builds a ScalarFunctionNode. Each step is a node connected by directed edges. Hovering over a step shows the Python code executing at that point. Colors: DarkGreen for expression API elements. Learning objective: Explain how Python descriptors enable clean namespace syntax without polluting the base class (Bloom: Understand).
 </details>
 
+<!-- concept:32 -->
 ## String Namespace
 
 The string namespace (`.str`) provides operations for manipulating text data within expressions. It is accessed via the `.str` attribute on any expression and exposes methods for case conversion, searching, extraction, and transformation.
@@ -108,6 +110,7 @@ The string namespace methods map to `CONST_EXPRESSION_STRING_OPERATORS` enum val
 | `replace(old, new)` | REPLACE | Replace occurrences |
 | `length()` | LENGTH | Get string length |
 
+<!-- concept:33 -->
 ## Datetime Namespace
 
 The datetime namespace (`.dt`) provides operations for extracting components from temporal values and performing date arithmetic. It is available on expressions that reference datetime, date, or time columns.
@@ -136,6 +139,7 @@ The datetime namespace maps to `CONST_EXPRESSION_TEMPORAL_OPERATORS`. Operations
 - **Truncation**: `truncate(unit)` where unit is "day", "hour", "month", "year", etc.
 - **Flexible**: `offset_by(duration_string)` for complex duration offsets like "1d2h30m"
 
+<!-- concept:34 -->
 ## Struct Namespace
 
 The struct namespace (`.struct`) provides operations for working with nested structured data. A struct column contains named fields within each cell, similar to a JSON object or a Python dictionary. The struct namespace enables field extraction and manipulation without flattening the entire structure.
@@ -152,6 +156,7 @@ Struct operations are particularly important when working with semi-structured d
 
 When combined with the `unnest` relation operation (covered in Chapter 11), struct namespaces provide a complete story for denormalizing nested data into flat tabular form.
 
+<!-- concept:35 -->
 ## List Namespace
 
 The list namespace (`.list`) provides operations for working with array-typed columns where each cell contains a list of values. Common operations include getting list lengths, accessing elements by index, and aggregating list contents.
@@ -167,6 +172,7 @@ contains_urgent = ma.col("tags").list.contains("urgent")
 
 List columns arise naturally from group-by aggregations that collect values into arrays, from JSON parsing, and from data sources with repeated fields. The list namespace keeps these operations within the expression system rather than requiring Python-level iteration.
 
+<!-- concept:36 -->
 ## Name Namespace
 
 The name namespace (`.name`) provides operations for renaming, prefixing, and suffixing the output column name of an expression. While `alias()` on `BaseExpressionAPI` sets an absolute name, the name namespace provides relative transformations.
@@ -184,6 +190,7 @@ suffixed = ma.col("count").name.suffix("_total")
 
 The name namespace is particularly useful in `with_columns` operations where you want to create derived columns with systematic naming conventions. Rather than manually constructing each alias, you can apply prefix or suffix transformations that adapt to the source column name.
 
+<!-- concept:38 -->
 ## when Function
 
 The `when` function creates conditional (if-then-else) expressions. It takes a boolean predicate and returns a builder that accepts `.then()` and `.otherwise()` clauses, enabling SQL-style CASE WHEN logic within the expression system.
@@ -206,6 +213,7 @@ The `when` function accepts a `BooleanExpressionAPI` expression as its predicate
 
 Under the hood, `when` produces an `IfThenNode` in the expression AST. This node stores paired lists of conditions and values, plus an optional else value. The backend compiler translates this into the native conditional mechanism (Polars `when/then/otherwise`, SQL `CASE WHEN`, etc.).
 
+<!-- concept:39 -->
 ## coalesce Function
 
 The `coalesce` function accepts multiple expressions and returns the first non-null value for each row. It is a module-level function (not a method) because it operates across multiple independent expressions rather than transforming a single expression.
@@ -225,6 +233,7 @@ Coalesce evaluates its arguments left to right. For each row, it returns the val
 
 This function is essential for handling optional data with fallback chains. Common use cases include choosing between preferred and default values, merging data from multiple sources with varying completeness, and implementing "last known value" logic.
 
+<!-- concept:40 -->
 ## greatest Function
 
 The `greatest` function returns the maximum value across multiple expressions for each row. Unlike aggregation functions that operate vertically (across rows within a column), `greatest` operates horizontally (across columns within a row).
@@ -242,6 +251,7 @@ best_score = ma.greatest(
 
 The function compares values element-wise across its arguments. For each row, it selects the largest value. Null values are typically skipped (the greatest non-null value is returned), though exact null semantics may vary by backend.
 
+<!-- concept:41 -->
 ## least Function
 
 The `least` function is the complement of `greatest`. It returns the minimum value across multiple expressions for each row, operating horizontally across columns within each row.
@@ -271,6 +281,7 @@ Type: infographic
 A visual comparison showing a small DataFrame grid (4 rows x 3 columns). The left panel highlights a vertical aggregation (sum down a column, producing one value). The right panel highlights a horizontal operation (greatest across a row, producing one value per row). Arrows indicate direction of operation. Toggle button switches between "vertical" (aggregation) and "horizontal" (greatest/least) modes. Color coding: blue for input cells being compared, gold for the output value. Learning objective: Distinguish between vertical aggregation functions and horizontal row-level functions like greatest and least (Bloom: Analyze).
 </details>
 
+<!-- concept:42 -->
 ## native Function
 
 The `native` function provides an escape hatch from mountainash's backend-agnostic expression system. It wraps a backend-specific expression object directly into the mountainash AST, allowing you to use features that mountainash does not yet abstract.

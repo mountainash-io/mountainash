@@ -55,6 +55,7 @@ Chapters 10 and 11 covered the Relation API from the user's perspective -- calli
 
 The design mirrors the expression layer (Chapters 6-8): a set of immutable Pydantic-based AST nodes, a visitor that dispatches to per-backend system implementations, and registries that allow extension without modifying core code. The key difference is that relation nodes form a *tree* of relational algebra operations (filter, project, join, aggregate) rather than a tree of scalar computations.
 
+<!-- concept:115 -->
 ## RelationNode Base
 
 **RelationNode** is the abstract base class for all relational AST nodes. It inherits from both Pydantic's `BaseModel` and Python's `ABC`, giving it immutable serialization semantics and an enforced interface contract.
@@ -93,6 +94,8 @@ Type: Tree Diagram | **sim-id:** relation-node-hierarchy<br/> | **Library:** vis
 Shows RelationNode as the root with two branches: Substrait-aligned nodes (Read, Project, Filter, Aggregate, Join, Fetch, Sort, Set) and Mountainash extension nodes (Extension, Source, Ref, ResourceRead, Conform, ParamsRelNode, PipelineStepRelNode). Color-coded by category. Learning objective: Classify all relation node types by origin. Bloom level: Remember. Interactions: Click nodes to expand details, hover for description tooltips.
 </details>
 
+<!-- concept:127 -->
+<!-- concept:116 -->
 ## ReadRelNode
 
 A **ReadRelNode** is the leaf node representing a data source scan. It holds a reference to the actual data object (a Polars DataFrame, Polars LazyFrame, Ibis table expression, or similar) and has no child relation nodes. Every relational plan tree must have at least one ReadRelNode (or another leaf type) at its bottom.
@@ -107,6 +110,7 @@ class ReadRelNode(RelationNode):
 
 When the visitor encounters a ReadRelNode, it calls the backend's `read()` method, which wraps the raw data object in whatever form the backend needs for subsequent operations. For the Polars backend, this typically converts an eager DataFrame to a LazyFrame.
 
+<!-- concept:117 -->
 ## ProjectRelNode
 
 A **ProjectRelNode** represents column-level transformations: selecting columns, adding computed columns, dropping columns, or renaming columns. The `operation` field determines which variant applies.
@@ -130,6 +134,7 @@ class ProjectRelNode(RelationNode):
 
 The `expressions` list contains either `ExpressionNode` AST objects (from the expression layer) or `BaseExpressionAPI` wrappers. The visitor's `compile_expression()` method handles both cases, extracting the underlying node if needed.
 
+<!-- concept:118 -->
 ## FilterRelNode
 
 A **FilterRelNode** applies a boolean predicate to filter rows. It holds a single `predicate` expression that evaluates to a boolean series. Only rows where the predicate is true are retained.
@@ -142,6 +147,7 @@ class FilterRelNode(RelationNode):
 
 When the Relation API's `.filter()` method receives multiple predicates, they are combined with logical AND before constructing the node. The visitor compiles the predicate expression through the expression visitor, then passes it to the backend's `filter()` method.
 
+<!-- concept:119 -->
 ## AggregateRelNode
 
 An **AggregateRelNode** represents group-by aggregation. It contains grouping keys and aggregate measure expressions. When the measures list is empty, the node represents a distinct operation (deduplicate by the key columns).
@@ -155,6 +161,7 @@ class AggregateRelNode(RelationNode):
 
 The visitor dispatches to either `backend.aggregate()` or `backend.distinct()` depending on whether measures are present. This dual purpose avoids needing a separate DeduplicateRelNode while remaining aligned with Substrait's AggregateRel semantics.
 
+<!-- concept:120 -->
 ## JoinRelNode
 
 A **JoinRelNode** combines two relation subtrees. It is the only standard node with two children (`left` and `right`) rather than a single `input`. The node carries all the parameters needed to describe the join:
@@ -175,6 +182,7 @@ class JoinRelNode(RelationNode):
 
 The `execute_on` field (covered in Chapter 15) controls cross-backend join execution. The visitor handles asof joins as a special case, routing them to `backend.join_asof()` with the appropriate strategy and tolerance parameters.
 
+<!-- concept:121 -->
 ## FetchRelNode
 
 A **FetchRelNode** implements limit and offset operations for result pagination. It also supports tail operations via the `from_end` flag, which the visitor routes to a separate `fetch_from_end()` backend method.
@@ -189,6 +197,7 @@ class FetchRelNode(RelationNode):
 
 The `.head(n)`, `.tail(n)`, `.slice(offset, length)`, `.limit(n)`, `.first()`, and `.last()` Relation API methods all produce FetchRelNode instances with different parameter combinations.
 
+<!-- concept:122 -->
 ## SortRelNode
 
 A **SortRelNode** orders rows by one or more sort specifications. Each specification is a `SortField` constant that captures the column name and sort direction (ascending or descending).
@@ -199,6 +208,7 @@ class SortRelNode(RelationNode):
     sort_fields: list[SortField]
 ```
 
+<!-- concept:123 -->
 ## SetRelNode
 
 A **SetRelNode** combines multiple relation subtrees using set operations. Unlike JoinRelNode which combines two relations horizontally (adding columns), SetRelNode combines them vertically (stacking rows). It uses a list of `inputs` rather than `left`/`right`.
@@ -220,6 +230,7 @@ Type: Interactive Tree | **sim-id:** relation-ast-example<br/> | **Library:** vi
 Displays a sample relational AST tree for the query: `relation(df).filter(col("age") > 18).select(col("name"), col("email")).head(10)`. Shows ReadRelNode at the leaf, FilterRelNode above it, ProjectRelNode above that, and FetchRelNode at the root. Each node shows its type and key attributes. Learning objective: Read and interpret a relational AST. Bloom level: Analyze. Interactions: Click nodes to expand their attributes, hover edges to see data flow direction.
 </details>
 
+<!-- concept:124 -->
 ## ExtensionRelNode
 
 An **ExtensionRelNode** handles operations that are common in DataFrame APIs but not part of the Substrait specification. These include `drop_nulls`, `with_row_index`, `explode`, `unnest`, and other practical utilities.
@@ -240,6 +251,7 @@ This design means adding a new extension operation requires only:
 
 No changes to the visitor or node hierarchy are needed.
 
+<!-- concept:125 -->
 ## SourceRelNode
 
 A **SourceRelNode** is a leaf node that holds raw Python data (list of dictionaries, dict of lists, dataclasses, Pydantic models) for deferred conversion to a DataFrame. Unlike ReadRelNode, which expects a pre-existing DataFrame, SourceRelNode accepts Python-native data structures.
@@ -252,6 +264,7 @@ class SourceRelNode(RelationNode):
 
 At visit time, the handler invokes `PydataIngress.convert()` to transform the Python data into a Polars DataFrame, then passes it to `backend.read()`. This deferred conversion means the data is not copied or transformed until the relation is actually compiled.
 
+<!-- concept:126 -->
 ## RefRelNode
 
 A **RefRelNode** is the leaf node used by `dag.ref()` to create cross-references between named relations in a RelationDAG. It carries the name of the referenced relation and an optional output schema for type checking.
@@ -280,6 +293,7 @@ The visit handler for this node performs two steps:
 
 This two-step approach means the schema is not just metadata -- it actively drives type coercion and column ordering when the data is loaded.
 
+<!-- concept:128 -->
 ## Relation Protocols
 
 **Relation protocols** define the interface contracts that the Relation API, the visitor, and the backend systems must satisfy. They are implemented as Python Protocol classes (structural typing), allowing any class that implements the required methods to satisfy the protocol without explicit inheritance.
@@ -296,6 +310,7 @@ The protocol hierarchy includes:
 
 These protocols serve as compile-time documentation and enable static type checkers to verify that backend implementations are complete.
 
+<!-- concept:129 -->
 ## UnifiedRelationVisitor
 
 The **UnifiedRelationVisitor** is the compiler that walks a relational AST tree and produces backend-native results. It is "unified" because a single visitor class handles all backends -- the backend-specific behavior comes from the `RelationSystem` instance injected at construction time.
@@ -337,6 +352,7 @@ Type: Sequence Diagram | **sim-id:** relation-visitor-flow<br/> | **Library:** v
 Shows the compilation of a Filter-then-Select query: UnifiedRelationVisitor receives the ProjectRelNode root, recurses into FilterRelNode, recurses into ReadRelNode, then unwinds calling backend.read(), backend.filter(), backend.project_select(). Expression visitor calls shown as sub-sequences. Learning objective: Trace the recursive compilation through the visitor. Bloom level: Apply. Interactions: Step through the sequence with forward/back controls, highlight current stack frame.
 </details>
 
+<!-- concept:130 -->
 ## Visitor Composition
 
 **Visitor composition** is the pattern by which the relation visitor delegates expression compilation to the expression visitor. When a relation node contains expression AST nodes (filter predicates, projection expressions, aggregation measures), the relation visitor calls `self.compile_expression()` which routes to the expression visitor:
@@ -358,6 +374,7 @@ This three-way dispatch handles:
 
 The composition ensures that the same expression compilation logic is reused whether the expression appears in a filter, a projection, or an aggregation.
 
+<!-- concept:131 -->
 ## RelationVisitRegistry
 
 The **RelationVisitRegistry** is a class-level registry that maps node types to visit handler functions. It enables extension nodes to register their compilation behavior without modifying the core `UnifiedRelationVisitor` class.
@@ -391,6 +408,7 @@ Core handlers are registered lazily via `_ensure_initialized()`:
 | SourceRelNode | `_visit_source_rel` | Converts Python data via PydataIngress |
 | ConformRelNode | `_visit_conform_rel` | Applies schema conformance transforms |
 
+<!-- concept:132 -->
 ## OptimisationRegistry
 
 The **OptimisationRegistry** stores node-level optimization functions that run before compilation. When the Relation API builds the final AST, it checks the registry for optimizations applicable to the root node type and applies them.
@@ -399,6 +417,7 @@ The primary optimization currently registered is `fold_params`, which folds `Par
 
 Optimizations must be pure functions: they accept a node and return either the same node (no optimization applicable) or a new, optimized node. They must not mutate the input node.
 
+<!-- concept:133 -->
 ## Relation System Base
 
 The **RelationSystem** abstract base class defines the complete interface that each backend must implement. It composes all the Substrait-aligned protocol interfaces and the Mountainash extension protocol into a single class:
@@ -433,6 +452,7 @@ Type: Class Diagram | **sim-id:** relation-system-composition<br/> | **Library:*
 Shows the RelationSystem base class composed from 9 protocol mixins, with PolarsRelationSystem, NarwhalsRelationSystem, and IbisRelationSystem as concrete implementations. Each protocol lists its required methods. The @register_relation_system decorator and get_relation_system() lookup are shown. Learning objective: Understand how backends compose protocol implementations. Bloom level: Understand. Interactions: Click protocols to see method signatures, click backends to see which protocol implementations they inherit.
 </details>
 
+<!-- concept:134 -->
 ## ExtensionRelOperation
 
 **ExtensionRelOperation** is an enum that catalogues all non-Substrait relational operations supported by mountainash. Each member corresponds to a method that backend systems must implement in their `MountainashExtensionRelationSystemProtocol` mixin.
@@ -449,6 +469,7 @@ def visit_extension_rel(self, node):
 
 This convention-based dispatch means adding a new extension operation is a three-step process: add the enum member, implement the method on each backend, and the visitor automatically routes to it. No visitor modification is needed.
 
+<!-- concept:198 -->
 ## ParamsRelNode
 
 **ParamsRelNode** is a pipeline-integrated AST node that attaches runtime parameters to a relation. It wraps another relation node (typically a `PipelineStepRelNode`) and carries a dictionary of parameter values.
@@ -461,6 +482,7 @@ class ParamsRelNode(RelationNode):
 
 The `relation.params()` method creates a ParamsRelNode wrapping the current relation's AST. At optimization time, the `fold_params()` function merges the parameter dictionary into the underlying `PipelineStepRelNode`, validating parameter names against declared `ParamSpec` objects and applying defaults for missing optional parameters.
 
+<!-- concept:199 -->
 ## PipelineStepRelNode
 
 **PipelineStepRelNode** represents a deferred pipeline step execution within the relational AST. It carries a reference to the pipeline, the step name, an executor, and bound parameters.

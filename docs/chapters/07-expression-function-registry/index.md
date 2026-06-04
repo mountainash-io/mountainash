@@ -38,6 +38,7 @@ Substrait and Mountainash key prefixes, ExpressionFunctionDef, ExpressionFunctio
 
 The previous chapters described how users build expression ASTs through the fluent API. This chapter explores the machinery that connects those ASTs to backend execution. The function registry maps every operation to its Substrait metadata and compilation method. The build-then-compile pattern separates construction from execution. The unified visitor traverses AST trees and dispatches to expression system implementations. Protocols define the contracts that backends must satisfy.
 
+<!-- concept:67 -->
 ## FKEY Substrait Prefix
 
 Functions whose semantics align with the Substrait specification use function keys from the Substrait-prefixed enum classes. These functions have well-defined behavior specified by the Substrait community, including standardized URIs that identify the function definition source.
@@ -53,6 +54,7 @@ CONST_EXPRESSION_STRING_OPERATORS.UPPER         # Substrait: string.upper
 
 Each Substrait function has an associated URI pointing to the official extension YAML file where its signature and behavior are defined. This URI is stored in the `ExpressionFunctionDef` and used when serializing expressions to the Substrait protobuf format.
 
+<!-- concept:68 -->
 ## FKEY Mountainash Prefix
 
 Functions that extend beyond the Substrait specification use mountainash-prefixed function keys. These represent operations that mountainash provides for practical utility but that have no standard Substrait equivalent.
@@ -67,6 +69,7 @@ MOUNTAINASH_URI = "https://mountainash.io/extensions/functions.yaml"
 
 The extension prefix signals to downstream systems that these functions may not be portable to other Substrait-compliant tools. However, within mountainash's own compilation pipeline, they are handled identically to Substrait functions by the appropriate expression system implementations.
 
+<!-- concept:69 -->
 ## ExpressionFunctionDef
 
 `ExpressionFunctionDef` is a frozen dataclass that stores the complete definition of a single function in the registry. It maps between the internal function key, the Substrait metadata, and the compilation target.
@@ -93,6 +96,7 @@ Each field serves a specific purpose in the compilation pipeline:
 
 The `get_signature()` method uses Python's `inspect.signature()` on the protocol method to provide type information about the function's parameters at introspection time.
 
+<!-- concept:70 -->
 ## ExpressionFunctionRegistry
 
 The `ExpressionFunctionRegistry` is a singleton container that holds all registered `ExpressionFunctionDef` instances. It provides lookup by function key and serves as the central authority for function metadata.
@@ -128,6 +132,7 @@ Type: diagram
 A three-column architecture diagram. Left column: "API Layer" shows entry point functions (col, lit, when) and namespace methods (.str.upper, .dt.year). Middle column: "Registry" shows ExpressionFunctionRegistry as a central hub connecting function keys to ExpressionFunctionDef records. Right column: "Compilation Layer" shows expression system methods dispatched by the visitor. Edges connect API methods through the registry to their compilation targets. Clicking a function key in the registry shows its full ExpressionFunctionDef fields. Colors: DarkGreen for API, LimeGreen for AST/Registry, Gold for backends. Learning objective: Trace how a user API call maps through the function registry to a backend compilation method (Bloom: Analyze).
 </details>
 
+<!-- concept:71 -->
 ## Function Registry Lookup
 
 Function registry lookup is the process by which the compilation system retrieves the metadata needed to compile a specific operation. When the visitor encounters a `ScalarFunctionNode`, it uses the node's `function_key` to look up the corresponding `ExpressionFunctionDef` from the registry.
@@ -143,6 +148,7 @@ result = backend_method(node)
 
 The lookup is a dictionary access operation (\(O(1)\) time complexity), making it negligible in the overall compilation cost.
 
+<!-- concept:72 -->
 ## Substrait Spec Alignment
 
 Substrait spec alignment refers to mountainash's strategy of aligning its function semantics and naming with the Substrait specification wherever possible. This alignment enables future interoperability with other Substrait-compliant systems and provides a stable reference for function behavior.
@@ -157,6 +163,7 @@ The alignment manifests in several ways:
 
 This does not mean mountainash is a full Substrait implementation. Rather, it uses Substrait as a design reference and interoperability target. The internal representation is optimized for Python ergonomics, while the serialization layer handles Substrait format translation.
 
+<!-- concept:73 -->
 ## Build Then Compile
 
 The "build then compile" pattern is mountainash's fundamental architectural principle. User code builds an AST of expression and relation nodes without any reference to a specific backend. Compilation to backend-native code happens as a separate, later phase triggered by a terminal operation.
@@ -180,6 +187,7 @@ expr = ma.col("price") * ma.col("qty") + ma.col("tax")
 
 The build phase uses the fluent API and produces `ExpressionNode` trees. The compile phase uses the visitor pattern to walk those trees and produce backend-native expressions.
 
+<!-- concept:74 -->
 ## Expression Compilation
 
 Expression compilation is the process of transforming an `ExpressionNode` AST into a backend-native expression object. The compiler walks the tree depth-first, visiting each node and producing the corresponding backend output.
@@ -202,6 +210,7 @@ def visit_scalar_function(self, node: ScalarFunctionNode):
 !!! note "Compilation is Recursive"
     Expression trees can be arbitrarily deep. A `ScalarFunctionNode` whose arguments are themselves `ScalarFunctionNode` instances triggers recursive compilation. The visitor handles this naturally through the `accept` pattern -- each argument's `accept` call triggers another round of visitor dispatch.
 
+<!-- concept:75 -->
 ## Unified Expression Visitor
 
 The `UnifiedExpressionVisitor` is the concrete visitor class that coordinates expression compilation. It holds a reference to an expression system (the backend implementation) and dispatches each node type to the appropriate system method.
@@ -229,6 +238,7 @@ class UnifiedExpressionVisitor:
 
 The visitor is "unified" because all backends share the same visitor class. The backend-specific behavior lives in the expression system object that the visitor delegates to. This means adding a new node type requires one change in the visitor (a new visit method) but no changes per backend unless that backend handles the node differently.
 
+<!-- concept:76 -->
 ## API Builder Protocols
 
 API builder protocols define the interface that expression namespace classes must implement. They ensure that every namespace (string, datetime, struct, list, name) provides the expected methods and that those methods produce correctly structured AST nodes.
@@ -246,6 +256,7 @@ class StringBuilderProtocol(Protocol):
 
 These protocols serve as documentation and as verification targets for static type checkers. They ensure that the API surface remains consistent and that new namespace implementations satisfy the required contract.
 
+<!-- concept:77 -->
 ## Expression System Protocols
 
 Expression system protocols define the interface that backend compilation classes must implement. Each protocol declares the methods that a backend expression system needs for compiling specific operation categories.
@@ -279,6 +290,7 @@ Type: diagram
 A UML-style class diagram showing the relationship between protocols and implementations. Top row: protocol classes (ScalarArithmeticProtocol, ScalarComparisonProtocol, ScalarStringProtocol, WindowProtocol). Bottom row: three concrete systems (PolarsExpressionSystem, NarwhalsExpressionSystem, IbisExpressionSystem). Dashed arrows show protocol satisfaction. Each system connects to multiple protocols via multiple inheritance. Clicking a system shows which protocols it satisfies and any missing methods. Colors: LimeGreen for protocols, Gold for backends. Learning objective: Explain how multiple inheritance composes protocol implementations into complete expression systems (Bloom: Understand).
 </details>
 
+<!-- concept:78 -->
 ## Mountainash Extensions
 
 Mountainash extensions are functions that go beyond the Substrait specification to provide practical features that users commonly need. These extensions are clearly marked in the registry with `is_extension=True` and use the mountainash extension URI.

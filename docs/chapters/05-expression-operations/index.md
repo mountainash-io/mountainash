@@ -40,6 +40,7 @@ Previous chapters introduced the expression API's structure and namespaces. This
 
 Understanding the full operation catalog lets you determine, at a glance, whether a given data transformation can be expressed within mountainash's abstract layer or whether a `native()` escape hatch is needed.
 
+<!-- concept:43 -->
 ## Comparison Operations
 
 Comparison operations evaluate two expressions and produce a boolean result indicating the relationship between their values. These operations form the basis of filter predicates and conditional logic throughout mountainash.
@@ -71,6 +72,7 @@ outliers = ma.col("z_score") > 3.0
 
 Comparison operations follow SQL-style null semantics. Comparing any value to null produces null, not false. To test for null specifically, use `is_null()` or `is_not_null()` instead of equality comparison.
 
+<!-- concept:44 -->
 ## Arithmetic Operations
 
 Arithmetic operations perform mathematical computations on numeric expressions. They accept another expression (or a scalar that gets auto-wrapped as `lit()`) and produce a numeric result.
@@ -98,6 +100,7 @@ The seven arithmetic operators are defined in `CONST_EXPRESSION_ARITHMETIC_OPERA
 
 Division by zero behavior varies by backend. Polars produces `inf` or `NaN` for floating-point division by zero. SQL backends may raise an error. Mountainash does not normalize this behavior across backends.
 
+<!-- concept:45 -->
 ## Boolean Operations
 
 Boolean operations combine or negate boolean expressions using logical connectives. They are defined in `CONST_EXPRESSION_LOGICAL_OPERATORS` and are only available on `BooleanExpressionAPI` objects (the result type of comparison operations).
@@ -129,6 +132,7 @@ Type: microsim
 An interactive truth table visualization. Four tabs at the top select AND, OR, NOT, and XOR operations. Each tab shows a grid with input values (True, False, Null) on axes and result values in cells. Cells are color-coded: green for True, red for False, gray for Null. Clicking a cell highlights the corresponding row and column headers. A special "three-valued" toggle adds the Null row/column to show SQL-style ternary logic behavior. Learning objective: Predict the output of boolean operations including null propagation behavior (Bloom: Apply).
 </details>
 
+<!-- concept:46 -->
 ## String Operations
 
 String operations transform text data within expressions. They are accessed through the `.str` namespace (covered in Chapter 4) and map to `CONST_EXPRESSION_STRING_OPERATORS` enum values.
@@ -154,6 +158,7 @@ String operations that return boolean results (contains, starts_with, ends_with,
 - Transformation: `replace()`, `concat()`
 - Pattern: `like()`, `regex_match()`, `regex_contains()`, `regex_replace()`
 
+<!-- concept:47 -->
 ## Datetime Operations
 
 Datetime operations extract components from temporal values, perform date arithmetic, and truncate timestamps to specific precision levels. They are accessed through the `.dt` namespace and map to `CONST_EXPRESSION_TEMPORAL_OPERATORS`.
@@ -186,6 +191,7 @@ The temporal operator enum contains 24 operations organized into four groups. Ex
 | Truncation | truncate | Temporal |
 | Flexible | offset_by | Temporal |
 
+<!-- concept:48 -->
 ## Aggregation Functions
 
 Aggregation functions reduce multiple values to a single value. They operate vertically across rows within a column (or within a group when used with `group_by`). Common aggregations include sum, mean, count, min, max, and standard deviation.
@@ -211,6 +217,7 @@ The aggregation functions available on expressions include:
 - **Positional**: `first()`, `last()`
 - **Collection**: `list()` (collect values into an array)
 
+<!-- concept:49 -->
 ## Window Functions
 
 Window functions compute values across a set of rows related to the current row, without collapsing them into a single result. Unlike aggregations that reduce rows, window functions add computed values while preserving the original row count.
@@ -232,6 +239,7 @@ rank = ma.col("score").rank().over(partition_by="team")
 
 Window functions are one of the more complex expression types because they involve both the aggregation logic (sum, rank, lag, lead) and the windowing logic (partition, order, frame). The AST represents these as `WindowFunctionNode` objects that reference a `WindowSpec` for their partition and ordering configuration.
 
+<!-- concept:50 -->
 ## cast Operation
 
 The `cast` operation converts an expression from one data type to another. It accepts a target type specified as a `MountainashDtype` value, a canonical string, or an alias string, and produces a `CastNode` in the expression AST.
@@ -255,6 +263,7 @@ The cast operation uses the `resolve_dtype()` function internally to normalize t
 !!! note "Safe vs Unsafe Casts"
     Not all type conversions are safe. Casting a floating-point column to integer loses decimal precision. Casting a string column to integer fails if any value is not a valid number. Mountainash does not validate cast safety at build time; errors surface at execution time from the backend.
 
+<!-- concept:52 -->
 ## duration Function
 
 The `duration` function creates literal duration expressions from component values. It provides a way to construct temporal offsets as first-class expression values, suitable for date arithmetic.
@@ -274,6 +283,7 @@ due_date = ma.col("created_at").dt.offset_by(week)
 
 Duration expressions compile to the backend's native duration type. For Polars, this becomes a `Duration` literal. For SQL backends, this compiles to an INTERVAL expression. The `duration` function accepts keyword arguments for days, hours, minutes, seconds, and milliseconds.
 
+<!-- concept:53 -->
 ## count_records Function
 
 The `count_records` function returns the total number of rows in a relation or group. Unlike `col("x").count()`, which counts non-null values in a specific column, `count_records()` counts all rows regardless of null values.
@@ -294,6 +304,7 @@ group_counts = (
 
 This function is equivalent to SQL's `COUNT(*)`. It does not take any column argument and always returns the full row count. It is particularly useful in aggregation contexts where you want to know how many rows fell into each group.
 
+<!-- concept:54 -->
 ## corr Function
 
 The `corr` function computes the Pearson correlation coefficient between two numeric expressions. It is an aggregation function that reduces pairs of values to a single scalar in the range \([-1, 1]\).

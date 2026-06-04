@@ -35,6 +35,7 @@ Advanced relation operations: conform (TypeSpec-driven transformation), unnest, 
 
 The core relational operations (filter, sort, select, join, group_by) handle standard data transformations. This chapter covers advanced operations that bridge the relation system with other mountainash subsystems: `conform` connects relations to the type system for schema-driven transformation, `unnest` handles nested data structures, and terminal operations trigger compilation and return results in the desired format.
 
+<!-- concept:108 -->
 ## Conform Operation
 
 The `conform` operation transforms a relation to match a `TypeSpec` schema. It handles column renaming (via `rename_from`), type casting to target types, null filling (via `null_fill`), missing value replacement (via `missing_values`), and column filtering based on the `fields_match` setting.
@@ -84,6 +85,7 @@ Type: workflow
 A step-by-step workflow diagram showing the conformance process. Input: a DataFrame with columns [old_name, value_str, extra]. TypeSpec: fields [{name: new_name, rename_from: old_name}, {name: value, type: integer}]. Steps flow left to right: 1) Detect rename_from mappings, 2) Apply renames, 3) Cast types, 4) Fill nulls, 5) Filter columns based on fields_match. Each step shows the intermediate column state. Interactive: clicking a step highlights which FieldSpec properties drive that transformation. Colors: MediumPurple for type system elements, Teal for relation operations. Learning objective: Predict the output schema after a conform operation given a TypeSpec with various field specifications (Bloom: Apply).
 </details>
 
+<!-- concept:109 -->
 ## Unnest Operation
 
 The `unnest` operation expands struct (nested object) columns into top-level columns. Each field within the struct becomes a separate column, named using the pattern `{struct_col}{separator}{field_name}`.
@@ -110,6 +112,7 @@ Unnest is the inverse of grouping operations that produce struct columns. It is 
 - The original struct column is removed from the output
 - If multiple struct columns are unnested, each gets its own prefix
 
+<!-- concept:110 -->
 ## Build Then Collect
 
 The "build then collect" pattern is the fundamental usage model for the relation API. You build a pipeline of operations (constructing an AST) and then collect the results with a terminal operation. This separation is what enables lazy evaluation, optimization, and backend independence.
@@ -137,6 +140,7 @@ The collect phase performs the full compilation pipeline in one shot: optimize t
 !!! note "Reusability of Built Pipelines"
     A built pipeline (a `Relation` object) can be collected multiple times and can serve as the basis for further extensions. Because each operation creates new immutable nodes, the original pipeline is never modified by subsequent operations or collections.
 
+<!-- concept:111 -->
 ## Terminal Operations
 
 Terminal operations are methods that trigger compilation and execution, ending the lazy pipeline and producing a concrete result. They mark the boundary between the build phase and the collect phase.
@@ -160,6 +164,7 @@ pandas_df = pipeline.to_pandas()
 native_result = pipeline.collect()
 ```
 
+<!-- concept:112 -->
 ## to_polars Method
 
 The `to_polars` method compiles the relational AST and returns the result as a Polars DataFrame. If the input data was already a Polars DataFrame, this is the most efficient terminal operation because no format conversion is needed.
@@ -178,6 +183,7 @@ result = (
 
 When the input is from a different backend (pandas or Ibis), `to_polars()` performs the necessary conversion after compilation. For pandas input, the Narwhals system compiles the pipeline, executes it, and converts the result to Polars format. For Ibis input, the SQL query executes and the result is converted to a Polars DataFrame.
 
+<!-- concept:113 -->
 ## to_pandas Method
 
 The `to_pandas` method compiles the relational AST and returns the result as a pandas DataFrame. This is useful when downstream code expects pandas format or when integrating with libraries that only support pandas.
@@ -195,6 +201,7 @@ result = (
 
 If the input was a Polars DataFrame, `to_pandas()` compiles through the Polars system and converts the result using Polars' built-in `.to_pandas()` conversion. If the input was already pandas, the Narwhals compilation path is used and the result is naturally in pandas format.
 
+<!-- concept:114 -->
 ## collect Method
 
 The `collect` method compiles and returns the result in whatever format the backend natively produces. For Polars input, this returns a Polars DataFrame. For pandas input (via Narwhals), this returns a pandas DataFrame. For Ibis input, this may return an Ibis table or a materialized DataFrame depending on the configuration.

@@ -46,6 +46,7 @@ Mountainash ships three relation backends that correspond to the three expressio
 - **Narwhals**: A compatibility layer that wraps pandas, PyArrow, and cuDF
 - **Ibis**: SQL compilation targeting DuckDB, PostgreSQL, BigQuery, and other databases
 
+<!-- concept:135 -->
 ## PolarsRelationSystem
 
 The **PolarsRelationSystem** is the primary backend and the most mature implementation. It operates on Polars LazyFrames, building up a deferred computation graph that executes only when a terminal operation triggers collection.
@@ -73,6 +74,7 @@ Each mixin lives in its own file (e.g., `relsys_pl_filter.py`, `relsys_pl_join.p
 
 The `@register_relation_system()` decorator registers this class in the global backend registry. When the visitor needs a Polars relation system, it calls `get_relation_system(CONST_BACKEND.POLARS)` and receives this class.
 
+<!-- concept:138 -->
 ## LazyFrame Operations
 
 The Polars backend operates on **LazyFrames** rather than eager DataFrames. A LazyFrame is a deferred computation plan -- each operation (filter, select, join) appends to the plan without executing anything. Execution occurs only when a terminal method like `.collect()` is called.
@@ -105,6 +107,7 @@ Type: Flow Diagram | **sim-id:** lazyframe-pipeline<br/> | **Library:** vis-netw
 Shows a chain of LazyFrame operations: Read (DataFrame to LazyFrame), Filter (predicate appended), Project (column selection), Sort (ordering), and finally Collect (materialization). Each stage shows the logical plan growing. A "Query Optimizer" box sits between the plan and execution. Learning objective: Understand lazy evaluation in the Polars backend. Bloom level: Understand. Interactions: Click each stage to see the internal plan state, toggle optimizer on/off to compare plans.
 </details>
 
+<!-- concept:136 -->
 ## NarwhalsRelationSystem
 
 The **NarwhalsRelationSystem** wraps pandas, PyArrow, and cuDF DataFrames through the Narwhals compatibility layer. Narwhals provides a DataFrame-agnostic API that translates operations to the underlying library's native calls.
@@ -128,6 +131,7 @@ class NarwhalsRelationSystem(
 
 The composition follows the identical mixin pattern as Polars, with each mixin translating mountainash's relational operations to Narwhals API calls.
 
+<!-- concept:139 -->
 ## Narwhals Portability
 
 The primary value of the Narwhals backend is **portability**. Code written against the mountainash Relation API works identically regardless of whether the underlying data is a pandas DataFrame, a PyArrow table, or a cuDF GPU DataFrame. The Narwhals layer handles the translation transparently.
@@ -149,6 +153,7 @@ However, the Narwhals backend operates eagerly (no lazy evaluation), which means
 | Primary use case | In-memory analytics | Library portability | Database-backed queries |
 | Memory model | Deferred materialization | Per-step materialization | Server-side execution |
 
+<!-- concept:137 -->
 ## IbisRelationSystem
 
 The **IbisRelationSystem** compiles mountainash relations into SQL via the Ibis expression framework. Ibis supports multiple SQL backends including DuckDB, PostgreSQL, BigQuery, Snowflake, and SQLite.
@@ -170,6 +175,7 @@ class IbisRelationSystem(
     pass
 ```
 
+<!-- concept:140 -->
 ## Ibis SQL Compilation
 
 The Ibis backend transforms each relational operation into an Ibis table expression, which Ibis then compiles to SQL for the target database. This means the same mountainash pipeline can run against DuckDB during development and PostgreSQL in production without code changes.
@@ -210,6 +216,7 @@ Type: Comparison Diagram | **sim-id:** backend-execution-models<br/> | **Library
 Three parallel columns showing the same mountainash query compiled through each backend. Polars shows a LazyFrame plan; Narwhals shows eager pandas operations; Ibis shows generated SQL. All three produce the same logical result. Learning objective: Compare how the same query executes across backends. Bloom level: Analyze. Interactions: Select a backend to highlight its column, hover over operations to see backend-specific translations.
 </details>
 
+<!-- concept:141 -->
 ## Cross-Type Joins
 
 A **cross-type join** occurs when the left and right sides of a join come from different DataFrame libraries. For example, the left side might be a Polars LazyFrame while the right side is a pandas DataFrame passed in by the user.
@@ -236,6 +243,7 @@ The coercion logic supports the following conversions when the target is a Polar
 
 This means users can write `relation(polars_df).join(pandas_df, on="id")` without manually converting the pandas DataFrame. The coercion happens at compilation time, not at API call time, so the AST remains backend-neutral.
 
+<!-- concept:142 -->
 ## Join Key Coalescing
 
 **Join key coalescing** is the process of deduplicating and reconciling join key columns after a join operation. In standard SQL, an inner join on `A.id = B.id` produces two `id` columns that contain identical values. Polars handles this differently -- shared join keys appear only once in the output.
@@ -267,6 +275,7 @@ result = orders.join(
 
 The coalescing behavior is particularly important for multi-key joins. If a join uses `on=["region", "date"]`, both columns appear exactly once in the output, preventing the common pitfall of accidentally selecting the wrong copy of a duplicated key column.
 
+<!-- concept:143 -->
 ## Backend Relation Testing
 
 The mountainash test suite validates that all three backends produce identical results for the same logical operations. This is achieved through **cross-backend parametrize** -- pytest fixtures that run each test against Polars, Narwhals, and Ibis.
@@ -289,6 +298,7 @@ The test infrastructure handles the necessary setup for each backend:
 - **Narwhals**: pandas DataFrame wrapped in `nw.from_native()`
 - **Ibis**: DuckDB in-memory table created from the same data
 
+<!-- concept:144 -->
 ## Backend Divergences
 
 Despite the goal of identical behavior across backends, some **divergences** exist due to fundamental differences in how each library handles edge cases. These are documented and tracked as known limitations:
@@ -312,6 +322,7 @@ Type: Matrix Diagram | **sim-id:** backend-divergence-map<br/> | **Library:** vi
 Heatmap-style matrix showing operation categories (filter, join, aggregate, sort, null handling) across backends (Polars, Narwhals, Ibis). Cells are green (identical behavior), yellow (minor divergence), or red (known incompatibility with xfail). Learning objective: Identify where backends diverge. Bloom level: Evaluate. Interactions: Click cells for detailed divergence descriptions, filter by severity level.
 </details>
 
+<!-- concept:145 -->
 ## Execution Target
 
 The **ExecutionTarget** concept determines which side of a join controls execution placement. In most cases, execution happens wherever the left side of the join resides. But when the right side is a large table in a remote database and the left side is small local data, it may be more efficient to push execution to the right side.
@@ -323,6 +334,7 @@ The `ExecutionTarget` enum provides the options:
 
 This is primarily relevant for the Ibis backend, where one side might be a local DataFrame and the other a remote database table. Choosing the correct execution target avoids pulling a large remote table to the client just to perform a join.
 
+<!-- concept:146 -->
 ## execute_on Parameter
 
 The `execute_on` parameter on the `.join()` method exposes the `ExecutionTarget` concept to user code. It accepts an `ExecutionTarget` enum value (or None for the default left-side execution).

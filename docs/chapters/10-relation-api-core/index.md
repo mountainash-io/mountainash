@@ -41,6 +41,7 @@ The relation() factory, Relation class, RelationBase protocol, and core relation
 
 While expressions describe column-level computations, relations describe table-level transformations. The relation API provides the primary interface for building data pipelines in mountainash. You start with a `relation()` call that wraps a DataFrame, then chain operations to filter, sort, project, join, aggregate, and combine data. Each operation produces a new `Relation` object wrapping a new AST node, and no execution occurs until a terminal operation is called.
 
+<!-- concept:95 -->
 ## relation Factory
 
 The `relation()` factory function is the entry point for creating relation objects from existing data. It accepts any supported DataFrame type (Polars, pandas, PyArrow, Ibis, Narwhals) and wraps it in a `Relation` object backed by a `ReadRelNode`.
@@ -63,6 +64,7 @@ The factory performs backend detection on the input data using the string-inspec
 
 The `relation()` function also accepts method chaining directly after construction, enabling compact pipeline expressions.
 
+<!-- concept:96 -->
 ## Relation Class
 
 The `Relation` class is the user-facing fluent API for relational operations. Every chainable method returns a new `Relation` instance wrapping a new AST node. The class inherits from `RelationBase` (which provides compilation machinery) and adds the relational operation methods.
@@ -81,6 +83,7 @@ class Relation(RelationBase):
 
 The `Relation` class maintains a single `_node` attribute (inherited from `RelationBase`) that holds the root of the AST tree built so far. Each method creates a new node type with `input=self._node`, producing a chain of nodes that represents the pipeline.
 
+<!-- concept:97 -->
 ## RelationBase
 
 `RelationBase` is the base class that provides the compilation and execution machinery. It is separate from `Relation` so that the fluent API methods and the compilation logic do not mix.
@@ -106,6 +109,7 @@ class RelationBase:
 
 The method applies any registered optimization passes before compilation, potentially rewriting the AST for better performance.
 
+<!-- concept:98 -->
 ## Filter Operation
 
 The `filter` method creates a `FilterRelNode` that selects rows matching a boolean predicate expression. Multiple predicates can be passed as separate arguments, producing chained filter nodes.
@@ -130,6 +134,7 @@ complex_filter = ma.relation(df).filter(
 
 When multiple predicates are passed, each produces a separate `FilterRelNode` stacked in sequence. This is semantically equivalent to combining them with AND but allows the optimizer to reorder or merge filters independently.
 
+<!-- concept:99 -->
 ## Sort Operation
 
 The `sort` method creates a `SortRelNode` that orders rows by one or more columns. The `descending` parameter controls sort direction and can be a single boolean or a list of booleans (one per column).
@@ -149,6 +154,7 @@ ordered = ma.relation(df).sort("dept", "age", descending=[False, True])
 
 Internally, `sort` normalizes its arguments into `SortField` objects that capture the column name, sort direction, and null ordering (nulls last by default). These `SortField` objects are stored in the `SortRelNode`.
 
+<!-- concept:100 -->
 ## Head Fetch Operation
 
 The `head` method creates a `FetchRelNode` that limits the output to the first N rows. The complementary `tail` method returns the last N rows, and `slice` provides offset-based row selection.
@@ -180,6 +186,7 @@ Type: microsim
 An interactive pipeline visualization showing a small DataFrame (8 rows) flowing through a sequence of operations. Four operation stages are shown: Filter (grays out excluded rows), Sort (reorders remaining rows with animation), Select (removes columns), Head (keeps only top N). Each stage has a toggle to enable/disable it. The data flows visually from left to right, transforming at each stage. Row counts are displayed between stages. Clicking a stage shows the AST node it produces. Colors: Teal for relation operations. Learning objective: Predict the output of a chained relational pipeline given specific filter, sort, and fetch parameters (Bloom: Apply).
 </details>
 
+<!-- concept:101 -->
 ## Select Project Operation
 
 The `select` method (and related methods `with_columns`, `drop`, `rename`) creates a `ProjectRelNode` that modifies the column set. These operations use different `ProjectOperation` variants to specify whether columns are being selected, added, removed, or renamed.
@@ -204,6 +211,7 @@ renamed = ma.relation(df).rename({"old_name": "new_name"})
 
 Select accepts both string column names and expression objects. When expressions are passed, they define computed columns in the output. The `with_columns` variant preserves all existing columns and adds new ones, while `select` keeps only the specified columns.
 
+<!-- concept:102 -->
 ## Join Operation
 
 The `join` method creates a `JoinRelNode` that combines two relations based on matching column values. It supports all join types defined in the `JoinType` enum (inner, left, right, outer, semi, anti, cross, asof).
@@ -240,6 +248,7 @@ The join method accepts column specifications in three forms. `on` specifies col
 | `suffix` | str | Suffix for duplicate column names (default: "_right") |
 | `execute_on` | ExecutionTarget | Which side determines execution backend |
 
+<!-- concept:103 -->
 ## Group By Operation
 
 The `group_by` method initiates a grouping operation by specifying one or more key columns. It returns a `GroupedRelation` object (not a `Relation`) that requires an aggregation step to produce results.
@@ -256,6 +265,7 @@ multi_grouped = ma.relation(df).group_by("dept", "region")
 
 The `group_by` method does not produce a relational AST node directly. Instead, it creates a `GroupedRelation` that holds the group keys and waits for the `.agg()` call to produce the final `AggregateRelNode`.
 
+<!-- concept:104 -->
 ## GroupedRelation
 
 `GroupedRelation` is a transitional object returned by `group_by()`. It stores the group keys and provides the `agg()` method for specifying aggregation expressions. Calling `agg()` produces a standard `Relation` wrapping an `AggregateRelNode`.
@@ -275,6 +285,7 @@ result = (
 
 The `GroupedRelation` enforces the two-step pattern: you cannot filter or sort a grouped relation directly. You must first aggregate to produce a flat relation, then apply further operations to the result.
 
+<!-- concept:105 -->
 ## Aggregation on Groups
 
 Aggregation on groups is the combination of `group_by` and `agg` that produces summary statistics for each group. The `agg` method accepts one or more aggregation expressions, each of which reduces the group's rows to a single value per group.
@@ -296,6 +307,7 @@ summary = (
 
 Each aggregation expression uses one of the aggregation functions (sum, mean, min, max, count, std, var, first, last, n_unique). The `.alias()` call names the output column. Without an alias, the column name defaults to the source column name, which can cause ambiguity when multiple aggregations reference the same column.
 
+<!-- concept:106 -->
 ## Set Operations
 
 Set operations combine multiple relations vertically (row-wise). The `SetType` enum defines two variants: `UNION_ALL` (keep all rows including duplicates) and `UNION_DISTINCT` (deduplicate after combining).
@@ -312,6 +324,7 @@ unique_combined = ma.relation(df1).union(ma.relation(df2), distinct=True)
 
 Set operations require that both relations have compatible schemas (same column names and compatible types). The result has the same schema as the input relations.
 
+<!-- concept:107 -->
 ## concat Function
 
 The `concat` function is a module-level function that vertically concatenates multiple relations. It is a convenience wrapper around set operations that accepts a list of relations and produces a single combined relation.

@@ -42,6 +42,7 @@ When you call `ma.col("price").multiply(ma.col("qty"))`, mountainash does not co
 
 This chapter dissects each node type in the expression AST, starting with the base class and progressing through field references, literals, scalar functions, conditionals, and window functions.
 
+<!-- concept:55 -->
 ## ExpressionNode Base
 
 `ExpressionNode` is the abstract base class for all expression AST nodes. It inherits from Pydantic's `BaseModel` and is configured as frozen (immutable). Every concrete node type inherits from `ExpressionNode` and implements the `accept` method for visitor dispatch.
@@ -70,6 +71,7 @@ Key properties of `ExpressionNode` include:
 - **Serialization**: Nodes can be converted to and from dictionaries via `model_dump()`/`model_validate()`
 - **Visitor pattern**: Every node implements `accept()` for double-dispatch compilation
 
+<!-- concept:66 -->
 ## Function Key Enums
 
 Function key enums are the identifiers that tell the compiler which specific operation a `ScalarFunctionNode` represents. Rather than using string identifiers (which are error-prone), mountainash uses Python `Enum` values from the operation enum classes defined in the constants module.
@@ -103,6 +105,7 @@ A hierarchical tree diagram showing the function key organization. Root node "Fu
 
 The two-prefix system enables mountainash to maintain alignment with the Substrait standard for interoperability while extending beyond it for practical features. The `ExpressionFunctionRegistry` (covered in Chapter 7) maps each function key to its Substrait URI and backend method name.
 
+<!-- concept:57 -->
 ## FieldReferenceNode
 
 A `FieldReferenceNode` represents a column reference in the expression AST. It corresponds to the `col()` entry point function and stores the column name that will be resolved at compile time.
@@ -120,6 +123,7 @@ The node is intentionally simple. It holds a single string (the column name) and
 
 Field reference nodes appear at the leaves of expression trees. They are the terminal points where the AST connects to actual data columns. Every expression tree must eventually reach one or more `FieldReferenceNode` instances (or `LiteralNode` instances) at its leaves.
 
+<!-- concept:58 -->
 ## LiteralNode
 
 A `LiteralNode` represents a constant value embedded in the expression AST. It corresponds to the `lit()` entry point function and stores the Python value along with optional type information.
@@ -136,6 +140,7 @@ class LiteralNode(ExpressionNode):
 
 Literal nodes support all Python scalar types: strings, integers, floats, booleans, None, dates, and datetimes. The optional `dtype` field allows explicit type specification when the Python type is ambiguous (for example, distinguishing between i32 and i64 for an integer value).
 
+<!-- concept:56 -->
 ## ScalarFunctionNode
 
 `ScalarFunctionNode` is the workhorse of the expression AST. It represents any operation that takes one or more expression arguments and produces a scalar result per row. This includes arithmetic, comparison, boolean, string, datetime, and most other operations.
@@ -161,6 +166,7 @@ For example, `ma.col("price").add(ma.col("tax"))` produces a `ScalarFunctionNode
 | `arguments` | list[ExpressionNode] | Child expressions serving as inputs |
 | `options` | dict[str, Any] | Non-expression parameters (format, flags) |
 
+<!-- concept:59 -->
 ## CastNode
 
 A `CastNode` represents a type conversion operation. It wraps an input expression and specifies a target data type. Unlike `ScalarFunctionNode`, cast has dedicated handling because type conversions are structurally different from function calls in the Substrait specification.
@@ -177,6 +183,7 @@ class CastNode(ExpressionNode):
 
 The `target_type` is stored as a canonical `MountainashDtype` string (e.g., "i64", "fp32", "string"). The `resolve_dtype()` function normalizes the user's input before the node is constructed, so the AST always contains canonical type identifiers regardless of what alias the user originally provided.
 
+<!-- concept:60 -->
 ## IfThenNode
 
 An `IfThenNode` represents a conditional expression (if-then-else logic). It corresponds to the `when().then().otherwise()` API and stores paired lists of conditions and results, plus an optional else value.
@@ -196,6 +203,7 @@ The `ifs` and `thens` lists are parallel: `ifs[0]` is paired with `thens[0]`, `i
 
 This structure aligns with SQL's CASE WHEN syntax and Substrait's IfThen expression type. The backend compiler translates it to the appropriate native construct.
 
+<!-- concept:61 -->
 ## SingularOrListNode
 
 A `SingularOrListNode` represents a membership test operation (IN or NOT IN). It checks whether a value appears in a list of candidates, corresponding to SQL's `value IN (a, b, c)` syntax.
@@ -219,6 +227,7 @@ import mountainash as ma
 active = ma.col("status").is_in(["active", "pending", "trial"])
 ```
 
+<!-- concept:62 -->
 ## WindowFunctionNode
 
 A `WindowFunctionNode` represents a window function application. It combines an aggregation or ranking function with a window specification that defines partitioning and ordering.
@@ -235,6 +244,7 @@ class WindowFunctionNode(ExpressionNode):
 
 Window function nodes are created when the `.over()` method is called on an aggregation expression. The `function` field holds the underlying aggregation (e.g., a sum or rank), and the `window_spec` defines how rows are grouped and ordered for the computation.
 
+<!-- concept:63 -->
 ## WindowSpec
 
 `WindowSpec` is a Pydantic model that defines the window over which a window function operates. It specifies three components: the partition columns (grouping), the ordering columns (sort within each partition), and optional frame bounds.
@@ -262,6 +272,7 @@ Type: microsim
 An interactive visualization of a window function operating on tabular data. A 10-row table is displayed with partition groups highlighted in alternating colors. A slider moves the "current row" indicator, and for each position, the window frame (set of rows included in the computation) is highlighted. Dropdown selects between SUM, RANK, and LAG functions. Controls allow changing partition columns and frame bounds. The computed value for the current row updates in real time. Colors: MediumPurple highlight for the active window frame. Learning objective: Predict the output of window functions given different partition, order, and frame specifications (Bloom: Apply).
 </details>
 
+<!-- concept:64 -->
 ## WindowBound
 
 A `WindowBound` defines one edge of a window frame. It specifies whether the bound is relative to the current row (preceding or following by N rows) or absolute (unbounded, or the current row itself).
@@ -284,6 +295,7 @@ Common frame configurations include:
 
 The bound type and offset work together. `PRECEDING` with offset 3 means "three rows before the current row." `UNBOUNDED_PRECEDING` means "the first row in the partition." `CURRENT_ROW` means exactly the current row position.
 
+<!-- concept:65 -->
 ## OverNode
 
 The `OverNode` is a mountainash extension node that represents the `.over()` method call in the expression API. It serves as a bridge between the user-facing window function syntax and the underlying `WindowFunctionNode` representation.

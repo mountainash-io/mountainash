@@ -58,7 +58,44 @@ nav:
       # - Taxonomy Distribution: learning-graph/taxonomy-distribution.md
 
   - MicroSims:
-      - List of MicroSims: sims/index.md
+    - List of MicroSims: sims/index.md
+    - Backend Auto-Detection Flow: sims/backend-auto-detection/index.md
+    - Backend Detection and System Routing: sims/backend-routing/index.md
+    - Backend Divergence Map: sims/backend-divergence-map/index.md
+    - Boolean Operation Truth Tables: sims/boolean-truth-tables/index.md
+    - Conform Transformation Pipeline: sims/conform-pipeline/index.md
+    - DAG in Query Plans vs RelationDAG: sims/dag-dual-usage/index.md
+    - DataFrame Structure and Backend Mapping: sims/dataframe-backend-mapping/index.md
+    - DataPackage to RelationDAG Conversion: sims/datapackage-to-dag/index.md
+    - End-to-End Backend Architecture: sims/backend-architecture-e2e/index.md
+    - Expression Building Tree: sims/expression-building-tree/index.md
+    - Expression Operation Categories: sims/expression-operation-categories/index.md
+    - Expression System Composition: sims/expression-system-composition/index.md
+    - Factory Pattern Lazy Loading Flow: sims/factory-lazy-loading/index.md
+    - Function Key Taxonomy: sims/function-key-taxonomy/index.md
+    - Function Registry Architecture: sims/function-registry-arch/index.md
+    - Horizontal vs Vertical Operations: sims/horizontal-vs-vertical/index.md
+    - LazyFrame Operation Pipeline: sims/lazyframe-pipeline/index.md
+    - Method Chaining and AST Construction: sims/method-chaining-ast/index.md
+    - Namespace Descriptor Mechanism: sims/namespace-descriptor/index.md
+    - Pipeline Framework Architecture: sims/pipeline-architecture/index.md
+    - Protocol and System Composition: sims/protocol-system-composition/index.md
+    - Relation AST Tree Example: sims/relation-ast-example/index.md
+    - Relation Node Type Hierarchy: sims/relation-node-hierarchy/index.md
+    - Relation System Composition: sims/relation-system-composition/index.md
+    - Relational Operations Pipeline: sims/relational-pipeline/index.md
+    - RelationDAG Container Structure: sims/dag-container-structure/index.md
+    - Schema Comparison Workflow: sims/schema-comparison/index.md
+    - Terminal Operations Decision Tree: sims/terminal-operations/index.md
+    - Three Backend Execution Models: sims/backend-execution-models/index.md
+    - Topological Compilation Flow: sims/dag-topological-compile/index.md
+    - Two-Edge Graph Model: sims/two-edge-graph-model/index.md
+    - Two-Phase DAG Validation: sims/dag-validation-phases/index.md
+    - TypeSpec Construction Sources: sims/typespec-construction/index.md
+    - Visitor Compilation Flow: sims/relation-visitor-flow/index.md
+    - Window Function Anatomy: sims/window-function-anatomy/index.md
+
+
 
   - API Reference:
       - Overview: api/index.md
@@ -103,17 +140,20 @@ theme:
 # Plugins
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          paths: ["../../../mountainash/src"]
-          options:
-            show_source: true
-            show_bases: true
-            show_root_heading: true
-            show_root_full_path: false
-            heading_level: 2
-            members_order: source
+  # mkdocstrings disabled — parsing 421 source files takes >2min.
+  # Re-enable once API pages use narrower ::: directives (e.g. mountainash.core.factories)
+  # - mkdocstrings:
+  #     handlers:
+  #       python:
+  #         paths: ["../../../mountainash/src"]
+  #         options:
+  #           show_source: true
+  #           show_bases: true
+  #           show_root_heading: true
+  #           show_root_full_path: false
+  #           show_submodules: false
+  #           heading_level: 2
+  #           members_order: source
   # Uncomment after running `pip install "mkdocs-material[imaging]"`:
   # - social
   # Uncomment after running `pip install mkdocs-glightbox`:

@@ -36,6 +36,7 @@ The expression API is the primary interface for describing column-level computat
 
 This chapter introduces the two entry point functions (`col` and `lit`), explains how expressions compose into chains, and covers the protocol classes that define the expression interface. We conclude with operator overloading and null-handling semantics.
 
+<!-- concept:25 -->
 ## col Function
 
 The `col` function creates a column reference expression. It represents "the value of this column in each row" without actually accessing any data. The name you pass to `col` must match a column name in the DataFrame that the expression will eventually be compiled against.
@@ -57,6 +58,7 @@ The `col` function accepts a single string argument representing the column name
 - No validation occurs at construction time (errors appear at compile time)
 - Multiple `col()` calls can reference the same column
 
+<!-- concept:26 -->
 ## lit Function
 
 The `lit` function creates a literal value expression. It wraps a Python scalar value into the expression system so that constants can participate in expression chains alongside column references.
@@ -93,6 +95,7 @@ offset = ma.lit(1000) - ma.col("deduction")
 | `bool` | `ma.lit(True)` | `LiteralNode(value=True)` |
 | `None` | `ma.lit(None)` | `LiteralNode(value=None)` |
 
+<!-- concept:27 -->
 ## Expression Building
 
 Expression building is the process of composing simple expressions (`col`, `lit`) into complex operations through method calls. Each method call produces a new expression node that wraps the previous expression as its input, forming a tree of operations.
@@ -131,6 +134,7 @@ An interactive tree diagram showing how expression method calls build an AST. Ro
 
 Each building operation is immutable. The original expression remains unchanged, and a new expression object wraps it. This allows you to reuse partial expressions in multiple contexts.
 
+<!-- concept:28 -->
 ## BaseExpressionAPI
 
 `BaseExpressionAPI` is the protocol class that defines all methods available on any expression object. It establishes the contract that every expression (whether created by `col`, `lit`, `when`, or any other entry point) must support.
@@ -164,6 +168,7 @@ class BaseExpressionAPI(Protocol):
 
 The protocol uses structural subtyping, meaning any object with these methods satisfies the contract without inheriting from `BaseExpressionAPI`. This decouples the API definition from its implementation.
 
+<!-- concept:29 -->
 ## BooleanExpressionAPI
 
 `BooleanExpressionAPI` extends `BaseExpressionAPI` with methods specific to boolean (true/false) expressions. When a comparison operation produces a boolean result, the returned object supports logical combination methods that regular numeric expressions do not provide.
@@ -190,6 +195,7 @@ The boolean API provides these logical methods:
 
 The trailing underscore on `and_` and `or_` avoids collision with Python's reserved keywords. The `not_()` method takes no arguments because it operates on the expression it is called on.
 
+<!-- concept:30 -->
 ## Fluent Expression Chain
 
 A fluent expression chain is a sequence of method calls where each call returns an expression object that supports further method calls. This enables writing complex transformations as a single, readable pipeline.
@@ -216,6 +222,7 @@ The chain reads left-to-right and top-to-bottom as a sequence of transformations
 - The order of operations follows method call order (innermost first in the AST)
 - Parentheses group multi-line chains for readability
 
+<!-- concept:31 -->
 ## Operator Overloading
 
 Mountainash expressions support Python's standard arithmetic and comparison operators through operator overloading. This means you can write natural mathematical syntax instead of explicit method calls for common operations.
@@ -264,6 +271,7 @@ negated = ~(ma.col("active"))                               # not_
 !!! note "Operator Precedence"
     Python's operator precedence applies. Bitwise operators (`&`, `|`, `~`) bind tighter than comparison operators, so boolean combinations require parentheses around each comparison: `(col("a") > 1) & (col("b") < 10)`.
 
+<!-- concept:51 -->
 ## Null Handling
 
 Null handling in mountainash provides methods for detecting, replacing, and propagating null values in expressions. Nulls represent missing or unknown data and require special treatment because standard comparisons with null produce null rather than true or false.

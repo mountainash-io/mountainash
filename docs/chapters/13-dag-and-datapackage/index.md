@@ -49,6 +49,8 @@ Previous chapters introduced the Relation API for building and executing single 
 
 The **RelationDAG** solves this problem. It is a thin orchestrator that holds a collection of named relations, automatically tracks how they depend on each other, and compiles them in the correct topological order. Combined with Frictionless Data's **DataPackage** format for describing multi-resource datasets, the DAG provides a complete lifecycle for multi-table data: load descriptors, build relations, compile with cross-references resolved, validate foreign keys, and export the result back to a portable descriptor.
 
+<!-- concept:182 -->
+<!-- concept:169 -->
 ## RelationDAG
 
 A **RelationDAG** is a container that stores named relations and the edges between them. It is not a new visitor stack or an alternative execution engine. Instead, it wraps the existing relation AST and visitor infrastructure, adding just enough bookkeeping to handle multi-resource scenarios.
@@ -68,6 +70,7 @@ Internally, the DAG maintains four data structures:
 
 The separation between dependency and constraint edges is a deliberate design choice covered later in this chapter under the Two-Edge Graph Model.
 
+<!-- concept:170 -->
 ## Named Relations
 
 A **named relation** is simply a Relation object that has been registered in the DAG under a string key. The name serves as the relation's identity for cross-referencing, output naming, and DataPackage export.
@@ -93,6 +96,7 @@ Type: Diagram | **sim-id:** dag-container-structure<br/> | **Library:** vis-netw
 Shows the four internal data structures of RelationDAG (relations dict, assets dict, dependency_edges set, constraint_edges set) and how named relations connect to them. Learning objective: Understand the internal organization of the DAG container. Bloom level: Understand. Interactions: Hover over nodes to see descriptions, click edges to highlight paths.
 </details>
 
+<!-- concept:184 -->
 ## dag.add Method
 
 The `dag.add()` method registers a named relation and automatically discovers its upstream dependencies. When you call `add("enriched_orders", some_relation)`, the DAG walks the relation's internal AST tree looking for `RefRelNode` instances. Each ref found generates a dependency edge from the referenced name to the newly added name.
@@ -112,6 +116,7 @@ def walk_refs(node):
 
 This automatic edge discovery means you never need to declare dependencies manually. The DAG infers them from the structure of the relation you are adding.
 
+<!-- concept:171 -->
 ## dag.ref Method
 
 The `dag.ref()` method creates a **reference relation** -- a lightweight placeholder that points to another named relation in the DAG. Under the hood, it constructs a `RefRelNode` leaf node wrapped in a standard Relation object:
@@ -139,6 +144,7 @@ cust_ref = dag.source("customers", customers_df)
 #   cust_ref = dag.ref("customers")
 ```
 
+<!-- concept:172 -->
 ## Dependency Edges
 
 **Dependency edges** represent data flow between relations. Each edge is a tuple \( (\text{upstream}, \text{downstream}) \) meaning "downstream needs the compiled result of upstream before it can be compiled." These edges are created automatically when `dag.add()` discovers `RefRelNode` instances in the relation tree.
@@ -155,6 +161,7 @@ dag.add("enriched", enriched)
 
 After this code runs, the DAG contains two dependency edges: `("customers", "enriched")` and `("orders", "enriched")`. The DAG uses these edges to determine compilation order.
 
+<!-- concept:173 -->
 ## Constraint Edges
 
 **Constraint edges** represent foreign key relationships between tables. Unlike dependency edges, they do not affect compilation order. A constraint edge \( (\text{parent}, \text{child}) \) means "the child table's foreign key column(s) should reference values in the parent table's primary key column(s)."
@@ -166,6 +173,7 @@ Constraint edges are populated in two scenarios:
 
 The DAG's validation methods use constraint edges to check referential integrity, but the compilation engine ignores them entirely. This means you can validate FK relationships without requiring the parent table to be an input to the child table's relation tree.
 
+<!-- concept:174 -->
 #### Diagram: Two-Edge Graph Model
 
 <iframe src="../../sims/two-edge-graph-model/main.html" width="100%" height="500px" scrolling="no"></iframe>
@@ -188,6 +196,7 @@ Mountainash's two-edge model provides the following properties:
 
 This means you can have a parent table that exists purely for FK validation without it being an input to any relation's data flow. Conversely, you can have data dependencies that carry no FK semantics.
 
+<!-- concept:175 -->
 ## Topological Collection
 
 When relations reference each other via `dag.ref()`, they must be compiled in dependency order. If relation B references relation A, then A must be compiled first so its result is available when B's `RefRelNode` is visited. The DAG enforces this ordering through **topological sorting** using Kahn's algorithm.
@@ -208,6 +217,7 @@ print(dag.topological_order())
 
 When a `target` argument is provided, only the ancestors of that target (and the target itself) are included. This enables selective compilation -- collecting a single output without compiling unrelated branches of the DAG.
 
+<!-- concept:176 -->
 ## dag.collect Method
 
 The `dag.collect()` method is the primary compilation entrypoint. Given a target relation name, it performs a topological walk of that relation's dependency tree, compiling each upstream relation in order and caching the results. The final compiled result for the target is returned.
@@ -229,6 +239,7 @@ The compilation process works as follows:
 
 The backend is auto-detected from the first `ReadRelNode` encountered in the dependency tree. You can override this with the `backend` parameter: `dag.collect("enriched", backend="polars")`.
 
+<!-- concept:177 -->
 ## ref_resolver Parameter
 
 The **ref_resolver** is a callable with the signature `(name: str) -> Any` that the `UnifiedRelationVisitor` calls when it encounters a `RefRelNode`. If no resolver is provided and a `RefRelNode` is visited, the visitor raises a `RelationDAGRequired` error.
@@ -259,6 +270,7 @@ Type: Step-through Animation | **sim-id:** dag-topological-compile<br/> | **Libr
 Animated walk-through of dag.collect("enriched") for a three-table DAG. Each step highlights the current node being compiled, shows the cache state, and illustrates ref_resolver lookups. Learning objective: Trace the compilation sequence through a DAG. Bloom level: Apply. Interactions: Step forward/backward buttons, cache state panel updates on each step.
 </details>
 
+<!-- concept:178 -->
 ## DataPackage
 
 A **DataPackage** is a Pydantic model representing the Frictionless Data Package specification. It serves as a portable, JSON-serializable descriptor for a collection of data resources. In mountainash, DataPackage is the bridge between external dataset definitions and the internal RelationDAG.
@@ -280,6 +292,7 @@ print(pkg.resources[0].name)       # 'customers'
 print(len(pkg.resources))          # 3
 ```
 
+<!-- concept:179 -->
 ## DataResource
 
 A **DataResource** is a Pydantic model representing one data source within a DataPackage. Each resource must have exactly one of `path` (file location) or `data` (inline data). The resource carries schema information, format hints, and dialect configuration.
@@ -309,6 +322,7 @@ resource = DataResource.from_descriptor(raw)
 # resource.extras == {"custom_key": "preserved"}
 ```
 
+<!-- concept:180 -->
 ## TableDialect
 
 A **TableDialect** specifies CSV parsing parameters following the Frictionless specification. It controls how raw CSV bytes are interpreted: field delimiters, quote characters, null sequences, header handling, and comment characters.
@@ -336,6 +350,7 @@ The dialect integrates with Polars through the `to_polars_read_csv_kwargs()` met
 | comment_char | comment_prefix |
 | null_sequence | null_values |
 
+<!-- concept:181 -->
 ## from_descriptor Method
 
 Both `DataPackage` and `DataResource` provide a `from_descriptor()` class method for constructing instances from raw dictionaries or file paths. This is the primary entry point for loading external Frictionless descriptors.
@@ -386,6 +401,7 @@ dag = pkg.to_relation_dag(overrides={
 
 The overrides parameter is particularly useful for testing, where you want to use the same DAG structure but substitute controlled test data for the file-backed resources.
 
+<!-- concept:183 -->
 ## Resource Overrides
 
 **Resource overrides** let you substitute in-memory DataFrames for file-backed resources when building a DAG from a DataPackage. When the `to_relation_dag()` method encounters a resource name that exists in the overrides dictionary, it wraps the override DataFrame in `ma.relation()` instead of creating a `ResourceReadRelNode`.
@@ -407,6 +423,7 @@ Type: Flow Diagram | **sim-id:** datapackage-to-dag<br/> | **Library:** vis-netw
 Shows the conversion pipeline from a DataPackage JSON descriptor through from_descriptor() to DataPackage object, then to_relation_dag() producing a RelationDAG with relations, assets, and constraint edges. Includes an override path. Learning objective: Trace the conversion from descriptor to executable DAG. Bloom level: Apply. Interactions: Click each stage to see its internal state, highlight override vs normal paths.
 </details>
 
+<!-- concept:185 -->
 ## to_package Method
 
 The `to_package()` method exports a RelationDAG back to a Frictionless DataPackage descriptor, completing the round-trip. Each named relation in the DAG must have a schema that can be exported. The method supports two sources of schema information:
@@ -428,6 +445,7 @@ package.write("output/datapackage.json")
 
 This round-trip capability means you can load a DataPackage, transform its data through a DAG, and export the results as a new DataPackage that other tools (Frictionless Framework, CKAN, OpenRefine) can consume.
 
+<!-- concept:186 -->
 ## FK Integrity Check
 
 Foreign key integrity checking validates that every non-null value in a child table's FK column(s) exists in the parent table's referenced column(s). The DAG performs this check during `dag.validate()` using the `check_fk_integrity()` function.
@@ -452,6 +470,7 @@ class FKViolation:
 
 The anti-join approach is efficient because it leverages Polars' native join engine rather than iterating row-by-row. For a child table with \( n \) rows and a parent table with \( m \) unique keys, the check runs in approximately \( O(n + m) \) time.
 
+<!-- concept:164 -->
 ## validate_match Function
 
 The `validate_match` function (from the type system module) checks whether a DataFrame's actual schema matches an expected TypeSpec. It is used within the DAG validation pipeline as the first phase (table-level validation) before FK checks are performed.

@@ -47,6 +47,7 @@ Universal type metadata via TypeSpec, FieldSpec, FieldConstraints, UniversalType
 
 Data pipelines frequently need to enforce schemas, convert between type systems, and validate data against constraints. Mountainash provides a backend-agnostic type system built on the Frictionless Table Schema standard. This chapter covers the complete type system, from the `UniversalType` enum through schema extraction, validation, and backend-specific conversion.
 
+<!-- concept:150 -->
 ## UniversalType Enum
 
 The `UniversalType` enum defines the universal data types that mountainash recognizes. Based on the Frictionless Table Schema specification, these types provide a common vocabulary that maps to every supported backend's native type system.
@@ -79,6 +80,7 @@ Unlike `MountainashDtype` (which uses Substrait-aligned names like `i64` and `fp
 | DATE | date | Date | datetime64[ns] |
 | DATETIME | datetime | Datetime | datetime64[ns] |
 
+<!-- concept:148 -->
 ## FieldSpec
 
 A `FieldSpec` describes a single field (column) in a schema. It extends the Frictionless Table Schema field definition with mountainash-specific features like `rename_from` for column aliasing and `null_fill` for default null replacement.
@@ -106,6 +108,7 @@ The `source_name` property returns `rename_from` if set, otherwise falls back to
 - **null_fill**: Default value to substitute for nulls
 - **rename_from**: Source column name if different from target name
 
+<!-- concept:149 -->
 ## FieldConstraints
 
 `FieldConstraints` specifies validation rules for a single field. These constraints follow the Frictionless Table Schema constraint vocabulary with one mountainash extension (`enum_weights`).
@@ -126,6 +129,7 @@ class FieldConstraints:
 
 Constraints are checked during schema validation (described later in this chapter). They can express rules like "this column must not be null" (required=True), "values must be unique" (unique=True), or "values must match this regex" (pattern).
 
+<!-- concept:147 -->
 ## TypeSpec
 
 `TypeSpec` is the top-level schema object that describes an entire table's structure. It contains a list of `FieldSpec` instances, optional primary key and foreign key declarations, and metadata about the overall schema.
@@ -156,6 +160,7 @@ Type: workflow
 A hub-and-spoke diagram with TypeSpec at the center. Five spokes connect to construction sources: Simple Dict, Frictionless JSON, Polars DataFrame, Python Dataclass, and Pydantic Model. Each source node shows a code snippet on hover. Clicking a source shows the extraction path and any information lost during conversion. Arrows point inward toward TypeSpec. Colors: MediumPurple for type system elements. Learning objective: Identify the multiple paths for constructing TypeSpec objects and understand what metadata each source provides (Bloom: Understand).
 </details>
 
+<!-- concept:151 -->
 ## Type Bridge
 
 The type bridge converts between `UniversalType` (Frictionless-level types) and `MountainashDtype` (Substrait-level types). This conversion is necessary because the schema system uses Frictionless types while the expression system uses Substrait-aligned types.
@@ -164,6 +169,7 @@ For example, Frictionless `INTEGER` maps to MountainashDtype `I64` (the default 
 
 The type bridge is also responsible for mapping between UniversalType and the `MountainashDtype` used in cast operations. When the `conform` operation needs to cast a column to match its TypeSpec, it uses the type bridge to determine the target MountainashDtype from the UniversalType in the FieldSpec.
 
+<!-- concept:152 -->
 ## Backend Type Mapping
 
 Backend type mapping translates `UniversalType` values to the concrete type objects used by each backend library. Each backend has its own type representation (Polars uses `pl.DataType` subclasses, pandas uses numpy dtypes, Arrow uses `pa.DataType`).
@@ -182,6 +188,7 @@ Backend type mapping translates `UniversalType` values to the concrete type obje
 
 These mappings are defined as lazy functions to avoid importing backend libraries until needed. Each mapping function (`_get_universal_to_polars`, `_get_universal_to_pandas`, etc.) imports its backend on first call and caches the result.
 
+<!-- concept:153 -->
 ## Foreign Keys
 
 Foreign keys define referential integrity relationships between tables. A foreign key declaration says "the values in these columns of this table must exist in the specified columns of another table."
@@ -195,6 +202,7 @@ class ForeignKey:
 
 Foreign keys are stored at the TypeSpec level and used by the `RelationDAG` for constraint edges and integrity validation. They represent a different kind of dependency than data flow: they say "this table's data depends on that table's data for validity."
 
+<!-- concept:154 -->
 ## ForeignKeyReference
 
 `ForeignKeyReference` specifies the target of a foreign key relationship. It identifies the referenced table (resource) name and the field(s) within that table.
@@ -208,18 +216,21 @@ class ForeignKeyReference:
 
 An empty `resource` string indicates a self-referencing foreign key (the referenced table is the same table containing the key). This is used for hierarchical data where a column references another row in the same table (like a parent_id column).
 
+<!-- concept:155 -->
 ## Custom Type Registry
 
 The custom type registry enables extending the type system with domain-specific types beyond the standard UniversalType values. This is useful for types that have specialized validation or conversion logic not covered by the base Frictionless types.
 
 The registry uses lazy evaluation so that custom type definitions are loaded only when encountered during schema processing. New types can be registered with their conversion functions for each backend.
 
+<!-- concept:156 -->
 ## Type Converters
 
 Type converters translate between the universal type system and backend-specific type representations. Each converter handles one direction of the mapping (universal-to-backend or backend-to-universal) for one backend library.
 
 The converter system is used during schema extraction (backend-to-universal) and during schema application (universal-to-backend). Converters handle edge cases like Polars' distinction between `Datetime` with and without timezone, pandas' nullable integer types, and Arrow's parameterized types.
 
+<!-- concept:157 -->
 ## Frictionless Standard
 
 The Frictionless Data standard is an open specification for describing tabular data. Mountainash aligns with its Table Schema and Data Package specifications to enable interoperability with the broader data ecosystem.
@@ -234,6 +245,7 @@ Key Frictionless concepts that mountainash adopts include:
 
 This alignment means mountainash can read and write standard Frictionless descriptor files, enabling schema sharing with tools outside the mountainash ecosystem.
 
+<!-- concept:158 -->
 ## Table Schema
 
 A Table Schema is the Frictionless standard's way of describing the structure of a tabular dataset. It consists of an array of field descriptors (each specifying a column name and type) plus optional primary key and foreign key declarations.
@@ -252,12 +264,14 @@ A Table Schema is the Frictionless standard's way of describing the structure of
 
 Mountainash's TypeSpec can be constructed from a Table Schema descriptor via `typespec_from_frictionless()` and exported back via `typespec_to_frictionless()`. This round-trip capability ensures no information is lost when moving between mountainash's internal representation and the standard JSON format.
 
+<!-- concept:159 -->
 ## Schema Extraction
 
 Schema extraction is the process of inferring a TypeSpec from an existing data source. Mountainash supports extraction from three source types: DataFrames, Python dataclasses, and Pydantic models.
 
 The extraction system uses the factory pattern to dispatch to the appropriate extractor based on the source type. Each extractor inspects the source's structure and produces a TypeSpec with the appropriate UniversalType mappings.
 
+<!-- concept:160 -->
 ## DataFrame Extraction
 
 DataFrame extraction inspects a backend-specific DataFrame's schema (column names and types) and converts each column type to the corresponding UniversalType. This is the reverse of backend type mapping.
@@ -274,6 +288,7 @@ spec = extract_from_dataframe(df)
 
 DataFrame extraction captures type information but cannot infer constraints (required, unique, min/max) because those are semantic properties not visible from the data alone.
 
+<!-- concept:161 -->
 ## Dataclass Extraction
 
 Dataclass extraction reads Python type annotations from a `@dataclass` class definition and maps them to UniversalType values. This enables defining schemas as Python code with full IDE support.
@@ -293,6 +308,7 @@ class User:
 
 Python type annotations map naturally to universal types: `int` becomes INTEGER, `str` becomes STRING, `float` becomes NUMBER, `bool` becomes BOOLEAN, and datetime types map to their temporal equivalents.
 
+<!-- concept:162 -->
 ## Pydantic Extraction
 
 Pydantic extraction reads field definitions from a Pydantic `BaseModel` subclass. In addition to type information, it can capture Pydantic validators as FieldConstraints, providing richer schema metadata than dataclass extraction.
@@ -308,12 +324,14 @@ class User(BaseModel):
 # Extraction captures both types and constraints
 ```
 
+<!-- concept:163 -->
 ## Schema Validation
 
 Schema validation checks whether a given dataset conforms to a TypeSpec. It verifies that required columns exist, types are compatible, constraints are satisfied, and foreign key references are valid.
 
 The `validate_match` function is the primary entry point for validation. It compares a DataFrame's actual schema against a TypeSpec and returns a detailed report of matches, mismatches, and missing fields.
 
+<!-- concept:165 -->
 ## Schema Comparison
 
 Schema comparison computes the differences between two TypeSpec instances. This is useful for detecting schema drift, verifying migration correctness, and generating conformance plans.
@@ -332,14 +350,17 @@ Type: microsim
 An interactive two-panel comparison view. The left panel shows a "Source TypeSpec" with editable fields (name, type pairs). The right panel shows a "Target TypeSpec" with different fields. Between the panels, color-coded indicators show: green for matching fields, yellow for type changes, red for missing fields, blue for added fields. Editing a field name or type in either panel updates the comparison indicators in real time. A summary bar at the bottom counts matches/mismatches. Learning objective: Identify schema differences and predict the conformance operations needed to reconcile two TypeSpec instances (Bloom: Evaluate).
 </details>
 
+<!-- concept:166 -->
 ## Polars Schema Convert
 
 Polars schema conversion translates between TypeSpec and Polars schema objects. The forward direction (TypeSpec -> Polars) produces a dictionary of column names to Polars DataType objects. The reverse direction (Polars -> TypeSpec) extracts column information from a Polars DataFrame or LazyFrame.
 
+<!-- concept:167 -->
 ## Pandas Dtypes Convert
 
 Pandas dtype conversion handles the mapping between TypeSpec and pandas dtype specifications. Pandas has a more complex type landscape (numpy dtypes, nullable integer types, string vs object dtype), so the converter handles multiple representations for the same logical type.
 
+<!-- concept:168 -->
 ## Arrow Schema Convert
 
 Arrow schema conversion translates between TypeSpec and PyArrow Schema objects. Arrow's type system is the most detailed of the three backends, supporting parameterized types (e.g., `timestamp[ns, tz=UTC]`), so the converter must handle precision and metadata that other backends abstract away.

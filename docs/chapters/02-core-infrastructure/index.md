@@ -39,6 +39,7 @@ Every module in mountainash shares a common layer of infrastructure that provide
 
 This chapter progresses from the simplest concepts (enum constants) through the detection and routing system, and concludes with the factory patterns that enable lazy-loaded, backend-agnostic code.
 
+<!-- concept:13 -->
 ## Constants Module
 
 The constants module (`mountainash.core.constants`) serves as the single source of truth for all enumeration values, operation identifiers, and shared data structures used across the library. By centralizing these definitions, mountainash avoids scattered string literals and ensures consistent naming throughout the codebase.
@@ -57,6 +58,7 @@ from mountainash.core.constants import (
 
 All constants follow a naming convention. Top-level enumeration classes use uppercase prefixed names (`CONST_BACKEND`, `CONST_EXPRESSION_NODE_TYPES`). Individual enum members use uppercase snake case (`POLARS`, `INNER`, `UNION_ALL`).
 
+<!-- concept:14 -->
 ## Backend Enum
 
 The `CONST_BACKEND` enumeration answers the question: "What library produced this object?" It uses `StrEnum` so that each member is simultaneously an enum value and a plain string, enabling both identity comparison and string-based registry lookups.
@@ -80,6 +82,7 @@ The five backend values represent the concrete libraries mountainash can detect 
 | `IBIS` | `ibis.Table` | SQL compilation backend |
 | `NARWHALS` | `nw.DataFrame`, `nw.LazyFrame` | Direct Narwhals objects |
 
+<!-- concept:15 -->
 ## Backend System Enum
 
 While `CONST_BACKEND` identifies the source library (five values), `CONST_BACKEND_SYSTEM` identifies the compilation target (three values). This distinction separates detection from routing. Multiple detected backends can map to the same system implementation.
@@ -93,6 +96,7 @@ class CONST_BACKEND_SYSTEM(StrEnum):
 
 The mapping from backend to system is defined by the `backend_to_system()` function. Polars routes to its native system. Pandas and PyArrow both route through Narwhals. Ibis routes to its own SQL compilation system. This three-way split means mountainash maintains exactly three expression system implementations and three relation system implementations, regardless of how many input libraries it supports.
 
+<!-- concept:16 -->
 #### Diagram: Backend Detection and System Routing
 <iframe src="../../sims/backend-routing/main.html" width="100%" height="500px" scrolling="no"></iframe>
 <details markdown="1">
@@ -120,6 +124,7 @@ The detection uses a two-layer strategy. The first layer checks an exact match d
 
 This string-based approach means no backend library needs to be importable for detection to work. A user who has Polars installed but not Ibis can still pass Polars DataFrames without triggering an Ibis import error.
 
+<!-- concept:17 -->
 ## DataFrame Type Guards
 
 DataFrame type guards are specialized functions that check whether a given object is a DataFrame of a particular backend type. They return boolean values and are used at branch points where mountainash needs to make decisions based on the concrete type of input data.
@@ -139,6 +144,7 @@ class CONST_DATAFRAME_TYPE(Enum):
 
 Type guards are essential at the boundary between mountainash's backend-agnostic core and the backend-specific compilation layer. They enable conditional logic that respects each backend's unique capabilities without polluting the core API.
 
+<!-- concept:18 -->
 ## MountainashDtype
 
 `MountainashDtype` is a string enum that defines the canonical data type identifiers used throughout the library. Rather than requiring users to work with backend-specific type objects (like `pl.Int64` or `pa.int64()`), mountainash normalizes all type references to short, memorable string identifiers.
@@ -165,6 +171,7 @@ The `resolve_dtype()` function accepts any type specifier (enum member, Python b
 - Python type mapping (int -> i64, float -> fp64, str -> string, bool -> bool)
 - Backend types converted via `str()` before lookup
 
+<!-- concept:19 -->
 ## Lazy Import System
 
 The lazy import system (`mountainash.core.lazy_imports`) defers the loading of heavy backend libraries until they are actually needed. This keeps mountainash's own import time fast and avoids requiring all backends to be installed simultaneously.
@@ -183,6 +190,7 @@ def import_polars():
 
 This pattern is critical for mountainash's "bring your own backend" philosophy. A user working exclusively with Ibis databases should not need Polars installed at all. The lazy import system ensures that missing optional dependencies produce clear error messages at the point of use rather than cryptic import failures at startup.
 
+<!-- concept:20 -->
 ## Factory Pattern
 
 The factory pattern in mountainash provides a mechanism for creating backend-specific strategy objects based on the type of input data. The `BaseStrategyFactory` class implements a lazy-loading strategy factory that detects backends using string inspection and loads strategy implementations only on first use.
@@ -210,6 +218,7 @@ Type: workflow
 A sequential workflow diagram showing the three stages of factory resolution. Stage 1: "Detect Backend" shows string inspection of the input object's module path. Stage 2: "Cache Lookup" shows a decision diamond checking if the strategy is already cached. Stage 3: "Lazy Import" shows dynamic module loading via importlib. Arrows connect stages with success/failure paths. A separate "Error Path" shows the ValueError raised when no strategy matches. Interactive: clicking each stage expands details about what happens internally. Colors: DarkSlateBlue for infrastructure nodes. Learning objective: Explain the lazy-loading strategy factory mechanism and why it avoids premature backend imports (Bloom: Understand).
 </details>
 
+<!-- concept:21 -->
 ## BaseFactoryMixin
 
 `BaseFactoryMixin` is the abstract base class that all mountainash factories inherit from. It defines the contract that every factory must implement: a `_type_map()` class method that returns a dictionary mapping type identification tuples to enum values.
@@ -227,6 +236,7 @@ class BaseFactoryMixin(ABC):
 
 The mixin also supports runtime type registration. When the pattern matcher discovers a new type variant, it auto-registers the mapping for future fast-path lookups. This self-healing behavior means mountainash can adapt to library refactors without code changes.
 
+<!-- concept:22 -->
 ## Operation Enums
 
 Operation enums categorize the different types of operations that expressions can perform. Each category has its own enum class, enabling the type system to enforce that only valid operations are used in the correct context.
@@ -254,6 +264,7 @@ class CONST_EXPRESSION_ARITHMETIC_OPERATORS(Enum):
 
 These enums serve as function keys in expression AST nodes. When a `ScalarFunctionNode` is created, its `function_key` field holds one of these enum values, telling the compiler exactly which operation to generate for the target backend.
 
+<!-- concept:23 -->
 ## JoinType Enum
 
 The `JoinType` enum defines the relational join variants that mountainash supports. It uses `StrEnum` for string compatibility with backend APIs that accept join type as a string parameter.
@@ -283,6 +294,7 @@ Each join type has distinct semantics that affect which rows appear in the resul
 | CROSS | All combinations | All combinations | Cartesian product |
 | ASOF | Nearest match | N/A | Time-series alignment |
 
+<!-- concept:24 -->
 ## SetType Enum
 
 The `SetType` enum defines set-theoretic operations on relations. These operations combine rows from multiple relations vertically (as opposed to joins, which combine columns horizontally).
