@@ -200,6 +200,15 @@ radon-mi-detail = "radon mi ./src"
 radon-cc-detail = "radon cc ./src"
 
 #================
+# Env: griffe
+#================
+[envs.griffe]
+installer = "uv"
+dependencies = ["griffe>=1.0.0"]
+[envs.griffe.scripts]
+check = "griffe check --search src mountainash {args}"
+
+#================
 # Env: mypy
 #================
 # Mypy Type checks
