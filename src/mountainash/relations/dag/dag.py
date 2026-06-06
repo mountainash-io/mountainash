@@ -5,14 +5,13 @@ from collections import defaultdict
 from typing import Any, Optional, TYPE_CHECKING
 
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.relations.core.relation_nodes.extensions_mountainash import (
-    RefRelNode,
-)
+from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
     import polars as pl
 
-    from .resource_ref import ResourceRef
+    from mountainash.core.resource_ref import ResourceRef
     from .validation import DAGValidationResult
 
 """RelationDAG — orchestrator over named Relations.
@@ -22,29 +21,6 @@ a new visitor stack. The DAG walks each named relation's tree once at add()
 time to derive dependency edges (from RefRelNode instances), then defers
 materialization to ``collect()`` (added in Task 17).
 """
-
-def _walk_refs(node: Any) -> set[str]:
-    """Recursively collect names of all RefRelNode descendants under ``node``."""
-    found: set[str] = set()
-    if node is None:
-        return found
-    if isinstance(node, RefRelNode):
-        found.add(node.name)
-    # Walk children using known attribute names from relation node subtypes:
-    # - input: FilterRelNode, SortRelNode, ProjectRelNode, FetchRelNode, AggregateRelNode
-    # - left / right: JoinRelNode
-    # - inputs: SetRelNode (list)
-    for attr in ("input", "left", "right", "inputs"):
-        child = getattr(node, attr, None)
-        if child is None:
-            continue
-        if isinstance(child, list):
-            for c in child:
-                found |= _walk_refs(c)
-        else:
-            found |= _walk_refs(child)
-    return found
-
 
 class RelationDAG:
     """Container for named Relations with dependency and constraint edge sets."""
@@ -80,6 +56,13 @@ class RelationDAG:
         from mountainash.relations.core.relation_api.relation import Relation
         node = RefRelNode(name=name)
         return Relation(node)
+
+    def source(self, name: str, data: Any) -> Any:
+        """Register source data and return a ref relation for downstream use."""
+        from mountainash.relations.core.relation_api.relation import relation
+
+        self.add(name, relation(data))
+        return self.ref(name)
 
     def topological_order(self, target: Optional[str] = None) -> list[str]:
         """Return a topologically sorted list of relation names.
@@ -290,55 +273,21 @@ class RelationDAG:
 
     def schema(self, name: str) -> dict[str, Any]:
         """Return the inferred output schema for a named relation."""
-        if name not in self.relations:
-            raise KeyError(f"relation {name!r} not in DAG")
-        node = getattr(self.relations[name], "_node", None)
-        if node is None:
-            return {}
+        from mountainash.relations.dag.introspection import schema
 
-        from mountainash.relations.schema_inference import infer_schema
-
-        def resolver(ref_name: str) -> dict[str, Any]:
-            return self.schema(ref_name)
-
-        return infer_schema(node, ref_resolver=resolver)
+        return schema(self, name)
 
     def describe(self) -> dict[str, dict]:
         """Return a structural summary of every registered relation."""
-        result: dict[str, dict] = {}
-        for name in self.relations:
-            deps = sorted(u for u, d in self.dependency_edges if d == name)
-            constrained = sorted(u for u, d in self.constraint_edges if d == name)
-            try:
-                col_count = len(self.schema(name))
-            except Exception:
-                col_count = 0
-            result[name] = {
-                "columns": col_count,
-                "dependencies": deps,
-                "constrained_by": constrained,
-            }
-        return result
+        from mountainash.relations.dag.introspection import describe
+
+        return describe(self)
 
     def to_dot(self) -> str:
         """Return a Graphviz DOT string of the DAG structure."""
-        lines = ["digraph RelationDAG {", "    rankdir=BT;"]
+        from mountainash.relations.dag.introspection import to_dot
 
-        for name in sorted(self.relations):
-            try:
-                col_count = len(self.schema(name))
-            except Exception:
-                col_count = 0
-            lines.append(f'    "{name}" [label="{name} ({col_count} cols)"];')
-
-        for u, d in sorted(self.dependency_edges):
-            lines.append(f'    "{u}" -> "{d}";')
-
-        for u, d in sorted(self.constraint_edges):
-            lines.append(f'    "{u}" -> "{d}" [style=dashed, label="FK"];')
-
-        lines.append("}")
-        return "\n".join(lines)
+        return to_dot(self)
 
     def to_package(self) -> Any:
         """Export this DAG as a Frictionless DataPackage descriptor.
@@ -352,50 +301,9 @@ class RelationDAG:
         Raises ``MissingResourceSchema`` if any relation has neither.
         Assets pass through to the returned package unchanged.
         """
-        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
-            ResourceReadRelNode,
-        )
-        from mountainash.typespec.datapackage import DataPackage, DataResource
-        from .errors import MissingResourceSchema
+        from mountainash.relations.dag.packaging import to_package
 
-        resources: list[DataResource] = []
-        missing: list[str] = []
-
-        for name, relation in self.relations.items():
-            root = getattr(relation, "_node", None)
-            if isinstance(root, ResourceReadRelNode):
-                res = root.resource
-                if res.name != name:
-                    res = res.model_copy(update={"name": name})
-                resources.append(res)
-                continue
-            # No source resource — try the relation's declared output schema
-            output_schema = getattr(relation, "output_schema", None)
-            if output_schema is None:
-                missing.append(name)
-                continue
-            resources.append(
-                DataResource(  # type: ignore[call-arg]
-                    name=name,
-                    path=f"{name}.csv",  # placeholder
-                    type="table",
-                    format="csv",
-                    table_schema=output_schema,
-                )
-            )
-
-        # Asset resources pass through
-        for name, ref in self.assets.items():
-            res = ref.resource
-            if res.name != name:
-                res = res.model_copy(update={"name": name})
-            resources.append(res)
-
-        if missing:
-            raise MissingResourceSchema(
-                f"cannot export to DataPackage; relations without schema: {missing}"
-            )
-        return DataPackage(resources=resources)
+        return to_package(self)
 
     # ------------------------------------------------------------------
     # DAG-level validation
@@ -412,17 +320,9 @@ class RelationDAG:
         Phase 1: Materialise and validate each table via its datacontract.
         Phase 2: Check FK referential integrity using cached DataFrames.
         """
-        from mountainash.relations.dag.validation import DAGValidationResult
+        from mountainash.relations.dag.validation import validate
 
-        table_results, cache = self._validate_tables(specs, context=context, fast=False)
-        fk_violations = self._check_all_fks(specs, cache, fast=False)
-
-        passes = all(r.passes for r in table_results.values()) and len(fk_violations) == 0
-        return DAGValidationResult(
-            passes=passes,
-            table_results=table_results,
-            fk_violations=fk_violations,
-        )
+        return validate(self, specs, context=context)
 
     def validate_quick(
         self,
@@ -431,24 +331,9 @@ class RelationDAG:
         context: dict[str, Any] | None = None,
     ) -> "DAGValidationResult":
         """Fast validation — stop on first table failure or FK violation."""
-        from mountainash.relations.dag.validation import DAGValidationResult
+        from mountainash.relations.dag.validation import validate_quick
 
-        table_results, cache = self._validate_tables(specs, context=context, fast=True)
-
-        if any(not r.passes for r in table_results.values()):
-            return DAGValidationResult(
-                passes=False,
-                table_results=table_results,
-            )
-
-        fk_violations = self._check_all_fks(specs, cache, fast=True)
-
-        passes = len(fk_violations) == 0
-        return DAGValidationResult(
-            passes=passes,
-            table_results=table_results,
-            fk_violations=fk_violations,
-        )
+        return validate_quick(self, specs, context=context)
 
     def _validate_tables(
         self,

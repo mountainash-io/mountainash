@@ -60,6 +60,84 @@ class TestPerTableValidation:
             dag.validate(specs={"not_here": spec})
 
 
+class TestDerivedRelationValidation:
+    def test_validate_resolves_ref_relations_through_dag(self):
+        dag = RelationDAG()
+        dag.add(
+            "raw",
+            ma.relation(pl.DataFrame({"id": [1, 2], "age": [10, 20]})),
+        )
+        dag.add("adults", dag.ref("raw").filter(ma.col("age").ge(18)))
+
+        spec = TypeSpec(fields=[
+            FieldSpec(name="id", type=UniversalType.INTEGER),
+            FieldSpec(
+                name="age",
+                type=UniversalType.INTEGER,
+                constraints=FieldConstraints(minimum=18),
+            ),
+        ])
+
+        result = dag.validate(specs={"adults": spec})
+
+        assert result.passes is True
+        assert "adults" in result.table_results
+
+    def test_validate_quick_resolves_ref_relations_through_dag(self):
+        dag = RelationDAG()
+        dag.add(
+            "raw",
+            ma.relation(pl.DataFrame({"id": [1, 2], "age": [10, 20]})),
+        )
+        dag.add("adults", dag.ref("raw").filter(ma.col("age").ge(18)))
+
+        spec = TypeSpec(fields=[
+            FieldSpec(name="id", type=UniversalType.INTEGER),
+            FieldSpec(
+                name="age",
+                type=UniversalType.INTEGER,
+                constraints=FieldConstraints(minimum=18),
+            ),
+        ])
+
+        result = dag.validate_quick(specs={"adults": spec})
+
+        assert result.passes is True
+        assert "adults" in result.table_results
+
+    def test_dependency_edges_do_not_create_fk_checks(self):
+        dag = RelationDAG()
+        dag.add("parents", ma.relation(pl.DataFrame({"id": [1]})))
+        dag.add("children", dag.ref("parents").select(ma.col("id").alias("parent_id")))
+
+        child_spec = TypeSpec(fields=[
+            FieldSpec(name="parent_id", type=UniversalType.INTEGER),
+        ])
+
+        result = dag.validate(specs={"children": child_spec})
+
+        assert result.passes is True
+        assert result.fk_violations == []
+
+    def test_constraint_edges_without_typespec_foreign_keys_do_not_create_fk_checks(self):
+        dag = RelationDAG()
+        dag.add("parents", ma.relation(pl.DataFrame({"id": [1]})))
+        dag.add("children", ma.relation(pl.DataFrame({"parent_id": [99]})))
+        dag.constraint_edges.add(("parents", "children"))
+
+        parent_spec = TypeSpec(fields=[
+            FieldSpec(name="id", type=UniversalType.INTEGER),
+        ])
+        child_spec = TypeSpec(fields=[
+            FieldSpec(name="parent_id", type=UniversalType.INTEGER),
+        ])
+
+        result = dag.validate(specs={"parents": parent_spec, "children": child_spec})
+
+        assert result.passes is True
+        assert result.fk_violations == []
+
+
 class TestFKValidation:
     def _make_fk_dag(self, *, orphans: bool = False, nulls: bool = False):
         parents = pl.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})

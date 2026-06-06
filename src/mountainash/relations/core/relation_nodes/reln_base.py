@@ -41,6 +41,19 @@ class RelationNode(BaseModel, ABC):
 
     _leaf_backend: ClassVar[Optional[CONST_BACKEND]] = None
 
+    def children(self) -> tuple[Any, ...]:
+        """Return structural child relation nodes for tree traversal."""
+        found: list[Any] = []
+        for attr in ("input", "left", "right", "inputs"):
+            child = getattr(self, attr, None)
+            if child is None:
+                continue
+            if isinstance(child, list):
+                found.extend(child)
+            else:
+                found.append(child)
+        return tuple(found)
+
     @abstractmethod
     def accept(self, visitor: Any) -> Any:
         """Accept a visitor for double-dispatch pattern.

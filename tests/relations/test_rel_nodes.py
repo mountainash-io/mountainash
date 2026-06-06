@@ -21,6 +21,12 @@ from mountainash.relations.core.relation_nodes import (
     SetRelNode,
     ExtensionRelNode,
 )
+from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+    ConformRelNode,
+    RefRelNode,
+    ResourceReadRelNode,
+    SourceRelNode,
+)
 from mountainash.core.constants import (
     ProjectOperation,
     JoinType,
@@ -29,6 +35,8 @@ from mountainash.core.constants import (
     ExtensionRelOperation,
     ExecutionTarget,
 )
+from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
+from mountainash.typespec.datapackage import DataResource
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +325,64 @@ class TestExtensionRelNode:
         result = node.accept(visitor)
         assert result == "extension"
         visitor.visit_extension_rel.assert_called_once_with(node)
+
+
+# ---------------------------------------------------------------------------
+# Structural children traversal
+# ---------------------------------------------------------------------------
+
+class TestRelationNodeChildren:
+    def test_leaf_nodes_have_no_children(self, read_node):
+        resource = DataResource(name="orders", data=[{"id": 1}], format="json")
+
+        assert read_node.children() == ()
+        assert RefRelNode(name="orders").children() == ()
+        assert ResourceReadRelNode(resource=resource).children() == ()
+        assert SourceRelNode(
+            data=[{"id": 1}],
+            detected_format=CONST_PYTHON_DATAFORMAT.PYLIST,
+        ).children() == ()
+
+    @pytest.mark.parametrize(
+        "node_factory",
+        [
+            lambda child: ProjectRelNode(
+                input=child,
+                expressions=["col_a"],
+                operation=ProjectOperation.SELECT,
+            ),
+            lambda child: FilterRelNode(input=child, predicate="col_a > 0"),
+            lambda child: SortRelNode(
+                input=child,
+                sort_fields=[SortField(column="col_a")],
+            ),
+            lambda child: FetchRelNode(input=child, count=10),
+            lambda child: AggregateRelNode(input=child, keys=[], measures=[]),
+            lambda child: ExtensionRelNode(
+                input=child,
+                operation=ExtensionRelOperation.DROP_NULLS,
+            ),
+            lambda child: ConformRelNode(input=child, spec={}),
+        ],
+    )
+    def test_unary_nodes_return_input_child(self, read_node, node_factory):
+        node = node_factory(read_node)
+
+        assert node.children() == (read_node,)
+
+    def test_join_node_returns_left_and_right_children(self):
+        left = ReadRelNode(dataframe="left")
+        right = ReadRelNode(dataframe="right")
+        node = JoinRelNode(left=left, right=right, join_type=JoinType.INNER)
+
+        assert node.children() == (left, right)
+
+    def test_set_node_returns_all_inputs(self):
+        first = ReadRelNode(dataframe="first")
+        second = ReadRelNode(dataframe="second")
+        node = SetRelNode(inputs=[first, second], set_type=SetType.UNION_ALL)
+
+        assert node.children() == (first, second)
 
 
 # ---------------------------------------------------------------------------
