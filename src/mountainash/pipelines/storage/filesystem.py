@@ -27,8 +27,15 @@ class FileSystemPipelineStorage:
         step_dir = self._step_dir(step_name)
         step_dir.mkdir(parents=True, exist_ok=True)
 
-        data_path = self._data_path(step_name, result.cache_key)
-        data_path.write_text(json.dumps(result.data, default=str), encoding="utf-8")
+        if hasattr(result.data, "num_rows"):
+            import pyarrow.parquet as pq
+            data_path = self._step_dir(step_name) / f"{result.cache_key}.parquet"
+            pq.write_table(result.data, data_path)
+            fmt = "parquet"
+        else:
+            data_path = self._data_path(step_name, result.cache_key)
+            data_path.write_text(json.dumps(result.data, default=str), encoding="utf-8")
+            fmt = "json"
 
         meta = {
             "step_name": result.metadata.step_name,
@@ -36,18 +43,30 @@ class FileSystemPipelineStorage:
             "record_count": result.metadata.record_count,
             "cache_key": result.cache_key,
             "input_cache_keys": result.metadata.input_cache_keys,
+            "format": fmt,
         }
         meta_path = self._meta_path(step_name, result.cache_key)
         meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     def read_step_output(self, step_name: str, cache_key: str) -> StepResult | None:
-        data_path = self._data_path(step_name, cache_key)
         meta_path = self._meta_path(step_name, cache_key)
-        if not data_path.exists() or not meta_path.exists():
+        if not meta_path.exists():
             return None
 
-        data = json.loads(data_path.read_text(encoding="utf-8"))
         meta_raw = json.loads(meta_path.read_text(encoding="utf-8"))
+
+        fmt = meta_raw.get("format", "json")
+        if fmt == "parquet":
+            import pyarrow.parquet as pq
+            data_path = self._step_dir(step_name) / f"{cache_key}.parquet"
+            if not data_path.exists():
+                return None
+            data = pq.read_table(data_path)
+        else:
+            data_path = self._data_path(step_name, cache_key)
+            if not data_path.exists():
+                return None
+            data = json.loads(data_path.read_text(encoding="utf-8"))
 
         metadata = StepMetadata(
             step_name=meta_raw["step_name"],
