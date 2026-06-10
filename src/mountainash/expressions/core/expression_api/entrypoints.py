@@ -366,7 +366,7 @@ def native(expr: Any) -> BaseExpressionAPI:
 
     # Native expressions are stored as LiteralNode with a special dtype hint
     # The unified visitor will recognize this and pass it through
-    node = LiteralNode(value=expr, dtype="native")
+    node = LiteralNode(value=expr, is_native=True)
     return BooleanExpressionAPI(node)
 
 

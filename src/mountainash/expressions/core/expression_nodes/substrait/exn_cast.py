@@ -4,7 +4,9 @@ Corresponds to Substrait's Cast message.
 """
 
 from __future__ import annotations
-from typing import Any, Literal
+from typing import Any, Literal, Union
+
+from mountainash.core.dtypes import MountainashDtype, NativeDtype
 
 from .exn_base import ExpressionNode
 
@@ -27,7 +29,7 @@ class CastNode(ExpressionNode):
     """
 
     input: ExpressionNode
-    target_type: Any  # str for canonical types, native backend dtype for passthrough
+    target_type: Union[MountainashDtype, NativeDtype]
     failure_behavior: Literal["throw", "null"] = "throw"
 
     def accept(self, visitor: Any) -> Any:
