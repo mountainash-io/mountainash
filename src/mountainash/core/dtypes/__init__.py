@@ -5,8 +5,6 @@ Single source of truth for type vocabulary and per-target mappings.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from .canonical import (
     DTYPE_ALIASES,
     MountainashDtype,
@@ -20,20 +18,9 @@ from .registry import DtypeRegistry, registry
 from .targets import TypeTarget, detect_target
 
 
-def resolve_dtype(dtype: Any) -> str:
-    """LEGACY (deleted in phase 2): string-returning parse_dtype.
-
-    Kept only for the pre-cutover cast builder / cast systems.
-    """
-    try:
-        return parse_dtype(dtype).value
-    except UnknownDtypeError as exc:
-        raise ValueError(str(exc)) from exc
-
-
 __all__ = [
     "MountainashDtype", "NativeDtype", "DTYPE_ALIASES",
-    "parse_dtype", "parse_cast_target", "resolve_dtype",
+    "parse_dtype", "parse_cast_target",
     "TypeTarget", "detect_target",
     "DtypeRegistry", "registry",
     "UnknownDtypeError", "DtypeMappingError",
