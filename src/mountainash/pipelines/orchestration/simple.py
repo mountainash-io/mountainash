@@ -75,7 +75,14 @@ class SimplePipelineRunner:
 
             self._check_empty(step_name, data, defn.empty_policy)
 
-            record_count = len(data) if isinstance(data, list) else None
+            if isinstance(data, list):
+                record_count = len(data)
+            elif hasattr(data, "num_rows"):
+                record_count = data.num_rows
+            elif hasattr(data, "height"):
+                record_count = data.height
+            else:
+                record_count = None
             metadata = StepMetadata(
                 step_name=step_name,
                 completed_at=datetime.now(),
@@ -98,6 +105,7 @@ class SimplePipelineRunner:
             or (isinstance(data, dict) and all(
                 isinstance(v, list) and len(v) == 0 for v in data.values()
             ))
+            or (hasattr(data, "num_rows") and data.num_rows == 0)
         )
         if not is_empty:
             return
@@ -137,5 +145,7 @@ class _RunnerExecutorAdapter:
             return data.lazy()
         if isinstance(data, list) and len(data) == 0:
             return pl.DataFrame().lazy()
+        if hasattr(data, "num_rows"):
+            return pl.from_arrow(data).lazy()
         from mountainash.pydata.ingress import PydataIngress
         return PydataIngress.convert(data).lazy()
