@@ -72,8 +72,9 @@ class TestBuildConformExprsMissingValues:
             fields=[FieldSpec(name="val", type=UniversalType.ARRAY)],
             missing_values=[""],
         )
-        # ARRAY type is not supported by bridge_type, so we skip cast
-        # by using ANY type. Test the sentinel exclusion logic directly.
+        # Use ANY as a proxy — both ARRAY and ANY are excluded from
+        # _SCALAR_TYPES, so neither emits a sentinel when/then. Test the
+        # sentinel exclusion logic directly.
         spec_any = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.ANY)],
             missing_values=[""],

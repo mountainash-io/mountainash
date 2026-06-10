@@ -362,8 +362,8 @@ class TestExtractFromPydantic:
 
     def test_optional_field_type(self, optional_model):
         # Pydantic v2 exposes Optional[str] as the full annotation; the extractor
-        # currently does not unwrap Optional unions before calling normalize_type,
-        # so the resolved universal type falls back to "any".
+        # currently does not unwrap Optional unions before resolving via the
+        # dtype registry, so the resolved universal type falls back to "any".
         schema = extract_from_pydantic(optional_model)
         field = schema.get_field("email")
         assert field is not None

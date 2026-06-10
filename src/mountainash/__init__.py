@@ -58,6 +58,9 @@ from mountainash.typespec.datapackage import (  # noqa: F401
 from mountainash.core.resource_ref import ResourceRef  # noqa: F401
 from mountainash.relations.dag import RelationDAG  # noqa: F401
 
+# MountainashDtype — canonical type vocabulary (accepted by cast/schema APIs)
+from mountainash.core.dtypes import MountainashDtype  # noqa: F401
+
 def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
     """Create a TypeSpec from a simple {name: type_string} dict."""
     return TypeSpec.from_simple_dict(columns, **metadata)
