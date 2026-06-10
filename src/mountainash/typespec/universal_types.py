@@ -17,7 +17,10 @@ Architecture:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Dict, Set, Tuple, Any, Union
+from typing import Dict, Set, Tuple, Any, Union, Optional
+
+from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes.errors import UnknownDtypeError
 
 
 
@@ -54,6 +57,76 @@ class UniversalType(StrEnum):
 
     # Special
     ANY = "any"
+
+
+# ============================================================================
+# Boundary map: UniversalType (Frictionless) <-> MountainashDtype (canon)
+# Complete in both directions by construction (gated by test_boundary_map +
+# test_completeness). ANY <-> None means "no constraint".
+# ============================================================================
+
+UNIVERSAL_TO_CANONICAL: dict[UniversalType, Optional[MountainashDtype]] = {
+    UniversalType.STRING: MountainashDtype.STRING,
+    UniversalType.INTEGER: MountainashDtype.I64,
+    UniversalType.NUMBER: MountainashDtype.FP64,
+    UniversalType.BOOLEAN: MountainashDtype.BOOL,
+    UniversalType.DATE: MountainashDtype.DATE,
+    UniversalType.TIME: MountainashDtype.TIME,
+    UniversalType.DATETIME: MountainashDtype.TIMESTAMP,
+    UniversalType.DURATION: MountainashDtype.DURATION,
+    UniversalType.YEAR: MountainashDtype.I32,        # semantic refinement of int
+    UniversalType.YEARMONTH: MountainashDtype.STRING,  # "2024-01"
+    UniversalType.ARRAY: MountainashDtype.LIST,
+    UniversalType.OBJECT: MountainashDtype.STRUCT,
+    UniversalType.ANY: None,                          # unconstrained
+}
+
+CANONICAL_TO_UNIVERSAL: dict[MountainashDtype, Tuple[UniversalType, Optional[str]]] = {
+    MountainashDtype.BOOL: (UniversalType.BOOLEAN, None),
+    MountainashDtype.I8: (UniversalType.INTEGER, None),
+    MountainashDtype.I16: (UniversalType.INTEGER, None),
+    MountainashDtype.I32: (UniversalType.INTEGER, None),
+    MountainashDtype.I64: (UniversalType.INTEGER, None),
+    MountainashDtype.U8: (UniversalType.INTEGER, None),
+    MountainashDtype.U16: (UniversalType.INTEGER, None),
+    MountainashDtype.U32: (UniversalType.INTEGER, None),
+    MountainashDtype.U64: (UniversalType.INTEGER, None),
+    MountainashDtype.FP32: (UniversalType.NUMBER, None),
+    MountainashDtype.FP64: (UniversalType.NUMBER, None),
+    MountainashDtype.STRING: (UniversalType.STRING, None),
+    MountainashDtype.BINARY: (UniversalType.STRING, "binary"),  # Frictionless string format
+    MountainashDtype.DATE: (UniversalType.DATE, None),
+    MountainashDtype.TIME: (UniversalType.TIME, None),
+    MountainashDtype.TIMESTAMP: (UniversalType.DATETIME, None),
+    MountainashDtype.DURATION: (UniversalType.DURATION, None),
+    MountainashDtype.LIST: (UniversalType.ARRAY, None),
+    MountainashDtype.STRUCT: (UniversalType.OBJECT, None),
+}
+
+
+def to_canonical(universal: UniversalType) -> Optional[MountainashDtype]:
+    """Map a Frictionless type to canon. None = unconstrained (ANY)."""
+    return UNIVERSAL_TO_CANONICAL[universal]
+
+
+def from_canonical(
+    dtype: Optional[MountainashDtype],
+) -> Tuple[UniversalType, Optional[str]]:
+    """Map canon (or None = untyped) back to (UniversalType, format hint)."""
+    if dtype is None:
+        return (UniversalType.ANY, None)
+    return CANONICAL_TO_UNIVERSAL[dtype]
+
+
+def parse_universal(type_str: str) -> UniversalType:
+    """Parse a Frictionless type string strictly. Raises on anything else."""
+    try:
+        return UniversalType(type_str)
+    except ValueError:
+        raise UnknownDtypeError(
+            f"{type_str!r} is not a frictionless Table Schema type. "
+            f"Valid: {sorted(t.value for t in UniversalType)}"
+        ) from None
 
 
 # ============================================================================
