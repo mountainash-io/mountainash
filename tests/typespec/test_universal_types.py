@@ -5,8 +5,8 @@ Coverage:
 - UniversalType StrEnum membership and values
 - A couple of boundary spot-checks (to_canonical / from_canonical / parse_universal)
 
-The legacy normalize_type / safe-cast / forward+reverse backend mapping
-behaviours were deleted in the type-system unification: their coverage now
+The legacy string-based type parsing / safe-cast / forward+reverse backend
+mapping behaviours were deleted in the type-system unification: their coverage now
 lives in tests/core/dtypes/ (test_casts.py, test_target_modules.py) and the
 boundary map itself is exhaustively covered in tests/typespec/test_boundary_map.py.
 """

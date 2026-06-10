@@ -4,11 +4,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from mountainash.core.dtypes import MountainashDtype
     from mountainash.relations.dag.dag import RelationDAG
+    from mountainash.relations.schema_inference import SchemaTypeStatus
 
 
-def schema(dag: RelationDAG, name: str) -> dict[str, Any]:
-    """Return the inferred output schema for a named relation."""
+def schema(
+    dag: RelationDAG, name: str
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Return the inferred output schema for a named relation.
+
+    Values are canonical ``MountainashDtype`` where inferable, or a
+    ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+    """
     if name not in dag.relations:
         raise KeyError(f"relation {name!r} not in DAG")
     node = getattr(dag.relations[name], "_node", None)
@@ -17,7 +25,9 @@ def schema(dag: RelationDAG, name: str) -> dict[str, Any]:
 
     from mountainash.relations.schema_inference import infer_schema
 
-    def resolver(ref_name: str) -> dict[str, Any]:
+    def resolver(
+        ref_name: str,
+    ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
         return schema(dag, ref_name)
 
     return infer_schema(node, ref_resolver=resolver)

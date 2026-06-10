@@ -1,6 +1,7 @@
 """Tests for schema inference from relation node trees."""
 import pytest
 
+from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.relations.schema_inference import (
     infer_expression_name,
     _schema_from_dataframe,
@@ -87,17 +88,19 @@ class TestSchemaFromDataframe:
         lf = pl.LazyFrame({"a": [1, 2], "b": ["x", "y"], "c": [1.0, 2.0]})
         schema = _schema_from_dataframe(lf)
         assert list(schema.keys()) == ["a", "b", "c"]
-        assert schema["a"] == pl.Int64
-        assert schema["b"] == pl.String
-        assert schema["c"] == pl.Float64
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["a"] == D.I64
+        assert schema["b"] == D.STRING
+        assert schema["c"] == D.FP64
 
     def test_polars_dataframe(self):
         import polars as pl
         df = pl.DataFrame({"x": [True, False], "y": [1, 2]})
         schema = _schema_from_dataframe(df)
         assert list(schema.keys()) == ["x", "y"]
-        assert schema["x"] == pl.Boolean
-        assert schema["y"] == pl.Int64
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["x"] == D.BOOL
+        assert schema["y"] == D.I64
 
     def test_unknown_type_returns_empty(self):
         schema = _schema_from_dataframe("not a dataframe")
@@ -115,9 +118,10 @@ class TestSchemaFromTableSchema:
         }
         schema = _schema_from_table_schema(table_schema)
         assert list(schema.keys()) == ["id", "name", "active"]
-        assert schema["id"] == "integer"
-        assert schema["name"] == "string"
-        assert schema["active"] == "boolean"
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["id"] == D.I64
+        assert schema["name"] == D.STRING
+        assert schema["active"] == D.BOOL
 
     def test_empty_schema(self):
         schema = _schema_from_table_schema({})
@@ -136,8 +140,9 @@ class TestInferSchemaLeafNodes:
         node = ReadRelNode(dataframe=df)
         schema = infer_schema(node)
         assert list(schema.keys()) == ["a", "b"]
-        assert schema["a"] == pl.Int64
-        assert schema["b"] == pl.String
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["a"] == D.I64
+        assert schema["b"] == D.STRING
 
     def test_ref_rel_node_with_resolver(self):
         from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
@@ -168,7 +173,8 @@ class TestInferSchemaLeafNodes:
         node = ResourceReadRelNode(resource=resource)
         schema = infer_schema(node)
         assert list(schema.keys()) == ["id", "value"]
-        assert schema["id"] == "integer"
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["id"] == D.I64
 
     def test_source_rel_node(self):
         from mountainash.relations.core.relation_nodes.extensions_mountainash import SourceRelNode
@@ -390,8 +396,9 @@ class TestInferSchemaChain:
         r = ma.relation(df).filter(ma.col("a").gt(1)).select("a", "c")
         schema = r.schema
         assert list(schema.keys()) == ["a", "c"]
-        assert schema["a"] == pl.Int64
-        assert schema["c"] == pl.String
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["a"] == D.I64
+        assert schema["c"] == D.STRING
 
     def test_read_with_columns_rename_chain(self):
         """Schema propagates through Read -> WithColumns -> Rename."""

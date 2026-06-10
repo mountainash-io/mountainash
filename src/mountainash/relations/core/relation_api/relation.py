@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeVar, Union
 
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.relations.schema_inference import SchemaTypeStatus
 
 from mountainash.core.constants import (
     ExecutionTarget,
@@ -818,10 +822,12 @@ class Relation(RelationBase):
         return list(self.schema.keys())
 
     @property
-    def schema(self) -> dict:
+    def schema(self) -> dict[str, MountainashDtype | SchemaTypeStatus]:
         """Output schema as {column_name: dtype} dict.
 
-        Infers the schema from the AST without compilation or backend involvement.
+        Infers the schema from the AST without compilation or backend
+        involvement. Values are canonical ``MountainashDtype`` where inferable,
+        or a ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
         """
         from mountainash.relations.schema_inference import infer_schema
         return infer_schema(self._node)

@@ -2,7 +2,7 @@
 
 Frictionless Table Schema specifies that date/datetime/time fields may carry
 a ``format`` string with strptime patterns.  When format is "default" or None
-the existing bridge_type cast handles ISO parsing; when a custom pattern is
+the existing canonical default cast handles ISO parsing; when a custom pattern is
 provided, the conform pipeline should use ``str.to_date``/``str.to_datetime``/
 ``str.to_time`` for explicit parsing.
 
@@ -12,7 +12,7 @@ Backend support:
 - Ibis: strptime not supported (falls back to cast)
 
 Custom format tests are therefore Polars-only.  Default/None format tests run
-on all backends since they use bridge_type cast.
+on all backends since they use canonical default cast.
 """
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ class TestBuildConformExprsTemporalFormat:
         assert len(result.exprs) == 1
 
     def test_default_format_does_not_use_strptime(self):
-        """Default format should fall through to bridge_type cast."""
+        """Default format should fall through to canonical default cast."""
         from mountainash.conform.expressions import _build_conform_exprs
 
         spec = TypeSpec(
@@ -96,7 +96,7 @@ class TestBuildConformExprsTemporalFormat:
         assert len(result.exprs) == 1
 
     def test_none_format_does_not_use_strptime(self):
-        """None format should fall through to bridge_type cast."""
+        """None format should fall through to canonical default cast."""
         from mountainash.conform.expressions import _build_conform_exprs
 
         spec = TypeSpec(
@@ -108,7 +108,7 @@ class TestBuildConformExprsTemporalFormat:
         assert len(result.exprs) == 1
 
     def test_any_format_does_not_use_strptime(self):
-        """'any' format should fall through to bridge_type cast (best-effort)."""
+        """'any' format should fall through to canonical default cast (best-effort)."""
         from mountainash.conform.expressions import _build_conform_exprs
 
         spec = TypeSpec(
@@ -209,13 +209,13 @@ class TestTimeFormatParsing:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests: default/None format uses bridge_type cast
+# Integration tests: default/None format uses canonical default cast
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("backend_name", POLARS_ONLY)
 class TestDefaultFormatFallback:
-    """Default and None formats use bridge_type cast (ISO parsing)."""
+    """Default and None formats use canonical default cast (ISO parsing)."""
 
     def test_default_format_uses_cast(self, backend_name, backend_factory):
         df = backend_factory.create(
@@ -242,7 +242,7 @@ class TestDefaultFormatFallback:
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
 
     def test_any_format_uses_cast(self, backend_name, backend_factory):
-        """'any' format falls through to bridge_type cast."""
+        """'any' format falls through to canonical default cast."""
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )

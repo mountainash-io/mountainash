@@ -6,11 +6,22 @@ DataResource schemas); column names come from the AST structure.
 """
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any, Callable, Optional
 
+from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
 )
+from mountainash.typespec.universal_types import parse_universal, to_canonical
+
+
+class SchemaTypeStatus(Enum):
+    """Non-type states in an inferred schema (replaces the 'unknown' string)."""
+
+    UNKNOWN = "unknown"            # not inferable from this plan node
+    UNCONSTRAINED = "unconstrained"  # source declared ANY (explicitly typeless)
 
 
 def infer_expression_name(expr_node: Any) -> Optional[str]:
@@ -57,40 +68,88 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
     return None
 
 
-def _schema_from_dataframe(df: Any) -> dict[str, Any]:
-    """Extract schema from a native dataframe.
+def _canon(native: Any) -> MountainashDtype | SchemaTypeStatus:
+    """Map a native (polars) dtype to a canonical MountainashDtype or status.
 
-    Supports Polars DataFrame/LazyFrame. Returns {} for unrecognized types.
-    Isolated for future refinement (narwhals, pandas, etc.).
+    ``None`` from the registry means the native is explicitly untyped
+    (UNCONSTRAINED); an unrecognized native degrades to UNKNOWN rather than
+    raising, since inference is best-effort.
+    """
+    try:
+        canon = registry.from_native(native, target=TypeTarget.POLARS)
+    except UnknownDtypeError:
+        return SchemaTypeStatus.UNKNOWN
+    return SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
+
+
+def _schema_from_dataframe(
+    df: Any,
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Extract canonical schema from a native dataframe.
+
+    Supports Polars DataFrame/LazyFrame. Native dtypes are mapped through the
+    dtype registry (POLARS target) to canonical ``MountainashDtype`` values, or
+    a ``SchemaTypeStatus`` for typeless/unrecognized natives. Returns {} for
+    unrecognized dataframe types. Isolated for future refinement (narwhals,
+    pandas, etc.).
     """
     if hasattr(df, "collect_schema"):
         polars_schema = df.collect_schema()
-        return dict(zip(polars_schema.names(), polars_schema.dtypes()))
+        pairs = zip(polars_schema.names(), polars_schema.dtypes())
+        return {name: _canon(dtype) for name, dtype in pairs}
     if hasattr(df, "schema") and not callable(df.schema):
-        return dict(df.schema)
+        return {name: _canon(dtype) for name, dtype in dict(df.schema).items()}
     if hasattr(df, "schema") and callable(df.schema):
         schema_obj = df.schema()
         if hasattr(schema_obj, "items"):
-            return dict(schema_obj)
+            return {
+                name: _canon(dtype) for name, dtype in dict(schema_obj).items()
+            }
     return {}
 
 
-def _schema_from_table_schema(table_schema: dict) -> dict[str, Any]:
-    """Extract schema from a Frictionless table_schema dict.
+def _schema_from_table_schema(
+    table_schema: dict,
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Extract canonical schema from a Frictionless table_schema dict.
 
-    Returns {field_name: type_string}. Isolated for future refinement.
+    Each field's Frictionless type string is parsed and converted to a
+    canonical ``MountainashDtype``. A missing/empty type or an unrecognized
+    string yields ``SchemaTypeStatus.UNKNOWN``; an explicitly typeless ``any``
+    field yields ``SchemaTypeStatus.UNCONSTRAINED``. Isolated for future
+    refinement.
     """
     fields = table_schema.get("fields", [])
     if not fields:
         return {}
-    return {f["name"]: f.get("type", "unknown") for f in fields}
+    result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+    for f in fields:
+        type_str = f.get("type")
+        if not type_str:
+            result[f["name"]] = SchemaTypeStatus.UNKNOWN
+            continue
+        try:
+            canon = to_canonical(parse_universal(type_str))
+        except UnknownDtypeError:
+            result[f["name"]] = SchemaTypeStatus.UNKNOWN
+            continue
+        result[f["name"]] = (
+            SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
+        )
+    return result
 
 
 def infer_schema(
     node: Any,
-    ref_resolver: Optional[Callable[[str], dict[str, Any]]] = None,
-) -> dict[str, Any]:
-    """Walk a RelationNode tree and return {column_name: type} without compilation."""
+    ref_resolver: Optional[
+        Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
+    ] = None,
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Walk a RelationNode tree and return {column_name: type} without compilation.
+
+    Values are canonical ``MountainashDtype`` where inferable, or a
+    ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+    """
     from mountainash.relations.core.relation_nodes.substrait import (
         ReadRelNode,
         FilterRelNode,
@@ -151,16 +210,24 @@ def infer_schema(
     return {}
 
 
-def _schema_from_source_data(data: Any) -> dict[str, Any]:
-    """Extract column names from Python source data. Types are 'unknown'."""
+def _schema_from_source_data(
+    data: Any,
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Extract column names from Python source data.
+
+    Types are not inferable from the AST, so every column maps to
+    ``SchemaTypeStatus.UNKNOWN``.
+    """
     if isinstance(data, list) and data and isinstance(data[0], dict):
-        return {k: "unknown" for k in data[0].keys()}
+        return {k: SchemaTypeStatus.UNKNOWN for k in data[0].keys()}
     if isinstance(data, dict):
-        return {k: "unknown" for k in data.keys()}
+        return {k: SchemaTypeStatus.UNKNOWN for k in data.keys()}
     return {}
 
 
-def _infer_project_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
+def _infer_project_schema(
+    node: Any, ref_resolver: Any
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for ProjectRelNode based on its operation type."""
     from mountainash.core.constants import ProjectOperation
 
@@ -171,13 +238,13 @@ def _infer_project_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
         return {mapping.get(k, k): v for k, v in input_schema.items()}
 
     if node.operation == ProjectOperation.SELECT:
-        result: dict[str, Any] = {}
+        result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
         for expr in node.expressions:
             name = infer_expression_name(expr)
             if name and name in input_schema:
                 result[name] = input_schema[name]
             elif name:
-                result[name] = "unknown"
+                result[name] = SchemaTypeStatus.UNKNOWN
         return result
 
     if node.operation == ProjectOperation.WITH_COLUMNS:
@@ -185,7 +252,7 @@ def _infer_project_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
         for expr in node.expressions:
             name = infer_expression_name(expr)
             if name:
-                result[name] = input_schema.get(name, "unknown")
+                result[name] = input_schema.get(name, SchemaTypeStatus.UNKNOWN)
         return result
 
     if node.operation == ProjectOperation.DROP:
@@ -199,27 +266,31 @@ def _infer_project_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
     return input_schema
 
 
-def _infer_aggregate_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
+def _infer_aggregate_schema(
+    node: Any, ref_resolver: Any
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for AggregateRelNode: group keys + measure aliases."""
     input_schema = infer_schema(node.input, ref_resolver)
-    result: dict[str, Any] = {}
+    result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
 
     for key_expr in node.keys:
         name = infer_expression_name(key_expr)
         if name and name in input_schema:
             result[name] = input_schema[name]
         elif name:
-            result[name] = "unknown"
+            result[name] = SchemaTypeStatus.UNKNOWN
 
     for measure_expr in node.measures:
         name = infer_expression_name(measure_expr)
         if name:
-            result[name] = "unknown"
+            result[name] = SchemaTypeStatus.UNKNOWN
 
     return result
 
 
-def _infer_join_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
+def _infer_join_schema(
+    node: Any, ref_resolver: Any
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for JoinRelNode: left + right with suffix and key dedup."""
     from mountainash.core.constants import JoinType
 
@@ -229,7 +300,7 @@ def _infer_join_schema(node: Any, ref_resolver: Any) -> dict[str, Any]:
     if node.join_type in (JoinType.SEMI, JoinType.ANTI):
         return left_schema
 
-    result: dict[str, Any] = dict(left_schema)
+    result: dict[str, MountainashDtype | SchemaTypeStatus] = dict(left_schema)
 
     join_keys_right: set[str] = set()
     if node.on:
