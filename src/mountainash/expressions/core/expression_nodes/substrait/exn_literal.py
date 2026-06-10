@@ -6,6 +6,8 @@ Corresponds to Substrait's Literal message.
 from __future__ import annotations
 from typing import Any, Optional
 
+from mountainash.core.dtypes import MountainashDtype
+
 from .exn_base import ExpressionNode
 
 
@@ -26,7 +28,8 @@ class LiteralNode(ExpressionNode):
     """
 
     value: Any
-    dtype: Optional[str] = None
+    dtype: Optional[MountainashDtype] = None
+    is_native: bool = False
 
     def accept(self, visitor: Any) -> Any:
         """Accept a visitor for double-dispatch."""

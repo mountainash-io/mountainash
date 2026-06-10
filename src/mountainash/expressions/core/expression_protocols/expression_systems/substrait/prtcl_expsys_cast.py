@@ -10,6 +10,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
+# Runtime (not TYPE_CHECKING) import: tests/core/test_signature_conformance.py
+# resolves this protocol's annotations via typing.get_type_hints(), which needs
+# these names in the module's runtime namespace. (TCH002 would push them into a
+# type-checking block and break that introspection.)
+from mountainash.core.dtypes import MountainashDtype, NativeDtype  # noqa: TCH002
 from mountainash.core.types import ExpressionT
 
 
@@ -19,7 +24,7 @@ class SubstraitCastExpressionSystemProtocol(Protocol[ExpressionT]):
     Auto-generated from Substrait cast extension.
     """
 
-    def cast(self, x: ExpressionT, /, dtype: object) -> ExpressionT:
+    def cast(self, x: ExpressionT, /, dtype: MountainashDtype | NativeDtype) -> ExpressionT:
         """Cast expression to a target data type.
 
         Substrait: cast

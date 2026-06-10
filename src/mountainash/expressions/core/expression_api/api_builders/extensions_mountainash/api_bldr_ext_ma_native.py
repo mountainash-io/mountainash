@@ -50,5 +50,5 @@ class MountainAshNativeAPIBuilder(BaseExpressionAPIBuilder, MountainAshNativeAPI
         """
         # Wrap current node in a LiteralNode with native dtype
         # The visitor will recognize this and pass through
-        node = LiteralNode(value=self._node, dtype="native")
+        node = LiteralNode(value=self._node, is_native=True)
         return self._build(node)

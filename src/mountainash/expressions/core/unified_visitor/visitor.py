@@ -271,7 +271,7 @@ class UnifiedExpressionVisitor:
             TypeError: If native expression doesn't match target backend
         """
         # Handle native expression passthrough (explicit dtype or auto-detected)
-        if node.dtype == "native" or self._is_backend_expression(node.value):
+        if node.is_native or self._is_backend_expression(node.value):
             # Validate the native expression matches the target backend
             if not self.backend.is_native_expression(node.value):
                 source_backend = self._detect_expression_backend(node.value)

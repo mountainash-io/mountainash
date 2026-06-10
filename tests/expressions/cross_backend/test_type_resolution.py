@@ -131,47 +131,61 @@ class TestNativeTypesOwnBackend:
 
 @pytest.mark.cross_backend
 class TestNativeTypesCrossBackend:
-    """Native types from one backend resolve via str() on another backend."""
+    """A native backend dtype object used on a DIFFERENT backend now raises.
 
-    def test_polars_int64_on_ibis(self, backend_factory, collect_expr):
+    Spec change (2026-06-10-type-system-unification, "Known representation
+    changes"): the old behaviour let e.g. ``pl.Int64`` resolve on Ibis/Narwhals
+    by falling through ``str()`` into their string-keyed maps — accidental,
+    undocumented behaviour. A native dtype object is now wrapped in a
+    ``NativeDtype`` that carries its owning target, so compiling it on any other
+    backend raises ``DtypeMappingError``. Canonical strings/enums remain the
+    cross-backend surface.
+    """
+
+    def test_polars_int64_on_ibis_raises(self, backend_factory, collect_expr):
         import polars as pl
+        from mountainash.core.dtypes import DtypeMappingError
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(pl.Int64)
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3]
+        with pytest.raises(DtypeMappingError, match="polars"):
+            collect_expr(df, expr)
 
-    def test_polars_utf8_on_narwhals(self, backend_factory, collect_expr):
+    def test_polars_utf8_on_narwhals_raises(self, backend_factory, collect_expr):
         import polars as pl
+        from mountainash.core.dtypes import DtypeMappingError
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(pl.Utf8)
-        values = collect_expr(df, expr)
-        assert values == ["1", "2", "3"]
+        with pytest.raises(DtypeMappingError, match="polars"):
+            collect_expr(df, expr)
 
-    def test_narwhals_string_on_polars(self, backend_factory, collect_expr):
+    def test_narwhals_string_on_polars_raises(self, backend_factory, collect_expr):
         import narwhals as nw
+        from mountainash.core.dtypes import DtypeMappingError
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(nw.String)
-        values = collect_expr(df, expr)
-        assert values == ["1", "2", "3"]
+        with pytest.raises(DtypeMappingError, match="narwhals"):
+            collect_expr(df, expr)
 
-    def test_narwhals_int64_on_ibis(self, backend_factory, collect_expr):
+    def test_narwhals_int64_on_ibis_raises(self, backend_factory, collect_expr):
         import narwhals as nw
+        from mountainash.core.dtypes import DtypeMappingError
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(nw.Int64)
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3]
+        with pytest.raises(DtypeMappingError, match="narwhals"):
+            collect_expr(df, expr)
 
-    def test_polars_uint16_on_ibis(self, backend_factory, collect_expr):
+    def test_polars_uint16_on_ibis_raises(self, backend_factory, collect_expr):
         import polars as pl
+        from mountainash.core.dtypes import DtypeMappingError
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "ibis-polars")
         expr = ma.col("value").cast(pl.UInt16)
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3]
+        with pytest.raises(DtypeMappingError, match="polars"):
+            collect_expr(df, expr)
 
 
 @pytest.mark.cross_backend
@@ -190,7 +204,11 @@ class TestInvalidTypeStrings:
             ma.col("value").cast(bad_dtype)
 
     def test_none_raises(self):
-        with pytest.raises(ValueError, match="Unknown dtype"):
+        # parse_cast_target now rejects None at build time (previously the
+        # cast builder's try/except swallowed it and passed None through).
+        # UnknownDtypeError is a ValueError subclass; the message wording for a
+        # non-string, undetectable input is "Cannot interpret None ...".
+        with pytest.raises(ValueError, match="Cannot interpret"):
             ma.col("value").cast(None)
 
 
