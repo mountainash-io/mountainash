@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-from mountainash.typespec.universal_types import UniversalType, normalize_type
+from mountainash.typespec.universal_types import UniversalType, parse_universal
 
 
 @dataclass
@@ -180,7 +180,7 @@ class TypeSpec:
         """
         fields = []
         for col_name, type_str in columns.items():
-            universal_type = normalize_type(type_str)
+            universal_type = parse_universal(type_str)
             fields.append(FieldSpec(name=col_name, type=universal_type))
         return cls(
             fields=fields,

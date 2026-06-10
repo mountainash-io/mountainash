@@ -19,7 +19,7 @@ The 7-stage pipeline processes each field in order:
                          temporal format (§datetime/date/time)
                          categories (§categories/categoriesOrdered)
                          list split + element cast (§list)
-                         default ``bridge_type`` cast
+                         default canonical-dtype cast (``to_canonical``)
   6. ALIAS             — ``expr.name.alias(target_name)``
 
 Ordering invariants:
@@ -114,8 +114,8 @@ def _build_conform_exprs(
             fields match available columns.
     """
     import mountainash as ma
-    from mountainash.typespec.type_bridge import bridge_type
-    from mountainash.typespec.universal_types import UniversalType
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     # --- 1. Resolve and validate fields_match mode ---
     fields_match = spec.fields_match if spec.fields_match is not None else "open"
@@ -312,15 +312,24 @@ def _build_conform_exprs(
             # Cast each element to itemType (skip if string — already correct)
             item_type_str = fld.item_type or "string"
             if item_type_str != "string":
+                from mountainash.core.dtypes import (
+                    MountainashDtype,
+                    TypeTarget,
+                    registry,
+                )
                 from mountainash.typespec.universal_types import (
-                    get_polars_type,
-                    normalize_type as _norm,
+                    parse_universal,
+                    to_canonical,
                 )
 
                 import polars as pl
 
-                item_utype = _norm(item_type_str)
-                polars_type = get_polars_type(item_utype)
+                item_canon = to_canonical(parse_universal(item_type_str))
+                if item_canon is None:
+                    item_canon = MountainashDtype.STRING
+                polars_type = registry.to_native_schema(
+                    item_canon, TypeTarget.POLARS
+                )
                 expr = expr.list.agg(
                     ma.native(pl.element().cast(polars_type))
                 )
@@ -343,7 +352,9 @@ def _build_conform_exprs(
 
             # Step 1: base type cast (if needed)
             if fld.type and fld.type != UniversalType.ANY:
-                expr = expr.cast(bridge_type(fld.type))
+                canon = to_canonical(fld.type)
+                if canon is not None:  # ANY -> no cast (guard already excludes ANY)
+                    expr = expr.cast(canon)
 
             # Step 2: categorical wrapper (Polars-specific)
             # This uses native Polars types — acknowledged as a known
@@ -360,7 +371,7 @@ def _build_conform_exprs(
         # Stage 5b: TEMPORAL — custom format parsing
         # Frictionless Table Schema §date, §datetime, §time: when format is
         # a strptime pattern (not "default" or None), parse via str.to_date/
-        # str.to_datetime/str.to_time.  "any" falls through to bridge_type
+        # str.to_datetime/str.to_time.  "any" falls through to the canonical
         # cast (best-effort; Frictionless marks "any" as NOT RECOMMENDED).
         elif fld.type in {
             UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME,
@@ -379,7 +390,7 @@ def _build_conform_exprs(
         elif fld.type == UniversalType.BOOLEAN:
             true_vals = fld.true_values or ["true", "True", "TRUE", "1"]
             false_vals = fld.false_values or ["false", "False", "FALSE", "0"]
-            str_expr = expr.cast(bridge_type(UniversalType.STRING))
+            str_expr = expr.cast(MountainashDtype.STRING)
             expr = (
                 ma.when(str_expr.is_in(*true_vals)).then(ma.lit(True))
                 .when(str_expr.is_in(*false_vals)).then(ma.lit(False))
@@ -388,7 +399,9 @@ def _build_conform_exprs(
 
         # Stage 5d: DEFAULT TYPE CAST
         elif fld.type and fld.type != UniversalType.ANY:
-            expr = expr.cast(bridge_type(fld.type))
+            canon = to_canonical(fld.type)
+            if canon is not None:
+                expr = expr.cast(canon)
 
         expr = expr.name.alias(fld.name)
         exprs.append(expr)

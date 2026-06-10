@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from .spec import FieldConstraints, FieldSpec, ForeignKey, ForeignKeyReference, TypeSpec
-from .universal_types import UniversalType, normalize_type
+from .universal_types import UniversalType, parse_universal
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +253,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     for raw_field in descriptor.get("fields", []):
         name: str = raw_field["name"]
         type_str: str = raw_field.get("type", "string")
-        universal_type = normalize_type(type_str)
+        universal_type = parse_universal(type_str)
 
         format_: str = raw_field.get("format", "default")
         field_title: Optional[str] = raw_field.get("title")

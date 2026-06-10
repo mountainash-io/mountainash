@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.typespec.spec import FieldSpec, TypeSpec
-from mountainash.typespec.universal_types import UniversalType, normalize_type
+from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.frictionless import typespec_to_frictionless, typespec_from_frictionless
 
 
