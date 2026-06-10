@@ -167,7 +167,8 @@ def apply_native_conversions_to_dataframe(
         DataFrame with native conversions applied
     """
     from mountainash.core.lazy_imports import import_polars
-    from mountainash.typespec.universal_types import get_polars_type, UniversalType
+    from mountainash.core.dtypes import TypeTarget, registry
+    from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     pl = import_polars()
     if pl is None:
@@ -181,15 +182,9 @@ def apply_native_conversions_to_dataframe(
     for col_name, field_spec in native_conversions.items():
         # Only cast if there's a non-ANY type declared and column exists
         if field_spec.type and field_spec.type != UniversalType.ANY and col_name in df.columns:
-            cast_type_str = field_spec.type.value
-            try:
-                polars_type = get_polars_type(cast_type_str)
-                cast_dict[col_name] = polars_type
-            except (KeyError, ImportError) as e:
-                logger.warning(
-                    f"Could not get Polars type for '{cast_type_str}' "
-                    f"(column '{col_name}'): {e}. Skipping cast."
-                )
+            canon = to_canonical(field_spec.type)
+            if canon is not None:
+                cast_dict[col_name] = registry.to_native_schema(canon, TypeTarget.POLARS)
 
     # Apply vectorized cast (MUCH FASTER than element-wise!)
     if cast_dict:
