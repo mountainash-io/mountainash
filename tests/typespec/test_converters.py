@@ -136,7 +136,8 @@ class TestToIbisSchema:
         assert result["id"] == "int64"
         assert result["name"] == "string"
         assert result["score"] == "float64"
-        assert result["active"] == "bool"
+        # spec 2026-06-10-type-system-unification: BOOL->IBIS canon is "boolean" (was "bool")
+        assert result["active"] == "boolean"
 
     def test_all_universal_types_produce_a_result(self):
         fields = [FieldSpec(name=f"col_{ut.value}", type=ut) for ut in UniversalType]
@@ -202,3 +203,53 @@ class TestConvertToBackend:
         schema = TypeSpec(fields=[field])
         result = to_ibis_schema(schema)
         assert result["val"] == "float32"
+
+
+# ============================================================================
+# TestConvertersOverRegistry
+# ============================================================================
+
+class TestConvertersOverRegistry:
+    def test_year_now_int32(self):
+        import polars as pl
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_polars_schema, to_pandas_dtypes
+        spec = TypeSpec(fields=[FieldSpec(name="y", type=UniversalType.YEAR)])
+        assert to_polars_schema(spec)["y"] is pl.Int32
+        assert to_pandas_dtypes(spec)["y"] == "Int32"   # spec: known change (was Int64)
+
+    def test_yearmonth_now_string_on_pandas(self):
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_pandas_dtypes
+        spec = TypeSpec(fields=[FieldSpec(name="ym", type=UniversalType.YEARMONTH)])
+        assert to_pandas_dtypes(spec)["ym"] == "string"  # spec: known change (was period[M])
+
+    def test_any_materializes_as_string(self):
+        import polars as pl
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_polars_schema
+        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)])
+        assert to_polars_schema(spec)["a"] is pl.String
+
+    def test_backend_type_preferred_when_parseable(self):
+        import polars as pl
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_polars_schema
+        spec = TypeSpec(fields=[
+            FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="Int32"),
+        ])
+        assert to_polars_schema(spec)["x"] is pl.Int32
+
+    def test_unparseable_backend_type_falls_back(self):
+        import polars as pl
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_polars_schema
+        spec = TypeSpec(fields=[
+            FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="garbage"),
+        ])
+        assert to_polars_schema(spec)["x"] is pl.Int64

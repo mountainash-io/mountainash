@@ -12,20 +12,33 @@ All converters use lazy imports and leverage the centralized type system.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict
-import logging
 
-from .universal_types import (
-    get_polars_type,
-    get_arrow_type,
-    UNIVERSAL_TO_PANDAS,
-    UNIVERSAL_TO_IBIS,
-)
+from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.typespec.universal_types import to_canonical
 
 if TYPE_CHECKING:
-    from .spec import TypeSpec
+    from .spec import FieldSpec, TypeSpec
     import pyarrow as pa
 
-logger = logging.getLogger(__name__)
+
+# ============================================================================
+# Shared resolution core
+# ============================================================================
+
+def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
+    """backend_type (if the target can parse it) > FieldSpec.type via canon.
+
+    ANY materializes as STRING (documented default — a target schema must be
+    complete). No silent warn-and-default fallbacks.
+    """
+    if field.backend_type:
+        parsed = registry.parse_type_string(field.backend_type, target)
+        if parsed is not None:
+            return parsed
+    canon = to_canonical(field.type)
+    if canon is None:  # ANY
+        canon = MountainashDtype.STRING
+    return registry.to_native_schema(canon, target)
 
 
 # ============================================================================
@@ -55,30 +68,7 @@ def to_polars_schema(schema: TypeSpec) -> Dict[str, Any]:
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for to_polars_schema()")
-
-    result = {}
-
-    for field in schema.fields:
-        # Prefer backend_type if available (preserves original precision)
-        if field.backend_type:
-            try:
-                # Try to get Polars type by name
-                polars_type = getattr(pl, field.backend_type, None)
-                if polars_type is not None:
-                    result[field.name] = polars_type
-                    continue
-            except (AttributeError, TypeError):
-                logger.debug(f"Could not use backend_type {field.backend_type}, falling back to universal type")
-
-        # Fallback to universal type mapping
-        try:
-            polars_type = get_polars_type(field.type)
-            result[field.name] = polars_type
-        except KeyError:
-            logger.warning(f"Unknown universal type '{field.type}' for field '{field.name}', using Utf8")
-            result[field.name] = pl.Utf8
-
-    return result
+    return {f.name: _resolve_field_native(f, TypeTarget.POLARS) for f in schema.fields}
 
 
 # ============================================================================
@@ -101,24 +91,7 @@ def to_pandas_dtypes(schema: TypeSpec) -> Dict[str, str]:
         >>> pandas_dtypes
         {'id': 'Int64', 'name': 'string'}
     """
-    result = {}
-
-    for field in schema.fields:
-        # Prefer backend_type if available
-        if field.backend_type:
-            # Use backend type as-is for pandas (it's already a string)
-            result[field.name] = field.backend_type
-            continue
-
-        # Fallback to universal type mapping
-        try:
-            pandas_dtype = UNIVERSAL_TO_PANDAS[field.type]
-            result[field.name] = pandas_dtype
-        except KeyError:
-            logger.warning(f"Unknown universal type '{field.type}' for field '{field.name}', using 'object'")
-            result[field.name] = "object"
-
-    return result
+    return {f.name: _resolve_field_native(f, TypeTarget.PANDAS) for f in schema.fields}
 
 
 # ============================================================================
@@ -149,29 +122,9 @@ def to_arrow_schema(schema: TypeSpec) -> 'pa.Schema':
     pa = import_pyarrow()
     if pa is None:
         raise ImportError("pyarrow is required for to_arrow_schema()")
-
-    fields = []
-
-    for field in schema.fields:
-        # Prefer backend_type if available
-        if field.backend_type:
-            try:
-                # Try to parse PyArrow type from string
-                arrow_type = pa.type_for_alias(field.backend_type)
-                fields.append(pa.field(field.name, arrow_type))
-                continue
-            except (KeyError, pa.ArrowInvalid):
-                logger.debug(f"Could not use backend_type {field.backend_type}, falling back to universal type")
-
-        # Fallback to universal type mapping
-        try:
-            arrow_type = get_arrow_type(field.type)
-            fields.append(pa.field(field.name, arrow_type))
-        except KeyError:
-            logger.warning(f"Unknown universal type '{field.type}' for field '{field.name}', using string")
-            fields.append(pa.field(field.name, pa.string()))
-
-    return pa.schema(fields)
+    return pa.schema(
+        [pa.field(f.name, _resolve_field_native(f, TypeTarget.PYARROW)) for f in schema.fields]
+    )
 
 
 # ============================================================================
@@ -196,24 +149,7 @@ def to_ibis_schema(schema: TypeSpec) -> Dict[str, str]:
         >>> ibis_schema
         {'id': 'int64', 'name': 'string'}
     """
-    result = {}
-
-    for field in schema.fields:
-        # Prefer backend_type if available (if it's an Ibis type)
-        if field.backend_type:
-            # Use backend type as-is
-            result[field.name] = field.backend_type
-            continue
-
-        # Fallback to universal type mapping
-        try:
-            ibis_type = UNIVERSAL_TO_IBIS[field.type]
-            result[field.name] = ibis_type
-        except KeyError:
-            logger.warning(f"Unknown universal type '{field.type}' for field '{field.name}', using 'string'")
-            result[field.name] = "string"
-
-    return result
+    return {f.name: _resolve_field_native(f, TypeTarget.IBIS) for f in schema.fields}
 
 
 # ============================================================================
