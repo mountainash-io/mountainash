@@ -8,12 +8,15 @@ target is actually requested.
 from __future__ import annotations
 
 import importlib
-from types import ModuleType
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from .canonical import MountainashDtype
 from .errors import DtypeMappingError, UnknownDtypeError
 from .targets import TypeTarget, detect_target
+
+if TYPE_CHECKING:
+    from types import ModuleType
+
+    from .canonical import MountainashDtype
 
 _MODULES: dict[TypeTarget, str] = {
     TypeTarget.POLARS: "target_polars",
