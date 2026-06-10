@@ -149,6 +149,9 @@ See [BACKLOG_INDEX.md](../mountainash-central/01.principles/mountainash/h.backlo
 src/mountainash/
 ├── __init__.py                  # Top-level re-exports (col, lit, when, relation, typespec, etc.)
 ├── core/                        # Shared infrastructure (constants, types, enums, factories, io)
+│   └── dtypes/                 # Canonical type system: MountainashDtype canon, TypeTarget,
+│                               #   DtypeRegistry (schema/cast uses), parse_dtype/parse_cast_target,
+│                               #   NativeDtype, cast-safety table, 6 lazy per-target modules
 ├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
 │   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
@@ -168,13 +171,13 @@ src/mountainash/
 │       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
 ├── typespec/                    # Type metadata — serializable Frictionless-aligned specs
 │   ├── spec.py                 # TypeSpec, FieldSpec, FieldConstraints
-│   ├── universal_types.py      # UniversalType enum, backend type mappings
-│   ├── type_bridge.py          # UniversalType <-> MountainashDtype interim bridge
+│   ├── universal_types.py      # UniversalType enum + bidirectional boundary map to MountainashDtype
+│   │                           #   (to_canonical/from_canonical/parse_universal) — Frictionless boundary only
 │   ├── frictionless.py         # Frictionless Table Schema import/export
-│   ├── datapackage.py          # NEW: TableDialect, DataResource, DataPackage (multi-resource container)
-│   ├── extraction.py           # Extract TypeSpec from DataFrames, dataclasses, Pydantic
+│   ├── datapackage.py          # TableDialect, DataResource, DataPackage (multi-resource container)
+│   ├── extraction.py           # Extract TypeSpec from DataFrames/dataclasses/Pydantic via core.dtypes registry
 │   ├── validation.py           # Validate DataFrames against a TypeSpec
-│   ├── converters.py           # UniversalType -> backend-specific types
+│   ├── converters.py           # TypeSpec -> backend schemas via core.dtypes registry
 │   └── custom_types.py         # CustomTypeRegistry, semantic type converters
 ├── conform/                     # Shared helper for TypeSpec conformance
 │   └── expressions.py          # _build_conform_exprs — used by Relation.conform() and DAG visitor
