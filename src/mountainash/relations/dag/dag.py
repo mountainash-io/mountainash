@@ -11,7 +11,9 @@ from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 if TYPE_CHECKING:
     import polars as pl
 
+    from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
+    from mountainash.relations.schema_inference import SchemaTypeStatus
     from .validation import DAGValidationResult
 
 """RelationDAG — orchestrator over named Relations.
@@ -271,8 +273,14 @@ class RelationDAG:
         # Compile the target node itself
         return node.accept(visitor)
 
-    def schema(self, name: str) -> dict[str, Any]:
-        """Return the inferred output schema for a named relation."""
+    def schema(
+        self, name: str
+    ) -> dict[str, "MountainashDtype | SchemaTypeStatus"]:
+        """Return the inferred output schema for a named relation.
+
+        Values are canonical ``MountainashDtype`` where inferable, or a
+        ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+        """
         from mountainash.relations.dag.introspection import schema
 
         return schema(self, name)

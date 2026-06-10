@@ -1,6 +1,7 @@
 """Tests for RelationDAG introspection methods."""
 import polars as pl
 import mountainash as ma
+from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.relations.dag import RelationDAG
 
 
@@ -10,7 +11,8 @@ class TestDAGSchema:
         dag.add("users", ma.relation(pl.LazyFrame({"id": [1], "name": ["a"]})))
         schema = dag.schema("users")
         assert list(schema.keys()) == ["id", "name"]
-        assert schema["id"] == pl.Int64
+        # spec 2026-06-10-type-system-unification: schema values are canonical now
+        assert schema["id"] == D.I64
 
     def test_schema_with_ref_dependency(self):
         dag = RelationDAG()
