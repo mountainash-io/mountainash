@@ -8,9 +8,12 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from mountainash.core.types import ExpressionT
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes import MountainashDtype, NativeDtype
 
 
 class SubstraitCastExpressionSystemProtocol(Protocol[ExpressionT]):
@@ -19,7 +22,7 @@ class SubstraitCastExpressionSystemProtocol(Protocol[ExpressionT]):
     Auto-generated from Substrait cast extension.
     """
 
-    def cast(self, x: ExpressionT, /, dtype: object) -> ExpressionT:
+    def cast(self, x: ExpressionT, /, dtype: "MountainashDtype | NativeDtype") -> ExpressionT:
         """Cast expression to a target data type.
 
         Substrait: cast
