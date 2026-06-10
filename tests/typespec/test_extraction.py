@@ -385,3 +385,32 @@ class TestExtractFromPydantic:
         """from_pydantic alias should work identically."""
         schema = from_pydantic(basic_model)
         assert isinstance(schema, TypeSpec)
+
+
+class TestExtractionOverRegistry:
+    def test_polars_list_populates_item_type(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame({"tags": [[1, 2], [3]]})
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "tags"]
+        assert field.type == UniversalType.ARRAY
+        assert field.item_type == "integer"
+
+    def test_unknown_dtype_raises(self):
+        import polars as pl
+        from mountainash.core.dtypes.errors import UnknownDtypeError
+        from mountainash.typespec.extraction import extract_from_dataframe
+        df = pl.DataFrame({"d": [1]}).cast({"d": pl.Decimal(scale=2)})
+        with pytest.raises(UnknownDtypeError):
+            extract_from_dataframe(df)  # Decimal unmapped -> explicit error, not ANY
+
+    def test_null_column_extracts_as_any(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame({"n": [None, None]})
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "n"]
+        assert field.type == UniversalType.ANY

@@ -13,8 +13,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 import logging
 
+from mountainash.core.dtypes import TypeTarget, registry
+
 from .spec import TypeSpec, FieldSpec, FieldConstraints
-from .universal_types import normalize_type
+from .universal_types import UniversalType, from_canonical
 
 if TYPE_CHECKING:
     import polars as pl
@@ -24,6 +26,24 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+
+_TARGET_BY_NAME: dict[str, TypeTarget] = {
+    "polars": TypeTarget.POLARS,
+    "pandas": TypeTarget.PANDAS,
+    "arrow": TypeTarget.PYARROW,
+    "pyarrow": TypeTarget.PYARROW,
+    "ibis": TypeTarget.IBIS,
+    "narwhals": TypeTarget.NARWHALS,
+    "python": TypeTarget.PYTHON,
+}
+
+
+def _universal_from_native(native: Any, target: TypeTarget) -> UniversalType:
+    """native dtype -> canon -> UniversalType (explicit target, no detection)."""
+    canon = registry.from_native(native, target=target)
+    universal, _fmt = from_canonical(canon)
+    return universal
 
 # ============================================================================
 # Schema Caching (for dataclass and Pydantic models)
@@ -94,10 +114,10 @@ def extract_from_dataclass(
 
         # Convert Python type to universal type
         try:
-            universal_type = normalize_type(field_type, "python")
+            universal_type = _universal_from_native(field_type, TypeTarget.PYTHON)
         except Exception as e:
             logger.warning(f"Could not normalize type {field_type} for field {field_name}: {e}")
-            universal_type = "any"
+            universal_type = UniversalType.ANY
 
         # Build constraints
         constraints = None
@@ -195,10 +215,10 @@ def _from_pydantic_v1(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
             else:
                 python_type = field_type
 
-            universal_type = normalize_type(python_type, "python")
+            universal_type = _universal_from_native(python_type, TypeTarget.PYTHON)
         except Exception as e:
             logger.warning(f"Could not normalize type {field_type} for field {field_name}: {e}")
-            universal_type = "any"
+            universal_type = UniversalType.ANY
 
         # Build constraints from Pydantic validators
         constraints = FieldConstraints(required=not is_optional)
@@ -265,10 +285,10 @@ def _from_pydantic_v2(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
 
         # Convert to universal type
         try:
-            universal_type = normalize_type(field_type, "python")
+            universal_type = _universal_from_native(field_type, TypeTarget.PYTHON)
         except Exception as e:
             logger.warning(f"Could not normalize type {field_type} for field {field_name}: {e}")
-            universal_type = "any"
+            universal_type = UniversalType.ANY
 
         # Build constraints
         constraints = FieldConstraints(required=not is_optional)
@@ -410,11 +430,19 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
         backend_type_str = str(dtype)
 
         # Convert to universal type
-        universal_type = normalize_type(backend_type_str, "polars")
+        universal_type = _universal_from_native(dtype, TypeTarget.POLARS)
+
+        item_type = None
+        if isinstance(dtype, pl.List) and dtype.inner is not None:
+            inner_universal, _ = from_canonical(
+                registry.from_native(dtype.inner, target=TypeTarget.POLARS)
+            )
+            item_type = inner_universal.value
 
         schema_field = FieldSpec(
             name=col_name,
             type=universal_type,
+            item_type=item_type,
             backend_type=backend_type_str if preserve_backend_types else None,
         )
         fields.append(schema_field)
@@ -443,7 +471,7 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
         backend_type_str = str(dtype)
 
         # Convert to universal type
-        universal_type = normalize_type(backend_type_str, "pandas")
+        universal_type = _universal_from_native(dtype, TypeTarget.PANDAS)
 
         schema_field = FieldSpec(
             name=col_name,
@@ -477,11 +505,19 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
         backend_type_str = str(backend_type)
 
         # Convert to universal type
-        universal_type = normalize_type(backend_type_str, "arrow")
+        universal_type = _universal_from_native(backend_type, TypeTarget.PYARROW)
+
+        item_type = None
+        if pa.types.is_list(backend_type):
+            inner_universal, _ = from_canonical(
+                registry.from_native(backend_type.value_type, target=TypeTarget.PYARROW)
+            )
+            item_type = inner_universal.value
 
         schema_field = FieldSpec(
             name=field.name,
             type=universal_type,
+            item_type=item_type,
             backend_type=backend_type_str if preserve_backend_types else None,
         )
         fields.append(schema_field)
@@ -509,7 +545,7 @@ def _from_ibis(table: 'ibis.Table', preserve_backend_types: bool, **metadata) ->
         backend_type_str = str(field_type)
 
         # Convert to universal type
-        universal_type = normalize_type(backend_type_str, "ibis")
+        universal_type = _universal_from_native(field_type, TypeTarget.IBIS)
 
         schema_field = FieldSpec(
             name=field_name,
@@ -542,8 +578,8 @@ def _from_narwhals(df: Any, preserve_backend_types: bool, **metadata) -> TypeSpe
         # Get backend type
         backend_type_str = str(dtype)
 
-        # Narwhals uses Polars-like types, so use polars normalization
-        universal_type = normalize_type(backend_type_str, "polars")
+        # Narwhals has its own target module
+        universal_type = _universal_from_native(dtype, TypeTarget.NARWHALS)
 
         schema_field = FieldSpec(
             name=col_name,
@@ -703,7 +739,7 @@ def _backend_type_to_universal(backend_type: Any, backend: str) -> str:
         'number'
     """
     backend_type_str = str(backend_type)
-    return normalize_type(backend_type_str, backend)
+    return _universal_from_native(backend_type_str, _TARGET_BY_NAME[backend])
 
 
 def _python_type_to_universal(python_type: Type) -> str:
@@ -726,7 +762,7 @@ def _python_type_to_universal(python_type: Type) -> str:
     """
     # Unwrap Optional if present
     unwrapped_type = _unwrap_optional(python_type)
-    return normalize_type(unwrapped_type, "python")
+    return _universal_from_native(unwrapped_type, TypeTarget.PYTHON)
 
 
 def _unwrap_optional(type_hint: Any) -> Any:
