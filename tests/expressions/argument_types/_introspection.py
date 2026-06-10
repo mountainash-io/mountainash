@@ -6,6 +6,7 @@ import typing
 from dataclasses import dataclass
 from typing import Any, Literal, get_type_hints
 
+from mountainash.core.dtypes import MountainashDtype, NativeDtype
 from mountainash.expressions.core.expression_protocols.expression_systems import (
     extensions_mountainash as _ext_mod,
 )
@@ -72,6 +73,9 @@ def _iter_protocol_classes():
 
 
 _CONCRETE_TYPES = (int, str, bool, float, bytes, object)
+# Canonical dtype specifiers are universally-literal cast targets, never visited
+# expressions, so they classify as options (arguments-vs-options principle).
+_OPTION_TYPES = (*_CONCRETE_TYPES, MountainashDtype, NativeDtype)
 _UNION_ORIGINS = {typing.Union, type(int | None)}  # typing.Union + types.UnionType
 
 
@@ -84,9 +88,9 @@ def _classify_annotation(ann: Any) -> Kind:
         args = typing.get_args(ann)
         if any("ExpressionT" in str(a) for a in args):
             return "argument"
-        if all(a is type(None) or a in _CONCRETE_TYPES for a in args):
+        if all(a is type(None) or a in _OPTION_TYPES for a in args):
             return "option"
-    if ann in _CONCRETE_TYPES:
+    if ann in _OPTION_TYPES:
         return "option"
     # Optional[concrete] (typing.Optional spelling)
     if s.startswith("typing.Optional[") and any(t in s for t in ("int", "str", "bool", "float", "bytes", "object")):
