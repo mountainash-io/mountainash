@@ -12,24 +12,6 @@ version: 0.08
 
 Namespace-based expression extensions (.str, .dt, .struct, .list, .name), the NamespaceDescriptor mechanism, and module-level helper functions (when, coalesce, greatest, least, native).
 
-## Concepts Covered
-
-- String Namespace
-- Datetime Namespace
-- Struct Namespace
-- List Namespace
-- Name Namespace
-- NamespaceDescriptor
-- when Function
-- coalesce Function
-- greatest Function
-- least Function
-- native Function
-
-## Prerequisites
-
-- [Chapter 3. Expression API Basics](../03-expression-api-basics/)
-
 ---
 
 ## Introduction

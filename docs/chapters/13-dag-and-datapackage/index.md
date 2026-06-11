@@ -12,35 +12,6 @@ version: 0.08
 
 Multi-resource orchestration with RelationDAG, named relations, dag.ref, dependency and constraint edges, two-edge graph model, topological collection, dag.collect, ref_resolver, Frictionless DataPackage/DataResource/TableDialect integration, from_descriptor, to_relation_dag, resource overrides, dag.add, to_package, FK integrity checking, and validate_match.
 
-## Concepts Covered
-
-- RelationDAG
-- Named Relations
-- dag.ref Method
-- Dependency Edges
-- Constraint Edges
-- Two-Edge Graph Model
-- Topological Collection
-- dag.collect Method
-- ref_resolver Parameter
-- DataPackage
-- DataResource
-- TableDialect
-- from_descriptor Method
-- to_relation_dag Method
-- Resource Overrides
-- dag.add Method
-- to_package Method
-- FK Integrity Check
-- validate_match Function
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-- [Chapter 9. Type System and Schema](../09-type-system-and-schema/)
-- [Chapter 10. Relation API Core Operations](../10-relation-api-core/)
-- [Chapter 11. Relation API Advanced Features](../11-relation-api-advanced/)
-
 ---
 
 ## Introduction

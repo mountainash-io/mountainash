@@ -1,18 +1,15 @@
 ---
-title: Mountainash Package Description
-description: A detailed description of the mountainash cross-backend data expression and relational pipeline library
-quality_score: 90
+title: Package Overview
+description: What mountainash covers, who it's for, and how this manual is structured
 ---
 
-# Mountainash Package Description
+# Package Overview
 
-## Title
-
-Mountainash: Cross-Backend Data Expression and Relational Pipeline Library
+Mountainash is a cross-backend data expression and relational pipeline library for Python. It lets you write data transformation logic once and run it on Polars, pandas (via Narwhals), and SQL databases (via Ibis) without rewriting.
 
 ## Target Audience
 
-Python developers building data pipelines, analytics workflows, and data quality systems who need backend-portable expressions and relational operations across Polars, pandas (via Narwhals), and SQL databases (via Ibis).
+Python developers building data pipelines, analytics workflows, and data quality systems who need backend-portable expressions and relational operations across Polars, pandas, PyArrow, and SQL backends.
 
 ## Prerequisites
 
@@ -21,7 +18,7 @@ Python developers building data pipelines, analytics workflows, and data quality
 - Basic understanding of SQL concepts (SELECT, JOIN, GROUP BY, WHERE)
 - Understanding of directed acyclic graphs (DAGs) and topological ordering
 
-## Topics Covered
+## What This Manual Covers
 
 1. **Core Infrastructure** — Backend detection, type guards, enums, factory patterns, lazy imports
 2. **Expression System** — Fluent expression API, AST nodes, function key registry, visitor pattern compilation
@@ -29,68 +26,32 @@ Python developers building data pipelines, analytics workflows, and data quality
 4. **Relation System** — Relational AST with Substrait-aligned node types, fluent relation builder, unified visitor
 5. **Relation Backends** — Polars LazyFrame, Narwhals, and Ibis SQL relation compilation
 6. **Type System (TypeSpec)** — Universal type metadata, Frictionless Table Schema alignment, schema extraction and validation
-7. **Data Conformance** — TypeSpec-driven column transformation via Relation.conform()
-8. **Ternary Logic** — Three-valued semantics (TRUE/FALSE/UNKNOWN) with sentinel integers and auto-booleanization
+7. **Data Conformance** — TypeSpec-driven column transformation via `Relation.conform()`
+8. **Ternary Logic** — Three-valued semantics (TRUE/FALSE/UNKNOWN) with sentinel integers and auto-booleanisation
 9. **DAG & DataPackage** — RelationDAG orchestrator, Frictionless DataPackage integration, two-edge graph model
 10. **Pipeline Framework** — Declarative multi-step pipelines with typed parameter binding and caching
 
-## Topics Excluded
+## What This Manual Does Not Cover
 
 - Low-level Polars/Ibis/Narwhals internals (upstream library implementation details)
-- Database administration or SQL optimization
+- Database administration or SQL optimisation
 - Machine learning model training or serving
 - Web framework integration
 - Deployment and infrastructure concerns
 
-## Learning Outcomes
+## Key Capabilities
 
-After studying this package, developers will be able to:
+**Expressions that compile everywhere** — Write `col()`, `lit()`, `when()` using Polars-compatible syntax that compiles natively to Polars for performance, through Narwhals for any compatible DataFrame library, and through Ibis for any SQL or analytical engine.
 
-### Remember
+**Pipelines that get data out your way** — The relation builder wraps expressions in a fluent pipeline API. Terminal methods deliver results as Polars DataFrames, pandas, dicts, dataclasses, Pydantic models, PyArrow tables, and more. Cross-type joins work transparently across different sources.
 
-- List the seven expression AST node types and their Substrait alignment
-- Identify the ten relational node types and their roles
-- Name the three supported backends (Polars, Narwhals, Ibis)
-- Recall the function key enum naming convention (FKEY_SUBSTRAIT_*, FKEY_MOUNTAINASH_*)
-- List the three-layer architecture: Protocol → API Builder → Backend
+**Schemas that conform messy data** — TypeSpec defines what your data should look like, aligned with the Frictionless Data standard. The conform pipeline handles missing value normalisation, boolean casting, numeric parsing, temporal parsing, category enforcement, and list delimiters.
 
-### Understand
+**Data quality woven into the pipeline** — Data contracts validate both physical structure and logical business rules. Both compile to the same expression engine and run on any backend. Context-aware rule exclusions let you vary strictness by environment.
 
-- Explain the build-then-compile pattern for expressions and build-then-collect for relations
-- Describe how the unified visitor dispatches AST nodes via the function registry
-- Explain the difference between dependency edges and constraint edges in RelationDAG
-- Describe how ternary logic differs from SQL NULL propagation
-- Explain the protocol-as-contract principle and how backends implement obligations
+**Three-valued logic for real-world data** — The ternary expression layer (TRUE, FALSE, UNKNOWN) handles sentinel values, unreported fields, and the gap between "zero" and "missing" — essential for databases that recommend sentinel values over NULLs.
 
-### Apply
-
-- Build fluent expression chains using col(), lit(), when(), and namespace operations
-- Construct relational pipelines with filter, sort, join, group_by, and terminal operations
-- Define TypeSpec schemas and use Relation.conform() for cross-backend conformance
-- Create RelationDAG workflows from Frictionless DataPackage descriptors
-- Write cross-backend parametrized tests with appropriate xfail markers
-
-### Analyze
-
-- Analyze backend detection and automatic coercion in cross-type join scenarios
-- Compare expression compilation strategies across Polars, Narwhals, and Ibis backends
-- Evaluate known divergences and their impact on cross-backend consistency
-- Analyze the pipeline parameter binding flow from ParamSpec through fold_params
-
-### Evaluate
-
-- Assess whether a new operation belongs in the Substrait or Mountainash extension namespace
-- Evaluate the six-step process for adding new operations across all architecture layers
-- Judge appropriate use of arguments vs options for expression parameters
-- Evaluate TypeSpec schema designs for Frictionless structural fidelity
-
-### Create
-
-- Implement new expression operations following the six-step wiring process
-- Build custom pipeline steps with ParamSpec parameter declarations
-- Create DataPackage-backed multi-resource DAG workflows
-- Design custom type converters for the CustomTypeRegistry
-- Build extension relation node types using RelationVisitRegistry
+**Frictionless Data as a first-class citizen** — TypeSpec aligns with Frictionless Table Schema. DataPackages and Resources work natively. Multi-resource DAGs validate foreign key integrity across tables.
 
 ## Context
 

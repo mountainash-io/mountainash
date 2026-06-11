@@ -12,28 +12,6 @@ version: 0.08
 
 Backend relation systems (Polars LazyFrame, Narwhals, Ibis SQL), backend-specific operations, cross-type joins, join key coalescing, backend relation testing, divergences, execution target, and execute_on parameter.
 
-## Concepts Covered
-
-- PolarsRelationSystem
-- NarwhalsRelationSystem
-- IbisRelationSystem
-- LazyFrame Operations
-- Narwhals Portability
-- Ibis SQL Compilation
-- Cross-Type Joins
-- Join Key Coalescing
-- Backend Relation Testing
-- Backend Divergences
-- Execution Target
-- execute_on Parameter
-
-## Prerequisites
-
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-- [Chapter 8. Expression Backends](../08-expression-backends/)
-- [Chapter 10. Relation API Core Operations](../10-relation-api-core/)
-- [Chapter 14. Relation AST and System Architecture](../14-relation-ast-and-system/)
-
 ---
 
 ## Introduction

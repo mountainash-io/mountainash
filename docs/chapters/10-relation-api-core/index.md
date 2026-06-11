@@ -12,29 +12,6 @@ version: 0.08
 
 The relation() factory, Relation class, RelationBase protocol, and core relational operations: filter, sort, head/fetch, select/project, join, group_by, GroupedRelation, aggregation on groups, set operations, and concat.
 
-## Concepts Covered
-
-- relation Factory
-- Relation Class
-- RelationBase
-- Filter Operation
-- Sort Operation
-- Head Fetch Operation
-- Select Project Operation
-- Join Operation
-- Group By Operation
-- GroupedRelation
-- Aggregation on Groups
-- Set Operations
-- concat Function
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-- [Chapter 3. Expression API Basics](../03-expression-api-basics/)
-- [Chapter 5. Expression Operations](../05-expression-operations/)
-
 ---
 
 ## Introduction

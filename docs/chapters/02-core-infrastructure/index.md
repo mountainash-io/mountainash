@@ -12,25 +12,6 @@ version: 0.08
 
 Shared infrastructure underpinning all mountainash modules: constants, backend and operation enums, backend detection, DataFrame type guards, MountainashDtype, lazy imports, factory pattern, and BaseFactoryMixin.
 
-## Concepts Covered
-
-- Constants Module
-- Backend Enum
-- Backend System Enum
-- Backend Detection
-- DataFrame Type Guards
-- MountainashDtype
-- Lazy Import System
-- Factory Pattern
-- BaseFactoryMixin
-- Operation Enums
-- JoinType Enum
-- SetType Enum
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-
 ---
 
 ## Introduction

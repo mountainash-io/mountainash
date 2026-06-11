@@ -12,26 +12,6 @@ version: 0.08
 
 Concrete expression operations: comparison, arithmetic, boolean, string, and datetime operations; aggregation and window functions; cast, duration, count_records, and correlation.
 
-## Concepts Covered
-
-- Comparison Operations
-- Arithmetic Operations
-- Boolean Operations
-- String Operations
-- Datetime Operations
-- Aggregation Functions
-- Window Functions
-- cast Operation
-- duration Function
-- count_records Function
-- corr Function
-
-## Prerequisites
-
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-- [Chapter 3. Expression API Basics](../03-expression-api-basics/)
-- [Chapter 4. Expression Namespaces and Functions](../04-expression-namespaces-and-functions/)
-
 ---
 
 ## Introduction

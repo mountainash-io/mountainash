@@ -12,23 +12,6 @@ version: 0.08
 
 Declarative multi-step pipelines: PipelineBuilder, step decorator, source function, PipelineSpec, StepDefinition, StepContext, StepResult, SimplePipelineRunner, ParamSpec, parameter binding, relation.params method, and fold_params.
 
-## Concepts Covered
-
-- PipelineBuilder
-- step Decorator
-- source Function
-- PipelineSpec
-- StepDefinition
-- StepContext
-- StepResult
-- SimplePipelineRunner
-- ParamSpec
-- Parameter Binding
-- relation.params Method
-- fold_params Function
-
-## Prerequisites
-
 - [Chapter 1. Foundation Concepts](../01-foundations/)
 - [Chapter 10. Relation API Core Operations](../10-relation-api-core/)
 

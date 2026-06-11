@@ -12,35 +12,6 @@ version: 0.08
 
 Universal type metadata via TypeSpec, FieldSpec, FieldConstraints, UniversalType enum, type bridge, backend type mapping, foreign keys, custom type registry, type converters, Frictionless Standard alignment, Table Schema, schema extraction (DataFrame, dataclass, Pydantic), schema validation, schema comparison, and backend-specific schema conversion.
 
-## Concepts Covered
-
-- TypeSpec
-- FieldSpec
-- FieldConstraints
-- UniversalType Enum
-- Type Bridge
-- Backend Type Mapping
-- Foreign Keys
-- ForeignKeyReference
-- Custom Type Registry
-- Type Converters
-- Frictionless Standard
-- Table Schema
-- Schema Extraction
-- DataFrame Extraction
-- Dataclass Extraction
-- Pydantic Extraction
-- Schema Validation
-- Schema Comparison
-- Polars Schema Convert
-- Pandas Dtypes Convert
-- Arrow Schema Convert
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-
 ---
 
 ## Introduction

@@ -12,41 +12,6 @@ version: 0.08
 
 Relation AST node types (Read, Project, Filter, Aggregate, Join, Fetch, Sort, Set, Extension, Source, Ref, ResourceRead), relation protocols, UnifiedRelationVisitor, visitor composition, RelationVisitRegistry, OptimisationRegistry, Relation System Base, ExtensionRelOperation, and pipeline-integrated AST nodes (ParamsRelNode, PipelineStepRelNode).
 
-## Concepts Covered
-
-- RelationNode Base
-- ReadRelNode
-- ProjectRelNode
-- FilterRelNode
-- AggregateRelNode
-- JoinRelNode
-- FetchRelNode
-- SortRelNode
-- SetRelNode
-- ExtensionRelNode
-- SourceRelNode
-- RefRelNode
-- ResourceReadRelNode
-- Relation Protocols
-- UnifiedRelationVisitor
-- Visitor Composition
-- RelationVisitRegistry
-- OptimisationRegistry
-- Relation System Base
-- ExtensionRelOperation
-- ParamsRelNode
-- PipelineStepRelNode
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-- [Chapter 7. Expression Function Registry and Compilation](../07-expression-function-registry/)
-- [Chapter 8. Expression Backends](../08-expression-backends/)
-- [Chapter 10. Relation API Core Operations](../10-relation-api-core/)
-- [Chapter 11. Relation API Advanced Features](../11-relation-api-advanced/)
-- [Chapter 12. Pipeline Framework](../12-pipeline-framework/)
-- [Chapter 13. DAG and DataPackage](../13-dag-and-datapackage/)
-
 ---
 
 ## Introduction
