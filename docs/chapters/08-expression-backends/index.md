@@ -12,30 +12,6 @@ version: 0.08
 
 Backend expression systems (Polars, Narwhals, Ibis), their compilation implementations, backend composition via multiple inheritance, Substrait and extension compile files, known limitations, cross-backend testing with parametrize and xfail, arguments vs options, and expression type generics.
 
-## Concepts Covered
-
-- PolarsExpressionSystem
-- NarwhalsExpressionSystem
-- IbisExpressionSystem
-- Polars Expr Compilation
-- Narwhals Expr Compilation
-- Ibis Expr Compilation
-- Backend Composition
-- Multiple Inheritance
-- Substrait Compile Files
-- Extension Compile Files
-- Known Expr Limitations
-- Expression Testing
-- Cross-Backend Parametrize
-- xfail Known Quirks
-- Arguments vs Options
-- Expression Type Generics
-
-## Prerequisites
-
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-- [Chapter 7. Expression Function Registry and Compilation](../07-expression-function-registry/)
-
 ---
 
 ## Introduction

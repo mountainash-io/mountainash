@@ -8,31 +8,6 @@ version: 0.08
 
 # Chapter 1: Foundation Concepts
 
-## Summary
-
-External prerequisite knowledge including Python type hints, protocol classes, Pydantic models, DataFrames, supported libraries (Polars, pandas, Arrow), SQL databases, and core design patterns (lazy evaluation, method chaining, visitor pattern, DAGs).
-
-## Concepts Covered
-
-- Python Type Hints
-- Protocol Classes
-- Pydantic Models
-- DataFrames
-- Polars Library
-- Pandas Library
-- Apache Arrow
-- SQL Databases
-- Lazy Evaluation
-- Method Chaining
-- Visitor Pattern
-- Directed Acyclic Graph
-
-## Prerequisites
-
-None (this is the first chapter).
-
----
-
 ## Introduction
 
 Mountainash is a cross-backend data expression and relational pipeline library that operates across multiple DataFrame engines. Before exploring mountainash itself, you need a firm grasp of the external concepts it draws upon. This chapter covers twelve foundational ideas that mountainash assumes you already understand, organized from simple to complex.

@@ -12,22 +12,6 @@ version: 0.08
 
 Introduction to the fluent expression API: the col() and lit() factory functions, expression building patterns, BaseExpressionAPI protocol, BooleanExpressionAPI, fluent expression chaining, operator overloading, and null handling.
 
-## Concepts Covered
-
-- col Function
-- lit Function
-- Expression Building
-- BaseExpressionAPI
-- BooleanExpressionAPI
-- Fluent Expression Chain
-- Operator Overloading
-- Null Handling
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-
 ---
 
 ## Introduction

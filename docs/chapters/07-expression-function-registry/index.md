@@ -12,26 +12,6 @@ version: 0.08
 
 Substrait and Mountainash key prefixes, ExpressionFunctionDef, ExpressionFunctionRegistry, function lookup, Substrait spec alignment, build-then-compile pattern, expression compilation, unified visitor, API builder protocols, expression system protocols, and Mountainash extensions.
 
-## Concepts Covered
-
-- FKEY Substrait Prefix
-- FKEY Mountainash Prefix
-- ExpressionFunctionDef
-- ExpressionFunctionRegistry
-- Function Registry Lookup
-- Substrait Spec Alignment
-- Build Then Compile
-- Expression Compilation
-- Unified Expression Visitor
-- API Builder Protocols
-- Expression System Protocols
-- Mountainash Extensions
-
-## Prerequisites
-
-- [Chapter 3. Expression API Basics](../03-expression-api-basics/)
-- [Chapter 6. Expression AST and Function Keys](../06-expression-ast-and-function-keys/)
-
 ---
 
 ## Introduction

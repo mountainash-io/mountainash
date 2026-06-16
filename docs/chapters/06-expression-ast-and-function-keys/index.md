@@ -12,28 +12,6 @@ version: 0.08
 
 The Pydantic-based expression AST: ExpressionNode base, function key enums, ScalarFunctionNode, FieldReferenceNode, LiteralNode, CastNode, IfThenNode, SingularOrListNode, WindowFunctionNode, WindowSpec, WindowBound, and OverNode.
 
-## Concepts Covered
-
-- ExpressionNode Base
-- Function Key Enums
-- ScalarFunctionNode
-- FieldReferenceNode
-- LiteralNode
-- CastNode
-- IfThenNode
-- SingularOrListNode
-- WindowFunctionNode
-- WindowSpec
-- WindowBound
-- OverNode
-
-## Prerequisites
-
-- [Chapter 1. Foundation Concepts](../01-foundations/)
-- [Chapter 2. Core Infrastructure](../02-core-infrastructure/)
-- [Chapter 3. Expression API Basics](../03-expression-api-basics/)
-- [Chapter 5. Expression Operations](../05-expression-operations/)
-
 ---
 
 ## Introduction

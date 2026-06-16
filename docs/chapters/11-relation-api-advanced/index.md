@@ -12,23 +12,6 @@ version: 0.08
 
 Advanced relation operations: conform (TypeSpec-driven transformation), unnest, the build-then-collect pattern, terminal operations, output methods (to_polars, to_pandas, collect).
 
-## Concepts Covered
-
-- Conform Operation
-- Unnest Operation
-- Build Then Collect
-- Terminal Operations
-- to_polars Method
-- to_pandas Method
-- collect Method
-
-## Prerequisites
-
-- [Chapter 4. Expression Namespaces and Functions](../04-expression-namespaces-and-functions/)
-- [Chapter 6. Expression AST and Function Keys](../06-expression-ast-and-function-keys/)
-- [Chapter 9. Type System and Schema](../09-type-system-and-schema/)
-- [Chapter 10. Relation API Core Operations](../10-relation-api-core/)
-
 ---
 
 ## Introduction

@@ -28,7 +28,7 @@ copyright: 'Copyright &copy; 2026 Nathaniel Ramm. Licensed under <a href="licens
 nav:
   - Home: index.md
   - About: about.md
-  - Course Description: course-description.md
+  - Package Overview: course-description.md
 
   - Chapters:
       - List of Chapters: chapters/index.md

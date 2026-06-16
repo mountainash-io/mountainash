@@ -1,35 +1,30 @@
 ---
 title: 'Mountainash Core'
-description: 'An intelligent textbook for the mountainash cross-backend data expression and relational pipeline library'
+description: 'A guided manual for the mountainash cross-backend data expression and relational pipeline library'
 ---
 
+
+[← Back to Ecosystem](../)
 # Mountainash Core
 
-An intelligent textbook for the mountainash cross-backend data expression and relational pipeline library
+Write data logic once. Run it on Polars, pandas, PyArrow, DuckDB, Snowflake, BigQuery, and every backend that Ibis and Narwhals reach.
 
-## Getting Started
+Mountainash is a cross-backend expression and relational pipeline library for Python. It gives you a single, fluent API for expressing data transformations — expressions, pipelines, schemas, conformance, data contracts — that compile natively to whichever engine your data lives on. The backend is a deployment decision, not a code decision.
 
-This is an intelligent textbook built with MkDocs Material. Use the navigation
-sidebar on the left to explore chapters, the learning graph, MicroSims, and
-supporting reference content.
+## Why a Guided Manual?
 
-## Front Matter
+API reference tells you *what* a function does. This manual explains *why* the library is designed the way it is, how the pieces fit together, and how to use them effectively in real projects. Chapters are ordered so each concept builds on what came before, with interactive diagrams throughout to make the architecture tangible.
 
-- **About** — audience, prerequisites, and how to read the book
-- **Course Description** — the seed document used to generate the learning graph
+## What's Inside
 
-## Chapters
+- **[Chapters](chapters/index.md)** — 15 chapters covering the full library, from core infrastructure through expression and relation systems to pipelines and DAG orchestration
 
-The main body of the book lives under [Chapters](chapters/index.md). Each
-chapter has its own folder with a two-digit prefix (e.g. `01-introduction`).
+- **[MicroSims](sims/index.md)** — 35 interactive simulations that visualize key concepts: backend routing, AST construction, pipeline architecture, and more
 
-## Learning Graph
+- **[Learning Graph](learning-graph/index.md)** — A dependency map of every concept in the manual, showing how ideas connect and what to read first
 
-The [Learning Graph](learning-graph/index.md) shows how concepts depend on each
-other. Concepts are introduced in dependency order so prerequisites are always
-covered before they are used.
+- **[API Reference](api/index.md)** — Module-level documentation for expressions, relations, TypeSpec, conform, pipelines, data contracts, and utilities
 
-## MicroSims
+## Who This Is For
 
-Interactive simulations live under [MicroSims](sims/index.md). Each MicroSim
-focuses on one concept and is embeddable as an iframe inside chapter content.
+Python developers building data pipelines, analytics workflows, or data quality systems who want backend portability without giving up expressiveness. You should be comfortable with Python classes, decorators, and type hints, and familiar with at least one DataFrame library. See [About](about.md) for the full picture.
