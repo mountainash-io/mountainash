@@ -1,7 +1,7 @@
 {
   "id": "core",
   "path": "src/mountainash/core/",
-  "summary": "Shared infrastructure: backend/dtype/operation enums (CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation), type guards (is_polars_dataframe, detect_dataframe_backend_type), factory base classes, lazy imports, and remote I/O facade via mountainash-utils-files.",
+  "summary": "Shared infrastructure: backend/dtype/operation enums (CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation), type guards (is_polars_dataframe, detect_dataframe_backend_type), factory base classes, lazy imports, and remote I/O facade via mountainash-transport.",
   "role": "orchestration",
   "visibility": "internal",
   "stability": "stable",
