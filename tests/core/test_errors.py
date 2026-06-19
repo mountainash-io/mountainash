@@ -19,3 +19,15 @@ def test_root_exported_at_top_level():
     import mountainash as ma
     from mountainash.core.errors import MountainashError
     assert ma.MountainashError is MountainashError
+
+
+def test_backend_capability_error_under_root():
+    from mountainash.core.errors import MountainashError
+    from mountainash.core.types import BackendCapabilityError
+    assert issubclass(BackendCapabilityError, MountainashError)
+
+
+def test_schema_validation_error_under_root():
+    from mountainash.core.errors import MountainashError
+    from mountainash.typespec.validation import SchemaValidationError
+    assert issubclass(SchemaValidationError, MountainashError)

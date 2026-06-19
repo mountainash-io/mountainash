@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Tuple
 import logging
+from mountainash.core.errors import MountainashError
 
 if TYPE_CHECKING:
     from .spec import TypeSpec
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SchemaValidationError(Exception):
+class SchemaValidationError(MountainashError):
     """Raised when schema validation fails."""
     pass
 
