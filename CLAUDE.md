@@ -133,6 +133,10 @@ See [BACKLOG_INDEX.md](../mountainash-central/01.principles/mountainash/h.backlo
 | Document | Status | Summary |
 |----------|--------|---------|
 | competitive-positioning.md | ADOPTED | Market landscape, strengths/weaknesses, positioning as "abstract data products" |
+| declarative-vs-imperative-landscape.md | REFERENCE | Two-axis (transformation/orchestration) declarative map of the Python field; referenced matrix + per-tool deep dive vs Ibis/Substrait/Polars/dbt/SQLMesh/Dagster/Frictionless/Pandera/dlt; semantic-layer cluster (MetricFlow/Cube/BSL/Malloy) with translate-out (OSI) + integrate-up (BSL/Ibis) opportunities; mountainash subsumes Ibis+Narwhals reach behind Polars syntax; novelty = DataPackage-as-result + two-edge DAG + conform-node |
+| semantic-layer-interchange-architecture.md | REFERENCE | OSI hub-and-spoke interop design: canonical SemanticModel + N adapters (not N²); hard seam = SQL-text metric ↔ AST measure (export free via Ibis/SQLGlot, import best-effort/lossy); reuses lossless-raw-storage + universal_types boundary-map + closed-by-default fidelity report; Tier-1 OSI, Tier-2 MetricFlow/BSL, long tail via OSI/Sidemantic; precedes brainstorm→spec gate |
+| substrait-interoperability-ingestion.md | REFERENCE | Expands substrait-first-design's to_substrait/from_substrait future-consideration: making mountainash a Substrait consumer/producer, not just aligned; unlocks SQL ingestion (no parser), engine interop (DuckDB/Velox/DataFusion/Arrow), portable serializable plans; codec = function_anchor↔FKEY map + Rel↔node (mapping not reimpl); ExtendedExpression is the metric-import surface; producer near-free via ibis-substrait; scope-discipline risk = stay logical, not an execution engine |
+| osi-specification-critique-swot.md | REFERENCE | Full OSI spec dissection (v0.1.1/v0.2.0.dev0): anatomy (datasets/relationships/fields/metrics/custom_extensions/ai_context), the dialect enum lumping 3 incompatible paradigms (SQL transpilable vs MDX OLAP vs MAQL LDM-context), "vendor-neutral envelope / vendor-specific payload" critique, SWOT, gap inventory; headline opportunity = Substrait ExtendedExpression as a neutral OSI dialect (mountainash leads, not just consumes); thoroughly referenced (MS Learn MDX, GoodData MAQL) |
 
 ### j. Research
 
@@ -199,7 +203,7 @@ ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "s
 
 All other dependencies are in `pyproject.toml`.
 
-**Workspace dependency for DataPackage I/O:** `mountainash-utils-files` (sibling package, optional `storage` extra) provides `StorageFacade` used by `core/io.py` to load remote `DataResource` paths. `core.io.is_remote()` delegates to the facade's scheme registry for auto-detection; `core.io.facade_read_bytes()` calls `StorageFacade.from_path()`. Local paths bypass the facade and use Polars directly. The import is lazy so a local-only test run never touches `mountainash_utils_files`.
+**Workspace dependency for DataPackage I/O:** `mountainash-transport` (sibling package, optional `storage` extra) provides `StorageFacade` used by `core/io.py` to load remote `DataResource` paths. `core.io.is_remote()` delegates to the facade's scheme registry for auto-detection; `core.io.facade_read_bytes()` calls `StorageFacade.from_path()`. Local paths bypass the facade and use Polars directly. The import is lazy so a local-only test run never touches `mountainash_transport`.
 
 
 ## Development Commands
