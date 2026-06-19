@@ -42,11 +42,6 @@ def test_old_path_pickle_compat():
     # we need to use GLOBAL opcode (which uses CRLF as delimiter) instead of SHORT_BINUNICODE.
 
     # Pickle protocol: use GLOBAL (opcode 'c') which takes lines of module\nclass\n
-    import io
-    import pickletools
-
-    fresh = pickle.dumps(StepEmptyError("x"))
-
     # We'll use a helper: create a pickle with protocol 2 which uses the TEXT-based
     # GLOBAL opcode, then manually edit it
     fresh_p2 = pickle.dumps(StepEmptyError("x"), protocol=2)
