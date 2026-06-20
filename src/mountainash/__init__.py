@@ -61,6 +61,13 @@ from mountainash.relations.dag import RelationDAG  # noqa: F401
 # MountainashDtype — canonical type vocabulary (accepted by cast/schema APIs)
 from mountainash.core.dtypes import MountainashDtype  # noqa: F401
 
+# MountainashError — root of the typed error hierarchy.
+# NOTE: import ONLY the root here. Do NOT import mountainash.exceptions (the
+# façade), whose transitive imports would run at package-init time and re-expose
+# circular-import risk. The façade is imported only on explicit `import
+# mountainash.exceptions`.
+from mountainash.core.errors import MountainashError  # noqa: F401
+
 def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
     """Create a TypeSpec from a simple {name: type_string} dict."""
     return TypeSpec.from_simple_dict(columns, **metadata)

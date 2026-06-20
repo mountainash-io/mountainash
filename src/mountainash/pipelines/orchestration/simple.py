@@ -8,15 +8,15 @@ from mountainash.pipelines.core.cache_key import compute_cache_key
 from mountainash.pipelines.core.policies import EmptyPolicy
 from mountainash.pipelines.core.result import StepMetadata, StepResult
 from mountainash.pipelines.core.step import StepContext
+# Back-compat: StepEmptyError moved to mountainash.pipelines.errors.
+# This alias is permanent enough to survive pickles + external imports;
+# do not remove without a deprecation cycle.
+from mountainash.pipelines.errors import StepEmptyError  # noqa: F401
 
 if TYPE_CHECKING:
     from mountainash.pipelines.core.spec import PipelineSpec
 
 logger = logging.getLogger(__name__)
-
-
-class StepEmptyError(Exception):
-    pass
 
 
 class SimplePipelineRunner:

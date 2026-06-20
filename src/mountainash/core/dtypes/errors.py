@@ -1,15 +1,21 @@
-# src/mountainash/core/dtypes/errors.py
 """Typed errors for the canonical dtype system.
 
-Both subclass ValueError; backlog item 27 (unified error hierarchy) will
-re-parent them under MountainashError via multiple inheritance when it lands.
+`DtypeError` is the subsystem base; both concrete errors share `ValueError`, so
+the builtin is mixed in once on the base and inherited transitively — preserving
+every existing `except ValueError`.
 """
 from __future__ import annotations
 
+from mountainash.core.errors import MountainashError
 
-class UnknownDtypeError(ValueError):
+
+class DtypeError(MountainashError, ValueError):
+    """Base for canonical dtype-system errors."""
+
+
+class UnknownDtypeError(DtypeError):
     """The input could not be recognized as any dtype."""
 
 
-class DtypeMappingError(ValueError):
+class DtypeMappingError(DtypeError):
     """The canonical dtype has no mapping for the requested target/use."""

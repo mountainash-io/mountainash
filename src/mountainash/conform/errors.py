@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from typing import List
 
+from mountainash.core.errors import MountainashError
 
-class ConformError(Exception):
+
+class ConformError(MountainashError):
     """Base error for conformance failures."""
 
 

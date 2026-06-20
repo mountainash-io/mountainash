@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
 
 from dataclasses import dataclass
+from mountainash.core.errors import MountainashError
 
 
 
@@ -276,7 +277,7 @@ class KnownLimitation:
     workaround: str | None = None
 
 
-class BackendCapabilityError(Exception):
+class BackendCapabilityError(MountainashError):
     """Raised when a backend cannot handle an expression-typed argument.
 
     Wraps native backend errors with curated context from the known

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .dag import RelationDAG
 from .errors import (
+    DAGError,
     MissingResourceSchema,
     RelationDAGRequired,
     UnsupportedResourceFormat,
@@ -15,6 +16,7 @@ __all__ = [
     "RelationDAG",
     "RelationDAGProtocol",
     "ResourceRef",
+    "DAGError",
     "RelationDAGRequired",
     "MissingResourceSchema",
     "UnsupportedResourceFormat",
