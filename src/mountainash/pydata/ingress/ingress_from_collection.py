@@ -126,6 +126,13 @@ class IngressFromCollection(BasePydataIngressHandler):
         else:
             data_list = data
 
+        # An empty collection carries no column information. Returning a
+        # columnless (0, 0) frame is correct for the tabular path; fabricating
+        # a 'value' column (right for a *populated* scalar collection) is wrong
+        # for an empty one. See specs/2026-06-20-empty-resource-schema-loss-design.md.
+        if not data_list:
+            return pl.DataFrame()
+
         # Validate items are scalars
         for idx, item in enumerate(data_list):
             # Check if item is a complex type that should use other converters
