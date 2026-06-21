@@ -63,6 +63,7 @@ def test_path_based_empty_json_reconstructs_schema():
     child = _collect(pkg.to_relation_dag(), "child")
     assert child.shape == (0, 2)
     assert child.columns == ["date", "v"]
+    assert child.dtypes == [pl.String, pl.Int64]
 
 
 def test_raw_dict_schema_via_from_descriptor():
@@ -137,13 +138,18 @@ def test_uninspectable_columns_does_not_trigger_empty_frame():
 
     visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
     sentinel = NoMetadata()
-    # With available=None, the zero-column branch must NOT fire; behaviour falls
-    # through to today's path (which will operate on `sentinel`, not empty_frame).
-    # We assert empty_frame was NOT returned by checking the result is not a
-    # fresh typed-empty LazyFrame with the declared columns.
+    # Correct behaviour: with available=None (uninspectable), the zero-column
+    # branch MUST NOT fire (trigger is `available == []`, not `is None`/falsy).
+    # The call then falls through to normal conform dispatch, which operates on
+    # the metadata-less sentinel and raises. A loosened trigger would instead
+    # RETURN a typed-empty frame with the declared columns and NOT raise — so
+    # "returned without raising" is exactly the regression this test catches.
     try:
         result = visitor.apply_conform(sentinel, CHILD, empty_from_schema=True)
     except Exception:
-        result = None  # falling through to today's path may raise — that's fine
-    if result is not None and hasattr(result, "collect_schema"):
-        assert list(result.collect_schema().names()) != ["date", "v"]
+        return  # guard correctly did not reconstruct; fell through and raised
+    pytest.fail(
+        "apply_conform must not reconstruct from schema when columns are "
+        f"uninspectable (available is None); it returned {result!r}, which "
+        "means the zero-column trigger fired on a None (loosened from `== []`)."
+    )
