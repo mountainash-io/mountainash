@@ -8,6 +8,7 @@ import tempfile
 import polars as pl
 import pytest
 
+from mountainash.conform.errors import ConformError
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.datapackage import DataResource, DataPackage
@@ -98,7 +99,11 @@ def test_strict_modes_still_raise_on_empty(mode):
     pkg = DataPackage(name="t", resources=[
         DataResource(name="child", type="table", data=[], schema=spec),
     ])
-    with pytest.raises(Exception):
+    # Single-backend: strict-mode raising lives in the backend-agnostic
+    # _build_conform_exprs guard, so it need not be parametrized cross-backend
+    # (open-mode reconstruction IS covered cross-backend below). See
+    # cross-backend-test-coverage.md (Polars-only requires explicit justification).
+    with pytest.raises(ConformError):
         _collect(pkg.to_relation_dag(), "child")
 
 
