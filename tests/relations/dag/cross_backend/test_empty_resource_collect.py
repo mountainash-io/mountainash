@@ -117,41 +117,34 @@ def test_parity_with_eager_conform():
 
 # Canonical CONST_BACKEND names accepted by dag.collect(backend=...).
 # These are the three relation-system-level backends (not the 7 factory sub-variants
-# used by backend_factory.create()).  "polars" currently returns a SingleNodeQueryResult
-# in pytest (pre-existing DAG-collect bug tracked in the 9 known failures); we test
-# "narwhals" and "ibis" here to exercise the empty_from_schema reconstruction across
-# all three *distinct* relation systems, and mark "polars" xfail so the suite stays
-# honest — exactly as the sibling tests do for [polars].
-_COLLECT_BACKENDS = [
-    pytest.param("polars", marks=pytest.mark.xfail(
-        reason="pre-existing: dag.collect returns SingleNodeQueryResult for polars backend",
-        strict=True,
-    )),
-    "narwhals",
-    "ibis",
-]
+# used by backend_factory.create()).
+_COLLECT_BACKENDS = ["polars", "narwhals", "ibis"]
 
 
 def _columns(result) -> list[str]:
     """Return column names from a backend-native result as a sorted list.
 
-    Handles: polars LazyFrame (.collect()), narwhals DataFrame (.columns),
-    ibis expr (.execute() → pandas DataFrame).
+    Order matters: a polars LazyFrame exposes BOTH .collect() and .execute()
+    (the latter returns a non-subscriptable SingleNodeQueryResult), so .collect()
+    must be checked first. Ibis exprs have .execute() but not .collect().
     """
+    if hasattr(result, "collect"):
+        return sorted(result.collect().columns)
     if hasattr(result, "execute"):
         executed = result.execute()
         return sorted(executed.columns.tolist())
-    if hasattr(result, "collect"):
-        return sorted(result.collect().columns)
     return sorted(result.columns)
 
 
 def _nrows(result) -> int:
-    """Return row count from a backend-native result."""
-    if hasattr(result, "execute"):
-        return len(result.execute())
+    """Return row count from a backend-native result.
+
+    .collect() checked before .execute() (see _columns).
+    """
     if hasattr(result, "collect"):
         return result.collect().height
+    if hasattr(result, "execute"):
+        return len(result.execute())
     return result.height if hasattr(result, "height") else len(result)
 
 
@@ -168,6 +161,10 @@ def test_empty_resource_collect_cross_backend(backend_name):
     path for every relation-system backend without needing a pre-built backend-native
     empty frame — the frame is built from the TypeSpec, which is exactly the defect
     that Tasks 1-5 fix.
+
+    Note: the helper functions ``_columns`` and ``_nrows`` check ``.collect()`` before
+    ``.execute()`` because a polars LazyFrame exposes both; taking the ``.execute()``
+    branch first would land on a non-subscriptable ``SingleNodeQueryResult``.
     """
     pkg = DataPackage(
         name="t",
