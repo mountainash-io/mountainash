@@ -115,6 +115,76 @@ def test_parity_with_eager_conform():
     assert dag_result.shape == eager.shape
 
 
+# Canonical CONST_BACKEND names accepted by dag.collect(backend=...).
+# These are the three relation-system-level backends (not the 7 factory sub-variants
+# used by backend_factory.create()).  "polars" currently returns a SingleNodeQueryResult
+# in pytest (pre-existing DAG-collect bug tracked in the 9 known failures); we test
+# "narwhals" and "ibis" here to exercise the empty_from_schema reconstruction across
+# all three *distinct* relation systems, and mark "polars" xfail so the suite stays
+# honest — exactly as the sibling tests do for [polars].
+_COLLECT_BACKENDS = [
+    pytest.param("polars", marks=pytest.mark.xfail(
+        reason="pre-existing: dag.collect returns SingleNodeQueryResult for polars backend",
+        strict=True,
+    )),
+    "narwhals",
+    "ibis",
+]
+
+
+def _columns(result) -> list[str]:
+    """Return column names from a backend-native result as a sorted list.
+
+    Handles: polars LazyFrame (.collect()), narwhals DataFrame (.columns),
+    ibis expr (.execute() → pandas DataFrame).
+    """
+    if hasattr(result, "execute"):
+        executed = result.execute()
+        return sorted(executed.columns.tolist())
+    if hasattr(result, "collect"):
+        return sorted(result.collect().columns)
+    return sorted(result.columns)
+
+
+def _nrows(result) -> int:
+    """Return row count from a backend-native result."""
+    if hasattr(result, "execute"):
+        return len(result.execute())
+    if hasattr(result, "collect"):
+        return result.collect().height
+    return result.height if hasattr(result, "height") else len(result)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _COLLECT_BACKENDS)
+def test_empty_resource_collect_cross_backend(backend_name):
+    """Empty resource with a declared schema reconstructs typed-empty frame on every backend.
+
+    Uses inline ``data=[]`` — the path that triggers
+    ``apply_conform(empty_from_schema=True)`` inside the ResourceReadRelNode visitor.
+    The DAG visitor is routed to the target relation system via the ``backend=`` kwarg
+    on ``dag.collect()``, which accepts canonical CONST_BACKEND names (``"polars"``,
+    ``"narwhals"``, ``"ibis"``).  This exercises the full schema-reconstruction code
+    path for every relation-system backend without needing a pre-built backend-native
+    empty frame — the frame is built from the TypeSpec, which is exactly the defect
+    that Tasks 1-5 fix.
+    """
+    pkg = DataPackage(
+        name="t",
+        resources=[
+            DataResource(name="child", type="table", data=[], schema=CHILD),
+        ],
+    )
+    dag = pkg.to_relation_dag()
+    result = dag.collect("child", backend=backend_name)
+    assert _columns(result) == sorted(["date", "v"]), (
+        f"[{backend_name}] expected columns ['date', 'v'], got {_columns(result)}"
+    )
+    assert _nrows(result) == 0, (
+        f"[{backend_name}] expected 0 rows, got {_nrows(result)}"
+    )
+
+
 def test_uninspectable_columns_does_not_trigger_empty_frame():
     # available is None (no collect_schema/columns) must NOT build from schema.
     from mountainash.relations.core.unified_visitor.relation_visitor import (
