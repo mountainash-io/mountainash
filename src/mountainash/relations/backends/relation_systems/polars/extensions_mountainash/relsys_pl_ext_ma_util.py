@@ -180,6 +180,12 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
             return pl.read_parquet(io.BytesIO(facade_read_bytes(path)), **kwargs).lazy()
         return pl.scan_parquet(path, **kwargs)
 
+    def empty_frame(self, spec: Any) -> pl.LazyFrame:
+        """Typed-empty LazyFrame with the schema's declared columns/dtypes."""
+        from mountainash.typespec.converters import to_polars_schema
+
+        return pl.DataFrame(schema=to_polars_schema(spec)).lazy()
+
     @staticmethod
     def _read_inline(resource: Any) -> pl.LazyFrame:
         from mountainash.pydata.ingress.pydata_ingress import PydataIngress
