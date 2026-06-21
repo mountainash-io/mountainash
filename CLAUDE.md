@@ -122,6 +122,7 @@ Each category has `core/` (cross-cutting) and module-specific subdirectories. Se
 | cross-backend-test-coverage.md | ENFORCED | Every new expression test must be cross-backend parametrized; Polars-only tests require explicit justification |
 | file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
 | import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends |
+| typed-error-hierarchy.md | ADOPTED | MountainashError root; hybrid hierarchy (domain base where ≥2 errors); builtin-compat via MI; exceptions.py façade; boy-scout migration ratchet |
 | closed-by-default-verification.md | ADOPTED | Verification systems must fail on undiscovered items, not silently skip |
 
 ### h. Backlog
