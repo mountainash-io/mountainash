@@ -25,3 +25,31 @@ def test_polars_empty_frame_typed():
     assert df.shape == (0, 2)
     assert df.columns == ["date", "v"]
     assert df.dtypes == [pl.String, pl.Int64]
+
+
+def test_ibis_empty_frame_typed():
+    import ibis
+    from mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util import (
+        MountainashIbisExtensionRelationSystem,
+    )
+
+    t = MountainashIbisExtensionRelationSystem().empty_frame(SPEC)
+    df = t.execute()
+    assert list(df.columns) == ["date", "v"]
+    assert len(df) == 0
+    # dtype parity: string-ish and integer-ish (exact ibis/pandas dtype tolerated)
+    schema = t.schema()
+    assert schema["date"].is_string()
+    assert schema["v"].is_integer()
+
+
+def test_narwhals_empty_frame_typed():
+    import narwhals as nw
+    from mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util import (
+        MountainashNarwhalsExtensionRelationSystem,
+    )
+
+    frame = MountainashNarwhalsExtensionRelationSystem().empty_frame(SPEC)
+    native = nw.to_native(frame)
+    assert list(frame.columns) == ["date", "v"]
+    assert frame.shape == (0, 2)

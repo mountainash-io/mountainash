@@ -122,3 +122,12 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         lf = MountainashPolarsExtensionRelationSystem().read_resource(resource)
         return ibis.memtable(lf.collect().to_pandas())
+
+    def empty_frame(self, spec: Any) -> ir.Table:
+        """Typed-empty Ibis table, via the same Polars→Ibis path as read_resource."""
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
+        )
+
+        lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
+        return ibis.memtable(lf.collect().to_pandas())

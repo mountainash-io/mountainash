@@ -105,3 +105,14 @@ class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSys
 
         lf = MountainashPolarsExtensionRelationSystem().read_resource(resource)
         return nw.from_native(lf.collect(), eager_only=True)
+
+    def empty_frame(self, spec: Any) -> Any:
+        """Typed-empty Narwhals frame, via the same Polars→Narwhals path as read_resource."""
+        import narwhals as nw
+
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
+        )
+
+        lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
+        return nw.from_native(lf.collect(), eager_only=True)
