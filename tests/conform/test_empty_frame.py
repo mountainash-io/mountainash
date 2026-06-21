@@ -50,6 +50,7 @@ def test_narwhals_empty_frame_typed():
     )
 
     frame = MountainashNarwhalsExtensionRelationSystem().empty_frame(SPEC)
-    native = nw.to_native(frame)
     assert list(frame.columns) == ["date", "v"]
     assert frame.shape == (0, 2)
+    assert frame.schema["date"] == nw.String
+    assert frame.schema["v"] == nw.Int64
