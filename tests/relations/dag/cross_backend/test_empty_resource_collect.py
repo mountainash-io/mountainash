@@ -50,3 +50,100 @@ def test_inline_empty_resource_reconstructs_schema():
     parent = _collect(dag, "parent")
     assert parent.shape == (1, 2)
     assert parent.columns == ["date", "total"]
+
+
+def test_path_based_empty_json_reconstructs_schema():
+    d = tempfile.mkdtemp()
+    jp = os.path.join(d, "child.json")
+    with open(jp, "w") as f:
+        json.dump([], f)
+    pkg = DataPackage(name="t", resources=[
+        DataResource(name="child", type="table", path=jp, format="json", schema=CHILD),
+    ])
+    child = _collect(pkg.to_relation_dag(), "child")
+    assert child.shape == (0, 2)
+    assert child.columns == ["date", "v"]
+
+
+def test_raw_dict_schema_via_from_descriptor():
+    # table_schema is a RAW Frictionless dict, not an authored TypeSpec.
+    descriptor = {
+        "name": "t",
+        "resources": [{
+            "name": "child", "type": "table", "data": [],
+            "schema": {
+                "fields": [
+                    {"name": "date", "type": "string"},
+                    {"name": "v", "type": "integer"},
+                ],
+                "primaryKey": ["date", "v"],
+                "fieldsMatch": "open",
+            },
+        }],
+    }
+    pkg = DataPackage.from_descriptor(descriptor)
+    child = _collect(pkg.to_relation_dag(), "child")
+    assert child.shape == (0, 2)
+    assert child.columns == ["date", "v"]
+
+
+@pytest.mark.parametrize("mode", ["exact", "equal", "subset", "partial"])
+def test_strict_modes_still_raise_on_empty(mode):
+    spec = TypeSpec(
+        fields=[FieldSpec(name="date", type=UniversalType.STRING),
+                FieldSpec(name="v", type=UniversalType.INTEGER)],
+        primary_key=["date", "v"], fields_match=mode,
+    )
+    pkg = DataPackage(name="t", resources=[
+        DataResource(name="child", type="table", data=[], schema=spec),
+    ])
+    with pytest.raises(Exception):
+        _collect(pkg.to_relation_dag(), "child")
+
+
+def test_parity_with_eager_conform():
+    import mountainash as ma
+    empty_typed = pl.DataFrame(schema={"date": pl.Utf8, "v": pl.Int64})
+    eager = ma.relation(empty_typed).conform(CHILD).to_polars()
+    eager = eager.collect() if hasattr(eager, "collect") else eager
+    pkg = DataPackage(name="t", resources=[
+        DataResource(name="child", type="table", data=[], schema=CHILD)])
+    dag_result = _collect(pkg.to_relation_dag(), "child")
+    assert dag_result.columns == eager.columns
+    assert dag_result.dtypes == eager.dtypes
+    assert dag_result.shape == eager.shape
+
+
+def test_uninspectable_columns_does_not_trigger_empty_frame():
+    # available is None (no collect_schema/columns) must NOT build from schema.
+    from mountainash.relations.core.unified_visitor.relation_visitor import (
+        UnifiedRelationVisitor,
+    )
+    from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+        MountainashPolarsExtensionRelationSystem,
+    )
+    from mountainash.expressions.core.unified_visitor.visitor import (
+        UnifiedExpressionVisitor,
+    )
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
+
+    relation_system = MountainashPolarsExtensionRelationSystem()
+    expression_system_cls = get_expression_system(CONST_BACKEND.POLARS)
+    expr_visitor = UnifiedExpressionVisitor(expression_system_cls())
+
+    class NoMetadata:
+        """A native object exposing neither collect_schema nor columns."""
+
+    visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
+    sentinel = NoMetadata()
+    # With available=None, the zero-column branch must NOT fire; behaviour falls
+    # through to today's path (which will operate on `sentinel`, not empty_frame).
+    # We assert empty_frame was NOT returned by checking the result is not a
+    # fresh typed-empty LazyFrame with the declared columns.
+    try:
+        result = visitor.apply_conform(sentinel, CHILD, empty_from_schema=True)
+    except Exception:
+        result = None  # falling through to today's path may raise — that's fine
+    if result is not None and hasattr(result, "collect_schema"):
+        assert list(result.collect_schema().names()) != ["date", "v"]
