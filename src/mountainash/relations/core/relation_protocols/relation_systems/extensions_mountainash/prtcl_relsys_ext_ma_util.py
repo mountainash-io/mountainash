@@ -53,3 +53,13 @@ class MountainashExtensionRelationSystemProtocol(Protocol):
         Each backend implements its own file I/O strategy.
         """
         ...
+
+    def empty_frame(self, spec: Any) -> Any:
+        """Build a typed-empty (0, N) native frame from a TypeSpec.
+
+        Used by the resource-read path to materialise a zero-row resource
+        whose source carried no column information, reconstructing the
+        declared columns/dtypes from the schema. Accepts ONLY a TypeSpec
+        (callers convert raw Frictionless dicts first).
+        """
+        ...

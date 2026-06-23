@@ -20,7 +20,9 @@ def _visit_ref_rel(node: Any, visitor: Any) -> Any:
 def _visit_resource_read_rel(node: Any, visitor: Any) -> Any:
     out = visitor.backend.read_resource(node.resource)
     if node.resource.table_schema is not None:
-        out = visitor.apply_conform(out, node.resource.table_schema)
+        out = visitor.apply_conform(
+            out, node.resource.table_schema, empty_from_schema=True
+        )
     return out
 
 

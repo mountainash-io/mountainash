@@ -141,7 +141,7 @@ class UnifiedRelationVisitor:
         method = getattr(self.backend, method_name)
         return method(relation, **node.options)
 
-    def apply_conform(self, native: Any, schema: Any) -> Any:
+    def apply_conform(self, native: Any, schema: Any, *, empty_from_schema: bool = False) -> Any:
         """Apply conform from a TypeSpec or raw Frictionless schema dict.
 
         Uses the shared _build_conform_exprs helper to build expressions,
@@ -173,6 +173,14 @@ class UnifiedRelationVisitor:
             available = None
 
         conform_result = _build_conform_exprs(schema, available_columns=available)
+
+        # Zero-column reconstruction (resource-read path only). The fields_match
+        # guard above has already run and raised for strict modes; only the
+        # tolerant modes (open/superset) reach here with a zero-column read.
+        # MUST be `available == []` (known-zero-columns), never None
+        # (uninspectable) and never falsy — see design doc finding 3.
+        if empty_from_schema and available == [] and schema.fields:
+            return self.backend.empty_frame(schema)
 
         use_open = conform_result.fields_match == "open"
 
