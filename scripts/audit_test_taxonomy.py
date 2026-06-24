@@ -21,6 +21,8 @@ from selection.tiers import TIERS, resolve_tier  # noqa: E402
 # Format: name -> "reason (Since YYYY-MM-DD)". Keep empty unless justified.
 KNOWN_UNUSED_MARKERS: dict[str, str] = {
     "argument_types": "Applied programmatically by tests/expressions/argument_types/conftest.py via item.add_marker(); not detectable by static @pytest.mark scan (Since 2026-06-24)",
+    "slow": "Reserved taxonomy flag — spec Global Constraints; orthogonal flag not yet applied to any test (Since 2026-06-24)",
+    "perf": "Reserved taxonomy flag — spec Global Constraints; used by Task 9 merge-queue CI job (-m 'not perf'); not yet applied to any test (Since 2026-06-24)",
 }
 
 
