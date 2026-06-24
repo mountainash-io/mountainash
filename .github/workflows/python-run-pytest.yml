@@ -56,16 +56,21 @@ jobs:
         id: sel
         run: |
           if [ "${{ github.event.inputs.test_scope }}" = "full" ]; then
-            echo "args=tests" >> $GITHUB_OUTPUT
-            echo "scope=full" >> $GITHUB_OUTPUT
+            ARGS="tests"
+            SCOPE="full"
           else
+            # Run the driver with plain python (+ pyyaml) — NOT `hatch run`,
+            # whose env banner would pollute the captured value. `tail -n1`
+            # keeps only the driver's single output line as belt-and-suspenders.
+            python -m pip install --quiet pyyaml
             BASE="origin/${{ github.base_ref || 'develop' }}"
-            git fetch origin "${{ github.base_ref || 'develop' }}" --depth=1 || true
-            ARGS=$(hatch run test_github:python scripts/select_tests.py --base "$BASE")
-            echo "args=$ARGS" >> $GITHUB_OUTPUT
-            echo "scope=pr" >> $GITHUB_OUTPUT
+            git fetch origin "${{ github.base_ref || 'develop' }}" || true
+            ARGS=$(python scripts/select_tests.py --base "$BASE" | tail -n1)
+            SCOPE="pr"
           fi
-          echo "Selected: $(cat $GITHUB_OUTPUT)"
+          echo "Selected scope=$SCOPE args=$ARGS"
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+          echo "scope=$SCOPE" >> "$GITHUB_OUTPUT"
 
       - name: Run selected tests
         env:
