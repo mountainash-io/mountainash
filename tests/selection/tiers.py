@@ -14,6 +14,7 @@ _TIER_OVERRIDES: dict[str, str] = {
     "tests/core/test_compile_smoke.py": "contract",            # 2026-06-21 wiring smoke
     "tests/core/test_rel_signature_conformance.py": "contract",
     "tests/core/test_rel_collect_smoke.py": "contract",
+    "tests/test_exceptions_facade.py": "unit",                 # 2026-06-24 top-level facade smoke
 }
 
 # Ordered substring rules; first match wins. Most specific first.
@@ -45,6 +46,9 @@ _PATH_RULES: tuple[tuple[str, str], ...] = (
     ("tests/core/", "unit"),
     ("tests/graph/", "unit"),
     ("tests/alignment/", "contract"),
+    ("tests/scripts/", "unit"),        # 2026-06-24 script unit tests (catalog renderer, drift guards)
+    ("tests/fixtures/", "unit"),       # 2026-06-24 self-tests for test fixture infrastructure
+    ("tests/selection/", "contract"),  # 2026-06-24 taxonomy audit tests are contract-level
 )
 
 

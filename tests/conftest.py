@@ -526,42 +526,25 @@ def reset_between_tests():
 # =============================================================================
 
 def pytest_collection_modifyitems(config, items):
-    """
-    Modify test items during collection.
+    """Assign exactly one tier marker per test; record closed-by-default violations.
 
-    Auto-applies markers based on test path:
-    - tests/integration/* → @pytest.mark.integration
-    - tests/*/cross_backend/* → @pytest.mark.cross_backend
-
-    Auto-skips tests with known external issues:
-    - pandas: Visitor factory doesn't support pandas backend yet
-    - ibis-duckdb: External DuckDB dependency incompatibility
+    - Explicit tier markers win. >1 tier marker is a violation (spec: exactly one).
+    - Unmarked items get resolve_tier(); None means unclassified → violation.
     """
+    from selection.tiers import TIERS, resolve_tier
+
+    untagged, multi = [], []
     for item in items:
-        # Get test file path
-        test_path = str(item.fspath)
-
-        # Auto-apply markers based on directory
-        if "/integration/" in test_path:
-            item.add_marker(pytest.mark.integration)
-        elif "/cross_backend/" in test_path:
-            item.add_marker(pytest.mark.cross_backend)
-
-        # Auto-apply feature markers based on filename
-        test_name = item.nodeid.lower()
-        if "temporal" in test_name:
-            item.add_marker(pytest.mark.temporal)
-        if "arithmetic" in test_name:
-            item.add_marker(pytest.mark.arithmetic)
-        if "string" in test_name:
-            item.add_marker(pytest.mark.string)
-
-        # Auto-mark tests with known external issues
-        # Check if test is parametrized with backend_name
-        if hasattr(item, 'callspec') and 'backend_name' in item.callspec.params:
-            backend_name = item.callspec.params['backend_name']
-
-            # DuckDB dependency issue RESOLVED! ✅
-            # Issue was fixed by updating dependencies
-            # Previous blocker: module 'duckdb' has no attribute 'functional'
-            # All 110+ DuckDB tests now pass
+        existing = [m.name for m in item.iter_markers() if m.name in TIERS]
+        if len(existing) > 1:
+            multi.append(item.nodeid)
+            continue
+        if existing:
+            continue  # exactly one explicit tier marker
+        tier = resolve_tier(item.nodeid)
+        if tier is None:
+            untagged.append(item.nodeid)
+        else:
+            item.add_marker(getattr(pytest.mark, tier))
+    config._ma_tier_untagged = untagged
+    config._ma_tier_multi = multi
