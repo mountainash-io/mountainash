@@ -25,9 +25,14 @@ def test_unknown_scope_falls_back_to_full():
     assert resolve_backend_scope("nonsense") == list(REGISTRY)
 
 
-def test_pr_scope_filters_parametrize_ids_correctly(pytester):
+def test_pr_scope_filters_parametrize_ids_correctly(pytester, monkeypatch):
     # A backend-specific xfail must stay attached to the right backend param
     # when the matrix is scope-filtered — no id shifting / misattribution.
+    # Strip coverage subprocess hooks so the inner pytest child does not write
+    # statement-mode coverage data that can't combine with the parent's branch
+    # data (pytest-cov + parallel=true sets COVERAGE_PROCESS_START).
+    monkeypatch.delenv("COVERAGE_PROCESS_START", raising=False)
+    monkeypatch.delenv("COVERAGE_FILE", raising=False)
     tests_dir = str(__import__('pathlib').Path(__file__).parent.parent)
     pytester.makeconftest(
         "import sys; sys.path.insert(0, r'%s')\n"

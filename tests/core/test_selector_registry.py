@@ -1,3 +1,4 @@
+import os
 import pathlib
 import subprocess
 import pytest
@@ -9,10 +10,20 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 REG = load_registry()
 
 
+def _coverage_free_env() -> dict[str, str]:
+    # Strip coverage subprocess hooks so a collect-only `pytest` child does not
+    # write statement-mode coverage data that can't combine with the parent's
+    # branch data (pytest-cov + parallel=true sets COVERAGE_PROCESS_START).
+    env = dict(os.environ)
+    env.pop("COVERAGE_PROCESS_START", None)
+    env.pop("COVERAGE_FILE", None)
+    return env
+
+
 def _collects_at_least_one(path: str) -> bool:
     proc = subprocess.run(
         ["python", "-m", "pytest", path, "--co", "-q", "-p", "no:cacheprovider"],
-        cwd=ROOT, capture_output=True, text=True,
+        cwd=ROOT, capture_output=True, text=True, env=_coverage_free_env(),
     )
     return any("::" in ln for ln in proc.stdout.splitlines())
 

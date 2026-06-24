@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import configparser
 import dataclasses
+import os
 import pathlib
 import re
 import subprocess
@@ -34,10 +35,20 @@ class AuditResult:
     matrix: dict[tuple[str, str], int]
 
 
+def _coverage_free_env() -> dict[str, str]:
+    # Strip coverage subprocess hooks so a collect-only `pytest` child does not
+    # write statement-mode coverage data that can't combine with the parent's
+    # branch data (pytest-cov + parallel=true sets COVERAGE_PROCESS_START).
+    env = dict(os.environ)
+    env.pop("COVERAGE_PROCESS_START", None)
+    env.pop("COVERAGE_FILE", None)
+    return env
+
+
 def _collect_nodeids() -> list[str]:
     proc = subprocess.run(
         ["python", "-m", "pytest", "tests", "--co", "-q", "-p", "no:cacheprovider"],
-        cwd=ROOT, capture_output=True, text=True,
+        cwd=ROOT, capture_output=True, text=True, env=_coverage_free_env(),
     )
     if proc.returncode != 0:
         raise RuntimeError(
