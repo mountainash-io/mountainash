@@ -147,6 +147,12 @@ test-changed = [
     "coverage report --show-missing",
 ]
 
+# Run only tests affected by local changes vs develop (full backend scope).
+affected = "pytest $(python scripts/select_tests.py --base develop)"
+
+# Taxonomy + selector audits (the contract-tier guards, run directly).
+audit-taxonomy = "python scripts/audit_test_taxonomy.py --strict"
+
 # Only changed files (without coverage)
 test-changed-quick = "pytest --picked"
 
