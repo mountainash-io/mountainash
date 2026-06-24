@@ -91,4 +91,22 @@ REGISTRY: dict[str, BackendSpec] = {
     "narwhals-lazy":   BackendSpec("narwhals-lazy",   "narwhals",     "lazy",    _build_narwhals_polars_lazy),
 }
 
-ALL_BACKENDS: list[str] = [k for k in REGISTRY]
+import os
+
+PR_BACKENDS: list[str] = ["polars", "narwhals-polars", "ibis-duckdb"]
+
+
+def resolve_backend_scope(scope: str) -> list[str]:
+    """Return the backend names active for a scope.
+
+    'pr' → one representative per engine family (fast PR matrix).
+    Anything else (incl. 'full' or unset) → the entire registry (fail-safe).
+    """
+    if scope == "pr":
+        return list(PR_BACKENDS)
+    return list(REGISTRY)
+
+
+# Single chokepoint: every cross-backend test parametrises over ALL_BACKENDS,
+# so filtering here scopes the whole matrix with no per-file edits.
+ALL_BACKENDS: list[str] = resolve_backend_scope(os.environ.get("MA_BACKEND_SCOPE", "full"))

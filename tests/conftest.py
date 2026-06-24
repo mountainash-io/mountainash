@@ -8,6 +8,14 @@ This module provides:
 - Test markers for organizing test suites
 """
 
+# --- must run BEFORE `from fixtures.backend_registry import ...` ---
+import os, sys
+for _i, _a in enumerate(sys.argv):
+    if _a == "--ma-backend-scope" and _i + 1 < len(sys.argv):
+        os.environ["MA_BACKEND_SCOPE"] = sys.argv[_i + 1]
+    elif _a.startswith("--ma-backend-scope="):
+        os.environ["MA_BACKEND_SCOPE"] = _a.split("=", 1)[1]
+
 import pytest
 import polars as pl
 import pandas as pd
@@ -43,6 +51,19 @@ IBIS_BACKEND_TYPES = {
     "ibis-sqlite": "sqlite"
 }
 
+
+
+# =============================================================================
+# CLI Options
+# =============================================================================
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--ma-backend-scope", action="store", default=None,
+        choices=["pr", "full"],
+        help="Backend matrix scope: 'pr' (one per family) or 'full' (all). "
+             "Mirrors the MA_BACKEND_SCOPE env var; CLI wins.",
+    )
 
 
 # =============================================================================
