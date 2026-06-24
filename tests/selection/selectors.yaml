@@ -10,7 +10,7 @@ rules:
   - match: "src/mountainash/relations/"
     select: ["tests/relations", "tests/conform", "tests/integration"]
   - match: "src/mountainash/conform/"
-    select: ["tests/conform", "tests/integration"]
+    select: ["tests/conform", "tests/pydata", "tests/relations", "tests/integration"]
   - match: "src/mountainash/typespec/"
     select: ["tests/typespec", "tests/conform", "tests/integration"]
   - match: "src/mountainash/pydata/"

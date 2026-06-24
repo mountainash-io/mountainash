@@ -15,6 +15,9 @@ _TIER_OVERRIDES: dict[str, str] = {
     "tests/core/test_rel_signature_conformance.py": "contract",
     "tests/core/test_rel_collect_smoke.py": "contract",
     "tests/test_exceptions_facade.py": "unit",                 # 2026-06-24 top-level facade smoke
+    "tests/core/test_taxonomy_audit.py": "contract",           # 2026-06-24 self-test has pytestmark=contract; path rule gives unit
+    "tests/core/test_selector_registry.py": "contract",        # 2026-06-24 self-test has pytestmark=contract; path rule gives unit
+    "tests/fixtures/test_backend_scope.py": "contract",        # 2026-06-24 self-test has pytestmark=contract; path rule gives unit
 }
 
 # Ordered substring rules; first match wins. Most specific first.
