@@ -20,6 +20,10 @@ from fixtures.backend_registry import ALL_BACKENDS
 class TestDiff:
     def test_diff_basic(self, backend_name, backend_factory, collect_expr):
         """diff() computes consecutive differences."""
+        if backend_name == "narwhals-lazy":
+            pytest.xfail("narwhals-lazy: diff() is order-dependent, rejected on a LazyFrame")
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for the cumulative/diff WindowFunction")
         data = {"value": [10, 30, 25, 100, 80]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").diff()

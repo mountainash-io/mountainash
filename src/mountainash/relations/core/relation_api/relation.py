@@ -507,7 +507,12 @@ class Relation(RelationBase):
         result = self.compile()
         if is_polars_lazyframe(result):
             return result.collect()
-        if unwrap and (is_narwhals_dataframe(result) or is_narwhals_lazyframe(result)):
+        if is_narwhals_lazyframe(result):
+            # A narwhals LazyFrame is itself lazy; materialise it so the result
+            # is eager, as this method's contract promises. narwhals
+            # ``LazyFrame.collect()`` returns an eager narwhals ``DataFrame``.
+            result = result.collect()
+        if unwrap and is_narwhals_dataframe(result):
             return result.to_native()
         return result
 

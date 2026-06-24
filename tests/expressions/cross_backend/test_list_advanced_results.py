@@ -366,8 +366,17 @@ class TestListConcat:
 @pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListExplode:
     def test_explode_basic(self, backend_name, backend_factory):
-        if backend_name == "polars":
-            pytest.xfail("Polars expression-level explode in multi-column select causes ShapeError")
+        if backend_name in ("polars", "polars-lazy"):
+            pytest.xfail(
+                "Polars expression-level explode in a multi-column select "
+                "causes ShapeError on both the eager and lazy engines: "
+                "exploding `arr` yields 6 rows while the un-exploded sibling "
+                "`id` stays at 3, and Polars cannot align them in select "
+                "context (polars.exceptions.ShapeError: Series length 3 "
+                "doesn't match the DataFrame height of 6). Raw "
+                "pl.DataFrame(...).select(col('id'), col('arr').explode()) "
+                "raises the identical error."
+            )
         if backend_name == "narwhals-polars":
             pytest.xfail("list.explode() not supported on narwhals-polars")
         data = {"id": [1, 2, 3], "arr": [[10, 20], [30], [40, 50, 60]]}

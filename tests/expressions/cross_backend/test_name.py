@@ -22,13 +22,17 @@ from fixtures.backend_registry import ALL_BACKENDS
 # =============================================================================
 
 def get_column_names(df: Any, backend_name: str) -> List[str]:
-    """Extract column names from a DataFrame for any backend."""
+    """Extract column names from a DataFrame for any backend.
+
+    Capability-based so it covers eager and lazy frames uniformly:
+    polars/narwhals frames (eager or lazy) expose ``collect_schema()``;
+    ibis Tables and pandas expose ``.columns`` directly.
+    """
     if backend_name.startswith("ibis-"):
         return list(df.columns)
-    elif backend_name in ("polars", "pandas"): #  "narwhals" oroginally xfailed
-        return df.columns if hasattr(df, 'columns') else list(df.schema.names())
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    if hasattr(df, "collect_schema"):  # polars/narwhals DataFrame or LazyFrame
+        return list(df.collect_schema().names())
+    return list(df.columns)  # pandas
 
 
 def select_expr(df: Any, backend_expr: Any, backend_name: str) -> Any:
@@ -41,11 +45,16 @@ def select_expr(df: Any, backend_expr: Any, backend_name: str) -> Any:
 
 
 def get_values_from_result(result: Any, column: str, backend_name: str) -> List:
-    """Extract values from result by column name."""
+    """Extract values from result by column name.
+
+    Lazy frames (polars-lazy / narwhals-lazy) can't be subscripted, so
+    materialise them first via ``collect()``.
+    """
     if backend_name.startswith("ibis-"):
         return result[column].execute().tolist()
-    else:
-        return result[column].to_list()
+    if hasattr(result, "collect"):  # polars/narwhals LazyFrame
+        result = result.collect()
+    return result[column].to_list()
 
 
 # =============================================================================

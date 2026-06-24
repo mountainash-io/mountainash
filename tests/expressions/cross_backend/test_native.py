@@ -129,7 +129,7 @@ class TestNarwhalsNativeExpressions:
     def test_native_narwhals_passthrough(self, backend_factory, get_result_count):
         """Native Narwhals expression should pass through unchanged."""
         data = {"a": [1, 5, 10, 15, 20], "b": ["x", "y", "z", "w", "v"]}
-        df = backend_factory.create(data, "narwhals")
+        df = backend_factory.create(data, "narwhals-polars")
 
         # Create native Narwhals expression
         native_expr = nw.col("a") > 5
@@ -141,13 +141,13 @@ class TestNarwhalsNativeExpressions:
         compiled = ma_expr.compile(df)
         result = df.filter(compiled)
 
-        count = get_result_count(result, "narwhals")
+        count = get_result_count(result, "narwhals-polars")
         assert count == 3, f"Expected 3 rows where a > 5, got {count}"
 
     def test_native_narwhals_with_abstract_and(self, backend_factory, get_result_count):
         """Native Narwhals expression combined with abstract via AND."""
         data = {"a": [1, 5, 10, 15, 20], "b": [10, 20, 30, 40, 50]}
-        df = backend_factory.create(data, "narwhals")
+        df = backend_factory.create(data, "narwhals-polars")
 
         # Native: a > 5
         # Abstract: b < 45
@@ -158,7 +158,7 @@ class TestNarwhalsNativeExpressions:
         compiled = combined.compile(df)
         result = df.filter(compiled)
 
-        count = get_result_count(result, "narwhals")
+        count = get_result_count(result, "narwhals-polars")
         assert count == 2, f"Expected 2 rows, got {count}"
 
 
@@ -270,7 +270,7 @@ class TestAutomaticNativeRecognition:
     def test_narwhals_native_auto_recognized(self, backend_factory, get_result_count):
         """Narwhals native expression auto-recognized in operand."""
         data = {"a": [1, 5, 10, 15, 20]}
-        df = backend_factory.create(data, "narwhals")
+        df = backend_factory.create(data, "narwhals-polars")
 
         # Pass native Narwhals expression directly WITHOUT ma.native()
         expr = ma.col("a").gt(5).and_(nw.col("a") < 18)
@@ -278,7 +278,7 @@ class TestAutomaticNativeRecognition:
         compiled = expr.compile(df)
         result = df.filter(compiled)
 
-        count = get_result_count(result, "narwhals")
+        count = get_result_count(result, "narwhals-polars")
         assert count == 2, f"Expected 2 rows, got {count}"
 
     def test_ibis_native_auto_recognized(self, backend_factory, get_result_count):

@@ -19,7 +19,7 @@ class TestComposeStringTrimExtended:
 
     def test_ltrim(self, backend_name, backend_factory, collect_expr):
         """Test ltrim removes leading spaces."""
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"):
             pytest.xfail(f"{backend_name}: Narwhals only has strip_chars() (both sides), no directional strip")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)
@@ -30,7 +30,7 @@ class TestComposeStringTrimExtended:
 
     def test_rtrim(self, backend_name, backend_factory, collect_expr):
         """Test rtrim removes trailing spaces."""
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
+        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"):
             pytest.xfail(f"{backend_name}: Narwhals only has strip_chars() (both sides), no directional strip")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)

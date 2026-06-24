@@ -194,7 +194,10 @@ class TestClip:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCot:
     def test_cot_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_BACKENDS:
+        # narwhals-lazy guarded explicitly (not via NARWHALS_BACKENDS): the other
+        # tests sharing that constant pass on narwhals-lazy, but cot needs tan(),
+        # which narwhals lacks on every variant including lazy.
+        if backend_name in NARWHALS_BACKENDS or backend_name == "narwhals-lazy":
             pytest.xfail("tan() not supported by Narwhals backend (cot = 1/tan)")
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("Ibis deferred type inference error in cot (1/tan) division")

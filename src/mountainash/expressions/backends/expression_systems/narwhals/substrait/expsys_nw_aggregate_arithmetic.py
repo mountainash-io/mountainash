@@ -162,10 +162,10 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
             Variance expression.
 
         Note:
-            Narwhals may not have var. Uses std squared as approximation.
+            narwhals var() defaults to ddof=1 (sample); returns null for an
+            all-null column, and works on a LazyFrame.
         """
-        # Narwhals doesn't have var - use std squared
-        return x.std().pow(nw.lit(2))
+        return x.var()
 
     def corr(
         self,
@@ -198,14 +198,14 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
             x: Expression to find mode.
 
         Returns:
-            Mode expression.
+            Mode expression (most frequent value; ties resolved by first()).
 
-        Raises:
-            NotImplementedError: Narwhals doesn't support mode.
+        Note:
+            narwhals ``.mode()`` is length-changing and ``.first()`` is
+            order-dependent, so this is rejected on a narwhals LazyFrame.
         """
-        raise NotImplementedError(
-            "mode() is not supported by the Narwhals backend."
-        )
+        # Mirror the Polars backend: mode() may tie; take the first.
+        return x.mode().first()
 
 
     def median(self, x: NarwhalsExpr, /) -> NarwhalsExpr:

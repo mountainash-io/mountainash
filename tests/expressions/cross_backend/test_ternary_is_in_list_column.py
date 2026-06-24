@@ -13,11 +13,13 @@ from fixtures.backend_registry import ALL_BACKENDS
 
 def _xfail_unsupported_backend(backend_name: str) -> None:
     """xfail backends that can't do list-column membership yet."""
-    if backend_name in ("narwhals-pandas", "narwhals-polars", "pandas"):
+    if backend_name in ("narwhals-pandas", "narwhals-polars", "narwhals-lazy", "pandas"):
         pytest.xfail(
             "narwhals (as of 2.19.0) types list.contains(item) as "
             "NonNestedLiteral; expression args rejected across all its "
-            "native backends. pandas relation backend routes through narwhals."
+            "native backends (eager + lazy). The Polars list namespace raises "
+            "TypeError: cannot create expression literal for value of type Expr. "
+            "pandas relation backend routes through narwhals."
         )
     if backend_name == "ibis-sqlite":
         pytest.xfail("SQLite has no native array/list column type.")

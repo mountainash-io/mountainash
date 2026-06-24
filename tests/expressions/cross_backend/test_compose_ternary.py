@@ -21,6 +21,14 @@ class TestComposeTernary:
                 "Polars type mismatch: fill_null on nullable i64 column produces i64, "
                 "but ternary comparison intermediate expects Boolean schema."
             )
+        if backend_name == "polars-lazy":
+            pytest.xfail(
+                "polars-lazy: optimizer enforces Boolean when()-condition dtype; "
+                "eager Polars coerces i64. .collect() raises "
+                "polars.exceptions.SchemaError: invalid series dtype: expected "
+                "Boolean, got i64 for series with name 'threshold'. Test passes "
+                "booleanizer=None so the operand is not booleanized."
+            )
         if backend_name in ("pandas", "narwhals-pandas"):
             pytest.xfail(
                 f"{backend_name}: pandas requires bool condition for where(), "

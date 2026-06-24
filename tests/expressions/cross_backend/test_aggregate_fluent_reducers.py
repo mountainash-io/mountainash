@@ -57,8 +57,6 @@ class TestFluentReducers:
         assert result["v"][1] == pytest.approx(1.4142135623730951), f"[{backend_name}]"
 
     def test_variance(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("Narwhals variance uses x.std().pow() which fails — nw.Expr has no .pow() method")
         result = _agg(self._df(backend_name, backend_factory), lambda c: c.variance())
         assert result["v"][0] == pytest.approx(1.0), f"[{backend_name}]"
         assert result["v"][1] == pytest.approx(2.0), f"[{backend_name}]"
@@ -66,8 +64,8 @@ class TestFluentReducers:
     def test_mode(self, backend_name, backend_factory):
         if backend_name.startswith("ibis-"):
             pytest.xfail("Ibis backends have no standard SQL mode aggregate")
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("Narwhals backend does not implement mode()")
+        if backend_name == "narwhals-lazy":
+            pytest.xfail("narwhals-lazy: mode()/any_value() are order-dependent/length-changing, rejected on a LazyFrame")
         df = backend_factory.create(
             {"g": ["a", "a", "a", "b"], "x": [1, 1, 2, 5]},
             backend_name,
@@ -83,6 +81,8 @@ class TestFluentReducers:
             assert b_val == 5, f"[{backend_name}]"
 
     def test_any_value(self, backend_name, backend_factory):
+        if backend_name == "narwhals-lazy":
+            pytest.xfail("narwhals-lazy: mode()/any_value() are order-dependent/length-changing, rejected on a LazyFrame")
         result = _agg(self._df(backend_name, backend_factory), lambda c: c.any_value())
         assert result["v"][0] in {1, 2, 3}, f"[{backend_name}]"
         assert result["v"][1] in {4, 6}, f"[{backend_name}]"

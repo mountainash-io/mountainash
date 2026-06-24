@@ -11,6 +11,24 @@ from fixtures.backend_registry import ALL_BACKENDS
 # BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
 
+def _xfail_known_cumulative_divergences(backend_name: str) -> None:
+    """xfail backends that cannot run cumulative window ops.
+
+    - narwhals-lazy: cum_sum/cum_max/cum_min are order-dependent expressions,
+      which narwhals rejects on a LazyFrame (eager narwhals handles them).
+    - ibis-polars: the Ibis Polars backend has no translation rule for the
+      cumulative WindowFunction (ibis-duckdb/ibis-sqlite compile it fine).
+    """
+    if backend_name == "narwhals-lazy":
+        pytest.xfail(
+            "narwhals-lazy: cumulative ops are order-dependent, rejected on a LazyFrame"
+        )
+    if backend_name == "ibis-polars":
+        pytest.xfail(
+            "ibis-polars: no translation rule for cumulative WindowFunction"
+        )
+
+
 # =============================================================================
 # Cross-backend: cum_sum basic
 # =============================================================================
@@ -20,6 +38,7 @@ from fixtures.backend_registry import ALL_BACKENDS
 class TestCumSum:
     def test_cum_sum_basic(self, backend_name, backend_factory, collect_expr):
         """cum_sum() computes running total."""
+        _xfail_known_cumulative_divergences(backend_name)
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_sum()
@@ -28,6 +47,7 @@ class TestCumSum:
 
     def test_cum_sum_reverse(self, backend_name, backend_factory, collect_expr):
         """cum_sum(reverse=True) computes from bottom to top."""
+        _xfail_known_cumulative_divergences(backend_name)
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_sum(reverse=True)
@@ -44,6 +64,7 @@ class TestCumSum:
 class TestCumMax:
     def test_cum_max_basic(self, backend_name, backend_factory, collect_expr):
         """cum_max() computes running maximum."""
+        _xfail_known_cumulative_divergences(backend_name)
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_max()
@@ -60,6 +81,7 @@ class TestCumMax:
 class TestCumMin:
     def test_cum_min_basic(self, backend_name, backend_factory, collect_expr):
         """cum_min() computes running minimum."""
+        _xfail_known_cumulative_divergences(backend_name)
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_min()

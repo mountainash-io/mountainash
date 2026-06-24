@@ -31,6 +31,19 @@ class TestWithRowIndex:
                 "upstream at ibis-project/ibis#10513. See "
                 "d.cross-backend/known-divergences.md §8."
             )
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals LazyFrame.with_row_index() requires an explicit "
+                "keyword-only `order_by=` argument because row order over a "
+                "lazy frame is undefined by design "
+                "(TypeError: LazyFrame.with_row_index() missing 1 required "
+                "keyword-only argument: 'order_by'). The eager/polars paths "
+                "assign indices in physical storage order with no order_by; "
+                "there is no column that recovers insertion order on a lazy "
+                "frame, so a 0..N-1 sequence matching the input row order is "
+                "not reproducible without changing data ordering — a genuine, "
+                "unavoidable backend limitation."
+            )
         data = {"name": ["a", "b", "c", "d"]}
         df = backend_factory.create(data, backend_name)
 

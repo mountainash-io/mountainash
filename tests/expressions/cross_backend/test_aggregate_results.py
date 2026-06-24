@@ -34,6 +34,20 @@ def _collect_agg(df, expr, alias="__value__"):
     return aggregated.item(alias)
 
 
+def _xfail_lazy_any_value(backend_name: str) -> None:
+    """xfail any_value() on narwhals-lazy.
+
+    any_value() is implemented via narwhals ``first()``, which is
+    order-dependent and therefore rejected on a narwhals LazyFrame. Eager
+    narwhals computes it fine, so this divergence is lazy-specific.
+    """
+    if backend_name == "narwhals-lazy":
+        pytest.xfail(
+            "narwhals-lazy: any_value() uses first(), an order-dependent "
+            "expression rejected on a LazyFrame"
+        )
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAggregateSum:
@@ -233,8 +247,6 @@ class TestAggregateStdDev:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAggregateVariance:
     def test_variance_default(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("narwhals: variance() uses Expr.pow() which Narwhals lacks")
         data = {"a": [2, 4, 4, 4, 5, 5, 7, 9]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").variance())
@@ -242,8 +254,6 @@ class TestAggregateVariance:
         assert actual == pytest.approx(4.571428571428571, rel=1e-6)
 
     def test_variance_sample_explicit(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("narwhals: variance() uses Expr.pow() which Narwhals lacks")
         data = {"a": [2, 4, 4, 4, 5, 5, 7, 9]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").variance(distribution="SAMPLE"))
@@ -254,8 +264,6 @@ class TestAggregateVariance:
             pytest.xfail("ibis-duckdb: cannot create tables with all-NULL columns")
         if backend_name in ("ibis-polars", "ibis-sqlite"):
             pytest.xfail("ibis: NullColumn has no 'var' attribute")
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("narwhals: variance() uses Expr.pow() which Narwhals lacks")
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").variance())
@@ -408,8 +416,11 @@ class TestAggregateLast:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAggregateMode:
     def test_mode_single_mode(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("mode() not supported by Narwhals backend")
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals-lazy: mode() is length-changing + first() is "
+                "order-dependent, both rejected on a LazyFrame"
+            )
         data = {"a": [1, 2, 2, 3, 3, 3, 4]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").mode())
@@ -420,8 +431,11 @@ class TestAggregateMode:
             assert actual == 3
 
     def test_mode_all_same(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("mode() not supported by Narwhals backend")
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals-lazy: mode() is length-changing + first() is "
+                "order-dependent, both rejected on a LazyFrame"
+            )
         data = {"a": [7, 7, 7, 7]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").mode())
@@ -431,8 +445,11 @@ class TestAggregateMode:
             assert actual == 7
 
     def test_mode_strings(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("mode() not supported by Narwhals backend")
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals-lazy: mode() is length-changing + first() is "
+                "order-dependent, both rejected on a LazyFrame"
+            )
         data = {"a": ["x", "y", "y", "z", "y"]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").mode())
@@ -489,18 +506,21 @@ class TestAggregateProduct:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAggregateAnyValue:
     def test_any_value_returns_valid_element(self, backend_name, backend_factory):
+        _xfail_lazy_any_value(backend_name)
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").any_value())
         assert actual in [10, 20, 30, 40, 50]
 
     def test_any_value_strings(self, backend_name, backend_factory):
+        _xfail_lazy_any_value(backend_name)
         data = {"a": ["alpha", "beta", "gamma"]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").any_value())
         assert actual in ["alpha", "beta", "gamma"]
 
     def test_any_value_with_nulls(self, backend_name, backend_factory):
+        _xfail_lazy_any_value(backend_name)
         data = {"a": [None, 20, None, 40]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").any_value())
@@ -508,6 +528,7 @@ class TestAggregateAnyValue:
         assert actual in [None, 20, 40]
 
     def test_any_value_all_nulls(self, backend_name, backend_factory):
+        _xfail_lazy_any_value(backend_name)
         if backend_name == "ibis-duckdb":
             pytest.xfail("ibis-duckdb: cannot create tables with all-NULL columns")
         if backend_name in ("ibis-polars", "ibis-sqlite"):

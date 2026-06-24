@@ -195,6 +195,8 @@ class TestCastInExpressions:
             values = result.to_pyarrow()["price_float"].to_pylist()
         else:
             result = df.select(backend_expr)
+            if hasattr(result, "collect"):
+                result = result.collect()
             values = result["price_float"].to_list()
         assert values == [100.0, 200.0, 300.0], f"[{backend_name}] Expected [100.0, 200.0, 300.0], got {values}"
 

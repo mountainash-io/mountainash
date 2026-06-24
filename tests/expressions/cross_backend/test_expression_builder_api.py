@@ -647,6 +647,8 @@ class TestRealWorldAPIPatterns:
             # Ibis returns a Table - need to execute to get result
             actual = result["total"].execute().tolist()
         else:
+            if hasattr(result, "collect"):
+                result = result.collect()
             actual = result["total"].to_list()
 
         expected = [110.0, 230.0, 360.0]

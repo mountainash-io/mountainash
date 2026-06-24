@@ -7,15 +7,16 @@ import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
+from fixtures.backend_registry import ALL_BACKENDS
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 
 # ---------------------------------------------------------------------------

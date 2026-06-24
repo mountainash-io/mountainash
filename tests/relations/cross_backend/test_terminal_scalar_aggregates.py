@@ -6,16 +6,17 @@ import pytest
 import mountainash as ma
 from mountainash.relations import relation
 
+from fixtures.backend_registry import ALL_BACKENDS
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 
 @pytest.mark.cross_backend
@@ -62,6 +63,11 @@ class TestScalarAggregates:
         assert relation(df).variance("x") == pytest.approx(1.0), f"[{backend_name}]"
 
     def test_any_value(self, backend_name, backend_factory):
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals-lazy: any_value() uses first(), an order-dependent "
+                "expression rejected on a LazyFrame"
+            )
         df = backend_factory.create({"x": [1, 2, 3, 4, 6]}, backend_name)
         val = relation(df).any_value("x")
         assert val in {1, 2, 3, 4, 6}, f"[{backend_name}]"

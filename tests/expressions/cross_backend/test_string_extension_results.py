@@ -14,7 +14,7 @@ from fixtures.backend_registry import ALL_BACKENDS
 #   strip both sides instead of only the requested side.
 
 IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
-NARWHALS_PANDAS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
+NARWHALS_PANDAS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
 
 
 @pytest.mark.cross_backend
@@ -138,7 +138,7 @@ class TestStrZfill:
 # Narwhals backends: strptime_date() and strptime_timestamp() are not supported.
 # Ibis backends: to_date returns datetime (with time=00:00) instead of date.
 
-NARWHALS_ALL_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
+NARWHALS_ALL_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
 
 
 @pytest.mark.cross_backend

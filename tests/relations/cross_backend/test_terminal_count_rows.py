@@ -7,16 +7,17 @@ import pytest
 import mountainash as ma
 from mountainash.relations import relation
 
+from fixtures.backend_registry import ALL_BACKENDS
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 
 @pytest.mark.cross_backend

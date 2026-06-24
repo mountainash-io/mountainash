@@ -10,15 +10,17 @@ import pytest
 
 import mountainash as ma
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
+
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 
 def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
@@ -283,11 +285,6 @@ class TestJoinAsof:
         (JoinRelNode has no `by` field, visitor hardcodes by=None).
         This is a known mountainash bug — we test without `by` here.
         """
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas"):
-            pytest.xfail(
-                "mountainash narwhals backend passes unsupported 'tolerance' kwarg "
-                "to DataFrame.join_asof() — known backend bug"
-            )
         if backend_name == "ibis-sqlite":
             pytest.xfail("ASOF joins are not supported by SQLite via Ibis")
         if backend_name == "ibis-duckdb":

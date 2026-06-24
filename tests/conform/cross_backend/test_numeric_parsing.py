@@ -7,7 +7,8 @@ import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
-POLARS_ONLY = ["polars"]
+# POLARS_ONLY = ["polars"]
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +62,7 @@ class TestBuildConformExprsNumericParsing:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDecimalChar:
     def test_comma_decimal(self, backend_name, backend_factory):
         df = backend_factory.create({"price": ["1,50", "2,99", "3,00"]}, backend_name)
@@ -95,7 +96,7 @@ class TestDecimalChar:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestGroupChar:
     def test_dot_thousands_separator(self, backend_name, backend_factory):
         df = backend_factory.create({"amount": ["1.000", "2.500", "10.000"]}, backend_name)
@@ -144,7 +145,7 @@ class TestGroupChar:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBareNumber:
     def test_strip_currency_prefix(self, backend_name, backend_factory):
         df = backend_factory.create({"price": ["$100", "$200", "$300"]}, backend_name)
@@ -194,7 +195,7 @@ class TestBareNumber:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCombinedNumericParsing:
     def test_european_format(self, backend_name, backend_factory):
         """European: 1.234,56 with groupChar=".", decimalChar=","."""

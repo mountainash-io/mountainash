@@ -10,15 +10,17 @@ import pytest
 
 import mountainash as ma
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
+
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
@@ -101,6 +103,11 @@ class TestWithRowIndex:
         df = backend_factory.create(
             {"a": [10, 20, 30]}, backend_name
         )
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals-lazy: LazyFrame.with_row_index() requires order_by; a "
+                "row index over an unordered lazy frame is ill-defined"
+            )
         result = ma.relation(df).with_row_index().to_dicts()
         assert result == [
             {"index": 0, "a": 10},
@@ -117,6 +124,11 @@ class TestWithRowIndex:
         df = backend_factory.create(
             {"a": [10, 20, 30]}, backend_name
         )
+        if backend_name == "narwhals-lazy":
+            pytest.xfail(
+                "narwhals-lazy: LazyFrame.with_row_index() requires order_by; a "
+                "row index over an unordered lazy frame is ill-defined"
+            )
         result = ma.relation(df).with_row_index(name="row_num").to_dicts()
         assert result == [
             {"row_num": 0, "a": 10},

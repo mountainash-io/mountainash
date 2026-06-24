@@ -6,16 +6,17 @@ import pytest
 import mountainash as ma
 from mountainash.relations.dag.dag import RelationDAG
 
+from fixtures.backend_registry import ALL_BACKENDS
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 
 def _extract_column(result, col: str) -> list:

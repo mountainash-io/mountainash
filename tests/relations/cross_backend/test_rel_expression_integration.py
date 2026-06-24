@@ -10,16 +10,17 @@ import pytest
 from mountainash import col, lit, when, coalesce, greatest, least
 from mountainash.relations import relation
 
+from fixtures.backend_registry import ALL_BACKENDS
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 SAMPLE_DATA = {
     "id": [1, 2, 3, 4, 5],
@@ -392,7 +393,7 @@ class TestFullPipeline:
 
 def _native_col_gt(backend_name, col_name, value):
     """Build a native backend expression: col_name > value."""
-    if backend_name == "polars":
+    if backend_name in ("polars", "polars-lazy"):
         return pl.col(col_name) > value
     elif backend_name.startswith("narwhals") or backend_name == "pandas":
         return nw.col(col_name) > value
@@ -403,7 +404,7 @@ def _native_col_gt(backend_name, col_name, value):
 
 def _native_upper(backend_name, col_name, alias):
     """Build a native backend expression: upper(col_name).alias(alias)."""
-    if backend_name == "polars":
+    if backend_name in ("polars", "polars-lazy"):
         return pl.col(col_name).str.to_uppercase().alias(alias)
     elif backend_name.startswith("narwhals") or backend_name == "pandas":
         return nw.col(col_name).str.to_uppercase().alias(alias)

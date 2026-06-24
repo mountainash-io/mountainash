@@ -10,15 +10,17 @@ import pytest
 
 import mountainash as ma
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-]
+from fixtures.backend_registry import ALL_BACKENDS
+
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-polars",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
 
 
 def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:

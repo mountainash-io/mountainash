@@ -12,6 +12,8 @@ Known divergences:
 - narwhals: percent_rank(), cume_dist(), ntile(), nth_value() not supported
 - narwhals: rank(method='dense'/'ordinal'/'average'/'max') not supported via method param
 - narwhals: Cannot apply .over() to elementwise (non-aggregate/non-window) expressions
+- narwhals-lazy: order-dependent window ops (lead/lag/shift/cum_*/diff/first_value/
+  last_value) raise InvalidOperationError on a LazyFrame; eager narwhals handles them
 """
 
 from __future__ import annotations
@@ -24,7 +26,25 @@ from fixtures.backend_registry import ALL_BACKENDS
 
 
 IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
-NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
+NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+# narwhals LazyFrame rejects order-dependent window expressions (lead/lag/shift/
+# cum_*/diff/first_value/last_value) that eager narwhals handles fine. This is a
+# narwhals-lazy-specific divergence, so it gets its own guard rather than joining
+# NARWHALS_BACKENDS (which would wrongly suppress the passing eager runs).
+NARWHALS_LAZY_BACKENDS = {"narwhals-lazy"}
+
+
+def _xfail_lazy_order_dependent(backend_name: str) -> None:
+    """xfail order-dependent window ops on narwhals-lazy.
+
+    narwhals raises ``InvalidOperationError`` for order-dependent expressions on
+    a LazyFrame (lead/lag/shift/cum_*/diff/first_value/last_value). Eager
+    narwhals computes them fine, so this divergence is lazy-specific.
+    """
+    if backend_name in NARWHALS_LAZY_BACKENDS:
+        pytest.xfail(
+            "narwhals-lazy: order-dependent window expression rejected on LazyFrame"
+        )
 
 
 @pytest.mark.cross_backend
@@ -178,6 +198,7 @@ class TestWindowLead:
         data = {"group": ["A", "A", "A", "B", "B", "B"],
                 "score": [10, 20, 30, 15, 25, 35]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").lead(1).over("group")
         result = (
             ma.relation(df)
@@ -193,6 +214,7 @@ class TestWindowLead:
         data = {"group": ["A", "A", "A", "A"],
                 "score": [10, 20, 30, 40]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").lead(2).over("group")
         result = (
             ma.relation(df)
@@ -214,6 +236,7 @@ class TestWindowLag:
         data = {"group": ["A", "A", "A", "B", "B", "B"],
                 "score": [10, 20, 30, 15, 25, 35]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").lag(1).over("group")
         result = (
             ma.relation(df)
@@ -229,6 +252,7 @@ class TestWindowLag:
         data = {"group": ["A", "A", "A", "A"],
                 "score": [10, 20, 30, 40]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").lag(2).over("group")
         result = (
             ma.relation(df)
@@ -250,6 +274,7 @@ class TestWindowShift:
         data = {"group": ["A", "A", "A", "A", "A"],
                 "score": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").shift(1).over("group")
         result = (
             ma.relation(df)
@@ -265,6 +290,7 @@ class TestWindowShift:
         data = {"group": ["A", "A", "A", "A", "A"],
                 "score": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").shift(-1).over("group")
         result = (
             ma.relation(df)
@@ -280,6 +306,7 @@ class TestWindowShift:
         data = {"group": ["A", "A", "A", "A", "A"],
                 "score": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").shift(2).over("group")
         result = (
             ma.relation(df)
@@ -301,6 +328,7 @@ class TestWindowFirstValue:
         data = {"group": ["A", "A", "A", "B", "B"],
                 "score": [10, 20, 30, 15, 25]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").first_value().over("group")
         result = (
             ma.relation(df)
@@ -322,6 +350,7 @@ class TestWindowLastValue:
         data = {"group": ["A", "A", "A", "B", "B"],
                 "score": [10, 20, 30, 15, 25]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("score").last_value().over("group")
         result = (
             ma.relation(df)
@@ -383,6 +412,7 @@ class TestWindowCumSum:
     def test_cum_sum_plain(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [1, 2, 3, 4, 5]}
         df = backend_factory.create(data, backend_name)
         result = (
@@ -398,6 +428,7 @@ class TestWindowCumSum:
         data = {"group": ["A", "A", "A", "B", "B"],
                 "val": [1, 2, 3, 10, 20]}
         df = backend_factory.create(data, backend_name)
+        _xfail_lazy_order_dependent(backend_name)
         expr = ma.col("val").cum_sum().over("group")
         result = (
             ma.relation(df)
@@ -416,6 +447,7 @@ class TestWindowCumMax:
     def test_cum_max_plain(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [3, 1, 4, 1, 5]}
         df = backend_factory.create(data, backend_name)
         result = (
@@ -434,6 +466,7 @@ class TestWindowCumMin:
     def test_cum_min_plain(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [5, 3, 4, 1, 2]}
         df = backend_factory.create(data, backend_name)
         result = (
@@ -452,6 +485,7 @@ class TestWindowCumCount:
     def test_cum_count_plain(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         result = (
@@ -464,6 +498,7 @@ class TestWindowCumCount:
     def test_cum_count_with_nulls(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [10, None, 30, None, 50]}
         df = backend_factory.create(data, backend_name)
         result = (
@@ -482,6 +517,7 @@ class TestWindowCumProd:
     def test_cum_prod_plain(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         result = (
@@ -500,6 +536,7 @@ class TestWindowDiff:
     def test_diff_basic(self, backend_name, backend_factory):
         if backend_name in IBIS_BACKENDS:
             pytest.xfail("ibis: no translation rule for WindowFunction")
+        _xfail_lazy_order_dependent(backend_name)
         data = {"a": [10, 20, 35, 50]}
         df = backend_factory.create(data, backend_name)
         result = (
