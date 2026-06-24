@@ -1,3 +1,5 @@
+pytest_plugins = ["pytester"]
+
 import pytest
 from fixtures.backend_registry import REGISTRY, PR_BACKENDS, resolve_backend_scope
 

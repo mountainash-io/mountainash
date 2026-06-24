@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
+import os
+
 import ibis
 import narwhals as nw
 import pandas as pd
@@ -90,8 +92,6 @@ REGISTRY: dict[str, BackendSpec] = {
     # "narwhals":        BackendSpec("narwhals",        "narwhals",     "eager",    _build_narwhals_polars),
     "narwhals-lazy":   BackendSpec("narwhals-lazy",   "narwhals",     "lazy",    _build_narwhals_polars_lazy),
 }
-
-import os
 
 PR_BACKENDS: list[str] = ["polars", "narwhals-polars", "ibis-duckdb"]
 
