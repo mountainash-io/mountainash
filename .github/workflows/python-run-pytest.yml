@@ -4,30 +4,26 @@ on:
   pull_request:
     paths:
       - "src/mountainash/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "hatch.toml"
+      - "pytest.ini"
+      - ".github/workflows/python-run-pytest.yml"
   workflow_dispatch:
     inputs:
-      fallback_branch:
-        description: "Fallback branch to use"
-        required: true
-        default: "develop"
-        type: choice
-        options:
-          - develop
-          - main
       test_scope:
-        description: "Test scope (smoke = ~2k tests, full = ~15k tests)"
-        required: true
-        default: "smoke"
+        description: "pr (affected, 3 backends) | full (everything, 9 backends)"
+        default: "pr"
         type: choice
-        options:
-          - smoke
-          - full
+        options: ["pr", "full"]
+  merge_group: {}
 
 permissions:
   contents: read
 
 jobs:
   test:
+    if: github.event_name != 'merge_group'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -36,16 +32,6 @@ jobs:
         python-version: ["3.12"]
 
     steps:
-      - name: Set fallback branch
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "FALLBACK_BRANCH=${{ github.event.inputs.fallback_branch }}" >> $GITHUB_ENV
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "FALLBACK_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
-          else
-            echo "FALLBACK_BRANCH=develop" >> $GITHUB_ENV
-          fi
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -66,25 +52,25 @@ jobs:
       - name: Create virtual environment
         run: hatch env create test_github
 
-      - name: Determine test scope
-        id: scope
+      - name: Compute affected selection
+        id: sel
         run: |
-          # Default to smoke for PRs; honour workflow_dispatch input otherwise.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            scope="${{ github.event.inputs.test_scope }}"
+          if [ "${{ github.event.inputs.test_scope }}" = "full" ]; then
+            echo "args=tests" >> $GITHUB_OUTPUT
+            echo "scope=full" >> $GITHUB_OUTPUT
           else
-            scope="smoke"
+            BASE="origin/${{ github.base_ref || 'develop' }}"
+            git fetch origin "${{ github.base_ref || 'develop' }}" --depth=1 || true
+            ARGS=$(hatch run test_github:python scripts/select_tests.py --base "$BASE")
+            echo "args=$ARGS" >> $GITHUB_OUTPUT
+            echo "scope=pr" >> $GITHUB_OUTPUT
           fi
-          echo "scope=$scope" >> $GITHUB_OUTPUT
-          echo "Running test scope: $scope"
+          echo "Selected: $(cat $GITHUB_OUTPUT)"
 
-      - name: Run Coverage Tests (smoke)
-        if: steps.scope.outputs.scope == 'smoke'
-        run: hatch run test_github:test-cov-smoke
-
-      - name: Run Coverage Tests (full)
-        if: steps.scope.outputs.scope == 'full'
-        run: hatch run test_github:test-cov-full
+      - name: Run selected tests
+        env:
+          MA_BACKEND_SCOPE: ${{ steps.sel.outputs.scope }}
+        run: hatch run test_github:test-cov ${{ steps.sel.outputs.args }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -94,3 +80,24 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
+
+  full-on-merge-queue:
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          check-latest: true
+
+      - run: pip install hatch
+
+      - run: hatch env create test_github
+
+      - env:
+          MA_BACKEND_SCOPE: full
+        run: hatch run test_github:test-cov tests -m "not perf"

@@ -1,0 +1,31 @@
+name: Nightly Full Tests
+
+on:
+  schedule:
+    - cron: "0 14 * * *"   # 14:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          check-latest: true
+
+      - run: pip install hatch
+
+      - run: hatch env create test_github
+
+      - name: Full suite, all backends
+        env:
+          MA_BACKEND_SCOPE: full
+        run: hatch run test_github:test-cov tests
