@@ -44,23 +44,6 @@ IBIS_BACKEND_TYPES = {
 }
 
 
-# =============================================================================
-# Test Markers Configuration
-# =============================================================================
-
-def pytest_configure(config):
-    """Register custom markers for test organization."""
-    config.addinivalue_line("markers", "unit: Unit tests (fast, isolated)")
-    config.addinivalue_line("markers", "integration: Integration tests")
-    config.addinivalue_line("markers", "backend: Backend-specific tests")
-    config.addinivalue_line("markers", "cross_backend: Cross-backend consistency tests")
-    config.addinivalue_line("markers", "temporal: Temporal operation tests")
-    config.addinivalue_line("markers", "arithmetic: Arithmetic operation tests")
-    config.addinivalue_line("markers", "string: String operation tests")
-    config.addinivalue_line("markers", "comparison: Comparison operation tests")
-    config.addinivalue_line("markers", "logical: Logical operation tests")
-    config.addinivalue_line("markers", "slow: Slow-running tests")
-
 
 # =============================================================================
 # Backend Name Fixtures
