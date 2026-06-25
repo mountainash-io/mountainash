@@ -276,3 +276,106 @@ class TestParityGuards:
         rel = ma.relation(df).conform(spec)
         inferred = _infer(rel)
         assert inferred["grade"] == D.STRING
+
+
+# ---------------------------------------------------------------------------
+# Dotted-source coverage
+# ---------------------------------------------------------------------------
+
+class TestDottedSource:
+    """Struct field access via dotted rename_from paths."""
+
+    def test_dotted_concrete_type_open_with_parity_oracle(self):
+        # Dotted source with a concrete declared type (U.INTEGER → D.I64).
+        # Open mode: struct root 'payload' is NOT tracked as a renamed_source
+        # (dotted roots are excluded from renamed_sources), so it survives.
+        df = pl.DataFrame({"payload": [{"id": 1, "tag": "x"}]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=U.INTEGER, rename_from="payload.id")],
+            fields_match="open",
+        )
+        rel = ma.relation(df).conform(spec)
+        inferred = _infer(rel)
+
+        # Spec field 'id' should be inferred as the concrete declared dtype.
+        assert inferred["id"] == D.I64
+        # Struct root 'payload' survives (dotted roots are NOT renamed_sources).
+        assert "payload" in inferred
+
+        # Parity oracle: inferred column set and concrete types must agree
+        # with what to_polars() actually produces.
+        actual = rel.to_polars().schema
+        assert set(inferred.keys()) == set(actual.names())
+        # Verify the concrete-typed 'id' field agrees with the registry mapping.
+        assert inferred["id"] == _polars_schema_canonical(actual)["id"]
+
+    def test_dotted_any_yields_unknown_no_oracle(self):
+        # Dotted source with U.ANY → UNDETERMINED → SchemaTypeStatus.UNKNOWN.
+        # This is a deliberate honest degradation: inference cannot model nested
+        # field types pre-compile (the struct root type ≠ the child field type),
+        # so it reports UNKNOWN.  The runtime (to_polars()) would produce the
+        # child's concrete type (Int64 in this case), but that divergence is
+        # intentional — inference is conservative for dotted-ANY.
+        # There is NO to_polars() oracle here; asserting parity would be wrong
+        # because UNKNOWN ≠ the runtime's concrete type by design.
+        df = pl.DataFrame({"payload": [{"id": 1}]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=U.ANY, rename_from="payload.id")],
+            fields_match="open",
+        )
+        inferred = _infer(ma.relation(df).conform(spec))
+        assert inferred["id"] == SchemaTypeStatus.UNKNOWN
+
+
+# ---------------------------------------------------------------------------
+# Exact-mode order parity across all source kinds
+# ---------------------------------------------------------------------------
+
+class TestExactModeOrderParity:
+    """Exact-mode column ORDER must match to_polars() across every source kind.
+
+    The existing test_parity_select_exact_order in TestParityGuards covers
+    Polars eager DataFrame.  These three tests add the remaining source kinds
+    that exercise distinct inference paths.
+    """
+
+    _SPEC = TypeSpec(
+        fields=[
+            FieldSpec(name="x", type=U.INTEGER),
+            FieldSpec(name="y", type=U.STRING),
+        ],
+        fields_match="exact",
+    )
+
+    def test_exact_order_polars_lazy(self):
+        # Polars LazyFrame exercises the collect_schema() branch of
+        # _schema_from_dataframe.
+        lazy_df = pl.LazyFrame({"x_src": [1], "y_src": ["a"]})
+        rel = ma.relation(lazy_df).conform(self._SPEC)
+        inferred = _infer(rel)
+        actual = rel.to_polars()
+        assert list(inferred.keys()) == list(actual.columns)
+
+    def test_exact_order_inline_list_of_dicts(self):
+        # Inline list-of-dicts exercises SourceRelNode → _schema_from_source_data
+        # (which constructs a pl.DataFrame for type inference).
+        data = [{"x_src": 1, "y_src": "a"}, {"x_src": 2, "y_src": "b"}]
+        rel = ma.relation(data).conform(self._SPEC)
+        inferred = _infer(rel)
+        actual = rel.to_polars()
+        assert list(inferred.keys()) == list(actual.columns)
+
+    def test_exact_order_callable_schema_source(self):
+        # An ibis memtable exposes callable .schema() returning an ibis Schema
+        # whose items() yield (name, ibis_type) pairs — this exercises the
+        # callable-schema branch of _schema_from_dataframe (lines 108-113).
+        # The ibis types map to SchemaTypeStatus.UNKNOWN (not Polars natives),
+        # but the conform node's declared types (concrete U.INTEGER / U.STRING)
+        # drive the inferred output, so order parity is still testable.
+        import ibis
+
+        t = ibis.memtable({"x_src": [1], "y_src": ["a"]})
+        rel = ma.relation(t).conform(self._SPEC)
+        inferred = _infer(rel)
+        actual = rel.to_polars()
+        assert list(inferred.keys()) == list(actual.columns)
