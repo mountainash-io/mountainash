@@ -136,8 +136,8 @@ class ConformOutputContract:
     """
 
     fields_match: str
-    emitted: list  # list[EmittedField]
-    renamed_sources: set  # set[str]
+    emitted: list[EmittedField]
+    renamed_sources: set[str]
 
     @property
     def keeps_unmapped(self) -> bool:
@@ -356,16 +356,22 @@ def resolve_conform_output(
 
 
 # ---------------------------------------------------------------------------
-# _build_field_expr — transform stages 2-6 (unchanged logic)
+# _build_field_expr — transform stages 1-6 (single unified function)
 # ---------------------------------------------------------------------------
 
-def _build_field_expr(field: "FieldSpec", source_name: str) -> Any:
-    """Build the mountainash expression for one field's transform pipeline.
+def _build_field_expr(
+    field: "FieldSpec",
+    source_name: str,
+    schema_missing_values: Sequence[str] = (),
+) -> Any:
+    """Build the conform transform expression (stages 1-6) for one field.
 
-    Contains the transform stages 2-6 **unchanged** from the original
-    ``_build_conform_exprs`` implementation:
-      2. Missing values (sentinel → null)
-      3. String parsing (numeric format normalisation)
+    Contains the full transform pipeline:
+      1. Source resolution (col(source_name) or struct field access for
+         dotted names)
+      2. Missing values (sentinel strings → null; Frictionless §missingValues)
+      3. String parsing (numeric format normalisation: bareNumber, groupChar,
+         decimalChar)
       4. Null fill (coalesce)
       5. Type cast (list / categorical / temporal / boolean / default)
       6. Alias (``expr.name.alias(field.name)``)
@@ -374,6 +380,9 @@ def _build_field_expr(field: "FieldSpec", source_name: str) -> Any:
         field: The FieldSpec to build an expression for.
         source_name: The resolved source column name (positional for exact
             mode; full dotted path for struct access).
+        schema_missing_values: Schema-level missingValues, threaded so stage
+            2's field-level-override-else-schema-level resolution works.
+            Defaults to an empty tuple (no schema-level sentinels).
 
     Returns:
         A backend-agnostic mountainash expression ready to be collected.
@@ -384,19 +393,6 @@ def _build_field_expr(field: "FieldSpec", source_name: str) -> Any:
 
     fld = field
 
-    # Schema-level missing values must be resolved per-call.
-    # We do not have access to spec here, so callers must pass source_name
-    # fully resolved. Stage 2 uses field-level missing_values if set.
-    # NOTE: schema_missing_values is unavailable here since this function
-    # only receives (field, source_name). The original code used
-    # spec.missing_values; we replicate by using fld.missing_values if set
-    # and an empty fallback otherwise (the schema-level sentinels are passed
-    # in via the caller's schema_missing_values captured in the closure).
-    # To preserve behaviour exactly, _build_conform_exprs passes
-    # schema_missing_values via a context parameter — see below.
-    # THIS FUNCTION MUST NOT be called directly without schema_missing_values
-    # context; use _build_conform_exprs or _build_field_expr_with_schema_mv.
-
     # Stage 1: RESOLVE SOURCE — col(source_name) or struct field access
     is_dotted = "." in source_name
     if is_dotted:
@@ -406,56 +402,6 @@ def _build_field_expr(field: "FieldSpec", source_name: str) -> Any:
             expr = expr.struct.field(part)
     else:
         expr = ma.col(source_name)
-
-    # (Stage 2-6 inline below — see module docstring for ordering invariants)
-    return _apply_stages_2_to_6(fld, expr, schema_missing_values=[])
-
-
-def _build_field_expr_with_schema_mv(
-    field: "FieldSpec",
-    source_name: str,
-    schema_missing_values: list,
-) -> Any:
-    """Build expression for a field with schema-level missingValues context.
-
-    This is the internal variant used by ``_build_conform_exprs`` to
-    pass the schema-level ``missing_values`` alongside the field.
-
-    Args:
-        field: The FieldSpec to build an expression for.
-        source_name: Resolved source column name.
-        schema_missing_values: Schema-level missing values list (from
-            ``spec.missing_values or []``).
-
-    Returns:
-        A backend-agnostic mountainash expression.
-    """
-    import mountainash as ma
-
-    fld = field
-
-    # Stage 1: RESOLVE SOURCE
-    is_dotted = "." in source_name
-    if is_dotted:
-        parts = source_name.split(".")
-        expr = ma.col(parts[0])
-        for part in parts[1:]:
-            expr = expr.struct.field(part)
-    else:
-        expr = ma.col(source_name)
-
-    return _apply_stages_2_to_6(fld, expr, schema_missing_values)
-
-
-def _apply_stages_2_to_6(fld: "FieldSpec", expr: Any, schema_missing_values: list) -> Any:
-    """Apply transform stages 2-6 to an already-resolved source expression.
-
-    This is the byte-for-byte equivalent of the original inner loop body
-    (lines ~233-407 of the pre-refactor code). Logic is completely unchanged.
-    """
-    import mountainash as ma
-    from mountainash.core.dtypes import MountainashDtype
-    from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     # Types eligible for missingValues sentinel replacement.
     # Non-scalar types (ARRAY, OBJECT, ANY) are excluded because
@@ -506,7 +452,7 @@ def _apply_stages_2_to_6(fld: "FieldSpec", expr: Any, schema_missing_values: lis
                     f"overlap with trueValues/falseValues — these values "
                     f"will become null, not boolean.",
                     UserWarning,
-                    stacklevel=2,
+                    stacklevel=3,
                 )
         expr = (
             ma.when(expr.is_in(*sentinels))
@@ -702,7 +648,7 @@ def _build_conform_exprs(
     # Build one expression per emitted field.
     exprs: list[Any] = []
     for em in contract.emitted:
-        expr = _build_field_expr_with_schema_mv(
+        expr = _build_field_expr(
             em.field, em.source_name, schema_missing_values
         )
         exprs.append(expr)
