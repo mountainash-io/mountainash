@@ -589,6 +589,7 @@ class ExtensionRelOperation(Enum):
     READ_RESOURCE = auto()    # load via storage facade from a DataResource
     DROP_NANS = auto()
     UNNEST = auto()
+    EMPTY_FRAME = auto()      # empty_frame(spec) — materialise an empty typed frame
 
 
 @dataclass(frozen=True)

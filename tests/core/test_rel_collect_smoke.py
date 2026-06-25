@@ -383,11 +383,16 @@ class TestRelSmokeExceptionSetIntegrity:
         """Every non-registry-handled ExtensionRelOperation must have a smoke test."""
         from mountainash.core.constants import ExtensionRelOperation
 
-        _REGISTRY_HANDLED = {"REF", "READ_RESOURCE"}
+        # Ops with no `ma.relation(df).<op>()` relation-builder, so there is
+        # nothing to smoke-collect: REF/READ_RESOURCE are DAG-internal (resolved
+        # via ref_resolver), and EMPTY_FRAME is a visitor-internal constructor
+        # the resource-read/conform path calls directly (relation_visitor.py),
+        # not an ExtensionRelNode transform.
+        _NON_TRANSFORM_OPS = {"REF", "READ_RESOURCE", "EMPTY_FRAME"}
         enum_ops = {
             op.name.lower()
             for op in ExtensionRelOperation
-            if op.name not in _REGISTRY_HANDLED
+            if op.name not in _NON_TRANSFORM_OPS
         }
         covered = set(_OPERATIONS.keys())
         missing = enum_ops - covered

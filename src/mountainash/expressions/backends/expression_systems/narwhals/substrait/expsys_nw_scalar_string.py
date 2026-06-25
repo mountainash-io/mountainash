@@ -659,8 +659,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         # Unwrap literals; column refs pass through and will be caught below.
         pattern = self._extract_literal_if_possible(substring)
         repl = self._extract_literal_if_possible(replacement)
+        # Substrait `replace` is literal substring substitution (regex is the
+        # separate `regexp_replace`). replace_all defaults to literal=False, so
+        # a regex metacharacter in the pattern (e.g. ".") would match wrongly.
         return self._call_with_expr_support(
-            lambda: input.str.replace_all(pattern, repl),
+            lambda: input.str.replace_all(pattern, repl, literal=True),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
             substring=substring,
             replacement=replacement,

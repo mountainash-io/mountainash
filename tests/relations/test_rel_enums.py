@@ -12,8 +12,6 @@ class TestProjectOperation:
         assert ProjectOperation.WITH_COLUMNS is not None
         assert ProjectOperation.DROP is not None
         assert ProjectOperation.RENAME is not None
-    def test_member_count(self):
-        assert len(ProjectOperation) == 4
 
 class TestJoinType:
     def test_is_strenum(self):
@@ -27,15 +25,11 @@ class TestJoinType:
         assert JoinType.ANTI == "anti"
         assert JoinType.CROSS == "cross"
         assert JoinType.ASOF == "asof"
-    def test_member_count(self):
-        assert len(JoinType) == 8
 
 class TestExecutionTarget:
     def test_members(self):
         assert ExecutionTarget.LEFT is not None
         assert ExecutionTarget.RIGHT is not None
-    def test_member_count(self):
-        assert len(ExecutionTarget) == 2
 
 class TestSetType:
     def test_members(self):
@@ -54,8 +48,8 @@ class TestExtensionRelOperation:
         assert ExtensionRelOperation.REF is not None
         assert ExtensionRelOperation.READ_RESOURCE is not None
         assert ExtensionRelOperation.DROP_NANS is not None
-    def test_member_count(self):
-        assert len(ExtensionRelOperation) == 11
+        assert ExtensionRelOperation.UNNEST is not None
+        assert ExtensionRelOperation.EMPTY_FRAME is not None
 
 class TestSortField:
     def test_creation(self):

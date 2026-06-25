@@ -23,10 +23,13 @@ from fixtures.backend_registry import ALL_BACKENDS
 
 def _extract_column(result, col: str) -> list:
     """Extract a column from a backend-native result as a plain list."""
+    # collect() before execute(): a Polars LazyFrame has BOTH; we want the
+    # subscriptable collect() result, not LazyFrame.execute()'s streaming
+    # SingleNodeQueryResult. Ibis Tables only have execute().
+    if hasattr(result, "collect"):
+        return result.collect()[col].to_list()
     if hasattr(result, "execute"):
         return result.execute()[col].tolist()
-    if hasattr(result, "collect") and not hasattr(result, "to_list"):
-        return result.collect()[col].to_list()
     if hasattr(result, "to_list"):
         return result[col].to_list()
     return list(result[col])
@@ -34,10 +37,11 @@ def _extract_column(result, col: str) -> list:
 
 def _extract_row_count(result) -> int:
     """Extract row count from a backend-native result."""
+    # collect() before execute() — see _extract_column.
+    if hasattr(result, "collect"):
+        return len(result.collect())
     if hasattr(result, "execute"):
         return len(result.execute())
-    if hasattr(result, "collect") and not hasattr(result, "shape"):
-        return len(result.collect())
     if hasattr(result, "shape"):
         return result.shape[0]
     return len(result)
