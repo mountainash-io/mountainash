@@ -436,3 +436,73 @@ class TestInferSchemaChain:
         r._compile_and_execute = counting_compile
         _ = r.schema
         assert call_count == 0, "schema should not trigger compilation"
+
+
+class TestSourceDataInference:
+    """Tests for _schema_from_source_data inline-data type inference (Task 2).
+
+    Oracle for each case: pl.DataFrame(data, strict=False) schema mapped through
+    the dtype registry (_schema_from_dataframe).
+    """
+
+    def test_list_of_dicts_int_and_str(self):
+        """list[dict] with int and str columns infers canonical types.
+
+        Oracle: pl.DataFrame([{"x": 1, "s": "a"}], strict=False)
+            -> {"x": Int64, "s": String}
+            -> {"x": D.I64, "s": D.STRING}
+        """
+        import mountainash as ma
+        from mountainash.core.dtypes import MountainashDtype as D
+
+        data = [{"x": 1, "s": "a"}]
+        schema = ma.relation(data).schema
+        assert schema["x"] == D.I64
+        assert schema["s"] == D.STRING
+        # Must also agree with the oracle (runtime to_polars path)
+        import polars as pl
+        from mountainash.relations.schema_inference import _schema_from_dataframe
+        oracle = _schema_from_dataframe(pl.DataFrame(data, strict=False))
+        assert schema == oracle
+
+    def test_dict_mixed_int_float_coerces_to_fp64(self):
+        """dict with mixed int/float values coerces to Float64 under strict=False.
+
+        Oracle: pl.DataFrame({"a": [1, 2.5]}, strict=False)
+            -> {"a": Float64}
+            -> {"a": D.FP64}
+        """
+        import mountainash as ma
+        from mountainash.core.dtypes import MountainashDtype as D
+
+        data = {"a": [1, 2.5]}
+        schema = ma.relation(data).schema
+        assert schema["a"] == D.FP64
+
+    def test_empty_list_returns_empty_schema(self):
+        """Empty list → empty schema (no columns to infer)."""
+        import mountainash as ma
+
+        schema = ma.relation([]).schema
+        assert schema == {}
+
+    def test_unconstructable_inline_data_falls_back_to_unknown(self):
+        """If pl.DataFrame construction fails, falls back to names-only UNKNOWN.
+
+        A list with heterogeneous types that polars cannot reconcile
+        (list vs str) triggers a ComputeError; the fallback preserves column
+        names from data[0] and maps each to SchemaTypeStatus.UNKNOWN.
+        """
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import SourceRelNode
+        from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
+        from mountainash.relations.schema_inference import infer_schema, SchemaTypeStatus
+
+        # [1, 2] vs "not_a_list" — polars strict=False cannot reconcile
+        data = [{"x": [1, 2]}, {"x": "not_a_list"}]
+        node = SourceRelNode(
+            data=data,
+            detected_format=CONST_PYTHON_DATAFORMAT.PYLIST,
+        )
+        schema = infer_schema(node)
+        assert "x" in schema
+        assert schema["x"] is SchemaTypeStatus.UNKNOWN

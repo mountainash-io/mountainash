@@ -269,21 +269,20 @@ class RelationDAG:
 
         return to_dot(self)
 
-    def to_package(self) -> Any:
+    def to_package(self, *, strict: bool = False) -> Any:
         """Export this DAG as a Frictionless DataPackage descriptor.
 
-        Each named relation must either:
-        1. Have a ResourceReadRelNode at its root (so we can reuse the original
-           DataResource), OR
-        2. Expose an output schema we can derive (currently only the first case
-           is supported — derived synthesis is deferred).
+        Emits a resource for every named tabular relation: a ResourceReadRelNode
+        reuses its original DataResource; any other relation derives its schema via
+        the ref-resolved dag.schema(name) and emits best-effort (schema-less when no
+        columns are determinable). Assets pass through unchanged.
 
-        Raises ``MissingResourceSchema`` if any relation has neither.
-        Assets pass through to the returned package unchanged.
-        """
+        Default is non-fatal (principle best-effort-introspection R3). strict=True
+        raises MissingResourceSchema for any relation whose schema is empty or
+        contains a genuinely-UNKNOWN column (R4)."""
         from mountainash.relations.dag.packaging import to_package
 
-        return to_package(self)
+        return to_package(self, strict=strict)
 
     # ------------------------------------------------------------------
     # DAG-level validation

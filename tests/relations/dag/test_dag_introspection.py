@@ -22,6 +22,22 @@ class TestDAGSchema:
         schema = dag.schema("clean")
         assert list(schema.keys()) == ["a", "b"]
 
+    def test_schema_conformed_relation(self):
+        """dag.schema() reports correct columns for a conformed plan (item 44)."""
+        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import UniversalType
+
+        dag = RelationDAG()
+        dag.add("raw", ma.relation(pl.LazyFrame({"a": ["1"], "b": ["x"]})))
+        spec = TypeSpec(
+            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
+            fields_match="open",
+        )
+        dag.add("conformed", dag.ref("raw").conform(spec))
+        schema = dag.schema("conformed")
+        assert set(schema.keys()) == {"a", "b"}
+        assert schema["a"] == D.I64
+
     def test_schema_unknown_name_raises(self):
         import pytest
         dag = RelationDAG()

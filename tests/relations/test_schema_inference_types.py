@@ -19,7 +19,9 @@ def test_uninferable_measure_is_unknown_status():
     assert schema["total"] is SchemaTypeStatus.UNKNOWN
 
 
-def test_python_source_data_is_unknown_status():
+def test_python_source_data_infers_types():
+    # Oracle: pl.DataFrame([{"x": 1}], strict=False).schema -> {"x": Int64}
+    # -> registry.from_native(Int64, target=POLARS) -> D.I64
     dag = ma.RelationDAG()
     # dag.source(name, data) registers a SourceRelNode-backed relation under
     # ``name`` and returns a *ref* to it; pull the source relation itself so we
@@ -27,7 +29,7 @@ def test_python_source_data_is_unknown_status():
     dag.source("raw", [{"x": 1}])
     source_rel = dag.relations["raw"]
     schema = infer_schema(source_rel._node)
-    assert schema["x"] is SchemaTypeStatus.UNKNOWN
+    assert schema["x"] == D.I64  # oracle: pl.DataFrame([{"x":1}], strict=False) -> Int64
 
 
 def test_any_resource_field_is_unconstrained():
