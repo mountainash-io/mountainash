@@ -1,7 +1,7 @@
 """Frictionless packaging helpers for RelationDAG."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from mountainash.core.resource_ref import ResourceRef
 
@@ -9,6 +9,28 @@ if TYPE_CHECKING:
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.dag.dag import RelationDAG
     from mountainash.typespec.datapackage import DataResource, DataPackage
+
+
+
+
+def _frictionless_from_inferred(schema) -> Optional[dict]:
+    """Convert an inferred {col: dtype|status} schema to a Frictionless
+    schema dict {"fields": [{"name", "type"}, ...]}, or None if no columns.
+
+    Concrete dtype -> its Frictionless type string; UNKNOWN/UNCONSTRAINED -> "any"
+    (best-effort, principle R3: emit, never gate). None ONLY for an empty schema."""
+    if not schema:
+        return None
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.typespec.universal_types import from_canonical
+    fields = []
+    for name, dt in schema.items():
+        if isinstance(dt, SchemaTypeStatus):     # UNKNOWN or UNCONSTRAINED
+            type_str = "any"
+        else:
+            type_str = from_canonical(dt)[0].value
+        fields.append({"name": name, "type": type_str})
+    return {"fields": fields}
 
 
 def resource_to_relation(ref_or_resource: ResourceRef | DataResource) -> Relation:

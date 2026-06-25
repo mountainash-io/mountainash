@@ -28,8 +28,12 @@ def test_dag_to_package_with_resource_read_node(tmp_path):
 
 def test_dag_to_package_raises_on_missing_schema():
     import mountainash as ma
+    import polars as pl
     dag = RelationDAG()
-    dag.add("anon", ma.relation([{"x": 1}]))  # no schema, no source resource
+    # A RefRelNode has no inferable schema (needs ref_resolver at collect time)
+    # so output_schema returns None, triggering MissingResourceSchema.
+    dag.add("base", ma.relation(pl.LazyFrame({"x": [1]})))
+    dag.add("anon", dag.ref("base"))
     with pytest.raises(MissingResourceSchema, match="anon"):
         dag.to_package()
 

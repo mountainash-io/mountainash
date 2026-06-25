@@ -847,6 +847,18 @@ class Relation(RelationBase):
         """Number of columns in the output schema."""
         return len(self.columns)
 
+    @property
+    def output_schema(self) -> Optional[dict]:
+        """Best-effort Frictionless schema dict for this relation, or None if no
+        columns are determinable.
+
+        Ref-free convenience: derived from ``self.schema`` (which has no
+        ref_resolver), so a relation containing a RefRelNode infers ``{}`` and this
+        returns None. The DAG export authority is ``dag.schema(name)`` /
+        ``dag.to_package()``, NOT this property -- use those for DAG export."""
+        from mountainash.relations.dag.packaging import _frictionless_from_inferred
+        return _frictionless_from_inferred(self.schema)
+
     def describe(self) -> Any:
         """Compute summary statistics (count, null_count, mean, std, min, max).
 
