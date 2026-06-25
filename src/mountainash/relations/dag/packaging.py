@@ -11,8 +11,6 @@ if TYPE_CHECKING:
     from mountainash.typespec.datapackage import DataResource, DataPackage
 
 
-
-
 def _frictionless_from_inferred(schema) -> Optional[dict]:
     """Convert an inferred {col: dtype|status} schema to a Frictionless
     schema dict {"fields": [{"name", "type"}, ...]}, or None if no columns.
@@ -28,7 +26,13 @@ def _frictionless_from_inferred(schema) -> Optional[dict]:
         if isinstance(dt, SchemaTypeStatus):     # UNKNOWN or UNCONSTRAINED
             type_str = "any"
         else:
-            type_str = from_canonical(dt)[0].value
+            try:
+                type_str = from_canonical(dt)[0].value
+            except KeyError:
+                # Principle R3 (best-effort-introspection): export emits, never gates.
+                # A concrete dtype not yet in the canonical→universal boundary map
+                # degrades to typeless "any" rather than raising.
+                type_str = "any"
         fields.append({"name": name, "type": type_str})
     return {"fields": fields}
 

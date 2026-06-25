@@ -115,6 +115,17 @@ class TestRelationOutputSchema:
         assert [f["name"] for f in result["fields"]] == ["x", "y"]
 
 
+def test_output_schema_none_for_ref_relation():
+    """A RefRelNode has no inferable schema without a ref_resolver, so the
+    ref-free output_schema property returns None (documented limitation;
+    dag.schema()/to_package() are the ref-resolved export authority)."""
+    from mountainash.relations.dag.dag import RelationDAG
+    dag = RelationDAG()
+    dag.add("base", ma.relation(pl.DataFrame({"x": [1]})))
+    ref_rel = dag.ref("base")
+    assert ref_rel.output_schema is None
+
+
 class TestFrictionlessFromInferred:
     """Unit tests for _frictionless_from_inferred converter."""
 
@@ -139,6 +150,22 @@ class TestFrictionlessFromInferred:
         from mountainash.core.dtypes import MountainashDtype
         result = _frictionless_from_inferred({"n": MountainashDtype.I64, "s": MountainashDtype.STRING})
         assert result == {"fields": [{"name": "n", "type": "integer"}, {"name": "s", "type": "string"}]}
+
+    def test_keyerror_dtype_falls_back_to_any(self, monkeypatch):
+        """A MountainashDtype not in the canonical→universal boundary map degrades to 'any'
+        (principle R3: export emits, never gates). Verified via monkeypatching from_canonical
+        on the universal_types module (the import source used by _frictionless_from_inferred)."""
+        from mountainash.core.dtypes import MountainashDtype
+        import sys
+        # Ensure the module is loaded then patch the attribute directly
+        import importlib
+        ut_mod = importlib.import_module("mountainash.typespec.universal_types")
+
+        monkeypatch.setattr(ut_mod, "from_canonical", lambda _dt: (_ for _ in ()).throw(KeyError(_dt)))
+
+        from mountainash.relations.dag.packaging import _frictionless_from_inferred
+        result = _frictionless_from_inferred({"c": MountainashDtype.I64})
+        assert result == {"fields": [{"name": "c", "type": "any"}]}
 
     def test_mixed_status_and_concrete(self):
         from mountainash.relations.dag.packaging import _frictionless_from_inferred
