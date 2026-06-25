@@ -5,7 +5,10 @@ Implements datetime operations for the Ibis backend.
 
 from __future__ import annotations
 
-from enum import Enum
+from mountainash.expressions.core.datetime_components import (
+    BooleanComponent,
+    DatetimeComponent,
+)
 from typing import TYPE_CHECKING, Optional
 
 import ibis
@@ -15,41 +18,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
-
-
-class DatetimeComponent(Enum):
-    """Datetime component types for extraction."""
-
-    YEAR = "YEAR"
-    ISO_YEAR = "ISO_YEAR"
-    US_YEAR = "US_YEAR"
-    QUARTER = "QUARTER"
-    MONTH = "MONTH"
-    DAY = "DAY"
-    DAY_OF_YEAR = "DAY_OF_YEAR"
-    MONDAY_DAY_OF_WEEK = "MONDAY_DAY_OF_WEEK"
-    SUNDAY_DAY_OF_WEEK = "SUNDAY_DAY_OF_WEEK"
-    MONDAY_WEEK = "MONDAY_WEEK"
-    SUNDAY_WEEK = "SUNDAY_WEEK"
-    ISO_WEEK = "ISO_WEEK"
-    US_WEEK = "US_WEEK"
-    HOUR = "HOUR"
-    MINUTE = "MINUTE"
-    SECOND = "SECOND"
-    MILLISECOND = "MILLISECOND"
-    MICROSECOND = "MICROSECOND"
-    NANOSECOND = "NANOSECOND"
-    PICOSECOND = "PICOSECOND"
-    SUBSECOND = "SUBSECOND"
-    UNIX_TIME = "UNIX_TIME"
-    TIMEZONE_OFFSET = "TIMEZONE_OFFSET"
-
-
-class BooleanComponent(Enum):
-    """Boolean component types for extraction."""
-
-    IS_LEAP_YEAR = "IS_LEAP_YEAR"
-    IS_DST = "IS_DST"
 
 
 class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol["IbisValueExpr"]):
