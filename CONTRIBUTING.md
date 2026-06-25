@@ -121,6 +121,12 @@ from mountainash.constants import CONST_EXPRESSION_LOGIC_OPERATORS
 
 ## Testing
 
+> **How the suite is run (tiers, backend scope, change selection, CI):** see the
+> [Test Orchestration guide](docs/guides/test-orchestration.md). It covers the
+> marker tiers, `MA_BACKEND_SCOPE`, the affected-tests selector, the CI
+> PR/merge-queue/nightly tiers, and how to keep the taxonomy closed when you add
+> tests or modules.
+
 - Write unit tests for all new functionality.
 - Ensure all existing tests pass before submitting a pull request.
 - Aim for high test coverage, especially for critical parts of the expression system.
