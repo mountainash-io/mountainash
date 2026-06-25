@@ -213,15 +213,31 @@ def infer_schema(
 def _schema_from_source_data(
     data: Any,
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-    """Extract column names from Python source data.
+    """Extract column names and infer types from Python source data.
 
-    Types are not inferable from the AST, so every column maps to
-    ``SchemaTypeStatus.UNKNOWN``.
+    Delegates to _schema_from_dataframe via pl.DataFrame(data, strict=False) so
+    inference matches the runtime ingress path exactly. strict=False matches
+    pydata/ingress paths that also use strict=False.
+
+    Falls back to names-only (UNKNOWN) if DataFrame construction fails — preserving
+    old behaviour for genuinely-unconstructable data.
     """
     if isinstance(data, list) and data and isinstance(data[0], dict):
-        return {k: SchemaTypeStatus.UNKNOWN for k in data[0].keys()}
+        keys = list(data[0].keys())
+        import polars as pl
+        try:
+            frame = pl.DataFrame(data, strict=False)
+        except Exception:
+            return {k: SchemaTypeStatus.UNKNOWN for k in keys}
+        return _schema_from_dataframe(frame)
     if isinstance(data, dict):
-        return {k: SchemaTypeStatus.UNKNOWN for k in data.keys()}
+        keys = list(data.keys())
+        import polars as pl
+        try:
+            frame = pl.DataFrame(data, strict=False)
+        except Exception:
+            return {k: SchemaTypeStatus.UNKNOWN for k in keys}
+        return _schema_from_dataframe(frame)
     return {}
 
 
