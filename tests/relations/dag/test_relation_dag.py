@@ -86,5 +86,7 @@ def test_cycle_raises():
     dag.add("a", ma.relation([{"x": 1}]))
     dag.add("b", dag.ref("a"))
     dag.dependency_edges.add(("b", "a"))  # forced cycle
-    with pytest.raises(ValueError, match="cycle"):
+    # Message comes from the shared mountainash.graph.topological_order
+    # ("Cycle detected: ..."); match case-insensitively on the leading word.
+    with pytest.raises(ValueError, match="[Cc]ycle detected"):
         dag.topological_order("b")

@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any, Optional, TYPE_CHECKING
 
 from mountainash.core.constants import CONST_BACKEND
@@ -9,8 +8,6 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import Ref
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
-    import polars as pl
-
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
@@ -72,42 +69,17 @@ class RelationDAG:
         If ``target`` is given, only ancestors of ``target`` (and ``target``
         itself) are included.
 
+        Delegates to the shared :func:`mountainash.graph.topological_order`
+        (Kahn's algorithm with ancestor filtering); the DAG only supplies its
+        node set and ``dependency_edges`` as the graph's edge set.
+
         Raises ``ValueError`` if a cycle is detected.
         """
-        nodes: set[str] = set(self.relations.keys())
-        if target is not None:
-            # Restrict to ancestors of target (including target itself)
-            wanted: set[str] = {target}
-            stack = [target]
-            while stack:
-                cur = stack.pop()
-                for u, d in self.dependency_edges:
-                    if d == cur and u not in wanted:
-                        wanted.add(u)
-                        stack.append(u)
-            nodes = wanted
+        from mountainash.graph import topological_order as _topological_order
 
-        # Kahn's algorithm
-        indeg: dict[str, int] = {n: 0 for n in nodes}
-        adj: dict[str, list[str]] = defaultdict(list)
-        for u, d in self.dependency_edges:
-            if u in nodes and d in nodes:
-                adj[u].append(d)
-                indeg[d] += 1
-        ready = sorted(n for n, i in indeg.items() if i == 0)
-        out: list[str] = []
-        while ready:
-            n = ready.pop(0)
-            out.append(n)
-            for m in sorted(adj[n]):
-                indeg[m] -= 1
-                if indeg[m] == 0:
-                    ready.append(m)
-        if len(out) != len(nodes):
-            raise ValueError(
-                f"cycle detected in dependency_edges (target={target!r})"
-            )
-        return out
+        return _topological_order(
+            set(self.relations.keys()), self.dependency_edges, target
+        )
 
     # ------------------------------------------------------------------
     # Task 17: collect() — topological compilation with per-call cache
@@ -342,94 +314,6 @@ class RelationDAG:
         from mountainash.relations.dag.validation import validate_quick
 
         return validate_quick(self, specs, context=context)
-
-    def _validate_tables(
-        self,
-        specs: dict[str, Any],
-        *,
-        context: dict[str, Any] | None = None,
-        fast: bool = False,
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Phase 1: Materialise and validate each table. Returns (results, cache)."""
-        from mountainash.datacontracts.contract import BaseDataContract
-        from mountainash.datacontracts.compiler import compile_datacontract
-        from mountainash.datacontracts.validator import Validator
-        from mountainash.typespec.spec import TypeSpec
-
-        table_results: dict[str, Any] = {}
-        cache: dict[str, pl.DataFrame] = {}
-
-        for name, spec in specs.items():
-            if name not in self.relations:
-                raise KeyError(f"relation {name!r} not in DAG")
-
-            rel = self.relations[name]
-            df = rel.to_polars()
-            cache[name] = df
-
-            if isinstance(spec, TypeSpec):
-                contract = compile_datacontract(spec, name=name)
-            elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
-                contract = spec
-            else:
-                raise TypeError(
-                    f"specs[{name!r}] must be TypeSpec or BaseDataContract subclass, "
-                    f"got {type(spec).__name__}"
-                )
-
-            validator = Validator(name=name, contract=contract)
-            if fast:
-                result = validator.validate_quick(df, context=context)
-            else:
-                result = validator.validate(df, context=context)
-            table_results[name] = result
-
-            if fast and not result.passes:
-                break
-
-        return table_results, cache
-
-    def _check_all_fks(
-        self,
-        specs: dict[str, Any],
-        cache: dict[str, Any],
-        *,
-        fast: bool = False,
-    ) -> list[Any]:
-        """Phase 2: Check FK referential integrity using cached DataFrames."""
-        from mountainash.relations.dag.validation import check_fk_integrity
-        from mountainash.typespec.spec import TypeSpec
-
-        fk_violations: list[Any] = []
-
-        for child_name, spec in specs.items():
-            if not isinstance(spec, TypeSpec) or spec.foreign_keys is None:
-                continue
-            if child_name not in cache:
-                continue
-
-            child_df = cache[child_name]
-
-            for fk in spec.foreign_keys:
-                parent_name = fk.reference.resource
-                if parent_name not in cache:
-                    continue
-
-                parent_df = cache[parent_name]
-                violation = check_fk_integrity(
-                    child_df=child_df,
-                    parent_df=parent_df,
-                    child_table=child_name,
-                    parent_table=parent_name,
-                    child_fields=fk.fields,
-                    parent_fields=fk.reference.fields,
-                )
-                if violation is not None:
-                    fk_violations.append(violation)
-                    if fast:
-                        return fk_violations
-
-        return fk_violations
 
     def _resolve_backend_const(
         self, backend: Optional[str], target_name: str
