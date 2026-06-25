@@ -9,11 +9,17 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Callable, Optional
 
+from mountainash.conform.expressions import (
+    PASSTHROUGH,
+    UNDETERMINED,
+    resolve_conform_output,
+)
 from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
 )
+from mountainash.typespec.frictionless import typespec_from_frictionless
 from mountainash.typespec.universal_types import parse_universal, to_canonical
 
 
@@ -161,6 +167,7 @@ def infer_schema(
         SetRelNode,
     )
     from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+        ConformRelNode,
         RefRelNode,
         ResourceReadRelNode,
         SourceRelNode,
@@ -204,10 +211,51 @@ def infer_schema(
             return infer_schema(node.inputs[0], ref_resolver)
         return {}
 
+    if isinstance(node, ConformRelNode):
+        input_schema = infer_schema(node.input, ref_resolver)
+        spec = node.spec
+        if isinstance(spec, dict):
+            spec = typespec_from_frictionless(spec)
+        contract = resolve_conform_output(
+            spec, available_columns=list(input_schema.keys())
+        )
+        emitted = {
+            em.field.name: _declared_dtype_for_infer(em, input_schema)
+            for em in contract.emitted
+        }
+        if contract.keeps_unmapped:  # open → with_columns semantics
+            result = dict(input_schema)
+            for s in contract.renamed_sources:
+                result.pop(s, None)
+            result.update(emitted)
+            return result
+        return emitted  # select modes → projection only
+
     if isinstance(node, ExtensionRelNode):
         return infer_schema(node.input, ref_resolver)
 
     return {}
+
+
+def _declared_dtype_for_infer(
+    em: Any,
+    input_schema: dict[str, MountainashDtype | SchemaTypeStatus],
+) -> MountainashDtype | SchemaTypeStatus:
+    """Resolve an EmittedField's declared_type against an upstream schema.
+
+    - Concrete :class:`MountainashDtype` → returned as-is.
+    - ``PASSTHROUGH`` → look up ``em.source_name`` in ``input_schema`` (UNKNOWN
+      if absent — e.g. dotted struct child where the root is present but the
+      child isn't represented in the input schema).
+    - ``UNDETERMINED`` → ``SchemaTypeStatus.UNKNOWN`` (cannot be predicted
+      pre-compile; e.g. ANY + null_fill, dotted ANY, non-Polars categorical).
+    """
+    dt = em.declared_type
+    if dt is PASSTHROUGH:
+        return input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
+    if dt is UNDETERMINED:
+        return SchemaTypeStatus.UNKNOWN
+    return dt
 
 
 def _schema_from_source_data(
