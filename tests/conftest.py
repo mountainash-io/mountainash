@@ -8,6 +8,14 @@ This module provides:
 - Test markers for organizing test suites
 """
 
+# --- must run BEFORE `from fixtures.backend_registry import ...` ---
+import os, sys
+for _i, _a in enumerate(sys.argv):
+    if _a == "--ma-backend-scope" and _i + 1 < len(sys.argv):
+        os.environ["MA_BACKEND_SCOPE"] = sys.argv[_i + 1]
+    elif _a.startswith("--ma-backend-scope="):
+        os.environ["MA_BACKEND_SCOPE"] = _a.split("=", 1)[1]
+
 import pytest
 import polars as pl
 import pandas as pd
@@ -44,22 +52,18 @@ IBIS_BACKEND_TYPES = {
 }
 
 
+
 # =============================================================================
-# Test Markers Configuration
+# CLI Options
 # =============================================================================
 
-def pytest_configure(config):
-    """Register custom markers for test organization."""
-    config.addinivalue_line("markers", "unit: Unit tests (fast, isolated)")
-    config.addinivalue_line("markers", "integration: Integration tests")
-    config.addinivalue_line("markers", "backend: Backend-specific tests")
-    config.addinivalue_line("markers", "cross_backend: Cross-backend consistency tests")
-    config.addinivalue_line("markers", "temporal: Temporal operation tests")
-    config.addinivalue_line("markers", "arithmetic: Arithmetic operation tests")
-    config.addinivalue_line("markers", "string: String operation tests")
-    config.addinivalue_line("markers", "comparison: Comparison operation tests")
-    config.addinivalue_line("markers", "logical: Logical operation tests")
-    config.addinivalue_line("markers", "slow: Slow-running tests")
+def pytest_addoption(parser):
+    parser.addoption(
+        "--ma-backend-scope", action="store", default=None,
+        choices=["pr", "full"],
+        help="Backend matrix scope: 'pr' (one per family) or 'full' (all). "
+             "Mirrors the MA_BACKEND_SCOPE env var; CLI wins.",
+    )
 
 
 # =============================================================================
@@ -522,42 +526,35 @@ def reset_between_tests():
 # =============================================================================
 
 def pytest_collection_modifyitems(config, items):
-    """
-    Modify test items during collection.
+    """Scope-deselect the backend matrix, then assign exactly one tier marker per test.
 
-    Auto-applies markers based on test path:
-    - tests/integration/* → @pytest.mark.integration
-    - tests/*/cross_backend/* → @pytest.mark.cross_backend
-
-    Auto-skips tests with known external issues:
-    - pandas: Visitor factory doesn't support pandas backend yet
-    - ibis-duckdb: External DuckDB dependency incompatibility
+    Backend scope (MA_BACKEND_SCOPE=pr) DESELECTS cross-backend parametrized
+    cases for out-of-scope backends — ALL_BACKENDS stays the full canonical list,
+    so structural tests that assert against it are unaffected. Then:
+    - Explicit tier markers win. >1 tier marker is a violation (spec: exactly one).
+    - Unmarked items get resolve_tier(); None means unclassified → violation.
     """
+    from selection.tiers import TIERS, resolve_tier
+    from fixtures.backend_registry import active_scope, partition_items_by_scope
+
+    # --- backend-scope deselection (pr scope drops out-of-scope backend params) ---
+    kept, deselected = partition_items_by_scope(items, active_scope())
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = kept
+
+    untagged, multi = [], []
     for item in items:
-        # Get test file path
-        test_path = str(item.fspath)
-
-        # Auto-apply markers based on directory
-        if "/integration/" in test_path:
-            item.add_marker(pytest.mark.integration)
-        elif "/cross_backend/" in test_path:
-            item.add_marker(pytest.mark.cross_backend)
-
-        # Auto-apply feature markers based on filename
-        test_name = item.nodeid.lower()
-        if "temporal" in test_name:
-            item.add_marker(pytest.mark.temporal)
-        if "arithmetic" in test_name:
-            item.add_marker(pytest.mark.arithmetic)
-        if "string" in test_name:
-            item.add_marker(pytest.mark.string)
-
-        # Auto-mark tests with known external issues
-        # Check if test is parametrized with backend_name
-        if hasattr(item, 'callspec') and 'backend_name' in item.callspec.params:
-            backend_name = item.callspec.params['backend_name']
-
-            # DuckDB dependency issue RESOLVED! ✅
-            # Issue was fixed by updating dependencies
-            # Previous blocker: module 'duckdb' has no attribute 'functional'
-            # All 110+ DuckDB tests now pass
+        existing = [m.name for m in item.iter_markers() if m.name in TIERS]
+        if len(existing) > 1:
+            multi.append(item.nodeid)
+            continue
+        if existing:
+            continue  # exactly one explicit tier marker
+        tier = resolve_tier(item.nodeid)
+        if tier is None:
+            untagged.append(item.nodeid)
+        else:
+            item.add_marker(getattr(pytest.mark, tier))
+    config._ma_tier_untagged = untagged
+    config._ma_tier_multi = multi

@@ -1,0 +1,31 @@
+# Conservative explicit dependency graph (decided 2026-06-21):
+#   expressions -> +relations +conform   (relations/conform embed expr compilation)
+#   typespec    -> +conform              (conform consumes TypeSpec)
+#   relations   -> +conform              (conform is a relation method)
+# The `contract` tier ALWAYS runs as a separate invocation (see select_tests.py);
+# it is NOT listed here because a marker filter cannot be unioned with paths.
+rules:
+  - match: "src/mountainash/expressions/"
+    select: ["tests/expressions", "tests/relations", "tests/conform", "tests/integration"]
+  - match: "src/mountainash/relations/"
+    select: ["tests/relations", "tests/conform", "tests/integration"]
+  - match: "src/mountainash/conform/"
+    select: ["tests/conform", "tests/pydata", "tests/relations", "tests/integration"]
+  - match: "src/mountainash/typespec/"
+    select: ["tests/typespec", "tests/conform", "tests/integration"]
+  - match: "src/mountainash/pydata/"
+    select: ["tests/pydata", "tests/integration"]
+  - match: "src/mountainash/pipelines/"
+    select: ["tests/pipelines"]
+  - match: "src/mountainash/datacontracts/"
+    select: ["tests/datacontracts"]
+
+cross_cutting:
+  - "src/mountainash/core/dtypes/"
+  - "src/mountainash/core/constants"
+  - "tests/conftest.py"
+  - "tests/fixtures/"
+  - "tests/selection/"
+  - "pyproject.toml"
+  - "hatch.toml"
+  - "pytest.ini"
