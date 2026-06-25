@@ -526,12 +526,22 @@ def reset_between_tests():
 # =============================================================================
 
 def pytest_collection_modifyitems(config, items):
-    """Assign exactly one tier marker per test; record closed-by-default violations.
+    """Scope-deselect the backend matrix, then assign exactly one tier marker per test.
 
+    Backend scope (MA_BACKEND_SCOPE=pr) DESELECTS cross-backend parametrized
+    cases for out-of-scope backends — ALL_BACKENDS stays the full canonical list,
+    so structural tests that assert against it are unaffected. Then:
     - Explicit tier markers win. >1 tier marker is a violation (spec: exactly one).
     - Unmarked items get resolve_tier(); None means unclassified → violation.
     """
     from selection.tiers import TIERS, resolve_tier
+    from fixtures.backend_registry import active_scope, partition_items_by_scope
+
+    # --- backend-scope deselection (pr scope drops out-of-scope backend params) ---
+    kept, deselected = partition_items_by_scope(items, active_scope())
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = kept
 
     untagged, multi = [], []
     for item in items:

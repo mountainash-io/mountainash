@@ -107,6 +107,43 @@ def resolve_backend_scope(scope: str) -> list[str]:
     return list(REGISTRY)
 
 
-# Single chokepoint: every cross-backend test parametrises over ALL_BACKENDS,
-# so filtering here scopes the whole matrix with no per-file edits.
-ALL_BACKENDS: list[str] = resolve_backend_scope(os.environ.get("MA_BACKEND_SCOPE", "full"))
+def active_scope() -> str:
+    """The currently-active backend scope (env-driven; CLI mirrors into env)."""
+    return os.environ.get("MA_BACKEND_SCOPE", "full")
+
+
+def deselect_backend_under_scope(backend_name: str | None, scope: str) -> bool:
+    """True if a test parametrized with this backend should be DESELECTED.
+
+    Scoping is 'which tests to run', not 'what the registry contains': we keep
+    ALL_BACKENDS the full canonical list and instead drop the parametrized cases
+    for out-of-scope backends at collection time. Only registered backend names
+    are ever deselected — a param value that isn't a backend (or scope != 'pr')
+    is always kept (fail-safe: never drop a test we can't positively identify).
+    """
+    if scope != "pr" or backend_name is None:
+        return False
+    return backend_name in REGISTRY and backend_name not in PR_BACKENDS
+
+
+def partition_items_by_scope(items, scope: str):
+    """Split collected items into (kept, deselected) for the given scope.
+
+    Reads each item's backend parameter (the cross-backend convention uses
+    ``backend_name``; a few use ``backend``). Used by the conftest collection
+    hook and mirrored in the pytester attribution test.
+    """
+    kept, deselected = [], []
+    for item in items:
+        params = getattr(getattr(item, "callspec", None), "params", {}) or {}
+        backend = params.get("backend_name", params.get("backend"))
+        (deselected if deselect_backend_under_scope(backend, scope) else kept).append(item)
+    return kept, deselected
+
+
+# ALL_BACKENDS is the full canonical registry list — ALWAYS all 9 backends.
+# It is the parametrize source AND what structural tests assert against. Backend
+# SCOPING (pr vs full) is applied by DESELECTING out-of-scope parametrized cases
+# at collection (see tests/conftest.py::pytest_collection_modifyitems), not by
+# shrinking this list.
+ALL_BACKENDS: list[str] = list(REGISTRY)

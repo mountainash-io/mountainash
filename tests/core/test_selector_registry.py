@@ -10,13 +10,20 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 REG = load_registry()
 
 
+_COV_SUBPROCESS_ENV = (
+    "COVERAGE_PROCESS_START", "COVERAGE_PROCESS_CONFIG", "COVERAGE_FILE",
+    "COV_CORE_SOURCE", "COV_CORE_CONFIG", "COV_CORE_DATAFILE", "COV_CORE_CONTEXT",
+)
+
+
 def _coverage_free_env() -> dict[str, str]:
     # Strip coverage subprocess hooks so a collect-only `pytest` child does not
     # write statement-mode coverage data that can't combine with the parent's
-    # branch data (pytest-cov + parallel=true sets COVERAGE_PROCESS_START).
+    # branch data. pytest-cov enables subprocess coverage via COV_CORE_* (its
+    # embed/.pth mechanism) and/or COVERAGE_PROCESS_START; clear the full set.
     env = dict(os.environ)
-    env.pop("COVERAGE_PROCESS_START", None)
-    env.pop("COVERAGE_FILE", None)
+    for _k in _COV_SUBPROCESS_ENV:
+        env.pop(_k, None)
     return env
 
 
