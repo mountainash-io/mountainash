@@ -43,13 +43,19 @@ VALID_ROOT_CAUSES = {
     "mountainash_internal",
 }
 
+# Source of truth: tests/fixtures/backend_registry.py REGISTRY. Keep in sync
+# with the cross-backend test matrix — every backend a test can parametrize
+# over may legitimately appear in an entry's affected_backends.
 VALID_BACKENDS = {
     "polars",
+    "polars-lazy",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "narwhals-lazy",
     "ibis-duckdb",
     "ibis-polars",
     "ibis-sqlite",
-    "narwhals-polars",
-    "narwhals-pandas",
 }
 
 VALID_STATUSES = {
@@ -104,6 +110,7 @@ CATEGORY_ABBR = {
     "cast-semantics": "CAST",
     "list-ops": "LIST",
     "aggregate-ops": "AGG",
+    "window-ops": "WIN",
     "type-system": "TYPE",
     "wiring-gaps": "WIRE",
 }

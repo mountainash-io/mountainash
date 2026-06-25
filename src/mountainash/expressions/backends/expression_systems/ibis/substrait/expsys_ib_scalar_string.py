@@ -5,6 +5,7 @@ Implements string operations for the Ibis backend.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional, TYPE_CHECKING
 
 import ibis
@@ -579,10 +580,24 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             String with replacements.
 
         Note:
-            Ibis .replace() only replaces the first occurrence on some backends
-            (e.g., Polars). We use .re_replace() to get replace-all semantics
-            consistent with Python str.replace across all Ibis backends.
+            Substrait `replace` is literal substring substitution; regex is the
+            separate `regexp_replace`. We use `.re_replace()` because Ibis
+            `.replace()` only replaces the FIRST occurrence when `input` is a
+            deferred expression (mountainash always compiles to deferreds), while
+            `.re_replace()` reliably replaces all. To keep literal semantics we
+            `re.escape()` the pattern so metacharacters (e.g. ".") are matched
+            literally rather than as a regex. Column-ref patterns (no extractable
+            literal) fall back to the raw expression.
         """
+        pattern = self._extract_literal_if_possible(substring)
+        if isinstance(pattern, str):
+            escaped = re.escape(pattern)
+            return self._call_with_expr_support(
+                lambda: input.re_replace(escaped, replacement),
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+                substring=substring,
+                replacement=replacement,
+            )
         return self._call_with_expr_support(
             lambda: input.re_replace(substring, replacement),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,

@@ -39,6 +39,7 @@ from fixtures.backend_registry import ALL_BACKENDS
 # str.to_date/to_datetime/to_time support).
 POLARS_ONLY = ["polars"]
 _POLARS_BACKENDS = frozenset({"polars", "polars-lazy"})
+_IBIS_BACKENDS = frozenset({"ibis-polars", "ibis-duckdb", "ibis-sqlite"})
 
 
 def _xfail_polars_only_temporal(backend_name: str, also_ok: tuple[str, ...] = ()) -> None:
@@ -59,6 +60,24 @@ def _xfail_polars_only_temporal(backend_name: str, also_ok: tuple[str, ...] = ()
         "narwhals lacks strptime_date/strptime_timestamp/str.to_time and ibis "
         "cannot parse non-ISO format strings"
     )
+
+
+def _xfail_ibis_date_interop(backend_name: str) -> None:
+    """xfail DATE-cast output-type assertions on Ibis backends.
+
+    Casting an ISO date string to ``UniversalType.DATE`` materialises as
+    ``datetime.datetime`` (midnight) on Ibis, not ``datetime.date``: pandas —
+    Ibis's interchange dtype — has no native date-only type, so a logical
+    ``Date`` round-trips through ``datetime64[ns]``. The conform expression is
+    correct; only the Python-level output type differs. Registry: IB-CAST-02
+    (upstream-issues.yaml). Since 2026-06-25.
+    """
+    if backend_name in _IBIS_BACKENDS:
+        pytest.xfail(
+            f"{backend_name}: Ibis DATE cast returns datetime.datetime (midnight) "
+            "not datetime.date — pandas has no native date-only dtype "
+            "(IB-CAST-02). Since 2026-06-25."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +266,7 @@ class TestDefaultFormatFallback:
     """Default and None formats use canonical default cast (ISO parsing)."""
 
     def test_default_format_uses_cast(self, backend_name, backend_factory):
+        _xfail_ibis_date_interop(backend_name)
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
@@ -259,6 +279,7 @@ class TestDefaultFormatFallback:
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
 
     def test_none_format_uses_cast(self, backend_name, backend_factory):
+        _xfail_ibis_date_interop(backend_name)
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
@@ -272,6 +293,7 @@ class TestDefaultFormatFallback:
 
     def test_any_format_uses_cast(self, backend_name, backend_factory):
         """'any' format falls through to canonical default cast."""
+        _xfail_ibis_date_interop(backend_name)
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
