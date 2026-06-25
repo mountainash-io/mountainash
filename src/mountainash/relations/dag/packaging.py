@@ -55,8 +55,31 @@ def resource_to_relation(ref_or_resource: ResourceRef | DataResource) -> Relatio
     return Relation(ResourceReadRelNode(resource=ref.resource))
 
 
-def to_package(dag: RelationDAG) -> DataPackage:
-    """Export a DAG as a Frictionless DataPackage descriptor."""
+def _has_unknown(schema) -> bool:
+    """Return True if any column in the inferred schema is genuinely UNKNOWN.
+
+    UNCONSTRAINED (explicitly typeless) does NOT count as unknown — it is a
+    legitimate declaration of 'any'. Only SchemaTypeStatus.UNKNOWN triggers
+    strict-mode rejection (principle best-effort-introspection R4)."""
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+    return any(v is SchemaTypeStatus.UNKNOWN for v in schema.values())
+
+
+def to_package(dag: RelationDAG, *, strict: bool = False) -> DataPackage:
+    """Export a DAG as a Frictionless DataPackage descriptor.
+
+    Emits a resource for every named tabular relation. A ResourceReadRelNode
+    reuses its original DataResource (preserving path/format/dialect for
+    round-trip). Any other relation derives its schema via the ref-resolved
+    dag.schema(name) authority (NOT relation.output_schema, which lacks a
+    resolver and returns {} for ref-containing relations). Assets pass through
+    unchanged.
+
+    Default mode is non-fatal (principle best-effort-introspection R3): emits
+    a resource per named relation with the best-effort schema (schema-less when
+    no columns are determinable). strict=True raises MissingResourceSchema for
+    any relation whose inferred schema is empty or contains a genuinely-UNKNOWN
+    column (R4). UNCONSTRAINED does NOT trigger strict failure."""
     from mountainash.relations.core.relation_nodes.extensions_mountainash import (
         ResourceReadRelNode,
     )
@@ -69,27 +92,30 @@ def to_package(dag: RelationDAG) -> DataPackage:
     for name, relation in dag.relations.items():
         root = getattr(relation, "_node", None)
         if isinstance(root, ResourceReadRelNode):
+            # Fast path: reuse original DataResource (preserves path/format/dialect)
             res = root.resource
             if res.name != name:
                 res = res.model_copy(update={"name": name})
             resources.append(res)
             continue
 
-        output_schema = getattr(relation, "output_schema", None)
-        if output_schema is None:
+        # Ref-resolved authority: resolves RefRelNodes correctly
+        inferred = dag.schema(name)
+        out = _frictionless_from_inferred(inferred)
+
+        if strict and (not inferred or _has_unknown(inferred)):
             missing.append(name)
             continue
-        resources.append(
-            DataResource.model_validate(
-                {
-                    "name": name,
-                    "path": f"{name}.csv",
-                    "type": "table",
-                    "format": "csv",
-                    "schema": output_schema,
-                }
-            )
-        )
+
+        res_dict: dict = {
+            "name": name,
+            "path": f"{name}.csv",
+            "type": "table",
+            "format": "csv",
+        }
+        if out is not None:  # schema-less when no columns determinable
+            res_dict["schema"] = out
+        resources.append(DataResource.model_validate(res_dict))
 
     for name, ref in dag.assets.items():
         res = ref.resource
@@ -97,7 +123,7 @@ def to_package(dag: RelationDAG) -> DataPackage:
             res = res.model_copy(update={"name": name})
         resources.append(res)
 
-    if missing:
+    if strict and missing:
         raise MissingResourceSchema(
             f"cannot export to DataPackage; relations without schema: {missing}"
         )
