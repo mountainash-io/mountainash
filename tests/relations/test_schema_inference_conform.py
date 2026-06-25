@@ -10,6 +10,12 @@ Also includes parity-guard tests asserting that inferred schema column names
 match ``rel.to_polars().columns`` and that concretely-typed inferred dtypes
 agree with the registry-mapped Polars output dtypes — including the critical
 non-string categorical case (Polars Enum/Categorical → canonical STRING).
+
+Parity oracles use the Polars runtime only by design: ``infer_schema`` never
+compiles a plan or touches a backend (it is a pure AST walk), so the inferred
+schema is backend-invariant — there is no per-backend inference branch that
+could diverge. Polars is therefore a sufficient runtime oracle; a second
+backend would re-verify the same dict produced by the same code path.
 """
 from __future__ import annotations
 

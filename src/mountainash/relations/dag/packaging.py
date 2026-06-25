@@ -60,7 +60,12 @@ def _has_unknown(schema) -> bool:
 
     UNCONSTRAINED (explicitly typeless) does NOT count as unknown — it is a
     legitimate declaration of 'any'. Only SchemaTypeStatus.UNKNOWN triggers
-    strict-mode rejection (principle best-effort-introspection R4)."""
+    strict-mode rejection (principle best-effort-introspection R4).
+
+    Note: this catches columns inference reports AS UNKNOWN, not columns absent
+    from the inferred schema entirely (e.g. un-aliased aggregate measures, which
+    inference cannot name). Strict mode therefore under-catches those — a known
+    inference-naming limitation, never a false raise."""
     from mountainash.relations.schema_inference import SchemaTypeStatus
     return any(v is SchemaTypeStatus.UNKNOWN for v in schema.values())
 
