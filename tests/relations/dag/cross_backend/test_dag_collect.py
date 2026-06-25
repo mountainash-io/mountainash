@@ -21,19 +21,23 @@ from fixtures.backend_registry import ALL_BACKENDS
 
 def _extract_column(result, col: str) -> list:
     """Extract a column from a backend-native result as a plain list."""
-    if hasattr(result, "execute"):
-        return result.execute()[col].tolist()
+    # collect() before execute(): a Polars LazyFrame has BOTH; we want the
+    # subscriptable collect() result, not LazyFrame.execute()'s streaming
+    # SingleNodeQueryResult. Ibis Tables only have execute().
     if hasattr(result, "collect"):
         return result.collect()[col].to_list()
+    if hasattr(result, "execute"):
+        return result.execute()[col].tolist()
     return list(result[col])
 
 
 def _extract_sum(result, col: str):
     """Extract sum of a column from a backend-native result."""
-    if hasattr(result, "execute"):
-        return result.execute()[col].sum()
+    # collect() before execute() — see _extract_column.
     if hasattr(result, "collect"):
         return result.collect()[col].sum()
+    if hasattr(result, "execute"):
+        return result.execute()[col].sum()
     return sum(result[col])
 
 
