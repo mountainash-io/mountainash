@@ -86,18 +86,33 @@ Each existing package drifted from the rule in one direction; naming the drift i
 
 `mountainash-auth-client` is **not** in this table as a consumer. It sits beneath all three, supplying L2 data only.
 
-## Current divergences (to converge)
+## OAuth is the rule applied twice
 
-These are known, tracked deviations — see [known-divergences.md](known-divergences.md):
+OAuth2 looks like an exception — it has a whole flow engine (authorize, exchange, refresh, callback). It isn't. Token **acquisition** is an auth operation that *produces a credential*; token **application** renders that credential onto a target. So the rule applies recursively: the OAuth ops layer produces a token (generic credential data), and each consumer renders that token for its target — Bearer header for an HTTP API, `authenticator=oauth` for snowflake. Nothing about OAuth contradicts the layering; it is L2-produced-by-ops feeding L3-per-consumer. The full design is in [oauth-settings-ops-split.md](oauth-settings-ops-split.md).
 
-- **auth-client is over-rich on OAuth2.** `OAuth2AuthProfile` / `OAuth2AuthCodeAuthProfile` carry HTTP-OAuth flow policy (scopes, expiry, server URIs, Bearer rendering). Under the rule these move down to the HTTP/OAuth consumer; auth-client keeps only the universal credential fields.
-- **transport double-renders and special-cases envelopes.** The S3 path sets fields via `driver_key` then overwrites them in the compose hook, and the factory special-cases the assume-role envelope. Under the rule the compose hook only adds nested keys, and the envelope is owned by the applier.
+## Sizing the extraction
 
-New consumers should follow the rule directly rather than copying these divergences. `mountainash-data`'s auth-client migration is the first clean exemplar.
+Principle: `a.architecture/extract-by-responsibility-not-by-consumer.md`.
+
+The recurring failure mode in this ecosystem is mis-sizing where a concern lives — in *both* directions:
+
+- **Over-specialising** — fitting shared infrastructure to the consumers we *have* rather than the consumers we *could* have. Symptom: the "simple" option forces an *unrelated* consumer to take on dependencies it has no use for (e.g. making OAuth a subpackage of http-client would force `mountainash-data` to depend on a REST-fetch pipeline just to get a database token). That is coupling wearing a simplification's clothes.
+- **Over-extracting** — splitting a concern into its own package for independence it can't actually have. Symptom: the extracted package still depends on the thing it split from for its reason to exist (e.g. a standalone `mountainash-oauth` still needs auth-client's credential schemas — so it fragments the auth domain for no real independence).
+
+The test for the right size: **extract by responsibility, and let dependencies flow one way.** A concern earns a *submodule* when it's a distinct responsibility (OAuth ops vs auth settings); it earns a *package* only when it has consumers that don't need its neighbours. When unsure, prefer the smaller boundary (submodule) that keeps the domain cohesive and the dependency one-directional.
+
+## Convergence backlog
+
+Two existing packages predate this rule and drift from it. They are **architecture debt** (not in the auto-generated cross-backend `known-divergences.md`, which is a different catalog). New work follows the rule directly; `mountainash-data`'s auth-client migration is the first clean exemplar.
+
+- **auth-client weaves OAuth ops through the credential schemas.** `OAuth2AuthProfile` bakes an HTTP Bearer renderer (`__adapters__`) into the data class, and `OAuth2Connection` builds the consumer's `httpx.Client`. Target: un-weave into independent `schemas/` (data) and `oauth/` (ops) submodules within auth-client; ops outputs a token, not a client; rendering moves to the consumer. Full design: [oauth-settings-ops-split.md](oauth-settings-ops-split.md). **Not** "evict OAuth from auth-client" — OAuth is auth.
+- **transport double-renders and special-cases envelopes.** The S3 path sets fields via `driver_key` then *overwrites* them in the compose hook, and the factory special-cases the assume-role `base_kwargs` envelope. Target: the compose hook only *adds* nested keys it can't express flatly; the envelope is owned by the L3 applier, never the factory.
 
 ## See also
 
 - `a.architecture/three-layer-separation.md` — the meta-principle this specialises (each layer one responsibility)
 - `a.architecture/credentials-are-rendered-by-the-consumer.md` — the rule above
+- `a.architecture/extract-by-responsibility-not-by-consumer.md` — sizing the boundary
+- [oauth-settings-ops-split.md](oauth-settings-ops-split.md) — OAuth as the recursive application
 - [backend-architecture.md](backend-architecture.md) — the analogous three-layer split inside the expression/relation engine
 - [extension-points.md](extension-points.md) — where downstream packages plug in
