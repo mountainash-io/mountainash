@@ -1,5 +1,7 @@
 """Tests for schema inference from relation node trees."""
 import pytest
+import mountainash as ma
+import polars as pl
 
 from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.relations.schema_inference import (
@@ -7,6 +9,7 @@ from mountainash.relations.schema_inference import (
     _schema_from_dataframe,
     _schema_from_table_schema,
     infer_schema,
+    SchemaTypeStatus,
 )
 
 
@@ -326,6 +329,53 @@ class TestInferSchemaAggregate:
         )
         schema = infer_schema(node)
         assert list(schema.keys()) == ["group", "n"]
+
+    def test_unaliased_measure_named_after_source_column(self):
+        # Item 46 (a): col("v").sum() infers as {"v": UNKNOWN}, not absent.
+        df = pl.DataFrame({"k": ["a"], "v": [1]})
+        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
+        schema = infer_schema(rel._node, None)
+        assert schema["v"] is SchemaTypeStatus.UNKNOWN
+        assert "k" in schema
+        assert schema["k"] is not SchemaTypeStatus.UNKNOWN  # key stays typed
+
+    def test_unaliased_compound_measure_uses_leftmost_root(self):
+        # (col("a") + col("b")).sum() -> named "a" (Polars leftmost-root rule)
+        df = pl.DataFrame({"k": ["x"], "a": [1], "b": [2]})
+        rel = ma.relation(df).group_by("k").agg((ma.col("a") + ma.col("b")).sum())
+        schema = infer_schema(rel._node, None)
+        assert schema["a"] is SchemaTypeStatus.UNKNOWN
+
+    def test_aliased_measure_unchanged(self):
+        # Regression: alias still wins over the source-column fallback.
+        df = pl.DataFrame({"k": ["a"], "v": [1]})
+        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum().alias("total"))
+        schema = infer_schema(rel._node, None)
+        assert "total" in schema
+        assert "v" not in schema
+
+    def test_measure_key_collision_keys_win(self):
+        # a-2: a measure name colliding with a group key must NOT overwrite
+        # the key's resolved (typed) entry with UNKNOWN.
+        df = pl.DataFrame({"v": [1, 2]})
+        rel = ma.relation(df).group_by("v").agg(ma.col("v").sum())
+        schema = infer_schema(rel._node, None)
+        assert schema["v"] is not SchemaTypeStatus.UNKNOWN
+
+    def test_literal_measure_stays_skipped(self):
+        # Un-nameable measures (no field root) remain best-effort skipped.
+        df = pl.DataFrame({"k": ["a"], "v": [1]})
+        rel = ma.relation(df).group_by("k").agg(ma.lit(1).sum())
+        schema = infer_schema(rel._node, None)
+        assert set(schema.keys()) == {"k"}
+
+    def test_unaliased_measure_name_parity_with_runtime(self):
+        # Inferred column set == actual to_polars() column set (name parity
+        # against the canonical Polars oracle).
+        df = pl.DataFrame({"k": ["a", "a", "b"], "v": [1, 2, 3]})
+        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
+        inferred = infer_schema(rel._node, None)
+        assert set(inferred.keys()) == set(rel.to_polars().columns)
 
 
 class TestInferSchemaJoin:
