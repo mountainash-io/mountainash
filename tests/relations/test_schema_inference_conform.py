@@ -20,8 +20,10 @@ backend would re-verify the same dict produced by the same code path.
 from __future__ import annotations
 
 import polars as pl
+import pytest
 
 import mountainash as ma
+from mountainash.conform.errors import SchemaDriftError
 from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.core.dtypes import TypeTarget, registry
 from mountainash.relations.schema_inference import (
@@ -400,3 +402,150 @@ class TestExactModeOrderParity:
         inferred = _infer(rel)
         actual = rel.to_polars()
         assert list(inferred.keys()) == list(actual.columns)
+
+
+# ---------------------------------------------------------------------------
+# data_type / missing_columns policy parity (item 48 Task 9)
+#
+# Before this task, infer_schema's ConformRelNode branch called
+# resolve_conform_output() with no actual_dtypes and no resolved contract --
+# it silently ignored both TypeSpec.contract and conform(contract=...), and
+# the data_type dimension's evolve/discard_value/discard_row/freeze policies
+# never affected the inferred schema at all. This section pins the fix:
+# actual_dtypes=input_schema now drives EmittedField.type_action, and the
+# resolved contract (TypeSpec.contract <- ConformRelNode.contract override)
+# is honoured the same way apply_conform() honours it at execute time.
+# ---------------------------------------------------------------------------
+
+class TestDataTypePolicyParity:
+    """`.schema` (infer) vs `.to_polars()` (execute) column-and-type
+    agreement under the data_type / missing_columns contract dimensions."""
+
+    def test_evolve_via_conform_contract_param_matches_to_polars(self):
+        # Unsafe cast (STRING source declared INTEGER) with data_type=
+        # "evolve" skips the cast entirely -- output keeps STRING. Infer
+        # must report the same STRING via EmittedField.effective_type (R2).
+        df = pl.DataFrame({"n": ["1", "2"]})
+        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
+
+        inferred = _infer(rel)
+        actual = rel.to_polars().schema
+        assert inferred["n"] == _polars_schema_canonical(actual)["n"] == D.STRING
+
+    def test_evolve_via_typespec_contract_matches_to_polars(self):
+        # Same, but layered via TypeSpec.contract (not the conform(contract=)
+        # override) -- exercises the spec_contract layer infer previously
+        # ignored entirely.
+        df = pl.DataFrame({"n": ["1", "2"]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="n", type=U.INTEGER)],
+            fields_match="open",
+            contract={"data_type": "evolve"},
+        )
+        rel = ma.relation(df).conform(spec)
+
+        inferred = _infer(rel)
+        actual = rel.to_polars().schema
+        assert inferred["n"] == _polars_schema_canonical(actual)["n"] == D.STRING
+
+    def test_evolve_does_not_affect_safe_casts(self):
+        # Safe cast (I32 -> I64) never trips the data_type drift loop, so
+        # "evolve" has nothing to evolve -- declared_type still applies, and
+        # parity holds via the ordinary (non-evolve) path.
+        df = pl.DataFrame({"n": pl.Series([1, 2], dtype=pl.Int32)})
+        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
+
+        inferred = _infer(rel)
+        actual = rel.to_polars().schema
+        assert inferred["n"] == _polars_schema_canonical(actual)["n"] == D.I64
+
+    def test_skip_missing_columns_via_explicit_contract_matches_to_polars(self):
+        # missing_columns="skip" via an explicit contract override on the
+        # normally-strict "equal" preset -- the missing field is skipped
+        # instead of raising MissingFieldsError, matching to_polars() exactly.
+        df = pl.DataFrame({"a": [1]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="a", type=U.INTEGER),
+                FieldSpec(name="b", type=U.STRING),
+            ],
+            fields_match="equal",
+            contract={"missing_columns": "skip"},
+        )
+        rel = ma.relation(df).conform(spec)
+
+        inferred = _infer(rel)
+        actual = rel.to_polars().schema
+        assert set(inferred.keys()) == set(actual.names()) == {"a"}
+
+    # TODO(item 48 PR-C): a missing_columns="null_fill" parity test belongs
+    # here once resolve_conform_output actually emits the missing field with
+    # a null-filled value. Today, resolve_conform_output's per-field loop
+    # (conform/expressions.py step 3) unconditionally `continue`s whenever
+    # `_source_root(source_name) not in available_set`, regardless of
+    # contract.missing_columns -- so "null_fill" currently behaves
+    # identically to "skip" (the field is never emitted at all, no fill
+    # value, no column). A parity test written against today's behaviour
+    # would pin that gap as intended, not verify the real null_fill
+    # contract; PR-C should land the emission logic and this parity test
+    # together.
+
+
+class TestFreezeNeverRaisesDuringInference:
+    """R1/R2: inference must never raise SchemaDriftError -- freeze is an
+    execute-time-only enforcement concern (item 48 Task 9)."""
+
+    def test_freeze_data_type_contract_does_not_raise_during_schema(self):
+        df = pl.DataFrame({"n": ["a", "b"]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="n", type=U.INTEGER)],
+            fields_match="open",
+            contract={"data_type": "freeze"},
+        )
+        rel = ma.relation(df).conform(spec)
+
+        # Inference succeeds -- freeze never trips during .schema.
+        schema = _infer(rel)
+        assert schema["n"] == D.I64  # freeze leaves declared_type untouched
+
+        # Execution DOES enforce freeze.
+        with pytest.raises(SchemaDriftError):
+            rel.to_polars()
+
+    def test_freeze_missing_columns_contract_does_not_raise_during_schema(self):
+        df = pl.DataFrame({"a": [1]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="a", type=U.INTEGER),
+                FieldSpec(name="b", type=U.STRING),
+            ],
+            fields_match="open",
+            contract={"missing_columns": "freeze"},
+        )
+        rel = ma.relation(df).conform(spec)
+
+        schema = _infer(rel)
+        assert set(schema.keys()) == {"a"}
+
+        with pytest.raises(SchemaDriftError):
+            rel.to_polars()
+
+    def test_freeze_extra_columns_contract_does_not_raise_during_schema(self):
+        df = pl.DataFrame({"a": [1], "extra": [2]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="a", type=U.INTEGER)],
+            fields_match="open",
+            contract={"extra_columns": "freeze"},
+        )
+        rel = ma.relation(df).conform(spec)
+
+        schema = _infer(rel)
+        # Open mode + freeze on extra_columns: the guard's `from_preset`
+        # check gates the *raise*, not the with_columns projection itself --
+        # inference still keeps the pass-through column in the schema.
+        assert set(schema.keys()) == {"a", "extra"}
+
+        with pytest.raises(SchemaDriftError):
+            rel.to_polars()

@@ -346,6 +346,7 @@ def resolve_conform_output(
     actual_dtypes: Optional[Mapping[str, Any]] = None,
     contract: Optional[ConformContract] = None,
     node_identity: Optional[tuple] = None,
+    raise_on_freeze: bool = True,
 ) -> ConformOutputContract:
     """Resolve the output contract for a TypeSpec conformance operation.
 
@@ -390,6 +391,20 @@ def resolve_conform_output(
             build or raise. ``None`` (the default) leaves all three identity
             fields ``None`` — the DAG visitor supplies real identity in a
             later task (item 48 Task 7).
+        raise_on_freeze: When ``True`` (the default, execute-time behaviour —
+            ``UnifiedRelationVisitor.apply_conform``), a non-preset
+            (``from_preset=False``) contract's ``freeze`` policy raises
+            ``SchemaDriftError`` as documented below. When ``False``
+            (build-time callers: ``infer_schema``'s ``ConformRelNode``
+            branch and ``Relation.assess_drift()``, item 48 Task 9), those
+            same ``freeze`` violations are folded into the returned
+            ``drift`` report instead of raising — inference and pre-flight
+            assessment must never raise ``SchemaDriftError`` (R1/R2: build
+            time stays non-fatal). This only gates the *explicit-contract*
+            freeze raises (the ``_raise_drift`` call sites); the
+            preset-provenance legacy errors (``MissingFieldsError`` /
+            ``ExtraFieldsError``) are a separate, older structural-guard
+            concern and are unaffected by this flag.
 
     Returns:
         A :class:`ConformOutputContract` with ``fields_match``, ``emitted``
@@ -462,11 +477,13 @@ def resolve_conform_output(
             if contract.missing_columns == "freeze" and missing:
                 if contract.from_preset:
                     raise MissingFieldsError(missing_fields=missing, fields_match=fields_match)
-                _raise_drift(missing_columns=missing, node_identity=node_identity)
+                if raise_on_freeze:
+                    _raise_drift(missing_columns=missing, node_identity=node_identity)
             if contract.extra_columns == "freeze" and extra:
                 if contract.from_preset:
                     raise ExtraFieldsError(extra_fields=extra, fields_match=fields_match)
-                _raise_drift(extra_columns=extra, node_identity=node_identity)
+                if raise_on_freeze:
+                    _raise_drift(extra_columns=extra, node_identity=node_identity)
     else:
         available_set = None  # type: ignore[assignment]
 
@@ -553,7 +570,7 @@ def resolve_conform_output(
         resolved_emitted.append(em)
     emitted = resolved_emitted
 
-    if contract.data_type == "freeze" and type_mismatches:
+    if contract.data_type == "freeze" and type_mismatches and raise_on_freeze:
         _raise_drift(type_mismatches=type_mismatches, node_identity=node_identity)
 
     # --- 5. Assemble the non-raising drift report ---
