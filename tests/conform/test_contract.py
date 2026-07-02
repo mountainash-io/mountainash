@@ -19,7 +19,7 @@ from mountainash.conform.contract import (
     resolve_contract,
     validate_contract_dict,
 )
-from mountainash.conform.errors import ConformError
+from mountainash.conform.errors import ConformError, MissingFieldsError
 
 
 # --- Preset table matrix (locked to current fields_match behaviour) -------
@@ -273,3 +273,103 @@ def test_original_preset_dict_entry_not_mutated_by_resolve_contract():
 def test_resolve_contract_unknown_fields_match_raises_keyerror():
     with pytest.raises(KeyError):
         resolve_contract("nonexistent")
+
+
+# --- resolve_conform_output: contract provenance (item 48 Task 5) -----------
+#
+# Task 5 replaced the five literal fields_match guard branches in
+# resolve_conform_output with a single preset-driven guard keyed off
+# ConformContract. These tests exercise the new `contract` parameter and
+# its provenance (`from_preset`) directly; tests/conform/test_fields_match.py
+# remains the behaviour-parity gate for the fields_match-level API.
+
+from mountainash.conform.expressions import resolve_conform_output
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
+
+
+def _spec(fields_match, field_names):
+    return TypeSpec(
+        fields=[FieldSpec(name=n, type=UniversalType.STRING) for n in field_names],
+        fields_match=fields_match,
+    )
+
+
+def test_resolve_conform_output_default_contract_derived_from_fields_match():
+    """contract=None -> derived internally via resolve_contract(fields_match)."""
+    spec = _spec("equal", ["a", "b"])
+    out = resolve_conform_output(spec, available_columns=["a", "b"])
+    assert out.fields_match == "equal"
+    assert {em.source_name for em in out.emitted} == {"a", "b"}
+
+
+def test_resolve_conform_output_default_contract_raises_legacy_fields_match_error():
+    """The internally-derived contract is preset provenance, so a frozen-
+    dimension violation still raises the legacy fields_match error, not
+    SchemaDriftError."""
+    spec = _spec("equal", ["a", "b"])
+    with pytest.raises(MissingFieldsError):
+        resolve_conform_output(spec, available_columns=["a"])
+
+
+def test_resolve_conform_output_explicit_preset_contract_matches_default():
+    """Passing the resolved preset contract explicitly is equivalent to
+    leaving contract=None (same preset, same provenance). "subset" allows
+    extra columns to be discarded, so a", "b", "extra" is a valid source."""
+    spec = _spec("subset", ["a", "b"])
+    default_out = resolve_conform_output(
+        spec, available_columns=["a", "b", "extra"],
+    )
+    explicit_out = resolve_conform_output(
+        spec,
+        available_columns=["a", "b", "extra"],
+        contract=resolve_contract("subset"),
+    )
+    assert [em.source_name for em in default_out.emitted] == [
+        em.source_name for em in explicit_out.emitted
+    ]
+
+
+def test_resolve_conform_output_non_preset_contract_missing_columns_defers_to_drift_stub():
+    """A non-preset (from_preset=False) contract with a missing_columns=freeze
+    violation takes the Task-6 `_raise_drift` branch, which is a stub
+    (NotImplementedError) until Task 6 lands."""
+    spec = _spec("equal", ["a", "b"])
+    contract = dataclasses.replace(resolve_contract("equal"), from_preset=False)
+    with pytest.raises(NotImplementedError, match="item 48 Task 6"):
+        resolve_conform_output(spec, available_columns=["a"], contract=contract)
+
+
+def test_resolve_conform_output_non_preset_contract_extra_columns_defers_to_drift_stub():
+    """Same as above but for the extra_columns=freeze branch (superset preset)."""
+    spec = _spec("superset", ["a"])
+    contract = dataclasses.replace(resolve_contract("superset"), from_preset=False)
+    with pytest.raises(NotImplementedError, match="item 48 Task 6"):
+        resolve_conform_output(
+            spec, available_columns=["a", "extra"], contract=contract,
+        )
+
+
+def test_resolve_conform_output_non_preset_contract_without_violation_does_not_raise():
+    """A non-preset contract that doesn't trip a frozen dimension passes
+    through cleanly -- the drift stub is never reached."""
+    spec = _spec("equal", ["a", "b"])
+    contract = dataclasses.replace(resolve_contract("equal"), from_preset=False)
+    out = resolve_conform_output(
+        spec, available_columns=["a", "b"], contract=contract,
+    )
+    assert {em.source_name for em in out.emitted} == {"a", "b"}
+
+
+def test_resolve_conform_output_positional_mapping_skips_column_dimension_guards():
+    """mapping="positional" (exact preset) only runs the count guard, even
+    when passed explicitly as a non-preset contract -- matches today's
+    'exact' behaviour (parity gate, brief step 1)."""
+    spec = _spec("exact", ["a", "b"])
+    contract = dataclasses.replace(resolve_contract("exact"), from_preset=False)
+    # Count matches, so no guard fires despite extra_columns/missing_columns
+    # both being "freeze" on this preset.
+    out = resolve_conform_output(
+        spec, available_columns=["x", "y"], contract=contract,
+    )
+    assert [em.source_name for em in out.emitted] == ["x", "y"]

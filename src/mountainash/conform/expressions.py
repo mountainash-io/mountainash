@@ -45,6 +45,7 @@ import warnings
 from dataclasses import dataclass, field as dataclass_field
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
+from mountainash.conform.contract import ConformContract, resolve_contract
 from mountainash.conform.errors import (
     ConformError,
     ExactFieldCountError,
@@ -179,10 +180,25 @@ def _source_root(source_name: str) -> str:
     return source_name.split(".", 1)[0] if "." in source_name else source_name
 
 
+def _raise_drift(**kwargs: Any) -> None:
+    """Placeholder for the explicit-contract drift evaluator.
+
+    Task 6 (item 48) replaces this stub with the ``SchemaDriftError``
+    evaluator for non-preset contracts. Until then this branch is
+    unreachable — every contract resolved inside ``resolve_conform_output``
+    has ``from_preset=True``.
+    """
+    raise NotImplementedError(
+        "explicit-contract freeze arrives with the drift evaluator "
+        "(item 48 Task 6)"
+    )
+
+
 def resolve_conform_output(
     spec: "TypeSpec",
     *,
     available_columns: Optional[Sequence[str]],
+    contract: Optional[ConformContract] = None,
 ) -> ConformOutputContract:
     """Resolve the output contract for a TypeSpec conformance operation.
 
@@ -210,6 +226,10 @@ def resolve_conform_output(
         available_columns: Ordered column names from the source data.
             Required for all ``fieldsMatch`` modes except ``"open"``.
             Sequence order matters for ``"exact"`` (positional mapping).
+        contract: The resolved :class:`ConformContract` driving the guard.
+            When ``None`` (the default), one is derived internally via
+            ``resolve_contract(fields_match)`` — i.e. the plain
+            ``fields_match`` preset with no explicit layering.
 
     Returns:
         A :class:`ConformOutputContract` with ``fields_match``, ``emitted``
@@ -247,6 +267,9 @@ def resolve_conform_output(
             f"provided. Only 'open' mode works without column information."
         )
 
+    if contract is None:
+        contract = resolve_contract(fields_match)
+
     if available_columns is not None:
         available_set: set[str] = set(available_columns)
         # Source names the spec expects to find in the data
@@ -256,46 +279,28 @@ def resolve_conform_output(
         # EmittedField.source_name (item 48 nested diagnostics).
         spec_source_roots = {_source_root(name) for name in spec_source_names}
 
-        if fields_match == "exact":
-            if len(available_columns) != len(spec.fields):
-                raise ExactFieldCountError(
-                    expected_count=len(spec.fields),
-                    actual_count=len(available_columns),
-                )
-
-        elif fields_match == "equal":
-            missing = sorted(spec_source_roots - available_set)
-            if missing:
-                raise MissingFieldsError(
-                    missing_fields=missing, fields_match=fields_match,
-                )
-            extra = sorted(available_set - spec_source_roots)
-            if extra:
-                raise ExtraFieldsError(
-                    extra_fields=extra, fields_match=fields_match,
-                )
-
-        elif fields_match == "subset":
-            missing = sorted(spec_source_roots - available_set)
-            if missing:
-                raise MissingFieldsError(
-                    missing_fields=missing, fields_match=fields_match,
-                )
-
-        elif fields_match == "superset":
-            extra = sorted(available_set - spec_source_roots)
-            if extra:
-                raise ExtraFieldsError(
-                    extra_fields=extra, fields_match=fields_match,
-                )
-
-        elif fields_match == "partial":
-            if not spec_source_roots & available_set:
+        if contract.count_must_match and len(available_columns) != len(spec.fields):
+            raise ExactFieldCountError(
+                expected_count=len(spec.fields), actual_count=len(available_columns),
+            )
+        if contract.mapping == "by_name":
+            if contract.minimum_overlap and len(
+                spec_source_roots & available_set
+            ) < contract.minimum_overlap:
                 raise NoMatchingFieldsError(
                     spec_fields=sorted(spec_source_names),
                     available_columns=sorted(available_set),
                 )
-        # "open" — no guard
+            missing = sorted(spec_source_roots - available_set)
+            extra = sorted(available_set - spec_source_roots)
+            if contract.missing_columns == "freeze" and missing:
+                if contract.from_preset:
+                    raise MissingFieldsError(missing_fields=missing, fields_match=fields_match)
+                _raise_drift(missing_columns=missing)   # Task 6 helper
+            if contract.extra_columns == "freeze" and extra:
+                if contract.from_preset:
+                    raise ExtraFieldsError(extra_fields=extra, fields_match=fields_match)
+                _raise_drift(extra_columns=extra)
     else:
         available_set = None  # type: ignore[assignment]
 
