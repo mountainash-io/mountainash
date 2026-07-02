@@ -192,11 +192,21 @@ class ConformResult:
     Callers use fields_match to dispatch select() vs with_columns():
     - "open" → with_columns (keeps unmapped) + drop renamed sources
     - all others → select (projection, drops unmapped)
+
+    ``drift`` and ``row_filter_sources`` are pass-through copies of the
+    same-named :class:`ConformOutputContract` attributes (item 48 Task 7) —
+    execute-mode callers (``UnifiedRelationVisitor.apply_conform``) consume
+    them without needing to call ``resolve_conform_output`` separately.
+    Both default to their "nothing assessed" values (``None`` / ``[]``) so
+    existing callers that don't pass ``actual_dtypes``/``contract`` see no
+    behaviour change.
     """
 
     exprs: list  # mountainash expressions
     fields_match: str  # resolved mode (never None)
     renamed_sources: set = dataclass_field(default_factory=set)
+    drift: Optional["ConformDrift"] = None
+    row_filter_sources: list = dataclass_field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -847,6 +857,9 @@ def _build_conform_exprs(
     spec: "TypeSpec",
     *,
     available_columns: Optional[Sequence[str]] = None,
+    actual_dtypes: Optional[Mapping[str, Any]] = None,
+    contract: Optional[ConformContract] = None,
+    node_identity: Optional[tuple] = None,
 ) -> ConformResult:
     """Build the expression list for a TypeSpec conformance projection.
 
@@ -861,6 +874,17 @@ def _build_conform_exprs(
         available_columns: Ordered column names from the source data.
             Required for all ``fieldsMatch`` modes except ``"open"``.
             Sequence order matters for ``"exact"`` (positional mapping).
+        actual_dtypes: Optional ``{column_name: MountainashDtype}`` evidence
+            (item 48 Task 6/7) driving data_type drift detection. Passed
+            through verbatim to :func:`resolve_conform_output`.
+        contract: The resolved :class:`ConformContract` driving the
+            fieldsMatch guard and the data_type/keys policy. ``None`` (the
+            default) derives one internally via ``resolve_contract`` from
+            ``spec.fields_match`` — unchanged behaviour for callers that
+            don't pass an explicit contract (item 48 Task 7).
+        node_identity: Optional ``(node_id, resource_name, spec_name)``
+            pass-through for the ``ConformDrift`` report this call may build
+            or raise. Passed through verbatim to :func:`resolve_conform_output`.
 
     Returns:
         A :class:`ConformResult` containing:
@@ -869,6 +893,12 @@ def _build_conform_exprs(
         - ``renamed_sources`` — set of source column names that were aliased
           to a different target name (used by callers to drop originals in
           ``"open"`` mode)
+        - ``drift`` — the :class:`~mountainash.conform.drift.ConformDrift`
+          assembled during this call, or ``None`` when nothing was assessed
+          (mirrors :attr:`ConformOutputContract.drift`)
+        - ``row_filter_sources`` — ``(source_name, declared_type)`` pairs
+          needing a discard-row predicate (mirrors
+          :attr:`ConformOutputContract.row_filter_sources`)
 
     Raises:
         ConformError: Invalid ``fields_match`` value, or ``available_columns``
@@ -881,6 +911,8 @@ def _build_conform_exprs(
             unmapped columns are present.
         NoMatchingFieldsError: ``fields_match="partial"`` and zero spec
             fields match available columns.
+        SchemaDriftError: A non-preset (``from_preset=False``) contract has
+            a frozen dimension that tripped (item 48 Task 7).
     """
     # Resolve schema-level missingValues once.
     # The Frictionless default is [""] but TypeSpec.missing_values defaults
@@ -891,16 +923,25 @@ def _build_conform_exprs(
     schema_missing_values: list = spec.missing_values or []
 
     # Resolve the structural contract (which fields to emit, source names,
-    # rename tracking, declared types) — pure, no expressions built here.
-    contract = resolve_conform_output(spec, available_columns=available_columns)
+    # rename tracking, declared types, data_type drift/policy) — pure, no
+    # expressions built here. Named `output_contract` (not `contract`) to
+    # keep the ConformOutputContract distinct from the ConformContract
+    # parameter above — the two types share a name-root but are not
+    # interchangeable.
+    output_contract = resolve_conform_output(
+        spec,
+        available_columns=available_columns,
+        actual_dtypes=actual_dtypes,
+        contract=contract,
+        node_identity=node_identity,
+    )
 
-    # Build one expression per emitted field. actual_dtypes/contract/
-    # node_identity aren't threaded through this entrypoint yet (item 48
-    # Task 7 wires the DAG visitor's evidence in) — em.type_action is
-    # therefore always the "coerce" default here, so this call is a no-op
-    # change in behaviour today; it only future-proofs the plumbing.
+    # Build one expression per emitted field. em.type_action (item 48 Task 6)
+    # drives stage 5d's cast-vs-skip-vs-null-on-failure branch; it is
+    # "coerce" (the pre-Task-6 default) unless actual_dtypes/contract
+    # evidence produced a data_type policy override above.
     exprs: list[Any] = []
-    for em in contract.emitted:
+    for em in output_contract.emitted:
         expr = _build_field_expr(
             em.field, em.source_name, schema_missing_values,
             type_action=em.type_action,
@@ -909,6 +950,8 @@ def _build_conform_exprs(
 
     return ConformResult(
         exprs=exprs,
-        fields_match=contract.fields_match,
-        renamed_sources=contract.renamed_sources,
+        fields_match=output_contract.fields_match,
+        renamed_sources=output_contract.renamed_sources,
+        drift=output_contract.drift,
+        row_filter_sources=output_contract.row_filter_sources,
     )

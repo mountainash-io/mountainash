@@ -117,15 +117,17 @@ def _measure_output_name(measure_expr: Any) -> Optional[str]:
     return _leftmost_source_name(measure_expr)
 
 
-def _canon(native: Any) -> MountainashDtype | SchemaTypeStatus:
-    """Map a native (polars) dtype to a canonical MountainashDtype or status.
+def _canon(
+    native: Any, target: TypeTarget = TypeTarget.POLARS
+) -> MountainashDtype | SchemaTypeStatus:
+    """Map a native dtype to a canonical MountainashDtype or status.
 
     ``None`` from the registry means the native is explicitly untyped
     (UNCONSTRAINED); an unrecognized native degrades to UNKNOWN rather than
     raising, since inference is best-effort.
     """
     try:
-        canon = registry.from_native(native, target=TypeTarget.POLARS)
+        canon = registry.from_native(native, target=target)
     except UnknownDtypeError:
         return SchemaTypeStatus.UNKNOWN
     return SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
@@ -136,11 +138,14 @@ def _schema_from_dataframe(
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Extract canonical schema from a native dataframe.
 
-    Supports Polars DataFrame/LazyFrame. Native dtypes are mapped through the
-    dtype registry (POLARS target) to canonical ``MountainashDtype`` values, or
-    a ``SchemaTypeStatus`` for typeless/unrecognized natives. Returns {} for
-    unrecognized dataframe types. Isolated for future refinement (narwhals,
-    pandas, etc.).
+    Supports Polars DataFrame/LazyFrame, Ibis tables, and pandas DataFrame.
+    Native dtypes are mapped through the dtype registry (per-backend target)
+    to canonical ``MountainashDtype`` values, or a ``SchemaTypeStatus`` for
+    typeless/unrecognized natives. Returns {} for unrecognized dataframe
+    types (or a genuinely zero-column recognized dataframe). Never raises —
+    introspection is always best-effort; an unmappable dtype degrades that
+    one column to ``SchemaTypeStatus.UNKNOWN`` rather than aborting the
+    whole extraction.
     """
     if hasattr(df, "collect_schema"):
         polars_schema = df.collect_schema()
@@ -149,11 +154,35 @@ def _schema_from_dataframe(
     if hasattr(df, "schema") and not callable(df.schema):
         return {name: _canon(dtype) for name, dtype in dict(df.schema).items()}
     if hasattr(df, "schema") and callable(df.schema):
+        # Ibis table: `.schema()` returns an ibis.Schema (dict-like of
+        # name -> ibis dtype). Ibis dtype reprs ("string", "!int64") don't
+        # match the Polars target's class-name keys ("String", "Int64"), so
+        # this must resolve through TypeTarget.IBIS specifically — passing
+        # the `_canon` default (POLARS) here degraded every Ibis column to
+        # UNKNOWN regardless of its actual type (item 48 Task 7 fix).
         schema_obj = df.schema()
         if hasattr(schema_obj, "items"):
             return {
-                name: _canon(dtype) for name, dtype in dict(schema_obj).items()
+                name: _canon(dtype, target=TypeTarget.IBIS)
+                for name, dtype in dict(schema_obj).items()
             }
+    if hasattr(df, "dtypes"):
+        # pandas DataFrame: `.dtypes` is a Series mapping column -> dtype.
+        # Wrapped in a broad try/except (not just UnknownDtypeError) because
+        # `dict(df.dtypes)` itself, or an exotic extension dtype's __str__,
+        # could misbehave on inputs the pandas target module hasn't seen —
+        # introspection must never raise, only degrade to UNKNOWN.
+        result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+        try:
+            items = dict(df.dtypes).items()
+        except Exception:
+            return {}
+        for name, dtype in items:
+            try:
+                result[name] = _canon(dtype, target=TypeTarget.PANDAS)
+            except Exception:
+                result[name] = SchemaTypeStatus.UNKNOWN
+        return result
     return {}
 
 

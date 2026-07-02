@@ -5,7 +5,7 @@ Composes with the expression visitor for compiling embedded expression ASTs.
 """
 
 from __future__ import annotations
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from mountainash.core.constants import JoinType, ProjectOperation
 from mountainash.core.types import (
@@ -20,6 +20,9 @@ from ..relation_nodes import (
     SortRelNode, FetchRelNode, JoinRelNode, AggregateRelNode,
     SetRelNode, ExtensionRelNode,
 )
+
+if TYPE_CHECKING:
+    from mountainash.conform.drift import ConformDrift
 
 
 class UnifiedRelationVisitor:
@@ -40,6 +43,14 @@ class UnifiedRelationVisitor:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
         self.ref_resolver = ref_resolver
+        # Accumulates one ConformDrift per apply_conform() call that actually
+        # assessed something (item 48 Task 7). Populated in AST-traversal
+        # order — visits are depth-first sequential, so node_id
+        # f"conform:{len(self.drift_reports)}" is deterministic. Only
+        # non-None drift reports are appended; a conform call with no
+        # available_columns and no actual_dtypes evidence contributes
+        # nothing (honest non-assessment, not "assessed clean").
+        self.drift_reports: list["ConformDrift"] = []
 
     def visit(self, node: RelationNode) -> Any:
         """Dispatch to registered handler or fall back to accept()."""
@@ -141,38 +152,106 @@ class UnifiedRelationVisitor:
         method = getattr(self.backend, method_name)
         return method(relation, **node.options)
 
-    def apply_conform(self, native: Any, schema: Any, *, empty_from_schema: bool = False) -> Any:
+    def apply_conform(
+        self,
+        native: Any,
+        schema: Any,
+        *,
+        empty_from_schema: bool = False,
+        contract: Optional[Any] = None,
+        resource_name: Optional[str] = None,
+    ) -> Any:
         """Apply conform from a TypeSpec or raw Frictionless schema dict.
 
         Uses the shared _build_conform_exprs helper to build expressions,
         then compiles them against the native backend object. Works for
         all backends (Polars, Ibis, Narwhals).
 
-        Dispatch is driven by ConformResult.fields_match:
-        - "open" → with_columns (keep unmapped) + drop renamed sources
-        - all others → select (projection, drops unmapped)
+        Dispatch is policy-driven (item 48 Task 7): the resolved
+        ``ConformContract``'s ``extra_columns``/``mapping`` decide
+        with_columns (keep unmapped) vs select (projection, drops
+        unmapped) — outcome-identical to the pre-Task-7
+        ``fields_match == "open"`` check for every ``fields_match`` preset,
+        but also honours an explicit ``contract=`` override that changes
+        the policy without changing ``fields_match`` itself.
 
         Fields whose source column is missing from the native object are
         silently skipped so that partial data (e.g. API responses missing
         optional fields) conforms without raising ColumnNotFoundError.
+
+        Args:
+            native: The backend-native object (Polars/Ibis/pandas/etc.) to
+                conform.
+            schema: A TypeSpec or raw Frictionless schema dict.
+            empty_from_schema: Reconstruct an empty frame from the schema
+                when the native object has zero columns (resource-read path).
+            contract: Optional raw ``ConformRelNode.contract`` override
+                (scalar string or dict) layered on top of ``schema.contract``
+                and the ``fields_match`` preset via ``resolve_contract``.
+            resource_name: The owning ``DataResource.name``, when this
+                conform is being applied as part of a resource read. ``None``
+                for a bare ``Relation.conform()`` call (no resource context).
         """
         if isinstance(schema, dict):
             from mountainash.typespec.frictionless import typespec_from_frictionless
             schema = typespec_from_frictionless(schema)
 
-        from mountainash.conform.expressions import _build_conform_exprs
-        from mountainash.conform.errors import ConformTransformError
+        from mountainash.conform.contract import resolve_contract
+        from mountainash.conform.expressions import _VALID_FIELDS_MATCH, _build_conform_exprs
+        from mountainash.conform.errors import ConformError, ConformTransformError
+        from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+            CaseFailureBehaviour,
+        )
+        from mountainash.relations.schema_inference import _schema_from_dataframe
         import mountainash as ma
 
-        # Detect columns as ordered list (preserves sequence for "exact" mode)
-        if hasattr(native, "collect_schema"):
+        # dtype-aware detection first ({} degrades honestly for an
+        # unrecognized backend or a genuinely zero-column frame); falls back
+        # to today's names-only detection when that degrades to empty, so
+        # `available` is unaffected by the new dtype path in either case.
+        available_schema = _schema_from_dataframe(native)
+        if available_schema:
+            available = list(available_schema.keys())
+        elif hasattr(native, "collect_schema"):
             available = list(native.collect_schema().names())
         elif hasattr(native, "columns"):
             available = list(native.columns)
         else:
             available = None
 
-        conform_result = _build_conform_exprs(schema, available_columns=available)
+        fields_match = schema.fields_match if schema.fields_match is not None else "open"
+        # Validate before resolve_contract(): resolve_contract's
+        # FIELDS_MATCH_PRESETS[fields_match] lookup deliberately raises a
+        # bare KeyError on an unknown preset name (pinned by
+        # tests/conform/test_contract.py::
+        # test_resolve_contract_unknown_fields_match_raises_keyerror) —
+        # that behaviour is a contract.py invariant this call must not
+        # disturb. resolve_conform_output performs this identical check
+        # later too; duplicating it here preserves the typed ConformError
+        # this entrypoint has always raised for a bad TypeSpec.fields_match.
+        if fields_match not in _VALID_FIELDS_MATCH:
+            raise ConformError(
+                f"Invalid fields_match={fields_match!r}. "
+                f"Must be one of: {sorted(_VALID_FIELDS_MATCH)}"
+            )
+        resolved_contract = resolve_contract(
+            fields_match,
+            spec_contract=getattr(schema, "contract", None),
+            override=contract,
+        )
+
+        # node_id captures the current report count *before* appending below
+        # — deterministic since visits are depth-first sequential.
+        node_id = f"conform:{len(self.drift_reports)}"
+        conform_result = _build_conform_exprs(
+            schema,
+            available_columns=available,
+            actual_dtypes=available_schema or None,
+            contract=resolved_contract,
+            node_identity=(node_id, resource_name, getattr(schema, "name", None)),
+        )
+        if conform_result.drift is not None:
+            self.drift_reports.append(conform_result.drift)
 
         # Zero-column reconstruction (resource-read path only). The fields_match
         # guard above has already run and raised for strict modes; only the
@@ -182,17 +261,37 @@ class UnifiedRelationVisitor:
         if empty_from_schema and available == [] and schema.fields:
             return self.backend.empty_frame(schema)
 
-        use_open = conform_result.fields_match == "open"
+        use_open = (
+            resolved_contract.extra_columns == "evolve"
+            and resolved_contract.mapping == "by_name"
+        )
 
         try:
+            rel = ma.relation(native)
+
+            # discard_row predicate (item 48 Task 6/7, finding 12): drop iff
+            # the raw source is non-null AND a null-on-failure cast of it
+            # fails. Legitimately-null source rows are always kept. Must run
+            # on the *raw* source column before the with_columns/select
+            # projection below — in select mode the original column may be
+            # renamed or dropped by the projection.
+            for src, declared in conform_result.row_filter_sources:
+                keep = ~(
+                    ma.col(src).is_not_null()
+                    & ma.col(src)
+                    .cast(declared, failure_behavior=CaseFailureBehaviour.NULL)
+                    .is_null()
+                )
+                rel = rel.filter(keep)
+
             if use_open:
-                rel = ma.relation(native).with_columns(*conform_result.exprs)
+                rel = rel.with_columns(*conform_result.exprs)
                 if conform_result.renamed_sources:
                     rel = rel.drop(*conform_result.renamed_sources)
-                return rel._compile_and_execute()
             else:
-                conformed = ma.relation(native).select(*conform_result.exprs)
-                return conformed._compile_and_execute()
+                rel = rel.select(*conform_result.exprs)
+
+            return rel._compile_and_execute()
         except Exception as e:
             # Build spec summary for diagnostic (parsing properties only)
             parsing_props = []

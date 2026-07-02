@@ -71,3 +71,68 @@ class TestVisitorApplyConform:
         result = visitor.apply_conform(lf, schema_dict)
         df = result.collect()
         assert df["user_id"].to_list() == [1, 2]
+
+
+def _make_visitor():
+    from mountainash.relations.core.unified_visitor.relation_visitor import (
+        UnifiedRelationVisitor,
+    )
+    from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+    from mountainash.expressions.core.expression_system.expsys_base import (
+        get_expression_system,
+    )
+    from mountainash.relations.core.relation_protocols.relsys_base import (
+        get_relation_system,
+    )
+    from mountainash.core.constants import CONST_BACKEND
+
+    backend = CONST_BACKEND.POLARS
+    rel_sys = get_relation_system(backend)()
+    expr_sys = get_expression_system(backend)()
+    expr_visitor = UnifiedExpressionVisitor(expr_sys)
+    return UnifiedRelationVisitor(rel_sys, expr_visitor)
+
+
+class TestVisitorDriftReports:
+    """item 48 Task 7: visitor.drift_reports accumulation."""
+
+    def test_drift_reports_starts_empty(self):
+        visitor = _make_visitor()
+        assert visitor.drift_reports == []
+
+    def test_drift_reports_accumulates_in_traversal_order(self):
+        """Sequential apply_conform() calls on one visitor append in order,
+        each with a deterministic node_id derived from the running count."""
+        visitor = _make_visitor()
+        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+
+        lf1 = pl.DataFrame({"n": ["1", "2"]}).lazy()
+        visitor.apply_conform(lf1, spec).collect()
+        assert len(visitor.drift_reports) == 1
+        assert visitor.drift_reports[0].node_id == "conform:0"
+
+        lf2 = pl.DataFrame({"n": ["3", "4"]}).lazy()
+        visitor.apply_conform(lf2, spec).collect()
+        assert len(visitor.drift_reports) == 2
+        assert visitor.drift_reports[1].node_id == "conform:1"
+
+    def test_drift_report_carries_resource_name_when_supplied(self):
+        visitor = _make_visitor()
+        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        lf = pl.DataFrame({"n": ["1", "2"]}).lazy()
+
+        visitor.apply_conform(lf, spec, resource_name="orders").collect()
+
+        assert len(visitor.drift_reports) == 1
+        assert visitor.drift_reports[0].resource_name == "orders"
+
+    def test_drift_report_resource_name_none_by_default(self):
+        """A bare Relation.conform() call (no resource context) leaves
+        resource_name None -- matches apply_conform's default param."""
+        visitor = _make_visitor()
+        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        lf = pl.DataFrame({"n": ["1", "2"]}).lazy()
+
+        visitor.apply_conform(lf, spec).collect()
+
+        assert visitor.drift_reports[0].resource_name is None

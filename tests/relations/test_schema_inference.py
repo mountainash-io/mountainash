@@ -109,6 +109,42 @@ class TestSchemaFromDataframe:
         schema = _schema_from_dataframe("not a dataframe")
         assert schema == {}
 
+    def test_pandas_dataframe(self):
+        """item 48 Task 7: pandas branch resolves recognized dtypes via
+        the registry's PANDAS target (not degraded to UNKNOWN)."""
+        import pandas as pd
+        df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"], "c": [1.0, 2.0], "d": [True, False]})
+        schema = _schema_from_dataframe(df)
+        assert list(schema.keys()) == ["a", "b", "c", "d"]
+        assert schema["a"] == D.I64
+        assert schema["b"] == D.STRING
+        assert schema["c"] == D.FP64
+        assert schema["d"] == D.BOOL
+
+    def test_pandas_unmappable_dtype_degrades_to_unknown_not_raise(self):
+        """An unmappable pandas dtype degrades that column to UNKNOWN rather
+        than raising -- introspection must never abort the whole extraction."""
+        import pandas as pd
+        from mountainash.relations.schema_inference import SchemaTypeStatus
+
+        df = pd.DataFrame({"a": [1, 2], "obj": [object(), object()]})
+        # A raw Python-object column is exactly the kind of exotic dtype the
+        # pandas target module may not recognize; assert the call never
+        # raises and the recognized sibling column still resolves normally.
+        schema = _schema_from_dataframe(df)
+        assert schema["a"] == D.I64
+        assert schema["obj"] in (D.STRING, SchemaTypeStatus.UNKNOWN)
+
+    def test_ibis_table(self):
+        """item 48 Task 7 fix: the callable-.schema() (Ibis) branch must
+        resolve through TypeTarget.IBIS, not silently default to the
+        Polars target (which degraded every Ibis column to UNKNOWN)."""
+        import ibis
+        t = ibis.memtable({"a": [1, 2], "b": ["x", "y"]})
+        schema = _schema_from_dataframe(t)
+        assert schema["a"] == D.I64
+        assert schema["b"] == D.STRING
+
 
 class TestSchemaFromTableSchema:
     def test_frictionless_schema(self):
