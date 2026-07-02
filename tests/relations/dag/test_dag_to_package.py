@@ -148,3 +148,94 @@ def test_dag_to_package_carries_assets_through(tmp_path):
     dag = pkg.to_relation_dag()
     pkg2 = dag.to_package()
     assert {r.name for r in pkg2.resources} == {"logo"}
+
+
+def _fk(fields, resource, ref_fields):
+    from mountainash.typespec.spec import ForeignKey, ForeignKeyReference
+    return ForeignKey(
+        fields=list(fields),
+        reference=ForeignKeyReference(resource=resource, fields=list(ref_fields)),
+    )
+
+
+def test_to_package_emits_foreign_keys_for_derived_resource():
+    """Item 46 (c): a declared constraint on a derived relation exports."""
+    dag = RelationDAG()
+    dag.add("customers", ma.relation(pl.DataFrame({"id": [1]})))
+    dag.add(
+        "active_orders",
+        ma.relation(pl.DataFrame({"id": [1], "customer_id": [1], "status": ["active"]})),
+    )
+    dag.add_constraint("active_orders", _fk(["customer_id"], "customers", ["id"]))
+    pkg = dag.to_package()
+    res = next(r for r in pkg.resources if r.name == "active_orders")
+    assert res.table_schema["foreignKeys"] == [
+        {
+            "fields": ["customer_id"],
+            "reference": {"resource": "customers", "fields": ["id"]},
+        }
+    ]
+
+
+def test_to_package_topology_only_edge_emits_no_foreign_keys():
+    dag = RelationDAG()
+    dag.add("customers", ma.relation(pl.DataFrame({"id": [1]})))
+    dag.add("orders", ma.relation(pl.DataFrame({"customer_id": [1]})))
+    dag.constraint_edges.add(("customers", "orders"))  # edge, no metadata
+    pkg = dag.to_package()
+    res = next(r for r in pkg.resources if r.name == "orders")
+    assert "foreignKeys" not in (res.table_schema or {})
+
+
+def test_to_package_multiple_targets_concatenate_in_insertion_order():
+    dag = RelationDAG()
+    dag.add("customers", ma.relation(pl.DataFrame({"id": [1]})))
+    dag.add("orders", ma.relation(pl.DataFrame({"id": [1]})))
+    dag.add("items", ma.relation(pl.DataFrame({"order_id": [1], "customer_id": [1]})))
+    dag.add_constraint("items", _fk(["order_id"], "orders", ["id"]))
+    dag.add_constraint("items", _fk(["customer_id"], "customers", ["id"]))
+    pkg = dag.to_package()
+    res = next(r for r in pkg.resources if r.name == "items")
+    fk_fields = [fk["fields"] for fk in res.table_schema["foreignKeys"]]
+    assert fk_fields == [["order_id"], ["customer_id"]]
+
+
+def test_fk_round_trip_descriptor_dag_descriptor(tmp_path):
+    """Descriptor -> DAG -> descriptor is FK-faithful for pass-through AND
+    derived resources; no duplicates."""
+    order_schema = {
+        "fields": [
+            {"name": "id", "type": "integer"},
+            {"name": "customer_id", "type": "integer"},
+        ],
+        "foreignKeys": [
+            {
+                "fields": ["customer_id"],
+                "reference": {"resource": "customers", "fields": ["id"]},
+            }
+        ],
+    }
+    from mountainash.typespec.datapackage import DataPackage, DataResource
+    pkg = DataPackage(resources=[
+        DataResource(
+            name="customers", path="customers.csv", type="table",
+            table_schema={"fields": [{"name": "id", "type": "integer"}]},
+        ),
+        DataResource(name="orders", path="orders.csv", type="table", table_schema=order_schema),
+    ])
+    dag = pkg.to_relation_dag()
+    dag.add("recent_orders", ma.relation(pl.DataFrame({"id": [1], "customer_id": [1]})))
+    dag.add_constraint("recent_orders", _fk(["customer_id"], "customers", ["id"]))
+
+    pkg2 = dag.to_package()
+    # Pass-through: byte-identical FK block from lossless table_schema.
+    orders = next(r for r in pkg2.resources if r.name == "orders")
+    assert orders.table_schema["foreignKeys"] == order_schema["foreignKeys"]
+    # Derived: declared constraint exported once.
+    recent = next(r for r in pkg2.resources if r.name == "recent_orders")
+    assert len(recent.table_schema["foreignKeys"]) == 1
+
+    # Reload: metadata is captured again, no duplicate entries.
+    dag2 = pkg2.to_relation_dag()
+    assert len(dag2.constraint_metadata[("customers", "orders")]) == 1
+    assert len(dag2.constraint_metadata[("customers", "recent_orders")]) == 1
