@@ -110,18 +110,25 @@ class EmittedField:
         declared_type: The output dtype that ``_build_field_expr`` will produce
             for this field: a concrete :class:`MountainashDtype`, ``PASSTHROUGH``
             (resolve against input schema), or ``UNDETERMINED`` (cannot predict
-            pre-compile → report ``UNKNOWN``).
+            pre-compile → report ``UNKNOWN``). For ``type_action == "null_fill"``
+            this is always a concrete dtype or ``UNDETERMINED`` — never
+            ``PASSTHROUGH``, since there is no source column to pass through.
         renamed: ``True`` when ``source_name != field.name``; drives the
             open-mode drop of the original source column.
-        type_action: The data_type-dimension policy resolved for this field
-            (item 48 Task 6): ``"coerce"`` (default, today's behaviour —
-            cast to the declared type), ``"evolve"`` (no cast, output keeps
-            the source/actual type), ``"discard_value"`` (cast with
-            null-on-failure), or ``"discard_row"`` (same null-cast, plus the
-            source registers in ``row_filter_sources`` for a row-drop
-            predicate). Only set to something other than ``"coerce"`` when
-            unsafe-cast drift was actually detected against ``actual_dtypes``
-            evidence.
+        type_action: The per-field build policy driving ``_build_field_expr``.
+            Four values come from the data_type dimension (item 48 Task 6):
+            ``"coerce"`` (default, today's behaviour — cast to the declared
+            type), ``"evolve"`` (no cast, output keeps the source/actual
+            type), ``"discard_value"`` (cast with null-on-failure), or
+            ``"discard_row"`` (same null-cast, plus the source registers in
+            ``row_filter_sources`` for a row-drop predicate) — only set to
+            one of these four when unsafe-cast drift was actually detected
+            against ``actual_dtypes`` evidence. A fifth value,
+            ``"null_fill"`` (item 48 Task 10), comes from the
+            missing_columns dimension instead: the field's declared source
+            root is entirely absent, so there is no source to cast at all —
+            ``_build_field_expr`` emits a typed null literal instead of
+            resolving/transforming a source column.
         effective_type: The post-policy canonical type when it diverges from
             ``declared_type`` (currently only set for ``type_action ==
             "evolve"``, where it holds the source's actual dtype). ``None``
@@ -499,9 +506,28 @@ def resolve_conform_output(
         else:
             source_name = fld.source_name
 
-        # Skip fields whose source isn't available (open/partial/superset)
+        # Skip fields whose source isn't available (open/partial/superset) —
+        # or, when the contract says so, emit a typed null instead of
+        # skipping (missing_columns="null_fill", item 48 Task 10). Only an
+        # explicit contract layer can select "null_fill": none of the six
+        # fields_match presets do (contract.py FIELDS_MATCH_PRESETS all use
+        # "skip" or "freeze"), so this branch never fires for preset-only
+        # contracts.
         if available_set is not None:
             if _source_root(source_name) not in available_set:
+                if contract.missing_columns == "null_fill":
+                    declared_canon = _declared_canonical(fld)
+                    emitted.append(EmittedField(
+                        field=fld,
+                        source_name=source_name,
+                        declared_type=(
+                            declared_canon
+                            if declared_canon is not None
+                            else UNDETERMINED
+                        ),
+                        renamed=False,  # no source column exists to drop
+                        type_action="null_fill",
+                    ))
                 continue
 
         # Track renames (non-dotted source only)
@@ -538,7 +564,12 @@ def resolve_conform_output(
     row_filter_sources: list[tuple[str, Any]] = []
     resolved_emitted: list[EmittedField] = []
     for em in emitted:
-        if "." in em.source_name:
+        if "." in em.source_name or em.type_action == "null_fill":
+            # Dotted sources are out of scope (finding 10). null_fill fields
+            # (item 48 Task 10) have no source column at all -- `actual_dtypes`
+            # and `available_columns` are expected to agree, but this guard
+            # keeps a stale/inconsistent `actual_dtypes` entry from
+            # clobbering the null_fill type_action set above.
             resolved_emitted.append(em)
             continue
         declared_canon = _declared_canonical(em.field)
@@ -618,6 +649,7 @@ def _build_field_expr(
     schema_missing_values: Sequence[str] = (),
     *,
     type_action: str = "coerce",
+    declared_type: Optional["DeclaredType"] = None,
 ) -> Any:
     """Build the conform transform expression (stages 1-6) for one field.
 
@@ -631,21 +663,32 @@ def _build_field_expr(
       5. Type cast (list / categorical / temporal / boolean / default)
       6. Alias (``expr.name.alias(field.name)``)
 
+    ``type_action == "null_fill"`` (item 48 Task 10) bypasses the whole
+    pipeline above: there is no source column to resolve at all (the
+    declared field's source root is absent from the input), so stages 1-5
+    are skipped entirely in favour of a typed null literal.
+
     Args:
         field: The FieldSpec to build an expression for.
         source_name: The resolved source column name (positional for exact
-            mode; full dotted path for struct access).
+            mode; full dotted path for struct access). Unused when
+            ``type_action == "null_fill"`` — there is no source column.
         schema_missing_values: Schema-level missingValues, threaded so stage
             2's field-level-override-else-schema-level resolution works.
             Defaults to an empty tuple (no schema-level sentinels).
-        type_action: The data_type-dimension policy for this field (item 48
-            Task 6; see ``EmittedField.type_action``). Only stage 5d (the
-            default canonical cast — list/categorical/custom-format-temporal/
-            boolean fields have their own bespoke stage-5 transforms and
-            don't yet consume this) branches on it: ``"coerce"`` (default)
-            casts as today; ``"evolve"`` skips the cast entirely; anything
-            else (``"discard_value"``/``"discard_row"``) casts with
-            null-on-failure.
+        type_action: The per-field build policy for this field (see
+            ``EmittedField.type_action``). Stage 5d (the default canonical
+            cast — list/categorical/custom-format-temporal/boolean fields
+            have their own bespoke stage-5 transforms and don't yet consume
+            this) branches on the four data_type values: ``"coerce"``
+            (default) casts as today; ``"evolve"`` skips the cast entirely;
+            ``"discard_value"``/``"discard_row"`` cast with null-on-failure.
+            ``"null_fill"`` short-circuits before stage 1 (see above).
+        declared_type: The field's resolved declared type (a concrete
+            :class:`MountainashDtype` or a sentinel) — only consumed when
+            ``type_action == "null_fill"``, where a concrete dtype drives
+            the typed null's cast; a sentinel (no predictable declared
+            type) leaves the null uncast.
 
     Returns:
         A backend-agnostic mountainash expression ready to be collected.
@@ -658,6 +701,19 @@ def _build_field_expr(
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     fld = field
+
+    # missing_columns="null_fill" (item 48 Task 10): the declared field's
+    # source root is entirely absent from the input -- there is no column
+    # to resolve, parse, or cast-from. Build a TYPED null literal instead:
+    # an untyped null is rejected by some backends (e.g. Ibis/DuckDB reject
+    # an ambiguous NULL-typed column), so the null is cast to the declared
+    # canonical dtype whenever one is known (PASSTHROUGH/UNDETERMINED
+    # sentinels leave it uncast -- there is nothing to cast to).
+    if type_action == "null_fill":
+        expr = ma.lit(None)
+        if isinstance(declared_type, MountainashDtype):
+            expr = expr.cast(declared_type)
+        return expr.name.alias(fld.name)
 
     # Stage 1: RESOLVE SOURCE — col(source_name) or struct field access
     is_dotted = "." in source_name
@@ -962,6 +1018,7 @@ def _build_conform_exprs(
         expr = _build_field_expr(
             em.field, em.source_name, schema_missing_values,
             type_action=em.type_action,
+            declared_type=em.declared_type,
         )
         exprs.append(expr)
 
