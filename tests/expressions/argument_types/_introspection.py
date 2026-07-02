@@ -84,6 +84,12 @@ def _classify_annotation(ann: Any) -> Kind:
     if "ExpressionT" in s:
         return "argument"
     origin = typing.get_origin(ann)
+    # typing.Literal[...] values (e.g. Literal["throw", "null"]) are always
+    # literal by construction -- no backend ever accepts a Literal-typed
+    # parameter as a column reference or computed expression, so these
+    # classify as options (arguments-vs-options.md).
+    if origin is typing.Literal:
+        return "option"
     if origin in _UNION_ORIGINS:
         args = typing.get_args(ann)
         if any("ExpressionT" in str(a) for a in args):

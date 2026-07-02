@@ -5,7 +5,7 @@ Implements type casting operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 import narwhals as nw
 
@@ -28,8 +28,36 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
 
     _TARGET = TypeTarget.NARWHALS
 
-    def cast(self, x: NarwhalsExpr, /, dtype: Union[MountainashDtype, NativeDtype]) -> NarwhalsExpr:
-        """Cast an expression to a canonical or native-passthrough dtype."""
+    def cast(
+        self,
+        x: NarwhalsExpr,
+        /,
+        dtype: Union[MountainashDtype, NativeDtype],
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> NarwhalsExpr:
+        """Cast an expression to a canonical or native-passthrough dtype.
+
+        Narwhals' `Expr.cast(dtype)` has no strict/failure-behavior
+        parameter (probed against narwhals 2.23.0: the signature is
+        `cast(self, dtype)` only) — it always compiles to the equivalent
+        of a strict/raising cast on every native backend it wraps (Polars
+        raises `InvalidOperationError`, pandas raises `ValueError`).
+        `failure_behavior="null"` therefore has no expressible translation
+        on this backend and raises `BackendCapabilityError` up front
+        rather than attempting a call that would fail with a confusing
+        native error. See known-divergences.md.
+        """
+        if failure_behavior == "null":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+
+            raise BackendCapabilityError(
+                "Narwhals Expr.cast has no strict/failure-behavior parameter and always "
+                "raises on invalid conversion; null-on-failure casts are not expressible "
+                "on the Narwhals backend. Use Polars or Ibis for failure_behavior='null'.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_CAST.CAST,
+            )
         if isinstance(dtype, NativeDtype):
             if dtype.target is not self._TARGET:
                 raise DtypeMappingError(

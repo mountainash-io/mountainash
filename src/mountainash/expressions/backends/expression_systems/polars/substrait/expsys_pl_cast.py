@@ -5,7 +5,7 @@ Implements type casting operations for the Polars backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 import polars as pl
 
@@ -28,8 +28,19 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
 
     _TARGET = TypeTarget.POLARS
 
-    def cast(self, x: PolarsExpr, /, dtype: Union[MountainashDtype, NativeDtype]) -> PolarsExpr:
-        """Cast an expression to a canonical or native-passthrough dtype."""
+    def cast(
+        self,
+        x: PolarsExpr,
+        /,
+        dtype: Union[MountainashDtype, NativeDtype],
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> PolarsExpr:
+        """Cast an expression to a canonical or native-passthrough dtype.
+
+        `failure_behavior="null"` maps to Polars' `strict=False`, which
+        returns null for values that cannot convert instead of raising.
+        """
+        strict = failure_behavior != "null"
         if isinstance(dtype, NativeDtype):
             if dtype.target is not self._TARGET:
                 raise DtypeMappingError(
@@ -37,5 +48,5 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
                     f"({dtype.value!r}) and cannot compile on {self._TARGET.value}. "
                     f"Use a canonical dtype for cross-backend expressions."
                 )
-            return x.cast(dtype.value)
-        return x.cast(registry.to_native_cast(dtype, self._TARGET))
+            return x.cast(dtype.value, strict=strict)
+        return x.cast(registry.to_native_cast(dtype, self._TARGET), strict=strict)
