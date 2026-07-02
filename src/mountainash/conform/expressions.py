@@ -167,6 +167,18 @@ class ConformResult:
 # resolve_conform_output — structural decision (pure, no expression building)
 # ---------------------------------------------------------------------------
 
+
+def _source_root(source_name: str) -> str:
+    """Root column of a possibly-dotted (struct) source name.
+
+    ``"payload.id"`` -> ``"payload"``; a flat name is the identity. Shared
+    by the fields_match guard and the skip/extract logic so the two can
+    never disagree about what "present" means, and a reusable module-level
+    primitive for declared-vs-actual diffing (item 48).
+    """
+    return source_name.split(".", 1)[0] if "." in source_name else source_name
+
+
 def resolve_conform_output(
     spec: "TypeSpec",
     *,
@@ -209,9 +221,11 @@ def resolve_conform_output(
         ExactFieldCountError: ``fields_match="exact"`` and column count
             does not match spec field count.
         MissingFieldsError: ``fields_match`` in ``{"equal", "subset"}`` and
-            required source columns are absent.
+            required source columns are absent. Dotted (struct) sources are
+            validated on their root column.
         ExtraFieldsError: ``fields_match`` in ``{"equal", "superset"}`` and
-            unmapped columns are present.
+            unmapped columns are present. Dotted (struct) sources are
+            validated on their root column.
         NoMatchingFieldsError: ``fields_match="partial"`` and zero spec
             fields match available columns.
     """
@@ -237,6 +251,10 @@ def resolve_conform_output(
         available_set: set[str] = set(available_columns)
         # Source names the spec expects to find in the data
         spec_source_names = {f.source_name for f in spec.fields}
+        # Guard pass/fail is computed on dotted ROOTS, consistent with
+        # skip/extract below. Full dotted paths remain on
+        # EmittedField.source_name (item 48 nested diagnostics).
+        spec_source_roots = {_source_root(name) for name in spec_source_names}
 
         if fields_match == "exact":
             if len(available_columns) != len(spec.fields):
@@ -246,33 +264,33 @@ def resolve_conform_output(
                 )
 
         elif fields_match == "equal":
-            missing = sorted(spec_source_names - available_set)
+            missing = sorted(spec_source_roots - available_set)
             if missing:
                 raise MissingFieldsError(
                     missing_fields=missing, fields_match=fields_match,
                 )
-            extra = sorted(available_set - spec_source_names)
+            extra = sorted(available_set - spec_source_roots)
             if extra:
                 raise ExtraFieldsError(
                     extra_fields=extra, fields_match=fields_match,
                 )
 
         elif fields_match == "subset":
-            missing = sorted(spec_source_names - available_set)
+            missing = sorted(spec_source_roots - available_set)
             if missing:
                 raise MissingFieldsError(
                     missing_fields=missing, fields_match=fields_match,
                 )
 
         elif fields_match == "superset":
-            extra = sorted(available_set - spec_source_names)
+            extra = sorted(available_set - spec_source_roots)
             if extra:
                 raise ExtraFieldsError(
                     extra_fields=extra, fields_match=fields_match,
                 )
 
         elif fields_match == "partial":
-            if not spec_source_names & available_set:
+            if not spec_source_roots & available_set:
                 raise NoMatchingFieldsError(
                     spec_fields=sorted(spec_source_names),
                     available_columns=sorted(available_set),
@@ -295,10 +313,7 @@ def resolve_conform_output(
 
         # Skip fields whose source isn't available (open/partial/superset)
         if available_set is not None:
-            root_col = (
-                source_name.split(".")[0] if "." in source_name else source_name
-            )
-            if root_col not in available_set:
+            if _source_root(source_name) not in available_set:
                 continue
 
         # Track renames (non-dotted source only)

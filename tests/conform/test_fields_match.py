@@ -205,3 +205,75 @@ class TestFieldsMatchRequiresColumns:
         spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)])
         result = _build_conform_exprs(spec)
         assert len(result.exprs) == 1
+
+
+class TestFieldsMatchDottedSources:
+    """Item 46 (b): dotted (struct) sources validate on their ROOT column.
+
+    The guard must agree with the skip/extract logic: both compare dotted
+    roots. Guard missing/extra sets are root-collapsed; full dotted paths
+    stay on EmittedField.source_name.
+    """
+
+    def _spec(self, mode):
+        return TypeSpec(
+            fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
+            fields_match=mode,
+        )
+
+    def test_equal_dotted_root_present_passes(self):
+        result = _build_conform_exprs(self._spec("equal"), available_columns=["payload"])
+        assert len(result.exprs) == 1
+
+    def test_equal_two_fields_one_struct_collapse_to_one_root(self):
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id"),
+                FieldSpec(name="pname", type=UniversalType.STRING, rename_from="payload.name"),
+            ],
+            fields_match="equal",
+        )
+        result = _build_conform_exprs(spec, available_columns=["payload"])
+        assert len(result.exprs) == 2
+
+    def test_equal_dotted_root_absent_raises_missing_root(self):
+        with pytest.raises(MissingFieldsError) as exc_info:
+            _build_conform_exprs(self._spec("equal"), available_columns=["other"])
+        # Root-collapsed guard surface: the missing entry is the ROOT
+        assert exc_info.value.missing_fields == ["payload"]
+
+    def test_equal_dotted_no_false_extra_on_root(self):
+        # Before the fix: available {"payload"} minus full names {"payload.id"}
+        # produced a false extra "payload". Root comparison must not.
+        result = _build_conform_exprs(self._spec("equal"), available_columns=["payload"])
+        assert len(result.exprs) == 1
+
+    def test_subset_dotted_root_present_with_extra_passes(self):
+        result = _build_conform_exprs(
+            self._spec("subset"), available_columns=["payload", "other"]
+        )
+        assert len(result.exprs) == 1
+
+    def test_subset_dotted_root_absent_raises(self):
+        with pytest.raises(MissingFieldsError) as exc_info:
+            _build_conform_exprs(self._spec("subset"), available_columns=["other"])
+        assert exc_info.value.missing_fields == ["payload"]
+
+    def test_superset_dotted_root_consumed_no_false_extra(self):
+        result = _build_conform_exprs(self._spec("superset"), available_columns=["payload"])
+        assert len(result.exprs) == 1
+
+    def test_superset_flat_extra_still_raises(self):
+        with pytest.raises(ExtraFieldsError) as exc_info:
+            _build_conform_exprs(
+                self._spec("superset"), available_columns=["payload", "stray"]
+            )
+        assert exc_info.value.extra_fields == ["stray"]
+
+    def test_partial_dotted_root_counts_as_overlap(self):
+        result = _build_conform_exprs(self._spec("partial"), available_columns=["payload"])
+        assert len(result.exprs) == 1
+
+    def test_partial_dotted_root_absent_raises(self):
+        with pytest.raises(NoMatchingFieldsError):
+            _build_conform_exprs(self._spec("partial"), available_columns=["x"])
