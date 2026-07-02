@@ -19,7 +19,7 @@ from mountainash.conform.contract import (
     resolve_contract,
     validate_contract_dict,
 )
-from mountainash.conform.errors import ConformError, MissingFieldsError
+from mountainash.conform.errors import ConformError, MissingFieldsError, SchemaDriftError
 
 
 # --- Preset table matrix (locked to current fields_match behaviour) -------
@@ -332,22 +332,24 @@ def test_resolve_conform_output_explicit_preset_contract_matches_default():
 
 def test_resolve_conform_output_non_preset_contract_missing_columns_defers_to_drift_stub():
     """A non-preset (from_preset=False) contract with a missing_columns=freeze
-    violation takes the Task-6 `_raise_drift` branch, which is a stub
-    (NotImplementedError) until Task 6 lands."""
+    violation takes the `_raise_drift` branch, which (item 48 Task 6) raises
+    SchemaDriftError carrying the missing-column drift entry."""
     spec = _spec("equal", ["a", "b"])
     contract = dataclasses.replace(resolve_contract("equal"), from_preset=False)
-    with pytest.raises(NotImplementedError, match="item 48 Task 6"):
+    with pytest.raises(SchemaDriftError) as exc_info:
         resolve_conform_output(spec, available_columns=["a"], contract=contract)
+    assert [d.name for d in exc_info.value.drift.missing_columns] == ["b"]
 
 
 def test_resolve_conform_output_non_preset_contract_extra_columns_defers_to_drift_stub():
     """Same as above but for the extra_columns=freeze branch (superset preset)."""
     spec = _spec("superset", ["a"])
     contract = dataclasses.replace(resolve_contract("superset"), from_preset=False)
-    with pytest.raises(NotImplementedError, match="item 48 Task 6"):
+    with pytest.raises(SchemaDriftError) as exc_info:
         resolve_conform_output(
             spec, available_columns=["a", "extra"], contract=contract,
         )
+    assert [d.name for d in exc_info.value.drift.extra_columns] == ["extra"]
 
 
 def test_resolve_conform_output_non_preset_contract_without_violation_does_not_raise():
