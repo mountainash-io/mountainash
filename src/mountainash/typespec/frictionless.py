@@ -17,6 +17,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from mountainash.conform.contract import validate_contract_dict
+
 from .spec import FieldConstraints, FieldSpec, ForeignKey, ForeignKeyReference, TypeSpec
 from .universal_types import UniversalType, parse_universal
 
@@ -122,7 +124,7 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["description"] = spec.description
     if spec.primary_key is not None:
         descriptor["primaryKey"] = spec.primary_key
-    if spec.fields_match is not None and spec.fields_match != "exact":
+    if spec.fields_match is not None and spec.fields_match not in ("exact", "open"):
         descriptor["fieldsMatch"] = spec.fields_match
     if spec.unique_keys is not None:  # Gap 4
         descriptor["uniqueKeys"] = spec.unique_keys
@@ -138,6 +140,17 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     if spec.missing_values is not None and spec.missing_values != [""]:
         descriptor["missingValues"] = spec.missing_values
 
+    # Spec-level x-mountainash extensions: "open" is a mountainash-only
+    # fieldsMatch value (not standard Frictionless) so it moves under the
+    # extension namespace rather than the standard fieldsMatch key; contract
+    # (item 48) is mountainash-only outright.
+    spec_ext: Dict[str, Any] = {}
+    if spec.fields_match == "open":
+        spec_ext["fields_match"] = "open"
+    if spec.contract:
+        spec_ext["contract"] = dict(spec.contract)
+    if spec_ext:
+        descriptor["x-mountainash"] = spec_ext
 
     # Fields
     fields_list: List[Dict[str, Any]] = []
@@ -243,12 +256,22 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     description: Optional[str] = descriptor.get("description")
     primary_key = descriptor.get("primaryKey")
     missing_values: Optional[List[str]] = descriptor.get("missingValues")
-    fields_match: Optional[str] = descriptor.get("fieldsMatch", "exact")  # Gap 3
     unique_keys: Optional[List[List[str]]] = descriptor.get("uniqueKeys")  # Gap 4
     schema_url: Optional[str] = descriptor.get("$schema")
 
-    # Spec-level x-mountainash extensions (reserved for future use)
-    spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}  # noqa: F841
+    # Spec-level x-mountainash extensions. "fields_match": "open" is the
+    # mountainash-only fieldsMatch value written here (see write path);
+    # legacy descriptors that still carry the standard-field form
+    # (`fieldsMatch: "open"`) are honoured as a fallback for backward
+    # compatibility. `contract` (item 48) is validated eagerly so a
+    # malformed descriptor fails fast on load.
+    spec_ext: Dict[str, Any] = descriptor.get("x-mountainash", {}) or {}
+    fields_match: Optional[str] = spec_ext.get(
+        "fields_match", descriptor.get("fieldsMatch", "exact")  # Gap 3
+    )
+    contract: Optional[Dict[str, str]] = spec_ext.get("contract") or None
+    if contract is not None:
+        validate_contract_dict(contract)
 
     # Foreign keys
     raw_fks = descriptor.get("foreignKeys")
@@ -326,6 +349,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         fields_match=fields_match,
         unique_keys=unique_keys,
         schema_url=schema_url,
+        contract=contract,
     )
 
 

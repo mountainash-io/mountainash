@@ -35,7 +35,7 @@ _DIMENSION_MODES: dict[str, set[str]] = {
     "data_type": {"coerce", "evolve", "freeze", "discard_value", "discard_row"},
     "keys": {"ignore", "freeze"},
 }
-_EXTENSION_DIMENSIONS = ("data_type", "keys")   # scalar shorthand applies here only
+EXTENSION_DIMENSIONS = ("data_type", "keys")   # scalar shorthand applies here only
 
 
 @dataclass(frozen=True)
@@ -103,7 +103,7 @@ def resolve_contract(
         if layer is None:
             continue
         if isinstance(layer, str):
-            layer = {dim: layer for dim in _EXTENSION_DIMENSIONS}
+            layer = {dim: layer for dim in EXTENSION_DIMENSIONS}
         validate_contract_dict(layer)
         contract = replace(contract, from_preset=False, **dict(layer))  # type: ignore[arg-type]
     return contract

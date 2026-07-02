@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, TypeVar, Union
 
 
 if TYPE_CHECKING:
@@ -132,7 +132,12 @@ class Relation(RelationBase):
 
     # --- Conformance ---
 
-    def conform(self, spec: Any) -> Relation:
+    def conform(
+        self,
+        spec: Any,
+        *,
+        contract: Optional[Union[str, Mapping[str, str]]] = None,
+    ) -> Relation:
         """Conform the relation to a TypeSpec.
 
         Stores the TypeSpec as a ConformRelNode in the plan tree. The actual
@@ -145,12 +150,29 @@ class Relation(RelationBase):
                 ``"open"`` keeps unmapped columns (default when unset),
                 ``"partial"`` drops them, stricter modes enforce column
                 presence.
+            contract: Optional reconciliation-contract override, layered on
+                top of any ``TypeSpec.contract`` and the ``fields_match``
+                preset (highest precedence). A scalar string (e.g.
+                ``"freeze"``) applies to the extension dimensions
+                (``data_type``, ``keys``) only; a dict maps dimension name ->
+                mode explicitly (``extra_columns``, ``missing_columns``,
+                ``data_type``, ``keys``). Validated eagerly here so malformed
+                input fails at build time, not at collect().
 
         Returns:
             A new Relation wrapping a ConformRelNode.
         """
+        if contract is not None:
+            from mountainash.conform.contract import (
+                EXTENSION_DIMENSIONS,
+                validate_contract_dict,
+            )
+            if isinstance(contract, str):
+                validate_contract_dict({dim: contract for dim in EXTENSION_DIMENSIONS})
+            else:
+                validate_contract_dict(contract)
         from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
-        return Relation(ConformRelNode(input=self._node, spec=spec))
+        return Relation(ConformRelNode(input=self._node, spec=spec, contract=contract))
 
     # --- Sorting ---
 
