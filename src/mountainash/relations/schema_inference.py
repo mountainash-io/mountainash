@@ -74,6 +74,49 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
     return None
 
 
+def _leftmost_source_name(expr_node: Any) -> Optional[str]:
+    """Leftmost FieldReferenceNode column name in an expression tree.
+
+    Mirrors the canonical Polars-API runtime naming rule: an un-aliased
+    aggregate/compound expression is named after its leftmost root column
+    ((col("a") + col("b")).sum() -> "a"). Returns None when no field root
+    is resolvable (literal or wildcard aggregates) — those measures remain
+    best-effort skipped by the caller.
+    """
+    node = expr_node
+    if hasattr(node, "_node"):
+        node = node._node
+
+    from mountainash.expressions.core.expression_nodes import (
+        FieldReferenceNode,
+        ScalarFunctionNode,
+    )
+
+    if isinstance(node, FieldReferenceNode):
+        return node.field
+    if isinstance(node, ScalarFunctionNode):
+        for arg in node.arguments:
+            name = _leftmost_source_name(arg)
+            if name:
+                return name
+    return None
+
+
+def _measure_output_name(measure_expr: Any) -> Optional[str]:
+    """Output column name for an aggregate measure.
+
+    The name is the Mountainash/Polars-API canonical output name, NOT a
+    backend-runtime-name promise (a backend whose native name differs is a
+    known-divergences concern). Aliased / name-transformed measures resolve
+    via infer_expression_name; an un-aliased aggregate falls back to its
+    leftmost source-column name.
+    """
+    name = infer_expression_name(measure_expr)
+    if name:
+        return name
+    return _leftmost_source_name(measure_expr)
+
+
 def _canon(native: Any) -> MountainashDtype | SchemaTypeStatus:
     """Map a native (polars) dtype to a canonical MountainashDtype or status.
 
@@ -345,8 +388,12 @@ def _infer_aggregate_schema(
             result[name] = SchemaTypeStatus.UNKNOWN
 
     for measure_expr in node.measures:
-        name = infer_expression_name(measure_expr)
-        if name:
+        name = _measure_output_name(measure_expr)
+        if name and name not in result:
+            # keys win: never overwrite a resolved key entry with UNKNOWN
+            # (a key/measure name clash is a runtime error; the typed key
+            # is the honest best-effort entry). Result type of an aggregate
+            # is genuinely pre-compile-unknowable (R2).
             result[name] = SchemaTypeStatus.UNKNOWN
 
     return result
