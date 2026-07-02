@@ -8,6 +8,7 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import Ref
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
+    from mountainash.conform.drift import ConformCollection
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
@@ -153,6 +154,42 @@ class RelationDAG:
         this call and exposed to the visitor as ``ref_resolver(name)``.
         Returns the backend-native compiled value for ``name`` itself.
         """
+        result, _visitor = self._collect_with_visitor(name, backend=backend)
+        return result
+
+    def collect_with_drift(
+        self, name: str, *, backend: Optional[str] = None
+    ) -> "ConformCollection":
+        """Collect ``name`` and return the frame plus per-conform-node drift reports.
+
+        DAG-level counterpart to :meth:`Relation.collect_with_drift`. A
+        ``freeze`` policy (on any dimension, including ``keys``) still
+        raises ``SchemaDriftError`` before this returns — the exception's
+        ``.drift`` carries the tripping node's report.
+
+        Returns:
+            A :class:`~mountainash.conform.drift.ConformCollection` with the
+            materialized ``frame``, the ordered list of ``drifts`` collected
+            during compilation (one per conform node that assessed
+            anything), and ``effective_schema`` derived from the ACTUAL
+            output frame.
+        """
+        from mountainash.conform.drift import ConformCollection
+        from mountainash.relations.core.relation_api.relation import _materialize
+        from mountainash.relations.schema_inference import _schema_from_dataframe
+
+        result, visitor = self._collect_with_visitor(name, backend=backend)
+        frame = _materialize(result)
+        return ConformCollection(
+            frame=frame,
+            drifts=list(visitor.drift_reports),
+            effective_schema=_schema_from_dataframe(frame),
+        )
+
+    def _collect_with_visitor(
+        self, name: str, *, backend: Optional[str] = None
+    ) -> "tuple[Any, Any]":
+        """Shared core for :meth:`collect` / :meth:`collect_with_drift`."""
         if name not in self.relations:
             raise KeyError(f"relation {name!r} not in DAG")
 
@@ -220,12 +257,13 @@ class RelationDAG:
             except Exception:
                 pass
 
-        return self._compile_with_refs(
+        result, _visitor = self._compile_with_refs(
             node,
             all_refs,
             backend=backend,
             backend_target_name=target_name,
         )
+        return result
 
     def _compile_with_refs(
         self,
@@ -234,14 +272,16 @@ class RelationDAG:
         *,
         backend: Optional[str] = None,
         backend_target_name: Optional[str] = None,
-    ) -> Any:
+    ) -> "tuple[Any, Any]":
         """Compile ``node`` after materialising all relations in ``ref_names``.
 
         This is the shared compilation core used by both ``collect()`` and
         ``execute()``.  It builds a visitor with a ``ref_resolver`` closure
         over a per-call cache, compiles every relation named in ``ref_names``
-        in topological order, then compiles ``node`` itself and returns the
-        result.
+        in topological order, then compiles ``node`` itself and returns
+        ``(result, visitor)`` — callers needing post-compile visitor state
+        (e.g. ``collect_with_drift()``'s ``visitor.drift_reports``) can
+        retrieve it without a second compilation pass.
         """
         from mountainash.relations.core.relation_protocols.relsys_base import (
             get_relation_system,
@@ -284,14 +324,41 @@ class RelationDAG:
         def resolver(n: str) -> Any:
             return cache[n]
 
+        # KeyDriftContext (item 48 PR-D): +1 optional visitor param,
+        # analogous to ref_resolver. The context's resource_name is the
+        # apply_conform() fallback "child" identity for nodes that carry no
+        # resource_name of their own (a bare ConformRelNode; a
+        # ResourceReadRelNode always supplies its own Frictionless name),
+        # so it must track WHICH DAG relation is being compiled: the
+        # dependency loop below re-points it to each dependency's own name
+        # before compiling that dependency, then the target's context is
+        # restored for the target compile. Without that re-pointing, a
+        # bare-conformed dependency would be assessed against the TARGET's
+        # FK constraints (wrong report / spurious freeze). No target name
+        # (execute() on an ad-hoc relation with zero DAG refs) means there
+        # is no DAG identity to assess keys against, so key_context stays
+        # None (frame-level, key_changes stays None -- not assessed).
+        key_context = None
+        if backend_target_name is not None:
+            from mountainash.relations.dag.key_context import KeyDriftContext
+
+            key_context = KeyDriftContext(
+                resource_name=backend_target_name,
+                constraints_for=self.constraints_for,
+                schema_of=self.schema,
+            )
+
         visitor = UnifiedRelationVisitor(
             relation_system,
             expression_visitor=expr_visitor,
             ref_resolver=resolver,
+            key_context=key_context,
         )
 
         # Compile refs in topological order
         if ref_names:
+            import dataclasses
+
             # Get full topological order and filter to only the needed refs
             full_order = self.topological_order(target=None)
             for n in full_order:
@@ -301,10 +368,18 @@ class RelationDAG:
                 root = getattr(rel, "_node", None)
                 if root is None:
                     raise ValueError(f"relation {n!r} has no _node attribute")
+                # Per-node key context: this dependency's key assessment
+                # must run against ITS constraints, not the target's.
+                if key_context is not None:
+                    visitor.key_context = dataclasses.replace(
+                        key_context, resource_name=n
+                    )
                 cache[n] = root.accept(visitor)
+            # Restore the target's context before compiling the target.
+            visitor.key_context = key_context
 
         # Compile the target node itself
-        return node.accept(visitor)
+        return node.accept(visitor), visitor
 
     def schema(
         self, name: str

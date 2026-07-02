@@ -44,7 +44,7 @@ import dataclasses
 import enum
 import warnings
 from dataclasses import dataclass, field as dataclass_field
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Union
 
 from mountainash.conform.contract import ConformContract, resolve_contract
 from mountainash.conform.errors import (
@@ -56,9 +56,9 @@ from mountainash.conform.errors import (
 )
 
 if TYPE_CHECKING:
-    from mountainash.conform.drift import ConformDrift
+    from mountainash.conform.drift import ConformDrift, KeyDrift
     from mountainash.core.dtypes import MountainashDtype
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldSpec, ForeignKey, TypeSpec
 
 _VALID_FIELDS_MATCH = frozenset(
     {"open", "exact", "equal", "subset", "superset", "partial"}
@@ -237,19 +237,20 @@ def _raise_drift(
     missing_columns: Optional[Sequence[str]] = None,
     extra_columns: Optional[Sequence[str]] = None,
     type_mismatches: Optional[Sequence[Any]] = None,
+    key_changes: Optional[Sequence[Any]] = None,
     node_identity: Optional[tuple] = None,
 ) -> None:
     """Raise ``SchemaDriftError`` for an explicit-contract freeze violation.
 
     Called for non-preset contracts (``from_preset=False``) where a frozen
     dimension tripped: column-dimension violations (``missing_columns`` /
-    ``extra_columns``, from the fieldsMatch guard) or the data_type
-    dimension (``type_mismatches``, from the Task 6 detection loop). Exactly
-    one of the three is populated per call site — each call raises
-    immediately for the one dimension it represents, so the resulting
-    ``ConformDrift`` only ever carries that single dimension's entries (the
-    other two stay empty/``[]``); ``key_changes`` is always ``None`` (not
-    assessed — key drift is a separate task, item 48 PR-D).
+    ``extra_columns``, from the fieldsMatch guard), the data_type dimension
+    (``type_mismatches``, from the Task 6 detection loop), or the keys
+    dimension (``key_changes``, item 48 PR-D). Exactly one of the four is
+    populated per call site — each call raises immediately for the one
+    dimension it represents, so the resulting ``ConformDrift`` only ever
+    carries that single dimension's entries (the other three stay
+    empty/``[]``/``None``).
     """
     from mountainash.conform.drift import ColumnDrift, ConformDrift
     from mountainash.conform.errors import SchemaDriftError
@@ -268,12 +269,14 @@ def _raise_drift(
             ColumnDrift(name=n, action="freeze") for n in (missing_columns or [])
         ],
         type_mismatches=list(type_mismatches or []),
-        key_changes=None,
+        key_changes=list(key_changes) if key_changes is not None else None,
     )
     if extra_columns:
         dimension = "extra_columns"
     elif missing_columns:
         dimension = "missing_columns"
+    elif key_changes:
+        dimension = "keys"
     else:
         dimension = "data_type"
     raise SchemaDriftError(f"{dimension} drift under freeze policy", drift=drift)
@@ -354,6 +357,9 @@ def resolve_conform_output(
     contract: Optional[ConformContract] = None,
     node_identity: Optional[tuple] = None,
     raise_on_freeze: bool = True,
+    key_fks: Optional[Sequence["ForeignKey"]] = None,
+    key_resource_name: Optional[str] = None,
+    schema_of: Optional[Callable[[str], Mapping[str, Any]]] = None,
 ) -> ConformOutputContract:
     """Resolve the output contract for a TypeSpec conformance operation.
 
@@ -412,6 +418,25 @@ def resolve_conform_output(
             preset-provenance legacy errors (``MissingFieldsError`` /
             ``ExtraFieldsError``) are a separate, older structural-guard
             concern and are unaffected by this flag.
+        key_fks: Optional list of :class:`~mountainash.typespec.spec.ForeignKey`
+            declared with this resource as the child side (item 48 PR-D,
+            the ``keys`` dimension). ``None`` (the default — no DAG/FK
+            context available) means key drift is NOT ASSESSED at all;
+            ``ConformDrift.key_changes`` stays ``None``. An empty list
+            means key drift WAS assessed and no FKs are declared —
+            ``key_changes`` becomes ``[]`` (assessed clean). Only ``keys``
+            child-scoped: FKs where this resource is the *reference*
+            (parent) side are not evaluated here (finding 9 — a
+            documented future consideration).
+        key_resource_name: The child resource name used to resolve a
+            self-referencing FK's target (``fk.reference.resource == ""``
+            normalises to this name, mirroring
+            ``RelationDAG.add_constraint``'s self-edge rule).
+        schema_of: Optional ``name -> {column: dtype}`` resolver (typically
+            ``RelationDAG.schema``) used to look up the FK's reference-side
+            schema for ``dangling_reference``/``fk_type_mismatch``
+            detection. A ``KeyError`` from this callable is treated as
+            "reference resource not resolvable" (``dangling_reference``).
 
     Returns:
         A :class:`ConformOutputContract` with ``fields_match``, ``emitted``
@@ -432,8 +457,8 @@ def resolve_conform_output(
         NoMatchingFieldsError: ``fields_match="partial"`` and zero spec
             fields match available columns.
         SchemaDriftError: A non-preset (``from_preset=False``) contract has
-            a frozen dimension (``extra_columns``, ``missing_columns``, or
-            ``data_type``) that tripped.
+            a frozen dimension (``extra_columns``, ``missing_columns``,
+            ``data_type``, or ``keys``) that tripped.
     """
     # --- 1. Resolve and validate fields_match mode ---
     fields_match = spec.fields_match if spec.fields_match is not None else "open"
@@ -556,8 +581,8 @@ def resolve_conform_output(
     # domain as a nested field's declared type (finding 10). Missing/UNKNOWN
     # actual-dtype evidence is treated as "cannot assess", not drift — the
     # honest best-effort-introspection default (R1/R2).
-    from mountainash.conform.drift import ColumnDrift, ConformDrift, TypeDrift
-    from mountainash.core.dtypes import CastSafety, classify_cast
+    from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
+    from mountainash.core.dtypes import CastSafety, MountainashDtype, classify_cast
     from mountainash.relations.schema_inference import SchemaTypeStatus
 
     type_mismatches: list[TypeDrift] = []
@@ -604,6 +629,89 @@ def resolve_conform_output(
     if contract.data_type == "freeze" and type_mismatches and raise_on_freeze:
         _raise_drift(type_mismatches=type_mismatches, node_identity=node_identity)
 
+    # --- 4b. Key (FK) drift detection + policy (item 48 PR-D) ---
+    #
+    # Child-scoped only (finding 9): evaluates FKs declared with *this*
+    # resource as the child side (``key_fks`` — already pre-filtered by the
+    # caller via ``RelationDAG.constraints_for``). Parent-side/inbound
+    # references are not evaluated here — a documented future
+    # consideration. Only runs when ``key_fks`` is not ``None`` — i.e. a
+    # DAG/FK context was actually supplied (mirrors the data_type
+    # dimension's "no actual_dtypes -> no assessment" honesty rule).
+    # ``key_fks == []`` (context present, zero declared FKs) still counts
+    # as an assessment -- ``key_changes`` becomes ``[]`` (assessed clean),
+    # never ``None``.
+    key_changes: Optional[list["KeyDrift"]] = None
+    if key_fks is not None:
+        key_changes = []
+        emitted_by_name = {em.field.name: em for em in emitted}
+        output_names = set(emitted_by_name)
+        for fk in key_fks:
+            target: Optional[str] = fk.reference.resource or key_resource_name
+
+            # fk_field_dropped: this FK's own fields are no longer present
+            # in the conformed output (declared-but-dropped by a
+            # skip/discard policy, or never a spec field at all).
+            dropped = [f for f in fk.fields if f not in output_names]
+            if dropped:
+                key_changes.append(KeyDrift(
+                    kind="fk_field_dropped", fields=dropped,
+                    reference=target, action=contract.keys,
+                ))
+                continue
+
+            # dangling_reference: no resolvable target name (self-ref FK
+            # with no key_resource_name supplied), or the referenced
+            # resource/fields aren't resolvable via schema_of.
+            if target is None:
+                key_changes.append(KeyDrift(
+                    kind="dangling_reference", fields=list(fk.fields),
+                    reference=target, action=contract.keys,
+                ))
+                continue
+            try:
+                parent_schema = schema_of(target) if schema_of is not None else {}
+            except KeyError:
+                key_changes.append(KeyDrift(
+                    kind="dangling_reference", fields=list(fk.fields),
+                    reference=target, action=contract.keys,
+                ))
+                continue
+            if any(f not in parent_schema for f in fk.reference.fields):
+                key_changes.append(KeyDrift(
+                    kind="dangling_reference", fields=list(fk.fields),
+                    reference=target, action=contract.keys,
+                ))
+                continue
+
+            # fk_type_mismatch (finding 8): only when BOTH sides' canonical
+            # dtypes are known — missing/UNKNOWN evidence is "cannot
+            # assess", same honesty rule as the data_type dimension above.
+            for local_field, ref_field in zip(fk.fields, fk.reference.fields):
+                child_em = emitted_by_name.get(local_field)
+                child_dtype: Optional["MountainashDtype"] = None
+                if child_em is not None:
+                    if child_em.type_action == "evolve" and child_em.effective_type is not None:
+                        child_dtype = child_em.effective_type
+                    elif isinstance(child_em.declared_type, MountainashDtype):
+                        child_dtype = child_em.declared_type
+                parent_dtype = parent_schema.get(ref_field)
+                if (
+                    child_dtype is None
+                    or parent_dtype is None
+                    or isinstance(parent_dtype, SchemaTypeStatus)
+                ):
+                    continue
+                if classify_cast(child_dtype, parent_dtype) is CastSafety.UNSAFE:
+                    key_changes.append(KeyDrift(
+                        kind="fk_type_mismatch", fields=[local_field],
+                        reference=target, declared=parent_dtype,
+                        actual=child_dtype, action=contract.keys,
+                    ))
+
+        if contract.keys == "freeze" and key_changes and raise_on_freeze:
+            _raise_drift(key_changes=key_changes, node_identity=node_identity)
+
     # --- 5. Assemble the non-raising drift report ---
     #
     # None (not an empty ConformDrift) when nothing was assessed at all —
@@ -612,7 +720,7 @@ def resolve_conform_output(
     # reaching here, so a populated drift here never itself represents a
     # frozen violation.
     drift: Optional[ConformDrift] = None
-    if available_set is not None or actual_dtypes is not None:
+    if available_set is not None or actual_dtypes is not None or key_changes is not None:
         node_id, resource_name, spec_name = (
             node_identity if node_identity is not None else (None, None, None)
         )
@@ -627,7 +735,7 @@ def resolve_conform_output(
                 ColumnDrift(name=n, action=contract.missing_columns) for n in missing
             ],
             type_mismatches=type_mismatches,
-            key_changes=None,
+            key_changes=key_changes,
         )
 
     return ConformOutputContract(
@@ -933,6 +1041,9 @@ def _build_conform_exprs(
     actual_dtypes: Optional[Mapping[str, Any]] = None,
     contract: Optional[ConformContract] = None,
     node_identity: Optional[tuple] = None,
+    key_fks: Optional[Sequence["ForeignKey"]] = None,
+    key_resource_name: Optional[str] = None,
+    schema_of: Optional[Callable[[str], Mapping[str, Any]]] = None,
 ) -> ConformResult:
     """Build the expression list for a TypeSpec conformance projection.
 
@@ -958,6 +1069,15 @@ def _build_conform_exprs(
         node_identity: Optional ``(node_id, resource_name, spec_name)``
             pass-through for the ``ConformDrift`` report this call may build
             or raise. Passed through verbatim to :func:`resolve_conform_output`.
+        key_fks: Optional pre-filtered (child-scoped) foreign keys driving
+            the ``keys`` dimension (item 48 PR-D). Passed through verbatim
+            to :func:`resolve_conform_output` — ``None`` means key drift is
+            not assessed at all.
+        key_resource_name: Child resource name for self-referencing FK
+            resolution. Passed through verbatim to
+            :func:`resolve_conform_output`.
+        schema_of: Optional reference-side schema resolver. Passed through
+            verbatim to :func:`resolve_conform_output`.
 
     Returns:
         A :class:`ConformResult` containing:
@@ -1007,6 +1127,9 @@ def _build_conform_exprs(
         actual_dtypes=actual_dtypes,
         contract=contract,
         node_identity=node_identity,
+        key_fks=key_fks,
+        key_resource_name=key_resource_name,
+        schema_of=schema_of,
     )
 
     # Build one expression per emitted field. em.type_action (item 48 Task 6)
