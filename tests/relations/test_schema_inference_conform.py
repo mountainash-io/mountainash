@@ -332,6 +332,21 @@ class TestDottedSource:
         inferred = _infer(ma.relation(df).conform(spec))
         assert inferred["id"] == SchemaTypeStatus.UNKNOWN
 
+    def test_dotted_strict_mode_parity_oracle(self):
+        # Item 46 (b): strict modes now accept dotted sources on ROOT
+        # presence. Inference shares resolve_conform_output with runtime,
+        # so the emitted column set must match to_polars() exactly.
+        df = pl.DataFrame({"payload": [{"id": 1, "tag": "x"}]})
+        spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=U.INTEGER, rename_from="payload.id")],
+            fields_match="equal",
+        )
+        rel = ma.relation(df).conform(spec)
+        inferred = _infer(rel)
+        assert inferred["id"] == D.I64
+        actual = rel.to_polars().schema
+        assert set(inferred.keys()) == set(actual.names())
+
 
 # ---------------------------------------------------------------------------
 # Exact-mode order parity across all source kinds

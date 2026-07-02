@@ -100,6 +100,55 @@ class TestRelationConformStructAccess:
         assert "score" in result.columns
 
 
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestRelationConformStructStrictModes:
+    """Item 46 (b): dotted sources under strict fields_match modes validate on
+    the struct ROOT and actually extract the nested field at runtime."""
+
+    def test_equal_dotted_source_extracts(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-pandas"):
+            pytest.xfail(
+                "narwhals pandas struct namespace requires a PyArrow-backed "
+                "Struct dtype; plain object-dtype dict columns raise "
+                "'Series must be of PyArrow Struct type to support struct namespace'"
+            )
+        if backend_name == "ibis-sqlite":
+            pytest.xfail("SQLite has no struct type; struct sources unsupported")
+        df = backend_factory.create(
+            {"payload": [{"id": 1}, {"id": 2}]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
+            fields_match="equal",
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["pid"].to_list() == [1, 2]
+
+    def test_subset_dotted_source_extracts_with_extra_column(self, backend_name, backend_factory):
+        if backend_name in ("pandas", "narwhals-pandas"):
+            pytest.xfail(
+                "narwhals pandas struct namespace requires a PyArrow-backed "
+                "Struct dtype; plain object-dtype dict columns raise "
+                "'Series must be of PyArrow Struct type to support struct namespace'"
+            )
+        if backend_name == "ibis-sqlite":
+            pytest.xfail("SQLite has no struct type; struct sources unsupported")
+        df = backend_factory.create(
+            {"payload": [{"id": 1}, {"id": 2}], "other": ["x", "y"]}, backend_name
+        )
+        spec = TypeSpec(
+            fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
+            fields_match="subset",
+        )
+        result = ma.relation(df).conform(spec).to_polars()
+        assert result["pid"].to_list() == [1, 2]
+        # Subset is a select mode: only spec fields are emitted — the extra
+        # unmapped column is allowed in the INPUT (that's subset's point)
+        # but discarded from the OUTPUT.
+        assert list(result.columns) == ["pid"]
+        assert "other" not in result.columns
+
+
 class TestRelationConformFullPipeline:
     def test_full_pipeline(self):
         import polars as pl
