@@ -12,7 +12,7 @@ from .canonical import (
     parse_cast_target,
     parse_dtype,
 )
-from .casts import SAFE_CASTS, UNSAFE_CASTS, is_safe_cast
+from .casts import SAFE_CASTS, UNSAFE_CASTS, CastSafety, classify_cast, is_safe_cast
 from .errors import DtypeError, DtypeMappingError, UnknownDtypeError
 from .registry import DtypeRegistry, registry
 from .targets import TypeTarget, detect_target
@@ -25,4 +25,5 @@ __all__ = [
     "DtypeRegistry", "registry",
     "DtypeError", "UnknownDtypeError", "DtypeMappingError",
     "SAFE_CASTS", "UNSAFE_CASTS", "is_safe_cast",
+    "CastSafety", "classify_cast",
 ]
