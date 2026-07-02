@@ -22,6 +22,33 @@ from .universal_types import UniversalType, parse_universal
 
 
 # ---------------------------------------------------------------------------
+# Foreign key helpers
+# ---------------------------------------------------------------------------
+
+def foreign_key_from_dict(raw_fk: Dict[str, Any]) -> ForeignKey:
+    """Build a ForeignKey from a Frictionless ``foreignKeys`` entry."""
+    ref = raw_fk.get("reference") or {}
+    return ForeignKey(
+        fields=list(raw_fk.get("fields") or []),
+        reference=ForeignKeyReference(
+            resource=ref.get("resource", ""),
+            fields=list(ref.get("fields") or []),
+        ),
+    )
+
+
+def foreign_key_to_dict(fk: ForeignKey) -> Dict[str, Any]:
+    """Export a ForeignKey as a Frictionless ``foreignKeys`` entry."""
+    return {
+        "fields": list(fk.fields),
+        "reference": {
+            "resource": fk.reference.resource,
+            "fields": list(fk.reference.fields),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Constraints helpers
 # ---------------------------------------------------------------------------
 
@@ -104,15 +131,7 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
 
     # Foreign keys (standard Frictionless field)
     if spec.foreign_keys:
-        fk_list = []
-        for fk in spec.foreign_keys:
-            fk_list.append({
-                "fields": fk.fields,
-                "reference": {
-                    "resource": fk.reference.resource,
-                    "fields": fk.reference.fields,
-                },
-            })
+        fk_list = [foreign_key_to_dict(fk) for fk in spec.foreign_keys]
         descriptor["foreignKeys"] = fk_list
 
     # Gap 1: missingValues (schema-level) — emit if non-default (non-empty list)
@@ -235,18 +254,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
     raw_fks = descriptor.get("foreignKeys")
     foreign_keys: Optional[List[ForeignKey]] = None
     if raw_fks:
-        foreign_keys = []
-        for raw_fk in raw_fks:
-            ref = raw_fk["reference"]
-            foreign_keys.append(
-                ForeignKey(
-                    fields=raw_fk["fields"],
-                    reference=ForeignKeyReference(
-                        resource=ref["resource"],
-                        fields=ref["fields"],
-                    ),
-                )
-            )
+        foreign_keys = [foreign_key_from_dict(raw_fk) for raw_fk in raw_fks]
 
     # -- Fields --
     fields: List[FieldSpec] = []
@@ -331,6 +339,8 @@ __all__ = [
     "typespec_from_frictionless",
     "to_frictionless",
     "from_frictionless",
+    "foreign_key_from_dict",
+    "foreign_key_to_dict",
     "_constraints_to_dict",
     "_parse_constraints",
 ]

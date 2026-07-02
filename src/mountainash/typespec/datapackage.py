@@ -276,6 +276,19 @@ class DataPackage(BaseModel):
                 # Empty string means self-referencing; use the resource's own name
                 target = ref_resource if ref_resource else r.name
                 if target in valid_names and r.name in valid_names:
-                    dag.constraint_edges.add((target, r.name))
+                    from mountainash.typespec.frictionless import foreign_key_from_dict
+
+                    edge = (target, r.name)
+                    dag.constraint_edges.add(edge)
+                    # Preserve field-level FK detail beside the edge. For a
+                    # pass-through resource this duplicates what its lossless
+                    # table_schema already carries — benign and
+                    # export-invisible (export never reads metadata for
+                    # pass-through resources); it exists as the uniform FK
+                    # store for validation / drift tooling.
+                    structured = foreign_key_from_dict(fk)
+                    bucket = dag.constraint_metadata.setdefault(edge, [])
+                    if structured not in bucket:
+                        bucket.append(structured)
 
         return dag

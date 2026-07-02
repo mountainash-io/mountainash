@@ -109,6 +109,16 @@ def to_package(dag: RelationDAG, *, strict: bool = False) -> DataPackage:
         inferred = dag.schema(name)
         out = _frictionless_from_inferred(inferred)
 
+        # FK source is determined by resource kind: pass-through resources
+        # emitted their lossless table_schema above (metadata never
+        # consulted — no double-emit possible); derived resources emit
+        # declared constraint_metadata, in insertion order.
+        from mountainash.typespec.frictionless import foreign_key_to_dict
+
+        fk_dicts = [foreign_key_to_dict(fk) for fk in dag.constraints_for(name)]
+        if fk_dicts and out is not None:
+            out["foreignKeys"] = fk_dicts
+
         if strict and (not inferred or _has_unknown(inferred)):
             missing.append(name)
             continue

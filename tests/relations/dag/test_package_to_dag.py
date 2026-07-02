@@ -59,6 +59,35 @@ def test_constraint_edges_from_foreign_keys():
     assert dag.dependency_edges == set()
 
 
+def test_constraint_metadata_from_foreign_keys():
+    """Item 46 (c): descriptor FK field detail survives parsing."""
+    cust_schema = {"fields": [{"name": "id", "type": "integer"}]}
+    order_schema = {
+        "fields": [
+            {"name": "id", "type": "integer"},
+            {"name": "customer_id", "type": "integer"},
+        ],
+        "foreignKeys": [
+            {
+                "fields": ["customer_id"],
+                "reference": {"resource": "customers", "fields": ["id"]},
+            }
+        ],
+    }
+    pkg = DataPackage(resources=[
+        DataResource(name="customers", path="customers.csv", table_schema=cust_schema, type="table"),
+        DataResource(name="orders", path="orders.csv", table_schema=order_schema, type="table"),
+    ])
+    dag = pkg.to_relation_dag()
+    edge = ("customers", "orders")
+    assert edge in dag.constraint_edges          # unchanged contract
+    [fk] = dag.constraint_metadata[edge]
+    assert fk.fields == ["customer_id"]
+    assert fk.reference.resource == "customers"
+    assert fk.reference.fields == ["id"]
+    assert set(dag.constraint_metadata.keys()) <= dag.constraint_edges
+
+
 def test_non_tabular_resource_becomes_asset(tmp_path):
     p = tmp_path / "logo.png"
     p.write_bytes(b"\x89PNG...")
