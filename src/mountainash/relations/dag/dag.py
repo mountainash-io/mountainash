@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.typespec.spec import ForeignKey
     from .validation import DAGValidationResult
 
 """RelationDAG — orchestrator over named Relations.
@@ -29,6 +30,13 @@ class RelationDAG:
         self.assets: dict[str, ResourceRef] = {}
         self.dependency_edges: set[tuple[str, str]] = set()
         self.constraint_edges: set[tuple[str, str]] = set()
+        # Structured FK detail, strictly subordinate to constraint_edges:
+        # set(constraint_metadata.keys()) ⊆ constraint_edges always. An edge
+        # with no metadata entry is a topology-only relationship (consumers
+        # needing field-level detail MUST read constraint_metadata; absent
+        # means non-actionable, not "fields = empty"). Sole supported
+        # writers: add_constraint() and DataPackage.to_relation_dag().
+        self.constraint_metadata: dict[tuple[str, str], list["ForeignKey"]] = {}
 
     def add(self, name: str, relation: Any) -> None:
         """Add a named relation to the DAG.
@@ -62,6 +70,59 @@ class RelationDAG:
 
         self.add(name, relation(data))
         return self.ref(name)
+
+    def add_constraint(self, child: str, fk: "ForeignKey") -> None:
+        """Declare a foreign-key constraint on a *derived* relation.
+
+        Populates ``constraint_edges`` and ``constraint_metadata`` together
+        under the same ``(target, child)`` key. Never touches
+        ``dependency_edges`` (two-edge-graph-model). This is the sole
+        supported mutation path for ``constraint_metadata`` — do not mutate
+        the dict directly.
+
+        Raises:
+            KeyError: ``child`` is not a relation in this DAG.
+            ValueError: the FK target is not a relation in this DAG, or
+                ``child`` is a pass-through resource — its foreign keys
+                belong in the resource's ``table_schema``
+                (lossless-frictionless-storage), not here.
+        """
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ResourceReadRelNode,
+        )
+
+        if child not in self.relations:
+            raise KeyError(f"unknown relation {child!r}")
+        root = getattr(self.relations[child], "_node", None)
+        if isinstance(root, ResourceReadRelNode):
+            raise ValueError(
+                f"{child!r} is a pass-through resource; declare its foreign "
+                "keys in the resource's table_schema, not via add_constraint()."
+            )
+        # Empty/self reference normalises to the (child, child) edge key —
+        # the same rule as the DataPackage parse path.
+        ref_resource = fk.reference.resource
+        target = ref_resource if ref_resource else child
+        if target != child and target not in self.relations:
+            raise ValueError(f"unknown foreign-key target {target!r}")
+        edge = (target, child)
+        self.constraint_edges.add(edge)
+        bucket = self.constraint_metadata.setdefault(edge, [])
+        if fk not in bucket:  # equality dedup; ForeignKey is unhashable
+            bucket.append(fk)
+
+    def constraints_for(self, child: str) -> "list[ForeignKey]":
+        """All declared foreign keys whose child side is ``child``.
+
+        Derived from ``constraint_metadata`` (FKs in insertion order per
+        edge; edges in insertion order). Topology-only constraint edges
+        (no metadata entry) contribute nothing.
+        """
+        out: "list[ForeignKey]" = []
+        for (_target, c), fks in self.constraint_metadata.items():
+            if c == child:
+                out.extend(fks)
+        return out
 
     def topological_order(self, target: Optional[str] = None) -> list[str]:
         """Return a topologically sorted list of relation names.
