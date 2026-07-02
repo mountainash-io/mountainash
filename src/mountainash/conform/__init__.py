@@ -14,6 +14,14 @@ from mountainash.conform.errors import (
     ExactFieldCountError,
     NoMatchingFieldsError,
     ConformTransformError,
+    SchemaDriftError,
+)
+from mountainash.conform.drift import (
+    TypeDrift,
+    ColumnDrift,
+    KeyDrift,
+    ConformDrift,
+    ConformCollection,
 )
 
 __all__ = [
@@ -25,4 +33,10 @@ __all__ = [
     "ExactFieldCountError",
     "NoMatchingFieldsError",
     "ConformTransformError",
+    "SchemaDriftError",
+    "TypeDrift",
+    "ColumnDrift",
+    "KeyDrift",
+    "ConformDrift",
+    "ConformCollection",
 ]
