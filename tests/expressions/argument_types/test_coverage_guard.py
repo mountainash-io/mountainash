@@ -552,6 +552,12 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitAggregateGenericExpressionSystemProtocol", "count_records", "overflow"),
         ("SubstraitAggregateStringExpressionSystemProtocol", "string_agg", "separator"),
         ("SubstraitCastExpressionSystemProtocol", "cast", "dtype"),
+        # failure_behavior IS behaviorally covered -- see
+        # tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior
+        # (throw vs null-on-failure, per-backend) -- but that coverage lives
+        # outside the argument_types matrix apparatus (OP_SPECS/TESTED_PARAMS),
+        # same precedent as `dtype` immediately above.
+        ("SubstraitCastExpressionSystemProtocol", "cast", "failure_behavior"),
         ("SubstraitLiteralExpressionSystemProtocol", "lit", "x"),
         ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow"),
         ("SubstraitScalarArithmeticExpressionSystemProtocol", "acos", "on_domain_error"),

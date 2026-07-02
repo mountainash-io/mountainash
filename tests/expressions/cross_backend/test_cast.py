@@ -239,3 +239,82 @@ class TestCastEdgeCases:
         expr = ma.col("value").cast("fp64")
         values = collect_expr(df, expr)
         assert values == [1000000.0, 2000000.0, 3000000.0], f"[{backend_name}] Expected floats, got {values}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestCastFailureBehavior:
+    """Test CastNode.failure_behavior wiring: default THROW vs NULL-on-failure.
+
+    Previously silently dropped by the visitor -- every backend compiled a
+    strict cast regardless of the `failure_behavior` requested via the
+    fluent `.cast(dtype, failure_behavior=...)` API.
+    """
+
+    # "pandas" has no dedicated ExpressionSystem -- plain pandas DataFrames
+    # compile expressions via the Narwhals backend (see expsys_base.py
+    # CONST_VISITOR_BACKENDS.PANDAS routing), so it shares narwhals' cast
+    # limitation.
+    _NARWHALS_ROUTED_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+
+    def test_cast_failure_behavior_null(self, backend_name, backend_factory, collect_expr):
+        if backend_name in self._NARWHALS_ROUTED_BACKENDS:
+            pytest.xfail(
+                "Narwhals Expr.cast(dtype) has no strict/failure-behavior parameter "
+                "(observed narwhals 2.23.0) -- cast always raises on invalid conversion "
+                "(InvalidOperationError on polars-backed, ValueError on pandas-backed). "
+                "mountainash raises BackendCapabilityError for failure_behavior='null' "
+                "on this backend. Plain 'pandas' DataFrames compile via the Narwhals "
+                "backend and share this limitation. See known-divergences.md."
+            )
+        if backend_name == "ibis-sqlite":
+            pytest.xfail(
+                "Ibis compiles failure_behavior='null' to ibis.TryCast, which "
+                "ibis-sqlite (observed ibis 12.0.0) has no SQL compilation rule for: "
+                "'OperationNotDefinedError: Compilation rule for 'TryCast' operation "
+                "is not defined'. Works on ibis-duckdb and ibis-polars. "
+                "See known-divergences.md."
+            )
+        from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+            CaseFailureBehaviour,
+        )
+
+        data = {"value": ["1", "1x", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast("i64", failure_behavior=CaseFailureBehaviour.NULL)
+        values = collect_expr(df, expr)
+        assert values == [1, None, 3], f"[{backend_name}] Expected [1, None, 3], got {values}"
+
+    def test_cast_failure_behavior_throw_default(self, backend_name, backend_factory, collect_expr):
+        """Default (THROW) behaviour must remain byte-identical: raises on invalid input."""
+        if backend_name == "ibis-sqlite":
+            pytest.xfail(
+                "SQLite's CAST is inherently lenient -- 'SELECT CAST(\\'1x\\' AS "
+                "INTEGER)' returns 1 (parses the leading numeric prefix) rather than "
+                "raising, at the SQLite engine level, independent of mountainash or "
+                "ibis. Pre-existing behaviour, unrelated to the failure_behavior "
+                "wiring in this change. See known-divergences.md."
+            )
+        data = {"value": ["1", "1x", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast("i64")
+        with pytest.raises(Exception):
+            collect_expr(df, expr)
+
+    def test_cast_failure_behavior_throw_explicit(self, backend_name, backend_factory, collect_expr):
+        """Explicit failure_behavior=THROW behaves identically to the default."""
+        if backend_name == "ibis-sqlite":
+            pytest.xfail(
+                "SQLite's CAST is inherently lenient -- see "
+                "test_cast_failure_behavior_throw_default. Pre-existing behaviour, "
+                "unrelated to the failure_behavior wiring in this change."
+            )
+        from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+            CaseFailureBehaviour,
+        )
+
+        data = {"value": ["1", "1x", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast("i64", failure_behavior=CaseFailureBehaviour.THROW)
+        with pytest.raises(Exception):
+            collect_expr(df, expr)

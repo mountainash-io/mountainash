@@ -427,7 +427,9 @@ class UnifiedExpressionVisitor:
             Backend cast expression
         """
         input_expr = self.visit(node.input)
-        return self.backend.cast(input_expr, node.target_type)
+        return self.backend.cast(
+            input_expr, node.target_type, failure_behavior=node.failure_behavior
+        )
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
         """Compile a membership test (IN operator) to backend expression.

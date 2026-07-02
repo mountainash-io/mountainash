@@ -1,6 +1,8 @@
 """Verify option channel: accepts raw Python values, rejects expressions at API builder level."""
 from __future__ import annotations
 
+import ast
+
 import pytest
 
 import mountainash as ma
@@ -16,6 +18,14 @@ _OPTION_PARAMS = [
 
 def _example_raw_value(annotation: str):
     """Pick a representative raw value based on the parameter's type annotation."""
+    if annotation.startswith("typing.Literal["):
+        # Literal["throw", "null"] etc. -- every value in the Literal is
+        # itself a valid raw option value, so use the first one.
+        inner = annotation[len("typing.Literal["):-1]
+        try:
+            return ast.literal_eval(inner.split(",")[0].strip())
+        except (ValueError, SyntaxError):
+            return None
     if "int" in annotation:
         return 2
     if "str" in annotation:
