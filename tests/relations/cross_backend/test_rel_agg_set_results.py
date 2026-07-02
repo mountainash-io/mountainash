@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.relations.schema_inference import infer_schema
 
 from fixtures.backend_registry import ALL_BACKENDS
 
@@ -193,3 +194,40 @@ class TestConcat:
             ma.relation(df2),
         ]).to_dicts()
         assert result == [{"a": 1}, {"a": 2}, {"a": 1}, {"a": 2}]
+
+
+# ---------------------------------------------------------------------------
+# Un-aliased Measure Naming Parity (item 46 a)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestUnaliasedMeasureNameParity:
+    """Runtime parity oracle: infer_schema()'s column-name set for an
+    un-aliased aggregate measure must match the actual to_polars() column
+    set. Polars, pandas, and both narwhals variants name the measure after
+    its leftmost source column ("v"); Ibis instead names it "Sum(v)" on
+    every engine (duckdb/polars/sqlite) — a documented divergence, not
+    chased in inference (see known-divergences.md #18). The Ibis cases run
+    the full assertion under a strict xfail marker so an upstream naming
+    convergence surfaces as a hard XPASS failure."""
+
+    def test_unaliased_measure_name_parity_with_runtime(
+        self, backend_name, backend_factory, request
+    ):
+        if backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"):
+            request.applymarker(pytest.mark.xfail(
+                strict=True,
+                reason=(
+                    "Ibis names un-aliased measures from expr repr (e.g. "
+                    "'Sum(v)'), not the source column — see "
+                    "known-divergences.md #18"
+                ),
+            ))
+        df = backend_factory.create(
+            {"k": ["a", "a", "b"], "v": [1, 2, 3]}, backend_name
+        )
+        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
+        inferred = infer_schema(rel._node, None)
+        assert set(inferred.keys()) == set(rel.to_polars().columns)

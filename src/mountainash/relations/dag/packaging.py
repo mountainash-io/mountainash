@@ -62,10 +62,11 @@ def _has_unknown(schema) -> bool:
     legitimate declaration of 'any'. Only SchemaTypeStatus.UNKNOWN triggers
     strict-mode rejection (principle best-effort-introspection R4).
 
-    Note: this catches columns inference reports AS UNKNOWN, not columns absent
-    from the inferred schema entirely (e.g. un-aliased aggregate measures, which
-    inference cannot name). Strict mode therefore under-catches those — a known
-    inference-naming limitation, never a false raise."""
+    Note: since item 46 (a), un-aliased aggregate measures are inferred
+    under their canonical source-column name as UNKNOWN, so strict mode
+    sees them. Only measures with no resolvable field root (literal or
+    wildcard aggregates) remain absent — a documented best-effort residual.
+    """
     from mountainash.relations.schema_inference import SchemaTypeStatus
     return any(v is SchemaTypeStatus.UNKNOWN for v in schema.values())
 

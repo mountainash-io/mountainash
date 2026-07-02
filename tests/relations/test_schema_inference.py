@@ -369,6 +369,14 @@ class TestInferSchemaAggregate:
         schema = infer_schema(rel._node, None)
         assert set(schema.keys()) == {"k"}
 
+    def test_unaliased_measure_name_parity_with_runtime(self):
+        # Inferred column set == actual to_polars() column set (name parity
+        # against the canonical Polars oracle).
+        df = pl.DataFrame({"k": ["a", "a", "b"], "v": [1, 2, 3]})
+        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
+        inferred = infer_schema(rel._node, None)
+        assert set(inferred.keys()) == set(rel.to_polars().columns)
+
 
 class TestInferSchemaJoin:
     def test_inner_join_on(self):

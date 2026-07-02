@@ -53,11 +53,13 @@ def test_dag_to_package_emits_inline_relation():
 def test_dag_to_package_strict_raises_on_unknown():
     """strict=True raises for a genuinely-UNKNOWN column; default emits it.
 
-    Aggregate measure columns with an explicit alias infer to
-    SchemaTypeStatus.UNKNOWN (the type cannot be determined pre-compile from
-    the plan alone — only the group keys are typed). Without an alias the
-    measure name is unresolvable and the column is silently absent; WITH an
-    alias it appears as UNKNOWN, which is the condition strict= must catch.
+    Aggregate measure columns infer to SchemaTypeStatus.UNKNOWN (the type
+    cannot be determined pre-compile from the plan alone — only the group
+    keys are typed), whether or not the measure carries an explicit alias.
+    See test_dag_to_package_strict_catches_unaliased_measure (item 46 a) for
+    the un-aliased case specifically: since item 46 (a), un-aliased measures
+    are inferred under their source-column name as UNKNOWN too, so they are
+    no longer silently absent from strict='s view.
     """
     dag = RelationDAG()
     dag.add(
@@ -75,6 +77,27 @@ def test_dag_to_package_strict_raises_on_unknown():
     # strict=True must raise naming the relation
     with pytest.raises(MissingResourceSchema, match="grouped"):
         dag.to_package(strict=True)
+
+
+def test_dag_to_package_strict_catches_unaliased_measure():
+    """Item 46 (a): the un-aliased measure is now present-as-UNKNOWN, so
+    strict= sees it (was: silently absent, strict passed)."""
+    dag = RelationDAG()
+    dag.add("src", ma.relation(pl.DataFrame({"k": ["a"], "v": [1]})))
+    dag.add("agg", dag.ref("src").group_by("k").agg(ma.col("v").sum()))
+    with pytest.raises(MissingResourceSchema, match="agg"):
+        dag.to_package(strict=True)
+
+
+def test_dag_to_package_default_emits_unaliased_measure_as_any():
+    """R3: default export still emits, with the measure typeless."""
+    dag = RelationDAG()
+    dag.add("src", ma.relation(pl.DataFrame({"k": ["a"], "v": [1]})))
+    dag.add("agg", dag.ref("src").group_by("k").agg(ma.col("v").sum()))
+    pkg = dag.to_package()
+    agg_res = next(r for r in pkg.resources if r.name == "agg")
+    fields = {f["name"]: f["type"] for f in agg_res.table_schema["fields"]}
+    assert fields["v"] == "any"
 
 
 def test_dag_to_package_ref_relation_exports_real_schema():
