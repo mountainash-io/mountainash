@@ -6,7 +6,7 @@
 site_name: 'Mountainash Core'
 site_description: 'An intelligent textbook for the mountainash cross-backend data expression and relational pipeline library'
 site_author: 'Nathaniel Ramm'
-site_url: 'https://mountainash-io.github.io/mountainash/'
+site_url: 'https://mountainash-io.github.io/mountainash-central/mountainash/'
 
 # Hooks — runs local Python before/after page processing
 # social_override.py lets per-page `image:` frontmatter override the auto-
