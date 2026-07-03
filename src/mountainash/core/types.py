@@ -67,6 +67,14 @@ if TYPE_CHECKING:
 
     SupportedExpressions: TypeAlias = Union[PolarsExpr, IbisExpr, NarwhalsExpr]
 
+    SupportedRelations: TypeAlias = Union[
+        PolarsFrame,
+        PolarsLazyFrame,
+        NarwhalsFrame,
+        NarwhalsLazyFrame,
+        IbisTable,
+    ]
+
     SupportedSeries: TypeAlias = Union[PandasSeries, PolarsSeries, NarwhalsSeries, PyArrowArray]
 
     # ========================================================================
@@ -91,6 +99,7 @@ if TYPE_CHECKING:
 
 DataFrameT = TypeVar("DataFrameT", bound="SupportedDataFrames")
 ExpressionT = TypeVar("ExpressionT", bound="SupportedExpressions")
+RelationT = TypeVar("RelationT", bound="SupportedRelations")
 SeriesT = TypeVar("SeriesT", bound="SupportedSeries")
 
 
