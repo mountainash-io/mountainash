@@ -23,6 +23,7 @@ from ..relation_nodes import (
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
+    from mountainash.relations.dag.key_context import KeyDriftContext
 
 
 class UnifiedRelationVisitor:
@@ -39,10 +40,17 @@ class UnifiedRelationVisitor:
         expression_visitor: Any,
         *,
         ref_resolver: Optional[Callable[[str], Any]] = None,
+        key_context: Optional["KeyDriftContext"] = None,
     ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
         self.ref_resolver = ref_resolver
+        # DAG-provided FK context (item 48 PR-D), +1 optional param
+        # analogous to ref_resolver (relation-dag-orchestrator). None for a
+        # standalone/frame-level compile (relation_base.py) -- apply_conform
+        # then never assesses the keys dimension and ConformDrift.key_changes
+        # stays None (not assessed).
+        self.key_context = key_context
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id
@@ -243,12 +251,35 @@ class UnifiedRelationVisitor:
         # node_id captures the current report count *before* appending below
         # — deterministic since visits are depth-first sequential.
         node_id = f"conform:{len(self.drift_reports)}"
+
+        # Keys dimension (item 48 PR-D): only assessed when a DAG supplied a
+        # KeyDriftContext. The "child" identity prefers this call's own
+        # resource_name (the Frictionless resource actually being read, e.g.
+        # a ResourceReadRelNode) and falls back to the currently-compiling
+        # DAG relation's name (a bare ConformRelNode has no resource_name of
+        # its own) — the DAG re-points key_context.resource_name per node
+        # during its dependency loop (see dag.py _compile_with_refs), so
+        # this fallback is correct for dependencies, not just the target.
+        key_fks = None
+        key_resource_name = None
+        key_schema_of = None
+        if self.key_context is not None:
+            key_resource_name = (
+                resource_name if resource_name is not None
+                else self.key_context.resource_name
+            )
+            key_fks = self.key_context.constraints_for(key_resource_name)
+            key_schema_of = self.key_context.schema_of
+
         conform_result = _build_conform_exprs(
             schema,
             available_columns=available,
             actual_dtypes=available_schema or None,
             contract=resolved_contract,
             node_identity=(node_id, resource_name, getattr(schema, "name", None)),
+            key_fks=key_fks,
+            key_resource_name=key_resource_name,
+            schema_of=key_schema_of,
         )
         if conform_result.drift is not None:
             self.drift_reports.append(conform_result.drift)
