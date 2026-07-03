@@ -316,14 +316,15 @@ class TestExtensionRelNode:
         node = ExtensionRelNode(
             input=read_node,
             operation=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
-            options={"name": "idx", "offset": 0},
+            options={"name": "idx"},
         )
-        assert node.options == {"name": "idx", "offset": 0}
+        assert node.options == {"name": "idx"}
 
     def test_isinstance(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
             operation=RKEY_MOUNTAINASH_REL.EXPLODE,
+            options={"columns": ["a"]},
         )
         assert isinstance(node, RelationNode)
 
