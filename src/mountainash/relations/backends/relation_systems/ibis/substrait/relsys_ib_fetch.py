@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisFetchRelationSystem(SubstraitFetchRelationSystemProtocol):
+class SubstraitIbisFetchRelationSystem(SubstraitFetchRelationSystemProtocol[ir.Table]):
     """Offset/limit row retrieval on Ibis table expressions."""
 
     def fetch(

@@ -14,7 +14,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.extensions_m
 )
 
 
-class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSystemProtocol):
+class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSystemProtocol[pl.LazyFrame]):
     """Mountainash-specific relation operations on Polars LazyFrames."""
 
     def drop_nulls(

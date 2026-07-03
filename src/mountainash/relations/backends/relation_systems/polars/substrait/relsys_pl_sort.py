@@ -10,7 +10,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitPolarsSortRelationSystem(SubstraitSortRelationSystemProtocol):
+class SubstraitPolarsSortRelationSystem(SubstraitSortRelationSystemProtocol[pl.LazyFrame]):
     """Sort operations on Polars LazyFrames."""
 
     def sort(self, relation: pl.LazyFrame, sort_fields: list[SortField], /) -> pl.LazyFrame:

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import narwhals as nw
+
 from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
     SubstraitFetchRelationSystemProtocol,
 )
 
 
-class SubstraitNarwhalsFetchRelationSystem(SubstraitFetchRelationSystemProtocol):
+class SubstraitNarwhalsFetchRelationSystem(
+    SubstraitFetchRelationSystemProtocol[nw.DataFrame | nw.LazyFrame]
+):
     """Offset/limit row retrieval on Narwhals DataFrames."""
 
     def fetch(self, relation: Any, offset: int, count: Optional[int], /) -> Any:

@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisFilterRelationSystem(SubstraitFilterRelationSystemProtocol):
+class SubstraitIbisFilterRelationSystem(SubstraitFilterRelationSystemProtocol[ir.Table, ir.Value]):
     """Row filtering on Ibis table expressions."""
 
     def filter(self, relation: ir.Table, predicate: Any, /) -> ir.Table:

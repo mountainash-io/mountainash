@@ -24,7 +24,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
+class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol[pl.LazyFrame]):
     """Join operations on Polars LazyFrames."""
 
     def join(

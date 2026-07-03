@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+import narwhals as nw
+
 from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
     SubstraitAggregateRelationSystemProtocol,
 )
 
 
-class SubstraitNarwhalsAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol):
+class SubstraitNarwhalsAggregateRelationSystem(
+    SubstraitAggregateRelationSystemProtocol[nw.DataFrame | nw.LazyFrame, nw.Expr]
+):
     """Aggregation operations on Narwhals DataFrames."""
 
     def aggregate(self, relation: Any, keys: list[Any], measures: list[Any], /) -> Any:

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+import narwhals as nw
+
 from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
     SubstraitProjectRelationSystemProtocol,
 )
 
 
-class SubstraitNarwhalsProjectRelationSystem(SubstraitProjectRelationSystemProtocol):
+class SubstraitNarwhalsProjectRelationSystem(
+    SubstraitProjectRelationSystemProtocol[nw.DataFrame | nw.LazyFrame, nw.Expr]
+):
     """Projection operations on Narwhals DataFrames."""
 
     def project_select(self, relation: Any, columns: list[Any], /) -> Any:

@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitPolarsFilterRelationSystem(SubstraitFilterRelationSystemProtocol):
+class SubstraitPolarsFilterRelationSystem(SubstraitFilterRelationSystemProtocol[pl.LazyFrame, pl.Expr]):
     """Row filtering on Polars LazyFrames."""
 
     def filter(self, relation: pl.LazyFrame, predicate: Any, /) -> pl.LazyFrame:

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol
+from typing import Optional, Protocol
+
+from mountainash.core.types import RelationT
 
 
-class SubstraitFetchRelationSystemProtocol(Protocol):
+class SubstraitFetchRelationSystemProtocol(Protocol[RelationT]):
     """Contract for fetching a subset of rows from a relation."""
 
-    def fetch(self, relation: Any, offset: int, count: Optional[int], /) -> Any: ...
+    def fetch(self, relation: RelationT, offset: int, count: Optional[int], /) -> RelationT: ...
 
-    def fetch_from_end(self, relation: Any, count: int, /) -> Any: ...
+    def fetch_from_end(self, relation: RelationT, count: int, /) -> RelationT: ...

@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisReadRelationSystem(SubstraitReadRelationSystemProtocol):
+class SubstraitIbisReadRelationSystem(SubstraitReadRelationSystemProtocol[ir.Table]):
     """Read / scan a data source into an Ibis table expression.
 
     Ibis tables are already deferred, so this is essentially a pass-through

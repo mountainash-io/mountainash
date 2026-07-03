@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol):
+class SubstraitIbisAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol[ir.Table, ir.Value]):
     """Grouping and aggregation on Ibis table expressions."""
 
     def aggregate(

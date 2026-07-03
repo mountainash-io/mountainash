@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import narwhals as nw
+
 from mountainash.core.constants import JoinType
 from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
     SubstraitJoinRelationSystemProtocol,
@@ -22,7 +24,9 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitNarwhalsJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
+class SubstraitNarwhalsJoinRelationSystem(
+    SubstraitJoinRelationSystemProtocol[nw.DataFrame | nw.LazyFrame]
+):
     """Join operations on Narwhals DataFrames."""
 
     def join(
