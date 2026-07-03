@@ -34,7 +34,3 @@ class ExtensionRelNode(RelationNode):
             RKEY_MOUNTAINASH_REL,
         )
         return RKEY_MOUNTAINASH_REL[self.operation.name]
-
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_extension_rel(self)

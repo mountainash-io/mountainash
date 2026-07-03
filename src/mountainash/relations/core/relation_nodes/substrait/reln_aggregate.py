@@ -33,7 +33,3 @@ class AggregateRelNode(RelationNode):
         if not self.measures:
             return RKEY_SUBSTRAIT_REL.DISTINCT
         return RKEY_SUBSTRAIT_REL.AGGREGATE
-
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_aggregate_rel(self)

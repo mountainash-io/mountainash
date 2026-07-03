@@ -6,7 +6,7 @@ Substrait's relational algebra.
 """
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import ABC
 from enum import Enum
 from typing import Any, ClassVar, Optional
 
@@ -62,14 +62,9 @@ class RelationNode(BaseModel, ABC):
                 found.append(child)
         return tuple(found)
 
-    @abstractmethod
     def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch pattern.
+        """Compatibility shim — dispatch is owned by visitor.visit() (spec §3.5).
 
-        Args:
-            visitor: The visitor instance
-
-        Returns:
-            The result from the visitor's visit method
+        No longer participates in dispatch: visit() never falls back here.
         """
-        ...
+        return visitor.visit(self)

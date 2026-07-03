@@ -56,17 +56,25 @@ def read_node(mock_df):
 
 @pytest.fixture
 def visitor():
-    """Mock visitor with all visit methods."""
+    """Mock visitor whose visit() echoes back a per-node-type marker.
+
+    accept() is now a compatibility shim that always calls visitor.visit(self)
+    (spec §3.5) -- dispatch itself lives in the registry-driven visitor, not
+    in per-node accept() overrides.
+    """
+    markers = {
+        "ReadRelNode": "read",
+        "ProjectRelNode": "project",
+        "FilterRelNode": "filter",
+        "SortRelNode": "sort",
+        "FetchRelNode": "fetch",
+        "JoinRelNode": "join",
+        "AggregateRelNode": "aggregate",
+        "SetRelNode": "set",
+        "ExtensionRelNode": "extension",
+    }
     v = MagicMock()
-    v.visit_read_rel.return_value = "read"
-    v.visit_project_rel.return_value = "project"
-    v.visit_filter_rel.return_value = "filter"
-    v.visit_sort_rel.return_value = "sort"
-    v.visit_fetch_rel.return_value = "fetch"
-    v.visit_join_rel.return_value = "join"
-    v.visit_aggregate_rel.return_value = "aggregate"
-    v.visit_set_rel.return_value = "set"
-    v.visit_extension_rel.return_value = "extension"
+    v.visit.side_effect = lambda node: markers[type(node).__name__]
     return v
 
 
@@ -86,7 +94,7 @@ class TestReadRelNode:
     def test_accept(self, read_node, visitor):
         result = read_node.accept(visitor)
         assert result == "read"
-        visitor.visit_read_rel.assert_called_once_with(read_node)
+        visitor.visit.assert_called_once_with(read_node)
 
 
 class TestProjectRelNode:
@@ -126,7 +134,7 @@ class TestProjectRelNode:
         )
         result = node.accept(visitor)
         assert result == "project"
-        visitor.visit_project_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestFilterRelNode:
@@ -144,7 +152,7 @@ class TestFilterRelNode:
         node = FilterRelNode(input=read_node, predicate="x")
         result = node.accept(visitor)
         assert result == "filter"
-        visitor.visit_filter_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestSortRelNode:
@@ -164,7 +172,7 @@ class TestSortRelNode:
         node = SortRelNode(input=read_node, sort_fields=[])
         result = node.accept(visitor)
         assert result == "sort"
-        visitor.visit_sort_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestFetchRelNode:
@@ -188,7 +196,7 @@ class TestFetchRelNode:
         node = FetchRelNode(input=read_node, count=10)
         result = node.accept(visitor)
         assert result == "fetch"
-        visitor.visit_fetch_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestJoinRelNode:
@@ -248,7 +256,7 @@ class TestJoinRelNode:
         node = JoinRelNode(left=left, right=right, join_type=JoinType.INNER, on=["k"])
         result = node.accept(visitor)
         assert result == "join"
-        visitor.visit_join_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestAggregateRelNode:
@@ -270,7 +278,7 @@ class TestAggregateRelNode:
         node = AggregateRelNode(input=read_node, keys=[], measures=[])
         result = node.accept(visitor)
         assert result == "aggregate"
-        visitor.visit_aggregate_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestSetRelNode:
@@ -289,7 +297,7 @@ class TestSetRelNode:
         node = SetRelNode(inputs=[], set_type=SetType.UNION_ALL)
         result = node.accept(visitor)
         assert result == "set"
-        visitor.visit_set_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestExtensionRelNode:
@@ -324,7 +332,7 @@ class TestExtensionRelNode:
         )
         result = node.accept(visitor)
         assert result == "extension"
-        visitor.visit_extension_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 # ---------------------------------------------------------------------------

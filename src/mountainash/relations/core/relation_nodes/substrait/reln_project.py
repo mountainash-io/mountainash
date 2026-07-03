@@ -38,10 +38,6 @@ class ProjectRelNode(RelationNode):
     def operation_key(self):
         return self._PROJECT_KEY_MAP[self.operation]
 
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_project_rel(self)
-
 
 ProjectRelNode._PROJECT_KEY_MAP = {
     ProjectOperation.SELECT: RKEY_SUBSTRAIT_REL.PROJECT_SELECT,

@@ -31,6 +31,3 @@ class SourceRelNode(RelationNode):
 
     data: Any
     detected_format: CONST_PYTHON_DATAFORMAT
-
-    def accept(self, visitor: Any) -> Any:
-        return visitor.visit(self)

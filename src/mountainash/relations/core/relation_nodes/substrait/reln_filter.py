@@ -28,7 +28,3 @@ class FilterRelNode(RelationNode):
 
     input: RelationNode
     predicate: Any
-
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_filter_rel(self)

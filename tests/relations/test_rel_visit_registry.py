@@ -73,11 +73,15 @@ class TestProtection:
             ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
             FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
         )
-        from mountainash.relations.core.relation_nodes.extensions_mountainash import ExtensionRelNode
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ConformRelNode, ExtensionRelNode, RefRelNode, ResourceReadRelNode,
+            SourceRelNode,
+        )
         for node_type in [
             ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
             FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
-            ExtensionRelNode,
+            ExtensionRelNode, ConformRelNode, RefRelNode, ResourceReadRelNode,
+            SourceRelNode,
         ]:
             assert node_type in _PROTECTED_NODE_TYPES, f"{node_type.__name__} not protected"
 
@@ -109,11 +113,12 @@ from mountainash.relations.backends.relation_systems.polars import PolarsRelatio
 
 
 class _RegistryTestNode(RelationNode):
+    """No RelationVisitRegistry handler, no operation_key — deliberately
+    undispatchable (spec §3.5): accept() is a compatibility shim only,
+    visit() never falls back to it."""
+
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
     value: str = "test"
-
-    def accept(self, visitor):
-        return "accept_fallback"
 
 
 class TestVisitorDispatch:
@@ -136,14 +141,37 @@ class TestVisitorDispatch:
         finally:
             RelationVisitRegistry.unregister(_RegistryTestNode)
 
-    def test_visitor_falls_back_to_accept_when_not_registered(self):
+    def test_visitor_raises_for_unregistered_node_without_operation_key(self):
+        from mountainash.relations.core.errors import UnregisteredRelationNodeError
+
         visitor = UnifiedRelationVisitor(
             relation_system=PolarsRelationSystem(),
             expression_visitor=None,
         )
         node = _RegistryTestNode()
-        result = visitor.visit(node)
-        assert result == "accept_fallback"
+        with pytest.raises(UnregisteredRelationNodeError, match="_RegistryTestNode"):
+            visitor.visit(node)
+
+    def test_accept_shim_delegates_to_visit(self):
+        """accept() no longer participates in dispatch — it's a pure shim
+        that always calls visitor.visit(self)."""
+        called_with = []
+
+        def handler(node, visitor):
+            called_with.append(node)
+            return "from_registry"
+
+        RelationVisitRegistry.register(_RegistryTestNode, handler)
+        try:
+            visitor = UnifiedRelationVisitor(
+                relation_system=PolarsRelationSystem(),
+                expression_visitor=None,
+            )
+            node = _RegistryTestNode()
+            assert node.accept(visitor) == "from_registry"
+            assert called_with == [node]
+        finally:
+            RelationVisitRegistry.unregister(_RegistryTestNode)
 
     def test_handler_exception_includes_node_type(self):
         def bad_handler(node, visitor):
@@ -161,16 +189,17 @@ class TestVisitorDispatch:
             RelationVisitRegistry.unregister(_RegistryTestNode)
 
 
-from mountainash.relations.core.unified_visitor._core_handlers import (
-    _visit_ref_rel,
-    _visit_resource_read_rel,
-    _visit_source_rel,
-)
+from mountainash.relations.core.relation_system.relation_mapping import handlers
 from mountainash.relations.dag.errors import RelationDAGRequired
 
 
 class TestCoreHandlers:
-    def test_visit_ref_rel_no_resolver_raises(self):
+    """RefRelNode/ResourceReadRelNode/SourceRelNode no longer register via
+    RelationVisitRegistry (Task 4): they dispatch through operation_key ->
+    RelationOperationRegistry -> handlers module. Exercise the handlers
+    directly, as the pre-Task-4 suite did for _core_handlers."""
+
+    def test_visit_ref_no_resolver_raises(self):
         from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
         node = RefRelNode(name="orders")
         visitor = UnifiedRelationVisitor(
@@ -178,9 +207,9 @@ class TestCoreHandlers:
             expression_visitor=None,
         )
         with pytest.raises(RelationDAGRequired):
-            _visit_ref_rel(node, visitor)
+            handlers.visit_ref(node, visitor)
 
-    def test_visit_ref_rel_with_resolver(self):
+    def test_visit_ref_with_resolver(self):
         from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
         node = RefRelNode(name="orders")
         visitor = UnifiedRelationVisitor(
@@ -188,13 +217,21 @@ class TestCoreHandlers:
             expression_visitor=None,
             ref_resolver=lambda name: f"resolved:{name}",
         )
-        result = _visit_ref_rel(node, visitor)
+        result = handlers.visit_ref(node, visitor)
         assert result == "resolved:orders"
 
-    def test_core_handlers_registered_on_first_get(self):
+    def test_ref_and_resource_read_dispatch_via_operation_registry(self):
+        """RefRelNode/ResourceReadRelNode have no RelationVisitRegistry
+        handler; visitor.visit() must route them through operation_key."""
         from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_ref import RefRelNode
         from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_resource_read import ResourceReadRelNode
-        handler = RelationVisitRegistry.get(RefRelNode)
-        assert handler is _visit_ref_rel
-        handler2 = RelationVisitRegistry.get(ResourceReadRelNode)
-        assert handler2 is _visit_resource_read_rel
+
+        assert RelationVisitRegistry.get(RefRelNode) is None
+        assert RelationVisitRegistry.get(ResourceReadRelNode) is None
+
+        visitor = UnifiedRelationVisitor(
+            relation_system=PolarsRelationSystem(),
+            expression_visitor=None,
+            ref_resolver=lambda name: f"resolved:{name}",
+        )
+        assert visitor.visit(RefRelNode(name="orders")) == "resolved:orders"

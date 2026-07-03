@@ -5,7 +5,7 @@ Corresponds to Substrait's SortRel message.
 
 from __future__ import annotations
 from enum import Enum
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from mountainash.core.constants import SortField
 from mountainash.relations.core.relation_system.relation_keys.enums import (
@@ -29,7 +29,3 @@ class SortRelNode(RelationNode):
 
     input: RelationNode
     sort_fields: list[SortField]
-
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_sort_rel(self)

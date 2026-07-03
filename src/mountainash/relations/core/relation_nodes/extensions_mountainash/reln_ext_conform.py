@@ -44,6 +44,3 @@ class ConformRelNode(RelationNode):
     input: RelationNode
     spec: Any
     contract: Optional[Any] = None
-
-    def accept(self, visitor: Any) -> Any:
-        return visitor.visit(self)

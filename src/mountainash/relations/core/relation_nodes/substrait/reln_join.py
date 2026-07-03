@@ -50,7 +50,3 @@ class JoinRelNode(RelationNode):
         if self.join_type == JoinType.ASOF:
             return RKEY_SUBSTRAIT_REL.JOIN_ASOF
         return RKEY_SUBSTRAIT_REL.JOIN
-
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_join_rel(self)

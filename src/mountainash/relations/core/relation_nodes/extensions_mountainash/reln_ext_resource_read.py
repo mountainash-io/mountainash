@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from pydantic import ConfigDict
 
@@ -26,6 +26,3 @@ class ResourceReadRelNode(RelationNode):
     _operation_key: ClassVar[Optional[Enum]] = RKEY_MOUNTAINASH_REL.READ_RESOURCE
 
     resource: DataResource
-
-    def accept(self, visitor: Any) -> Any:
-        return visitor.visit(self)

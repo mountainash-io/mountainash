@@ -27,7 +27,3 @@ class ReadRelNode(RelationNode):
     _operation_key: ClassVar[Optional[Enum]] = RKEY_SUBSTRAIT_REL.READ
 
     dataframe: Any
-
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_read_rel(self)

@@ -29,6 +29,3 @@ class RefRelNode(RelationNode):
 
     name: str
     output_schema: Optional[Any] = None
-
-    def accept(self, visitor: Any) -> Any:
-        return visitor.visit(self)

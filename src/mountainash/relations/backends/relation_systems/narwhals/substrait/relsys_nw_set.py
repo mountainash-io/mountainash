@@ -18,3 +18,6 @@ class SubstraitNarwhalsSetRelationSystem(
 
     def union_all(self, relations: list[Any], /) -> Any:
         return nw.concat(relations)
+
+    def union_distinct(self, relations: list[Any], /) -> Any:
+        return nw.concat(relations).unique()

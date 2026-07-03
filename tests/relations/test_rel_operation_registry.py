@@ -115,14 +115,6 @@ class TestRegistration:
 class TestLazyInit:
     def test_registry_self_initializes_from_definitions(self):
         RelationOperationRegistry.reset()
-        # After Task 4 lands definitions.py this returns the real def.
-        # Until then this test is expected to fail — it is added here but
-        # marked xfail and un-marked in Task 4 Step 6.
         d = RelationOperationRegistry.get(RKEY_SUBSTRAIT_REL.READ)
         assert d.operation_key is RKEY_SUBSTRAIT_REL.READ
         RelationOperationRegistry.reset()
-
-
-TestLazyInit.test_registry_self_initializes_from_definitions = pytest.mark.xfail(
-    reason="definitions.py lands in Task 4", strict=True
-)(TestLazyInit.test_registry_self_initializes_from_definitions)
