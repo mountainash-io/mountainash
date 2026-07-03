@@ -4,9 +4,13 @@ Corresponds to Substrait's SortRel message.
 """
 
 from __future__ import annotations
-from typing import Any
+from enum import Enum
+from typing import Any, ClassVar, Optional
 
 from mountainash.core.constants import SortField
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_SUBSTRAIT_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -20,6 +24,8 @@ class SortRelNode(RelationNode):
         input: The child relation node
         sort_fields: List of sort specifications
     """
+
+    _operation_key: ClassVar[Optional[Enum]] = RKEY_SUBSTRAIT_REL.SORT
 
     input: RelationNode
     sort_fields: list[SortField]

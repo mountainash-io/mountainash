@@ -7,6 +7,7 @@ Substrait's relational algebra.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, ClassVar, Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -40,6 +41,13 @@ class RelationNode(BaseModel, ABC):
     )
 
     _leaf_backend: ClassVar[Optional[CONST_BACKEND]] = None
+    _operation_key: ClassVar[Optional[Enum]] = None
+
+    @property
+    def operation_key(self) -> Optional[Enum]:
+        """The RKEY this node dispatches under, or None for node types that
+        rely on a RelationVisitRegistry handler (third-party nodes)."""
+        return type(self)._operation_key
 
     def children(self) -> tuple[Any, ...]:
         """Return structural child relation nodes for tree traversal."""

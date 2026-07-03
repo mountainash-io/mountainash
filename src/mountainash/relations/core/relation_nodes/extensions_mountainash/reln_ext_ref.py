@@ -1,9 +1,14 @@
 """RefRelNode — placeholder for dag.ref(name); resolved at visit time via ref_resolver."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from enum import Enum
+from typing import Any, ClassVar, Optional
 
 from pydantic import ConfigDict
+
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -19,6 +24,8 @@ class RefRelNode(RelationNode):
     """
 
     model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
+
+    _operation_key: ClassVar[Optional[Enum]] = RKEY_MOUNTAINASH_REL.REF
 
     name: str
     output_schema: Optional[Any] = None

@@ -28,6 +28,13 @@ class ExtensionRelNode(RelationNode):
     operation: ExtensionRelOperation
     options: dict[str, Any] = {}
 
+    @property
+    def operation_key(self):
+        from mountainash.relations.core.relation_system.relation_keys.enums import (
+            RKEY_MOUNTAINASH_REL,
+        )
+        return RKEY_MOUNTAINASH_REL[self.operation.name]
+
     def accept(self, visitor: Any) -> Any:
         """Accept a visitor for double-dispatch."""
         return visitor.visit_extension_rel(self)
