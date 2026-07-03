@@ -34,7 +34,6 @@ from mountainash.expressions import (
     always_unknown,
     today,
     now,
-    CONST_VISITOR_BACKENDS,
     CONST_LOGIC_TYPES,
     CONST_EXPRESSION_NODE_TYPES,
 )  # noqa: F401

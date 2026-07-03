@@ -10,7 +10,7 @@ from typing import Any
 import ibis.expr.types as ir
 
 from mountainash.core.types import KnownLimitation
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
@@ -42,9 +42,9 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
     }
 
     @property
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
+    def backend_type(self) -> CONST_BACKEND:
         """Return the Ibis backend type identifier."""
-        return CONST_VISITOR_BACKENDS.IBIS
+        return CONST_BACKEND.IBIS
 
     def is_native_expression(self, expr: Any) -> bool:
         """Check if the expression is a native Ibis expression.

@@ -13,7 +13,7 @@ from abc import abstractmethod
 from typing import Any, Dict, Type
 
 from mountainash.core.registries import KeyedRegistry
-from ..constants import CONST_VISITOR_BACKENDS
+from ..constants import CONST_BACKEND
 
 # Import protocols used for class inheritance (must be at runtime)
 
@@ -84,7 +84,7 @@ SubstraitScalarStringExpressionSystemProtocol
 
     @property
     @abstractmethod
-    def backend_type(self) -> "CONST_VISITOR_BACKENDS":
+    def backend_type(self) -> "CONST_BACKEND":
         """Return the backend type constant for this ExpressionSystem."""
         pass
 
@@ -101,11 +101,11 @@ _expression_system_registry: KeyedRegistry[str, Type[ExpressionSystem]] = KeyedR
 )
 
 
-def register_expression_system(backend: "CONST_VISITOR_BACKENDS"):
+def register_expression_system(backend: "CONST_BACKEND"):
     """Decorator for registering ExpressionSystem classes.
 
     Usage:
-        @register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
+        @register_expression_system(CONST_BACKEND.POLARS)
         class PolarsExpressionSystem(ExpressionSystem):
             ...
 
@@ -118,7 +118,7 @@ def register_expression_system(backend: "CONST_VISITOR_BACKENDS"):
     return _expression_system_registry.decorator(backend.value)
 
 
-def get_expression_system(backend: CONST_VISITOR_BACKENDS) -> Type[ExpressionSystem]:
+def get_expression_system(backend: CONST_BACKEND) -> Type[ExpressionSystem]:
     """Get the ExpressionSystem class for a backend.
 
     Args:

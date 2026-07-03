@@ -6,7 +6,7 @@ IbisExpressionSystem class that can be registered with the visitor factory.
 
 from __future__ import annotations
 
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.expsys_base import register_expression_system
 
 
@@ -53,7 +53,7 @@ from .extensions_mountainash.expsys_ib_ext_ma_scalar_aggregate import MountainAs
 
 
 
-@register_expression_system(CONST_VISITOR_BACKENDS.IBIS)
+@register_expression_system(CONST_BACKEND.IBIS)
 class IbisExpressionSystem(
     # Foundation protocols
     SubstraitIbisCastExpressionSystem,

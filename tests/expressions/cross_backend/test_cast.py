@@ -253,7 +253,7 @@ class TestCastFailureBehavior:
 
     # "pandas" has no dedicated ExpressionSystem -- plain pandas DataFrames
     # compile expressions via the Narwhals backend (see expsys_base.py
-    # CONST_VISITOR_BACKENDS.PANDAS routing), so it shares narwhals' cast
+    # CONST_BACKEND.PANDAS routing), so it shares narwhals' cast
     # limitation.
     _NARWHALS_ROUTED_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
 
