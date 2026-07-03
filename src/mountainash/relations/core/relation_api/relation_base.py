@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.backend_detection import identify_backend
 from mountainash.expressions.core.expression_system.expsys_base import (
-    identify_backend,
     get_expression_system,
 )
 from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
