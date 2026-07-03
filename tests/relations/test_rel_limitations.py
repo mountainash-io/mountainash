@@ -43,3 +43,58 @@ class TestStructuralInvariant:
             PolarsRelationSystem,
         )
         assert PolarsRelationSystem.BACKEND_NAME == "polars"
+
+
+class TestMaterializeBoundary:
+    def test_materialize_failures_consult_boundary_entries(self, monkeypatch):
+        from mountainash.core.limitations import MATERIALIZE_BOUNDARY, WILDCARD_PARAM
+        from mountainash.core.types import KnownLimitation
+        from mountainash.relations.backends.relation_systems.polars import (
+            PolarsRelationSystem,
+        )
+
+        monkeypatch.setattr(
+            PolarsRelationSystem,
+            "KNOWN_REL_LIMITATIONS",
+            {
+                (MATERIALIZE_BOUNDARY, WILDCARD_PARAM): KnownLimitation(
+                    message="materialize-time quirk",
+                    native_errors=(pl.exceptions.ColumnNotFoundError,),
+                )
+            },
+            raising=False,
+        )
+        rel = ma.relation(pl.DataFrame({"a": [1]}).lazy()).filter(
+            ma.col("missing") > 0
+        )
+        with pytest.raises(BackendCapabilityError, match="materialize-time quirk"):
+            rel.collect()
+
+    def test_dag_collect_with_drift_consults_boundary_entries(self, monkeypatch):
+        from mountainash.core.limitations import MATERIALIZE_BOUNDARY, WILDCARD_PARAM
+        from mountainash.core.types import KnownLimitation
+        from mountainash.relations.backends.relation_systems.polars import (
+            PolarsRelationSystem,
+        )
+        from mountainash.relations.dag import RelationDAG
+
+        monkeypatch.setattr(
+            PolarsRelationSystem,
+            "KNOWN_REL_LIMITATIONS",
+            {
+                (MATERIALIZE_BOUNDARY, WILDCARD_PARAM): KnownLimitation(
+                    message="materialize-time quirk",
+                    native_errors=(pl.exceptions.ColumnNotFoundError,),
+                )
+            },
+            raising=False,
+        )
+        dag = RelationDAG()
+        dag.add(
+            "bad",
+            ma.relation(pl.DataFrame({"a": [1]}).lazy()).filter(
+                ma.col("missing") > 0
+            ),
+        )
+        with pytest.raises(BackendCapabilityError, match="materialize-time quirk"):
+            dag.collect_with_drift("bad")

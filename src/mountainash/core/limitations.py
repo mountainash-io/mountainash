@@ -63,3 +63,21 @@ def call_with_limitation_enrichment(
                     limitation=limitation,
                 ) from exc
         raise
+
+
+def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
+    """Materialization-boundary enrichment (spec §3.8): lazy backends
+    surface some failures only at collect time; consult the backend's
+    ``(MATERIALIZE_BOUNDARY, "*")`` limitation entries. Shared by
+    Relation.collect(), Relation.collect_with_drift(), and
+    RelationDAG.collect_with_drift()."""
+    limitations = getattr(backend, "KNOWN_REL_LIMITATIONS", None)
+    if not limitations:
+        return fn()
+    return call_with_limitation_enrichment(
+        fn,
+        limitations=limitations,
+        backend_name=getattr(backend, "BACKEND_NAME", "unknown"),
+        operation_key=MATERIALIZE_BOUNDARY,
+        named_args=(),
+    )

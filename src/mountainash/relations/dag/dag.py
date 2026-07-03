@@ -178,8 +178,10 @@ class RelationDAG:
         from mountainash.relations.core.relation_api.relation import _materialize
         from mountainash.relations.schema_inference import _schema_from_dataframe
 
+        from mountainash.core.limitations import enrich_materialization
+
         result, visitor = self._collect_with_visitor(name, backend=backend)
-        frame = _materialize(result)
+        frame = enrich_materialization(visitor.backend, lambda: _materialize(result))
         return ConformCollection(
             frame=frame,
             drifts=list(visitor.drift_reports),
