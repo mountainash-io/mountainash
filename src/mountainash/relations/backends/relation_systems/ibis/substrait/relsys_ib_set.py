@@ -12,7 +12,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisSetRelationSystem(SubstraitSetRelationSystemProtocol):
+class SubstraitIbisSetRelationSystem(SubstraitSetRelationSystemProtocol[ir.Table]):
     """Set operations on Ibis table expressions."""
 
     def union_all(self, relations: list[Any], /) -> ir.Table:

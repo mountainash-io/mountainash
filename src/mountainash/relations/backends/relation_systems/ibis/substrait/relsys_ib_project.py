@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisProjectRelationSystem(SubstraitProjectRelationSystemProtocol):
+class SubstraitIbisProjectRelationSystem(SubstraitProjectRelationSystemProtocol[ir.Table, ir.Value]):
     """Projection operations on Ibis table expressions."""
 
     def project_select(self, relation: ir.Table, columns: list[Any], /) -> ir.Table:

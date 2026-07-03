@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitIbisSortRelationSystem(SubstraitSortRelationSystemProtocol):
+class SubstraitIbisSortRelationSystem(SubstraitSortRelationSystemProtocol[ir.Table]):
     """Sort / order-by on Ibis table expressions."""
 
     def sort(self, relation: ir.Table, sort_fields: list[SortField], /) -> ir.Table:

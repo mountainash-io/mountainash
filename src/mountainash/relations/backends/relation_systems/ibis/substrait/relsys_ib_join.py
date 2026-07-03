@@ -23,7 +23,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol):
+class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol[ir.Table]):
     """Join operations on Ibis table expressions."""
 
     def join(

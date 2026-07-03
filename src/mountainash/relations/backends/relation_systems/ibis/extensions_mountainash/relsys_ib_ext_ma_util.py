@@ -12,7 +12,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.extensions_m
 )
 
 
-class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemProtocol):
+class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemProtocol[ir.Table]):
     """Mountainash-specific relation operations for the Ibis backend."""
 
     def drop_nulls(self, relation: ir.Table, /, *, subset: Optional[list[str]] = None) -> ir.Table:
