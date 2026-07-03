@@ -12,8 +12,12 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import typing
 from pathlib import Path
 
+import ibis.expr.types as ir
+import narwhals as nw
+import polars as pl
 import pytest
 
 
@@ -463,3 +467,73 @@ class TestRelationBuilderProtocolCompleteness:
                     f"got {type(value).__name__}. "
                     "Dispatch would expose a protocol stub."
                 )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 8: Backend Classes Bind Generic Protocols
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def _expected_binding(backend_pkg: str) -> tuple:
+    """(RelationT, ExpressionT) per backend — spec §3.3 table."""
+    return {
+        "polars": (pl.LazyFrame, pl.Expr),
+        "narwhals": (nw.DataFrame | nw.LazyFrame, nw.Expr),  # widened per remediation C3
+        "ibis": (ir.Table, ir.Value),
+    }[backend_pkg]
+
+
+class TestBackendClassesBindGenericProtocols:
+    """Every individual backend class must inherit a PARAMETERISED protocol
+    with the CORRECT protocol origin and concrete type args
+    (spec relations-dispatch-parity §3.3) — bare inheritance is the old,
+    waived pattern; a wrong-but-parameterised base must also fail.
+
+    NOTE: never use runtime issubclass() against these protocols — they are
+    not @runtime_checkable and it raises TypeError. This test inspects
+    __orig_bases__ instead."""
+
+    def _protocol_bases(self, cls: type) -> list:
+        return [
+            (typing.get_origin(b), typing.get_args(b))
+            for b in getattr(cls, "__orig_bases__", ())
+            if typing.get_origin(b) is not None
+        ]
+
+    @pytest.mark.parametrize("backend_pkg", ["polars", "narwhals", "ibis"])
+    def test_individual_backend_classes_are_parameterised(self, backend_pkg):
+        import importlib
+        import inspect as _inspect
+        import pkgutil
+
+        rel_t, expr_t = _expected_binding(backend_pkg)
+        root = importlib.import_module(
+            f"mountainash.relations.backends.relation_systems.{backend_pkg}"
+        )
+        offenders = []
+        for modinfo in pkgutil.walk_packages(root.__path__, root.__name__ + "."):
+            mod = importlib.import_module(modinfo.name)
+            for _, cls in _inspect.getmembers(mod, _inspect.isclass):
+                if cls.__module__ != modinfo.name:
+                    continue
+                if not cls.__name__.endswith("RelationSystem"):
+                    continue
+                if cls.__name__.startswith(("Polars", "Narwhals", "Ibis")):
+                    continue  # base mixins and composed leaf classes
+                bases = self._protocol_bases(cls)
+                if not bases:
+                    offenders.append(f"{modinfo.name}.{cls.__name__}: bare protocol")
+                    continue
+                for origin, args in bases:
+                    if "RelationSystemProtocol" not in origin.__name__:
+                        offenders.append(
+                            f"{modinfo.name}.{cls.__name__}: unexpected origin {origin.__name__}"
+                        )
+                    elif args not in ((rel_t,), (rel_t, expr_t)):
+                        offenders.append(
+                            f"{modinfo.name}.{cls.__name__}: bound {args}, "
+                            f"expected [{rel_t.__name__}(, {expr_t.__name__})]"
+                        )
+        assert not offenders, (
+            f"Backend classes with missing/incorrect protocol bindings: {offenders}"
+        )
