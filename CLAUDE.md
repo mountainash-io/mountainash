@@ -93,6 +93,7 @@ Each category has `core/` (cross-cutting) and module-specific subdirectories. Se
 | build-then-collect.md | relations | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
 | scalar-terminal-composition.md | relations | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions |
 | build-then-conform.md | conform | ENFORCED | ma.relation(df).conform(spec).to_polars() — conform is a Relation method producing ProjectRelNode; cross-backend automatic |
+| conform-contract.md | conform | ADOPTED | One contract model, four policy dimensions (extra_columns/missing_columns/data_type/keys); drift report (ConformDrift) is the evaluator's dual via collect_with_drift(); single reconciler resolve_conform_output |
 
 ### d. Cross-Backend
 
