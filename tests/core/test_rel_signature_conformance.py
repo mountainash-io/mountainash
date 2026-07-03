@@ -240,10 +240,15 @@ class TestRelVisitorDispatchCoverage:
 
         has_visitor_method = hasattr(UnifiedRelationVisitor, method_name)
         has_registry_handler = RelationVisitRegistry.get(node_cls) is not None
+        has_operation_key = (
+            getattr(node_cls, "_operation_key", None) is not None
+            or node_cls.operation_key is not RelationNode.operation_key
+        )
 
-        assert has_visitor_method or has_registry_handler, (
+        assert has_visitor_method or has_registry_handler or has_operation_key, (
             f"{node_name} has no visit method ({method_name}) on "
-            f"UnifiedRelationVisitor and no RelationVisitRegistry handler"
+            f"UnifiedRelationVisitor, no RelationVisitRegistry handler, "
+            f"and no operation_key"
         )
 
     def test_unhandled_nodes_still_unhandled(self) -> None:
@@ -254,7 +259,11 @@ class TestRelVisitorDispatchCoverage:
             method_name = f"visit_{_camel_to_snake(stem)}"
             has_visitor = hasattr(UnifiedRelationVisitor, method_name)
             has_registry = RelationVisitRegistry.get(node_cls) is not None
-            assert not has_visitor and not has_registry, (
+            has_op_key = (
+                getattr(node_cls, "_operation_key", None) is not None
+                or node_cls.operation_key is not RelationNode.operation_key
+            )
+            assert not has_visitor and not has_registry and not has_op_key, (
                 f"Stale: {node_name} is now handled! "
                 f"Remove from _KNOWN_UNHANDLED_NODES."
             )

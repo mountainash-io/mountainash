@@ -185,6 +185,10 @@ class TestNodeCoverage:
         for cls in self._all_node_subclasses():
             if inspect.isabstract(cls):
                 continue
+            if cls.__name__.startswith("_"):
+                continue
+            if cls.__module__.startswith("tests."):
+                continue
             has_handler = RelationVisitRegistry.get(cls) is not None
             has_key = (
                 getattr(cls, "_operation_key", None) is not None
