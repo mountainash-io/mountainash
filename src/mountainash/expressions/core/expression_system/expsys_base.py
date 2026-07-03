@@ -12,6 +12,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Dict, Type
 
+from mountainash.core.registries import KeyedRegistry
 from ..constants import CONST_VISITOR_BACKENDS
 
 # Import protocols used for class inheritance (must be at runtime)
@@ -95,7 +96,9 @@ SubstraitScalarStringExpressionSystemProtocol
 
 
 # Registry for ExpressionSystem implementations
-_expression_system_registry: Dict[str, Type[ExpressionSystem]] = {}
+_expression_system_registry: KeyedRegistry[str, Type[ExpressionSystem]] = KeyedRegistry(
+    "expression system"
+)
 
 
 def register_expression_system(backend: "CONST_VISITOR_BACKENDS"):
@@ -112,10 +115,7 @@ def register_expression_system(backend: "CONST_VISITOR_BACKENDS"):
     Returns:
         Decorator function.
     """
-    def decorator(cls: Type[ExpressionSystem]) -> Type[ExpressionSystem]:
-        _expression_system_registry[backend.value] = cls
-        return cls
-    return decorator
+    return _expression_system_registry.decorator(backend.value)
 
 
 def get_expression_system(backend: CONST_VISITOR_BACKENDS) -> Type[ExpressionSystem]:
@@ -130,7 +130,7 @@ def get_expression_system(backend: CONST_VISITOR_BACKENDS) -> Type[ExpressionSys
     Raises:
         KeyError: If no ExpressionSystem is registered for the backend.
     """
-    return _expression_system_registry[backend.value]
+    return _expression_system_registry.get(backend.value)
 
 
 # Backend alias mapping
