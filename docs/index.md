@@ -23,7 +23,6 @@ API reference tells you *what* a function does. This manual explains *why* the l
 
 - **[Learning Graph](learning-graph/index.md)** — A dependency map of every concept in the manual, showing how ideas connect and what to read first
 
-- **[API Reference](api/index.md)** — Module-level documentation for expressions, relations, TypeSpec, conform, pipelines, data contracts, and utilities
 
 ## Who This Is For
 

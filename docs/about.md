@@ -35,7 +35,6 @@ After working through this manual, you'll be able to:
 - **Use the search bar** (top right) to jump to a specific term or concept.
 - **Try the MicroSims** as you encounter them — they're the fastest way to build intuition for how the architecture works.
 - **Check the [Learning Graph](learning-graph/index.md)** when you want to see how a concept fits into the larger picture.
-- **Use the [API Reference](api/index.md)** as a companion while reading — it has the module-level detail that chapters summarise.
 
 ## About Mountainash
 

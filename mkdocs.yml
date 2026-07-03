@@ -97,18 +97,6 @@ nav:
 
 
 
-  - API Reference:
-      - Overview: api/index.md
-      - Conform: api/conform.md
-      - Core: api/core.md
-      - Data Contracts: api/datacontracts.md
-      - Expressions: api/expressions.md
-      - Graph: api/graph.md
-      - Pipelines: api/pipelines.md
-      - PyData: api/pydata.md
-      - Relations: api/relations.md
-      - TypeSpec: api/typespec.md
-      - Utils: api/utils.md
 
   - License: license.md
   - Contact: contact.md
@@ -140,20 +128,6 @@ theme:
 # Plugins
 plugins:
   - search
-  # mkdocstrings disabled — parsing 421 source files takes >2min.
-  # Re-enable once API pages use narrower ::: directives (e.g. mountainash.core.factories)
-  # - mkdocstrings:
-  #     handlers:
-  #       python:
-  #         paths: ["../../../mountainash/src"]
-  #         options:
-  #           show_source: true
-  #           show_bases: true
-  #           show_root_heading: true
-  #           show_root_full_path: false
-  #           show_submodules: false
-  #           heading_level: 2
-  #           members_order: source
   # Uncomment after running `pip install "mkdocs-material[imaging]"`:
   # - social
   # Uncomment after running `pip install mkdocs-glightbox`:
