@@ -10,10 +10,19 @@ Also provides backend detection and expression system registry functions.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Dict, Type
+from typing import TYPE_CHECKING, Any, Type
 
 from mountainash.core.registries import KeyedRegistry
-from ..constants import CONST_BACKEND
+
+if TYPE_CHECKING:
+    from ..constants import CONST_BACKEND
+
+# Moved to core (spec: relations-dispatch-parity §3.2). Re-exported for
+# backwards compatibility — import from mountainash.core.backend_detection.
+from mountainash.core.backend_detection import (  # noqa: F401
+    _BACKEND_ALIASES,
+    identify_backend,
+)
 
 # Import protocols used for class inheritance (must be at runtime)
 
@@ -131,11 +140,3 @@ def get_expression_system(backend: CONST_BACKEND) -> Type[ExpressionSystem]:
         KeyError: If no ExpressionSystem is registered for the backend.
     """
     return _expression_system_registry.get(backend.value)
-
-
-# Moved to core (spec: relations-dispatch-parity §3.2). Re-exported for
-# backwards compatibility — import from mountainash.core.backend_detection.
-from mountainash.core.backend_detection import (  # noqa: F401
-    _BACKEND_ALIASES,
-    identify_backend,
-)

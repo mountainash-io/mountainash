@@ -10,7 +10,7 @@ Mirrors the pattern in ``mountainash.expressions.core.expression_system.expsys_b
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Dict, Type
+from typing import Type
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.registries import KeyedRegistry
