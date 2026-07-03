@@ -1002,7 +1002,8 @@ def relation(data: Any) -> Relation:
     return Relation(ReadRelNode(dataframe=data))
 
 
-def concat(relations: Sequence[Relation]) -> Relation:
-    """Concatenate multiple Relations via UNION ALL."""
+def concat(relations: Sequence[Relation], *, distinct: bool = False) -> Relation:
+    """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT)."""
     nodes = [r._node for r in relations]
-    return Relation(SetRelNode(inputs=nodes, set_type=SetType.UNION_ALL))
+    set_type = SetType.UNION_DISTINCT if distinct else SetType.UNION_ALL
+    return Relation(SetRelNode(inputs=nodes, set_type=set_type))
