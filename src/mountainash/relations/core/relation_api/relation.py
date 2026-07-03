@@ -280,6 +280,7 @@ class Relation(RelationBase):
                 right=_to_relation_node(other),
                 join_type=JoinType.ASOF,
                 on=_normalize_columns(on),
+                by=_normalize_columns(by),
                 strategy=strategy,
                 tolerance=tolerance,
             )
