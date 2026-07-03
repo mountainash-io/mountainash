@@ -48,7 +48,7 @@ class RKEY_SUBSTRAIT_REL(Enum):
 class RKEY_MOUNTAINASH_REL(Enum):
     """Mountainash extension relation operations.
 
-    SOURCE and CONFORM are new members with no ExtensionRelOperation
+    SOURCE and CONFORM are new members with no legacy discriminator-enum
     ancestor — those operations already used dedicated node classes.
     """
 

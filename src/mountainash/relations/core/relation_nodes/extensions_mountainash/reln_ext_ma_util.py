@@ -7,7 +7,9 @@ needed for practical DataFrame manipulation.
 from __future__ import annotations
 from typing import Any
 
-from mountainash.core.constants import ExtensionRelOperation
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -25,12 +27,9 @@ class ExtensionRelNode(RelationNode):
     """
 
     input: RelationNode
-    operation: ExtensionRelOperation
+    operation: RKEY_MOUNTAINASH_REL
     options: dict[str, Any] = {}
 
     @property
     def operation_key(self):
-        from mountainash.relations.core.relation_system.relation_keys.enums import (
-            RKEY_MOUNTAINASH_REL,
-        )
-        return RKEY_MOUNTAINASH_REL[self.operation.name]
+        return self.operation

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from mountainash.core.constants import ProjectOperation
 from mountainash.relations.core.relation_nodes import ProjectRelNode
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_SUBSTRAIT_REL,
+)
 from mountainash.relations.core.relation_protocols.api_builders import (
     RelationProjectionBuilderProtocol,
 )
@@ -21,7 +23,7 @@ class RelationProjectionBuilder(BaseRelationAPIBuilder, RelationProjectionBuilde
             ProjectRelNode(
                 input=self._node,
                 expressions=list(columns),
-                operation=ProjectOperation.SELECT,
+                operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
             )
         )
 
@@ -30,7 +32,7 @@ class RelationProjectionBuilder(BaseRelationAPIBuilder, RelationProjectionBuilde
             ProjectRelNode(
                 input=self._node,
                 expressions=list(expressions),
-                operation=ProjectOperation.WITH_COLUMNS,
+                operation=RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS,
             )
         )
 
@@ -39,7 +41,7 @@ class RelationProjectionBuilder(BaseRelationAPIBuilder, RelationProjectionBuilde
             ProjectRelNode(
                 input=self._node,
                 expressions=list(columns),
-                operation=ProjectOperation.DROP,
+                operation=RKEY_SUBSTRAIT_REL.PROJECT_DROP,
             )
         )
 
@@ -48,7 +50,7 @@ class RelationProjectionBuilder(BaseRelationAPIBuilder, RelationProjectionBuilde
             ProjectRelNode(
                 input=self._node,
                 expressions=[],
-                operation=ProjectOperation.RENAME,
+                operation=RKEY_SUBSTRAIT_REL.PROJECT_RENAME,
                 rename_mapping=mapping,
             )
         )

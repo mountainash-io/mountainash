@@ -49,10 +49,12 @@ def test_extension_uris_exist():
 import polars as pl
 
 from mountainash.core.constants import (
-    ExtensionRelOperation,
     JoinType,
-    ProjectOperation,
     SetType,
+)
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
 )
 
 
@@ -78,10 +80,10 @@ class TestOperationKeyDerivation:
             RKEY_SUBSTRAIT_REL as RS,
         )
         from mountainash.relations.core.relation_nodes import ProjectRelNode
-        n = ProjectRelNode(input=_read(), expressions=["a"], operation=ProjectOperation.SELECT)
+        n = ProjectRelNode(input=_read(), expressions=["a"], operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT)
         assert n.operation_key is RS.PROJECT_SELECT
         n = ProjectRelNode(
-            input=_read(), expressions=[], operation=ProjectOperation.RENAME,
+            input=_read(), expressions=[], operation=RKEY_SUBSTRAIT_REL.PROJECT_RENAME,
             rename_mapping={"a": "b"},
         )
         assert n.operation_key is RS.PROJECT_RENAME
@@ -131,7 +133,7 @@ class TestOperationKeyDerivation:
             ExtensionRelNode,
         )
         n = ExtensionRelNode(
-            input=_read(), operation=ExtensionRelOperation.DROP_NULLS, options={}
+            input=_read(), operation=RKEY_MOUNTAINASH_REL.DROP_NULLS, options={}
         )
         assert n.operation_key is RM.DROP_NULLS
 

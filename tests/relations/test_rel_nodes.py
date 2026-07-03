@@ -28,12 +28,14 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import (
     SourceRelNode,
 )
 from mountainash.core.constants import (
-    ProjectOperation,
     JoinType,
     SetType,
     SortField,
-    ExtensionRelOperation,
     ExecutionTarget,
+)
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
 )
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 from mountainash.typespec.datapackage import DataResource
@@ -102,18 +104,18 @@ class TestProjectRelNode:
         node = ProjectRelNode(
             input=read_node,
             expressions=["col_a", "col_b"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert node.input is read_node
         assert node.expressions == ["col_a", "col_b"]
-        assert node.operation is ProjectOperation.SELECT
+        assert node.operation is RKEY_SUBSTRAIT_REL.PROJECT_SELECT
         assert node.rename_mapping is None
 
     def test_with_rename_mapping(self, read_node):
         node = ProjectRelNode(
             input=read_node,
             expressions=[],
-            operation=ProjectOperation.RENAME,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_RENAME,
             rename_mapping={"old": "new"},
         )
         assert node.rename_mapping == {"old": "new"}
@@ -122,7 +124,7 @@ class TestProjectRelNode:
         node = ProjectRelNode(
             input=read_node,
             expressions=[],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert isinstance(node, RelationNode)
 
@@ -130,7 +132,7 @@ class TestProjectRelNode:
         node = ProjectRelNode(
             input=read_node,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         result = node.accept(visitor)
         assert result == "project"
@@ -304,16 +306,16 @@ class TestExtensionRelNode:
     def test_construction(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.DROP_NULLS,
+            operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
         )
         assert node.input is read_node
-        assert node.operation is ExtensionRelOperation.DROP_NULLS
+        assert node.operation is RKEY_MOUNTAINASH_REL.DROP_NULLS
         assert node.options == {}
 
     def test_construction_with_options(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.WITH_ROW_INDEX,
+            operation=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
             options={"name": "idx", "offset": 0},
         )
         assert node.options == {"name": "idx", "offset": 0}
@@ -321,14 +323,14 @@ class TestExtensionRelNode:
     def test_isinstance(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.EXPLODE,
+            operation=RKEY_MOUNTAINASH_REL.EXPLODE,
         )
         assert isinstance(node, RelationNode)
 
     def test_accept(self, read_node, visitor):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.SAMPLE,
+            operation=RKEY_MOUNTAINASH_REL.SAMPLE,
         )
         result = node.accept(visitor)
         assert result == "extension"
@@ -357,7 +359,7 @@ class TestRelationNodeChildren:
             lambda child: ProjectRelNode(
                 input=child,
                 expressions=["col_a"],
-                operation=ProjectOperation.SELECT,
+                operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
             ),
             lambda child: FilterRelNode(input=child, predicate="col_a > 0"),
             lambda child: SortRelNode(
@@ -368,7 +370,7 @@ class TestRelationNodeChildren:
             lambda child: AggregateRelNode(input=child, keys=[], measures=[]),
             lambda child: ExtensionRelNode(
                 input=child,
-                operation=ExtensionRelOperation.DROP_NULLS,
+                operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
             ),
             lambda child: ConformRelNode(input=child, spec={}),
         ],
@@ -411,10 +413,10 @@ class TestImmutability:
         node = ProjectRelNode(
             input=read_node,
             expressions=["a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         with pytest.raises(Exception):
-            node.operation = ProjectOperation.DROP
+            node.operation = RKEY_SUBSTRAIT_REL.PROJECT_DROP
 
     def test_fetch_node_frozen(self, read_node):
         node = FetchRelNode(input=read_node, count=5)
@@ -444,7 +446,7 @@ class TestPlanTreeChaining:
         projected = ProjectRelNode(
             input=filtered,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert isinstance(projected.input, FilterRelNode)
         assert isinstance(projected.input.input, ReadRelNode)
@@ -461,7 +463,7 @@ class TestPlanTreeChaining:
         projected = ProjectRelNode(
             input=fetched,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
 
         # Walk the tree
@@ -495,7 +497,7 @@ class TestPlanTreeChaining:
         projected = ProjectRelNode(
             input=union,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert isinstance(projected.input, SetRelNode)
         assert len(projected.input.inputs) == 2
@@ -505,7 +507,7 @@ class TestPlanTreeChaining:
         read = ReadRelNode(dataframe=mock_df)
         cleaned = ExtensionRelNode(
             input=read,
-            operation=ExtensionRelOperation.DROP_NULLS,
+            operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
         )
         filtered = FilterRelNode(input=cleaned, predicate="col_a > 0")
         assert isinstance(filtered.input, ExtensionRelNode)

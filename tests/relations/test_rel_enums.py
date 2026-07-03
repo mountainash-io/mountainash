@@ -2,16 +2,9 @@
 import pytest
 from enum import StrEnum
 from mountainash.core.constants import (
-    ProjectOperation, JoinType, ExecutionTarget, SetType,
-    ExtensionRelOperation, SortField,
+    JoinType, ExecutionTarget, SetType,
+    SortField,
 )
-
-class TestProjectOperation:
-    def test_members(self):
-        assert ProjectOperation.SELECT is not None
-        assert ProjectOperation.WITH_COLUMNS is not None
-        assert ProjectOperation.DROP is not None
-        assert ProjectOperation.RENAME is not None
 
 class TestJoinType:
     def test_is_strenum(self):
@@ -35,21 +28,6 @@ class TestSetType:
     def test_members(self):
         assert SetType.UNION_ALL is not None
         assert SetType.UNION_DISTINCT is not None
-
-class TestExtensionRelOperation:
-    def test_members(self):
-        assert ExtensionRelOperation.DROP_NULLS is not None
-        assert ExtensionRelOperation.WITH_ROW_INDEX is not None
-        assert ExtensionRelOperation.EXPLODE is not None
-        assert ExtensionRelOperation.SAMPLE is not None
-        assert ExtensionRelOperation.UNPIVOT is not None
-        assert ExtensionRelOperation.PIVOT is not None
-        assert ExtensionRelOperation.TOP_K is not None
-        assert ExtensionRelOperation.REF is not None
-        assert ExtensionRelOperation.READ_RESOURCE is not None
-        assert ExtensionRelOperation.DROP_NANS is not None
-        assert ExtensionRelOperation.UNNEST is not None
-        assert ExtensionRelOperation.EMPTY_FRAME is not None
 
 class TestSortField:
     def test_creation(self):

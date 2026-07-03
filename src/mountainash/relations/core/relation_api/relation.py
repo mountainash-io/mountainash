@@ -10,10 +10,12 @@ if TYPE_CHECKING:
 
 from mountainash.core.constants import (
     ExecutionTarget,
-    ExtensionRelOperation,
     JoinType,
     SetType,
     SortField,
+)
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
 )
 from ..relation_nodes import (
     AggregateRelNode,
@@ -311,7 +313,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.DROP_NULLS,
+                operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
                 options=options,
             )
         )
@@ -327,7 +329,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.DROP_NANS,
+                operation=RKEY_MOUNTAINASH_REL.DROP_NANS,
                 options=options,
             )
         )
@@ -337,7 +339,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.WITH_ROW_INDEX,
+                operation=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
                 options={"name": name},
             )
         )
@@ -347,7 +349,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.EXPLODE,
+                operation=RKEY_MOUNTAINASH_REL.EXPLODE,
                 options={"columns": list(columns)},
             )
         )
@@ -363,7 +365,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.UNNEST,
+                operation=RKEY_MOUNTAINASH_REL.UNNEST,
                 options={"columns": list(columns), "separator": separator},
             )
         )
@@ -383,7 +385,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.SAMPLE,
+                operation=RKEY_MOUNTAINASH_REL.SAMPLE,
                 options=options,
             )
         )
@@ -400,7 +402,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.UNPIVOT,
+                operation=RKEY_MOUNTAINASH_REL.UNPIVOT,
                 options={
                     "on": _normalize_columns(on),
                     "index": _normalize_columns(index),
@@ -422,7 +424,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.PIVOT,
+                operation=RKEY_MOUNTAINASH_REL.PIVOT,
                 options={
                     "on": _normalize_columns(on),
                     "index": _normalize_columns(index),
@@ -443,7 +445,7 @@ class Relation(RelationBase):
         return Relation(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.TOP_K,
+                operation=RKEY_MOUNTAINASH_REL.TOP_K,
                 options={
                     "k": k,
                     "by": _normalize_columns(by),
