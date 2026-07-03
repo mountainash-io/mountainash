@@ -480,17 +480,29 @@ class TestDataTypePolicyParity:
         actual = rel.to_polars().schema
         assert set(inferred.keys()) == set(actual.names()) == {"a"}
 
-    # TODO(item 48 PR-C): a missing_columns="null_fill" parity test belongs
-    # here once resolve_conform_output actually emits the missing field with
-    # a null-filled value. Today, resolve_conform_output's per-field loop
-    # (conform/expressions.py step 3) unconditionally `continue`s whenever
-    # `_source_root(source_name) not in available_set`, regardless of
-    # contract.missing_columns -- so "null_fill" currently behaves
-    # identically to "skip" (the field is never emitted at all, no fill
-    # value, no column). A parity test written against today's behaviour
-    # would pin that gap as intended, not verify the real null_fill
-    # contract; PR-C should land the emission logic and this parity test
-    # together.
+    def test_null_fill_missing_columns_matches_to_polars(self):
+        # missing_columns="null_fill" (item 48 Task 10): the missing field's
+        # source root is entirely absent -- resolve_conform_output now emits
+        # it as a typed null (ma.lit(None).cast(declared_canon)) instead of
+        # skipping it, on the normally-strict "equal" preset. Infer must
+        # report the SAME declared type the typed null actually casts to at
+        # execute time -- the whole point of the "typed" null (finding 11).
+        df = pl.DataFrame({"a": [1]})
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(name="a", type=U.INTEGER),
+                FieldSpec(name="b", type=U.STRING),
+            ],
+            fields_match="equal",
+            contract={"missing_columns": "null_fill"},
+        )
+        rel = ma.relation(df).conform(spec)
+
+        inferred = _infer(rel)
+        actual = rel.to_polars()
+        assert set(inferred.keys()) == set(actual.schema.names()) == {"a", "b"}
+        assert inferred["b"] == _polars_schema_canonical(actual.schema)["b"] == D.STRING
+        assert actual["b"].is_null().all()
 
 
 class TestFreezeNeverRaisesDuringInference:
