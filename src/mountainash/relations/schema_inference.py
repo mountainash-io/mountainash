@@ -449,15 +449,17 @@ def _infer_project_schema(
     node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for ProjectRelNode based on its operation type."""
-    from mountainash.core.constants import ProjectOperation
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_SUBSTRAIT_REL,
+    )
 
     input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
 
-    if node.operation == ProjectOperation.RENAME:
+    if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_RENAME:
         mapping = node.rename_mapping or {}
         return {mapping.get(k, k): v for k, v in input_schema.items()}
 
-    if node.operation == ProjectOperation.SELECT:
+    if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_SELECT:
         result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
         for expr in node.expressions:
             name = infer_expression_name(expr)
@@ -467,7 +469,7 @@ def _infer_project_schema(
                 result[name] = SchemaTypeStatus.UNKNOWN
         return result
 
-    if node.operation == ProjectOperation.WITH_COLUMNS:
+    if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS:
         result = dict(input_schema)
         for expr in node.expressions:
             name = infer_expression_name(expr)
@@ -475,7 +477,7 @@ def _infer_project_schema(
                 result[name] = input_schema.get(name, SchemaTypeStatus.UNKNOWN)
         return result
 
-    if node.operation == ProjectOperation.DROP:
+    if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_DROP:
         drop_names = set()
         for expr in node.expressions:
             name = infer_expression_name(expr)

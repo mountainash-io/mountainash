@@ -6,7 +6,9 @@ Corresponds to Substrait's ProjectRel message.
 from __future__ import annotations
 from typing import Any, Optional
 
-from mountainash.core.constants import ProjectOperation
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_SUBSTRAIT_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -26,9 +28,9 @@ class ProjectRelNode(RelationNode):
 
     input: RelationNode
     expressions: list[Any]
-    operation: ProjectOperation
+    operation: RKEY_SUBSTRAIT_REL
     rename_mapping: Optional[dict[str, str]] = None
 
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_project_rel(self)
+    @property
+    def operation_key(self):
+        return self.operation

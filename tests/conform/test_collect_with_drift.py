@@ -120,8 +120,8 @@ class TestMultiConformOrdering:
         assert len(collection.drifts) == 2
         assert collection.drifts[0].node_id == "conform:0"
         assert collection.drifts[1].node_id == "conform:1"
-        # Left is visited before right (visit_join_rel visits node.left then
-        # node.right) -- traversal order, not just count.
+        # Left is visited before right (handlers.visit_join visits node.left
+        # then node.right) -- traversal order, not just count.
         assert [c.name for c in collection.drifts[0].extra_columns] == ["left_extra"]
         assert [c.name for c in collection.drifts[1].extra_columns] == ["right_extra"]
 

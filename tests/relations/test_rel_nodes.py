@@ -28,12 +28,14 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import (
     SourceRelNode,
 )
 from mountainash.core.constants import (
-    ProjectOperation,
     JoinType,
     SetType,
     SortField,
-    ExtensionRelOperation,
     ExecutionTarget,
+)
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
 )
 from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
 from mountainash.typespec.datapackage import DataResource
@@ -56,17 +58,25 @@ def read_node(mock_df):
 
 @pytest.fixture
 def visitor():
-    """Mock visitor with all visit methods."""
+    """Mock visitor whose visit() echoes back a per-node-type marker.
+
+    accept() is now a compatibility shim that always calls visitor.visit(self)
+    (spec §3.5) -- dispatch itself lives in the registry-driven visitor, not
+    in per-node accept() overrides.
+    """
+    markers = {
+        "ReadRelNode": "read",
+        "ProjectRelNode": "project",
+        "FilterRelNode": "filter",
+        "SortRelNode": "sort",
+        "FetchRelNode": "fetch",
+        "JoinRelNode": "join",
+        "AggregateRelNode": "aggregate",
+        "SetRelNode": "set",
+        "ExtensionRelNode": "extension",
+    }
     v = MagicMock()
-    v.visit_read_rel.return_value = "read"
-    v.visit_project_rel.return_value = "project"
-    v.visit_filter_rel.return_value = "filter"
-    v.visit_sort_rel.return_value = "sort"
-    v.visit_fetch_rel.return_value = "fetch"
-    v.visit_join_rel.return_value = "join"
-    v.visit_aggregate_rel.return_value = "aggregate"
-    v.visit_set_rel.return_value = "set"
-    v.visit_extension_rel.return_value = "extension"
+    v.visit.side_effect = lambda node: markers[type(node).__name__]
     return v
 
 
@@ -86,7 +96,7 @@ class TestReadRelNode:
     def test_accept(self, read_node, visitor):
         result = read_node.accept(visitor)
         assert result == "read"
-        visitor.visit_read_rel.assert_called_once_with(read_node)
+        visitor.visit.assert_called_once_with(read_node)
 
 
 class TestProjectRelNode:
@@ -94,18 +104,18 @@ class TestProjectRelNode:
         node = ProjectRelNode(
             input=read_node,
             expressions=["col_a", "col_b"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert node.input is read_node
         assert node.expressions == ["col_a", "col_b"]
-        assert node.operation is ProjectOperation.SELECT
+        assert node.operation is RKEY_SUBSTRAIT_REL.PROJECT_SELECT
         assert node.rename_mapping is None
 
     def test_with_rename_mapping(self, read_node):
         node = ProjectRelNode(
             input=read_node,
             expressions=[],
-            operation=ProjectOperation.RENAME,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_RENAME,
             rename_mapping={"old": "new"},
         )
         assert node.rename_mapping == {"old": "new"}
@@ -114,7 +124,7 @@ class TestProjectRelNode:
         node = ProjectRelNode(
             input=read_node,
             expressions=[],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert isinstance(node, RelationNode)
 
@@ -122,11 +132,11 @@ class TestProjectRelNode:
         node = ProjectRelNode(
             input=read_node,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         result = node.accept(visitor)
         assert result == "project"
-        visitor.visit_project_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestFilterRelNode:
@@ -144,7 +154,7 @@ class TestFilterRelNode:
         node = FilterRelNode(input=read_node, predicate="x")
         result = node.accept(visitor)
         assert result == "filter"
-        visitor.visit_filter_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestSortRelNode:
@@ -164,7 +174,7 @@ class TestSortRelNode:
         node = SortRelNode(input=read_node, sort_fields=[])
         result = node.accept(visitor)
         assert result == "sort"
-        visitor.visit_sort_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestFetchRelNode:
@@ -188,7 +198,7 @@ class TestFetchRelNode:
         node = FetchRelNode(input=read_node, count=10)
         result = node.accept(visitor)
         assert result == "fetch"
-        visitor.visit_fetch_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestJoinRelNode:
@@ -248,7 +258,7 @@ class TestJoinRelNode:
         node = JoinRelNode(left=left, right=right, join_type=JoinType.INNER, on=["k"])
         result = node.accept(visitor)
         assert result == "join"
-        visitor.visit_join_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestAggregateRelNode:
@@ -270,7 +280,7 @@ class TestAggregateRelNode:
         node = AggregateRelNode(input=read_node, keys=[], measures=[])
         result = node.accept(visitor)
         assert result == "aggregate"
-        visitor.visit_aggregate_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestSetRelNode:
@@ -289,42 +299,43 @@ class TestSetRelNode:
         node = SetRelNode(inputs=[], set_type=SetType.UNION_ALL)
         result = node.accept(visitor)
         assert result == "set"
-        visitor.visit_set_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 class TestExtensionRelNode:
     def test_construction(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.DROP_NULLS,
+            operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
         )
         assert node.input is read_node
-        assert node.operation is ExtensionRelOperation.DROP_NULLS
+        assert node.operation is RKEY_MOUNTAINASH_REL.DROP_NULLS
         assert node.options == {}
 
     def test_construction_with_options(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.WITH_ROW_INDEX,
-            options={"name": "idx", "offset": 0},
+            operation=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
+            options={"name": "idx"},
         )
-        assert node.options == {"name": "idx", "offset": 0}
+        assert node.options == {"name": "idx"}
 
     def test_isinstance(self, read_node):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.EXPLODE,
+            operation=RKEY_MOUNTAINASH_REL.EXPLODE,
+            options={"columns": ["a"]},
         )
         assert isinstance(node, RelationNode)
 
     def test_accept(self, read_node, visitor):
         node = ExtensionRelNode(
             input=read_node,
-            operation=ExtensionRelOperation.SAMPLE,
+            operation=RKEY_MOUNTAINASH_REL.SAMPLE,
         )
         result = node.accept(visitor)
         assert result == "extension"
-        visitor.visit_extension_rel.assert_called_once_with(node)
+        visitor.visit.assert_called_once_with(node)
 
 
 # ---------------------------------------------------------------------------
@@ -349,7 +360,7 @@ class TestRelationNodeChildren:
             lambda child: ProjectRelNode(
                 input=child,
                 expressions=["col_a"],
-                operation=ProjectOperation.SELECT,
+                operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
             ),
             lambda child: FilterRelNode(input=child, predicate="col_a > 0"),
             lambda child: SortRelNode(
@@ -360,7 +371,7 @@ class TestRelationNodeChildren:
             lambda child: AggregateRelNode(input=child, keys=[], measures=[]),
             lambda child: ExtensionRelNode(
                 input=child,
-                operation=ExtensionRelOperation.DROP_NULLS,
+                operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
             ),
             lambda child: ConformRelNode(input=child, spec={}),
         ],
@@ -403,10 +414,10 @@ class TestImmutability:
         node = ProjectRelNode(
             input=read_node,
             expressions=["a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         with pytest.raises(Exception):
-            node.operation = ProjectOperation.DROP
+            node.operation = RKEY_SUBSTRAIT_REL.PROJECT_DROP
 
     def test_fetch_node_frozen(self, read_node):
         node = FetchRelNode(input=read_node, count=5)
@@ -436,7 +447,7 @@ class TestPlanTreeChaining:
         projected = ProjectRelNode(
             input=filtered,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert isinstance(projected.input, FilterRelNode)
         assert isinstance(projected.input.input, ReadRelNode)
@@ -453,7 +464,7 @@ class TestPlanTreeChaining:
         projected = ProjectRelNode(
             input=fetched,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
 
         # Walk the tree
@@ -487,7 +498,7 @@ class TestPlanTreeChaining:
         projected = ProjectRelNode(
             input=union,
             expressions=["col_a"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         assert isinstance(projected.input, SetRelNode)
         assert len(projected.input.inputs) == 2
@@ -497,7 +508,7 @@ class TestPlanTreeChaining:
         read = ReadRelNode(dataframe=mock_df)
         cleaned = ExtensionRelNode(
             input=read,
-            operation=ExtensionRelOperation.DROP_NULLS,
+            operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
         )
         filtered = FilterRelNode(input=cleaned, predicate="col_a > 0")
         assert isinstance(filtered.input, ExtensionRelNode)

@@ -1,10 +1,14 @@
 """ResourceReadRelNode — leaf node carrying a DataResource for storage-facade load."""
 from __future__ import annotations
 
-from typing import Any
+from enum import Enum
+from typing import ClassVar, Optional
 
 from pydantic import ConfigDict
 
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
 from mountainash.typespec.datapackage import DataResource
 from ..reln_base import RelationNode
 
@@ -19,7 +23,6 @@ class ResourceReadRelNode(RelationNode):
 
     model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
 
-    resource: DataResource
+    _operation_key: ClassVar[Optional[Enum]] = RKEY_MOUNTAINASH_REL.READ_RESOURCE
 
-    def accept(self, visitor: Any) -> Any:
-        return visitor.visit(self)
+    resource: DataResource

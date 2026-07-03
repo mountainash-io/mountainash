@@ -1,11 +1,9 @@
 """Automated wiring audit for the relational system."""
 
 import inspect
-import re
 import pytest
 
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
-from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
 from mountainash.relations.core.relation_protocols.relsys_base import RelationSystem
 
 # Trigger backend registration
@@ -16,16 +14,12 @@ from mountainash.relations.backends.relation_systems.narwhals import NarwhalsRel
 from mountainash.relations.backends.relation_systems.ibis import IbisRelationSystem
 
 
-def _camel_to_snake(name: str) -> str:
-    """Convert CamelCase to snake_case."""
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
-
-
 class TestVisitorCoversAllNodes:
-    """Every RelationNode subclass must have a visit_* method in the visitor."""
+    """Every concrete RelationNode subclass must be dispatchable (spec §3.5):
+    either via a RelationVisitRegistry handler (third-party extension surface)
+    or via operation_key + a RelationOperationRegistry definition."""
 
-    def test_all_node_types_handled(self):
+    def test_all_node_types_dispatchable(self):
         # Import node packages to trigger subclass registration
         import mountainash.relations.core.relation_nodes.substrait  # noqa: F401
         import mountainash.relations.core.relation_nodes.extensions_mountainash  # noqa: F401
@@ -45,32 +39,25 @@ class TestVisitorCoversAllNodes:
         collect(RelationNode)
         assert all_nodes, "No RelationNode subclasses found — registration may have failed"
 
-        # Derive expected visitor method names from class names
-        # Convention: FooRelNode -> remove "Node" -> "FooRel" -> snake_case -> "foo_rel" -> "visit_foo_rel"
-        expected_methods: set[str] = set()
-        for node_cls in all_nodes:
-            stem = node_cls.__name__.removesuffix("Node")
-            method_name = f"visit_{_camel_to_snake(stem)}"
-            expected_methods.add(method_name)
+        from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            RelationOperationRegistry,
+        )
 
-        # Get actual visitor methods
-        visitor_methods = {
-            name for name in dir(UnifiedRelationVisitor)
-            if name.startswith("visit_") and name != "visit"
+        covered_by_visit_registry = {
+            node_cls for node_cls in all_nodes
+            if RelationVisitRegistry.get(node_cls) is not None
+        }
+        covered_by_operation_registry = {
+            RelationOperationRegistry.get(key).node_type
+            for key in RelationOperationRegistry.list_all()
+            if RelationOperationRegistry.get(key).node_type is not None
         }
 
-        # Also accept node types handled via the registry
-        from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
-        registry_covered: set[str] = set()
-        for node_cls in all_nodes:
-            if RelationVisitRegistry.get(node_cls) is not None:
-                stem = node_cls.__name__.removesuffix("Node")
-                method_name = f"visit_{_camel_to_snake(stem)}"
-                registry_covered.add(method_name)
-
-        missing = expected_methods - visitor_methods - registry_covered
+        missing = all_nodes - covered_by_visit_registry - covered_by_operation_registry
         assert not missing, (
-            f"UnifiedRelationVisitor is missing methods for node types: {sorted(missing)}"
+            f"Unregistered relation node types (no visit handler, no "
+            f"operation_key def): {sorted(n.__name__ for n in missing)}"
         )
 
 
@@ -147,8 +134,9 @@ class TestExtensionDispatchValidation:
     """Verify that every method in MountainashExtensionRelationSystemProtocol
     exists on all 3 backend extension classes.
 
-    The visitor's visit_extension_rel does getattr(self.backend, node.operation.lower()),
-    so each protocol method must be implemented by every backend.
+    ExtensionRelNode ops dispatch via _dispatch()'s
+    getattr(self.backend, op.protocol_method.__name__), so each protocol
+    method must be implemented by every backend.
     """
 
     def _get_protocol_methods(self) -> set[str]:

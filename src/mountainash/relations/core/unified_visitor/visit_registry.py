@@ -30,14 +30,8 @@ def _validate_registration(node_type: type, handler: RelationVisitHandler) -> No
         )
 
 
-def _init_core_handlers() -> None:
-    from ._core_handlers import _register_core_handlers
-    _register_core_handlers()
-
-
 _registry: KeyedRegistry[type, RelationVisitHandler] = KeyedRegistry(
     "visit handler",
-    initializer=_init_core_handlers,
     validator=_validate_registration,
 )
 
@@ -68,11 +62,15 @@ def _protect_substrait_nodes() -> None:
         ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
         FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
     )
-    from ..relation_nodes.extensions_mountainash import ExtensionRelNode
+    from ..relation_nodes.extensions_mountainash import (
+        ConformRelNode, ExtensionRelNode, RefRelNode, ResourceReadRelNode,
+        SourceRelNode,
+    )
     _protect(
         ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
         FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode,
-        ExtensionRelNode,
+        ExtensionRelNode, ConformRelNode, RefRelNode, ResourceReadRelNode,
+        SourceRelNode,
     )
 
 _protect_substrait_nodes()

@@ -14,3 +14,6 @@ class SubstraitPolarsSetRelationSystem(SubstraitSetRelationSystemProtocol[pl.Laz
 
     def union_all(self, relations: list[pl.LazyFrame], /) -> pl.LazyFrame:
         return pl.concat(relations)
+
+    def union_distinct(self, relations: list[pl.LazyFrame], /) -> pl.LazyFrame:
+        return pl.concat(relations).unique()

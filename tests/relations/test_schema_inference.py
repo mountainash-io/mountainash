@@ -264,13 +264,13 @@ class TestInferSchemaProject:
     def test_select(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, ProjectRelNode
-        from mountainash.core.constants import ProjectOperation
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
         from mountainash.expressions.core.expression_nodes import FieldReferenceNode
         read = ReadRelNode(dataframe=pl.LazyFrame({"a": [1], "b": [2], "c": [3]}))
         node = ProjectRelNode(
             input=read,
             expressions=[FieldReferenceNode(field="a"), FieldReferenceNode(field="c")],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         schema = infer_schema(node)
         assert list(schema.keys()) == ["a", "c"]
@@ -278,7 +278,7 @@ class TestInferSchemaProject:
     def test_with_columns_adds_new(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, ProjectRelNode
-        from mountainash.core.constants import ProjectOperation
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
         from mountainash.expressions.core.expression_nodes import FieldReferenceNode, ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME, FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
         read = ReadRelNode(dataframe=pl.LazyFrame({"a": [1], "b": [2]}))
@@ -291,14 +291,14 @@ class TestInferSchemaProject:
             arguments=[add_expr],
             options={"name": "c"},
         )
-        node = ProjectRelNode(input=read, expressions=[aliased], operation=ProjectOperation.WITH_COLUMNS)
+        node = ProjectRelNode(input=read, expressions=[aliased], operation=RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS)
         schema = infer_schema(node)
         assert list(schema.keys()) == ["a", "b", "c"]
 
     def test_with_columns_replaces_existing(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, ProjectRelNode
-        from mountainash.core.constants import ProjectOperation
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
         from mountainash.expressions.core.expression_nodes import FieldReferenceNode, ScalarFunctionNode
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_NAME, FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
         read = ReadRelNode(dataframe=pl.LazyFrame({"a": [1], "b": [2]}))
@@ -311,17 +311,17 @@ class TestInferSchemaProject:
             arguments=[doubled],
             options={"name": "a"},
         )
-        node = ProjectRelNode(input=read, expressions=[aliased], operation=ProjectOperation.WITH_COLUMNS)
+        node = ProjectRelNode(input=read, expressions=[aliased], operation=RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS)
         schema = infer_schema(node)
         assert list(schema.keys()) == ["a", "b"]
 
     def test_rename(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, ProjectRelNode
-        from mountainash.core.constants import ProjectOperation
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
         read = ReadRelNode(dataframe=pl.LazyFrame({"a": [1], "b": [2]}))
         node = ProjectRelNode(
-            input=read, expressions=[], operation=ProjectOperation.RENAME,
+            input=read, expressions=[], operation=RKEY_SUBSTRAIT_REL.PROJECT_RENAME,
             rename_mapping={"a": "x"},
         )
         schema = infer_schema(node)
@@ -330,13 +330,13 @@ class TestInferSchemaProject:
     def test_drop(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, ProjectRelNode
-        from mountainash.core.constants import ProjectOperation
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
         from mountainash.expressions.core.expression_nodes import FieldReferenceNode
         read = ReadRelNode(dataframe=pl.LazyFrame({"a": [1], "b": [2], "c": [3]}))
         node = ProjectRelNode(
             input=read,
             expressions=[FieldReferenceNode(field="b")],
-            operation=ProjectOperation.DROP,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_DROP,
         )
         schema = infer_schema(node)
         assert list(schema.keys()) == ["a", "c"]

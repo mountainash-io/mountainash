@@ -7,7 +7,6 @@ Composes with the expression visitor for compiling embedded expression ASTs.
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from mountainash.core.constants import JoinType, ProjectOperation
 from mountainash.core.types import (
     is_polars_dataframe, is_polars_lazyframe,
     is_pandas_dataframe, is_pyarrow_table,
@@ -15,11 +14,7 @@ from mountainash.core.types import (
 from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 from mountainash.expressions.core.expression_nodes import ExpressionNode
 
-from ..relation_nodes import (
-    RelationNode, ReadRelNode, ProjectRelNode, FilterRelNode,
-    SortRelNode, FetchRelNode, JoinRelNode, AggregateRelNode,
-    SetRelNode, ExtensionRelNode,
-)
+from ..relation_nodes import RelationNode, ReadRelNode
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
@@ -61,7 +56,8 @@ class UnifiedRelationVisitor:
         self.drift_reports: list["ConformDrift"] = []
 
     def visit(self, node: RelationNode) -> Any:
-        """Dispatch to registered handler or fall back to accept()."""
+        """Single dispatch site (spec §3.5): third-party visit-registry
+        handler -> operation registry -> def handler or generic bind+call."""
         from .visit_registry import RelationVisitRegistry
 
         handler = RelationVisitRegistry.get(type(node))
@@ -77,88 +73,44 @@ class UnifiedRelationVisitor:
                 except AttributeError:
                     pass
                 raise
-        return node.accept(self)
-
-    def visit_read_rel(self, node: ReadRelNode) -> Any:
-        """Visit a read (scan) node."""
-        return self.backend.read(node.dataframe)
-
-    def visit_project_rel(self, node: ProjectRelNode) -> Any:
-        """Visit a project node — dispatches on ProjectOperation variant."""
-        relation = self.visit(node.input)
-        compiled_exprs = [self.compile_expression(e) for e in node.expressions]
-        match node.operation:
-            case ProjectOperation.SELECT:
-                return self.backend.project_select(relation, compiled_exprs)
-            case ProjectOperation.WITH_COLUMNS:
-                return self.backend.project_with_columns(relation, compiled_exprs)
-            case ProjectOperation.DROP:
-                return self.backend.project_drop(relation, compiled_exprs)
-            case ProjectOperation.RENAME:
-                return self.backend.project_rename(relation, node.rename_mapping)
-
-    def visit_filter_rel(self, node: FilterRelNode) -> Any:
-        """Visit a filter node — compiles the predicate expression."""
-        relation = self.visit(node.input)
-        predicate = self.compile_expression(node.predicate)
-        return self.backend.filter(relation, predicate)
-
-    def visit_sort_rel(self, node: SortRelNode) -> Any:
-        """Visit a sort node."""
-        relation = self.visit(node.input)
-        return self.backend.sort(relation, node.sort_fields)
-
-    def visit_fetch_rel(self, node: FetchRelNode) -> Any:
-        """Visit a fetch node — handles both head and tail variants."""
-        relation = self.visit(node.input)
-        if node.from_end:
-            return self.backend.fetch_from_end(relation, node.count)
-        return self.backend.fetch(relation, node.offset, node.count)
-
-    def visit_join_rel(self, node: JoinRelNode) -> Any:
-        """Visit a join node — dispatches asof joins separately.
-
-        When the right side is a different backend type from the left,
-        the visitor coerces the right side to match (e.g. pandas → Polars).
-        """
-        left = self.visit(node.left)
-        right = self._visit_and_coerce_right(node.right, left)
-        if node.join_type == JoinType.ASOF:
-            return self.backend.join_asof(
-                left, right,
-                on=node.on[0] if node.on else node.left_on[0],
-                by=None,
-                strategy=node.strategy or "backward",
-                tolerance=node.tolerance,
-            )
-        return self.backend.join(
-            left, right,
-            join_type=node.join_type,
-            on=node.on,
-            left_on=node.left_on,
-            right_on=node.right_on,
-            suffix=node.suffix,
+        key = node.operation_key
+        if key is None:
+            from mountainash.relations.core.errors import UnregisteredRelationNodeError
+            raise UnregisteredRelationNodeError(type(node))
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            RelationOperationRegistry,
         )
+        op = RelationOperationRegistry.get(key)
+        return self._dispatch(node, op)
 
-    def visit_aggregate_rel(self, node: AggregateRelNode) -> Any:
-        """Visit an aggregate node — empty measures means distinct."""
-        relation = self.visit(node.input)
-        if not node.measures:
-            return self.backend.distinct(relation, node.keys)
-        compiled_measures = [self.compile_expression(m) for m in node.measures]
-        return self.backend.aggregate(relation, node.keys, compiled_measures)
+    def _dispatch(self, node: RelationNode, op: Any) -> Any:
+        if op.handler is not None:
+            return op.handler(node, self)
+        method = getattr(self.backend, op.protocol_method.__name__)
+        args = [self._bind(node, b) for b in op.args]
+        kwargs = self._bind_options(node, op)
+        return method(*args, **kwargs)
 
-    def visit_set_rel(self, node: SetRelNode) -> Any:
-        """Visit a set node (union)."""
-        relations = [self.visit(inp) for inp in node.inputs]
-        return self.backend.union_all(relations)
+    def _bind(self, node: RelationNode, binding: Any) -> Any:
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            ArgKind,
+        )
+        value = getattr(node, binding.field)
+        if binding.kind is ArgKind.INPUT:
+            return self.visit(value)
+        if binding.kind is ArgKind.INPUT_LIST:
+            return [self.visit(v) for v in value]
+        if binding.kind is ArgKind.EXPRESSION:
+            return self.compile_expression(value)
+        if binding.kind is ArgKind.EXPRESSION_LIST:
+            return [self.compile_expression(v) for v in value]
+        return value  # LITERAL
 
-    def visit_extension_rel(self, node: ExtensionRelNode) -> Any:
-        """Visit an extension node — dispatches via operation name lookup."""
-        relation = self.visit(node.input)
-        method_name = node.operation.name.lower()
-        method = getattr(self.backend, method_name)
-        return method(relation, **node.options)
+    def _bind_options(self, node: RelationNode, op: Any) -> dict:
+        kwargs = {f: getattr(node, f) for f in op.options}
+        if op.options_field is not None:
+            kwargs.update(getattr(node, op.options_field))
+        return kwargs
 
     def apply_conform(
         self,

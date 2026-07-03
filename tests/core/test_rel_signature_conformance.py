@@ -176,7 +176,9 @@ class TestRelProtocolVsBackendSignatures:
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
 from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
 from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
-from mountainash.core.constants import ExtensionRelOperation
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
 
 
 def _camel_to_snake(name: str) -> str:
@@ -184,7 +186,7 @@ def _camel_to_snake(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-_REGISTRY_HANDLED_OPS = {"REF", "READ_RESOURCE"}
+_REGISTRY_HANDLED_OPS = {"REF", "READ_RESOURCE", "SOURCE", "CONFORM"}
 
 
 # ── R-A2a: Node type → visitor ──────────────────────────────────────────
@@ -238,10 +240,15 @@ class TestRelVisitorDispatchCoverage:
 
         has_visitor_method = hasattr(UnifiedRelationVisitor, method_name)
         has_registry_handler = RelationVisitRegistry.get(node_cls) is not None
+        has_operation_key = (
+            getattr(node_cls, "_operation_key", None) is not None
+            or node_cls.operation_key is not RelationNode.operation_key
+        )
 
-        assert has_visitor_method or has_registry_handler, (
+        assert has_visitor_method or has_registry_handler or has_operation_key, (
             f"{node_name} has no visit method ({method_name}) on "
-            f"UnifiedRelationVisitor and no RelationVisitRegistry handler"
+            f"UnifiedRelationVisitor, no RelationVisitRegistry handler, "
+            f"and no operation_key"
         )
 
     def test_unhandled_nodes_still_unhandled(self) -> None:
@@ -252,7 +259,11 @@ class TestRelVisitorDispatchCoverage:
             method_name = f"visit_{_camel_to_snake(stem)}"
             has_visitor = hasattr(UnifiedRelationVisitor, method_name)
             has_registry = RelationVisitRegistry.get(node_cls) is not None
-            assert not has_visitor and not has_registry, (
+            has_op_key = (
+                getattr(node_cls, "_operation_key", None) is not None
+                or node_cls.operation_key is not RelationNode.operation_key
+            )
+            assert not has_visitor and not has_registry and not has_op_key, (
                 f"Stale: {node_name} is now handled! "
                 f"Remove from _KNOWN_UNHANDLED_NODES."
             )
@@ -279,7 +290,7 @@ class TestRelVisitorDispatchCoverage:
 
 def _collect_ra2b_cases() -> list[tuple[str, str]]:
     cases = []
-    for op in ExtensionRelOperation:
+    for op in RKEY_MOUNTAINASH_REL:
         if op.name in _REGISTRY_HANDLED_OPS:
             continue
         method_name = op.name.lower()
@@ -295,7 +306,7 @@ _KNOWN_DISPATCH_GAPS: dict[tuple[str, str], str] = {}
 
 
 class TestRelExtensionDispatch:
-    """R-A2b: Every ExtensionRelOperation must dispatch to a backend method."""
+    """R-A2b: Every RKEY_MOUNTAINASH_REL must dispatch to a backend method."""
 
     @pytest.mark.parametrize(
         ("method_name", "backend_name"),
@@ -311,7 +322,7 @@ class TestRelExtensionDispatch:
 
         backend_cls = BACKEND_LEAF_CLASSES[backend_name]
         assert hasattr(backend_cls, method_name), (
-            f"ExtensionRelOperation.{method_name.upper()} has no method "
+            f"RKEY_MOUNTAINASH_REL.{method_name.upper()} has no method "
             f"'{method_name}' on {backend_name} ({backend_cls.__name__})"
         )
 
@@ -359,7 +370,7 @@ def _get_extension_protocol_methods() -> set[str]:
 def _get_extension_enum_names() -> set[str]:
     return {
         op.name.lower()
-        for op in ExtensionRelOperation
+        for op in RKEY_MOUNTAINASH_REL
         if op.name not in _REGISTRY_HANDLED_OPS
     }
 
@@ -369,7 +380,7 @@ _KNOWN_ENUM_PROTOCOL_DRIFT: dict[str, str] = {}
 
 
 class TestRelExtensionEnumProtocolConsistency:
-    """R-A3: ExtensionRelOperation enum and extension protocol must be consistent."""
+    """R-A3: RKEY_MOUNTAINASH_REL enum and extension protocol must be consistent."""
 
     def test_every_enum_has_protocol_method(self) -> None:
         enum_names = _get_extension_enum_names()
@@ -378,7 +389,7 @@ class TestRelExtensionEnumProtocolConsistency:
             if name in _KNOWN_ENUM_PROTOCOL_DRIFT:
                 continue
             assert name in protocol_methods, (
-                f"ExtensionRelOperation.{name.upper()} has no matching method "
+                f"RKEY_MOUNTAINASH_REL.{name.upper()} has no matching method "
                 f"'{name}' on MountainashExtensionRelationSystemProtocol"
             )
 
@@ -393,7 +404,7 @@ class TestRelExtensionEnumProtocolConsistency:
                 continue
             assert name in enum_names, (
                 f"Protocol method '{name}' has no matching "
-                f"ExtensionRelOperation enum member"
+                f"RKEY_MOUNTAINASH_REL enum member"
             )
 
     def test_no_stale_drift_entries(self) -> None:

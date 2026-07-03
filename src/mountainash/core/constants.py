@@ -541,14 +541,6 @@ class CONST_TERNARY_LOGIC_VALUES(IntEnum):
 
 # --- Relational AST Enums ---
 
-class ProjectOperation(Enum):
-    """Variants of the Substrait ProjectRel."""
-    SELECT = auto()
-    WITH_COLUMNS = auto()
-    DROP = auto()
-    RENAME = auto()
-
-
 class JoinType(StrEnum):
     """Join types aligned with Substrait JoinRel."""
     INNER = "inner"
@@ -571,22 +563,6 @@ class SetType(Enum):
     """Substrait SetRel operation types."""
     UNION_ALL = auto()
     UNION_DISTINCT = auto()
-
-
-class ExtensionRelOperation(Enum):
-    """Mountainash extension relation operations (not in Substrait)."""
-    DROP_NULLS = auto()
-    WITH_ROW_INDEX = auto()
-    EXPLODE = auto()
-    SAMPLE = auto()
-    UNPIVOT = auto()
-    PIVOT = auto()
-    TOP_K = auto()
-    REF = auto()              # dag.ref(name) placeholder for RelationDAG
-    READ_RESOURCE = auto()    # load via storage facade from a DataResource
-    DROP_NANS = auto()
-    UNNEST = auto()
-    EMPTY_FRAME = auto()      # empty_frame(spec) — materialise an empty typed frame
 
 
 @dataclass(frozen=True)

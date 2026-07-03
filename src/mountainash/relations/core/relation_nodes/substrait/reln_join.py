@@ -7,6 +7,9 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from mountainash.core.constants import ExecutionTarget, JoinType
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_SUBSTRAIT_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -36,11 +39,14 @@ class JoinRelNode(RelationNode):
     on: Optional[list[str]] = None
     left_on: Optional[list[str]] = None
     right_on: Optional[list[str]] = None
+    by: Optional[list[str]] = None
     suffix: str = "_right"
     strategy: Optional[str] = None
     tolerance: Any = None
     execute_on: Optional[ExecutionTarget] = None
 
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_join_rel(self)
+    @property
+    def operation_key(self):
+        if self.join_type == JoinType.ASOF:
+            return RKEY_SUBSTRAIT_REL.JOIN_ASOF
+        return RKEY_SUBSTRAIT_REL.JOIN

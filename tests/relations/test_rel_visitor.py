@@ -9,11 +9,13 @@ from __future__ import annotations
 import pytest
 
 from mountainash.core.constants import (
-    ExtensionRelOperation,
     JoinType,
-    ProjectOperation,
     SetType,
     SortField,
+)
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
 )
 from mountainash.expressions.core.expression_nodes import ExpressionNode
 from mountainash.expressions.core.expression_nodes.substrait.exn_literal import LiteralNode
@@ -173,7 +175,7 @@ class TestProjectRel:
         node = ProjectRelNode(
             input=_read_node(),
             expressions=["col_a", "col_b"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         result = visitor.visit(node)
         assert result == "project_select(read(df))"
@@ -183,7 +185,7 @@ class TestProjectRel:
         node = ProjectRelNode(
             input=_read_node(),
             expressions=["col_a"],
-            operation=ProjectOperation.WITH_COLUMNS,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS,
         )
         result = visitor.visit(node)
         assert result == "project_with_columns(read(df))"
@@ -192,7 +194,7 @@ class TestProjectRel:
         node = ProjectRelNode(
             input=_read_node(),
             expressions=["col_a"],
-            operation=ProjectOperation.DROP,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_DROP,
         )
         result = visitor.visit(node)
         assert result == "project_drop(read(df))"
@@ -202,7 +204,7 @@ class TestProjectRel:
         node = ProjectRelNode(
             input=_read_node(),
             expressions=[],
-            operation=ProjectOperation.RENAME,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_RENAME,
             rename_mapping=mapping,
         )
         result = visitor.visit(node)
@@ -215,7 +217,7 @@ class TestProjectRel:
         node = ProjectRelNode(
             input=_read_node(),
             expressions=[lit_node, "raw_string"],
-            operation=ProjectOperation.SELECT,
+            operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
         visitor.visit(node)
         compiled_exprs = backend.calls[1][2]
@@ -326,7 +328,7 @@ class TestExtensionRel:
     def test_drop_nulls(self, visitor, backend):
         node = ExtensionRelNode(
             input=_read_node(),
-            operation=ExtensionRelOperation.DROP_NULLS,
+            operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
             options={"subset": ["col_a"]},
         )
         result = visitor.visit(node)
@@ -336,7 +338,7 @@ class TestExtensionRel:
     def test_sample(self, visitor, backend):
         node = ExtensionRelNode(
             input=_read_node(),
-            operation=ExtensionRelOperation.SAMPLE,
+            operation=RKEY_MOUNTAINASH_REL.SAMPLE,
             options={"n": 100},
         )
         result = visitor.visit(node)

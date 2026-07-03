@@ -19,3 +19,8 @@ class SubstraitIbisSetRelationSystem(SubstraitSetRelationSystemProtocol[ir.Table
         if not relations:
             raise ValueError("union_all requires at least one relation.")
         return reduce(lambda a, b: a.union(b), relations)
+
+    def union_distinct(self, relations: list[Any], /) -> ir.Table:
+        if not relations:
+            raise ValueError("union_distinct requires at least one relation.")
+        return reduce(lambda a, b: a.union(b, distinct=True), relations)

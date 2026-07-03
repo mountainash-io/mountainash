@@ -4,7 +4,11 @@ Corresponds to Substrait's FetchRel message.
 """
 
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Optional
+
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_SUBSTRAIT_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -27,6 +31,8 @@ class FetchRelNode(RelationNode):
     count: Optional[int] = None
     from_end: bool = False
 
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_fetch_rel(self)
+    @property
+    def operation_key(self):
+        if self.from_end:
+            return RKEY_SUBSTRAIT_REL.FETCH_FROM_END
+        return RKEY_SUBSTRAIT_REL.FETCH

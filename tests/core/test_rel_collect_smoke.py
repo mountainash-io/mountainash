@@ -1,7 +1,7 @@
 """Relation collect smoke tests — every operation × 7 backends must collect.
 
 Introspection-driven: enumerates relation operations from Substrait node types
-and ExtensionRelOperation enum members, builds a minimal relation chain via
+and RKEY_MOUNTAINASH_REL enum members, builds a minimal relation chain via
 the public API, and calls .collect() on each backend. Catches wiring errors
 (missing method, arity mismatch, visitor dispatch failure) but not result
 correctness.
@@ -380,23 +380,29 @@ class TestRelSmokeExceptionSetIntegrity:
             )
 
     def test_extension_ops_covered_in_operations(self) -> None:
-        """Every non-registry-handled ExtensionRelOperation must have a smoke test."""
-        from mountainash.core.constants import ExtensionRelOperation
+        """Every non-registry-handled RKEY_MOUNTAINASH_REL must have a smoke test."""
+        from mountainash.relations.core.relation_system.relation_keys.enums import (
+            RKEY_MOUNTAINASH_REL,
+        )
 
         # Ops with no `ma.relation(df).<op>()` relation-builder, so there is
         # nothing to smoke-collect: REF/READ_RESOURCE are DAG-internal (resolved
-        # via ref_resolver), and EMPTY_FRAME is a visitor-internal constructor
-        # the resource-read/conform path calls directly (relation_visitor.py),
-        # not an ExtensionRelNode transform.
-        _NON_TRANSFORM_OPS = {"REF", "READ_RESOURCE", "EMPTY_FRAME"}
+        # via ref_resolver), EMPTY_FRAME is a visitor-internal constructor the
+        # resource-read/conform path calls directly (relation_visitor.py) and
+        # not an ExtensionRelNode transform, and SOURCE/CONFORM are dedicated
+        # node classes (SourceRelNode/ConformRelNode) rather than
+        # ExtensionRelNode operations.
+        _NON_TRANSFORM_OPS = {
+            "REF", "READ_RESOURCE", "EMPTY_FRAME", "SOURCE", "CONFORM",
+        }
         enum_ops = {
             op.name.lower()
-            for op in ExtensionRelOperation
+            for op in RKEY_MOUNTAINASH_REL
             if op.name not in _NON_TRANSFORM_OPS
         }
         covered = set(_OPERATIONS.keys())
         missing = enum_ops - covered
         assert not missing, (
-            f"ExtensionRelOperation members without smoke test: {sorted(missing)}. "
+            f"RKEY_MOUNTAINASH_REL members without smoke test: {sorted(missing)}. "
             f"Add a builder to _OPERATIONS or document in the exception set."
         )
