@@ -221,3 +221,29 @@ class TestBindingConformance:
                               inspect.Parameter.POSITIONAL_OR_KEYWORD)
             ]
             assert len(positional) == len(d.args), key
+
+
+from mountainash.core.limitations import MATERIALIZE_BOUNDARY, WILDCARD_PARAM
+
+
+class TestLimitationKeyConformance:
+    def test_limitation_keys_reference_real_params_or_wildcard(self):
+        offenders = []
+        for backend_name, backend_cls in BACKENDS.items():
+            table = getattr(backend_cls, "KNOWN_REL_LIMITATIONS", {})
+            for (op_key, param) in table:
+                if param == WILDCARD_PARAM:
+                    continue
+                if op_key is MATERIALIZE_BOUNDARY:
+                    continue
+                try:
+                    d = RelationOperationRegistry.get(op_key)
+                except KeyError:
+                    offenders.append(f"{backend_name}: unknown op {op_key}")
+                    continue
+                bound = {b.field for b in d.args} | set(d.options)
+                if d.get_signature() is not None:
+                    bound |= set(d.get_signature().parameters)
+                if param not in bound:
+                    offenders.append(f"{backend_name}: ({op_key}, {param!r})")
+        assert not offenders, f"limitation keys referencing nothing real: {offenders}"
