@@ -45,7 +45,7 @@ def _register_core_handlers() -> None:
     from ..relation_nodes.extensions_mountainash.reln_ext_resource_read import ResourceReadRelNode
     from ..relation_nodes.extensions_mountainash.reln_ext_source import SourceRelNode
 
-    RelationVisitRegistry._handlers[ConformRelNode] = _visit_conform_rel
-    RelationVisitRegistry._handlers[RefRelNode] = _visit_ref_rel
-    RelationVisitRegistry._handlers[ResourceReadRelNode] = _visit_resource_read_rel
-    RelationVisitRegistry._handlers[SourceRelNode] = _visit_source_rel
+    RelationVisitRegistry.register(ConformRelNode, _visit_conform_rel)
+    RelationVisitRegistry.register(RefRelNode, _visit_ref_rel)
+    RelationVisitRegistry.register(ResourceReadRelNode, _visit_resource_read_rel)
+    RelationVisitRegistry.register(SourceRelNode, _visit_source_rel)

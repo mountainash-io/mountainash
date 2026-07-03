@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
+from mountainash.core.registries import KeyedRegistry
+
 if TYPE_CHECKING:
     from .relation_visitor import UnifiedRelationVisitor
 
@@ -20,38 +22,45 @@ def _protect(*node_types: type) -> None:
     _PROTECTED_NODE_TYPES.update(node_types)
 
 
-class RelationVisitRegistry:
-    _handlers: dict[type, RelationVisitHandler] = {}
-    _initialized: bool = False
+def _validate_registration(node_type: type, handler: RelationVisitHandler) -> None:
+    if node_type in _PROTECTED_NODE_TYPES:
+        raise TypeError(
+            f"{node_type.__name__} is a protected Substrait-aligned node type "
+            f"and cannot be overridden via the registry"
+        )
 
-    @classmethod
-    def _ensure_initialized(cls) -> None:
-        if not cls._initialized:
-            cls._initialized = True
-            from ._core_handlers import _register_core_handlers
-            _register_core_handlers()
+
+def _init_core_handlers() -> None:
+    from ._core_handlers import _register_core_handlers
+    _register_core_handlers()
+
+
+_registry: KeyedRegistry[type, RelationVisitHandler] = KeyedRegistry(
+    "visit handler",
+    initializer=_init_core_handlers,
+    validator=_validate_registration,
+)
+
+
+class RelationVisitRegistry:
+    """Type-keyed node -> visit-handler registry (third-party extension surface)."""
 
     @classmethod
     def register(cls, node_type: type, handler: RelationVisitHandler) -> None:
-        if node_type in _PROTECTED_NODE_TYPES:
-            raise TypeError(
-                f"{node_type.__name__} is a protected Substrait-aligned node type "
-                f"and cannot be overridden via the registry"
-            )
-        if node_type in cls._handlers:
+        try:
+            _registry.register(node_type, handler)
+        except ValueError:
             raise ValueError(
                 f"{node_type.__name__} already has a registered visit handler"
-            )
-        cls._handlers[node_type] = handler
+            ) from None
 
     @classmethod
     def get(cls, node_type: type) -> Optional[RelationVisitHandler]:
-        cls._ensure_initialized()
-        return cls._handlers.get(node_type)
+        return _registry.get_optional(node_type)
 
     @classmethod
     def unregister(cls, node_type: type) -> None:
-        cls._handlers.pop(node_type, None)
+        _registry.unregister(node_type)
 
 
 def _protect_substrait_nodes() -> None:
