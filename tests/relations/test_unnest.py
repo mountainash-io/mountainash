@@ -7,6 +7,7 @@ import pandas as pd
 import polars as pl
 import pytest
 
+from mountainash.core.types import BackendCapabilityError
 from mountainash.relations import relation
 
 import mountainash.relations.backends.relation_systems.ibis  # noqa: F401
@@ -138,10 +139,10 @@ class TestUnnestIbis:
 class TestUnnestNarwhals:
     @pytest.mark.xfail(
         reason="Narwhals has no frame-level unnest — deferred to Phase 2",
-        raises=NotImplementedError,
+        raises=BackendCapabilityError,
     )
     def test_unnest_not_supported(self):
-        """Narwhals unnest raises NotImplementedError."""
+        """Narwhals unnest is enriched to BackendCapabilityError (spec §3.8)."""
         df = pd.DataFrame({
             "id": [1, 2, 3],
             "metadata": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}, {"x": 30, "y": "c"}],
