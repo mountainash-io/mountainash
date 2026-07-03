@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import polars as pl
+
 from mountainash.core.types import is_polars_lazyframe, is_polars_dataframe
 from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
     SubstraitReadRelationSystemProtocol,
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
     from mountainash.core.types import PolarsLazyFrame
 
 
-class SubstraitPolarsReadRelationSystem(SubstraitReadRelationSystemProtocol):
+class SubstraitPolarsReadRelationSystem(SubstraitReadRelationSystemProtocol[pl.LazyFrame]):
     """Read / scan a data source into a Polars LazyFrame."""
 
     def read(self, dataframe: Any, /) -> PolarsLazyFrame:

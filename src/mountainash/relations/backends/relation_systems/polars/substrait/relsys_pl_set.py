@@ -9,7 +9,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitPolarsSetRelationSystem(SubstraitSetRelationSystemProtocol):
+class SubstraitPolarsSetRelationSystem(SubstraitSetRelationSystemProtocol[pl.LazyFrame]):
     """Set operations on Polars LazyFrames."""
 
     def union_all(self, relations: list[pl.LazyFrame], /) -> pl.LazyFrame:

@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitPolarsFetchRelationSystem(SubstraitFetchRelationSystemProtocol):
+class SubstraitPolarsFetchRelationSystem(SubstraitFetchRelationSystemProtocol[pl.LazyFrame]):
     """Offset/limit row retrieval on Polars LazyFrames."""
 
     def fetch(

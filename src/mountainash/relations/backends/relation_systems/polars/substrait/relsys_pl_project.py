@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitPolarsProjectRelationSystem(SubstraitProjectRelationSystemProtocol):
+class SubstraitPolarsProjectRelationSystem(SubstraitProjectRelationSystemProtocol[pl.LazyFrame, pl.Expr]):
     """Projection operations on Polars LazyFrames."""
 
     def project_select(self, relation: pl.LazyFrame, columns: list[Any], /) -> pl.LazyFrame:

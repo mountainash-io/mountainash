@@ -11,7 +11,7 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitPolarsAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol):
+class SubstraitPolarsAggregateRelationSystem(SubstraitAggregateRelationSystemProtocol[pl.LazyFrame, pl.Expr]):
     """Aggregation operations on Polars LazyFrames."""
 
     def aggregate(
