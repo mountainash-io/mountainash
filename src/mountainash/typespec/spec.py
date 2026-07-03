@@ -163,6 +163,15 @@ class TypeSpec:
     fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
+    contract: Optional[Dict[str, str]] = None  # item 48: reconciliation contract, layered
+                                                # under conform(contract=...) overrides
+
+    def __post_init__(self) -> None:
+        # An explicitly-empty dict carries no dimensions and must never be
+        # mistaken for an explicit layer downstream (resolve_contract flips
+        # `from_preset=False` on any non-None contract) — normalise to None.
+        if self.contract is not None and len(self.contract) == 0:
+            self.contract = None
 
     @classmethod
     def from_simple_dict(cls, columns: Dict[str, str], **metadata: Any) -> TypeSpec:

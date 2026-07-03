@@ -19,6 +19,7 @@ from mountainash.conform.errors import (
     ExactFieldCountError,
     NoMatchingFieldsError,
     ConformTransformError,
+    SchemaDriftError,
 )
 from mountainash.relations.dag.errors import (
     DAGError,
@@ -43,6 +44,7 @@ __all__ = [
     "ExactFieldCountError",
     "NoMatchingFieldsError",
     "ConformTransformError",
+    "SchemaDriftError",
     "DAGError",
     "RelationDAGRequired",
     "MissingResourceSchema",

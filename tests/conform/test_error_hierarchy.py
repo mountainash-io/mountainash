@@ -11,6 +11,7 @@ from mountainash.conform.errors import (
     ExactFieldCountError,
     NoMatchingFieldsError,
     ConformTransformError,
+    SchemaDriftError,
 )
 
 ALL = [
@@ -20,6 +21,7 @@ ALL = [
     ExactFieldCountError,
     NoMatchingFieldsError,
     ConformTransformError,
+    SchemaDriftError,
 ]
 
 

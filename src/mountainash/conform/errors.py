@@ -7,7 +7,7 @@ See: https://datapackage.org/standard/table-schema/#fieldsMatch
 """
 from __future__ import annotations
 
-from typing import List
+from typing import Any, List
 
 from mountainash.core.errors import MountainashError
 
@@ -80,3 +80,15 @@ class ConformTransformError(ConformError):
             f"Conform transform failed: {original_error}. "
             f"Check TypeSpec parsing properties: {spec_summary}"
         )
+
+
+class SchemaDriftError(ConformError):
+    """A freeze policy detected declared-vs-actual schema drift.
+
+    Carries the tripping node's `ConformDrift` (see conform/drift.py) so
+    callers can inspect exactly which columns/types/keys diverged.
+    """
+
+    def __init__(self, message: str, *, drift: Any) -> None:
+        self.drift = drift
+        super().__init__(message)

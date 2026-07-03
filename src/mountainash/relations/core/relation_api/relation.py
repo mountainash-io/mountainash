@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, TypeVar, Union
 
 
 if TYPE_CHECKING:
+    from mountainash.conform.drift import ConformCollection, ConformDrift
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.relations.schema_inference import SchemaTypeStatus
 
@@ -88,6 +89,33 @@ def _to_relation_node(other: Any) -> RelationNode:
     return ReadRelNode(dataframe=other)
 
 
+def _materialize(result: Any, *, unwrap: bool = True) -> Any:
+    """Eagerly materialize a compiled backend-native result.
+
+    Shared by :meth:`Relation.collect` and :meth:`Relation.collect_with_drift`
+    so both terminals apply identical lazy-frame / narwhals unwrap semantics:
+    a Polars ``LazyFrame`` source returns a ``DataFrame``, a narwhals
+    ``LazyFrame`` is collected and (when ``unwrap``) has its native frame
+    unwrapped, and anything already eager passes through unchanged.
+    """
+    from mountainash.core.types import (
+        is_narwhals_dataframe,
+        is_narwhals_lazyframe,
+        is_polars_lazyframe,
+    )
+
+    if is_polars_lazyframe(result):
+        return result.collect()
+    if is_narwhals_lazyframe(result):
+        # A narwhals LazyFrame is itself lazy; materialise it so the result
+        # is eager, as callers' contracts promise. narwhals
+        # ``LazyFrame.collect()`` returns an eager narwhals ``DataFrame``.
+        result = result.collect()
+    if unwrap and is_narwhals_dataframe(result):
+        return result.to_native()
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Relation
 # ---------------------------------------------------------------------------
@@ -132,7 +160,12 @@ class Relation(RelationBase):
 
     # --- Conformance ---
 
-    def conform(self, spec: Any) -> Relation:
+    def conform(
+        self,
+        spec: Any,
+        *,
+        contract: Optional[Union[str, Mapping[str, str]]] = None,
+    ) -> Relation:
         """Conform the relation to a TypeSpec.
 
         Stores the TypeSpec as a ConformRelNode in the plan tree. The actual
@@ -145,12 +178,29 @@ class Relation(RelationBase):
                 ``"open"`` keeps unmapped columns (default when unset),
                 ``"partial"`` drops them, stricter modes enforce column
                 presence.
+            contract: Optional reconciliation-contract override, layered on
+                top of any ``TypeSpec.contract`` and the ``fields_match``
+                preset (highest precedence). A scalar string (e.g.
+                ``"freeze"``) applies to the extension dimensions
+                (``data_type``, ``keys``) only; a dict maps dimension name ->
+                mode explicitly (``extra_columns``, ``missing_columns``,
+                ``data_type``, ``keys``). Validated eagerly here so malformed
+                input fails at build time, not at collect().
 
         Returns:
             A new Relation wrapping a ConformRelNode.
         """
+        if contract is not None:
+            from mountainash.conform.contract import (
+                EXTENSION_DIMENSIONS,
+                validate_contract_dict,
+            )
+            if isinstance(contract, str):
+                validate_contract_dict({dim: contract for dim in EXTENSION_DIMENSIONS})
+            else:
+                validate_contract_dict(contract)
         from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
-        return Relation(ConformRelNode(input=self._node, spec=spec))
+        return Relation(ConformRelNode(input=self._node, spec=spec, contract=contract))
 
     # --- Sorting ---
 
@@ -498,23 +548,38 @@ class Relation(RelationBase):
                 Pass *False* to keep the narwhals wrapper (useful for internal
                 code that needs narwhals-level operations on the result).
         """
-        from mountainash.core.types import (
-            is_narwhals_dataframe,
-            is_narwhals_lazyframe,
-            is_polars_lazyframe,
-        )
+        return _materialize(self.compile(), unwrap=unwrap)
 
-        result = self.compile()
-        if is_polars_lazyframe(result):
-            return result.collect()
-        if is_narwhals_lazyframe(result):
-            # A narwhals LazyFrame is itself lazy; materialise it so the result
-            # is eager, as this method's contract promises. narwhals
-            # ``LazyFrame.collect()`` returns an eager narwhals ``DataFrame``.
-            result = result.collect()
-        if unwrap and is_narwhals_dataframe(result):
-            return result.to_native()
-        return result
+    def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
+        """Collect and return the frame plus per-conform-node drift reports.
+
+        Terminals stay single-typed: this is the ONE report terminal; every
+        other terminal keeps returning a bare frame. A ``freeze`` policy
+        still raises ``SchemaDriftError`` before this returns (fail-fast --
+        the first tripping conform node in traversal order; the exception's
+        ``.drift`` carries that node's identity).
+
+        Args:
+            backend: Optional explicit backend name, overriding
+                auto-detection -- see :meth:`_compile_and_execute_with_visitor`.
+
+        Returns:
+            A :class:`~mountainash.conform.drift.ConformCollection` with the
+            materialized ``frame``, the ordered list of ``drifts`` collected
+            during compilation (one per conform node that assessed anything;
+            AST-traversal order), and ``effective_schema`` derived from the
+            ACTUAL output frame (not the declared spec).
+        """
+        from mountainash.conform.drift import ConformCollection
+        from mountainash.relations.schema_inference import _schema_from_dataframe
+
+        result, visitor = self._compile_and_execute_with_visitor(backend=backend)
+        frame = _materialize(result)
+        return ConformCollection(
+            frame=frame,
+            drifts=list(visitor.drift_reports),
+            effective_schema=_schema_from_dataframe(frame),
+        )
 
     def item(self, column: str, row: int = 0) -> Any:
         """Extract a single cell value as a Python scalar with strict semantics.
@@ -858,6 +923,27 @@ class Relation(RelationBase):
         ``dag.to_package()``, NOT this property -- use those for DAG export."""
         from mountainash.relations.dag.packaging import _frictionless_from_inferred
         return _frictionless_from_inferred(self.schema)
+
+    def assess_drift(self) -> "list[ConformDrift]":
+        """Schema-only pre-flight: assess drift at every conform node in the plan.
+
+        Walks the plan tree (the same AST walk as ``.schema``) and evaluates
+        each ``ConformRelNode`` in infer mode with drift assembly enabled but
+        policy enforcement (raising/filtering) disabled -- folds item 17-P8
+        into a build-time pre-flight. Never raises ``SchemaDriftError``
+        (even for a ``freeze``-configured node -- that node is still
+        reported, not raised), never compiles, never touches a backend, and
+        never executes a frame.
+
+        Returns:
+            A list of :class:`~mountainash.conform.drift.ConformDrift`, one
+            per conform node that had assessable evidence, in AST-traversal
+            order. A node with no available columns and no actual-dtype
+            evidence contributes nothing (honest non-assessment -- mirrors
+            ``UnifiedRelationVisitor.drift_reports``).
+        """
+        from mountainash.relations.schema_inference import assess_drift as _assess_drift
+        return _assess_drift(self._node)
 
     def describe(self) -> Any:
         """Compute summary statistics (count, null_count, mean, std, min, max).

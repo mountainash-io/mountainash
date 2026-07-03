@@ -21,7 +21,8 @@ def _visit_resource_read_rel(node: Any, visitor: Any) -> Any:
     out = visitor.backend.read_resource(node.resource)
     if node.resource.table_schema is not None:
         out = visitor.apply_conform(
-            out, node.resource.table_schema, empty_from_schema=True
+            out, node.resource.table_schema, empty_from_schema=True,
+            resource_name=node.resource.name,
         )
     return out
 
@@ -34,7 +35,7 @@ def _visit_source_rel(node: Any, visitor: Any) -> Any:
 
 def _visit_conform_rel(node: Any, visitor: Any) -> Any:
     native = visitor.visit(node.input)
-    return visitor.apply_conform(native, node.spec)
+    return visitor.apply_conform(native, node.spec, contract=node.contract)
 
 
 def _register_core_handlers() -> None:

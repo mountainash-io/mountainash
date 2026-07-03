@@ -40,11 +40,13 @@ See also:
 """
 from __future__ import annotations
 
+import dataclasses
 import enum
 import warnings
 from dataclasses import dataclass, field as dataclass_field
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Union
 
+from mountainash.conform.contract import ConformContract, resolve_contract
 from mountainash.conform.errors import (
     ConformError,
     ExactFieldCountError,
@@ -54,6 +56,7 @@ from mountainash.conform.errors import (
 )
 
 if TYPE_CHECKING:
+    from mountainash.conform.drift import ConformDrift
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.typespec.spec import FieldSpec, TypeSpec
 
@@ -110,12 +113,27 @@ class EmittedField:
             pre-compile → report ``UNKNOWN``).
         renamed: ``True`` when ``source_name != field.name``; drives the
             open-mode drop of the original source column.
+        type_action: The data_type-dimension policy resolved for this field
+            (item 48 Task 6): ``"coerce"`` (default, today's behaviour —
+            cast to the declared type), ``"evolve"`` (no cast, output keeps
+            the source/actual type), ``"discard_value"`` (cast with
+            null-on-failure), or ``"discard_row"`` (same null-cast, plus the
+            source registers in ``row_filter_sources`` for a row-drop
+            predicate). Only set to something other than ``"coerce"`` when
+            unsafe-cast drift was actually detected against ``actual_dtypes``
+            evidence.
+        effective_type: The post-policy canonical type when it diverges from
+            ``declared_type`` (currently only set for ``type_action ==
+            "evolve"``, where it holds the source's actual dtype). ``None``
+            means the declared type applies as-is.
     """
 
     field: "FieldSpec"
     source_name: str
     declared_type: DeclaredType
     renamed: bool
+    type_action: str = "coerce"
+    effective_type: Optional[Any] = None
 
 
 @dataclass(frozen=True)
@@ -133,11 +151,29 @@ class ConformOutputContract:
         renamed_sources: Set of source column names that will be aliased to
             a different target name (used by open-mode callers to drop
             originals).
+        drift: The :class:`~mountainash.conform.drift.ConformDrift` report
+            assembled during this call (item 48 Task 6), or ``None`` when no
+            assessment ran at all — i.e. ``available_columns`` was not
+            provided (no column-dimension guard) and ``actual_dtypes`` was
+            not provided (no data_type assessment). This is honest
+            non-assessment, not "assessed clean" (mirrors the
+            ``key_changes`` None-vs-``[]`` distinction on ``ConformDrift``
+            itself). A freeze-policy violation raises ``SchemaDriftError``
+            instead of returning, so a non-``None`` ``drift`` here always
+            represents a non-raising (or non-frozen) outcome.
+        row_filter_sources: ``(source_name, declared_canonical_type)`` pairs
+            needing a discard-row predicate — populated when the data_type
+            dimension resolves to ``"discard_row"`` for a field. Consumers
+            (the DAG visitor / ``Relation.conform``) build the actual
+            row-drop filter; this evaluator only records which sources need
+            one.
     """
 
     fields_match: str
     emitted: list[EmittedField]
     renamed_sources: set[str]
+    drift: Optional["ConformDrift"] = None
+    row_filter_sources: list[tuple[str, Any]] = dataclass_field(default_factory=list)
 
     @property
     def keeps_unmapped(self) -> bool:
@@ -156,11 +192,21 @@ class ConformResult:
     Callers use fields_match to dispatch select() vs with_columns():
     - "open" → with_columns (keeps unmapped) + drop renamed sources
     - all others → select (projection, drops unmapped)
+
+    ``drift`` and ``row_filter_sources`` are pass-through copies of the
+    same-named :class:`ConformOutputContract` attributes (item 48 Task 7) —
+    execute-mode callers (``UnifiedRelationVisitor.apply_conform``) consume
+    them without needing to call ``resolve_conform_output`` separately.
+    Both default to their "nothing assessed" values (``None`` / ``[]``) so
+    existing callers that don't pass ``actual_dtypes``/``contract`` see no
+    behaviour change.
     """
 
     exprs: list  # mountainash expressions
     fields_match: str  # resolved mode (never None)
     renamed_sources: set = dataclass_field(default_factory=set)
+    drift: Optional["ConformDrift"] = None
+    row_filter_sources: list = dataclass_field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -179,10 +225,128 @@ def _source_root(source_name: str) -> str:
     return source_name.split(".", 1)[0] if "." in source_name else source_name
 
 
+def _raise_drift(
+    *,
+    missing_columns: Optional[Sequence[str]] = None,
+    extra_columns: Optional[Sequence[str]] = None,
+    type_mismatches: Optional[Sequence[Any]] = None,
+    node_identity: Optional[tuple] = None,
+) -> None:
+    """Raise ``SchemaDriftError`` for an explicit-contract freeze violation.
+
+    Called for non-preset contracts (``from_preset=False``) where a frozen
+    dimension tripped: column-dimension violations (``missing_columns`` /
+    ``extra_columns``, from the fieldsMatch guard) or the data_type
+    dimension (``type_mismatches``, from the Task 6 detection loop). Exactly
+    one of the three is populated per call site — each call raises
+    immediately for the one dimension it represents, so the resulting
+    ``ConformDrift`` only ever carries that single dimension's entries (the
+    other two stay empty/``[]``); ``key_changes`` is always ``None`` (not
+    assessed — key drift is a separate task, item 48 PR-D).
+    """
+    from mountainash.conform.drift import ColumnDrift, ConformDrift
+    from mountainash.conform.errors import SchemaDriftError
+
+    node_id, resource_name, spec_name = (
+        node_identity if node_identity is not None else (None, None, None)
+    )
+    drift = ConformDrift(
+        node_id=node_id,
+        resource_name=resource_name,
+        spec_name=spec_name,
+        extra_columns=[
+            ColumnDrift(name=n, action="freeze") for n in (extra_columns or [])
+        ],
+        missing_columns=[
+            ColumnDrift(name=n, action="freeze") for n in (missing_columns or [])
+        ],
+        type_mismatches=list(type_mismatches or []),
+        key_changes=None,
+    )
+    if extra_columns:
+        dimension = "extra_columns"
+    elif missing_columns:
+        dimension = "missing_columns"
+    else:
+        dimension = "data_type"
+    raise SchemaDriftError(f"{dimension} drift under freeze policy", drift=drift)
+
+
+def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
+    """Compute the stage-5 declared output type for one field.
+
+    Mirrors ``_build_field_expr`` stage 5's branch selection verbatim (the
+    same mutually-exclusive conditions on ``fld.type``/``fld.categories``/
+    ``fld.format``) but returns a type token instead of building an
+    expression. Single source of truth shared by ``resolve_conform_output``
+    (populates ``EmittedField.declared_type``, sentinels included — used by
+    schema inference) and ``_declared_canonical`` (item 48 Task 6 data_type
+    drift detection, which only wants a concrete dtype or ``None``).
+
+    ``source_name`` is the *resolved* source for this emission (positional
+    for ``"exact"`` mode, ``fld.source_name`` otherwise) — dotted-ness is
+    derived from it, not from ``fld.source_name`` directly, so behaviour is
+    unchanged from the pre-extraction inline version.
+    """
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.universal_types import UniversalType, to_canonical
+
+    is_dotted = "." in source_name
+
+    if fld.type == UniversalType.ARRAY:
+        # Stage 5a: list split + element cast → to_canonical(ARRAY)
+        return to_canonical(UniversalType.ARRAY)  # type: ignore[return-value]
+    if fld.categories is not None:
+        # Stage 5b: categorical → Polars Categorical/Enum; dtype registry
+        # maps pl.Categorical/pl.Enum to canonical STRING (target_polars.py:30-31)
+        return MountainashDtype.STRING
+    if fld.type in {
+        UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME,
+    } and fld.format not in ("default", None, "any"):
+        # Stage 5b temporal custom format: to_date/to_datetime/to_time
+        canon = to_canonical(fld.type)
+        return canon if canon is not None else UNDETERMINED
+    if fld.type == UniversalType.BOOLEAN:
+        # Stage 5c: boolean mapping → to_canonical(BOOLEAN)
+        canon = to_canonical(UniversalType.BOOLEAN)
+        return canon if canon is not None else UNDETERMINED
+    if fld.type and fld.type != UniversalType.ANY:
+        # Stage 5d: default canonical cast
+        canon = to_canonical(fld.type)
+        return canon if canon is not None else PASSTHROUGH
+    # ANY / None — no cast in stage 5
+    if fld.null_fill is not None or is_dotted:
+        # null_fill: coalesce may coerce the dtype
+        # dotted: nested field type ≠ struct root type
+        return UNDETERMINED
+    # Non-dotted ANY with no output-affecting transform → passthrough
+    return PASSTHROUGH
+
+
+def _declared_canonical(fld: "FieldSpec") -> Optional["MountainashDtype"]:
+    """The concrete canonical declared dtype for ``fld``, or ``None``.
+
+    Reuses :func:`_resolve_declared_type` (shared with
+    ``EmittedField.declared_type``) but collapses the ``PASSTHROUGH`` /
+    ``UNDETERMINED`` sentinels to ``None`` — item 48 Task 6's data_type drift
+    detection only ever compares against a concrete declared dtype;
+    "no predictable declared type" means "no assessment possible", the same
+    honesty rule applied to missing actual-dtype evidence.
+    """
+    from mountainash.core.dtypes import MountainashDtype
+
+    declared = _resolve_declared_type(fld, fld.source_name)
+    return declared if isinstance(declared, MountainashDtype) else None
+
+
 def resolve_conform_output(
     spec: "TypeSpec",
+    available_columns: Optional[Sequence[str]] = None,
     *,
-    available_columns: Optional[Sequence[str]],
+    actual_dtypes: Optional[Mapping[str, Any]] = None,
+    contract: Optional[ConformContract] = None,
+    node_identity: Optional[tuple] = None,
+    raise_on_freeze: bool = True,
 ) -> ConformOutputContract:
     """Resolve the output contract for a TypeSpec conformance operation.
 
@@ -210,10 +374,42 @@ def resolve_conform_output(
         available_columns: Ordered column names from the source data.
             Required for all ``fieldsMatch`` modes except ``"open"``.
             Sequence order matters for ``"exact"`` (positional mapping).
+        actual_dtypes: Optional ``{column_name: MountainashDtype}`` evidence
+            (item 48 Task 6) driving data_type drift detection. Missing
+            entries, and entries whose value is a
+            :class:`~mountainash.relations.schema_inference.SchemaTypeStatus`
+            sentinel (e.g. ``UNKNOWN``), are treated as "no evidence" — no
+            assessment, not a false-positive drift. Dotted (struct) sources
+            are always excluded from type detection: the struct ROOT's
+            actual dtype is never compared to a nested field's declared type.
+        contract: The resolved :class:`ConformContract` driving the guard.
+            When ``None`` (the default), one is derived internally via
+            ``resolve_contract(fields_match)`` — i.e. the plain
+            ``fields_match`` preset with no explicit layering.
+        node_identity: Optional ``(node_id, resource_name, spec_name)``
+            pass-through for the ``ConformDrift`` reports this call may
+            build or raise. ``None`` (the default) leaves all three identity
+            fields ``None`` — the DAG visitor supplies real identity in a
+            later task (item 48 Task 7).
+        raise_on_freeze: When ``True`` (the default, execute-time behaviour —
+            ``UnifiedRelationVisitor.apply_conform``), a non-preset
+            (``from_preset=False``) contract's ``freeze`` policy raises
+            ``SchemaDriftError`` as documented below. When ``False``
+            (build-time callers: ``infer_schema``'s ``ConformRelNode``
+            branch and ``Relation.assess_drift()``, item 48 Task 9), those
+            same ``freeze`` violations are folded into the returned
+            ``drift`` report instead of raising — inference and pre-flight
+            assessment must never raise ``SchemaDriftError`` (R1/R2: build
+            time stays non-fatal). This only gates the *explicit-contract*
+            freeze raises (the ``_raise_drift`` call sites); the
+            preset-provenance legacy errors (``MissingFieldsError`` /
+            ``ExtraFieldsError``) are a separate, older structural-guard
+            concern and are unaffected by this flag.
 
     Returns:
         A :class:`ConformOutputContract` with ``fields_match``, ``emitted``
-        (one :class:`EmittedField` per included field), and ``renamed_sources``.
+        (one :class:`EmittedField` per included field), ``renamed_sources``,
+        ``drift``, and ``row_filter_sources``.
 
     Raises:
         ConformError: Invalid ``fields_match`` value, or ``available_columns``
@@ -221,17 +417,17 @@ def resolve_conform_output(
         ExactFieldCountError: ``fields_match="exact"`` and column count
             does not match spec field count.
         MissingFieldsError: ``fields_match`` in ``{"equal", "subset"}`` and
-            required source columns are absent. Dotted (struct) sources are
-            validated on their root column.
+            required source columns are absent (preset-provenance contract).
+            Dotted (struct) sources are validated on their root column.
         ExtraFieldsError: ``fields_match`` in ``{"equal", "superset"}`` and
-            unmapped columns are present. Dotted (struct) sources are
-            validated on their root column.
+            unmapped columns are present (preset-provenance contract).
+            Dotted (struct) sources are validated on their root column.
         NoMatchingFieldsError: ``fields_match="partial"`` and zero spec
             fields match available columns.
+        SchemaDriftError: A non-preset (``from_preset=False``) contract has
+            a frozen dimension (``extra_columns``, ``missing_columns``, or
+            ``data_type``) that tripped.
     """
-    from mountainash.core.dtypes import MountainashDtype
-    from mountainash.typespec.universal_types import UniversalType, to_canonical
-
     # --- 1. Resolve and validate fields_match mode ---
     fields_match = spec.fields_match if spec.fields_match is not None else "open"
     if fields_match not in _VALID_FIELDS_MATCH:
@@ -247,6 +443,14 @@ def resolve_conform_output(
             f"provided. Only 'open' mode works without column information."
         )
 
+    if contract is None:
+        contract = resolve_contract(fields_match)
+
+    # Column-dimension drift, hoisted so it survives past the guard block
+    # (positional/"exact" mapping never populates these; both stay empty).
+    missing: list[str] = []
+    extra: list[str] = []
+
     if available_columns is not None:
         available_set: set[str] = set(available_columns)
         # Source names the spec expects to find in the data
@@ -256,46 +460,30 @@ def resolve_conform_output(
         # EmittedField.source_name (item 48 nested diagnostics).
         spec_source_roots = {_source_root(name) for name in spec_source_names}
 
-        if fields_match == "exact":
-            if len(available_columns) != len(spec.fields):
-                raise ExactFieldCountError(
-                    expected_count=len(spec.fields),
-                    actual_count=len(available_columns),
-                )
-
-        elif fields_match == "equal":
-            missing = sorted(spec_source_roots - available_set)
-            if missing:
-                raise MissingFieldsError(
-                    missing_fields=missing, fields_match=fields_match,
-                )
-            extra = sorted(available_set - spec_source_roots)
-            if extra:
-                raise ExtraFieldsError(
-                    extra_fields=extra, fields_match=fields_match,
-                )
-
-        elif fields_match == "subset":
-            missing = sorted(spec_source_roots - available_set)
-            if missing:
-                raise MissingFieldsError(
-                    missing_fields=missing, fields_match=fields_match,
-                )
-
-        elif fields_match == "superset":
-            extra = sorted(available_set - spec_source_roots)
-            if extra:
-                raise ExtraFieldsError(
-                    extra_fields=extra, fields_match=fields_match,
-                )
-
-        elif fields_match == "partial":
-            if not spec_source_roots & available_set:
+        if contract.count_must_match and len(available_columns) != len(spec.fields):
+            raise ExactFieldCountError(
+                expected_count=len(spec.fields), actual_count=len(available_columns),
+            )
+        if contract.mapping == "by_name":
+            if contract.minimum_overlap and len(
+                spec_source_roots & available_set
+            ) < contract.minimum_overlap:
                 raise NoMatchingFieldsError(
                     spec_fields=sorted(spec_source_names),
                     available_columns=sorted(available_set),
                 )
-        # "open" — no guard
+            missing = sorted(spec_source_roots - available_set)
+            extra = sorted(available_set - spec_source_roots)
+            if contract.missing_columns == "freeze" and missing:
+                if contract.from_preset:
+                    raise MissingFieldsError(missing_fields=missing, fields_match=fields_match)
+                if raise_on_freeze:
+                    _raise_drift(missing_columns=missing, node_identity=node_identity)
+            if contract.extra_columns == "freeze" and extra:
+                if contract.from_preset:
+                    raise ExtraFieldsError(extra_fields=extra, fields_match=fields_match)
+                if raise_on_freeze:
+                    _raise_drift(extra_columns=extra, node_identity=node_identity)
     else:
         available_set = None  # type: ignore[assignment]
 
@@ -325,36 +513,7 @@ def resolve_conform_output(
         # Compute declared_type — mirrors stage-5 branch selection verbatim
         # (the same mutually-exclusive branches, but returns a type token
         # instead of building an expression).
-        if fld.type == UniversalType.ARRAY:
-            # Stage 5a: list split + element cast → to_canonical(ARRAY)
-            declared: DeclaredType = to_canonical(UniversalType.ARRAY)  # type: ignore[assignment]
-        elif fld.categories is not None:
-            # Stage 5b: categorical → Polars Categorical/Enum; dtype registry
-            # maps pl.Categorical/pl.Enum to canonical STRING (target_polars.py:30-31)
-            declared = MountainashDtype.STRING
-        elif fld.type in {
-            UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME,
-        } and fld.format not in ("default", None, "any"):
-            # Stage 5b temporal custom format: to_date/to_datetime/to_time
-            canon = to_canonical(fld.type)
-            declared = canon if canon is not None else UNDETERMINED  # type: ignore[assignment]
-        elif fld.type == UniversalType.BOOLEAN:
-            # Stage 5c: boolean mapping → to_canonical(BOOLEAN)
-            canon = to_canonical(UniversalType.BOOLEAN)
-            declared = canon if canon is not None else UNDETERMINED  # type: ignore[assignment]
-        elif fld.type and fld.type != UniversalType.ANY:
-            # Stage 5d: default canonical cast
-            canon = to_canonical(fld.type)
-            declared = canon if canon is not None else PASSTHROUGH  # type: ignore[assignment]
-        else:
-            # ANY / None — no cast in stage 5
-            if fld.null_fill is not None or is_dotted:
-                # null_fill: coalesce may coerce the dtype
-                # dotted: nested field type ≠ struct root type
-                declared = UNDETERMINED
-            else:
-                # Non-dotted ANY with no output-affecting transform → passthrough
-                declared = PASSTHROUGH
+        declared: DeclaredType = _resolve_declared_type(fld, source_name)
 
         emitted.append(EmittedField(
             field=fld,
@@ -363,10 +522,89 @@ def resolve_conform_output(
             renamed=renamed,
         ))
 
+    # --- 4. data_type drift detection + policy (item 48 Task 6) ---
+    #
+    # Canonical-space only: compares MountainashDtype evidence, never
+    # compiles or inspects backend expressions. Dotted (struct) sources are
+    # excluded up front — the struct ROOT's actual dtype is never the same
+    # domain as a nested field's declared type (finding 10). Missing/UNKNOWN
+    # actual-dtype evidence is treated as "cannot assess", not drift — the
+    # honest best-effort-introspection default (R1/R2).
+    from mountainash.conform.drift import ColumnDrift, ConformDrift, TypeDrift
+    from mountainash.core.dtypes import CastSafety, classify_cast
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+
+    type_mismatches: list[TypeDrift] = []
+    row_filter_sources: list[tuple[str, Any]] = []
+    resolved_emitted: list[EmittedField] = []
+    for em in emitted:
+        if "." in em.source_name:
+            resolved_emitted.append(em)
+            continue
+        declared_canon = _declared_canonical(em.field)
+        actual = (actual_dtypes or {}).get(em.source_name)
+        if (
+            declared_canon is None
+            or actual is None
+            or isinstance(actual, SchemaTypeStatus)
+        ):
+            resolved_emitted.append(em)
+            continue
+        if classify_cast(actual, declared_canon) is CastSafety.SAFE:
+            resolved_emitted.append(em)
+            continue
+
+        action = contract.data_type
+        type_mismatches.append(TypeDrift(
+            name=em.field.name, declared=declared_canon, actual=actual,
+            safety=CastSafety.UNSAFE.value, action=action,
+        ))
+        if action == "evolve":
+            em = dataclasses.replace(em, type_action="evolve", effective_type=actual)
+        elif action == "discard_value":
+            em = dataclasses.replace(em, type_action="discard_value")
+        elif action == "discard_row":
+            em = dataclasses.replace(em, type_action="discard_value")
+            row_filter_sources.append((em.source_name, declared_canon))
+        # "coerce" (default) and "freeze" (about to raise) leave em as-is.
+        resolved_emitted.append(em)
+    emitted = resolved_emitted
+
+    if contract.data_type == "freeze" and type_mismatches and raise_on_freeze:
+        _raise_drift(type_mismatches=type_mismatches, node_identity=node_identity)
+
+    # --- 5. Assemble the non-raising drift report ---
+    #
+    # None (not an empty ConformDrift) when nothing was assessed at all —
+    # honest non-assessment mirrors ConformDrift.key_changes' None-vs-[]
+    # distinction. A freeze violation always raises above rather than
+    # reaching here, so a populated drift here never itself represents a
+    # frozen violation.
+    drift: Optional[ConformDrift] = None
+    if available_set is not None or actual_dtypes is not None:
+        node_id, resource_name, spec_name = (
+            node_identity if node_identity is not None else (None, None, None)
+        )
+        drift = ConformDrift(
+            node_id=node_id,
+            resource_name=resource_name,
+            spec_name=spec_name,
+            extra_columns=[
+                ColumnDrift(name=n, action=contract.extra_columns) for n in extra
+            ],
+            missing_columns=[
+                ColumnDrift(name=n, action=contract.missing_columns) for n in missing
+            ],
+            type_mismatches=type_mismatches,
+            key_changes=None,
+        )
+
     return ConformOutputContract(
         fields_match=fields_match,
         emitted=emitted,
         renamed_sources=renamed_sources,
+        drift=drift,
+        row_filter_sources=row_filter_sources,
     )
 
 
@@ -378,6 +616,8 @@ def _build_field_expr(
     field: "FieldSpec",
     source_name: str,
     schema_missing_values: Sequence[str] = (),
+    *,
+    type_action: str = "coerce",
 ) -> Any:
     """Build the conform transform expression (stages 1-6) for one field.
 
@@ -398,12 +638,23 @@ def _build_field_expr(
         schema_missing_values: Schema-level missingValues, threaded so stage
             2's field-level-override-else-schema-level resolution works.
             Defaults to an empty tuple (no schema-level sentinels).
+        type_action: The data_type-dimension policy for this field (item 48
+            Task 6; see ``EmittedField.type_action``). Only stage 5d (the
+            default canonical cast — list/categorical/custom-format-temporal/
+            boolean fields have their own bespoke stage-5 transforms and
+            don't yet consume this) branches on it: ``"coerce"`` (default)
+            casts as today; ``"evolve"`` skips the cast entirely; anything
+            else (``"discard_value"``/``"discard_row"``) casts with
+            null-on-failure.
 
     Returns:
         A backend-agnostic mountainash expression ready to be collected.
     """
     import mountainash as ma
     from mountainash.core.dtypes import MountainashDtype
+    from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+        CaseFailureBehaviour,
+    )
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     fld = field
@@ -596,10 +847,20 @@ def _build_field_expr(
         )
 
     # Stage 5d: DEFAULT TYPE CAST
+    # Branches on type_action (item 48 Task 6 data_type policy): "coerce"
+    # (default) casts as always; "evolve" skips the cast (output keeps the
+    # source/actual type); anything else ("discard_value"/"discard_row")
+    # casts with null-on-failure so unsafe values become null instead of
+    # raising.
     elif fld.type and fld.type != UniversalType.ANY:
         canon = to_canonical(fld.type)
         if canon is not None:
-            expr = expr.cast(canon)
+            if type_action == "coerce":
+                expr = expr.cast(canon)
+            elif type_action == "evolve":
+                pass  # no cast — output keeps the source's actual type
+            else:  # "discard_value" / "discard_row"
+                expr = expr.cast(canon, failure_behavior=CaseFailureBehaviour.NULL)
 
     expr = expr.name.alias(fld.name)
     return expr
@@ -613,6 +874,9 @@ def _build_conform_exprs(
     spec: "TypeSpec",
     *,
     available_columns: Optional[Sequence[str]] = None,
+    actual_dtypes: Optional[Mapping[str, Any]] = None,
+    contract: Optional[ConformContract] = None,
+    node_identity: Optional[tuple] = None,
 ) -> ConformResult:
     """Build the expression list for a TypeSpec conformance projection.
 
@@ -627,6 +891,17 @@ def _build_conform_exprs(
         available_columns: Ordered column names from the source data.
             Required for all ``fieldsMatch`` modes except ``"open"``.
             Sequence order matters for ``"exact"`` (positional mapping).
+        actual_dtypes: Optional ``{column_name: MountainashDtype}`` evidence
+            (item 48 Task 6/7) driving data_type drift detection. Passed
+            through verbatim to :func:`resolve_conform_output`.
+        contract: The resolved :class:`ConformContract` driving the
+            fieldsMatch guard and the data_type/keys policy. ``None`` (the
+            default) derives one internally via ``resolve_contract`` from
+            ``spec.fields_match`` — unchanged behaviour for callers that
+            don't pass an explicit contract (item 48 Task 7).
+        node_identity: Optional ``(node_id, resource_name, spec_name)``
+            pass-through for the ``ConformDrift`` report this call may build
+            or raise. Passed through verbatim to :func:`resolve_conform_output`.
 
     Returns:
         A :class:`ConformResult` containing:
@@ -635,6 +910,12 @@ def _build_conform_exprs(
         - ``renamed_sources`` — set of source column names that were aliased
           to a different target name (used by callers to drop originals in
           ``"open"`` mode)
+        - ``drift`` — the :class:`~mountainash.conform.drift.ConformDrift`
+          assembled during this call, or ``None`` when nothing was assessed
+          (mirrors :attr:`ConformOutputContract.drift`)
+        - ``row_filter_sources`` — ``(source_name, declared_type)`` pairs
+          needing a discard-row predicate (mirrors
+          :attr:`ConformOutputContract.row_filter_sources`)
 
     Raises:
         ConformError: Invalid ``fields_match`` value, or ``available_columns``
@@ -647,6 +928,8 @@ def _build_conform_exprs(
             unmapped columns are present.
         NoMatchingFieldsError: ``fields_match="partial"`` and zero spec
             fields match available columns.
+        SchemaDriftError: A non-preset (``from_preset=False``) contract has
+            a frozen dimension that tripped (item 48 Task 7).
     """
     # Resolve schema-level missingValues once.
     # The Frictionless default is [""] but TypeSpec.missing_values defaults
@@ -657,19 +940,35 @@ def _build_conform_exprs(
     schema_missing_values: list = spec.missing_values or []
 
     # Resolve the structural contract (which fields to emit, source names,
-    # rename tracking, declared types) — pure, no expressions built here.
-    contract = resolve_conform_output(spec, available_columns=available_columns)
+    # rename tracking, declared types, data_type drift/policy) — pure, no
+    # expressions built here. Named `output_contract` (not `contract`) to
+    # keep the ConformOutputContract distinct from the ConformContract
+    # parameter above — the two types share a name-root but are not
+    # interchangeable.
+    output_contract = resolve_conform_output(
+        spec,
+        available_columns=available_columns,
+        actual_dtypes=actual_dtypes,
+        contract=contract,
+        node_identity=node_identity,
+    )
 
-    # Build one expression per emitted field.
+    # Build one expression per emitted field. em.type_action (item 48 Task 6)
+    # drives stage 5d's cast-vs-skip-vs-null-on-failure branch; it is
+    # "coerce" (the pre-Task-6 default) unless actual_dtypes/contract
+    # evidence produced a data_type policy override above.
     exprs: list[Any] = []
-    for em in contract.emitted:
+    for em in output_contract.emitted:
         expr = _build_field_expr(
-            em.field, em.source_name, schema_missing_values
+            em.field, em.source_name, schema_missing_values,
+            type_action=em.type_action,
         )
         exprs.append(expr)
 
     return ConformResult(
         exprs=exprs,
-        fields_match=contract.fields_match,
-        renamed_sources=contract.renamed_sources,
+        fields_match=output_contract.fields_match,
+        renamed_sources=output_contract.renamed_sources,
+        drift=output_contract.drift,
+        row_filter_sources=output_contract.row_filter_sources,
     )

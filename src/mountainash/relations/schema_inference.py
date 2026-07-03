@@ -9,7 +9,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Callable, Optional
 
+from mountainash.conform.contract import resolve_contract
 from mountainash.conform.expressions import (
+    _VALID_FIELDS_MATCH,
     PASSTHROUGH,
     UNDETERMINED,
     resolve_conform_output,
@@ -117,15 +119,17 @@ def _measure_output_name(measure_expr: Any) -> Optional[str]:
     return _leftmost_source_name(measure_expr)
 
 
-def _canon(native: Any) -> MountainashDtype | SchemaTypeStatus:
-    """Map a native (polars) dtype to a canonical MountainashDtype or status.
+def _canon(
+    native: Any, target: TypeTarget = TypeTarget.POLARS
+) -> MountainashDtype | SchemaTypeStatus:
+    """Map a native dtype to a canonical MountainashDtype or status.
 
     ``None`` from the registry means the native is explicitly untyped
     (UNCONSTRAINED); an unrecognized native degrades to UNKNOWN rather than
     raising, since inference is best-effort.
     """
     try:
-        canon = registry.from_native(native, target=TypeTarget.POLARS)
+        canon = registry.from_native(native, target=target)
     except UnknownDtypeError:
         return SchemaTypeStatus.UNKNOWN
     return SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
@@ -136,11 +140,14 @@ def _schema_from_dataframe(
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Extract canonical schema from a native dataframe.
 
-    Supports Polars DataFrame/LazyFrame. Native dtypes are mapped through the
-    dtype registry (POLARS target) to canonical ``MountainashDtype`` values, or
-    a ``SchemaTypeStatus`` for typeless/unrecognized natives. Returns {} for
-    unrecognized dataframe types. Isolated for future refinement (narwhals,
-    pandas, etc.).
+    Supports Polars DataFrame/LazyFrame, Ibis tables, and pandas DataFrame.
+    Native dtypes are mapped through the dtype registry (per-backend target)
+    to canonical ``MountainashDtype`` values, or a ``SchemaTypeStatus`` for
+    typeless/unrecognized natives. Returns {} for unrecognized dataframe
+    types (or a genuinely zero-column recognized dataframe). Never raises —
+    introspection is always best-effort; an unmappable dtype degrades that
+    one column to ``SchemaTypeStatus.UNKNOWN`` rather than aborting the
+    whole extraction.
     """
     if hasattr(df, "collect_schema"):
         polars_schema = df.collect_schema()
@@ -149,11 +156,35 @@ def _schema_from_dataframe(
     if hasattr(df, "schema") and not callable(df.schema):
         return {name: _canon(dtype) for name, dtype in dict(df.schema).items()}
     if hasattr(df, "schema") and callable(df.schema):
+        # Ibis table: `.schema()` returns an ibis.Schema (dict-like of
+        # name -> ibis dtype). Ibis dtype reprs ("string", "!int64") don't
+        # match the Polars target's class-name keys ("String", "Int64"), so
+        # this must resolve through TypeTarget.IBIS specifically — passing
+        # the `_canon` default (POLARS) here degraded every Ibis column to
+        # UNKNOWN regardless of its actual type (item 48 Task 7 fix).
         schema_obj = df.schema()
         if hasattr(schema_obj, "items"):
             return {
-                name: _canon(dtype) for name, dtype in dict(schema_obj).items()
+                name: _canon(dtype, target=TypeTarget.IBIS)
+                for name, dtype in dict(schema_obj).items()
             }
+    if hasattr(df, "dtypes"):
+        # pandas DataFrame: `.dtypes` is a Series mapping column -> dtype.
+        # Wrapped in a broad try/except (not just UnknownDtypeError) because
+        # `dict(df.dtypes)` itself, or an exotic extension dtype's __str__,
+        # could misbehave on inputs the pandas target module hasn't seen —
+        # introspection must never raise, only degrade to UNKNOWN.
+        result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+        try:
+            items = dict(df.dtypes).items()
+        except Exception:
+            return {}
+        for name, dtype in items:
+            try:
+                result[name] = _canon(dtype, target=TypeTarget.PANDAS)
+            except Exception:
+                result[name] = SchemaTypeStatus.UNKNOWN
+        return result
     return {}
 
 
@@ -193,11 +224,20 @@ def infer_schema(
     ref_resolver: Optional[
         Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
     ] = None,
+    *,
+    _drifts: Optional[list] = None,
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Walk a RelationNode tree and return {column_name: type} without compilation.
 
     Values are canonical ``MountainashDtype`` where inferable, or a
     ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+
+    ``_drifts`` is a private accumulator (item 48 Task 9): when a caller
+    passes a list, every ``ConformRelNode`` encountered during the walk
+    appends its assessed :class:`~mountainash.conform.drift.ConformDrift`
+    (if any) to it, in traversal order — this is how
+    :func:`assess_drift` shares this exact walk without a second traversal.
+    Public callers never pass this; it defaults to ``None`` (no collection).
     """
     from mountainash.relations.core.relation_nodes.substrait import (
         ReadRelNode,
@@ -237,31 +277,61 @@ def infer_schema(
 
     # --- Pass-through nodes ---
     if isinstance(node, (FilterRelNode, SortRelNode, FetchRelNode)):
-        return infer_schema(node.input, ref_resolver)
+        return infer_schema(node.input, ref_resolver, _drifts=_drifts)
 
     # --- Reshaping nodes ---
     if isinstance(node, ProjectRelNode):
-        return _infer_project_schema(node, ref_resolver)
+        return _infer_project_schema(node, ref_resolver, _drifts=_drifts)
 
     if isinstance(node, AggregateRelNode):
-        return _infer_aggregate_schema(node, ref_resolver)
+        return _infer_aggregate_schema(node, ref_resolver, _drifts=_drifts)
 
     if isinstance(node, JoinRelNode):
-        return _infer_join_schema(node, ref_resolver)
+        return _infer_join_schema(node, ref_resolver, _drifts=_drifts)
 
     if isinstance(node, SetRelNode):
         if node.inputs:
-            return infer_schema(node.inputs[0], ref_resolver)
+            return infer_schema(node.inputs[0], ref_resolver, _drifts=_drifts)
         return {}
 
     if isinstance(node, ConformRelNode):
-        input_schema = infer_schema(node.input, ref_resolver)
+        input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
         spec = node.spec
         if isinstance(spec, dict):
             spec = typespec_from_frictionless(spec)
-        contract = resolve_conform_output(
-            spec, available_columns=list(input_schema.keys())
+
+        # Resolve the same contract layering apply_conform() honours
+        # (TypeSpec.contract <- ConformRelNode.contract override) so build-time
+        # inference/assessment agrees with execute-time policy (item 48 Task
+        # 9 parity fix — previously this branch silently ignored both
+        # layers). An invalid fields_match is left for resolve_conform_output
+        # itself to raise its typed ConformError below (resolve_contract's
+        # own bare-KeyError-on-unknown-preset behaviour is a pinned
+        # invariant we must not trigger directly — see
+        # UnifiedRelationVisitor.apply_conform's identical guard).
+        fields_match = spec.fields_match if spec.fields_match is not None else "open"
+        resolved_contract = (
+            resolve_contract(
+                fields_match,
+                spec_contract=getattr(spec, "contract", None),
+                override=node.contract,
+            )
+            if fields_match in _VALID_FIELDS_MATCH
+            else None
         )
+
+        node_id = f"conform:{len(_drifts)}" if _drifts is not None else None
+        contract = resolve_conform_output(
+            spec,
+            available_columns=list(input_schema.keys()),
+            actual_dtypes=input_schema,
+            contract=resolved_contract,
+            node_identity=(node_id, None, getattr(spec, "name", None)),
+            raise_on_freeze=False,
+        )
+        if _drifts is not None and contract.drift is not None:
+            _drifts.append(contract.drift)
+
         emitted = {
             em.field.name: _declared_dtype_for_infer(em, input_schema)
             for em in contract.emitted
@@ -275,9 +345,40 @@ def infer_schema(
         return emitted  # select modes → projection only
 
     if isinstance(node, ExtensionRelNode):
-        return infer_schema(node.input, ref_resolver)
+        return infer_schema(node.input, ref_resolver, _drifts=_drifts)
 
     return {}
+
+
+def assess_drift(
+    node: Any,
+    ref_resolver: Optional[
+        Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
+    ] = None,
+) -> list:
+    """Schema-only pre-flight: assess drift at every ``ConformRelNode`` in the plan.
+
+    Shares :func:`infer_schema`'s exact AST walk (via the private ``_drifts``
+    accumulator) so every ``ConformRelNode`` anywhere in the tree — nested
+    under filters, sorts, projects, aggregates, joins, sets, extensions — is
+    visited in the same depth-first order the execute-time visitor uses for
+    ``UnifiedRelationVisitor.drift_reports`` (children before the node that
+    consumes them; left before right for joins).
+
+    Drift assembly runs with policy enforcement (raising/filtering) disabled
+    (``raise_on_freeze=False``) — a ``freeze``-configured node is still
+    reported here, never raised. This function never raises
+    ``SchemaDriftError``, never compiles, and never touches a backend.
+
+    Returns:
+        A list of :class:`~mountainash.conform.drift.ConformDrift`, one per
+        conform node with assessable evidence, in traversal order. A node
+        with no available columns and no actual-dtype evidence contributes
+        nothing (honest non-assessment).
+    """
+    drifts: list = []
+    infer_schema(node, ref_resolver, _drifts=drifts)
+    return drifts
 
 
 def _declared_dtype_for_infer(
@@ -286,6 +387,12 @@ def _declared_dtype_for_infer(
 ) -> MountainashDtype | SchemaTypeStatus:
     """Resolve an EmittedField's declared_type against an upstream schema.
 
+    - ``type_action == "evolve"`` (item 48 Task 9, R2) → the output keeps the
+      source's actual type: ``em.effective_type`` when the data_type drift
+      loop resolved a concrete dtype, else ``UNKNOWN`` (evidence was
+      unknowable — honest non-assessment, not a guess). This check runs
+      first because "evolve" overrides whatever ``declared_type`` would
+      otherwise resolve to.
     - Concrete :class:`MountainashDtype` → returned as-is.
     - ``PASSTHROUGH`` → look up ``em.source_name`` in ``input_schema`` (UNKNOWN
       if absent — e.g. dotted struct child where the root is present but the
@@ -293,6 +400,12 @@ def _declared_dtype_for_infer(
     - ``UNDETERMINED`` → ``SchemaTypeStatus.UNKNOWN`` (cannot be predicted
       pre-compile; e.g. ANY + null_fill, dotted ANY, non-Polars categorical).
     """
+    if em.type_action == "evolve":
+        return (
+            em.effective_type
+            if em.effective_type is not None
+            else SchemaTypeStatus.UNKNOWN
+        )
     dt = em.declared_type
     if dt is PASSTHROUGH:
         return input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
@@ -333,12 +446,12 @@ def _schema_from_source_data(
 
 
 def _infer_project_schema(
-    node: Any, ref_resolver: Any
+    node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for ProjectRelNode based on its operation type."""
     from mountainash.core.constants import ProjectOperation
 
-    input_schema = infer_schema(node.input, ref_resolver)
+    input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
 
     if node.operation == ProjectOperation.RENAME:
         mapping = node.rename_mapping or {}
@@ -374,10 +487,10 @@ def _infer_project_schema(
 
 
 def _infer_aggregate_schema(
-    node: Any, ref_resolver: Any
+    node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for AggregateRelNode: group keys + measure aliases."""
-    input_schema = infer_schema(node.input, ref_resolver)
+    input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
     result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
 
     for key_expr in node.keys:
@@ -400,13 +513,13 @@ def _infer_aggregate_schema(
 
 
 def _infer_join_schema(
-    node: Any, ref_resolver: Any
+    node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for JoinRelNode: left + right with suffix and key dedup."""
     from mountainash.core.constants import JoinType
 
-    left_schema = infer_schema(node.left, ref_resolver)
-    right_schema = infer_schema(node.right, ref_resolver)
+    left_schema = infer_schema(node.left, ref_resolver, _drifts=_drifts)
+    right_schema = infer_schema(node.right, ref_resolver, _drifts=_drifts)
 
     if node.join_type in (JoinType.SEMI, JoinType.ANTI):
         return left_schema

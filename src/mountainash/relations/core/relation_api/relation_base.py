@@ -30,15 +30,41 @@ class RelationBase:
 
     def _compile_and_execute(self) -> Any:
         """Compile the relational AST and execute via the detected backend."""
+        result, _visitor = self._compile_and_execute_with_visitor()
+        return result
+
+    def _compile_and_execute_with_visitor(
+        self, backend: "str | None" = None
+    ) -> "tuple[Any, UnifiedRelationVisitor]":
+        """Compile the relational AST and return ``(result, visitor)``.
+
+        Factored out of :meth:`_compile_and_execute` (whose existing callers
+        are unaffected -- it now delegates here and discards the visitor) so
+        terminals needing post-compile visitor state -- e.g.
+        ``Relation.collect_with_drift()``'s ``visitor.drift_reports`` -- can
+        retrieve it without a second compilation pass.
+
+        Args:
+            backend: Optional explicit backend name (``"polars"``, ``"ibis"``,
+                ...), overriding auto-detection from the plan's leaf
+                ``ReadRelNode``. ``None`` (default) preserves the existing
+                auto-detect behaviour.
+        """
         node = self._apply_optimisations(self._node)
-        backend = self._detect_backend_from(node)
-        relation_system_cls = get_relation_system(backend)
+        if backend is not None:
+            try:
+                resolved_backend = CONST_BACKEND(backend.lower())
+            except ValueError:
+                raise ValueError(f"unknown backend: {backend!r}")
+        else:
+            resolved_backend = self._detect_backend_from(node)
+        relation_system_cls = get_relation_system(resolved_backend)
         relation_system = relation_system_cls()
-        expression_system_cls = get_expression_system(backend)
+        expression_system_cls = get_expression_system(resolved_backend)
         expression_system = expression_system_cls()
         expr_visitor = UnifiedExpressionVisitor(expression_system)
         visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
-        return visitor.visit(node)
+        return visitor.visit(node), visitor
 
     def _apply_optimisations(self, node: RelationNode) -> RelationNode:
         """Apply registered optimisation passes if the tree contains relevant nodes."""
