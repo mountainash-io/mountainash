@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import narwhals as nw
+
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
 
 
-class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSystemProtocol):
+class MountainashNarwhalsExtensionRelationSystem(
+    MountainashExtensionRelationSystemProtocol[nw.DataFrame | nw.LazyFrame]
+):
     """Mountainash-specific relation operations on Narwhals DataFrames."""
 
     def drop_nulls(
@@ -23,6 +27,7 @@ class MountainashNarwhalsExtensionRelationSystem(MountainashExtensionRelationSys
         self, relation: Any, /, *, subset: Optional[list[str]] = None
     ) -> Any:
         import narwhals as nw
+
         if subset is None:
             schema = relation.schema
             subset = [

@@ -11,7 +11,9 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 
 
-class SubstraitNarwhalsSetRelationSystem(SubstraitSetRelationSystemProtocol):
+class SubstraitNarwhalsSetRelationSystem(
+    SubstraitSetRelationSystemProtocol[nw.DataFrame | nw.LazyFrame]
+):
     """Set operations on Narwhals DataFrames."""
 
     def union_all(self, relations: list[Any], /) -> Any:
