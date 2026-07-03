@@ -4,49 +4,51 @@ from __future__ import annotations
 
 from typing import Any, Optional, Protocol
 
+from mountainash.core.types import RelationT
 
-class MountainashExtensionRelationSystemProtocol(Protocol):
+
+class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
     """Contract for Mountainash-specific relation operations."""
 
-    def drop_nulls(self, relation: Any, /, *, subset: Optional[list[str]] = None) -> Any: ...
+    def drop_nulls(self, relation: RelationT, /, *, subset: Optional[list[str]] = None) -> RelationT: ...
 
-    def drop_nans(self, relation: Any, /, *, subset: Optional[list[str]] = None) -> Any: ...
+    def drop_nans(self, relation: RelationT, /, *, subset: Optional[list[str]] = None) -> RelationT: ...
 
-    def with_row_index(self, relation: Any, /, *, name: str = "index") -> Any: ...
+    def with_row_index(self, relation: RelationT, /, *, name: str = "index") -> RelationT: ...
 
-    def explode(self, relation: Any, /, *, columns: list[str]) -> Any: ...
+    def explode(self, relation: RelationT, /, *, columns: list[str]) -> RelationT: ...
 
     def sample(
-        self, relation: Any, /, *, n: Optional[int] = None, fraction: Optional[float] = None
-    ) -> Any: ...
+        self, relation: RelationT, /, *, n: Optional[int] = None, fraction: Optional[float] = None
+    ) -> RelationT: ...
 
     def unpivot(
         self,
-        relation: Any,
+        relation: RelationT,
         /,
         *,
         on: list[str],
         index: Optional[list[str]] = None,
         variable_name: str = "variable",
         value_name: str = "value",
-    ) -> Any: ...
+    ) -> RelationT: ...
 
     def pivot(
         self,
-        relation: Any,
+        relation: RelationT,
         /,
         *,
         on: str,
         index: Optional[list[str]] = None,
         values: Optional[str] = None,
         aggregate_function: str = "first",
-    ) -> Any: ...
+    ) -> RelationT: ...
 
-    def top_k(self, relation: Any, /, *, k: int, by: str, descending: bool = True) -> Any: ...
+    def top_k(self, relation: RelationT, /, *, k: int, by: str, descending: bool = True) -> RelationT: ...
 
-    def unnest(self, relation: Any, /, *, columns: list[str], separator: str) -> Any: ...
+    def unnest(self, relation: RelationT, /, *, columns: list[str], separator: str) -> RelationT: ...
 
-    def read_resource(self, resource: Any) -> Any:
+    def read_resource(self, resource: Any) -> RelationT:
         """Load a DataResource into the backend's native relation type.
 
         Called by the unified visitor for ResourceReadRelNode materialisation.
@@ -54,7 +56,7 @@ class MountainashExtensionRelationSystemProtocol(Protocol):
         """
         ...
 
-    def empty_frame(self, spec: Any) -> Any:
+    def empty_frame(self, spec: Any) -> RelationT:
         """Build a typed-empty (0, N) native frame from a TypeSpec.
 
         Used by the resource-read path to materialise a zero-row resource
