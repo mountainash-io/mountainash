@@ -31,7 +31,7 @@ from fixtures.backend_registry import ALL_BACKENDS
 
 # Backends that compile conform's cast expressions through the Narwhals
 # ExpressionSystem (plain "pandas" DataFrames share this route — see
-# expsys_base.py CONST_VISITOR_BACKENDS.PANDAS routing) and therefore hit
+# expsys_base.py CONST_BACKEND.PANDAS routing) and therefore hit
 # the same "Narwhals Expr.cast has no strict/failure-behavior parameter"
 # capability gap as tests/expressions/cross_backend/test_cast.py.
 _NARWHALS_ROUTED_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}

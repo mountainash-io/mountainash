@@ -10,7 +10,7 @@ from typing import Any
 import narwhals as nw
 
 from mountainash.core.types import KnownLimitation
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
@@ -113,9 +113,9 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     }
 
     @property
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
+    def backend_type(self) -> CONST_BACKEND:
         """Return the Narwhals backend type identifier."""
-        return CONST_VISITOR_BACKENDS.NARWHALS
+        return CONST_BACKEND.NARWHALS
 
     def is_native_expression(self, expr: Any) -> bool:
         """Check if the expression is a native Narwhals expression.

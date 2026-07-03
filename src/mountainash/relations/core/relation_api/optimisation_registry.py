@@ -8,23 +8,24 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-_PASSES: list[tuple[type, Callable[[Any], Any]]] = []
-_NODE_TYPES: set[type] = set()
+from mountainash.core.registries import KeyedRegistry
+
+_passes: KeyedRegistry[type, Callable[[Any], Any]] = KeyedRegistry(
+    "optimisation pass", multi=True
+)
 
 
 def register_optimisation(node_type: type, transform_fn: Callable[[Any], Any]) -> None:
-    _PASSES.append((node_type, transform_fn))
-    _NODE_TYPES.add(node_type)
+    _passes.register(node_type, transform_fn)
 
 
 def get_registered_node_types() -> set[type]:
-    return _NODE_TYPES.copy()
+    return set(_passes.list_keys())
 
 
 def get_passes() -> list[tuple[type, Callable[[Any], Any]]]:
-    return list(_PASSES)
+    return _passes.entries()
 
 
 def _reset_registry() -> None:
-    _PASSES.clear()
-    _NODE_TYPES.clear()
+    _passes.reset()

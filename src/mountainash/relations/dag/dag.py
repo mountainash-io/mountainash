@@ -247,9 +247,7 @@ class RelationDAG:
             from mountainash.relations.core.relation_api.relation_base import (
                 RelationBase,
             )
-            from mountainash.expressions.core.expression_system.expsys_base import (
-                identify_backend,
-            )
+            from mountainash.core.backend_detection import identify_backend
             try:
                 leaf = RelationBase._find_leaf_read_node(node)
                 if leaf is not None:
@@ -471,9 +469,7 @@ class RelationDAG:
         from mountainash.relations.core.relation_api.relation_base import (
             RelationBase,
         )
-        from mountainash.expressions.core.expression_system.expsys_base import (
-            identify_backend,
-        )
+        from mountainash.core.backend_detection import identify_backend
         from mountainash.relations.dag.errors import RelationDAGRequired
 
         order = self.topological_order(target=target_name)

@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+    from mountainash.expressions.core.constants import CONST_BACKEND
     from mountainash.core.types import KnownLimitation
 
 
@@ -23,7 +23,7 @@ class BaseExpressionSystem(ABC):
 
     @property
     @abstractmethod
-    def backend_type(self) -> "CONST_VISITOR_BACKENDS":
+    def backend_type(self) -> "CONST_BACKEND":
         """Return the backend type identifier."""
         ...
 

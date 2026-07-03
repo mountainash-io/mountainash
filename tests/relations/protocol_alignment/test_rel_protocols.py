@@ -200,12 +200,19 @@ class TestRelationSystemRegistry:
     """Test register / get lifecycle."""
 
     def setup_method(self):
-        # Snapshot and restore registry around each test
-        self._snapshot = dict(_relation_system_registry)
+        # Snapshot current registry state (before clearing for test)
+        self._snapshot = {key: _relation_system_registry.get(key) for key in _relation_system_registry.list_keys()}
+        # Clear registry for clean test state
+        for key in _relation_system_registry.list_keys():
+            _relation_system_registry.unregister(key)
 
     def teardown_method(self):
-        _relation_system_registry.clear()
-        _relation_system_registry.update(self._snapshot)
+        # Unregister all test entries
+        for key in _relation_system_registry.list_keys():
+            _relation_system_registry.unregister(key)
+        # Restore original entries
+        for key, value in self._snapshot.items():
+            _relation_system_registry.register(key, value)
 
     def test_register_and_retrieve(self):
         register_relation_system(CONST_BACKEND.POLARS)(_DummyRelationSystem)

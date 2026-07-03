@@ -10,7 +10,7 @@ from typing import Any
 import polars as pl
 
 from mountainash.core.types import KnownLimitation
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
@@ -86,9 +86,9 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
     }
 
     @property
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
+    def backend_type(self) -> CONST_BACKEND:
         """Return the Polars backend type identifier."""
-        return CONST_VISITOR_BACKENDS.POLARS
+        return CONST_BACKEND.POLARS
 
     def is_native_expression(self, expr: Any) -> bool:
         """Check if the expression is a native Polars expression.

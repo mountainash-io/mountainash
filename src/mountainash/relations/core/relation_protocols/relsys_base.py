@@ -10,9 +10,10 @@ Mirrors the pattern in ``mountainash.expressions.core.expression_system.expsys_b
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Dict, Type
+from typing import Type
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.registries import KeyedRegistry
 
 # Import all protocols used for class inheritance (must be at runtime)
 from .relation_systems.substrait import (
@@ -57,7 +58,9 @@ class RelationSystem(
 # Registry
 # ---------------------------------------------------------------------------
 
-_relation_system_registry: Dict[str, Type[RelationSystem]] = {}
+_relation_system_registry: KeyedRegistry[str, Type[RelationSystem]] = KeyedRegistry(
+    "RelationSystem"
+)
 
 
 def register_relation_system(backend: CONST_BACKEND):
@@ -69,12 +72,7 @@ def register_relation_system(backend: CONST_BACKEND):
         class PolarsRelationSystem(RelationSystem):
             ...
     """
-
-    def decorator(cls: Type[RelationSystem]) -> Type[RelationSystem]:
-        _relation_system_registry[backend.value] = cls
-        return cls
-
-    return decorator
+    return _relation_system_registry.decorator(backend.value)
 
 
 def get_relation_system(backend: CONST_BACKEND) -> Type[RelationSystem]:
@@ -83,9 +81,4 @@ def get_relation_system(backend: CONST_BACKEND) -> Type[RelationSystem]:
     Raises:
         KeyError: If no RelationSystem is registered for the backend.
     """
-    if backend.value not in _relation_system_registry:
-        raise KeyError(
-            f"No RelationSystem registered for backend '{backend.value}'. "
-            f"Registered: {list(_relation_system_registry.keys())}"
-        )
-    return _relation_system_registry[backend.value]
+    return _relation_system_registry.get(backend.value)

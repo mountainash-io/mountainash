@@ -71,9 +71,6 @@ def backend_to_system(backend: CONST_BACKEND) -> CONST_BACKEND_SYSTEM:
     return mapping[backend]
 
 
-# Backwards-compat alias for expressions code
-CONST_VISITOR_BACKENDS = CONST_BACKEND
-
 class CONST_LOGIC_TYPES(Enum):
     """
     Enumeration for different logic systems.

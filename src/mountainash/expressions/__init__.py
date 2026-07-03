@@ -53,7 +53,6 @@ from .core.expression_api.entrypoints import (
 # Core constants
 # ========================================
 from .core.constants import (
-    CONST_VISITOR_BACKENDS,
     CONST_LOGIC_TYPES,
     CONST_EXPRESSION_NODE_TYPES,
 )
@@ -140,7 +139,6 @@ __all__ = [
     "now",
 
     # Constants
-    "CONST_VISITOR_BACKENDS",
     "CONST_LOGIC_TYPES",
     "CONST_EXPRESSION_NODE_TYPES",
 ]

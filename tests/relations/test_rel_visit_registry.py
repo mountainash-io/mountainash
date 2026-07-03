@@ -7,17 +7,20 @@ from mountainash.relations.core.unified_visitor.visit_registry import (
     _PROTECTED_NODE_TYPES,
     _protect,
 )
+from mountainash.relations.core.unified_visitor import visit_registry as vr
 
 
 @pytest.fixture(autouse=True)
 def _snapshot_registry():
     """Snapshot registry before test, restore after."""
-    snapshot = dict(RelationVisitRegistry._handlers)
-    was_initialized = RelationVisitRegistry._initialized
+    snapshot = dict(vr._registry._store)
+    entries = list(vr._registry._entries)
+    was_initialized = vr._registry._initialized
     yield
-    RelationVisitRegistry._handlers.clear()
-    RelationVisitRegistry._handlers.update(snapshot)
-    RelationVisitRegistry._initialized = was_initialized
+    vr._registry._store.clear()
+    vr._registry._store.update(snapshot)
+    vr._registry._entries[:] = entries
+    vr._registry._initialized = was_initialized
 
 
 class _FakeNode:
