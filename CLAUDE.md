@@ -2,26 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-### Code Intelligence
-
-Prefer LSP over Grep/Glob/Read for code navigation:
-- `goToDefinition` / `goToImplementation` to jump to source
-- `findReferences` to see all usages across the codebase
-- `workspaceSymbol` to find where something is defined
-- `documentSymbol` to list all symbols in a file
-- `hover` for type info without reading the file
-- `incomingCalls` / `outgoingCalls` for call hierarchy
-
-Before renaming or changing a function signature, use
-`findReferences` to find all call sites first.
-
-Use Grep/Glob only for text/pattern searches (comments,
-strings, config values) where LSP doesn't help.
-
-After writing or editing code, check LSP diagnostics before
-moving on. Fix any type errors or missing imports immediately.
-
-
 ## Superpowers Specs & Plans Location
 
 Save all superpowers specs and plans to the **mountainash-central** repo, not this repo:
@@ -197,12 +177,6 @@ For detailed file organisation see principle: `f.development-practices/file-orga
 
 ## Dependencies
 
-**IMPORTANT:** Using **local Ibis fork** with Polars calendar interval fix:
-
-```toml
-ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "sqlite", "duckdb"] }
-```
-
 All other dependencies are in `pyproject.toml`.
 
 **Workspace dependency for DataPackage I/O:** `mountainash-transport` (sibling package, optional `storage` extra) provides `StorageFacade` used by `core/io.py` to load remote `DataResource` paths. `core.io.is_remote()` delegates to the facade's scheme registry for auto-detection; `core.io.facade_read_bytes()` calls `StorageFacade.from_path()`. Local paths bypass the facade and use Polars directly. The import is lazy so a local-only test run never touches `mountainash_transport`.
@@ -210,133 +184,38 @@ All other dependencies are in `pyproject.toml`.
 
 ## Development Commands
 
+**Run TARGETED tests only — never the full suite.** The mountainash suite is
+enormous (~3000+ tests across three backends); running it per task or per review
+wastes minutes and huge token/compute budgets. During development — and in every
+subagent dispatch — scope tests to the file(s) the change touches with
+`hatch run test:test-target-quick <path>` (or `test-target` when you need
+coverage). The full `hatch run test:test` is reserved for CI and, at most, a
+single pre-merge gate on the whole branch — it is never a per-task or per-review
+command. If a change's blast radius is genuinely wider than one file, name the
+specific affected test files/dirs, not the whole suite.
+
 ```bash
 # Testing
-hatch run test:test                  # Full suite with coverage
-hatch run test:test-quick            # Fast iteration (no coverage)
-hatch run test:test-target <path>    # Specific file or test
-hatch run test:test-target-quick <path>  # Specific, no coverage
+hatch run test:test-target <path>    # Specific file or test  ← default during development
+hatch run test:test-target-quick <path>  # Specific, no coverage  ← default during development
 
 # Linting & type checking
 hatch run ruff:check                 # Check for issues
 hatch run ruff:fix                   # Auto-fix issues
-hatch run mypy:check                 # Type safety validation
 
 # Building
-hatch build
+# hatch build
 
-# Upstream issue reconciliation
-python scripts/audit_upstream_issues.py --skip-github                          # Local cross-reference only
-python scripts/audit_upstream_issues.py --report-file scripts/outputs/reconciliation-report.md  # Full audit with GitHub checks
-python scripts/validate_upstream_registry.py                                   # Validate YAML schema
+# # Upstream issue reconciliation
+# python scripts/audit_upstream_issues.py --skip-github                          # Local cross-reference only
+# python scripts/audit_upstream_issues.py --report-file scripts/outputs/reconciliation-report.md  # Full audit with GitHub checks
+# python scripts/validate_upstream_registry.py                                   # Validate YAML schema
 
-# Drift guard xfail report
-python scripts/report_drift_guards.py                                                     # Terminal summary
-python scripts/report_drift_guards.py --report-file scripts/outputs/drift-guards-report.md  # Save to file
+# # Drift guard xfail report
+# python scripts/report_drift_guards.py                                                     # Terminal summary
+# python scripts/report_drift_guards.py --report-file scripts/outputs/drift-guards-report.md  # Save to file
 ```
 
-
-## Import Paths
-
-```python
-# Public API (both work identically)
-import mountainash as ma                    # Canonical
-from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
-
-# Relations API
-from mountainash import relation, concat    # or ma.relation(df), ma.concat([r1, r2])
-
-# Data Package + Relation DAG (Frictionless integration)
-from mountainash import (
-    DataPackage, DataResource, TableDialect,    # Frictionless metadata types
-    RelationDAG, ResourceRef,                    # DAG orchestrator + resource wrapper
-)
-
-# Constants (shared core)
-from mountainash.core.constants import (
-    CONST_BACKEND, CONST_BACKEND_SYSTEM,    # Backend detection + routing enums
-    ProjectOperation, JoinType, SetType,     # Relational AST enums
-    SortField, ExecutionTarget,              # Relational supporting types
-)
-
-# Function key enums (expressions)
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    KEY_SCALAR_COMPARISON, KEY_SCALAR_BOOLEAN, MOUNTAINASH_TERNARY,
-)
-
-# Expression nodes
-from mountainash.expressions.core.expression_nodes.substrait import (
-    ScalarFunctionNode, FieldReferenceNode, LiteralNode,
-)
-
-# Relation nodes
-from mountainash.relations.core.relation_nodes import (
-    ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
-    FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode, ExtensionRelNode,
-)
-```
-
-## Relations Architecture
-
-The `mountainash.relations` module provides a Substrait-aligned relational AST. It mirrors the expressions architecture:
-
-**Build phase** (backend-agnostic):
-```python
-r = ma.relation(df).filter(ma.col("age").gt(30)).sort("name").head(10)
-# Builds: FetchRelNode → SortRelNode → FilterRelNode → ReadRelNode
-```
-
-**Compile phase** (terminal operations trigger visitor):
-```python
-result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
-```
-
-**Key concepts:**
-- 10 node types mapping to Substrait logical relations
-- UnifiedRelationVisitor composes with UnifiedExpressionVisitor for embedded expressions
-- 3 backends: Polars (LazyFrame-based), Narwhals (pandas/PyArrow), Ibis (SQL)
-- Cross-type joins: `relation(polars_df).join(pandas_df, on="id")` — automatic coercion
-- `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
-- **Conform** is a relation method: `ma.relation(df).conform(spec).to_polars()` — builds a `ProjectRelNode` from TypeSpec fields, cross-backend automatic
-
-**Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-03-28-relational-ast-design.md`
-
-### Relation DAG (Frictionless Data Package integration)
-
-Named relations can be grouped into a `RelationDAG` that lets one relation reference another via `dag.ref(name)`. The DAG holds two distinct edge sets: `dependency_edges` (drive `collect()` execution order) and `constraint_edges` (foreign-key metadata, never executed). `dag.collect(name)` topologically walks dependencies, materialises each upstream once into a per-call cache, then compiles the target via the existing `UnifiedRelationVisitor` with a `ref_resolver` closing over that cache.
-
-A `DataPackage` (Frictionless multi-resource container) bridges in both directions:
-
-```python
-import mountainash as ma
-
-# Read a Frictionless descriptor → DAG → collect a resource
-pkg = ma.DataPackage.from_descriptor("datapackage.json")
-dag = pkg.to_relation_dag()
-df  = dag.collect("orders")
-
-# Override a single resource for testing
-dag = pkg.to_relation_dag(overrides={"orders": local_df})
-
-# Build extra named relations on top
-dag.add(
-    "active_orders",
-    dag.ref("orders").filter(ma.col("status").eq("active"))
-)
-
-# Reverse direction — export the DAG back to a descriptor
-pkg2 = dag.to_package()
-pkg2.write("./out/datapackage.json")
-```
-
-**Architectural notes:**
-- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/dag/relation-dag-orchestrator.md`.
-- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/typespec/lossless-frictionless-storage.md`.
-- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/dag/two-edge-graph-model.md`.
-- Conform is cross-backend since the relation-native redesign (2026-05-15). The only known limitation is Ibis coalesce type strictness when `null_fill` mixes string columns with numeric literals.
-
-**Spec:** `mountainash-central/04.planning/mountainash/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`
-**Plan:** `mountainash-central/04.planning/mountainash/superpowers/plans/2026-04-07-frictionless-datapackage.md`
 
 
 ## Documentation Corpora
