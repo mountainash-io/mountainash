@@ -115,19 +115,55 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         return result
 
     def read_resource(self, resource: Any) -> ir.Table:
-        """Load a DataResource via Polars, then coerce to Ibis memtable."""
+        """Load a DataResource into an Ibis table. Native engine reads for local
+        plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
+        for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
+        with the other backends (spec §A.6)."""
+        if resource.data is not None:
+            from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+                MountainashPolarsExtensionRelationSystem,
+            )
+            lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
+            return ibis.memtable(lf.collect().to_arrow())
+
+        fmt = self._detect_format_name(resource)
+        raw_path = resource.path
+        paths = raw_path if isinstance(raw_path, list) else [raw_path]
+
+        from mountainash.core.io import is_remote
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        all_local = all(not is_remote(p) for p in paths)
+        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
+        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
+        con = ibis.get_backend()
+        # NATIVE only for local plain CSV/Parquet. CSV also requires a default
+        # dialect (con.read_csv ignores our dialect). JSON is fallback-routed
+        # for parity even though con.read_json exists.
+        native = {"csv": "read_csv", "parquet": "read_parquet"}.get(fmt)
+        native_ok = (
+            all_local and no_glob and no_archive and native
+            and hasattr(con, native)
+            and (fmt != "csv" or rf.dialect_is_default(resource.dialect))
+        )
+        if native_ok:
+            return getattr(con, native)(paths if len(paths) > 1 else paths[0])
+
+        # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
+        # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
+        return ibis.memtable(rf.parse_resource_to_arrow(resource))
+
+    @staticmethod
+    def _detect_format_name(resource: Any) -> str:
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
             MountainashPolarsExtensionRelationSystem,
         )
-
-        lf = MountainashPolarsExtensionRelationSystem().read_resource(resource)
-        return ibis.memtable(lf.collect().to_pandas())
+        return MountainashPolarsExtensionRelationSystem._detect_format(resource)
 
     def empty_frame(self, spec: Any) -> ir.Table:
-        """Typed-empty Ibis table, via the same Polars→Ibis path as read_resource."""
+        """Typed-empty Ibis table via Arrow (no pandas)."""
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
             MountainashPolarsExtensionRelationSystem,
         )
-
         lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
-        return ibis.memtable(lf.collect().to_pandas())
+        return ibis.memtable(lf.collect().to_arrow())

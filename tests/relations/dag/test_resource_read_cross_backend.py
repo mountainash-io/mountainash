@@ -102,3 +102,25 @@ def test_polars_json_uses_files_fallback(tmp_path, monkeypatch):
     out = MountainashPolarsExtensionRelationSystem().read_resource(res).collect()
     assert calls["n"] == 1                       # JSON has no lazy scan -> fallback
     assert out.to_dicts() == [{"a": 1, "b": "x"}]
+
+
+def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):
+    import sys
+    import mountainash.relations.backends.relation_systems.resource_files as rf
+    from mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util import (
+        MountainashIbisExtensionRelationSystem,
+    )
+    from mountainash.typespec.datapackage import DataResource
+    # Local JSON MUST route to the files fallback (spec §A.6), not con.read_json.
+    calls = {"n": 0}
+    real = rf.parse_resource_to_arrow
+    monkeypatch.setattr(rf, "parse_resource_to_arrow",
+                        lambda r: (calls.__setitem__("n", calls["n"] + 1), real(r))[1])
+    p = tmp_path / "d.json"; p.write_text('[{"a": 1}, {"a": 2}]')
+    res = DataResource(name="d", path=str(p), format="json")
+    sys.modules.pop("pandas", None)
+    tbl = MountainashIbisExtensionRelationSystem().read_resource(res)
+    rows = tbl.to_pyarrow().to_pylist()
+    assert calls["n"] == 1                       # went through the fallback
+    assert rows == [{"a": 1}, {"a": 2}]
+    assert "pandas" not in sys.modules           # Arrow-only coercion
