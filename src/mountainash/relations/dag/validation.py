@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     import polars as pl
 
     from mountainash.datacontracts.result import ValidationResult
-    from mountainash.relations.dag.dag import RelationDAG
+    from mountainash.relations.dag.protocol import RelationDAGProtocol
 
 
 @dataclass
@@ -37,7 +37,7 @@ FK_SAMPLE_SIZE = 10
 
 
 def validate(
-    dag: RelationDAG,
+    dag: RelationDAGProtocol,
     specs: dict[str, Any],
     *,
     context: dict[str, Any] | None = None,
@@ -55,7 +55,7 @@ def validate(
 
 
 def validate_quick(
-    dag: RelationDAG,
+    dag: RelationDAGProtocol,
     specs: dict[str, Any],
     *,
     context: dict[str, Any] | None = None,
@@ -79,7 +79,7 @@ def validate_quick(
 
 
 def _validate_tables(
-    dag: RelationDAG,
+    dag: RelationDAGProtocol,
     specs: dict[str, Any],
     *,
     context: dict[str, Any] | None = None,
@@ -125,7 +125,7 @@ def _validate_tables(
     return table_results, cache
 
 
-def _to_validation_polars(dag: RelationDAG, name: str) -> Any:
+def _to_validation_polars(dag: RelationDAGProtocol, name: str) -> Any:
     """Materialize a relation for current Polars-only validation semantics."""
     from mountainash.core.types import (
         is_pandas_dataframe,

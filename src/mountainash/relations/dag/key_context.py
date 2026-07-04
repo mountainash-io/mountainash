@@ -42,10 +42,10 @@ class KeyDriftContext:
             call-site ``resource_name`` (the Frictionless resource's own
             name) is used instead — see
             ``UnifiedRelationVisitor.apply_conform``.
-        constraints_for: ``RelationDAG.constraints_for`` bound method —
+        constraints_for: the ``RelationDAGProtocol.constraints_for`` member —
             all foreign keys declared with a given name as the child
             side (item 46(c) ``constraint_metadata``).
-        schema_of: ``RelationDAG.schema`` bound method — the ref-resolved
+        schema_of: the ``RelationDAGProtocol.schema`` member — the ref-resolved
             inferred schema for a named relation, used to resolve a FK's
             reference-side fields/dtypes. Raises ``KeyError`` for an
             unknown name, which callers translate into a
