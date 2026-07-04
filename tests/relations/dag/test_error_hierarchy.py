@@ -7,6 +7,7 @@ from mountainash.relations.dag.errors import (
     RelationDAGRequired,
     MissingResourceSchema,
     UnsupportedResourceFormat,
+    UnknownRelationRef,
 )
 
 
@@ -21,7 +22,7 @@ def test_dag_base_reexported_from_subsystem():
 
 
 def test_all_dag_errors_under_dagerror():
-    for cls in (RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat):
+    for cls in (RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat, UnknownRelationRef):
         assert issubclass(cls, DAGError)
         assert issubclass(cls, MountainashError)
 
@@ -31,3 +32,4 @@ def test_builtin_compat_preserved():
     assert issubclass(RelationDAGRequired, RuntimeError)
     assert issubclass(MissingResourceSchema, ValueError)
     assert issubclass(UnsupportedResourceFormat, ValueError)
+    assert issubclass(UnknownRelationRef, KeyError)

@@ -6,6 +6,7 @@ from .errors import (
     DAGError,
     MissingResourceSchema,
     RelationDAGRequired,
+    UnknownRelationRef,
     UnsupportedResourceFormat,
 )
 from .protocol import RelationDAGProtocol
@@ -20,6 +21,7 @@ __all__ = [
     "RelationDAGRequired",
     "MissingResourceSchema",
     "UnsupportedResourceFormat",
+    "UnknownRelationRef",
     "DAGValidationResult",
     "FKViolation",
 ]

@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.dag.errors import UnknownRelationRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
     from .validation import DAGValidationResult
@@ -24,10 +26,17 @@ materialization to ``collect()`` (added in Task 17).
 """
 
 class RelationDAG:
-    """Container for named Relations with dependency and constraint edge sets."""
+    """Container for named Relations with dependency and constraint edge sets.
+
+    ``relations``, ``dependency_edges``, ``constraint_edges`` and
+    ``constraint_metadata`` are public mutable attributes; the supported
+    mutation surface is the method API (``add``, ``add_constraint``,
+    ``source``). Direct mutation (``dag.relations["x"] = other``) can
+    desynchronise edges from ASTs.
+    """
 
     def __init__(self) -> None:
-        self.relations: dict[str, Any] = {}
+        self.relations: dict[str, Relation] = {}
         self.assets: dict[str, ResourceRef] = {}
         self.dependency_edges: set[tuple[str, str]] = set()
         self.constraint_edges: set[tuple[str, str]] = set()
@@ -39,7 +48,7 @@ class RelationDAG:
         # writers: add_constraint() and DataPackage.to_relation_dag().
         self.constraint_metadata: dict[tuple[str, str], list["ForeignKey"]] = {}
 
-    def add(self, name: str, relation: Any) -> None:
+    def add(self, name: str, relation: Relation) -> None:
         """Add a named relation to the DAG.
 
         Automatically walks the relation tree for ``RefRelNode`` instances and
@@ -54,7 +63,7 @@ class RelationDAG:
         for upstream in _walk_refs(root):
             self.dependency_edges.add((upstream, name))
 
-    def ref(self, name: str) -> Any:
+    def ref(self, name: str) -> Relation:
         """Return a Relation backed by a ``RefRelNode`` for ``name``.
 
         Chaining ``.filter()``, ``.select()``, etc. on the returned object
@@ -65,7 +74,7 @@ class RelationDAG:
         node = RefRelNode(name=name)
         return Relation(node)
 
-    def source(self, name: str, data: Any) -> Any:
+    def source(self, name: str, data: Any) -> Relation:
         """Register source data and return a ref relation for downstream use."""
         from mountainash.relations.core.relation_api.relation import relation
 
@@ -211,7 +220,7 @@ class RelationDAG:
             backend_target_name=name,
         )
 
-    def execute(self, relation: Any, *, backend: Optional[str] = None) -> Any:
+    def execute(self, relation: Relation, *, backend: Optional[str] = None) -> Any:
         """Compile an ad-hoc relation against this DAG without registering it.
 
         Any ``RefRelNode`` leaves in the relation's AST are resolved from
@@ -232,9 +241,7 @@ class RelationDAG:
         while pending:
             name = pending.pop()
             if name not in self.relations:
-                raise KeyError(
-                    f"relation {name!r} referenced but not in DAG"
-                )
+                raise self._unknown_ref_error(name)
             if name not in all_refs:
                 all_refs.add(name)
                 # Walk the registered relation's node for further refs
@@ -283,6 +290,9 @@ class RelationDAG:
         (e.g. ``collect_with_drift()``'s ``visitor.drift_reports``) can
         retrieve it without a second compilation pass.
         """
+        missing_refs = sorted(n for n in ref_names if n not in self.relations)
+        if missing_refs:
+            raise self._unknown_ref_error(missing_refs[0])
         from mountainash.relations.core.relation_protocols.relsys_base import (
             get_relation_system,
         )
@@ -449,6 +459,21 @@ class RelationDAG:
         from mountainash.relations.dag.validation import validate_quick
 
         return validate_quick(self, specs, context=context)
+
+    def _unknown_ref_error(self, missing: str) -> "UnknownRelationRef":
+        """Unified missing-upstream error, naming registered dependents."""
+        from mountainash.relations.dag.errors import UnknownRelationRef
+
+        dependents = sorted(d for (u, d) in self.dependency_edges if u == missing)
+        referenced_by = (
+            ", ".join(repr(d) for d in dependents)
+            if dependents
+            else "an unregistered relation"
+        )
+        return UnknownRelationRef(
+            f"relation {missing!r} referenced but not in DAG "
+            f"(referenced by {referenced_by})"
+        )
 
     def _resolve_backend_const(
         self, backend: Optional[str], target_name: str

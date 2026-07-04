@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
-    from mountainash.relations.dag.dag import RelationDAG
+    from mountainash.relations.dag.protocol import RelationDAGProtocol
     from mountainash.relations.schema_inference import SchemaTypeStatus
 
 
 def schema(
-    dag: RelationDAG, name: str
+    dag: RelationDAGProtocol, name: str
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Return the inferred output schema for a named relation.
 
@@ -33,7 +33,7 @@ def schema(
     return infer_schema(node, ref_resolver=resolver)
 
 
-def describe(dag: RelationDAG) -> dict[str, dict[str, Any]]:
+def describe(dag: RelationDAGProtocol) -> dict[str, dict[str, Any]]:
     """Return a structural summary of every registered relation."""
     result: dict[str, dict[str, Any]] = {}
     for name in dag.relations:
@@ -51,7 +51,7 @@ def describe(dag: RelationDAG) -> dict[str, dict[str, Any]]:
     return result
 
 
-def to_dot(dag: RelationDAG) -> str:
+def to_dot(dag: RelationDAGProtocol) -> str:
     """Return a Graphviz DOT string of the DAG structure."""
     lines = ["digraph RelationDAG {", "    rankdir=BT;"]
 

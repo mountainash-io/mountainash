@@ -7,7 +7,7 @@ from mountainash.core.resource_ref import ResourceRef
 
 if TYPE_CHECKING:
     from mountainash.relations.core.relation_api.relation import Relation
-    from mountainash.relations.dag.dag import RelationDAG
+    from mountainash.relations.dag.protocol import RelationDAGProtocol
     from mountainash.typespec.datapackage import DataResource, DataPackage
 
 
@@ -71,7 +71,7 @@ def _has_unknown(schema) -> bool:
     return any(v is SchemaTypeStatus.UNKNOWN for v in schema.values())
 
 
-def to_package(dag: RelationDAG, *, strict: bool = False) -> DataPackage:
+def to_package(dag: RelationDAGProtocol, *, strict: bool = False) -> DataPackage:
     """Export a DAG as a Frictionless DataPackage descriptor.
 
     Emits a resource for every named tabular relation. A ResourceReadRelNode
