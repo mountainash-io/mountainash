@@ -81,3 +81,24 @@ class TestReadResourceLocalParquet:
         rows = _to_dict_list(backend_ext.read_resource(res))
         vals = sorted(r["x"] for r in rows)
         assert vals == [10, 20]
+
+
+def test_polars_json_uses_files_fallback(tmp_path, monkeypatch):
+    import mountainash.relations.backends.relation_systems.resource_files as rf
+    from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+        MountainashPolarsExtensionRelationSystem,
+    )
+    calls = {"n": 0}
+    real = rf.parse_resource_to_arrow
+
+    def spy(resource):
+        calls["n"] += 1
+        return real(resource)
+
+    monkeypatch.setattr(rf, "parse_resource_to_arrow", spy)
+    p = tmp_path / "d.json"; p.write_text('[{"a": 1, "b": "x"}]')
+    from mountainash.typespec.datapackage import DataResource
+    res = DataResource(name="d", path=str(p), format="json")
+    out = MountainashPolarsExtensionRelationSystem().read_resource(res).collect()
+    assert calls["n"] == 1                       # JSON has no lazy scan -> fallback
+    assert out.to_dicts() == [{"a": 1, "b": "x"}]

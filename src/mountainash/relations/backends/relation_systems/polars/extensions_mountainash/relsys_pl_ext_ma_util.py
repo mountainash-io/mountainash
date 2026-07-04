@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 from typing import Any, Optional
 
 import polars as pl
@@ -111,21 +110,32 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         raw_path = resource.path
         assert raw_path is not None, f"DataResource '{resource.name}' has no path"
         paths: list[str] = raw_path if isinstance(raw_path, list) else [raw_path]
-        readers = {
-            "csv": self._read_csv,
-            "json": self._read_json,
-            "parquet": self._read_parquet,
-        }
-        reader = readers.get(fmt)
-        if reader is None:
-            raise UnsupportedResourceFormat(
-                f"no reader for format {fmt!r} (resource {resource.name!r})"
-            )
+
+        from mountainash.core.io import is_remote
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        # Uniform fail-closed: an unmappable dialect field raises here on EVERY
+        # backend, so a native Polars scan never silently reads a dialect the
+        # Ibis fallback would reject (consistency-guarantees).
+        if fmt == "csv":
+            rf.ensure_dialect_supported(resource.dialect)
+
+        all_local = all(not is_remote(p) for p in paths)
+        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
+        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
+        # Native local scan handles local plain CSV (incl. mappable dialect
+        # kwargs) + Parquet lazily. Glob/archive/remote/JSON -> files fallback.
+        if all_local and no_glob and no_archive and fmt in ("csv", "parquet"):
+            return self._native_local_scan(fmt, paths, resource)
+        return pl.from_arrow(rf.parse_resource_to_arrow(resource)).lazy()
+
+    def _native_local_scan(self, fmt: str, paths: list[str], resource: Any) -> pl.LazyFrame:
         kwargs = self._reader_kwargs(resource, fmt)
-        frames = [reader(p, kwargs) for p in paths]
-        if len(frames) == 1:
-            return frames[0]
-        return pl.concat(frames, how="vertical")
+        if fmt == "csv":
+            frames = [pl.scan_csv(p, **kwargs) for p in paths]
+        else:
+            frames = [pl.scan_parquet(p) for p in paths]
+        return frames[0] if len(frames) == 1 else pl.concat(frames, how="vertical")
 
     @staticmethod
     def _detect_format(resource: Any) -> str:
@@ -152,33 +162,6 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         if fmt == "csv" and resource.dialect:
             return resource.dialect.to_polars_read_csv_kwargs()
         return {}
-
-    @staticmethod
-    def _read_csv(path: str, kwargs: dict[str, Any]) -> pl.LazyFrame:
-        from mountainash.core.io import is_remote, facade_read_bytes
-
-        if is_remote(path):
-            return pl.read_csv(io.BytesIO(facade_read_bytes(path)), **kwargs).lazy()
-        return pl.scan_csv(path, **kwargs)
-
-    @staticmethod
-    def _read_json(path: str, kwargs: dict[str, Any]) -> pl.LazyFrame:
-        from mountainash.core.io import is_remote, facade_read_bytes
-
-        if is_remote(path):
-            raw = facade_read_bytes(path)
-        else:
-            with open(path, "rb") as f:
-                raw = f.read()
-        return pl.read_json(io.BytesIO(raw), **kwargs).lazy()
-
-    @staticmethod
-    def _read_parquet(path: str, kwargs: dict[str, Any]) -> pl.LazyFrame:
-        from mountainash.core.io import is_remote, facade_read_bytes
-
-        if is_remote(path):
-            return pl.read_parquet(io.BytesIO(facade_read_bytes(path)), **kwargs).lazy()
-        return pl.scan_parquet(path, **kwargs)
 
     def empty_frame(self, spec: Any) -> pl.LazyFrame:
         """Typed-empty LazyFrame with the schema's declared columns/dtypes."""
