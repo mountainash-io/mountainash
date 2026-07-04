@@ -108,6 +108,16 @@ dependencies = [
     "xarray==2024.11.0",
     "pandera[polars]>=0.22.0",
     "pyyaml>=6.0",
+    # Local sibling-package chain from ../ (mirrors [tool.uv.sources]; hatch's
+    # env sync needs the explicit URL pins to resolve them). settings/
+    # auth-client/secrets are transport's runtime import chain, not in the
+    # abstract graph while transport's sibling deps are commented, so they are
+    # pinned here to be installed for import at runtime.
+    "mountainash_files @       {root:uri}/../mountainash-files",
+    "mountainash_transport @   {root:uri}/../mountainash-transport",
+    "mountainash_settings @    {root:uri}/../mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
+    "mountainash_secrets @     {root:uri}/../mountainash-secrets",
 ]
 [envs.test.scripts]
 # ===========================================
