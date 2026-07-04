@@ -46,6 +46,33 @@ jobs:
         run: |
           python -c "import sqlite3; print(f'SQLite version: {sqlite3.sqlite_version}')"
 
+      # Clone the mountainash-* sibling packages into temp/ so the test_github
+      # hatch env (which pins them at {root:uri}/temp/<repo>) can resolve them.
+      # Uses the branch matching this PR's head_ref where it exists, else the
+      # base branch (default develop).
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: mountainash-io
+
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_dependencies.yml
+
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ${{ github.head_ref }}
+          default-branch: ${{ github.base_ref || 'develop' }}
+          token: ${{ steps.app-token.outputs.token }}
+          org-name: mountainash-io
+
       - name: Install Hatch
         run: pip install hatch
 
@@ -98,6 +125,30 @@ jobs:
         with:
           python-version: "3.12"
           check-latest: true
+
+      # Clone the mountainash-* siblings into temp/ (see the `test` job above).
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: mountainash-io
+
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_dependencies.yml
+
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ""
+          default-branch: develop
+          token: ${{ steps.app-token.outputs.token }}
+          org-name: mountainash-io
 
       - run: pip install hatch
 
