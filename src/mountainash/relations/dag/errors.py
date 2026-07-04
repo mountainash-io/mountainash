@@ -23,3 +23,13 @@ class MissingResourceSchema(DAGError, ValueError):
 
 class UnsupportedResourceFormat(DAGError, ValueError):
     """Raised when a resource's format/mediatype has no registered reader."""
+
+
+class UnknownRelationRef(DAGError, KeyError):
+    """Raised at compile time when a relation references an upstream name not
+    registered in the DAG.
+
+    The ``KeyError`` mixin is required, not decorative: ``execute()`` and the
+    ref-resolver cache raised ``KeyError`` before this error existed, so
+    existing ``except KeyError`` call sites must keep catching this failure.
+    """

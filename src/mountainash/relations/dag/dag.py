@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
+    from mountainash.relations.dag.errors import UnknownRelationRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
     from .validation import DAGValidationResult
@@ -232,9 +233,7 @@ class RelationDAG:
         while pending:
             name = pending.pop()
             if name not in self.relations:
-                raise KeyError(
-                    f"relation {name!r} referenced but not in DAG"
-                )
+                raise self._unknown_ref_error(name)
             if name not in all_refs:
                 all_refs.add(name)
                 # Walk the registered relation's node for further refs
@@ -283,6 +282,9 @@ class RelationDAG:
         (e.g. ``collect_with_drift()``'s ``visitor.drift_reports``) can
         retrieve it without a second compilation pass.
         """
+        missing_refs = sorted(n for n in ref_names if n not in self.relations)
+        if missing_refs:
+            raise self._unknown_ref_error(missing_refs[0])
         from mountainash.relations.core.relation_protocols.relsys_base import (
             get_relation_system,
         )
@@ -449,6 +451,21 @@ class RelationDAG:
         from mountainash.relations.dag.validation import validate_quick
 
         return validate_quick(self, specs, context=context)
+
+    def _unknown_ref_error(self, missing: str) -> "UnknownRelationRef":
+        """Unified missing-upstream error, naming registered dependents."""
+        from mountainash.relations.dag.errors import UnknownRelationRef
+
+        dependents = sorted(d for (u, d) in self.dependency_edges if u == missing)
+        referenced_by = (
+            ", ".join(repr(d) for d in dependents)
+            if dependents
+            else "an unregistered relation"
+        )
+        return UnknownRelationRef(
+            f"relation {missing!r} referenced but not in DAG "
+            f"(referenced by {referenced_by})"
+        )
 
     def _resolve_backend_const(
         self, backend: Optional[str], target_name: str
