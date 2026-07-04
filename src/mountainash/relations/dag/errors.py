@@ -33,3 +33,9 @@ class UnknownRelationRef(DAGError, KeyError):
     ref-resolver cache raised ``KeyError`` before this error existed, so
     existing ``except KeyError`` call sites must keep catching this failure.
     """
+
+    # Render the full sentence message plainly. ``KeyError.__str__`` returns
+    # ``repr(args[0])`` (spurious outer quotes around what is a sentence, not a
+    # key here); the other DAGError leaves render cleanly via RuntimeError/
+    # ValueError, so match them for consistent tracebacks and logs.
+    __str__ = Exception.__str__

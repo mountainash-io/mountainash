@@ -29,6 +29,18 @@ def test_unknown_relation_ref_is_keyerror_compatible():
         dag.collect("derived")
 
 
+def test_error_message_renders_without_keyerror_quotes():
+    # KeyError.__str__ would repr() the message (spurious outer quotes); the
+    # error overrides __str__ so tracebacks/logs read the plain sentence.
+    dag = RelationDAG()
+    dag.add("derived", dag.ref("missing"))
+    with pytest.raises(UnknownRelationRef) as excinfo:
+        dag.collect("derived")
+    assert str(excinfo.value) == (
+        "relation 'missing' referenced but not in DAG (referenced by 'derived')"
+    )
+
+
 def test_registration_stays_order_independent():
     # add() stays permissive: registering the derived relation first is legal,
     # and collect succeeds once the upstream arrives.
