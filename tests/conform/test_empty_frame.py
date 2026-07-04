@@ -49,7 +49,9 @@ def test_narwhals_empty_frame_typed():
         MountainashNarwhalsExtensionRelationSystem,
     )
 
-    frame = MountainashNarwhalsExtensionRelationSystem().empty_frame(SPEC)
+    lazy = MountainashNarwhalsExtensionRelationSystem().empty_frame(SPEC)
+    assert isinstance(lazy, nw.LazyFrame)
+    frame = lazy.collect()
     assert list(frame.columns) == ["date", "v"]
     assert frame.shape == (0, 2)
     assert frame.schema["date"] == nw.String

@@ -33,9 +33,18 @@ def _get_ibis_ext():
 
 
 def _to_dict_list(native) -> list[dict]:
-    """Convert any backend's native result to a list of dicts for assertion."""
+    """Convert any backend's native result to a list of dicts for assertion.
+
+    Handles both Polars LazyFrame (.collect() -> pl.DataFrame, has .to_dicts())
+    and Narwhals LazyFrame (.collect() -> nw.DataFrame, which has no .to_dicts()
+    of its own -- unwrap via .to_native() to reach the underlying pl.DataFrame).
+    """
     if hasattr(native, "collect"):
-        return native.collect().to_dicts()
+        native = native.collect()
+    if hasattr(native, "to_native"):
+        native = native.to_native()
+    if hasattr(native, "to_dicts"):
+        return native.to_dicts()
     if hasattr(native, "to_pandas"):
         return native.to_pandas().to_dict("records")
     if hasattr(native, "execute"):
@@ -102,6 +111,33 @@ def test_polars_json_uses_files_fallback(tmp_path, monkeypatch):
     out = MountainashPolarsExtensionRelationSystem().read_resource(res).collect()
     assert calls["n"] == 1                       # JSON has no lazy scan -> fallback
     assert out.to_dicts() == [{"a": 1, "b": "x"}]
+
+
+def test_narwhals_local_csv_returns_lazyframe(tmp_path):
+    import narwhals as nw
+    from mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util import (
+        MountainashNarwhalsExtensionRelationSystem,
+    )
+    p = tmp_path / "d.csv"; p.write_text("a,b\n1,x\n2,y\n")
+    res = DataResource(name="d", path=str(p), format="csv")
+    out = MountainashNarwhalsExtensionRelationSystem().read_resource(res)
+    assert isinstance(out, nw.LazyFrame)
+    assert nw.to_native(out.collect()).to_dicts() == [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
+
+
+def test_narwhals_native_semicolon_dialect(tmp_path):
+    """Non-default mappable dialect (delimiter=';') must forward through
+    nw.scan_csv(..., backend="polars") on the native local-CSV path."""
+    import narwhals as nw
+    from mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util import (
+        MountainashNarwhalsExtensionRelationSystem,
+    )
+    from mountainash.typespec.datapackage import TableDialect
+    p = tmp_path / "d.csv"; p.write_text("a;b\n1;x\n2;y\n")
+    res = DataResource(name="d", path=str(p), format="csv", dialect=TableDialect(delimiter=";"))
+    out = MountainashNarwhalsExtensionRelationSystem().read_resource(res)
+    assert isinstance(out, nw.LazyFrame)
+    assert nw.to_native(out.collect()).to_dicts() == [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
 
 
 def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):

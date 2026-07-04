@@ -101,23 +101,47 @@ class MountainashNarwhalsExtensionRelationSystem(
         )
 
     def read_resource(self, resource: Any) -> Any:
-        """Load a DataResource via Polars, then coerce to Narwhals native."""
+        """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
+        local plain CSV/Parquet; Arrow-coerced (lazy-wrapped) fallback for JSON,
+        glob, archive, remote."""
         import narwhals as nw
-
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
             MountainashPolarsExtensionRelationSystem,
         )
 
-        lf = MountainashPolarsExtensionRelationSystem().read_resource(resource)
-        return nw.from_native(lf.collect(), eager_only=True)
+        if resource.data is not None:
+            lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
+            return nw.from_native(lf)  # stays lazy
+
+        from mountainash.core.io import is_remote
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
+        # Uniform fail-closed (consistency-guarantees) -- see the Polars reader.
+        if fmt == "csv":
+            rf.ensure_dialect_supported(resource.dialect)
+        raw_path = resource.path
+        paths = raw_path if isinstance(raw_path, list) else [raw_path]
+        all_local = all(not is_remote(p) for p in paths)
+        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
+        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
+
+        if all_local and no_glob and no_archive and fmt in ("csv", "parquet"):
+            kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(resource, fmt)
+            scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
+            frames = [scan(p, backend="polars", **(kwargs if fmt == "csv" else {})) for p in paths]
+            return frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")
+
+        # Files fallback: Arrow -> Polars lazy -> Narwhals lazy.
+        import polars as pl
+        table = rf.parse_resource_to_arrow(resource)
+        return nw.from_native(pl.from_arrow(table).lazy())
 
     def empty_frame(self, spec: Any) -> Any:
-        """Typed-empty Narwhals frame, via the same Polars→Narwhals path as read_resource."""
+        """Typed-empty Narwhals LazyFrame (lazy)."""
         import narwhals as nw
-
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
             MountainashPolarsExtensionRelationSystem,
         )
-
         lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
-        return nw.from_native(lf.collect(), eager_only=True)
+        return nw.from_native(lf)  # stays lazy
