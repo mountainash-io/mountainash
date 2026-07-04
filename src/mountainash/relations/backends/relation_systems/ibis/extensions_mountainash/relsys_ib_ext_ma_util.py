@@ -128,6 +128,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         fmt = self._detect_format_name(resource)
         raw_path = resource.path
+        assert raw_path is not None, f"DataResource '{resource.name}' has no path"
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
 
         from mountainash.core.io import is_remote
