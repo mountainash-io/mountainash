@@ -62,10 +62,19 @@ dependencies = [
     # Optional backends required by cross-backend tests
     "pandas>=2.2.0",
     "ibis-framework[duckdb,sqlite]>=9.0.0",
-    "pyarrow>=15.0.0",
+    "pyarrow>=16",
     "pydantic>=2.0.0",
     "pandera[polars]>=0.22.0",
     "pyyaml>=6.0",
+    # CI sibling chain: the checkout-dependencies action clones these into
+    # temp/ (see .github/config/mountainash_dependencies.yml). files + transport
+    # are the direct consumers; settings/auth-client/secrets are transport's
+    # runtime import chain. Mirrors [envs.test] but with temp/ (CI) vs ../ (local).
+    "mountainash_files @       {root:uri}/temp/mountainash-files",
+    "mountainash_transport @   {root:uri}/temp/mountainash-transport",
+    "mountainash_settings @    {root:uri}/temp/mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
+    "mountainash_secrets @     {root:uri}/temp/mountainash-secrets",
 ]
 [envs.test_github.scripts]
 test = "pytest"
@@ -108,6 +117,16 @@ dependencies = [
     "xarray==2024.11.0",
     "pandera[polars]>=0.22.0",
     "pyyaml>=6.0",
+    # Local sibling-package chain from ../ (mirrors [tool.uv.sources]; hatch's
+    # env sync needs the explicit URL pins to resolve them). settings/
+    # auth-client/secrets are transport's runtime import chain, not in the
+    # abstract graph while transport's sibling deps are commented, so they are
+    # pinned here to be installed for import at runtime.
+    "mountainash_files @       {root:uri}/../mountainash-files",
+    "mountainash_transport @   {root:uri}/../mountainash-transport",
+    "mountainash_settings @    {root:uri}/../mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
+    "mountainash_secrets @     {root:uri}/../mountainash-secrets",
 ]
 [envs.test.scripts]
 # ===========================================

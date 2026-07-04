@@ -32,17 +32,29 @@ dependencies = [
     "typing_extensions>=4.0.0",
     "lazy_loader>=0.3",
     "universal-pathlib>=0.2.0",
+    "pyarrow>=16",
+    # mountainash-files is provided the same way as every other mountainash-*
+    # sibling in this monorepo: via the CI dependency-checkout mechanism
+    # (.github/config/mountainash_dependencies.yml -> temp/) and the hatch env
+    # sibling pins (../ locally, temp/ in CI), NOT as a resolvable core dep —
+    # the siblings are not on a reachable package index. Declare it via the
+    # opt-in `files` extra below (mirrors `storage = mountainash-transport`).
+    # Promote to a core dep once the packages publish to the shared index.
+    # "mountainash-files>=26.7.0,<27",
 ]
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=9.0.0"]
-pyarrow = ["pyarrow>=15.0.0"]
 datacontracts = ["pandera[polars]>=0.22.0"]
 storage = ["mountainash-transport"]
+files = ["mountainash-files>=26.7.0,<27"]
 dbos = ["dbos>=1.0.0"]
-all = ["mountainash[pandas,ibis,pyarrow,datacontracts,storage,dbos]"]
-
+s3 = ["mountainash-files[s3]>=26.7.0"]
+gcs = ["mountainash-files[gcs]>=26.7.0"]
+azure = ["mountainash-files[azure]>=26.7.0"]
+sftp = ["mountainash-files[sftp]>=26.7.0"]
+all = ["mountainash[pandas,ibis,datacontracts,storage,files,dbos,s3,gcs,azure,sftp]"]
 
 [project.urls]
 Homepage = "https://github.com/mountainash-io/mountainash"
