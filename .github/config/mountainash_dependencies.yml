@@ -24,3 +24,11 @@ dependencies:
     org-name: mountainash-io
   - name: mountainash-files
     org-name: mountainash-io
+  # transport's runtime import chain (files -> transport -> connections ->
+  # auth-client -> secrets); needed for the test_github env to import.
+  - name: mountainash-settings
+    org-name: mountainash-io
+  - name: mountainash-auth-client
+    org-name: mountainash-io
+  - name: mountainash-secrets
+    org-name: mountainash-io

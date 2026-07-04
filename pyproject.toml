@@ -33,7 +33,14 @@ dependencies = [
     "lazy_loader>=0.3",
     "universal-pathlib>=0.2.0",
     "pyarrow>=16",
-    "mountainash-files>=26.7.0,<27",
+    # mountainash-files is provided the same way as every other mountainash-*
+    # sibling in this monorepo: via the CI dependency-checkout mechanism
+    # (.github/config/mountainash_dependencies.yml -> temp/) and the hatch env
+    # sibling pins (../ locally, temp/ in CI), NOT as a resolvable core dep —
+    # the siblings are not on a reachable package index. Declare it via the
+    # opt-in `files` extra below (mirrors `storage = mountainash-transport`).
+    # Promote to a core dep once the packages publish to the shared index.
+    # "mountainash-files>=26.7.0,<27",
 ]
 
 [project.optional-dependencies]
@@ -41,26 +48,13 @@ pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=9.0.0"]
 datacontracts = ["pandera[polars]>=0.22.0"]
 storage = ["mountainash-transport"]
+files = ["mountainash-files>=26.7.0,<27"]
 dbos = ["dbos>=1.0.0"]
 s3 = ["mountainash-files[s3]>=26.7.0"]
 gcs = ["mountainash-files[gcs]>=26.7.0"]
 azure = ["mountainash-files[azure]>=26.7.0"]
 sftp = ["mountainash-files[sftp]>=26.7.0"]
-all = ["mountainash[pandas,ibis,datacontracts,storage,dbos,s3,gcs,azure,sftp]"]
-
-# Local-dev resolution of the sibling-package closure (dev-only; NOT emitted
-# into the published wheel — pip resolves these from the index in production).
-# files + transport are in the abstract dependency graph today; settings /
-# auth-client / secrets are transport's runtime import chain and become graph
-# deps once transport uncomments its own sibling deps — kept here so that flip
-# needs no change in this repo.
-[tool.uv.sources]
-mountainash-files = { path = "../mountainash-files" }
-mountainash-transport = { path = "../mountainash-transport" }
-mountainash-settings = { path = "../mountainash-settings" }
-mountainash-auth-client = { path = "../mountainash-auth-client" }
-mountainash-secrets = { path = "../mountainash-secrets" }
-
+all = ["mountainash[pandas,ibis,datacontracts,storage,files,dbos,s3,gcs,azure,sftp]"]
 
 [project.urls]
 Homepage = "https://github.com/mountainash-io/mountainash"
