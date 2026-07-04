@@ -70,19 +70,12 @@ class BaseExpressionSystem(ABC):
             **named_args: Parameter names mapped to their values, used to
                 identify which parameter caused the error in registry lookup.
         """
-        try:
-            return fn()
-        except Exception as exc:
-            for param_name in named_args:
-                key = (function_key, param_name)
-                limitation = self.KNOWN_EXPR_LIMITATIONS.get(key)
-                if limitation and isinstance(exc, limitation.native_errors):
-                    from mountainash.core.types import BackendCapabilityError
+        from mountainash.core.limitations import call_with_limitation_enrichment
 
-                    raise BackendCapabilityError(
-                        limitation.message,
-                        backend=self.BACKEND_NAME,
-                        function_key=function_key,
-                        limitation=limitation,
-                    ) from exc
-            raise
+        return call_with_limitation_enrichment(
+            fn,
+            limitations=self.KNOWN_EXPR_LIMITATIONS,
+            backend_name=self.BACKEND_NAME,
+            operation_key=function_key,
+            named_args=tuple(named_args),
+        )
