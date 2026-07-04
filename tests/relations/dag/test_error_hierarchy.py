@@ -33,3 +33,9 @@ def test_builtin_compat_preserved():
     assert issubclass(MissingResourceSchema, ValueError)
     assert issubclass(UnsupportedResourceFormat, ValueError)
     assert issubclass(UnknownRelationRef, KeyError)
+
+
+def test_missing_files_dependency_bases():
+    from mountainash.relations.dag.errors import DAGError, MissingFilesDependency
+    assert issubclass(MissingFilesDependency, DAGError)
+    assert issubclass(MissingFilesDependency, ImportError)

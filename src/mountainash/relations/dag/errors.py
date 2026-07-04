@@ -25,6 +25,16 @@ class UnsupportedResourceFormat(DAGError, ValueError):
     """Raised when a resource's format/mediatype has no registered reader."""
 
 
+class MissingFilesDependency(DAGError, ImportError):
+    """The mountainash-files chain is unavailable for a fallback resource read.
+
+    Raised (never a bare ImportError) when reading a resource that needs the
+    ``files`` extra — direct import miss OR a transitive dep failing at import
+    or during ``parse()``. Subclasses ImportError so ``except ImportError`` and
+    ``except DAGError`` both catch it (typed-error-hierarchy builtin-compat).
+    """
+
+
 class UnknownRelationRef(DAGError, KeyError):
     """Raised at compile time when a relation references an upstream name not
     registered in the DAG.
