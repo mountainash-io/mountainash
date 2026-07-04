@@ -169,3 +169,41 @@ def test_parse_single_json_object_is_one_row(tmp_path):
     table = rf.parse_resource_to_arrow(res)
     assert table.num_rows == 1
     assert table.column("a").to_pylist() == [1]
+
+
+def test_json_array_of_scalars_fails_closed(tmp_path):
+    # A JSON array of non-objects is not tabular -> clean UnsupportedResourceFormat
+    # (not an opaque pyarrow AttributeError).
+    p = tmp_path / "d.json"
+    p.write_text("[1, 2, 3]")
+    res = DataResource(name="d", path=str(p), format="json")
+    with pytest.raises(UnsupportedResourceFormat, match="non-record"):
+        rf.parse_resource_to_arrow(res)
+
+
+# ---- mountainash-files error types normalise to mountainash's hierarchy ----
+
+def test_unknown_format_normalises_to_unsupported(tmp_path):
+    # An unrecognised format string must surface as UnsupportedResourceFormat,
+    # not a bare mountainash_files.FormatError (typed-error-hierarchy).
+    p = tmp_path / "d.bogus"; p.write_text("whatever")
+    res = DataResource(name="d", path=str(p), format="bogusfmt")
+    with pytest.raises(UnsupportedResourceFormat):
+        rf.parse_resource_to_arrow(res)
+
+
+def test_missing_format_dependency_normalises_to_missing_files(monkeypatch, tmp_path):
+    # A mountainash_files.MissingDependencyError (optional-format dep, e.g. xlsx)
+    # is NOT an ImportError; it must still normalise to MissingFilesDependency.
+    from mountainash_files import MissingDependencyError
+    import mountainash.relations.backends.relation_systems.resource_files as mod
+
+    def boom(_spec):
+        raise MissingDependencyError("XLSX parsing", "xlsx")
+
+    real = mod._require_files()
+    monkeypatch.setattr(mod, "_require_files", lambda: (boom, *real[1:]))
+    p = tmp_path / "d.csv"; p.write_text("a\n1\n")
+    res = DataResource(name="d", path=str(p), format="csv")
+    with pytest.raises(MissingFilesDependency, match=r"mountainash\[files\]|optional"):
+        rf.parse_resource_to_arrow(res)

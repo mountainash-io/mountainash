@@ -206,6 +206,13 @@ def _part_data_to_arrow(data: Any, resource_name: str) -> "pa.Table":
     if isinstance(data, dict):
         return pa.Table.from_pylist([data])
     if isinstance(data, list):
+        if data and not all(isinstance(row, dict) for row in data):
+            # A JSON array of scalars (e.g. ``[1, 2, 3]``) is not tabular;
+            # pa.Table.from_pylist would raise an opaque AttributeError.
+            raise UnsupportedResourceFormat(
+                f"resource {resource_name!r} produced a JSON array of "
+                "non-record values; expected an array of objects"
+            )
         return pa.Table.from_pylist(data)
     raise UnsupportedResourceFormat(
         f"resource {resource_name!r} produced a {type(data).__name__} payload "
@@ -220,12 +227,19 @@ def parse_resource_to_arrow(resource: Any) -> "pa.Table":
     are handled inside ``parse()`` via the shared StorageFacade. Non-Arrow
     payloads (JSON records) are normalised to Arrow via ``_part_data_to_arrow``.
     Raises ``MissingFilesDependency`` if the chain is unavailable
-    (direct/transitive, at import or during parse), ``UnsupportedResourceFormat``
-    if the format or dialect cannot be resolved.
+    (direct/transitive, at import or during parse, OR an optional-format dep
+    reported by mountainash-files), ``UnsupportedResourceFormat`` if the format
+    or dialect cannot be resolved (unknown/ambiguous format, or unreadable
+    contents). All mountainash-files exceptions are normalised here so no
+    foreign error type escapes the seam (typed-error-hierarchy).
     """
     import pyarrow as pa
 
     parse, _FileSourceSpec, _CsvSpec, _Gzip, _Zip = _require_files()
+    # Safe now that _require_files() confirmed the chain imports (a direct import
+    # miss already raised MissingFilesDependency above -- no bare ImportError).
+    from mountainash_files import FormatError, MissingDependencyError
+
     try:
         tables: list[pa.Table] = []
         for spec in _file_source_specs(resource):
@@ -235,6 +249,16 @@ def parse_resource_to_arrow(resource: Any) -> "pa.Table":
         raise MissingFilesDependency(
             f"reading resource {resource.name!r} needs the file-reading extra; "
             "install mountainash[files]"
+        ) from exc
+    except MissingDependencyError as exc:  # optional-format dep (e.g. xlsx) absent
+        raise MissingFilesDependency(
+            f"reading resource {resource.name!r} needs an optional file-format "
+            f"dependency: {exc}"
+        ) from exc
+    except FormatError as exc:  # unknown/ambiguous format, or unreadable contents
+        raise UnsupportedResourceFormat(
+            f"resource {resource.name!r} could not be read by the "
+            f"mountainash-files reader: {exc}"
         ) from exc
     if not tables:
         raise UnsupportedResourceFormat(
