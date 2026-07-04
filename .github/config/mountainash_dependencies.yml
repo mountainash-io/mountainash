@@ -20,5 +20,7 @@ dependencies:
   #   org-name: mountainash-io
   # - name: mountainash-utils-rules
   #   org-name: mountainash-io
-  # - name: mountainash-utils-ssh
-  #   org-name: mountainash-io
+  - name: mountainash-transport
+    org-name: mountainash-io
+  - name: mountainash-files
+    org-name: mountainash-io
