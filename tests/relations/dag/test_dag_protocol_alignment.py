@@ -35,9 +35,23 @@ def _public_class_methods(cls: type) -> set[str]:
     }
 
 
+def _public_class_members(cls: type) -> set[str]:
+    """Public surface: plain functions AND property/classmethod/staticmethod
+    descriptors (which escape inspect.isfunction / vars(instance))."""
+    names: set[str] = set()
+    for name, member in inspect.getmembers_static(cls):
+        if name.startswith("_"):
+            continue
+        if inspect.isfunction(member) or isinstance(
+            member, (property, classmethod, staticmethod)
+        ):
+            names.add(name)
+    return names
+
+
 def _dag_public_surface() -> set[str]:
     instance_attrs = {n for n in vars(RelationDAG()) if not n.startswith("_")}
-    return instance_attrs | _public_class_methods(RelationDAG)
+    return instance_attrs | _public_class_members(RelationDAG)
 
 
 def _protocol_members() -> set[str]:
@@ -46,7 +60,7 @@ def _protocol_members() -> set[str]:
         for n in getattr(RelationDAGProtocol, "__annotations__", {})
         if not n.startswith("_")
     }
-    return annotations | _public_class_methods(RelationDAGProtocol)
+    return annotations | _public_class_members(RelationDAGProtocol)
 
 
 def test_protocol_covers_public_surface():
@@ -76,6 +90,41 @@ def test_delegator_exceptions_are_real_and_not_duplicated():
         assert name not in declared, (
             f"{name!r} is both a protocol member and an exception entry — remove one"
         )
+
+
+def test_discovery_catches_property_and_classmethod():
+    """A public property/classmethod on the surface class MUST be discovered.
+    Without the fix these descriptors are invisible (regression guard)."""
+    class _Probe:
+        @property
+        def visible_prop(self):        # public -> must be seen
+            return 1
+
+        @classmethod
+        def visible_cm(cls):           # public -> must be seen
+            return 2
+
+        def _hidden(self):             # underscore -> must be ignored
+            return 3
+
+    surface = _public_class_members(_Probe)
+    assert "visible_prop" in surface
+    assert "visible_cm" in surface
+    assert "_hidden" not in surface
+
+
+def test_alignment_would_flag_protocol_absent_public_property():
+    """If a public property exists on RelationDAG but not the protocol, the
+    surface diff must be non-empty (the sweep would fail). Proven on a probe
+    subclass so the real classes stay clean."""
+    class _DAGWithExtra(RelationDAG):
+        @property
+        def rogue(self):
+            return object()
+
+    dag_surface = _public_class_members(_DAGWithExtra)
+    protocol_surface = _public_class_members(RelationDAGProtocol)
+    assert "rogue" in dag_surface - protocol_surface
 
 
 def test_shared_method_signatures_match():
