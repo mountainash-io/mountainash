@@ -190,14 +190,38 @@ def _file_source_specs(resource: Any) -> list[Any]:
     return specs
 
 
+def _part_data_to_arrow(data: Any, resource_name: str) -> "pa.Table":
+    """Normalise a ``ParseResult.data`` payload to a ``pa.Table``.
+
+    ``mountainash_files`` parsers return format-dependent payloads: CSV/Parquet
+    yield a ``pa.Table`` directly, but JSON/NDJSON yield raw Python records
+    (``list``/``dict``) -- ``ParseResult.data`` is typed ``Any``. Record
+    payloads are lifted into Arrow here (a single dict is treated as one row).
+    Conform-after-read on the visitor casts final types; this only needs a
+    faithful tabular Arrow frame."""
+    import pyarrow as pa
+
+    if isinstance(data, pa.Table):
+        return data
+    if isinstance(data, dict):
+        return pa.Table.from_pylist([data])
+    if isinstance(data, list):
+        return pa.Table.from_pylist(data)
+    raise UnsupportedResourceFormat(
+        f"resource {resource_name!r} produced a {type(data).__name__} payload "
+        "that is not tabular (expected pyarrow.Table or JSON records)"
+    )
+
+
 def parse_resource_to_arrow(resource: Any) -> "pa.Table":
     """Read a DataResource's file(s) into one pyarrow.Table via mountainash-files.
 
     EAGER (full materialization). Local vs remote, glob, and archive expansion
-    are handled inside ``parse()`` via the shared StorageFacade. Raises
-    ``MissingFilesDependency`` if the chain is unavailable (direct/transitive,
-    at import or during parse), ``UnsupportedResourceFormat`` if the format or
-    dialect cannot be resolved.
+    are handled inside ``parse()`` via the shared StorageFacade. Non-Arrow
+    payloads (JSON records) are normalised to Arrow via ``_part_data_to_arrow``.
+    Raises ``MissingFilesDependency`` if the chain is unavailable
+    (direct/transitive, at import or during parse), ``UnsupportedResourceFormat``
+    if the format or dialect cannot be resolved.
     """
     import pyarrow as pa
 
@@ -206,7 +230,7 @@ def parse_resource_to_arrow(resource: Any) -> "pa.Table":
         tables: list[pa.Table] = []
         for spec in _file_source_specs(resource):
             for part in parse(spec):
-                tables.append(part.data)
+                tables.append(_part_data_to_arrow(part.data, resource.name))
     except ImportError as exc:  # transitive dep surfacing during parse()
         raise MissingFilesDependency(
             f"reading resource {resource.name!r} needs the file-reading extra; "

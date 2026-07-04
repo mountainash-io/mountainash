@@ -144,3 +144,28 @@ def test_missing_transitive_dep_during_parse_is_typed(monkeypatch, tmp_path):
     )
     with pytest.raises(MissingFilesDependency, match=r"mountainash\[files\]"):
         rf.parse_resource_to_arrow(res)
+
+
+# ---- JSON: non-Arrow ParseResult.data normalises to a pa.Table -------------
+
+def test_parse_local_json_records_to_arrow(tmp_path):
+    # mountainash_files' json_parse returns raw Python records (list[dict]), not
+    # a pa.Table -- the seam must lift them into Arrow (regression: pl.from_arrow
+    # on a raw list raised TypeError).
+    p = tmp_path / "d.json"
+    p.write_text('[{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]')
+    res = DataResource(name="d", path=str(p), format="json")
+    table = rf.parse_resource_to_arrow(res)
+    assert isinstance(table, pa.Table)
+    assert table.column_names == ["a", "b"]
+    assert table.column("a").to_pylist() == [1, 2]
+
+
+def test_parse_single_json_object_is_one_row(tmp_path):
+    # A top-level JSON object (dict, not list) is treated as a single record.
+    p = tmp_path / "d.json"
+    p.write_text('{"a": 1, "b": "x"}')
+    res = DataResource(name="d", path=str(p), format="json")
+    table = rf.parse_resource_to_arrow(res)
+    assert table.num_rows == 1
+    assert table.column("a").to_pylist() == [1]
