@@ -15,6 +15,13 @@ from pydantic import BaseModel, ConfigDict
 from mountainash.core.constants import CONST_BACKEND
 
 
+# Attribute names the base children() scan inspects for structural child
+# relation nodes. Single source of truth — consumed by RelationNode.children(),
+# dag.traversal.relation_children()'s fallback branch, and the exhaustiveness
+# test in tests/relations/test_node_children_exhaustive.py.
+RELATION_CHILD_ATTRS: tuple[str, ...] = ("input", "left", "right", "inputs")
+
+
 class RelationNode(BaseModel, ABC):
     """Base class for all relational AST nodes.
 
@@ -52,7 +59,7 @@ class RelationNode(BaseModel, ABC):
     def children(self) -> tuple[Any, ...]:
         """Return structural child relation nodes for tree traversal."""
         found: list[Any] = []
-        for attr in ("input", "left", "right", "inputs"):
+        for attr in RELATION_CHILD_ATTRS:
             child = getattr(self, attr, None)
             if child is None:
                 continue

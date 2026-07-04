@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+from mountainash.relations.core.relation_nodes.reln_base import RELATION_CHILD_ATTRS
 
 
 def relation_children(node: Any) -> tuple[Any, ...]:
@@ -13,7 +14,7 @@ def relation_children(node: Any) -> tuple[Any, ...]:
         return tuple(children())
 
     found: list[Any] = []
-    for attr in ("input", "left", "right", "inputs"):
+    for attr in RELATION_CHILD_ATTRS:
         child = getattr(node, attr, None)
         if child is None:
             continue
