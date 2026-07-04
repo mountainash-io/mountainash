@@ -37,15 +37,24 @@ def _public_class_methods(cls: type) -> set[str]:
 
 def _public_class_members(cls: type) -> set[str]:
     """Public surface: plain functions AND property/classmethod/staticmethod
-    descriptors (which escape inspect.isfunction / vars(instance))."""
+    descriptors (which escape inspect.isfunction / vars(instance)).
+
+    Walks the MRO's raw ``__dict__`` so descriptors are seen unresolved: on a
+    classmethod, ``inspect.getmembers(cls)`` returns the *bound* method (whose
+    type is not ``classmethod``) and would miss it, and ``getmembers_static``
+    is 3.11+ while this package supports 3.10 — the MRO/``vars`` walk is
+    version-independent and preserves the descriptor objects."""
     names: set[str] = set()
-    for name, member in inspect.getmembers_static(cls):
-        if name.startswith("_"):
+    for klass in cls.__mro__:
+        if klass is object:
             continue
-        if inspect.isfunction(member) or isinstance(
-            member, (property, classmethod, staticmethod)
-        ):
-            names.add(name)
+        for name, member in vars(klass).items():
+            if name.startswith("_"):
+                continue
+            if inspect.isfunction(member) or isinstance(
+                member, (property, classmethod, staticmethod)
+            ):
+                names.add(name)
     return names
 
 
