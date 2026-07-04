@@ -101,8 +101,13 @@ def test_discovery_finds_both_node_packages():
     names = {c.__name__ for c in _all_concrete_node_classes()}
     # Canary classes — one per package — prove the module walk and the
     # subclass discovery actually worked (guards against a silently-empty sweep).
-    assert "ProjectRelNode" in names
-    assert "RefRelNode" in names
+    assert "ProjectRelNode" in names          # relations/core substrait node
+    assert "RefRelNode" in names              # relations/core extension node
+    # Pipelines bridge canary: the pipelines import is wrapped in
+    # suppress(ModuleNotFoundError), so a future rename/move would silently
+    # degrade the walk to zero pipeline nodes and the Any-guard sweep would pass
+    # vacuously. Assert a real pipelines node is discovered so that regresses LOUDLY.
+    assert "PipelineStepRelNode" in names
 
 
 def test_every_child_field_is_scanned_or_children_overridden():
