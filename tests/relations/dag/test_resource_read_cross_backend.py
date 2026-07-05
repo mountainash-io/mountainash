@@ -226,6 +226,21 @@ class TestItem32FallbackViaDAG:
         rows = _to_dict_list(_collect_via_dag(res, backend))
         assert [(r["a"], r["b"]) for r in rows] == [(1, "x"), (2, "y")]
 
+    def test_escape_char_dialect_parity(self, backend, tmp_path):
+        # escape_char is CsvSpec-mappable but has NO correct native pl.scan_csv
+        # target, so ALL three backends route it to the files fallback (which
+        # honours it via CsvSpec.escape_char) -> identical, CORRECT values. Before
+        # the native-safe split, Polars/Narwhals read it natively-and-wrong
+        # (escape_char->eol_char) while Ibis read it right -> divergence
+        # (consistency-guarantees, ENFORCED).
+        from mountainash.typespec.datapackage import DataResource, TableDialect
+        # note field is a quoted value with an escaped quote: "a\"b" -> a"b
+        (tmp_path / "d.csv").write_text('name,note\n1,"a\\"b"\n')
+        res = DataResource(name="d", path=str(tmp_path / "d.csv"), format="csv",
+                           dialect=TableDialect(escape_char="\\"))
+        rows = _to_dict_list(_collect_via_dag(res, backend))
+        assert [(r["name"], r["note"]) for r in rows] == [(1, 'a"b')]
+
     def test_absence_transitive_during_parse(self, backend, tmp_path, monkeypatch):
         # A transitive dep failing while parse() runs must propagate the typed
         # error through collect() (normalization itself is unit-tested in Task 1).

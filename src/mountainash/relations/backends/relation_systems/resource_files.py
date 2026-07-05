@@ -22,12 +22,24 @@ __all__ = [
     "MissingFilesDependency",
     "parse_resource_to_arrow",
     "dialect_is_default",
+    "dialect_native_safe",
     "ensure_dialect_supported",
 ]
 
-# TableDialect fields CsvSpec (mountainash-files >=26.7.1) can express.
+# TableDialect fields the CsvSpec fallback (mountainash-files >=26.7.1) can
+# express. This is the SEAM-supported set: anything outside it (plus ignored)
+# fails closed uniformly in ensure_dialect_supported.
 _MAPPABLE_DIALECT_FIELDS = frozenset(
     {"delimiter", "header", "quote_char", "escape_char", "null_sequence"}
+)
+# The STRICT subset a native Polars/Narwhals scan can represent *correctly* via
+# TableDialect.to_polars_read_csv_kwargs. escape_char is CsvSpec-mappable but has
+# NO correct native Polars target (pl.scan_csv has no escape parameter; the old
+# escape_char->eol_char map was wrong), so an escape-bearing dialect must route to
+# the CsvSpec fallback on EVERY backend -- never read natively-and-wrong on Polars/
+# Narwhals while Ibis reads it correctly (consistency-guarantees).
+_NATIVE_SAFE_DIALECT_FIELDS = frozenset(
+    {"delimiter", "header", "quote_char", "null_sequence"}
 )
 # Fields that are metadata (do not affect parsing) -> neither mapped nor fatal.
 _IGNORED_DIALECT_FIELDS = frozenset({"csvddf_version"})
@@ -110,6 +122,27 @@ def dialect_is_default(dialect: Any) -> bool:
         return False
     for name in type(dialect).model_fields:
         if name in {"delimiter", "header"} or name in _IGNORED_DIALECT_FIELDS:
+            continue
+        if getattr(dialect, name) is not None:
+            return False
+    return True
+
+
+def dialect_native_safe(dialect: Any) -> bool:
+    """True when every set field of ``dialect`` can be represented CORRECTLY by a
+    native Polars/Narwhals ``scan_csv`` (via ``to_polars_read_csv_kwargs``).
+
+    ``escape_char`` is CsvSpec-mappable (so ``ensure_dialect_supported`` allows it)
+    but has no correct native Polars target, so a dialect that sets it returns
+    False here and the Polars/Narwhals readers route it to the CsvSpec fallback --
+    where it IS honoured -- matching Ibis (which fallback-routes any non-default
+    dialect). Unmappable fields never reach this check (``ensure_dialect_supported``
+    rejects them first); if one did, it returns False and the fallback's
+    ``_csv_spec_from_dialect`` re-raises, so the answer stays consistent."""
+    if dialect is None:
+        return True
+    for name in type(dialect).model_fields:
+        if name in _NATIVE_SAFE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
             continue
         if getattr(dialect, name) is not None:
             return False

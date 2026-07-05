@@ -64,6 +64,26 @@ def test_dialect_is_default_semantics(dialect, expected):
     assert rf.dialect_is_default(dialect) is expected
 
 
+# ---- dialect_native_safe (native-representable ⊊ CsvSpec-mappable) --------
+
+@pytest.mark.parametrize("dialect,expected", [
+    (None, True),
+    (TableDialect(), True),
+    (TableDialect(delimiter=";"), True),          # delimiter is native-safe
+    (TableDialect(header=False), True),           # header is native-safe
+    (TableDialect(quote_char="|"), True),         # quote_char is native-safe
+    (TableDialect(null_sequence="NA"), True),     # null_sequence is native-safe
+    (TableDialect(csvddf_version="1.2"), True),   # metadata does not force fallback
+    (TableDialect(escape_char="\\"), False),      # NOT native-representable -> fallback
+    (TableDialect(delimiter=";", escape_char="\\"), False),  # any escape -> fallback
+])
+def test_dialect_native_safe_semantics(dialect, expected):
+    # escape_char is CsvSpec-mappable (ensure_dialect_supported allows it) but has
+    # no correct pl.scan_csv target, so it must route to the fallback on every
+    # backend rather than be read natively-and-wrong on Polars/Narwhals.
+    assert rf.dialect_native_safe(dialect) is expected
+
+
 # ---- parse_resource_to_arrow (real local reads) ---------------------------
 
 def test_parse_local_csv_to_arrow(tmp_path):

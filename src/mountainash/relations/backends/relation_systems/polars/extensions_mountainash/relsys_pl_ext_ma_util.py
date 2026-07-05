@@ -123,9 +123,13 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         all_local = all(not is_remote(p) for p in paths)
         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
         no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
-        # Native local scan handles local plain CSV (incl. mappable dialect
+        # Native local scan handles local plain CSV (incl. native-safe dialect
         # kwargs) + Parquet lazily. Glob/archive/remote/JSON -> files fallback.
-        if all_local and no_glob and no_archive and fmt in ("csv", "parquet"):
+        # A CSV dialect with a native-unsafe field (e.g. escape_char, which has no
+        # correct pl.scan_csv target) also routes to the fallback so it is honoured
+        # identically to Ibis (consistency-guarantees), not read natively-and-wrong.
+        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(resource.dialect)
+        if all_local and no_glob and no_archive and fmt in ("csv", "parquet") and native_dialect_ok:
             return self._native_local_scan(fmt, paths, resource)
         return pl.from_arrow(rf.parse_resource_to_arrow(resource)).lazy()
 

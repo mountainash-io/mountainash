@@ -126,7 +126,10 @@ class MountainashNarwhalsExtensionRelationSystem(
         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
         no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
 
-        if all_local and no_glob and no_archive and fmt in ("csv", "parquet"):
+        # A native-unsafe CSV dialect (e.g. escape_char) routes to the fallback so
+        # it is honoured identically to the other backends (consistency-guarantees).
+        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(resource.dialect)
+        if all_local and no_glob and no_archive and fmt in ("csv", "parquet") and native_dialect_ok:
             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(resource, fmt)
             scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
             frames = [scan(p, backend="polars", **(kwargs if fmt == "csv" else {})) for p in paths]
