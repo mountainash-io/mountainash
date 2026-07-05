@@ -257,8 +257,8 @@ def parse_resource_to_arrow(resource: Any) -> "pa.Table":
         ) from exc
     except FormatError as exc:  # unknown/ambiguous format, or unreadable contents
         raise UnsupportedResourceFormat(
-            f"resource {resource.name!r} could not be read by the "
-            f"mountainash-files reader: {exc}"
+            f"resource {resource.name!r} (format={resource.format!r}) could not "
+            f"be read by the mountainash-files reader: {exc}"
         ) from exc
     if not tables:
         raise UnsupportedResourceFormat(
