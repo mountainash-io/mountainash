@@ -144,10 +144,15 @@ def _columns(result) -> list[str]:
 def _nrows(result) -> int:
     """Return row count from a backend-native result.
 
-    .collect() checked before .execute() (see _columns).
+    .collect() checked before .execute() (see _columns). Narwhals readers now
+    return a lazy ``nw.LazyFrame``; ``.collect()`` yields an ``nw.DataFrame``
+    (no ``.height``), so unwrap to the native frame before counting.
     """
     if hasattr(result, "collect"):
-        return result.collect().height
+        collected = result.collect()
+        if hasattr(collected, "to_native"):   # narwhals DataFrame -> native
+            collected = collected.to_native()
+        return collected.height
     if hasattr(result, "execute"):
         return len(result.execute())
     return result.height if hasattr(result, "height") else len(result)

@@ -13,7 +13,7 @@ import importlib
 import inspect
 import pkgutil
 import types
-from typing import Union, get_args, get_origin
+from typing import Any, Union, get_args, get_origin
 
 import mountainash.relations.core.relation_nodes as _nodes_pkg
 from mountainash.relations.core.relation_nodes.reln_base import (
@@ -31,6 +31,11 @@ def _import_all_node_modules() -> None:
         _nodes_pkg.__path__, prefix=_nodes_pkg.__name__ + "."
     ):
         importlib.import_module(mod.name)
+    # Walk the pipelines bridge module so its concrete RelationNode subclasses
+    # enter __subclasses__ discovery.
+    import contextlib
+    with contextlib.suppress(ModuleNotFoundError):
+        importlib.import_module("mountainash.pipelines.integration.relation")
 
 
 def _all_concrete_node_classes() -> set[type[RelationNode]]:
@@ -64,12 +69,45 @@ def _involves_relation_node(annotation: object) -> bool:
     return False
 
 
+# Named exemptions: child-bearing fields typed `Any` that are known-safe because
+# they use a scanned name. A NEW Any-typed field on a concrete node that is NOT
+# scanned must be added here explicitly (closed-by-default).
+ANY_TYPED_CHILD_EXEMPTIONS: set[str] = {
+    "ParamsRelNode.input",
+    "ConformRelNode.spec",    # TypeSpec, not a relation node
+    "FilterRelNode.predicate",  # Expression, not a relation node
+    "JoinRelNode.tolerance",    # Literal value, not a relation node
+    "PipelineStepRelNode.pipeline",  # Pipeline config, not a relation node
+    "ReadRelNode.dataframe",    # DataFrame, not a relation node
+    "SourceRelNode.data",       # Generic data, not a relation node
+}
+
+
+def _any_typed_failures(cls: type[RelationNode]) -> list[str]:
+    """Return actionable failure strings for Any-typed fields on `cls` that are
+    neither a scanned child-attr name nor explicitly exempted."""
+    out: list[str] = []
+    for name, field in cls.model_fields.items():
+        if field.annotation is not Any:
+            continue
+        qualified = f"{cls.__name__}.{name}"
+        if name in RELATION_CHILD_ATTRS or qualified in ANY_TYPED_CHILD_EXEMPTIONS:
+            continue
+        out.append(f"{qualified} (Any-typed; scanned-name-or-exempt required)")
+    return out
+
+
 def test_discovery_finds_both_node_packages():
     names = {c.__name__ for c in _all_concrete_node_classes()}
     # Canary classes — one per package — prove the module walk and the
     # subclass discovery actually worked (guards against a silently-empty sweep).
-    assert "ProjectRelNode" in names
-    assert "RefRelNode" in names
+    assert "ProjectRelNode" in names          # relations/core substrait node
+    assert "RefRelNode" in names              # relations/core extension node
+    # Pipelines bridge canary: the pipelines import is wrapped in
+    # suppress(ModuleNotFoundError), so a future rename/move would silently
+    # degrade the walk to zero pipeline nodes and the Any-guard sweep would pass
+    # vacuously. Assert a real pipelines node is discovered so that regresses LOUDLY.
+    assert "PipelineStepRelNode" in names
 
 
 def test_every_child_field_is_scanned_or_children_overridden():
@@ -90,9 +128,32 @@ def test_every_child_field_is_scanned_or_children_overridden():
         unscanned = child_fields - set(RELATION_CHILD_ATTRS)
         for field_name in sorted(unscanned):
             failures.append(f"{cls.__name__}.{field_name}")
+        failures.extend(_any_typed_failures(cls))
     assert not failures, (
         "Child-bearing relation-node fields invisible to the base children() "
         f"scan {RELATION_CHILD_ATTRS}: {failures}. Fix by renaming the field "
         "to a scanned name, extending RELATION_CHILD_ATTRS in reln_base.py "
         "(and children()), or overriding children() on the node class."
     )
+
+
+def test_any_guard_flags_unexempted_any_child():
+    """Construct a concrete node with an unexempted Any-typed field and assert
+    the guard reports it. Without the guard this blind spot is silent."""
+    from mountainash.relations.core.relation_nodes.reln_base import RelationNode
+
+    class _RogueNode(RelationNode):
+        # A child-bearing field typed Any, NOT a scanned name, NOT exempted.
+        sidecar: Any = None
+
+    failures = _any_typed_failures(_RogueNode)
+    assert any("sidecar" in f for f in failures)
+
+
+def test_any_guard_passes_scanned_or_exempt():
+    from mountainash.relations.core.relation_nodes.reln_base import RelationNode
+
+    class _OkNode(RelationNode):
+        input: Any = None             # scanned child-attr name -> allowed
+
+    assert _any_typed_failures(_OkNode) == []

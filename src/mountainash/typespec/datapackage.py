@@ -46,8 +46,10 @@ class TableDialect(BaseModel):
             out["has_header"] = self.header
         if self.quote_char is not None:
             out["quote_char"] = self.quote_char
-        if self.escape_char is not None:
-            out["eol_char"] = self.escape_char
+        # NOTE: escape_char is intentionally NOT mapped -- pl.scan_csv has no
+        # escape parameter (the former escape_char->eol_char map was wrong; eol_char
+        # is the line terminator). Escape-bearing dialects route to the CsvSpec
+        # fallback (see resource_files.dialect_native_safe), which honours them.
         if self.comment_char is not None:
             out["comment_prefix"] = self.comment_char
         if self.null_sequence is not None:
