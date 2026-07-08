@@ -6,7 +6,6 @@ import pytest
 import mountainash as ma
 from mountainash.relations import relation
 from mountainash.relations.dag.dag import RelationDAG
-from mountainash.relations.dag.errors import RelationDAGRequired
 
 from fixtures.backend_registry import ALL_BACKENDS
 
@@ -47,22 +46,30 @@ def _extract_row_count(result) -> int:
     return len(result)
 
 
-# Error-path tests — backend-agnostic, no parametrization needed
+# DAGRelation terminal tests — backend-agnostic, no parametrization needed
+#
+# dag.ref() previously returned a plain Relation: its RefRelNode leaf had no
+# DAG to resolve against, so a standalone terminal legitimately raised
+# RelationDAGRequired. dag.ref() now returns a DAGRelation (PR-2 §2.2), which
+# carries its DAG binding and routes terminals through
+# RelationDAG._execute_with_visitor — the ref resolves and the terminal
+# returns a real value instead of raising. (RelationDAGRequired is still
+# raised for a *plain* Relation wrapping a bare RefRelNode with no DAG
+# binding at all — see test_visitor_ref_resolver.py::test_ref_without_resolver_raises
+# and test_rel_visit_registry.py::TestCoreHandlers::test_visit_ref_without_resolver.)
 
-def test_count_rows_standalone_on_ref_raises():
+def test_count_rows_standalone_on_ref_resolves():
     dag = RelationDAG()
     dag.add("orders", relation([{"id": 1}, {"id": 2}]))
     ref_rel = dag.ref("orders")
-    with pytest.raises(RelationDAGRequired):
-        ref_rel.count_rows()
+    assert ref_rel.count_rows() == 2
 
 
-def test_item_standalone_on_ref_raises():
+def test_item_standalone_on_ref_resolves():
     dag = RelationDAG()
     dag.add("orders", relation([{"id": 1}]))
     ref_rel = dag.ref("orders")
-    with pytest.raises(RelationDAGRequired):
-        ref_rel.item("id")
+    assert ref_rel.item("id") == 1
 
 
 # Cross-backend collect-then-check tests

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.dag.dag_relation import DAGRelation
     from mountainash.relations.dag.errors import UnknownRelationRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
@@ -63,19 +64,20 @@ class RelationDAG:
         for upstream in _walk_refs(root):
             self.dependency_edges.add((upstream, name))
 
-    def ref(self, name: str) -> Relation:
-        """Return a Relation backed by a ``RefRelNode`` for ``name``.
+    def ref(self, name: str) -> "DAGRelation":
+        """Return a DAGRelation backed by a ``RefRelNode`` for ``name``.
 
-        Chaining ``.filter()``, ``.select()``, etc. on the returned object
-        builds a normal relational AST with the ref at its leaf. The dependency
-        edge is recorded when ``add()`` is later called with the result.
+        Chaining ``.filter()``, ``.select()``, etc. preserves the DAGRelation
+        type and its DAG binding; terminals compile through this DAG. The
+        dependency edge is recorded only when ``add()`` is later called.
         """
-        from mountainash.relations.core.relation_api.relation import Relation
-        node = RefRelNode(name=name)
-        return Relation(node)
+        from mountainash.relations.dag.dag_relation import DAGRelation
 
-    def source(self, name: str, data: Any) -> Relation:
-        """Register source data and return a ref relation for downstream use."""
+        node = RefRelNode(name=name)
+        return DAGRelation(node, self)
+
+    def source(self, name: str, data: Any) -> "DAGRelation":
+        """Register source data and return a DAGRelation ref for downstream use."""
         from mountainash.relations.core.relation_api.relation import relation
 
         self.add(name, relation(data))
@@ -232,6 +234,18 @@ class RelationDAG:
         Raises ``ValueError`` if the relation has no ``_node`` attribute.
         Raises ``KeyError`` if a referenced name is not in the DAG.
         """
+        result, _visitor = self._execute_with_visitor(relation, backend=backend)
+        return result
+
+    def _execute_with_visitor(
+        self, relation: "Relation", *, backend: Optional[str] = None
+    ) -> "tuple[Any, Any]":
+        """``execute()`` variant returning ``(result, visitor)`` for terminals
+        needing post-compile visitor state (e.g. ``collect_with_drift``).
+
+        Ad-hoc: resolves ref leaves transitively, never mutates the DAG, and
+        never assigns the target a key identity (``key_target_name=None``).
+        """
         node = getattr(relation, "_node", None)
         if node is None:
             raise ValueError("relation has no _node attribute")
@@ -265,14 +279,13 @@ class RelationDAG:
             except Exception:
                 pass
 
-        result, _visitor = self._compile_with_refs(
+        return self._compile_with_refs(
             node,
             all_refs,
             backend=backend,
             backend_target_name=target_name,
             key_target_name=None,
         )
-        return result
 
     def _compile_with_refs(
         self,
