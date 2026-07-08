@@ -124,6 +124,31 @@ def _terminal_names() -> list[str]:
     return names
 
 
+# --- Schema-family property sweep (Task 4) ---
+
+# Properties that resolve over a ref tree via the DAG. Each must be
+# non-degenerate on a DAGRelation over dag.ref("raw"). Anything ref-independent
+# goes in the exception set WITH A REASON.
+_SCHEMA_FAMILY = {
+    "schema": lambda v: set(v.keys()) == {"x", "y"},
+    "columns": lambda v: set(v) == {"x", "y"},
+    "dtypes": lambda v: len(list(v)) == 2,
+    "width": lambda v: v == 2,
+    "output_schema": lambda v: v is not None,
+}
+
+
+@pytest.mark.parametrize("prop", sorted(_SCHEMA_FAMILY))
+def test_schema_family_resolves_over_ref(prop):
+    _, raw = _dag_with_source()
+    # source has columns x,y (see _dag_with_source); a filter keeps the schema.
+    rel = raw.filter(ma.col("x").gt(0))
+    value = getattr(rel, prop)
+    assert _SCHEMA_FAMILY[prop](value), (
+        f"schema-family property {prop!r} did not resolve over the ref tree: {value!r}"
+    )
+
+
 @pytest.mark.parametrize("term", _terminal_names())
 def test_terminal_sweep_dag_aware(term):
     """Every discovered terminal is DAG-aware on a DAGRelation over a ref tree:

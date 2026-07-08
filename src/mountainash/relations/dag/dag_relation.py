@@ -42,3 +42,32 @@ class DAGRelation(Relation):
         self, backend: "str | None" = None
     ) -> "tuple[Any, Any]":
         return self._dag._execute_with_visitor(self, backend=backend)
+
+    @property
+    def schema(self) -> dict:
+        """Output schema, resolving ``RefRelNode`` leaves via the bound DAG.
+
+        Mirrors ``dag.schema(name)``'s resolver so the schema-family
+        properties (``columns``/``dtypes``/``width``/``output_schema``, which
+        derive from this) return real schemas over ref-bearing trees instead
+        of the degenerate ``{}`` a plain Relation infers.
+        """
+        from mountainash.relations.schema_inference import infer_schema
+
+        def resolver(ref_name: str):
+            return self._dag.schema(ref_name)
+
+        return infer_schema(self._node, ref_resolver=resolver)
+
+    def assess_drift(self) -> "list":
+        """Schema-only drift pre-flight, resolving ``RefRelNode`` leaves via the
+        bound DAG. The base method compiles nothing, so the choke-point
+        overrides do not cover it — it needs its own resolver."""
+        from mountainash.relations.schema_inference import (
+            assess_drift as _assess_drift,
+        )
+
+        def resolver(ref_name: str):
+            return self._dag.schema(ref_name)
+
+        return _assess_drift(self._node, ref_resolver=resolver)
