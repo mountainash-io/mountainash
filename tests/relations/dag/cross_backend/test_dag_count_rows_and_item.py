@@ -98,3 +98,30 @@ class TestDagCollectThenCheck:
         native = dag.collect("first")
         values = _extract_column(native, "name")
         assert values[0] == "alice", f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestDagRelationFluentTerminal:
+    """Fluent terminals directly on a DAGRelation (unregistered), across every
+    backend. Mirrors the Polars-only parity test in test_dag_relation.py: the
+    terminal compiles through RelationDAG._execute_with_visitor rather than a
+    registered collect(). Closes the cross-backend-test-coverage loop for the
+    DAGRelation choke-point overrides (PR-2 §2.2)."""
+
+    def test_fluent_count_rows(self, backend_name, backend_factory):
+        df = backend_factory.create({"id": [1, 2, 3]}, backend_name)
+        dag = RelationDAG()
+        raw = dag.source("orders", df)
+        # Terminal called directly on the DAGRelation — no dag.add / dag.collect.
+        assert raw.filter(ma.col("id").gt(ma.lit(1))).count_rows() == 2, (
+            f"[{backend_name}]"
+        )
+
+    def test_fluent_item(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"id": [1, 2], "name": ["alice", "bob"]}, backend_name
+        )
+        dag = RelationDAG()
+        raw = dag.source("orders", df)
+        assert raw.head(1).item("name") == "alice", f"[{backend_name}]"
