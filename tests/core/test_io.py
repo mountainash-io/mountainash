@@ -19,6 +19,13 @@ from mountainash.core.io import is_remote
         ("http://example.com/data.json", True),
         ("b2://bucket/key.csv", True),
         ("s3express://bucket/key.csv", True),
+        # Regression: these schemes were misclassified as local under the old
+        # prefix-list fallback (which omitted them), so remote SSH/SFTP/FTP
+        # resources were routed to a local Path read that always failed.
+        # Locked in here.
+        ("sftp://host/key.csv", True),
+        ("ssh://host/key.csv", True),
+        ("ftp://host/key.csv", True),
     ],
 )
 def test_is_remote(path: str, expected: bool) -> None:
@@ -30,42 +37,54 @@ def test_facade_read_bytes_dispatches_via_facade(monkeypatch):
     import sys
     import types
 
-    calls: list[str] = []
+    from_path_calls: list[str] = []
+    read_calls: list[str] = []
 
     class FakeFacade:
         def read(self, path: str) -> bytes:
-            calls.append(path)
+            read_calls.append(path)
             return b"fake-data"
 
         @staticmethod
-        def from_path(path, auth_params=None):
+        def from_path(path):
+            from_path_calls.append(path)
             return FakeFacade()
 
-    # Build a fake module hierarchy so the lazy import inside facade_read_bytes works
-    fake_top = types.ModuleType("mountainash_utils_files")
-    fake_sf = types.ModuleType("mountainash_utils_files.storage_facade")
-    fake_facade_mod = types.ModuleType("mountainash_utils_files.storage_facade.facade")
+    # Build a fake module hierarchy so the lazy import inside facade_read_bytes
+    # resolves the transport facade without importing the real package.
+    fake_top = types.ModuleType("mountainash_transport")
+    fake_storage = types.ModuleType("mountainash_transport.storage")
+    fake_facade_pkg = types.ModuleType("mountainash_transport.storage.facade")
+    fake_facade_mod = types.ModuleType("mountainash_transport.storage.facade.facade")
     fake_facade_mod.StorageFacade = FakeFacade  # type: ignore[attr-defined]
 
-    monkeypatch.setitem(sys.modules, "mountainash_utils_files", fake_top)
-    monkeypatch.setitem(sys.modules, "mountainash_utils_files.storage_facade", fake_sf)
-    monkeypatch.setitem(sys.modules, "mountainash_utils_files.storage_facade.facade", fake_facade_mod)
+    monkeypatch.setitem(sys.modules, "mountainash_transport", fake_top)
+    monkeypatch.setitem(sys.modules, "mountainash_transport.storage", fake_storage)
+    monkeypatch.setitem(
+        sys.modules, "mountainash_transport.storage.facade", fake_facade_pkg
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "mountainash_transport.storage.facade.facade",
+        fake_facade_mod,
+    )
 
     from mountainash.core.io import facade_read_bytes
 
     result = facade_read_bytes("s3://bucket/test.csv")
     assert result == b"fake-data"
-    assert calls == ["s3://bucket/test.csv"]
+    assert from_path_calls == ["s3://bucket/test.csv"]
+    assert read_calls == ["s3://bucket/test.csv"]
 
 
 def test_facade_read_bytes_missing_package(monkeypatch):
-    """When mountainash_utils_files is not installed, raise descriptive ImportError."""
+    """When mountainash_transport is not installed, raise descriptive ImportError."""
     import builtins
 
     original_import = builtins.__import__
 
     def blocked_import(name, *args, **kwargs):
-        if name.startswith("mountainash_utils_files"):
+        if name.startswith("mountainash_transport"):
             raise ImportError("mocked missing package")
         return original_import(name, *args, **kwargs)
 
