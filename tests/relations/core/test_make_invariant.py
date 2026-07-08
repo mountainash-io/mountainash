@@ -57,17 +57,19 @@ def _offenders(module) -> list[str]:
     """'Class.method:lineno' for every forbidden construction lexically inside
     an instance method body (module-level functions are exempt).
 
-    ``_make`` itself is exempt: it is the single designated construction
-    hook every other instance method must route through, so its own body is
-    expected to contain the literal ``Relation(node)`` construction that
-    subclasses (``DAGRelation``) override.
+    ``Relation._make`` itself is exempt: it is the single designated
+    construction hook every other instance method must route through, so its
+    own body is expected to contain the literal ``Relation(node)`` construction
+    that subclasses (``DAGRelation``) override. The exemption is scoped to
+    exactly ``Relation._make`` — a method named ``_make`` on any other class
+    would still be scanned, so the exemption can never be widened by accident.
     """
     src = Path(module.__file__).read_text()
     tree = ast.parse(src)
     out: list[str] = []
     for cls in [n for n in tree.body if isinstance(n, ast.ClassDef)]:
         for fn in [n for n in cls.body if isinstance(n, ast.FunctionDef)]:
-            if fn.name == "_make":
+            if cls.name == "Relation" and fn.name == "_make":
                 continue
             for call in ast.walk(fn):
                 if isinstance(call, ast.Call) and _is_forbidden_construction(call):
