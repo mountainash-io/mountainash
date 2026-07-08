@@ -91,6 +91,24 @@ def _to_relation_node(other: Any) -> RelationNode:
     return ReadRelNode(dataframe=other)
 
 
+def _combine_result(node: "RelationNode", operands: "Sequence[Any]") -> "Relation":
+    """Build a combined relation, propagating DAG ownership across ALL operands.
+
+    If any operand is a DAGRelation, all DAG-bound operands must share one DAG
+    (else ValueError) and the result is a DAGRelation bound to it; otherwise a
+    plain Relation. Handles both operand orders and raw-data operands.
+    """
+    from mountainash.relations.dag.dag_relation import (
+        DAGRelation,
+        _resolve_shared_dag,
+    )
+
+    shared = _resolve_shared_dag(list(operands))
+    if shared is not None:
+        return DAGRelation(node, shared)
+    return Relation(node)
+
+
 def _materialize(result: Any, *, unwrap: bool = True) -> Any:
     """Eagerly materialize a compiled backend-native result.
 
@@ -262,7 +280,7 @@ class Relation(RelationBase):
         execute_on: Optional[ExecutionTarget] = None,
     ) -> Relation:
         """Join with another relation or raw data."""
-        return self._make(
+        return _combine_result(
             JoinRelNode(
                 left=self._node,
                 right=_to_relation_node(other),
@@ -272,7 +290,8 @@ class Relation(RelationBase):
                 right_on=_normalize_columns(right_on),
                 suffix=suffix,
                 execute_on=execute_on,
-            )
+            ),
+            [self, other],
         )
 
     def join_asof(
@@ -285,7 +304,7 @@ class Relation(RelationBase):
         tolerance: Any = None,
     ) -> Relation:
         """Asof join with another relation or raw data."""
-        return self._make(
+        return _combine_result(
             JoinRelNode(
                 left=self._node,
                 right=_to_relation_node(other),
@@ -294,7 +313,8 @@ class Relation(RelationBase):
                 by=_normalize_columns(by),
                 strategy=strategy,
                 tolerance=tolerance,
-            )
+            ),
+            [self, other],
         )
 
     # --- Aggregation ---
@@ -1022,7 +1042,14 @@ def relation(data: Any) -> Relation:
 
 
 def concat(relations: Sequence[Relation], *, distinct: bool = False) -> Relation:
-    """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT)."""
+    """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT).
+
+    If any input is a ``DAGRelation``, all DAG-bound inputs must share one DAG
+    (else ``ValueError``) and the result is a ``DAGRelation`` bound to it;
+    plain-``Relation`` inputs mix in freely.
+    """
     nodes = [r._node for r in relations]
     set_type = SetType.UNION_DISTINCT if distinct else SetType.UNION_ALL
-    return Relation(SetRelNode(inputs=nodes, set_type=set_type))
+    return _combine_result(
+        SetRelNode(inputs=nodes, set_type=set_type), list(relations)
+    )

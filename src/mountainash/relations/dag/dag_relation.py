@@ -71,3 +71,24 @@ class DAGRelation(Relation):
             return self._dag.schema(ref_name)
 
         return _assess_drift(self._node, ref_resolver=resolver)
+
+
+def _dag_of(rel: Any) -> "RelationDAGProtocol | None":
+    """The DAG a relation is bound to, or None for a plain Relation / raw data."""
+    return getattr(rel, "_dag", None)
+
+
+def _resolve_shared_dag(operands: "list[Any]") -> "RelationDAGProtocol | None":
+    """Validate that all DAG-bound operands share one DAG; return it (or None if
+    none is DAG-bound). Raise ValueError on a cross-DAG mix. Operands that are
+    not relations (raw data) contribute no DAG."""
+    dags = [d for d in (_dag_of(r) for r in operands) if d is not None]
+    if not dags:
+        return None
+    first = dags[0]
+    for d in dags[1:]:
+        if d is not first:
+            raise ValueError(
+                "cannot combine relations bound to different DAG instances"
+            )
+    return first
