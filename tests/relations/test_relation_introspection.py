@@ -115,15 +115,29 @@ class TestRelationOutputSchema:
         assert [f["name"] for f in result["fields"]] == ["x", "y"]
 
 
-def test_output_schema_none_for_ref_relation():
-    """A RefRelNode has no inferable schema without a ref_resolver, so the
+def test_output_schema_none_for_plain_ref_relation():
+    """A *plain* Relation wrapping a bare RefRelNode has no ref_resolver, so the
     ref-free output_schema property returns None (documented limitation;
     dag.schema()/to_package() are the ref-resolved export authority)."""
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+        RefRelNode,
+    )
+    plain = Relation(RefRelNode(name="base"))
+    assert plain.output_schema is None
+
+
+def test_output_schema_resolves_for_dag_ref_relation():
+    """A DAGRelation (from dag.ref()) DOES carry a ref_resolver (PR-2 §2.2), so
+    output_schema resolves the ref via the bound DAG instead of returning None
+    — the intended lift over the plain-Relation limitation above."""
     from mountainash.relations.dag.dag import RelationDAG
     dag = RelationDAG()
     dag.add("base", ma.relation(pl.DataFrame({"x": [1]})))
     ref_rel = dag.ref("base")
-    assert ref_rel.output_schema is None
+    resolved = ref_rel.output_schema
+    assert resolved is not None
+    assert [f["name"] for f in resolved["fields"]] == ["x"]
 
 
 class TestFrictionlessFromInferred:
