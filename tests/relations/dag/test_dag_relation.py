@@ -84,7 +84,7 @@ TERMINAL_EXCEPTIONS = {
     "pipe": "takes an arbitrary user function, not a terminal",
     "explain": "returns backend plan string; covered separately",
     "compile": "returns unexecuted native plan; covered separately",
-    "collect_with_drift": "report terminal; covered by parity test",
+    "collect_with_drift": "shares _compile_and_execute_with_visitor with collect(), already exercised",
 }
 TERMINAL_SMOKE_ARGS = {
     "item": (("x",), {}),
