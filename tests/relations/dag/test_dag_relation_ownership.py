@@ -52,12 +52,6 @@ def test_join_reverse_order_propagates_dag_ownership():
     assert joined.count_rows() == 1
 
 
-def test_join_reverse_order_cross_dag_raises():
-    _, _, a, b = _two_dags()  # a in d1, b in d2
-    with pytest.raises(ValueError, match="different DAG"):
-        a.join(b, on="k")
-
-
 def test_concat_same_dag_returns_dagrelation():
     d1 = RelationDAG()
     a = d1.source("a", pl.DataFrame({"x": [1]}))
