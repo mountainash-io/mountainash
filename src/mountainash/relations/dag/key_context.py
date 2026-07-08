@@ -2,12 +2,13 @@
 
 This is a `+1` optional visitor parameter, analogous to ``ref_resolver``
 (see `a.architecture/dag/relation-dag-orchestrator.md`: the DAG stays a
-thin orchestrator; the visitor stays the single compiler). It is
-constructed per ``RelationDAG.collect()``/``execute()`` call (and
-re-pointed per compiled dependency via ``dataclasses.replace``) and
-passed into ``UnifiedRelationVisitor`` so ``apply_conform`` can evaluate
-declared foreign-key constraints against the conformed output (item 48,
-`keys` dimension, PR-D).
+thin orchestrator; the visitor stays the single compiler). A fresh
+context is constructed per compiled dependency (keyed to that
+dependency's own name) and, for ``collect()``, for the collect-target;
+an ad-hoc ``execute()`` target gets no context (``key_target_name=None``).
+It is passed into ``UnifiedRelationVisitor`` so ``apply_conform`` can
+evaluate declared foreign-key constraints against the conformed output
+(item 48, `keys` dimension, PR-D).
 
 A bare ``Relation.conform()`` call with no owning ``RelationDAG`` never
 constructs this — ``UnifiedRelationVisitor.key_context`` stays ``None``
@@ -34,8 +35,8 @@ class KeyDriftContext:
             compiled* — the fallback "child" identity used when
             ``apply_conform``'s own ``resource_name`` argument is ``None``
             (a bare ``.conform()`` call with no owning
-            ``ResourceReadRelNode``). The DAG re-points this per node via
-            ``dataclasses.replace`` in its dependency loop (see
+            ``ResourceReadRelNode``). The DAG builds a fresh context per
+            node in its dependency loop (see
             ``RelationDAG._compile_with_refs``), so each dependency's key
             assessment runs against its OWN constraints, never the
             collect-target's. For a ``ResourceReadRelNode`` conform, the
