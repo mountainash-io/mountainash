@@ -218,6 +218,7 @@ class RelationDAG:
             ref_names,
             backend=backend,
             backend_target_name=name,
+            key_target_name=name,
         )
 
     def execute(self, relation: Relation, *, backend: Optional[str] = None) -> Any:
@@ -269,6 +270,7 @@ class RelationDAG:
             all_refs,
             backend=backend,
             backend_target_name=target_name,
+            key_target_name=None,
         )
         return result
 
@@ -279,6 +281,7 @@ class RelationDAG:
         *,
         backend: Optional[str] = None,
         backend_target_name: Optional[str] = None,
+        key_target_name: Optional[str] = None,
     ) -> "tuple[Any, Any]":
         """Compile ``node`` after materialising all relations in ``ref_names``.
 
@@ -338,22 +341,33 @@ class RelationDAG:
         # analogous to ref_resolver. The context's resource_name is the
         # apply_conform() fallback "child" identity for nodes that carry no
         # resource_name of their own (a bare ConformRelNode; a
-        # ResourceReadRelNode always supplies its own Frictionless name),
-        # so it must track WHICH DAG relation is being compiled: the
-        # dependency loop below re-points it to each dependency's own name
-        # before compiling that dependency, then the target's context is
-        # restored for the target compile. Without that re-pointing, a
-        # bare-conformed dependency would be assessed against the TARGET's
-        # FK constraints (wrong report / spurious freeze). No target name
-        # (execute() on an ad-hoc relation with zero DAG refs) means there
-        # is no DAG identity to assess keys against, so key_context stays
-        # None (frame-level, key_changes stays None -- not assessed).
+        # ResourceReadRelNode always supplies its own Frictionless name).
+        #
+        # backend_target_name and key_target_name are deliberately separate
+        # params (PR-2 Sec 2.2): backend_target_name governs backend
+        # DETECTION only (which relation's leaf ReadRelNode to inspect) and
+        # is set even for an ad-hoc execute() target, purely so an
+        # arbitrary alphabetically-first dependency can anchor detection.
+        # key_target_name governs the TARGET's key-context IDENTITY only.
+        # Conflating the two previously misattributed an ad-hoc execute()
+        # target's key assessment to that same alphabetically-first
+        # dependency's FK constraints. key_target_name is None for
+        # execute() (no DAG identity to assess an ad-hoc relation against)
+        # and set to the real name for collect()/collect_with_drift(), so
+        # key_context stays None for ad-hoc targets (frame-level,
+        # key_changes stays None -- not assessed) and correct for named
+        # targets. The dependency loop below always builds each
+        # dependency's OWN context regardless of the target's identity
+        # (including when it's None), so a bare-conformed dependency is
+        # NEVER assessed against the TARGET's FK constraints — avoiding
+        # both the original misattribution and a wrong report / spurious
+        # freeze for the dependency itself.
         key_context = None
-        if backend_target_name is not None:
+        if key_target_name is not None:
             from mountainash.relations.dag.key_context import KeyDriftContext
 
             key_context = KeyDriftContext(
-                resource_name=backend_target_name,
+                resource_name=key_target_name,
                 constraints_for=self.constraints_for,
                 schema_of=self.schema,
             )
@@ -367,7 +381,7 @@ class RelationDAG:
 
         # Compile refs in topological order
         if ref_names:
-            import dataclasses
+            from mountainash.relations.dag.key_context import KeyDriftContext
 
             # Get full topological order and filter to only the needed refs
             full_order = self.topological_order(target=None)
@@ -378,14 +392,19 @@ class RelationDAG:
                 root = getattr(rel, "_node", None)
                 if root is None:
                     raise ValueError(f"relation {n!r} has no _node attribute")
-                # Per-node key context: this dependency's key assessment
-                # must run against ITS constraints, not the target's.
-                if key_context is not None:
-                    visitor.key_context = dataclasses.replace(
-                        key_context, resource_name=n
-                    )
+                # Each dependency is key-assessed against ITS OWN
+                # constraints, unconditionally — independent of whether the
+                # target itself has a key identity (key_context may be None
+                # for an ad-hoc execute() target; that must not suppress
+                # dependency assessment).
+                visitor.key_context = KeyDriftContext(
+                    resource_name=n,
+                    constraints_for=self.constraints_for,
+                    schema_of=self.schema,
+                )
                 cache[n] = root.accept(visitor)
-            # Restore the target's context before compiling the target.
+            # Restore the target's context (None for ad-hoc execute())
+            # before compiling the target.
             visitor.key_context = key_context
 
         # Compile the target node itself
