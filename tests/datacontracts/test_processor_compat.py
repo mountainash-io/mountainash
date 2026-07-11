@@ -156,7 +156,8 @@ class TestMalformedRules:
                 "status": ["passed", "error"],
                 "pass_count": [1, None], "fail_count": [0, None],
                 "unknown_count": [0, None], "total_rows": [1, None],
-                "mostly": [None, None], "diagnostic": [None, None],
+                "mostly": [None, None], "severity": ["blocking", "blocking"],
+                "diagnostic": [None, None],
                 "error": [None, "ColumnNotFoundError: ghost"],
                 "elapsed": [0.001, 0.001],
             }
@@ -216,7 +217,8 @@ class TestVerdictHelpers:
                 "status": ["passed", "failed"],
                 "pass_count": [3, None], "fail_count": [0, None],
                 "unknown_count": [0, None], "total_rows": [3, None],
-                "mostly": [None, None], "diagnostic": [None, "-4.2"],
+                "mostly": [None, None], "severity": ["blocking", "blocking"],
+                "diagnostic": [None, "-4.2"],
                 "error": [None, None],
                 "elapsed": [0.001, 0.001],
             }

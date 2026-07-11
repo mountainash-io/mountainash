@@ -1,91 +1,106 @@
-"""ValidationResultProcessor — unified failure case analysis via mountainash relations."""
+"""ValidationResultProcessor — failure-case analysis over the unified schema.
+
+Consumes the spec §8 failure-case frame (check_id/check_kind/column/outcome/
+value/message/key-fields/row_number/row). Keyed-only capabilities gate with
+IdentityRequiredError (spec §7); nothing silently falls back to positional
+identity. See tests/datacontracts/test_processor_compat.py for the pinned
+per-method compatibility matrix.
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import polars as pl_mod
+
 import mountainash as ma
+from mountainash.validation.errors import IdentityRequiredError
+from mountainash.validation.identity import RowIdentity, require_keyed
 
 if TYPE_CHECKING:
     import polars as pl
 
 
 class ValidationResultProcessor:
-    """Processes pandera failure cases using mountainash relations and expressions."""
+    """Processes unified failure cases using mountainash relations."""
 
     def __init__(
         self,
-        failure_cases: pl.DataFrame,
+        failure_cases: "pl.DataFrame",
         *,
-        source_data: pl.DataFrame | None = None,
-        natural_key: list[str] | None = None,
+        source_data: "pl.DataFrame | None" = None,
+        natural_key: "list[str] | None" = None,
+        identity: "RowIdentity | None" = None,
+        check_summaries: "pl.DataFrame | None" = None,
         validator_name: str | None = None,
     ) -> None:
+        if identity is None:
+            identity = (
+                RowIdentity("keyed", tuple(natural_key))
+                if natural_key
+                else RowIdentity("none")
+            )
+        self._identity = identity
         self._failure_cases = failure_cases
         self._source_data = source_data
-        self._natural_key = natural_key
+        self._natural_key = (
+            natural_key if natural_key is not None else (list(identity.key_fields) or None)
+        )
+        self._check_summaries = check_summaries
         self._validator_name = validator_name
         self._rel = ma.relation(failure_cases)
-        self._enriched: pl.DataFrame | None = None
+        self._enriched: "pl.DataFrame | None" = None
 
-    def failure_cases(self) -> pl.DataFrame:
+    # -- raw access / filters -------------------------------------------------
+
+    def failure_cases(self) -> "pl.DataFrame":
         return self._failure_cases
 
-    def failure_cases_for_column(self, column: str) -> pl.DataFrame:
-        return (
-            self._rel
-            .filter(
-                ma.col("schema_context").eq(ma.lit("Column"))
-                & ma.col("column").eq(ma.lit(column))
-            )
-            .collect()
-        )
+    def failure_cases_for_column(self, column: str) -> "pl.DataFrame":
+        return self._rel.filter(ma.col("column").eq(ma.lit(column))).collect()
 
-    def failure_cases_for_rule(self, rule_id: str) -> pl.DataFrame:
-        return (
-            self._rel
-            .filter(
-                ma.col("schema_context").eq(ma.lit("DataFrameSchema"))
-                & ma.col("check").eq(ma.lit(rule_id))
-            )
-            .collect()
-        )
+    def failure_cases_for_rule(self, rule_id: str) -> "pl.DataFrame":
+        return self._rel.filter(ma.col("check_id").eq(ma.lit(rule_id))).collect()
 
     def failure_count(self) -> int:
         return len(self._failure_cases)
 
-    def failure_count_by_column(self) -> pl.DataFrame:
+    def failure_count_by_column(self) -> "pl.DataFrame":
         return (
-            self._rel
-            .filter(ma.col("schema_context").eq(ma.lit("Column")))
+            self._rel.filter(ma.col("column").is_not_null())
             .group_by("column")
             .agg(ma.count_records().alias("count"))
             .collect()
         )
 
-    def failure_count_by_rule(self) -> pl.DataFrame:
+    def failure_count_by_rule(self) -> "pl.DataFrame":
         return (
-            self._rel
-            .filter(ma.col("schema_context").eq(ma.lit("DataFrameSchema")))
-            .group_by("check")
+            self._rel.group_by("check_id")
             .agg(ma.count_records().alias("count"))
             .collect()
         )
 
-    def enriched_failure_cases(self) -> pl.DataFrame:
-        """Standardised failure cases with consistent column names and types."""
+    # -- enrichment -------------------------------------------------------------
+
+    def enriched_failure_cases(self) -> "pl.DataFrame":
+        """Standardised failure cases: rule_id/column_name/row_index/value_str.
+
+        `check_kind` replaces the removed Pandera `schema_context`;
+        `row_index` is always present and gated on NULLNESS, not absence.
+        """
         if self._enriched is not None:
             return self._enriched
 
         rel = ma.relation(self._failure_cases)
         enriched = rel.with_columns(
             ma.lit(self._validator_name).alias("validator_name"),
-            ma.col("check").alias("rule_id"),
+            ma.col("check_id").alias("rule_id"),
             ma.col("column").alias("column_name"),
-            ma.col("index").alias("row_index"),
-            ma.col("failure_case").cast("string").alias("value_str"),
+            ma.col("row_number").alias("row_index"),
+            ma.col("value").alias("value_str"),
         ).select(
-            "validator_name", "rule_id", "schema_context",
+            "validator_name", "rule_id", "check_kind",
             "column_name", "row_index", "value_str",
+            *self._identity.key_fields,
         )
 
         if self._natural_key is not None:
@@ -97,64 +112,82 @@ class ValidationResultProcessor:
         self._enriched = result
         return result
 
-    def _enriched_non_null(self) -> Any:
-        """Enriched failure cases filtered to non-null row_index, as a relation."""
-        return ma.relation(self.enriched_failure_cases()).filter(
-            ma.col("row_index").is_not_null()
+    # -- profiled counts (identity-gated) ----------------------------------------
+
+    def _identity_columns(self, feature: str) -> "list[str]":
+        if self._identity.kind == "keyed":
+            return list(self._identity.key_fields)
+        if self._identity.kind == "row_number":
+            return ["row_index"]
+        raise IdentityRequiredError(
+            f"{feature} requires keyed or row_number identity; current tier is 'none'"
         )
 
-    def profiled_failure_count(self) -> pl.DataFrame:
-        """Unique failing rows grouped by validator_name."""
+    def _unique_failing(self, *dims: str) -> Any:
+        identity_cols = self._identity_columns("profiled failure counts")
+        rel = ma.relation(self.enriched_failure_cases())
+        if self._identity.kind == "row_number":
+            rel = rel.filter(ma.col("row_index").is_not_null())
+        return rel.select(*dims, *identity_cols).unique()
+
+    def profiled_failure_count(self) -> "pl.DataFrame":
         return (
-            self._enriched_non_null()
+            self._unique_failing("validator_name")
             .group_by("validator_name")
-            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .agg(ma.count_records().alias("unique_row_count"))
             .collect()
         )
 
-    def profiled_failure_count_by_column(self) -> pl.DataFrame:
-        """Unique failing rows grouped by validator_name + column_name."""
+    def profiled_failure_count_by_column(self) -> "pl.DataFrame":
         return (
-            self._enriched_non_null()
+            self._unique_failing("validator_name", "column_name")
             .group_by("validator_name", "column_name")
-            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .agg(ma.count_records().alias("unique_row_count"))
             .collect()
         )
 
-    def profiled_failure_count_by_value(self) -> pl.DataFrame:
-        """Unique failing rows grouped by validator_name + column_name + value_str."""
+    def profiled_failure_count_by_value(self) -> "pl.DataFrame":
         return (
-            self._enriched_non_null()
+            self._unique_failing("validator_name", "column_name", "value_str")
             .group_by("validator_name", "column_name", "value_str")
-            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .agg(ma.count_records().alias("unique_row_count"))
             .collect()
         )
 
-    def profiled_failure_count_by_rule(self) -> pl.DataFrame:
-        """Unique failing rows grouped by validator_name + rule_id."""
+    def profiled_failure_count_by_rule(self) -> "pl.DataFrame":
         return (
-            self._enriched_non_null()
+            self._unique_failing("validator_name", "rule_id")
             .group_by("validator_name", "rule_id")
-            .agg(ma.col("row_index").n_unique().alias("unique_row_count"))
+            .agg(ma.count_records().alias("unique_row_count"))
             .collect()
         )
 
-    def malformed_rules(self) -> pl.DataFrame:
-        """Rules where row_index is null — the rule errored instead of returning row-level booleans."""
+    # -- rule health -----------------------------------------------------------
+
+    def malformed_rules(self) -> "pl.DataFrame":
+        """Rules whose execution errored — from CheckSummary(status='error').
+
+        (Pandera-era heuristic 'null index means the rule errored' is gone:
+        errored rules produce no failure-case rows at all.)
+        """
+        import polars as pl_mod
+
+        if self._check_summaries is None:
+            return pl_mod.DataFrame(
+                schema={"rule_id": pl_mod.String, "error": pl_mod.String}
+            )
         return (
-            ma.relation(self.enriched_failure_cases())
-            .filter(ma.col("row_index").is_null())
-            .group_by("rule_id")
-            .agg(ma.count_records().alias("null_index_count"))
-            .collect()
+            self._check_summaries
+            .filter(pl_mod.col("status") == "error")
+            .select(pl_mod.col("check_id").alias("rule_id"), pl_mod.col("error"))
         )
 
     def rules_well_formed(self) -> bool:
-        """True if no malformed rules detected."""
         return len(self.malformed_rules()) == 0
 
+    # -- keyed-only capabilities -------------------------------------------------
+
     def _resolve_source_data(self, source_data: Any | None) -> Any:
-        """Resolve source data from parameter or stored value."""
         resolved = source_data if source_data is not None else self._source_data
         if resolved is None:
             raise ValueError(
@@ -163,118 +196,79 @@ class ValidationResultProcessor:
             )
         return resolved
 
-    def pivot_all_fields(self, source_data: Any | None = None) -> pl.DataFrame:
-        """Wide pivot: all field values for failing rows, grouped by rule_id + row_index."""
+    def pivot_all_fields(self, source_data: Any | None = None) -> "pl.DataFrame":
+        """Wide pivot: all source field values for failing rows (keyed only —
+        row_number is a diagnostic ordinal and never joins back)."""
+        require_keyed(self._identity, feature="pivot_all_fields")
         resolved = self._resolve_source_data(source_data)
-        enriched = self.enriched_failure_cases()
-        failures = ma.relation(enriched).filter(
-            ma.col("row_index").is_not_null()
-        ).with_columns(
-            ma.col("row_index").cast("uint32").alias("row_index"),
-        ).select("rule_id", "row_index").unique()
+        keys = list(self._identity.key_fields)
 
-        source_rel = ma.relation(resolved).with_row_index(name="_row_idx")
-        joined = failures.join(
-            source_rel,
-            left_on=["row_index"],
-            right_on=["_row_idx"],
-            how="inner",
+        failures = (
+            ma.relation(self.enriched_failure_cases())
+            .select("rule_id", *keys)
+            .unique()
         )
+        joined = failures.join(ma.relation(resolved), on=keys, how="inner")
         return joined.collect()
 
-    def pivot_key_fields(self, source_data: Any | None = None) -> pl.DataFrame:
-        """Wide pivot: natural key field values only for failing rows."""
-        if self._natural_key is None:
-            raise ValueError(
-                "natural_key is required for pivot_key_fields. "
-                "Pass it to the constructor."
-            )
-        resolved = self._resolve_source_data(source_data)
-        enriched = self.enriched_failure_cases()
-        failures = ma.relation(enriched).filter(
-            ma.col("row_index").is_not_null()
-        ).with_columns(
-            ma.col("row_index").cast("uint32").alias("row_index"),
-        ).select("rule_id", "row_index").unique()
-
-        source_rel = ma.relation(resolved).with_row_index(name="_row_idx")
-        select_cols = ["_row_idx"] + [c for c in self._natural_key]
-        source_rel = source_rel.select(*select_cols)
-        joined = failures.join(
-            source_rel,
-            left_on=["row_index"],
-            right_on=["_row_idx"],
-            how="inner",
+    def pivot_key_fields(self, source_data: Any | None = None) -> "pl.DataFrame":
+        """Key field values per failing rule — straight from the failure cases
+        (source_data accepted for back-compat; no longer needed)."""
+        require_keyed(self._identity, feature="pivot_key_fields")
+        return (
+            ma.relation(self.enriched_failure_cases())
+            .select("rule_id", *self._identity.key_fields)
+            .unique()
+            .collect()
         )
-        return joined.collect()
 
-    def _normalise_rule_metadata(self, rule_metadata: Any) -> pl.DataFrame:
-        """Convert rule_metadata to a polars DataFrame with rule_id, error_message, fields columns."""
+    def _normalise_rule_metadata(self, rule_metadata: Any) -> "pl.DataFrame":
         import polars as pl_mod
 
         if isinstance(rule_metadata, dict):
-            rows = []
-            for rule_id, meta in rule_metadata.items():
-                rows.append({
+            rows = [
+                {
                     "rule_id": rule_id,
                     "error_message": meta["error_message"],
                     "fields": meta["fields"],
-                })
+                }
+                for rule_id, meta in rule_metadata.items()
+            ]
             return pl_mod.DataFrame(rows)
-
         if isinstance(rule_metadata, pl_mod.DataFrame):
             return rule_metadata
-
         return ma.relation(rule_metadata).to_polars()
 
     def interpolate_messages(
-        self,
-        rule_metadata: Any,
-        source_data: Any | None = None,
-    ) -> pl.DataFrame:
-        """Join failure cases with rule metadata, replace {field} placeholders with actual values."""
+        self, rule_metadata: Any, source_data: Any | None = None
+    ) -> "pl.DataFrame":
+        """Join failure cases with rule metadata via key fields, replace
+        {field} placeholders with actual source values (keyed only)."""
         import polars as pl_mod
 
+        require_keyed(self._identity, feature="interpolate_messages")
         resolved_source = self._resolve_source_data(source_data)
         meta_df = self._normalise_rule_metadata(rule_metadata)
 
         dup_ids = meta_df.group_by("rule_id").len().filter(pl_mod.col("len") > 1)
         if len(dup_ids) > 0:
-            dups = dup_ids["rule_id"].to_list()
-            raise ValueError(f"rule_metadata contains duplicate rule_ids: {dups}")
+            raise ValueError(
+                f"rule_metadata contains duplicate rule_ids: {dup_ids['rule_id'].to_list()}"
+            )
 
-        enriched = self.enriched_failure_cases()
-        failures_with_idx = ma.relation(enriched).filter(
-            ma.col("row_index").is_not_null()
-        ).with_columns(
-            ma.col("row_index").cast("uint32").alias("row_index"),
-        )
-
-        source_rel = ma.relation(resolved_source).with_row_index(name="_row_idx")
-
-        joined_source = failures_with_idx.join(
-            source_rel,
-            left_on=["row_index"],
-            right_on=["_row_idx"],
-            how="inner",
-        )
-
-        with_meta = joined_source.join(
-            meta_df,
-            on=["rule_id"],
-            how="inner",
-        )
-
+        keys = list(self._identity.key_fields)
+        failures = ma.relation(self.enriched_failure_cases()).select(
+            "validator_name", "rule_id", *keys
+        ).unique()
+        joined_source = failures.join(ma.relation(resolved_source), on=keys, how="inner")
+        with_meta = joined_source.join(ma.relation(meta_df), on=["rule_id"], how="inner")
         result_df = with_meta.collect()
 
         result_df = result_df.with_columns(
             pl_mod.col("error_message").alias("error_message_template"),
         )
-
-        meta_rows = meta_df.to_dicts()
-        for rule_row in meta_rows:
-            rule_id = rule_row["rule_id"]
-            fields = rule_row["fields"]
+        for rule_row in meta_df.to_dicts():
+            rule_id, fields = rule_row["rule_id"], rule_row["fields"]
             if not fields:
                 continue
             mask = result_df["rule_id"] == rule_id
@@ -293,14 +287,41 @@ class ValidationResultProcessor:
                     .otherwise(pl_mod.col("error_message"))
                     .alias("error_message")
                 )
-
         return result_df
 
+    # -- verdict helpers ---------------------------------------------------------
+
+    @staticmethod
+    def _blocking_frame_filter() -> "pl_mod.Expr":
+        # spec §8 third amendment: frame re-expression of is_blocking() —
+        # error always blocks; failed blocks only at blocking severity
+        return (pl_mod.col("status") == "error") | (
+            (pl_mod.col("status") == "failed")
+            & (pl_mod.col("severity") == "blocking")
+        )
+
     def passed(self) -> bool:
+        # spec §8: NOT a second owner of pass semantics — statuses (composed
+        # with severity via is_blocking) not failure-row emptiness decide
+        # (scalar/errored checks emit no rows).
+        # Frame fallback only for bare failure-frame construction.
+        if self._check_summaries is not None:
+            return (
+                self._check_summaries.filter(self._blocking_frame_filter()).height == 0
+            )
         return len(self._failure_cases) == 0
 
     def passed_for_column(self, column: str) -> bool:
+        # failure-row-based by nature: column verdicts only exist through
+        # failure rows (summaries have no column dimension)
         return len(self.failure_cases_for_column(column)) == 0
 
     def passed_for_rule(self, rule_id: str) -> bool:
+        if self._check_summaries is not None:
+            return (
+                self._check_summaries.filter(
+                    (pl_mod.col("check_id") == rule_id) & self._blocking_frame_filter()
+                ).height
+                == 0
+            )
         return len(self.failure_cases_for_rule(rule_id)) == 0
