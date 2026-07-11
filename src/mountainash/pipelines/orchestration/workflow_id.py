@@ -13,6 +13,7 @@ def compute_workflow_id(
     params: dict[str, Any] | None,
     config: dict[str, Any],
     target: str | None = None,
+    step_params: dict[str, Any] | None = None,
 ) -> str:
     parts = [
         pipeline_name,
@@ -22,5 +23,7 @@ def compute_workflow_id(
         _serialize_for_hash(config),
         _serialize_for_hash(target),
     ]
+    if step_params is not None:
+        parts.append(_serialize_for_hash(step_params))
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode()).hexdigest()[:24]

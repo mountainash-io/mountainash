@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from mountainash.pipelines.core.cache_key import compute_cache_key
-from mountainash.pipelines.core.result import StepMetadata, StepResult
+from mountainash.pipelines.core.params import resolve_step_params
+from mountainash.pipelines.core.result import StepMetadata, StepResult, infer_record_count
 from mountainash.pipelines.core.step import StepContext
 from mountainash.pipelines.orchestration.resolver import _global_registry
 from mountainash.pipelines.orchestration.workflow_id import compute_workflow_id
@@ -61,6 +62,7 @@ class DbosPipelineRunner:
         config: dict[str, Any] | None = None,
         force: bool = False,
         target: str | None = None,
+        step_params: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, StepResult]:
         if target is not None and target not in self._spec.steps:
             raise ValueError(
@@ -79,6 +81,7 @@ class DbosPipelineRunner:
                 resolved_params,
                 merged_config,
                 target=target,
+                step_params=step_params,
             )
 
         with SetWorkflowID(wf_id):
@@ -89,6 +92,7 @@ class DbosPipelineRunner:
                 params=resolved_params,
                 config=merged_config,
                 target=target,
+                step_params=step_params,
             )
 
 
@@ -100,6 +104,7 @@ def _dbos_run_pipeline(
     params: dict[str, Any],
     config: dict[str, Any],
     target: str | None = None,
+    step_params: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, StepResult]:
     deps = _global_registry.resolve(spec_name, user_id)
     spec: PipelineSpec = deps["spec"]
@@ -125,6 +130,7 @@ def _dbos_run_pipeline(
                 params=params,
                 config=config,
                 spec_version=spec_version,
+                step_params=step_params,
             )
             results[step_name] = result
 
@@ -141,14 +147,16 @@ def _dbos_execute_step(
     params: dict[str, Any],
     config: dict[str, Any],
     spec_version: str,
+    step_params: dict[str, dict[str, Any]] | None = None,
 ) -> StepResult:
     deps = _global_registry.resolve(spec_name, user_id)
     spec: PipelineSpec = deps["spec"]
     storage = deps["storage"]
     defn = spec.steps[step_name]
 
+    effective_params = resolve_step_params(step_name, params, step_params)
     cache_key = compute_cache_key(
-        spec_version, step_name, upstream_cache_keys, params
+        spec_version, step_name, upstream_cache_keys, effective_params
     )
 
     cached = storage.read_step_output(step_name, cache_key)
@@ -156,23 +164,24 @@ def _dbos_execute_step(
         return cached
 
     ctx = StepContext(
-        params=params,
+        params=effective_params,
         pipeline_storage=storage,
         storage_facade=config.get("storage_facade"),
         config=config,
         step_name=step_name,
         workflow_id=DBOS.workflow_id,
+        cache_key=cache_key,
     )
 
     data = defn.fn(ctx, **upstream_data)
 
-    record_count = len(data) if isinstance(data, list) else None
+    record_count = infer_record_count(data)
     metadata = StepMetadata(
         step_name=step_name,
         completed_at=datetime.now(),
         record_count=record_count,
         input_cache_keys=upstream_cache_keys,
-        params=params,
+        params=effective_params,
     )
 
     result = StepResult(data=data, metadata=metadata, cache_key=cache_key)

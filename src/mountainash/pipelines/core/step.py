@@ -19,6 +19,7 @@ class StepContext:
     config: dict[str, Any]
     step_name: str
     workflow_id: str | None
+    cache_key: str | None = None
 
 
 @dataclass(frozen=True)

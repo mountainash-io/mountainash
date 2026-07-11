@@ -5,8 +5,9 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 from mountainash.pipelines.core.cache_key import compute_cache_key
+from mountainash.pipelines.core.params import resolve_step_params
 from mountainash.pipelines.core.policies import EmptyPolicy
-from mountainash.pipelines.core.result import StepMetadata, StepResult
+from mountainash.pipelines.core.result import StepMetadata, StepResult, infer_record_count
 from mountainash.pipelines.core.step import StepContext
 # Back-compat: StepEmptyError moved to mountainash.pipelines.errors.
 # This alias is permanent enough to survive pickles + external imports;
@@ -29,6 +30,7 @@ class SimplePipelineRunner:
         self._spec = spec
         self._storage = storage
         self._config = config or {}
+        self.last_executed: tuple[str, ...] = ()
 
     def run(
         self,
@@ -36,23 +38,25 @@ class SimplePipelineRunner:
         config: dict[str, Any] | None = None,
         force: bool = False,
         target: str | None = None,
+        step_params: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, StepResult]:
         if target is not None and target not in self._spec.steps:
             raise ValueError(
                 f"Target step '{target}' not found in pipeline '{self._spec.name}'"
             )
         merged_config = {**self._config, **(config or {})}
-        resolved_params = params or {}
 
         order = self._spec.topological_order(target=target)
         results: dict[str, StepResult] = {}
+        executed: list[str] = []
 
         for step_name in order:
             defn = self._spec.steps[step_name]
 
             upstream_keys = {dep: results[dep].cache_key for dep in defn.depends_on}
+            effective_params = resolve_step_params(step_name, params, step_params)
             cache_key = compute_cache_key(
-                self._spec.version, step_name, upstream_keys, resolved_params,
+                self._spec.version, step_name, upstream_keys, effective_params,
             )
 
             if not force:
@@ -63,37 +67,32 @@ class SimplePipelineRunner:
 
             upstream_data = {dep: results[dep].data for dep in defn.depends_on}
             ctx = StepContext(
-                params=resolved_params,
+                params=effective_params,
                 pipeline_storage=self._storage,
                 storage_facade=merged_config.get("storage_facade"),
                 config=merged_config,
                 step_name=step_name,
                 workflow_id=None,
+                cache_key=cache_key,
             )
 
             data = defn.fn(ctx, **upstream_data)
 
             self._check_empty(step_name, data, defn.empty_policy)
 
-            if isinstance(data, list):
-                record_count = len(data)
-            elif hasattr(data, "num_rows"):
-                record_count = data.num_rows
-            elif hasattr(data, "height"):
-                record_count = data.height
-            else:
-                record_count = None
             metadata = StepMetadata(
                 step_name=step_name,
                 completed_at=datetime.now(),
-                record_count=record_count,
+                record_count=infer_record_count(data),
                 input_cache_keys=upstream_keys,
-                params=resolved_params,
+                params=effective_params,
             )
             result = StepResult(data=data, metadata=metadata, cache_key=cache_key)
             self._storage.write_step_output(step_name, result)
             results[step_name] = result
+            executed.append(step_name)
 
+        self.last_executed = tuple(executed)
         return results
 
     def as_executor(self) -> _RunnerExecutorAdapter:
