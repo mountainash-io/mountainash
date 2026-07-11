@@ -1,0 +1,112 @@
+"""Native BaseDataContract: declaration collection, TypeSpec round trip, validate."""
+import polars as pl
+
+from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.datacontracts.field import Field
+from mountainash.typespec.universal_types import UniversalType
+
+
+class UserContract(BaseDataContract):
+    id: int = Field(nullable=False, unique=True)
+    email: str = Field(nullable=False, str_matches=r".+@.+")
+    age: int = Field(ge=0)
+    note: str  # type-only column
+
+    class Config:
+        name = "users"
+        natural_key = ["id"]
+
+
+class TestDeclarationCollection:
+    def test_fields_and_annotations_collected(self):
+        assert set(UserContract._contract_fields) == {"id", "email", "age"}
+        assert set(UserContract._contract_annotations) == {"id", "email", "age", "note"}
+
+    def test_declaration_syntax_preserved(self):
+        assert isinstance(UserContract._contract_fields["age"], Field)
+        assert UserContract._contract_fields["age"].ge == 0
+
+
+class TestToTypespec:
+    def test_types_and_constraints(self):
+        spec = UserContract.to_typespec()
+        by_name = {f.name: f for f in spec.fields}
+        assert by_name["id"].type == UniversalType.INTEGER
+        assert by_name["email"].constraints.pattern == r".+@.+"
+        assert by_name["note"].constraints is None
+
+    def test_natural_key_survives_as_primary_key(self):
+        # Config.natural_key must survive the TypeSpec round-trip as
+        # primary_key so DAG validation resolves keyed identity for
+        # natural_key-only contracts.
+        assert UserContract.to_typespec().primary_key == ["id"]
+
+    def test_to_checks_ids(self):
+        ids = [c.id for c in UserContract.to_checks()]
+        assert "id__not_null" in ids
+        assert "id__unique" in ids
+        assert "email__pattern" in ids
+        assert "age__ge" in ids
+
+
+class TestValidate:
+    def test_valid_data_passes(self):
+        df = pl.DataFrame(
+            {"id": [1, 2], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract(df)
+        assert result.passes
+        assert result.datacontract_name == "users"
+
+    def test_invalid_data_returns_not_raises(self):
+        # ids stay unique here: UserContract's natural_key=["id"] means duplicate
+        # ids raise IdentityInvalidError before checks run (that path is tested
+        # in test_runner_mechanics); this test exercises failing CHECKS.
+        df = pl.DataFrame(
+            {"id": [1, 2], "email": ["nope", "d@e.f"], "age": [-1, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract(df)
+        assert result.passes is False
+        failing = set(
+            result.check_summaries.filter(
+                result.check_summaries["status"] != "passed"
+            )["check_id"].to_list()
+        )
+        assert {"email__pattern", "age__ge"} <= failing
+
+    def test_keyed_identity_from_natural_key(self):
+        df = pl.DataFrame(
+            {"id": [1, 2], "email": ["nope", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract(df)
+        assert result.identity.kind == "keyed"
+        assert "id" in result.failure_cases.columns
+
+    def test_quick_is_fail_fast_same_shapes(self):
+        df = pl.DataFrame(
+            {"id": [1, 2], "email": ["nope", "d@e.f"], "age": [-1, 40], "note": ["x", "y"]}
+        )
+        full = UserContract.validate_datacontract(df)
+        quick = UserContract.validate_datacontract_quick(df)
+        assert list(full.check_summaries.columns) == list(quick.check_summaries.columns)
+        assert list(full.failure_cases.columns) == list(quick.failure_cases.columns)
+        assert quick.check_summaries.height <= full.check_summaries.height
+
+
+class NoKeyContract(BaseDataContract):
+    id: int = Field(unique=True)
+
+    class Config:
+        coerce = False
+
+
+def test_unique_failure_without_key_identity():
+    """unique needs no key identity — duplicate ids fail the CHECK when no
+    natural_key/primary_key declares them as identity."""
+    df = pl.DataFrame({"id": [1, 1, 2]})
+    result = NoKeyContract.validate_datacontract(df)
+    assert result.passes is False
+    assert result.identity.kind == "none"
+    summary = result.check_summaries.row(0, named=True)
+    assert summary["check_id"] == "id__unique"
+    assert summary["fail_count"] == 2  # both duplicated rows flagged
