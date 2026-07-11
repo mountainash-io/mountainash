@@ -19,6 +19,8 @@ rules:
     select: ["tests/pipelines"]
   - match: "src/mountainash/datacontracts/"
     select: ["tests/datacontracts"]
+  - match: "src/mountainash/validation/"
+    select: ["tests/validation"]
 
 cross_cutting:
   - "src/mountainash/core/dtypes/"
