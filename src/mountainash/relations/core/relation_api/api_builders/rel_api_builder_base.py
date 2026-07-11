@@ -25,4 +25,6 @@ class BaseRelationAPIBuilder:
         return self._relation._node
 
     def _build(self, node: RelationNode) -> Any:
-        return type(self._relation)(node)
+        # Route through the relation's _make so the builder preserves the
+        # relation's concrete type (DAGRelation keeps its dag binding).
+        return self._relation._make(node)

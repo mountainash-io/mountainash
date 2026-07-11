@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.dag.dag_relation import DAGRelation
     from mountainash.relations.dag.errors import UnknownRelationRef
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
@@ -63,19 +64,20 @@ class RelationDAG:
         for upstream in _walk_refs(root):
             self.dependency_edges.add((upstream, name))
 
-    def ref(self, name: str) -> Relation:
-        """Return a Relation backed by a ``RefRelNode`` for ``name``.
+    def ref(self, name: str) -> "DAGRelation":
+        """Return a DAGRelation backed by a ``RefRelNode`` for ``name``.
 
-        Chaining ``.filter()``, ``.select()``, etc. on the returned object
-        builds a normal relational AST with the ref at its leaf. The dependency
-        edge is recorded when ``add()`` is later called with the result.
+        Chaining ``.filter()``, ``.select()``, etc. preserves the DAGRelation
+        type and its DAG binding; terminals compile through this DAG. The
+        dependency edge is recorded only when ``add()`` is later called.
         """
-        from mountainash.relations.core.relation_api.relation import Relation
-        node = RefRelNode(name=name)
-        return Relation(node)
+        from mountainash.relations.dag.dag_relation import DAGRelation
 
-    def source(self, name: str, data: Any) -> Relation:
-        """Register source data and return a ref relation for downstream use."""
+        node = RefRelNode(name=name)
+        return DAGRelation(node, self)
+
+    def source(self, name: str, data: Any) -> "DAGRelation":
+        """Register source data and return a DAGRelation ref for downstream use."""
         from mountainash.relations.core.relation_api.relation import relation
 
         self.add(name, relation(data))
@@ -218,6 +220,7 @@ class RelationDAG:
             ref_names,
             backend=backend,
             backend_target_name=name,
+            key_target_name=name,
         )
 
     def execute(self, relation: Relation, *, backend: Optional[str] = None) -> Any:
@@ -230,6 +233,18 @@ class RelationDAG:
 
         Raises ``ValueError`` if the relation has no ``_node`` attribute.
         Raises ``KeyError`` if a referenced name is not in the DAG.
+        """
+        result, _visitor = self._execute_with_visitor(relation, backend=backend)
+        return result
+
+    def _execute_with_visitor(
+        self, relation: "Relation", *, backend: Optional[str] = None
+    ) -> "tuple[Any, Any]":
+        """``execute()`` variant returning ``(result, visitor)`` for terminals
+        needing post-compile visitor state (e.g. ``collect_with_drift``).
+
+        Ad-hoc: resolves ref leaves transitively, never mutates the DAG, and
+        never assigns the target a key identity (``key_target_name=None``).
         """
         node = getattr(relation, "_node", None)
         if node is None:
@@ -264,13 +279,13 @@ class RelationDAG:
             except Exception:
                 pass
 
-        result, _visitor = self._compile_with_refs(
+        return self._compile_with_refs(
             node,
             all_refs,
             backend=backend,
             backend_target_name=target_name,
+            key_target_name=None,
         )
-        return result
 
     def _compile_with_refs(
         self,
@@ -279,6 +294,7 @@ class RelationDAG:
         *,
         backend: Optional[str] = None,
         backend_target_name: Optional[str] = None,
+        key_target_name: Optional[str] = None,
     ) -> "tuple[Any, Any]":
         """Compile ``node`` after materialising all relations in ``ref_names``.
 
@@ -338,22 +354,33 @@ class RelationDAG:
         # analogous to ref_resolver. The context's resource_name is the
         # apply_conform() fallback "child" identity for nodes that carry no
         # resource_name of their own (a bare ConformRelNode; a
-        # ResourceReadRelNode always supplies its own Frictionless name),
-        # so it must track WHICH DAG relation is being compiled: the
-        # dependency loop below re-points it to each dependency's own name
-        # before compiling that dependency, then the target's context is
-        # restored for the target compile. Without that re-pointing, a
-        # bare-conformed dependency would be assessed against the TARGET's
-        # FK constraints (wrong report / spurious freeze). No target name
-        # (execute() on an ad-hoc relation with zero DAG refs) means there
-        # is no DAG identity to assess keys against, so key_context stays
-        # None (frame-level, key_changes stays None -- not assessed).
+        # ResourceReadRelNode always supplies its own Frictionless name).
+        #
+        # backend_target_name and key_target_name are deliberately separate
+        # params (PR-2 Sec 2.2): backend_target_name governs backend
+        # DETECTION only (which relation's leaf ReadRelNode to inspect) and
+        # is set even for an ad-hoc execute() target, purely so an
+        # arbitrary alphabetically-first dependency can anchor detection.
+        # key_target_name governs the TARGET's key-context IDENTITY only.
+        # Conflating the two previously misattributed an ad-hoc execute()
+        # target's key assessment to that same alphabetically-first
+        # dependency's FK constraints. key_target_name is None for
+        # execute() (no DAG identity to assess an ad-hoc relation against)
+        # and set to the real name for collect()/collect_with_drift(), so
+        # key_context stays None for ad-hoc targets (frame-level,
+        # key_changes stays None -- not assessed) and correct for named
+        # targets. The dependency loop below always builds each
+        # dependency's OWN context regardless of the target's identity
+        # (including when it's None), so a bare-conformed dependency is
+        # NEVER assessed against the TARGET's FK constraints — avoiding
+        # both the original misattribution and a wrong report / spurious
+        # freeze for the dependency itself.
         key_context = None
-        if backend_target_name is not None:
+        if key_target_name is not None:
             from mountainash.relations.dag.key_context import KeyDriftContext
 
             key_context = KeyDriftContext(
-                resource_name=backend_target_name,
+                resource_name=key_target_name,
                 constraints_for=self.constraints_for,
                 schema_of=self.schema,
             )
@@ -367,7 +394,7 @@ class RelationDAG:
 
         # Compile refs in topological order
         if ref_names:
-            import dataclasses
+            from mountainash.relations.dag.key_context import KeyDriftContext
 
             # Get full topological order and filter to only the needed refs
             full_order = self.topological_order(target=None)
@@ -378,14 +405,19 @@ class RelationDAG:
                 root = getattr(rel, "_node", None)
                 if root is None:
                     raise ValueError(f"relation {n!r} has no _node attribute")
-                # Per-node key context: this dependency's key assessment
-                # must run against ITS constraints, not the target's.
-                if key_context is not None:
-                    visitor.key_context = dataclasses.replace(
-                        key_context, resource_name=n
-                    )
+                # Each dependency is key-assessed against ITS OWN
+                # constraints, unconditionally — independent of whether the
+                # target itself has a key identity (key_context may be None
+                # for an ad-hoc execute() target; that must not suppress
+                # dependency assessment).
+                visitor.key_context = KeyDriftContext(
+                    resource_name=n,
+                    constraints_for=self.constraints_for,
+                    schema_of=self.schema,
+                )
                 cache[n] = root.accept(visitor)
-            # Restore the target's context before compiling the target.
+            # Restore the target's context (None for ad-hoc execute())
+            # before compiling the target.
             visitor.key_context = key_context
 
         # Compile the target node itself

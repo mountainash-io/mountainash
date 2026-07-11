@@ -91,6 +91,24 @@ def _to_relation_node(other: Any) -> RelationNode:
     return ReadRelNode(dataframe=other)
 
 
+def _combine_result(node: "RelationNode", operands: "Sequence[Any]") -> "Relation":
+    """Build a combined relation, propagating DAG ownership across ALL operands.
+
+    If any operand is a DAGRelation, all DAG-bound operands must share one DAG
+    (else ValueError) and the result is a DAGRelation bound to it; otherwise a
+    plain Relation. Handles both operand orders and raw-data operands.
+    """
+    from mountainash.relations.dag.dag_relation import (
+        DAGRelation,
+        _resolve_shared_dag,
+    )
+
+    shared = _resolve_shared_dag(list(operands))
+    if shared is not None:
+        return DAGRelation(node, shared)
+    return Relation(node)
+
+
 def _materialize(result: Any, *, unwrap: bool = True) -> Any:
     """Eagerly materialize a compiled backend-native result.
 
@@ -143,13 +161,24 @@ class Relation(RelationBase):
                 return getattr(ns, name)
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
+    def _make(self, node: RelationNode) -> "Relation":
+        """Construct a same-typed relation around ``node``.
+
+        The single construction hook for all chaining and internal terminal
+        compositions. Subclasses (``DAGRelation``) override this so a chained
+        call preserves the subclass and its DAG binding. Never call
+        ``Relation(...)`` directly inside an instance method — always
+        ``self._make(...)``.
+        """
+        return Relation(node)
+
     # --- Filtering ---
 
     def filter(self, *predicates: Any) -> Relation:
         """Filter rows.  Multiple predicates produce chained FilterRelNodes."""
         result = self
         for pred in predicates:
-            result = Relation(
+            result = result._make(
                 FilterRelNode(input=result._node, predicate=pred)
             )
         return result
@@ -158,7 +187,7 @@ class Relation(RelationBase):
 
     def params(self, **kwargs: Any) -> Relation:
         from mountainash.pipelines.integration.relation import ParamsRelNode
-        return Relation(ParamsRelNode(input=self._node, params=kwargs))
+        return self._make(ParamsRelNode(input=self._node, params=kwargs))
 
     # --- Conformance ---
 
@@ -202,7 +231,7 @@ class Relation(RelationBase):
             else:
                 validate_contract_dict(contract)
         from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
-        return Relation(ConformRelNode(input=self._node, spec=spec, contract=contract))
+        return self._make(ConformRelNode(input=self._node, spec=spec, contract=contract))
 
     # --- Sorting ---
 
@@ -213,7 +242,7 @@ class Relation(RelationBase):
     ) -> Relation:
         """Sort rows."""
         sort_fields = _normalize_sort_fields(by, descending)
-        return Relation(
+        return self._make(
             SortRelNode(input=self._node, sort_fields=sort_fields)
         )
 
@@ -221,19 +250,19 @@ class Relation(RelationBase):
 
     def head(self, n: int = 5) -> Relation:
         """Return the first *n* rows."""
-        return Relation(
+        return self._make(
             FetchRelNode(input=self._node, count=n, from_end=False)
         )
 
     def tail(self, n: int = 5) -> Relation:
         """Return the last *n* rows."""
-        return Relation(
+        return self._make(
             FetchRelNode(input=self._node, count=n, from_end=True)
         )
 
     def slice(self, offset: int, length: Optional[int] = None) -> Relation:
         """Return a slice starting at *offset*."""
-        return Relation(
+        return self._make(
             FetchRelNode(input=self._node, offset=offset, count=length)
         )
 
@@ -251,7 +280,7 @@ class Relation(RelationBase):
         execute_on: Optional[ExecutionTarget] = None,
     ) -> Relation:
         """Join with another relation or raw data."""
-        return Relation(
+        return _combine_result(
             JoinRelNode(
                 left=self._node,
                 right=_to_relation_node(other),
@@ -261,7 +290,8 @@ class Relation(RelationBase):
                 right_on=_normalize_columns(right_on),
                 suffix=suffix,
                 execute_on=execute_on,
-            )
+            ),
+            [self, other],
         )
 
     def join_asof(
@@ -274,7 +304,7 @@ class Relation(RelationBase):
         tolerance: Any = None,
     ) -> Relation:
         """Asof join with another relation or raw data."""
-        return Relation(
+        return _combine_result(
             JoinRelNode(
                 left=self._node,
                 right=_to_relation_node(other),
@@ -283,14 +313,15 @@ class Relation(RelationBase):
                 by=_normalize_columns(by),
                 strategy=strategy,
                 tolerance=tolerance,
-            )
+            ),
+            [self, other],
         )
 
     # --- Aggregation ---
 
     def group_by(self, *keys: Any) -> GroupedRelation:
         """Group rows by *keys*, returning a GroupedRelation."""
-        return GroupedRelation(self._node, list(keys))
+        return GroupedRelation(self._node, list(keys), _origin=self)
 
     def unique(
         self,
@@ -300,7 +331,7 @@ class Relation(RelationBase):
     ) -> Relation:
         """Return distinct rows.  Implemented as an aggregate with no measures."""
         keys = list(columns) if columns else (subset or [])
-        return Relation(
+        return self._make(
             AggregateRelNode(input=self._node, keys=keys, measures=[])
         )
 
@@ -311,7 +342,7 @@ class Relation(RelationBase):
         options: dict[str, Any] = {}
         if subset is not None:
             options["subset"] = subset
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
@@ -327,7 +358,7 @@ class Relation(RelationBase):
         options: dict[str, Any] = {}
         if subset is not None:
             options["subset"] = subset
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.DROP_NANS,
@@ -337,7 +368,7 @@ class Relation(RelationBase):
 
     def with_row_index(self, *, name: str = "index") -> Relation:
         """Add a row-index column."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
@@ -347,7 +378,7 @@ class Relation(RelationBase):
 
     def explode(self, *columns: Any) -> Relation:
         """Explode list columns into rows."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.EXPLODE,
@@ -363,7 +394,7 @@ class Relation(RelationBase):
         """
         if not columns:
             raise ValueError("unnest requires at least one column")
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.UNNEST,
@@ -383,7 +414,7 @@ class Relation(RelationBase):
             options["n"] = n
         if fraction is not None:
             options["fraction"] = fraction
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.SAMPLE,
@@ -400,7 +431,7 @@ class Relation(RelationBase):
         value_name: str = "value",
     ) -> Relation:
         """Unpivot (melt) from wide to long format."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.UNPIVOT,
@@ -422,7 +453,7 @@ class Relation(RelationBase):
         aggregate_function: str = "first",
     ) -> Relation:
         """Pivot from long to wide format."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.PIVOT,
@@ -443,7 +474,7 @@ class Relation(RelationBase):
         descending: bool = True,
     ) -> Relation:
         """Return the top *k* rows ordered by *by*."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
                 operation=RKEY_MOUNTAINASH_REL.TOP_K,
@@ -646,7 +677,7 @@ class Relation(RelationBase):
         """
         import mountainash as ma
 
-        counted = Relation(
+        counted = self._make(
             AggregateRelNode(
                 input=self._node,
                 keys=[],
@@ -666,7 +697,7 @@ class Relation(RelationBase):
 
     def _scalar_aggregate(self, agg_expr: Any) -> Any:
         """Internal helper: aggregate the relation to one row, extract scalar."""
-        aggregated = Relation(
+        aggregated = self._make(
             AggregateRelNode(
                 input=self._node,
                 keys=[],
@@ -1011,7 +1042,14 @@ def relation(data: Any) -> Relation:
 
 
 def concat(relations: Sequence[Relation], *, distinct: bool = False) -> Relation:
-    """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT)."""
+    """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT).
+
+    If any input is a ``DAGRelation``, all DAG-bound inputs must share one DAG
+    (else ``ValueError``) and the result is a ``DAGRelation`` bound to it;
+    plain-``Relation`` inputs mix in freely.
+    """
     nodes = [r._node for r in relations]
     set_type = SetType.UNION_DISTINCT if distinct else SetType.UNION_ALL
-    return Relation(SetRelNode(inputs=nodes, set_type=set_type))
+    return _combine_result(
+        SetRelNode(inputs=nodes, set_type=set_type), list(relations)
+    )
