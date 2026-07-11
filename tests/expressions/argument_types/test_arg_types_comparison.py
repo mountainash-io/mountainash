@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_COMPARISON as FK_MA_CMP,
     FKEY_SUBSTRAIT_SCALAR_COMPARISON as FK_CMP,
 )
 from expressions.argument_types.conftest import ALL_BACKENDS
@@ -34,6 +35,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_CMP.GT, "y"),
     (FK_CMP.GTE, "x"),
     (FK_CMP.GTE, "y"),
+    (FK_MA_CMP.IS_DUPLICATED, "x"),
     ("is_distinct_from", "x"),
     ("is_distinct_from", "y"),
     (FK_CMP.IS_FALSE, "x"),

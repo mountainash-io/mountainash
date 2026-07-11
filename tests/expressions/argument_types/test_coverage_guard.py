@@ -292,6 +292,7 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'gte', 'y'),
         ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_distinct_from', 'x'),
         ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_distinct_from', 'y'),
+        ('test_arg_types_comparison', 'MountainAshScalarComparisonExpressionSystemProtocol', 'is_duplicated', 'x'),
         ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_false', 'x'),
         ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_finite', 'x'),
         ('test_arg_types_comparison', 'SubstraitScalarComparisonExpressionSystemProtocol', 'is_infinite', 'x'),
