@@ -1,55 +1,52 @@
-"""Tests for ValidationResult and ValidationResultProcessor."""
+"""Tests for ValidationResult and ValidationResultProcessor.
+
+Fixtures use the unified failure-case schema (spec §8): check_id, check_kind,
+column, outcome, value, message, *key_fields, row_number, row. See
+tests/datacontracts/test_processor_compat.py for the authoritative
+per-method compat matrix this migration mirrors.
+"""
 from __future__ import annotations
 
 import pytest
 import polars as pl
-import pandera.polars as pa
 import mountainash as ma
 
 from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.datacontracts.field import Field
 from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.validator import Validator
 from mountainash.datacontracts.result import ValidationResult
 from mountainash.datacontracts.result_processor import ValidationResultProcessor
+from mountainash.validation.identity import RowIdentity
+from mountainash.validation.errors import IdentityRequiredError
+from mountainash.validation.result import empty_failure_frame
 
 
 class OrderContract(BaseDataContract):
-    order_id: pa.typing.Series[int] = pa.Field(unique=True)
-    amount: pa.typing.Series[float] = pa.Field(ge=0)
-    status: pa.typing.Series[str] = pa.Field(isin=["open", "closed", "pending"])
+    order_id: int = Field(unique=True)
+    amount: float = Field(ge=0)
+    status: str = Field(isin=["open", "closed", "pending"])
 
 
 @pytest.fixture
 def sample_failure_cases() -> pl.DataFrame:
-    """Failure cases in pandera's format."""
+    """Failure cases in the unified schema (identity tier: none)."""
     return pl.DataFrame({
-        "failure_case": ["0", "bad_val", "missing"],
-        "schema_context": ["Column", "Column", "DataFrameSchema"],
-        "column": ["age", "name", "TestContract"],
-        "check": ["greater_than_or_equal_to(0)", "str_matches('^[a-z]+$')", "VR01"],
-        "check_number": [0, 0, 0],
-        "index": [0, 2, 1],
+        "check_id": ["age__ge", "name__pattern", "batch_rule"],
+        "check_kind": ["row", "row", "row"],
+        "column": ["age", "name", None],
+        "outcome": ["fail", "fail", "fail"],
+        "value": ["0", "bad_val", "missing"],
+        "message": [None, None, None],
+        "row_number": pl.Series([0, 2, 1], dtype=pl.Int64),
+        "row": pl.Series([None, None, None], dtype=pl.Null),
     })
 
 
 @pytest.fixture
 def empty_failure_cases() -> pl.DataFrame:
-    return pl.DataFrame({
-        "failure_case": [],
-        "schema_context": [],
-        "column": [],
-        "check": [],
-        "check_number": [],
-        "index": [],
-    }).cast({
-        "failure_case": pl.Utf8,
-        "schema_context": pl.Utf8,
-        "column": pl.Utf8,
-        "check": pl.Utf8,
-        "check_number": pl.Int32,
-        "index": pl.Int32,
-    })
+    return empty_failure_frame(RowIdentity("none"))
 
 
 class TestValidationResult:
@@ -92,24 +89,33 @@ class TestValidationResultProcessor:
         proc = ValidationResultProcessor(sample_failure_cases)
         age_failures = proc.failure_cases_for_column("age")
         assert len(age_failures) == 1
-        assert age_failures["check"][0] == "greater_than_or_equal_to(0)"
+        assert age_failures["check_id"][0] == "age__ge"
 
     def test_failure_cases_for_rule(self, sample_failure_cases):
         proc = ValidationResultProcessor(sample_failure_cases)
-        rule_failures = proc.failure_cases_for_rule("VR01")
+        rule_failures = proc.failure_cases_for_rule("batch_rule")
         assert len(rule_failures) == 1
 
     def test_failure_count_by_column(self, sample_failure_cases):
+        # spec §8: check_kind replaces schema_context — failure_count_by_column
+        # now groups every non-null `column` (not only a "Column"-context
+        # subset, which no longer exists as a concept).
         proc = ValidationResultProcessor(sample_failure_cases)
         by_col = proc.failure_count_by_column()
         assert isinstance(by_col, pl.DataFrame)
-        assert len(by_col) >= 1
+        counts = dict(zip(by_col["column"].to_list(), by_col["count"].to_list()))
+        assert counts == {"age": 1, "name": 1}
 
     def test_failure_count_by_rule(self, sample_failure_cases):
+        # spec §8: failure_count_by_rule groups by check_id across ALL check
+        # kinds (row + relation) — the legacy Pandera implementation scoped
+        # this to DataFrameSchema-level ("VR01") checks only; that scope
+        # split no longer exists, so this now covers every check_id.
         proc = ValidationResultProcessor(sample_failure_cases)
         by_rule = proc.failure_count_by_rule()
         assert isinstance(by_rule, pl.DataFrame)
-        assert len(by_rule) == 1
+        counts = dict(zip(by_rule["check_id"].to_list(), by_rule["count"].to_list()))
+        assert counts == {"age__ge": 1, "name__pattern": 1, "batch_rule": 1}
 
     def test_passed_for_column_true(self, sample_failure_cases):
         proc = ValidationResultProcessor(sample_failure_cases)
@@ -121,11 +127,11 @@ class TestValidationResultProcessor:
 
     def test_passed_for_rule_true(self, sample_failure_cases):
         proc = ValidationResultProcessor(sample_failure_cases)
-        assert proc.passed_for_rule("VR99") is True
+        assert proc.passed_for_rule("nonexistent_rule") is True
 
     def test_passed_for_rule_false(self, sample_failure_cases):
         proc = ValidationResultProcessor(sample_failure_cases)
-        assert proc.passed_for_rule("VR01") is False
+        assert proc.passed_for_rule("batch_rule") is False
 
 
 class TestConstructorParams:
@@ -153,6 +159,24 @@ class TestConstructorParams:
         assert proc._natural_key is None
 
 
+@pytest.fixture
+def keyed_failure_cases() -> pl.DataFrame:
+    """Unified failure cases carrying a physical `age` key column, so
+    natural_key=["age"] is a real keyed identity (spec §7) — not just a
+    label. Mirrors test_processor_compat.py::_keyed_failure_cases shape."""
+    return pl.DataFrame({
+        "check_id": ["age__ge", "name__pattern"],
+        "check_kind": ["row", "row"],
+        "column": ["age", "name"],
+        "outcome": ["fail", "fail"],
+        "value": ["0", "bad_val"],
+        "message": [None, None],
+        "age": [10, 20],
+        "row_number": pl.Series([None, None], dtype=pl.Int64),
+        "row": pl.Series([None, None], dtype=pl.Null),
+    })
+
+
 class TestEnrichedFailureCases:
 
     def test_enriched_columns_without_natural_key(self, sample_failure_cases):
@@ -160,19 +184,21 @@ class TestEnrichedFailureCases:
             sample_failure_cases, validator_name="test_validator",
         )
         enriched = proc.enriched_failure_cases()
+        # check_kind REPLACES schema_context (spec §8 documented breaking change)
         assert set(enriched.columns) == {
-            "validator_name", "rule_id", "schema_context",
+            "validator_name", "rule_id", "check_kind",
             "column_name", "row_index", "value_str",
         }
 
-    def test_enriched_columns_with_natural_key(self, sample_failure_cases):
+    def test_enriched_columns_with_natural_key(self, keyed_failure_cases):
         proc = ValidationResultProcessor(
-            sample_failure_cases,
+            keyed_failure_cases,
             validator_name="test_validator",
             natural_key=["age"],
         )
         enriched = proc.enriched_failure_cases()
         assert "column_is_natural_key" in enriched.columns
+        assert "age" in enriched.columns  # keyed identity's key field is appended
 
     def test_enriched_values(self, sample_failure_cases):
         proc = ValidationResultProcessor(
@@ -181,15 +207,17 @@ class TestEnrichedFailureCases:
         enriched = proc.enriched_failure_cases()
         assert enriched["validator_name"].to_list() == ["v1", "v1", "v1"]
         assert enriched["rule_id"].to_list() == [
-            "greater_than_or_equal_to(0)", "str_matches('^[a-z]+$')", "VR01",
+            "age__ge", "name__pattern", "batch_rule",
         ]
-        assert enriched["column_name"].to_list() == ["age", "name", "TestContract"]
+        # batch_rule is table-level: column is null (spec §8) — the legacy
+        # Pandera contract-name-as-column ("TestContract") placeholder is gone.
+        assert enriched["column_name"].to_list() == ["age", "name", None]
         assert enriched["row_index"].to_list() == [0, 2, 1]
         assert enriched["value_str"].to_list() == ["0", "bad_val", "missing"]
 
-    def test_enriched_natural_key_flag(self, sample_failure_cases):
+    def test_enriched_natural_key_flag(self, keyed_failure_cases):
         proc = ValidationResultProcessor(
-            sample_failure_cases,
+            keyed_failure_cases,
             validator_name="v1",
             natural_key=["age"],
         )
@@ -214,32 +242,39 @@ class TestEnrichedFailureCases:
 
 @pytest.fixture
 def multi_failure_cases() -> pl.DataFrame:
-    """Multiple failures across validators, columns, rules — with a null index for malformed rule."""
+    """Row-level failures across validators/columns/rules, plus one
+    relation-level failure with no single-row attribution — row_number is
+    null OUTSIDE the row_number tier (spec §8), not a malformed-rule
+    artifact (malformed rules no longer emit failure rows at all)."""
     return pl.DataFrame({
-        "failure_case": ["0", "bad", "worse", "err", "0"],
-        "schema_context": ["Column", "Column", "Column", "DataFrameSchema", "Column"],
-        "column": ["age", "name", "name", "TestContract", "age"],
-        "check": ["ge(0)", "str_match", "str_match", "VR_BAD", "ge(0)"],
-        "check_number": [0, 0, 0, 0, 0],
-        "index": [0, 1, 2, None, 3],
+        "check_id": ["age__ge", "name__pattern", "name__pattern", "age__ge", "table_rel_check"],
+        "check_kind": ["row", "row", "row", "row", "relation"],
+        "column": ["age", "name", "name", "age", None],
+        "outcome": ["fail", "fail", "fail", "fail", "fail"],
+        "value": ["0", "bad", "worse", "0", None],
+        "message": [None, None, None, None, None],
+        "row_number": pl.Series([0, 1, 2, 3, None], dtype=pl.Int64),
+        "row": pl.Series([None, None, None, None, None], dtype=pl.Null),
     })
 
 
 class TestProfilingAggregations:
+    """Profiled counts are identity-gated (keyed or row_number); the
+    Pandera-era implicit positional `index` maps to the row_number tier."""
 
     def test_profiled_failure_count(self, multi_failure_cases):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            multi_failure_cases, validator_name="v1", identity=RowIdentity("row_number"),
         )
         result = proc.profiled_failure_count()
         assert "validator_name" in result.columns
         assert "unique_row_count" in result.columns
         row = result.filter(pl.col("validator_name") == "v1")
-        assert row["unique_row_count"][0] == 4  # rows 0,1,2,3 — null excluded
+        assert row["unique_row_count"][0] == 4  # rows 0,1,2,3 — null row_number excluded
 
     def test_profiled_failure_count_by_column(self, multi_failure_cases):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            multi_failure_cases, validator_name="v1", identity=RowIdentity("row_number"),
         )
         result = proc.profiled_failure_count_by_column()
         age_row = result.filter(pl.col("column_name") == "age")
@@ -249,7 +284,7 @@ class TestProfilingAggregations:
 
     def test_profiled_failure_count_by_value(self, multi_failure_cases):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            multi_failure_cases, validator_name="v1", identity=RowIdentity("row_number"),
         )
         result = proc.profiled_failure_count_by_value()
         assert "value_str" in result.columns
@@ -258,72 +293,111 @@ class TestProfilingAggregations:
 
     def test_profiled_failure_count_by_rule(self, multi_failure_cases):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            multi_failure_cases, validator_name="v1", identity=RowIdentity("row_number"),
         )
         result = proc.profiled_failure_count_by_rule()
-        ge_row = result.filter(pl.col("rule_id") == "ge(0)")
+        ge_row = result.filter(pl.col("rule_id") == "age__ge")
         assert ge_row["unique_row_count"][0] == 2  # rows 0, 3
 
     def test_profiled_excludes_null_row_index(self, multi_failure_cases):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            multi_failure_cases, validator_name="v1", identity=RowIdentity("row_number"),
         )
         result = proc.profiled_failure_count()
         total = result["unique_row_count"].sum()
-        assert total == 4  # null-index row excluded
+        assert total == 4  # the relation-level, null-row_number failure is excluded
+
+
+def _check_summaries(*, errored: bool) -> pl.DataFrame:
+    if not errored:
+        return pl.DataFrame({
+            "check_id": ["age__ge"],
+            "check_kind": ["row"],
+            "status": ["passed"],
+            "pass_count": [4], "fail_count": [0],
+            "unknown_count": [0], "total_rows": [4],
+            "mostly": [None], "severity": ["blocking"],
+            "diagnostic": [None], "error": [None], "elapsed": [0.001],
+        })
+    return pl.DataFrame({
+        "check_id": ["age__ge", "broken_rule"],
+        "check_kind": ["row", "row"],
+        "status": ["passed", "error"],
+        "pass_count": [4, None], "fail_count": [0, None],
+        "unknown_count": [0, None], "total_rows": [4, None],
+        "mostly": [None, None], "severity": ["blocking", "blocking"],
+        "diagnostic": [None, None], "error": [None, "ColumnNotFoundError: ghost"],
+        "elapsed": [0.001, 0.001],
+    })
 
 
 class TestMalformedRuleDetection:
+    """spec §8: malformed_rules() is re-expressed over
+    CheckSummary(status=="error") — a rule error no longer surfaces as a
+    null-index failure-case row (that mechanism does not exist any more:
+    an errored check emits zero failure rows)."""
 
-    def test_malformed_rules_found(self, multi_failure_cases):
+    def test_malformed_rules_found(self):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            empty_failure_frame(RowIdentity("none")),
+            check_summaries=_check_summaries(errored=True),
+            validator_name="v1",
         )
         malformed = proc.malformed_rules()
-        assert len(malformed) == 1
-        assert malformed["rule_id"][0] == "VR_BAD"
-        assert malformed["null_index_count"][0] == 1
+        assert malformed["rule_id"].to_list() == ["broken_rule"]
 
-    def test_malformed_rules_none(self, sample_failure_cases):
+    def test_malformed_rules_none(self):
         proc = ValidationResultProcessor(
-            sample_failure_cases, validator_name="v1",
+            empty_failure_frame(RowIdentity("none")),
+            check_summaries=_check_summaries(errored=False),
+            validator_name="v1",
         )
         malformed = proc.malformed_rules()
         assert len(malformed) == 0
 
-    def test_rules_well_formed_false(self, multi_failure_cases):
+    def test_rules_well_formed_false(self):
         proc = ValidationResultProcessor(
-            multi_failure_cases, validator_name="v1",
+            empty_failure_frame(RowIdentity("none")),
+            check_summaries=_check_summaries(errored=True),
+            validator_name="v1",
         )
         assert proc.rules_well_formed() is False
 
-    def test_rules_well_formed_true(self, sample_failure_cases):
+    def test_rules_well_formed_true(self):
         proc = ValidationResultProcessor(
-            sample_failure_cases, validator_name="v1",
+            empty_failure_frame(RowIdentity("none")),
+            check_summaries=_check_summaries(errored=False),
+            validator_name="v1",
         )
         assert proc.rules_well_formed() is True
 
 
 @pytest.fixture
 def source_data() -> pl.DataFrame:
-    """Source data that was validated — row indices match failure_cases."""
+    """Source data joined back via a natural key (`name`) — pivot/interpolate
+    are keyed-only now (spec §7/§8): row_number is a diagnostic ordinal and
+    never a join key, so the legacy positional-index join has no analogue."""
     return pl.DataFrame({
-        "age": [10, 20, 30, 40],
         "name": ["alice", "bad_val", "worse", "dave"],
+        "age": [10, 20, 30, 40],
         "score": [90, 80, 70, 60],
     })
 
 
 @pytest.fixture
 def pivot_failure_cases() -> pl.DataFrame:
-    """Failure cases with indices matching source_data fixture."""
+    """Failure cases carrying the `name` key field so they join back to
+    source_data (keyed identity)."""
     return pl.DataFrame({
-        "failure_case": ["10", "bad_val"],
-        "schema_context": ["Column", "Column"],
+        "check_id": ["age__ge", "name__pattern"],
+        "check_kind": ["row", "row"],
         "column": ["age", "name"],
-        "check": ["ge(18)", "str_match"],
-        "check_number": [0, 0],
-        "index": [0, 1],
+        "outcome": ["fail", "fail"],
+        "value": ["10", "bad_val"],
+        "message": [None, None],
+        "name": ["alice", "bad_val"],
+        "row_number": pl.Series([None, None], dtype=pl.Int64),
+        "row": pl.Series([None, None], dtype=pl.Null),
     })
 
 
@@ -333,6 +407,7 @@ class TestPivotReports:
         proc = ValidationResultProcessor(
             pivot_failure_cases,
             source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)),
             validator_name="v1",
         )
         result = proc.pivot_all_fields()
@@ -341,18 +416,20 @@ class TestPivotReports:
         assert "name" in result.columns
         assert "score" in result.columns
         assert "rule_id" in result.columns
-        assert "row_index" in result.columns
+        # NOTE: row_index is no longer part of pivot_all_fields' output (spec
+        # §8 compat matrix): the join is on key fields, not a positional
+        # ordinal, so there is nothing to carry a row_index for.
 
     def test_pivot_all_fields_with_override(self, pivot_failure_cases, source_data):
         proc = ValidationResultProcessor(
-            pivot_failure_cases, validator_name="v1",
+            pivot_failure_cases, identity=RowIdentity("keyed", ("name",)), validator_name="v1",
         )
         result = proc.pivot_all_fields(source_data=source_data)
         assert len(result) == 2
 
     def test_pivot_all_fields_no_source_raises(self, pivot_failure_cases):
         proc = ValidationResultProcessor(
-            pivot_failure_cases, validator_name="v1",
+            pivot_failure_cases, identity=RowIdentity("keyed", ("name",)), validator_name="v1",
         )
         with pytest.raises(ValueError, match="source_data"):
             proc.pivot_all_fields()
@@ -370,26 +447,40 @@ class TestPivotReports:
         assert "rule_id" in result.columns
         assert "score" not in result.columns
 
-    def test_pivot_key_fields_no_natural_key_raises(self, pivot_failure_cases, source_data):
+    def test_pivot_key_fields_requires_keyed_identity(self, pivot_failure_cases, source_data):
+        # spec §7: keyed-only capabilities raise IdentityRequiredError (not
+        # ValueError) when identity is not keyed — the legacy natural_key=None
+        # sentinel check is replaced by identity-tier gating.
         proc = ValidationResultProcessor(
             pivot_failure_cases,
             source_data=source_data,
             validator_name="v1",
         )
-        with pytest.raises(ValueError, match="natural_key"):
+        with pytest.raises(IdentityRequiredError):
             proc.pivot_key_fields()
 
-    def test_pivot_excludes_null_row_index(self, source_data):
+    def test_pivot_excludes_unresolvable_key(self, source_data):
+        """spec §8: a rule error no longer produces a null-index failure row
+        (malformed_rules() reads CheckSummary(status="error") instead) — so
+        the legacy "null-index row excluded from pivot" scenario has no
+        direct analogue. The equivalent native guarantee that survives is
+        the SAME underlying mechanism (inner join on key fields): a failure
+        case whose key value has no matching source row is dropped from the
+        pivot. Exercised here via an unmatched key rather than a null index."""
         fc = pl.DataFrame({
-            "failure_case": ["err"],
-            "schema_context": ["DataFrameSchema"],
-            "column": ["TestContract"],
-            "check": ["VR_BAD"],
-            "check_number": [0],
-            "index": [None],
+            "check_id": ["ghost_rule"],
+            "check_kind": ["row"],
+            "column": [None],
+            "outcome": ["fail"],
+            "value": [None],
+            "message": [None],
+            "name": ["nobody"],
+            "row_number": pl.Series([None], dtype=pl.Int64),
+            "row": pl.Series([None], dtype=pl.Null),
         })
         proc = ValidationResultProcessor(
-            fc, source_data=source_data, validator_name="v1",
+            fc, source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)), validator_name="v1",
         )
         result = proc.pivot_all_fields()
         assert len(result) == 0
@@ -401,14 +492,15 @@ class TestInterpolateMessages:
         proc = ValidationResultProcessor(
             pivot_failure_cases,
             source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)),
             validator_name="v1",
         )
         metadata = {
-            "ge(18)": {
+            "age__ge": {
                 "error_message": "age {age} must be >= 18",
                 "fields": ["age"],
             },
-            "str_match": {
+            "name__pattern": {
                 "error_message": "name {name} is invalid",
                 "fields": ["name"],
             },
@@ -416,7 +508,7 @@ class TestInterpolateMessages:
         result = proc.interpolate_messages(rule_metadata=metadata)
         assert "error_message_template" in result.columns
         assert "error_message" in result.columns
-        msgs = result.sort("row_index")["error_message"].to_list()
+        msgs = result.sort("rule_id")["error_message"].to_list()
         assert msgs[0] == "age 10 must be >= 18"
         assert msgs[1] == "name bad_val is invalid"
 
@@ -424,10 +516,11 @@ class TestInterpolateMessages:
         proc = ValidationResultProcessor(
             pivot_failure_cases,
             source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)),
             validator_name="v1",
         )
         metadata_df = pl.DataFrame({
-            "rule_id": ["ge(18)", "str_match"],
+            "rule_id": ["age__ge", "name__pattern"],
             "error_message": ["age {age} must be >= 18", "name {name} is invalid"],
             "fields": [["age"], ["name"]],
         })
@@ -436,18 +529,22 @@ class TestInterpolateMessages:
 
     def test_interpolate_multi_field(self, source_data):
         fc = pl.DataFrame({
-            "failure_case": ["10"],
-            "schema_context": ["DataFrameSchema"],
-            "column": ["TestContract"],
-            "check": ["VR01"],
-            "check_number": [0],
-            "index": [0],
+            "check_id": ["batch_rule"],
+            "check_kind": ["row"],
+            "column": [None],
+            "outcome": ["fail"],
+            "value": [None],
+            "message": [None],
+            "name": ["alice"],
+            "row_number": pl.Series([None], dtype=pl.Int64),
+            "row": pl.Series([None], dtype=pl.Null),
         })
         proc = ValidationResultProcessor(
-            fc, source_data=source_data, validator_name="v1",
+            fc, source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)), validator_name="v1",
         )
         metadata = {
-            "VR01": {
+            "batch_rule": {
                 "error_message": "{name} (age {age}) failed",
                 "fields": ["name", "age"],
             },
@@ -457,19 +554,20 @@ class TestInterpolateMessages:
 
     def test_interpolate_no_source_raises(self, pivot_failure_cases):
         proc = ValidationResultProcessor(
-            pivot_failure_cases, validator_name="v1",
+            pivot_failure_cases, identity=RowIdentity("keyed", ("name",)), validator_name="v1",
         )
         with pytest.raises(ValueError, match="source_data"):
-            proc.interpolate_messages(rule_metadata={"ge(18)": {"error_message": "x", "fields": []}})
+            proc.interpolate_messages(rule_metadata={"age__ge": {"error_message": "x", "fields": []}})
 
     def test_interpolate_duplicate_rule_id_raises(self, pivot_failure_cases, source_data):
         proc = ValidationResultProcessor(
             pivot_failure_cases,
             source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)),
             validator_name="v1",
         )
         dup_metadata = pl.DataFrame({
-            "rule_id": ["ge(18)", "ge(18)"],
+            "rule_id": ["age__ge", "age__ge"],
             "error_message": ["msg1", "msg2"],
             "fields": [["age"], ["age"]],
         })
@@ -480,16 +578,17 @@ class TestInterpolateMessages:
         proc = ValidationResultProcessor(
             pivot_failure_cases,
             source_data=source_data,
+            identity=RowIdentity("keyed", ("name",)),
             validator_name="v1",
         )
         metadata = {
-            "ge(18)": {
+            "age__ge": {
                 "error_message": "age {age} must be >= 18",
                 "fields": ["age"],
             },
         }
         result = proc.interpolate_messages(rule_metadata=metadata)
-        assert len(result) == 1  # only ge(18) matched
+        assert len(result) == 1  # only age__ge matched
 
 
 class TestEndToEndPipeline:
@@ -512,7 +611,12 @@ class TestEndToEndPipeline:
             "status": ["open", "closed", "invalid", "pending"],
         })
 
-        result = validator.validate(df)
+        # spec §7: declared keyed identity (natural_key=["order_id"]) is now
+        # validated against the data — a duplicate key tuple raises
+        # IdentityInvalidError unless allow_imperfect_key=True. The intent
+        # here is to exercise the order_id__unique CONTRACT check's failure
+        # reporting (not the identity precondition), so opt in explicitly.
+        result = validator.validate(df, allow_imperfect_key=True)
         assert result.passes is False
         proc = result.processor
         assert proc is not None
