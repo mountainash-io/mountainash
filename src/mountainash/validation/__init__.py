@@ -47,10 +47,12 @@ from mountainash.validation.result import (
     passes_from_summaries,
     summaries_frame,
 )
+from mountainash.validation.runner import ROW_ORDINAL, ValidationRunner
 
 __all__ = [
     "BLOCKING_STATUSES",
     "BOOLEANIZERS",
+    "ROW_ORDINAL",
     "SEVERITIES",
     "VALID_STATUSES",
     "VERDICT_PASSING",
@@ -69,6 +71,7 @@ __all__ = [
     "ValidationCheck",
     "ValidationError",
     "ValidationResult",
+    "ValidationRunner",
     "check_kind",
     "classify",
     "combine_failure_frames",
