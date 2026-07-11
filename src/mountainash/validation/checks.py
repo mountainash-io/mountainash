@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, Callable, Union
 from mountainash.validation.errors import CheckDeclarationError
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from mountainash.expressions import BaseExpressionAPI
     from mountainash.relations import Relation
 
