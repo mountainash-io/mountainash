@@ -27,6 +27,7 @@ from mountainash.validation.errors import (
     UnknownCheckTypeError,
     ValidationError,
 )
+from mountainash.validation.fk import build_fk_checks
 from mountainash.validation.identity import (
     RowIdentity,
     require_keyed,
@@ -72,6 +73,7 @@ __all__ = [
     "ValidationError",
     "ValidationResult",
     "ValidationRunner",
+    "build_fk_checks",
     "check_kind",
     "classify",
     "combine_failure_frames",
