@@ -109,7 +109,7 @@ def constraint_checks(
             )
         )
     if c is not None and c.pattern is not None:
-        # `pattern` is a regex (Frictionless / pandera str_matches semantics),
+        # `pattern` is a regex (Frictionless pattern / regex-match semantics),
         # NOT a literal substring — str.contains is Substrait literal contains,
         # so a regex must go through regexp_match_substring (partial match ->
         # not-null == the pattern matched somewhere).
