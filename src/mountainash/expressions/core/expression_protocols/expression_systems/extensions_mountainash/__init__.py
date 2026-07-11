@@ -17,6 +17,7 @@ from __future__ import annotations
 from .prtcl_expsys_ext_ma_scalar_aggregate import MountainashExtensionAggregateExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_boolean import   MountainAshScalarBooleanExpressionSystemProtocol
+from .prtcl_expsys_ext_ma_scalar_comparison import MountainAshScalarComparisonExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_string import MountainAshScalarStringExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_datetime import MountainAshScalarDatetimeExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_ternary import MountainAshScalarTernaryExpressionSystemProtocol
@@ -31,6 +32,7 @@ __all__ = [
     "MountainashExtensionAggregateExpressionSystemProtocol",
     "MountainAshScalarArithmeticExpressionSystemProtocol",
     "MountainAshScalarBooleanExpressionSystemProtocol",
+    "MountainAshScalarComparisonExpressionSystemProtocol",
     "MountainAshScalarStringExpressionSystemProtocol",
     "MountainAshScalarDatetimeExpressionSystemProtocol",
     "MountainAshScalarTernaryExpressionSystemProtocol",

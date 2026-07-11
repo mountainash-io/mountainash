@@ -1,42 +1,77 @@
-"""Cross-backend tests for is_duplicated (mountainash extension)."""
+"""Cross-backend tests for is_duplicated (mountainash extension).
+
+Known divergences:
+- ibis-polars: No translation rule for WindowFunction (documented Ibis-Polars
+  backend limitation — is_duplicated compiles to a per-value window count on
+  Ibis; see test_window_results.py for the same divergence on rank()).
+- ibis-duckdb/ibis-sqlite: the window-based is_duplicated computation does not
+  guarantee input row order is preserved, so results are compared via an
+  explicit ``idx`` sort key rather than raw positional equality (mirrors the
+  ``.sort("group", "score")`` pattern in test_window_results.py's rank tests).
+"""
 import pytest
 
-import mountainash.expressions as ma
+import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+
+
+def _collect_ordered(df, expr):
+    """Collect an expression's values, sorted by an explicit ``idx`` column.
+
+    is_duplicated compiles to a window function on Ibis, and some Ibis SQL
+    backends (sqlite) do not guarantee row order is preserved through a
+    window computation. Sorting by an explicit index column makes the
+    comparison order-independent without weakening what is asserted.
+    """
+    result = (
+        ma.relation(df)
+        .select(ma.col("idx"), expr.alias("result"))
+        .sort("idx")
+        .to_dict()
+    )
+    return result["result"]
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestIsDuplicated:
-    def test_is_duplicated_basic(self, backend_name, backend_factory, collect_expr):
-        data = {"val": [1, 2, 2, 3, 1]}
+    def test_is_duplicated_basic(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        data = {"idx": [0, 1, 2, 3, 4], "val": [1, 2, 2, 3, 1]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_duplicated()
-        actual = collect_expr(df, expr)
+        actual = _collect_ordered(df, expr)
         assert actual == [True, True, True, False, True], f"[{backend_name}] got {actual}"
 
-    def test_is_duplicated_all_unique(self, backend_name, backend_factory, collect_expr):
-        data = {"val": [10, 20, 30]}
+    def test_is_duplicated_all_unique(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        data = {"idx": [0, 1, 2], "val": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_duplicated()
-        actual = collect_expr(df, expr)
+        actual = _collect_ordered(df, expr)
         assert actual == [False, False, False], f"[{backend_name}] got {actual}"
 
-    def test_is_duplicated_strings(self, backend_name, backend_factory, collect_expr):
-        data = {"name": ["a", "b", "a", "c"]}
+    def test_is_duplicated_strings(self, backend_name, backend_factory):
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        data = {"idx": [0, 1, 2, 3], "name": ["a", "b", "a", "c"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("name").is_duplicated()
-        actual = collect_expr(df, expr)
+        actual = _collect_ordered(df, expr)
         assert actual == [True, False, True, False], f"[{backend_name}] got {actual}"
 
-    def test_is_duplicated_not_for_unique_rule(self, backend_name, backend_factory, collect_expr):
+    def test_is_duplicated_not_for_unique_rule(self, backend_name, backend_factory):
         """The `unique` constraint shape: is_duplicated().not_() is True for unique rows."""
-        data = {"val": [1, 2, 2, 3]}
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        data = {"idx": [0, 1, 2, 3], "val": [1, 2, 2, 3]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_duplicated().not_()
-        actual = collect_expr(df, expr)
+        actual = _collect_ordered(df, expr)
         assert actual == [True, False, False, True], f"[{backend_name}] got {actual}"

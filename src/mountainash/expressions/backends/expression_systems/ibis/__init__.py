@@ -43,6 +43,7 @@ from .extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainA
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_set import SubstraitIbisScalarSetExpressionSystem as MountainAshIbisScalarSetExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_boolean import MountainAshIbisScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_comparison import MountainAshIbisScalarComparisonExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_string import SubstraitIbisScalarStringExpressionSystem as MountainAshIbisScalarStringExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_window import MountainAshIbisWindowExpressionSystem
@@ -83,6 +84,7 @@ class IbisExpressionSystem(
     MountainAshIbisScalarArithmeticExpressionSystem,
     MountainAshIbisScalarDatetimeExpressionSystem,
     MountainAshIbisScalarBooleanExpressionSystem,
+    MountainAshIbisScalarComparisonExpressionSystem,
     MountainAshIbisScalarStringExpressionSystem,
     MountainAshIbisScalarSetExpressionSystem,
     MountainAshIbisScalarTernaryExpressionSystem,
@@ -131,5 +133,6 @@ __all__ = [
     "MountainAshIbisScalarArithmeticExpressionSystem",
     "MountainAshIbisScalarDatetimeExpressionSystem",
     "MountainAshIbisScalarSetExpressionSystem",
+    "MountainAshIbisScalarComparisonExpressionSystem",
     "MountainAshIbisScalarTernaryExpressionSystem"
 ]

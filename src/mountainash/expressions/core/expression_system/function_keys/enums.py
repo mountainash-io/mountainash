@@ -559,6 +559,7 @@ class FKEY_MOUNTAINASH_SCALAR_COMPARISON(Enum):
     IS_CLOSE = "is_close"
     EQ_MISSING = "eq_missing"
     NE_MISSING = "ne_missing"
+    IS_DUPLICATED = "is_duplicated"
 
 
 class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
