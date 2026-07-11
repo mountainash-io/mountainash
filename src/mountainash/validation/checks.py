@@ -203,3 +203,134 @@ def require_as_of(context: "dict[str, Any] | None") -> "datetime":
             "a naive datetime is ambiguous across backends and runs"
         )
     return value
+
+
+# --- Rule classification (spec §6.1) -----------------------------------------
+
+from mountainash.expressions.core.expression_nodes import (  # noqa: E402
+    ExpressionNode,
+    FieldReferenceNode,
+    OverNode,
+    ScalarFunctionNode,
+    WindowFunctionNode,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (  # noqa: E402
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+)
+
+_AGGREGATE_KEY_TYPES = (FKEY_SUBSTRAIT_SCALAR_AGGREGATE, FKEY_MOUNTAINASH_SCALAR_AGGREGATE)
+
+
+def _iter_child_nodes(node: ExpressionNode) -> "list[ExpressionNode]":
+    """Direct ExpressionNode children via pydantic-field introspection.
+
+    Expression nodes have no children() accessor; they are frozen pydantic
+    models, so any field holding a node (or list of nodes) is a child edge.
+    """
+    children: list[ExpressionNode] = []
+    for name in type(node).model_fields:
+        value = getattr(node, name)
+        if isinstance(value, ExpressionNode):
+            children.append(value)
+        elif isinstance(value, (list, tuple)):
+            children.extend(item for item in value if isinstance(item, ExpressionNode))
+    return children
+
+
+@dataclass
+class _AstProfile:
+    has_window: bool = False
+    has_reducing_aggregate: bool = False  # aggregate NOT under window context
+    has_exposed_field: bool = False       # field ref not beneath a reducing aggregate
+    has_field: bool = False
+
+
+def _walk(
+    node: ExpressionNode,
+    profile: _AstProfile,
+    *,
+    under_reducing_agg: bool,
+    under_window: bool,
+) -> None:
+    if isinstance(node, (OverNode, WindowFunctionNode)):
+        profile.has_window = True
+        under_window = True
+    elif isinstance(node, ScalarFunctionNode) and isinstance(
+        node.function_key, _AGGREGATE_KEY_TYPES
+    ):
+        if not under_window:
+            profile.has_reducing_aggregate = True
+            under_reducing_agg = True
+    elif isinstance(node, FieldReferenceNode):
+        profile.has_field = True
+        if not under_reducing_agg:
+            profile.has_exposed_field = True
+    for child in _iter_child_nodes(node):
+        _walk(child, profile, under_reducing_agg=under_reducing_agg, under_window=under_window)
+
+
+def classify(rule: Any) -> "RowRule | ScalarRule":
+    """Route a public Rule declaration to RowRule or ScalarRule by AST shape.
+
+    `rule` is any object with `id` and `expr` attributes (the datacontracts
+    `Rule`); `mostly`/`booleanizer`/`severity`/`error_message`/`fields`/
+    `metadata` are read when present (severity defaults "blocking"). Typed
+    `Any` because `validation` must not import `datacontracts` (dependency
+    direction).
+
+    An expression is scalar-valued iff it contains at least one
+    aggregate-reducing node outside window context and every field reference
+    lies beneath such a node. Window context re-broadcasts the reduction, so
+    any OverNode/WindowFunctionNode subtree makes the expression row-valued.
+    """
+    profile = _AstProfile()
+    _walk(rule.expr._node, profile, under_reducing_agg=False, under_window=False)
+
+    if not profile.has_field and not profile.has_reducing_aggregate and not profile.has_window:
+        raise CheckDeclarationError(
+            f"rule {rule.id!r} is literal-only (no field references, no aggregate); "
+            "a constant check is a declaration mistake"
+        )
+
+    scalar_valued = (
+        not profile.has_window
+        and profile.has_reducing_aggregate
+        and not profile.has_exposed_field
+    )
+    mostly = getattr(rule, "mostly", None)
+    metadata = dict(getattr(rule, "metadata", None) or {})
+
+    if scalar_valued:
+        # spec §6.1: mostly/booleanizer/fields are row-rule concepts; on a
+        # scalar-valued expression each is a declaration error, never a
+        # silent drop (a single verdict has no pass rate, no outcome mapping
+        # to flip, and emits no failure rows)
+        for attr, why in (
+            ("mostly", "a single verdict has no pass rate"),
+            ("booleanizer", "a single verdict has no outcome mapping to flip"),
+            ("fields", "scalar rules emit no failure rows"),
+        ):
+            if getattr(rule, attr, None) is not None:
+                raise CheckDeclarationError(
+                    f"rule {rule.id!r}: {attr} is meaningless for a "
+                    f"scalar-valued expression ({why})"
+                )
+        return ScalarRule(
+            id=rule.id,
+            expr=rule.expr,
+            severity=getattr(rule, "severity", "blocking"),
+            error_message=getattr(rule, "error_message", None),
+            metadata=metadata,
+        )
+
+    return RowRule(
+        id=rule.id,
+        expr=rule.expr,
+        mostly=mostly,
+        booleanizer=getattr(rule, "booleanizer", None),
+        severity=getattr(rule, "severity", "blocking"),
+        error_message=getattr(rule, "error_message", None),
+        fields=getattr(rule, "fields", None),
+        metadata=metadata,
+    )
