@@ -1,87 +1,269 @@
-"""Compile a TypeSpec into a pandera DataFrameModel (BaseDataContract subclass)."""
+"""Compile TypeSpec constraints into validation checks + native contract classes.
+
+compile_datacontract(spec) -> list[ValidationCheck]   (intra-table checks ONLY;
+    TypeSpec.foreign_keys are owned by mountainash.validation.fk.build_fk_checks;
+    TypeSpec.primary_key ALSO emits the composite-uniqueness RelationRule here)
+contract_from_typespec(spec) -> type[BaseDataContract] (the class factory)
+constraint_checks(col, constraints)                    (the ONE constraint->check mapping)
+extra_field_checks(col, field)                         (beyond-Frictionless Field kwargs)
+"""
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any
 
-import pandera.polars as pa
-
+import mountainash as ma
+from mountainash.datacontracts.rule import guarded
 from mountainash.typespec.universal_types import UniversalType
-from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.validation.checks import RelationRule, RowRule
 
 if TYPE_CHECKING:
+    from mountainash.datacontracts.contract import BaseDataContract
+    from mountainash.datacontracts.field import Field
     from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+    from mountainash.validation.checks import ValidationCheck
 
-UNIVERSAL_TYPE_TO_PANDERA: dict[UniversalType, type] = {
+# Truthful Python annotations (spec §13: the legacy str-mapping of temporals
+# was a defect — native contracts must not imply stringification).
+UNIVERSAL_TYPE_TO_PYTHON: dict[UniversalType, type] = {
     UniversalType.STRING: str,
     UniversalType.INTEGER: int,
     UniversalType.NUMBER: float,
     UniversalType.BOOLEAN: bool,
-    UniversalType.DATE: str,
-    UniversalType.TIME: str,
-    UniversalType.DATETIME: str,
-    UniversalType.DURATION: str,
+    UniversalType.DATE: datetime.date,
+    UniversalType.TIME: datetime.time,
+    UniversalType.DATETIME: datetime.datetime,
+    UniversalType.DURATION: datetime.timedelta,
     UniversalType.YEAR: int,
     UniversalType.YEARMONTH: str,
     UniversalType.ANY: object,
 }
 
 
-def _constraints_to_field_kwargs(
-    constraints: FieldConstraints | None,
-    field_spec: FieldSpec | None = None,
-) -> dict[str, Any]:
-    if constraints is None:
-        kwargs: dict[str, Any] = {"nullable": True}
-    else:
-        kwargs = {}
-        kwargs["nullable"] = not constraints.required
-        if constraints.unique:
-            kwargs["unique"] = True
-        if constraints.minimum is not None:
-            kwargs["ge"] = constraints.minimum
-        if constraints.maximum is not None:
-            kwargs["le"] = constraints.maximum
-        if constraints.enum is not None:
-            kwargs["isin"] = constraints.enum
-        if constraints.pattern is not None:
-            kwargs["str_matches"] = constraints.pattern
-        if constraints.min_length is not None or constraints.max_length is not None:
-            length_kwargs: dict[str, int] = {}
-            if constraints.min_length is not None:
-                length_kwargs["min_value"] = constraints.min_length
-            if constraints.max_length is not None:
-                length_kwargs["max_value"] = constraints.max_length
-            kwargs["str_length"] = length_kwargs
-
-    if "isin" not in kwargs and field_spec is not None and field_spec.categories is not None:
-        values = []
-        for cat in field_spec.categories:
-            if isinstance(cat, dict) and "value" in cat:
-                values.append(cat["value"])
-            else:
-                values.append(cat)
-        if values:
-            kwargs["isin"] = values
-
-    return kwargs
+def _maybe_guard(nullable: bool, col: str, test: Any) -> Any:
+    """A null value is not a range/pattern violation; nullability is its own
+    check (spec §9.1)."""
+    if not nullable:
+        return test
+    return guarded(precondition=ma.col(col).is_not_null(), test=test)
 
 
-def compile_datacontract(
-    spec: TypeSpec,
+def _category_values(categories: "list[Any] | None") -> "list[Any] | None":
+    if not categories:
+        return None
+    values = [
+        cat["value"] if isinstance(cat, dict) and "value" in cat else cat
+        for cat in categories
+    ]
+    return values or None
+
+
+def constraint_checks(
+    col: str,
+    constraints: "FieldConstraints | None",
     *,
-    name: str | None = None,
-) -> type[BaseDataContract]:
-    """Generate a BaseDataContract subclass from a TypeSpec."""
-    contract_name = name or spec.title or "CompiledDataContract"
+    categories: "list[Any] | None" = None,
+    severity: str = "blocking",
+) -> "list[ValidationCheck]":
+    checks: "list[ValidationCheck]" = []
+    c = constraints
+    nullable = not (c.required if c is not None else False)
 
+    if c is not None and c.required:
+        checks.append(
+            RowRule(id=f"{col}__not_null", expr=ma.col(col).is_not_null(),
+                    severity=severity, fields=[col])
+        )
+    if c is not None and c.minimum is not None:
+        checks.append(
+            RowRule(
+                id=f"{col}__ge",
+                expr=_maybe_guard(nullable, col, ma.col(col).ge(c.minimum)),
+                severity=severity,
+                fields=[col],
+            )
+        )
+    if c is not None and c.maximum is not None:
+        checks.append(
+            RowRule(
+                id=f"{col}__le",
+                expr=_maybe_guard(nullable, col, ma.col(col).le(c.maximum)),
+                severity=severity,
+                fields=[col],
+            )
+        )
+    if c is not None and (c.min_length is not None or c.max_length is not None):
+        length = ma.col(col).str.len_chars()
+        test = None
+        if c.min_length is not None:
+            test = length.ge(c.min_length)
+        if c.max_length is not None:
+            upper = length.le(c.max_length)
+            test = upper if test is None else (test & upper)
+        checks.append(
+            RowRule(
+                id=f"{col}__str_length",
+                expr=_maybe_guard(nullable, col, test),
+                severity=severity,
+                fields=[col],
+            )
+        )
+    if c is not None and c.pattern is not None:
+        # `pattern` is a regex (Frictionless / pandera str_matches semantics),
+        # NOT a literal substring — str.contains is Substrait literal contains,
+        # so a regex must go through regexp_match_substring (partial match ->
+        # not-null == the pattern matched somewhere).
+        checks.append(
+            RowRule(
+                id=f"{col}__pattern",
+                expr=_maybe_guard(
+                    nullable, col,
+                    ma.col(col).str.regexp_match_substring(c.pattern).is_not_null(),
+                ),
+                severity=severity,
+                fields=[col],
+            )
+        )
+
+    enum_values = c.enum if (c is not None and c.enum is not None) else _category_values(categories)
+    if enum_values:
+        checks.append(
+            RowRule(
+                id=f"{col}__isin",
+                expr=_maybe_guard(nullable, col, ma.col(col).is_in(enum_values)),
+                severity=severity,
+                fields=[col],
+            )
+        )
+    if c is not None and c.unique:
+        # Row-level via is_duplicated (PR-A prerequisite): every duplicated
+        # row is a failure case, not just a table-level verdict.
+        checks.append(
+            RowRule(
+                id=f"{col}__unique",
+                expr=ma.col(col).is_duplicated().not_(),
+                severity=severity,
+                fields=[col],
+            )
+        )
+    return checks
+
+
+def extra_field_checks(
+    col: str, f: "Field", *, severity: str = "blocking"
+) -> "list[ValidationCheck]":
+    """Beyond-Frictionless Field kwargs (spec §9.1 third amendment) — each a
+    guarded RowRule; FieldConstraints stays structurally Frictionless."""
+    nullable = f.nullable
+    tests: "list[tuple[str, Any]]" = []
+    if f.eq is not None:
+        tests.append(("eq", ma.col(col).eq(f.eq)))
+    if f.ne is not None:
+        tests.append(("ne", ma.col(col).ne(f.ne)))
+    if f.gt is not None:
+        tests.append(("gt", ma.col(col).gt(f.gt)))
+    if f.lt is not None:
+        tests.append(("lt", ma.col(col).lt(f.lt)))
+    if f.notin is not None:
+        tests.append(("notin", ma.col(col).is_in(list(f.notin)).not_()))
+    if f.str_contains is not None:
+        tests.append(("str_contains", ma.col(col).str.contains(f.str_contains)))
+    if f.str_startswith is not None:
+        tests.append(("str_startswith", ma.col(col).str.starts_with(f.str_startswith)))
+    if f.str_endswith is not None:
+        tests.append(("str_endswith", ma.col(col).str.ends_with(f.str_endswith)))
+    return [
+        RowRule(
+            id=f"{col}__{name}",
+            expr=_maybe_guard(nullable, col, test),
+            severity=severity,
+            fields=[col],
+        )
+        for name, test in tests
+    ]
+
+
+def primary_key_check(spec: "TypeSpec") -> "RelationRule | None":
+    """Composite-uniqueness check from TypeSpec.primary_key (spec §9.3 third
+    amendment) — a validation OUTCOME reported as a CheckSummary, independent
+    of the §7 identity precondition (which raises)."""
+    if not spec.primary_key:
+        return None
+    keys = (
+        [spec.primary_key] if isinstance(spec.primary_key, str) else list(spec.primary_key)
+    )
+
+    def plan(rel: Any, _keys: "tuple[str, ...]" = tuple(keys)) -> Any:
+        return (
+            rel.group_by(*_keys)
+            .agg(ma.count_records().alias("__ma_n__"))
+            .filter(ma.col("__ma_n__").gt(1))
+        )
+
+    return RelationRule(id="primary_key_unique", plan=plan)
+
+
+def compile_datacontract(spec: "TypeSpec") -> "list[ValidationCheck]":
+    """Compile a TypeSpec's field constraints into validation checks."""
+    checks: "list[ValidationCheck]" = []
+    for field_spec in spec.fields:
+        checks.extend(
+            constraint_checks(
+                field_spec.name, field_spec.constraints, categories=field_spec.categories
+            )
+        )
+    pk_check = primary_key_check(spec)
+    if pk_check is not None:
+        checks.append(pk_check)
+    return checks
+
+
+def _field_from_spec(field_spec: "FieldSpec") -> "Field":
+    from mountainash.datacontracts.field import Field
+
+    c = field_spec.constraints
+    enum = None
+    if c is not None and c.enum is not None:
+        enum = list(c.enum)
+    else:
+        enum = _category_values(field_spec.categories)
+    if c is None:
+        return Field(isin=enum, title=field_spec.title, description=field_spec.description)
+    str_length: "dict[str, int] | None" = None
+    if c.min_length is not None or c.max_length is not None:
+        str_length = {}
+        if c.min_length is not None:
+            str_length["min_value"] = c.min_length
+        if c.max_length is not None:
+            str_length["max_value"] = c.max_length
+    return Field(
+        nullable=not c.required,
+        ge=c.minimum,
+        le=c.maximum,
+        isin=enum,
+        str_matches=c.pattern,
+        str_length=str_length,
+        unique=c.unique,
+        title=field_spec.title,
+        description=field_spec.description,
+    )
+
+
+def contract_from_typespec(
+    spec: "TypeSpec", *, name: str | None = None
+) -> "type[BaseDataContract]":
+    """Generate a native BaseDataContract subclass from a TypeSpec."""
+    from mountainash.datacontracts.contract import BaseDataContract
+
+    contract_name = name or spec.title or "CompiledDataContract"
     annotations: dict[str, type] = {}
     namespace: dict[str, Any] = {"__annotations__": annotations}
-
     for field_spec in spec.fields:
-        python_type = UNIVERSAL_TYPE_TO_PANDERA.get(field_spec.type, object)
-        annotations[field_spec.name] = python_type
-        field_kwargs = _constraints_to_field_kwargs(field_spec.constraints, field_spec=field_spec)
-        if field_kwargs:
-            namespace[field_spec.name] = pa.Field(**field_kwargs)
-
+        annotations[field_spec.name] = UNIVERSAL_TYPE_TO_PYTHON.get(field_spec.type, object)
+        namespace[field_spec.name] = _field_from_spec(field_spec)
+    config_attrs: dict[str, Any] = {"name": contract_name}
+    if spec.primary_key:
+        config_attrs["primary_key"] = spec.primary_key
+    namespace["Config"] = type("Config", (), config_attrs)
+    namespace["__typespec__"] = spec  # source spec preserved (conform + identity read it)
     return type(contract_name, (BaseDataContract,), namespace)
