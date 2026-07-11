@@ -27,6 +27,7 @@ from mountainash.validation.result import (
     interpolate_message,
     is_blocking,
     passes_from_summaries,
+    rows_as_struct_failures,
     summaries_frame,
 )
 
@@ -137,6 +138,7 @@ class ValidationRunner:
         executors = {
             "row": self._run_row_rule,
             "scalar": self._run_scalar_rule,
+            "relation": self._run_relation_rule,
         }
         try:
             return executors[kind]
@@ -299,3 +301,26 @@ class ValidationRunner:
             severity=check.severity, diagnostic=diagnostic,
         )
         return summary, pl.DataFrame()
+
+    # -- RelationRule ---------------------------------------------------------
+
+    def _run_relation_rule(
+        self, rel: "Relation", check: Any, identity: RowIdentity,
+        failure_sample: int | None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        failing = check.plan(rel)
+        fail_count = failing.count_rows()
+        status = "passed" if fail_count == 0 else "failed"
+
+        failures = pl.DataFrame()
+        if fail_count:
+            sampled = failing.head(failure_sample) if failure_sample is not None else failing
+            failures = rows_as_struct_failures(
+                sampled.to_polars(), check_id=check.id, check_kind="relation"
+            )
+
+        summary = CheckSummary(
+            check_id=check.id, check_kind="relation", status=status,
+            severity=check.severity, fail_count=fail_count,
+        )
+        return summary, failures
