@@ -78,30 +78,20 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
     Accepts:
         - TypeSpec object
         - BaseDataContract subclass (returned as-is)
-        - pandera DataFrameModel subclass (wrapped with BaseDataContract methods)
         - Pydantic BaseModel subclass (extracted to TypeSpec, then compiled)
         - str or Path to a Frictionless JSON schema file
         - dict with "fields" key (Frictionless descriptor)
         - dict without "fields" key (simple {name: type_string} mapping)
     """
     from pathlib import Path as _Path
-    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.datacontracts.compiler import contract_from_typespec
     from mountainash.datacontracts.contract import BaseDataContract as _BaseDataContract
-
-    import pandera.polars as pa
 
     if isinstance(source, type) and issubclass(source, _BaseDataContract):
         return source
 
-    if isinstance(source, type) and issubclass(source, pa.DataFrameModel):
-        return type(
-            f"{source.__name__}_DataContract",
-            (_BaseDataContract, source),
-            {},
-        )
-
     if isinstance(source, TypeSpec):
-        return compile_datacontract(source)
+        return contract_from_typespec(source)
 
     try:
         from pydantic import BaseModel as _PydanticBaseModel
@@ -111,24 +101,24 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
     if _PydanticBaseModel is not None and isinstance(source, type) and issubclass(source, _PydanticBaseModel):
         from mountainash.typespec.extraction import extract_from_pydantic
         _spec = extract_from_pydantic(source)
-        return compile_datacontract(_spec)
+        return contract_from_typespec(_spec)
 
     if isinstance(source, (str, _Path)):
         from mountainash.typespec.frictionless import typespec_from_frictionless
         _spec = typespec_from_frictionless(source)
-        return compile_datacontract(_spec)
+        return contract_from_typespec(_spec)
 
     if isinstance(source, dict):
         if "fields" in source:
             from mountainash.typespec.frictionless import typespec_from_frictionless
             _spec = typespec_from_frictionless(source)
-            return compile_datacontract(_spec)
+            return contract_from_typespec(_spec)
         _spec = TypeSpec.from_simple_dict(source)
-        return compile_datacontract(_spec)
+        return contract_from_typespec(_spec)
 
     raise TypeError(
         f"Cannot create datacontract from {type(source).__name__}. "
-        "Expected TypeSpec, dict, BaseModel subclass, DataFrameModel subclass, "
+        "Expected TypeSpec, dict, BaseModel subclass, "
         "or path to a Frictionless JSON file."
     )
 
