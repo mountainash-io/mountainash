@@ -75,3 +75,14 @@ class TestIsDuplicated:
         expr = ma.col("val").is_duplicated().not_()
         actual = _collect_ordered(df, expr)
         assert actual == [True, False, False, True], f"[{backend_name}] got {actual}"
+
+    def test_is_duplicated_nulls_are_duplicates(self, backend_name, backend_factory):
+        """Repeated NULLs are duplicates on ALL backends (consistency-guarantees)."""
+        if backend_name == "ibis-polars":
+            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
+        data = {"idx": [0, 1, 2], "name": ["a", None, None]}
+        df = backend_factory.create(data, backend_name)
+
+        expr = ma.col("name").is_duplicated()
+        actual = _collect_ordered(df, expr)
+        assert actual == [False, True, True], f"[{backend_name}] got {actual}"
