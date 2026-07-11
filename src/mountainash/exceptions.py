@@ -35,6 +35,13 @@ from mountainash.core.dtypes.errors import (
 from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.validation import SchemaValidationError
 from mountainash.pipelines.errors import StepEmptyError
+from mountainash.validation.errors import (
+    CheckDeclarationError,
+    IdentityInvalidError,
+    IdentityRequiredError,
+    UnknownCheckTypeError,
+    ValidationError,
+)
 
 __all__ = [
     "MountainashError",
@@ -55,4 +62,9 @@ __all__ = [
     "BackendCapabilityError",
     "SchemaValidationError",
     "StepEmptyError",
+    "ValidationError",
+    "CheckDeclarationError",
+    "IdentityRequiredError",
+    "IdentityInvalidError",
+    "UnknownCheckTypeError",
 ]
