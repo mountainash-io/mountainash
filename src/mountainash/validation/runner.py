@@ -11,6 +11,8 @@ backend, and only small results materialise to Polars.
 """
 from __future__ import annotations
 
+import functools
+import operator
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -22,11 +24,13 @@ from mountainash.validation.errors import UnknownCheckTypeError
 from mountainash.validation.identity import RowIdentity, validate_keyed_identity
 from mountainash.validation.result import (
     CheckSummary,
+    DAGValidationResult,
     ValidationResult,
     combine_failure_frames,
     interpolate_message,
     is_blocking,
     passes_from_summaries,
+    rows_as_struct_failures,
     summaries_frame,
 )
 
@@ -87,6 +91,7 @@ class ValidationRunner:
         backend: str | None = None,
         validator_name: str = "",
         datacontract_name: str | None = None,
+        fk_resolver: Any = None,
     ) -> ValidationResult:
         from mountainash.relations import Relation
         from mountainash.relations import relation as as_relation
@@ -111,7 +116,7 @@ class ValidationRunner:
         failure_frames: list[pl.DataFrame] = []
         for check in checks:
             kind = check_kind(check)  # raises UnknownCheckTypeError (declaration phase)
-            executor = self._executor_for(kind)  # ditto
+            executor = self._executor_for(kind, fk_resolver)  # ditto
             summary, failures = self._guarded(executor, rel, check, kind, identity, failure_sample)
             summaries.append(summary)
             if failures.height:
@@ -133,10 +138,14 @@ class ValidationRunner:
 
     # -- dispatch -----------------------------------------------------------
 
-    def _executor_for(self, kind: str) -> Any:
+    def _executor_for(self, kind: str, fk_resolver: Any = None) -> Any:
         executors = {
             "row": self._run_row_rule,
             "scalar": self._run_scalar_rule,
+            "relation": self._run_relation_rule,
+            "foreign_key": functools.partial(
+                self._run_foreign_key_rule, fk_resolver=fk_resolver
+            ),
         }
         try:
             return executors[kind]
@@ -299,3 +308,154 @@ class ValidationRunner:
             severity=check.severity, diagnostic=diagnostic,
         )
         return summary, pl.DataFrame()
+
+    # -- RelationRule ---------------------------------------------------------
+
+    def _run_relation_rule(
+        self, rel: "Relation", check: Any, identity: RowIdentity,
+        failure_sample: int | None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        failing = check.plan(rel)
+        fail_count = failing.count_rows()
+        status = "passed" if fail_count == 0 else "failed"
+
+        failures = pl.DataFrame()
+        if fail_count:
+            sampled = failing.head(failure_sample) if failure_sample is not None else failing
+            failures = rows_as_struct_failures(
+                sampled.to_polars(), check_id=check.id, check_kind="relation"
+            )
+
+        summary = CheckSummary(
+            check_id=check.id, check_kind="relation", status=status,
+            severity=check.severity, fail_count=fail_count,
+        )
+        return summary, failures
+
+    # -- ForeignKeyRule -------------------------------------------------------
+
+    def _run_foreign_key_rule(
+        self, rel: "Relation", check: Any, identity: RowIdentity,
+        failure_sample: int | None, *, fk_resolver: Any = None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        import mountainash as ma
+
+        if fk_resolver is None:
+            # Captured by the isolation guard -> CheckSummary(status="error"),
+            # per spec §10: FK problems are error summaries, never raised mid-run.
+            raise RuntimeError(
+                f"ForeignKeyRule {check.id!r} requires DAG context "
+                "(no resolver for child/parent names)"
+            )
+
+        child = fk_resolver(check.child)
+        parent = fk_resolver(check.parent)
+
+        target = child
+        if check.exclude_null_child:
+            # SQL MATCH SIMPLE: any-null component excludes the row.
+            all_non_null = functools.reduce(
+                operator.and_, (ma.col(f).is_not_null() for f in check.child_fields)
+            )
+            target = child.filter(all_non_null)
+
+        orphans = target.join(
+            parent.select(*check.parent_fields).unique(),
+            left_on=check.child_fields,
+            right_on=check.parent_fields,
+            how="anti",
+        )
+        orphan_count = orphans.count_rows()
+        status = "passed" if orphan_count == 0 else "failed"
+
+        failures = pl.DataFrame()
+        if orphan_count:
+            sampled = orphans.head(failure_sample) if failure_sample is not None else orphans
+            failures = rows_as_struct_failures(
+                sampled.to_polars(), check_id=check.id, check_kind="foreign_key"
+            )
+
+        summary = CheckSummary(
+            check_id=check.id,
+            check_kind="foreign_key",
+            status=status,
+            fail_count=orphan_count,
+            severity=check.severity,
+            diagnostic=str(orphan_count),
+        )
+        return summary, failures
+
+    # -- DAG orchestration ----------------------------------------------------
+
+    def validate_dag(
+        self,
+        dag: Any,
+        checks_by_resource: "dict[str, list[Any]]",
+        *,
+        identity_by_resource: "dict[str, RowIdentity] | None" = None,
+        context: "dict[str, Any] | None" = None,
+        fail_fast: bool = False,
+        failure_sample: int | None = None,
+        backend: str | None = None,
+        fk_error_summaries: "list[CheckSummary] | None" = None,
+    ) -> "DAGValidationResult":
+        from mountainash.relations import relation as as_relation
+        from mountainash.validation.checks import ForeignKeyRule
+
+        natives: dict[str, Any] = {}
+
+        def _resolver(name: str) -> Any:
+            if name not in natives:
+                natives[name] = dag.collect(name, backend=backend)
+            return as_relation(natives[name])
+
+        identity_by_resource = identity_by_resource or {}
+        results: dict[str, ValidationResult] = {}
+        fk_rules: list[Any] = []
+
+        for name, checks in checks_by_resource.items():
+            intra = [c for c in checks if not isinstance(c, ForeignKeyRule)]
+            fk_rules.extend(c for c in checks if isinstance(c, ForeignKeyRule))
+            result = self.validate_relation(
+                _resolver(name),
+                intra,
+                identity=identity_by_resource.get(name),
+                context=context,
+                fail_fast=fail_fast,
+                failure_sample=failure_sample,
+                validator_name=name,
+            )
+            results[name] = result
+            if fail_fast and not result.passes:
+                return DAGValidationResult(
+                    passes=False,
+                    results=results,
+                    fk_result=ValidationResult(
+                        passes=True, validator_name="__fk__", context=dict(context or {})
+                    ),
+                )
+
+        identity = RowIdentity("none")
+        fk_summaries: list[CheckSummary] = list(fk_error_summaries or [])
+        fk_frames: list[pl.DataFrame] = []
+        for fk in fk_rules:
+            summary, failures = self._guarded(
+                functools.partial(self._run_foreign_key_rule, fk_resolver=_resolver),
+                None, fk, "foreign_key", identity, failure_sample,
+            )
+            fk_summaries.append(summary)
+            if failures.height:
+                fk_frames.append(failures)
+            if fail_fast and is_blocking(summary):
+                break  # same definition passes_from_summaries penalises (spec §8)
+
+        fk_result = ValidationResult(
+            passes=passes_from_summaries(fk_summaries),
+            validator_name="__fk__",
+            context=dict(context or {}),
+            check_summaries=summaries_frame(fk_summaries),
+            failure_cases=combine_failure_frames(fk_frames, identity),
+            identity=identity,
+        )
+        passes = all(r.passes for r in results.values()) and fk_result.passes
+        return DAGValidationResult(passes=passes, results=results, fk_result=fk_result)

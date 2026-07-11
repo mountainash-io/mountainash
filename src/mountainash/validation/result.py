@@ -185,6 +185,25 @@ def combine_failure_frames(
     return combined.select(ordered)
 
 
+def rows_as_struct_failures(
+    rows: pl.DataFrame, *, check_id: str, check_kind: str
+) -> pl.DataFrame:
+    """Failure-case rows for relation/FK checks: the failing source row is
+    nested as a `row` struct so source columns can never collide with the
+    reserved failure-case columns (spec §8)."""
+    if rows.height == 0:
+        return pl.DataFrame()
+    structured = rows.select(pl.struct(pl.all()).alias("row"))
+    return structured.with_columns(
+        pl.lit(check_id).alias("check_id"),
+        pl.lit(check_kind).alias("check_kind"),
+        pl.lit(None, dtype=pl.String).alias("column"),
+        pl.lit("fail").alias("outcome"),
+        pl.lit(None, dtype=pl.String).alias("value"),
+        pl.lit(None, dtype=pl.String).alias("message"),
+    ).select("check_id", "check_kind", "column", "outcome", "value", "message", "row")
+
+
 def interpolate_message(
     frame: pl.DataFrame, template: str, fields: "list[str]"
 ) -> pl.DataFrame:
