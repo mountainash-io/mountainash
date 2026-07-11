@@ -86,3 +86,7 @@ class MountainAshScalarComparisonAPIBuilderProtocol(Protocol):
     def has_nulls(self) -> BaseExpressionAPI:
         """Whether any values are null. Equivalent to is_null().sum().gt(0)."""
         ...
+
+    def is_duplicated(self) -> BaseExpressionAPI:
+        """Whether the value appears more than once in the column."""
+        ...

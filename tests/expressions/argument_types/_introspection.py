@@ -57,6 +57,7 @@ _CATEGORY_MAP = {
     "MountainAshScalarStringExpressionSystemProtocol": "string",
     "MountainAshScalarListExpressionSystemProtocol": "list",
     "MountainAshScalarStructExpressionSystemProtocol": "struct",
+    "MountainAshScalarComparisonExpressionSystemProtocol": "comparison",
     "MountainashExtensionAggregateExpressionSystemProtocol": "aggregate",
     "MountainashWindowExpressionSystemProtocol": "window",
 }

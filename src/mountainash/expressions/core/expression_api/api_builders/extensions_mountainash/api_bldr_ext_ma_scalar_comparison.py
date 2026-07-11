@@ -16,6 +16,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
     FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
 )
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 
@@ -260,3 +261,18 @@ class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, MountainAs
             arguments=[abs_diff, threshold],
         )
         return self._build(result)
+
+    def is_duplicated(self) -> BaseExpressionAPI:
+        """Whether the value appears more than once in the column.
+
+        Mountainash extension (not in Substrait). Compiles to a native
+        duplicate flag (Polars/Narwhals) or a per-value window count (Ibis).
+
+        Returns:
+            New ExpressionAPI with is_duplicated node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.IS_DUPLICATED,
+            arguments=[self._node],
+        )
+        return self._build(node)

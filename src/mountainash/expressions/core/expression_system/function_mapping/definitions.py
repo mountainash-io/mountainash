@@ -38,6 +38,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_SET,
@@ -74,6 +75,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshNullExpressionSystemProtocol,
     MountainAshScalarArithmeticExpressionSystemProtocol,
     MountainAshScalarBooleanExpressionSystemProtocol,
+    MountainAshScalarComparisonExpressionSystemProtocol,
     MountainAshScalarStringExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
@@ -2423,6 +2425,20 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Mountainash Comparison Extensions
+    # ========================================
+
+    MOUNTAINASH_COMPARISON_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.IS_DUPLICATED,
+            substrait_uri=MountainashExtension.COMPARISON,
+            substrait_name="is_duplicated",
+            is_extension=True,
+            protocol_method=MountainAshScalarComparisonExpressionSystemProtocol.is_duplicated,
+        ),
+    ]
+
+    # ========================================
     # Register All Functions
     # ========================================
 
@@ -2452,6 +2468,7 @@ def register_all_functions() -> None:
         + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_LIST_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_AGGREGATE_FUNCTIONS  # Mountainash aggregate extensions
+        + MOUNTAINASH_COMPARISON_FUNCTIONS  # Mountainash comparison extensions
     )
 
     for func in all_functions:
