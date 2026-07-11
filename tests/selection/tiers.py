@@ -46,6 +46,9 @@ _PATH_RULES: tuple[tuple[str, str], ...] = (
     ("tests/pydata/", "unit"),
     ("tests/datacontracts/", "unit"),
     ("tests/pipelines/", "unit"),
+    ("tests/validation/", "unit"),   # 2026-07-11 validation module-root unit tests
+                                     # (cross-backend cases live under
+                                     # tests/validation/cross_backend/, caught above)
     ("tests/core/", "unit"),
     ("tests/graph/", "unit"),
     ("tests/alignment/", "contract"),
