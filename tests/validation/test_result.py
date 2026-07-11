@@ -21,7 +21,7 @@ def test_summary_frame_columns_and_order():
     frame = summaries_frame([s])
     assert frame.columns == [
         "check_id", "check_kind", "status", "pass_count", "fail_count",
-        "unknown_count", "total_rows", "mostly", "diagnostic", "error", "elapsed", "severity",
+        "unknown_count", "total_rows", "mostly", "severity", "diagnostic", "error", "elapsed",
     ]
     assert frame["status"].to_list() == ["passed"]
 

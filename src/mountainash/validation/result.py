@@ -23,10 +23,10 @@ CHECK_SUMMARY_SCHEMA: dict[str, Any] = {
     "unknown_count": pl.Int64,
     "total_rows": pl.Int64,
     "mostly": pl.Float64,
+    "severity": pl.String,  # blocking | warning (spec §8 third amendment)
     "diagnostic": pl.String,
     "error": pl.String,
     "elapsed": pl.Float64,
-    "severity": pl.String,  # blocking | warning (spec §8 third amendment)
 }
 
 #: Failure-case columns before identity columns are appended.
@@ -185,15 +185,17 @@ def interpolate_message(
 ) -> pl.DataFrame:
     """Add a `message` column: `template` with {field} placeholders replaced
     by each row's values (keyed-tier capability)."""
-    messages = []
-    for row in frame.iter_rows(named=True):
-        msg = template
-        for field_name in fields:
-            if field_name in frame.columns:
-                msg = msg.replace("{" + field_name + "}", str(row[field_name]))
-        messages.append(msg)
-
-    return frame.with_columns(pl.Series("message", messages))
+    # Seed at frame length (not pl.lit, which is length-1): str.replace does not
+    # broadcast a length-1 subject against a length-N replacement expression
+    # (Polars 1.42 raises), so the running message must already be column-length.
+    message = pl.repeat(template, pl.len(), dtype=pl.String)
+    for name in fields:
+        if name not in frame.columns:
+            continue
+        message = message.str.replace(
+            "{" + name + "}", pl.col(name).cast(pl.String), literal=True
+        )
+    return frame.with_columns(message.alias("message"))
 
 
 def passes_from_summaries(summaries: "list[CheckSummary]") -> bool:
