@@ -72,6 +72,16 @@ def test_fields_on_scalar_raises():
         classify(_Rule("s", ma.col("age").mean().gt(0), fields=["age"]))
 
 
+def test_when_then_otherwise_is_row():
+    check = classify(_Rule("wt", ma.when(ma.col("age") > 18).then(True).otherwise(False)))
+    assert isinstance(check, RowRule)
+
+
+def test_when_aggregate_condition_is_scalar():
+    check = classify(_Rule("wa", ma.when(ma.col("x").sum() > 0).then(1).otherwise(0)))
+    assert isinstance(check, ScalarRule)
+
+
 def test_row_attributes_carry_through():
     check = classify(
         _Rule(

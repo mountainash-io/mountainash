@@ -228,15 +228,21 @@ def _iter_child_nodes(node: ExpressionNode) -> "list[ExpressionNode]":
     """Direct ExpressionNode children via pydantic-field introspection.
 
     Expression nodes have no children() accessor; they are frozen pydantic
-    models, so any field holding a node (or list of nodes) is a child edge.
+    models, so any field holding a node — or an arbitrarily nested list/tuple
+    of nodes (e.g. IfThenNode.conditions is list[tuple[node, node]]) — is a
+    child edge. Recurse through containers so nested nodes are not missed.
     """
     children: list[ExpressionNode] = []
-    for name in type(node).model_fields:
-        value = getattr(node, name)
+
+    def _collect(value: Any) -> None:
         if isinstance(value, ExpressionNode):
             children.append(value)
         elif isinstance(value, (list, tuple)):
-            children.extend(item for item in value if isinstance(item, ExpressionNode))
+            for item in value:
+                _collect(item)
+
+    for name in type(node).model_fields:
+        _collect(getattr(node, name))
     return children
 
 

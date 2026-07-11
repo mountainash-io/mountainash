@@ -101,10 +101,15 @@ def is_blocking(summary: "CheckSummary") -> bool:
     at "blocking" severity; a failed warning stays status="failed" (audit
     output truthful) without blocking. Consumed by passes_from_summaries(),
     the runner's fail_fast, and the processor's passed()/passed_for_rule().
+
+    Uses BLOCKING_STATUSES as the status-level pre-filter before the
+    severity check.
     """
+    if summary.status not in BLOCKING_STATUSES:
+        return False
     if summary.status == "error":
         return True
-    return summary.status == "failed" and summary.severity == "blocking"
+    return summary.severity == "blocking"
 
 
 def summaries_frame(summaries: "list[CheckSummary]") -> pl.DataFrame:
