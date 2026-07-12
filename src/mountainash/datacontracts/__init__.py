@@ -8,6 +8,7 @@ from mountainash.datacontracts.compiler import (
     contract_from_typespec,
 )
 from mountainash.datacontracts.field import Field
+from mountainash.datacontracts.plan import PlanResult, ValidationPlan
 from mountainash.datacontracts.rule import Rule, guarded
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.validator import Validator
@@ -24,6 +25,8 @@ __all__ = [
     "contract_from_typespec",
     "constraints",
     "expressions",
+    "PlanResult",
+    "ValidationPlan",
     "Rule",
     "guarded",
     "RuleRegistry",
