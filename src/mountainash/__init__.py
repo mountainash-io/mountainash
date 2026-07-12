@@ -1,61 +1,15 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
     from mountainash.datacontracts.contract import BaseDataContract
 
 # Re-export the full expressions public API at the top level
 # so that `import mountainash as ma; ma.col("x")` works
-from mountainash.expressions import (
-    BaseExpressionAPI,
-    BooleanExpressionAPI,
-    col,
-    lit,
-    duration,
-    native,
-    coalesce,
-    greatest,
-    least,
-    min_horizontal,
-    max_horizontal,
-    all_horizontal,
-    any_horizontal,
-    len,
-    sum_horizontal,
-    count_records,
-    corr,
-    median,
-    quantile,
-    when,
-    t_col,
-    always_true,
-    always_false,
-    always_unknown,
-    today,
-    now,
-    CONST_LOGIC_TYPES,
-    CONST_EXPRESSION_NODE_TYPES,
-)  # noqa: F401
-
 from mountainash.__version__ import __version__  # noqa: F401
-
-# Relations - Substrait-aligned relational AST
-from mountainash.relations import relation, concat  # noqa: F401
-
-# TypeSpec - backend-agnostic type specification
-from mountainash.typespec.spec import TypeSpec  # noqa: F401
-
-# DataPackage / DataResource / TableDialect — Frictionless Data Package support
-from mountainash.typespec.datapackage import (  # noqa: F401
-    DataPackage,
-    DataResource,
-    TableDialect,
-)
-
-# RelationDAG — orchestrator for named, interconnected Relations
-from mountainash.core.resource_ref import ResourceRef  # noqa: F401
-from mountainash.relations.dag import RelationDAG  # noqa: F401
 
 # MountainashDtype — canonical type vocabulary (accepted by cast/schema APIs)
 from mountainash.core.dtypes import MountainashDtype  # noqa: F401
@@ -66,6 +20,56 @@ from mountainash.core.dtypes import MountainashDtype  # noqa: F401
 # circular-import risk. The façade is imported only on explicit `import
 # mountainash.exceptions`.
 from mountainash.core.errors import MountainashError  # noqa: F401
+
+# RelationDAG — orchestrator for named, interconnected Relations
+from mountainash.core.resource_ref import ResourceRef  # noqa: F401
+from mountainash.core.types import DataFrameT
+from mountainash.expressions import (
+    CONST_EXPRESSION_NODE_TYPES,
+    CONST_LOGIC_TYPES,
+    BaseExpressionAPI,
+    BooleanExpressionAPI,
+    all_horizontal,
+    always_false,
+    always_true,
+    always_unknown,
+    any_horizontal,
+    coalesce,
+    col,
+    corr,
+    count_records,
+    duration,
+    greatest,
+    least,
+    len,
+    lit,
+    max_horizontal,
+    median,
+    min_horizontal,
+    native,
+    now,
+    quantile,
+    sum_horizontal,
+    t_col,
+    today,
+    when,
+)  # noqa: F401
+from mountainash.pydata.ingress import PydataIngress
+
+# Relations - Substrait-aligned relational AST
+from mountainash.relations import concat, relation  # noqa: F401
+from mountainash.relations.dag import RelationDAG  # noqa: F401
+
+# DataPackage / DataResource / TableDialect — Frictionless Data Package support
+from mountainash.typespec.datapackage import (  # noqa: F401
+    DataPackage,
+    DataResource,
+    TableDialect,
+)
+
+# TypeSpec - backend-agnostic type specification
+from mountainash.typespec.spec import TypeSpec  # noqa: F401
+
 
 def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
     """Create a TypeSpec from a simple {name: type_string} dict."""
