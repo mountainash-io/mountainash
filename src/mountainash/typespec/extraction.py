@@ -765,6 +765,11 @@ def _python_type_to_universal(python_type: Type) -> str:
     return _universal_from_native(unwrapped_type, TypeTarget.PYTHON)
 
 
+def python_type_to_universal(python_type: Type) -> str:
+    """Universal type name for a Python annotation (public alias)."""
+    return _python_type_to_universal(python_type)
+
+
 def _unwrap_optional(type_hint: Any) -> Any:
     """
     Unwrap Optional[T] to get the inner type T.

@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import pytest
 import polars as pl
-import pandera.polars as pa
 import mountainash as ma
 
 from mountainash.datacontracts.validator import Validator
 from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.datacontracts.field import Field
 from mountainash.datacontracts.rule import Rule, guarded
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.result import ValidationResult
@@ -130,10 +130,9 @@ class TestValidatorPandasInput:
 class TestValidatorProcessorWiring:
 
     def test_processor_receives_validator_name(self):
-        import pandera.polars as pa
 
         class SimpleContract(BaseDataContract):
-            age: pa.typing.Series[int] = pa.Field(ge=0)
+            age: int = Field(ge=0)
 
         validator = Validator(name="test_v", contract=SimpleContract)
         df = pl.DataFrame({"age": [-1, 5, 10]})
@@ -143,10 +142,9 @@ class TestValidatorProcessorWiring:
         assert result.processor._validator_name == "test_v"
 
     def test_processor_receives_natural_key(self):
-        import pandera.polars as pa
 
         class SimpleContract(BaseDataContract):
-            age: pa.typing.Series[int] = pa.Field(ge=0)
+            age: int = Field(ge=0)
 
         validator = Validator(
             name="test_v", contract=SimpleContract, natural_key=["age"],
@@ -157,10 +155,9 @@ class TestValidatorProcessorWiring:
         assert result.processor._natural_key == ["age"]
 
     def test_processor_receives_source_data(self):
-        import pandera.polars as pa
 
         class SimpleContract(BaseDataContract):
-            age: pa.typing.Series[int] = pa.Field(ge=0)
+            age: int = Field(ge=0)
 
         validator = Validator(name="test_v", contract=SimpleContract)
         df = pl.DataFrame({"age": [-1, 5, 10]})
@@ -170,10 +167,9 @@ class TestValidatorProcessorWiring:
         assert len(result.processor._source_data) == 3
 
     def test_processor_source_data_reflects_head_slice(self):
-        import pandera.polars as pa
 
         class SimpleContract(BaseDataContract):
-            age: pa.typing.Series[int] = pa.Field(ge=0)
+            age: int = Field(ge=0)
 
         validator = Validator(name="test_v", contract=SimpleContract)
         df = pl.DataFrame({"age": [-1, -2, -3, -4, -5]})

@@ -5,7 +5,6 @@ import json
 
 import pytest
 import polars as pl
-import pandera.polars as pa
 
 import mountainash as ma
 from mountainash.typespec.spec import TypeSpec, FieldSpec
@@ -82,12 +81,19 @@ class TestDatacontractFromDataFrameModel:
         result = ma.datacontract(MyContract)
         assert result is MyContract
 
-    def test_plain_dataframe_model_gets_wrapped(self):
-        class MyModel(pa.DataFrameModel):
-            name: str
-
-        Contract = ma.datacontract(MyModel)
+    def test_typespec_source_round_trips_through_compiled_contract(self):
+        # Replaces the removed Pandera-DataFrameModel-wrapping test: the
+        # native entrypoint no longer accepts an arbitrary pa.DataFrameModel
+        # source (no honest analogue — compile_datacontract/contract_from_typespec
+        # only understand TypeSpec-shaped sources). The equivalent native
+        # guarantee is that a TypeSpec source compiles to a working contract
+        # whose declared field survives the TypeSpec round-trip.
+        spec = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+        Contract = ma.datacontract(spec)
         assert issubclass(Contract, BaseDataContract)
         assert hasattr(Contract, "validate_datacontract")
+        round_tripped = Contract.to_typespec()
+        assert [f.name for f in round_tripped.fields] == ["name"]
         df = pl.DataFrame({"name": ["a"]})
-        Contract.validate_datacontract(df)
+        result = Contract.validate_datacontract(df)
+        assert result.passes is True

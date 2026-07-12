@@ -215,6 +215,15 @@ class TypeSpec:
         from mountainash.typespec.frictionless import typespec_to_frictionless
         return typespec_to_frictionless(self)
 
+    def to_contract(self, *, name: Optional[str] = None) -> Any:
+        """Generate a native BaseDataContract subclass from this spec.
+
+        Lazy import (same pattern as from_frictionless) — typespec has no
+        static dependency on datacontracts.
+        """
+        from mountainash.datacontracts.compiler import contract_from_typespec
+        return contract_from_typespec(self, name=name)
+
     def get_field(self, name: str) -> Optional[FieldSpec]:
         """Get a field by name."""
         for f in self.fields:

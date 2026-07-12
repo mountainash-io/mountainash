@@ -64,7 +64,6 @@ dependencies = [
     "ibis-framework[duckdb,sqlite]>=9.0.0",
     "pyarrow>=16",
     "pydantic>=2.0.0",
-    "pandera[polars]>=0.22.0",
     "pyyaml>=6.0",
     # CI sibling chain: the checkout-dependencies action clones these into
     # temp/ (see .github/config/mountainash_dependencies.yml). files + transport
@@ -115,7 +114,6 @@ dependencies = [
     "pyarrow>=15.0.0",
     "pydantic>=2.0.0",
     "xarray==2024.11.0",
-    "pandera[polars]>=0.22.0",
     "pyyaml>=6.0",
     # Local sibling-package chain from ../ (mirrors [tool.uv.sources]; hatch's
     # env sync needs the explicit URL pins to resolve them). settings/

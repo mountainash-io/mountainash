@@ -46,7 +46,6 @@ dependencies = [
 [project.optional-dependencies]
 pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=9.0.0"]
-datacontracts = ["pandera[polars]>=0.22.0"]
 storage = ["mountainash-transport"]
 files = ["mountainash-files>=26.7.0,<27"]
 dbos = ["dbos>=1.0.0"]
@@ -54,7 +53,7 @@ s3 = ["mountainash-files[s3]>=26.7.0"]
 gcs = ["mountainash-files[gcs]>=26.7.0"]
 azure = ["mountainash-files[azure]>=26.7.0"]
 sftp = ["mountainash-files[sftp]>=26.7.0"]
-all = ["mountainash[pandas,ibis,datacontracts,storage,files,dbos,s3,gcs,azure,sftp]"]
+all = ["mountainash[pandas,ibis,storage,files,dbos,s3,gcs,azure,sftp]"]
 
 [project.urls]
 Homepage = "https://github.com/mountainash-io/mountainash"

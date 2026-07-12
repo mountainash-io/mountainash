@@ -219,3 +219,34 @@ class TestTypeSpecForeignKeys:
         assert len(spec.foreign_keys) == 1
         assert spec.foreign_keys[0].fields == ["customer_id"]
         assert spec.foreign_keys[0].reference.resource == "customers"
+
+
+class TestTypeSpecToContract:
+    def test_to_contract_produces_native_contract(self):
+        # E6: TypeSpec.to_contract() lazily builds a native BaseDataContract
+        # subclass (same lazy-import pattern as from_frictionless).
+        from mountainash.datacontracts.contract import BaseDataContract
+
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="id",
+                    type=UniversalType.INTEGER,
+                    constraints=FieldConstraints(required=True, unique=True),
+                ),
+                FieldSpec(name="email", type=UniversalType.STRING),
+            ],
+            title="users",
+            primary_key=["id"],
+        )
+        contract = spec.to_contract()
+        assert issubclass(contract, BaseDataContract)
+        assert contract.contract_name() == "users"
+        ids = [c.id for c in contract.to_checks()]
+        assert "id__not_null" in ids
+        assert "id__unique" in ids
+
+    def test_to_contract_name_override(self):
+        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.INTEGER)])
+        contract = spec.to_contract(name="Custom")
+        assert contract.contract_name() == "Custom"

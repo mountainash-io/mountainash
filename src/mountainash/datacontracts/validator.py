@@ -1,39 +1,28 @@
-"""Validator — unified validation orchestrator."""
+"""Validator — orchestrates prepare -> slice once -> resolve -> ValidationRunner.
+
+No Pandera. validate_quick() is validate() with fail_fast=True: identical
+result shapes by construction (spec §6.5, item 18 subsumed).
+"""
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, Callable
 
 import polars as pl
-import pandera.polars as pa
 
-from mountainash.datacontracts.result import ValidationResult
-from mountainash.datacontracts.result_processor import ValidationResultProcessor
+from mountainash.validation.checks import classify
+from mountainash.validation.errors import CheckDeclarationError
+from mountainash.validation.identity import resolve_identity
+from mountainash.validation.result import (
+    CheckSummary,
+    ValidationResult,
+    summaries_frame,
+)
+from mountainash.validation.runner import ValidationRunner
 
 if TYPE_CHECKING:
     from mountainash.datacontracts.contract import BaseDataContract
     from mountainash.datacontracts.registry import RuleRegistry
-    from mountainash.datacontracts.rule import Rule
-
-
-def _compile_contract_with_rules(
-    contract: type[BaseDataContract],
-    rules: list[Rule],
-) -> type[BaseDataContract]:
-    """Create an ephemeral subclass with compiled rules as @dataframe_check methods."""
-    check_methods: dict[str, Any] = {}
-    for rule in rules:
-        def make_check(r: Rule) -> Any:
-            def check_fn(cls: Any, data: pa.PolarsData) -> pl.LazyFrame:
-                compiled_expr = r.expr.compile(data.lazyframe)
-                return data.lazyframe.select(compiled_expr)
-            return pa.dataframe_check(name=r.id)(check_fn)
-        check_methods[f"_check_{rule.id}"] = make_check(rule)
-
-    return type(
-        f"{contract.__name__}_WithRules",
-        (contract,),
-        check_methods,
-    )
 
 
 class Validator:
@@ -43,10 +32,10 @@ class Validator:
         self,
         *,
         name: str,
-        contract: type[BaseDataContract],
-        rules: RuleRegistry | None = None,
-        natural_key: list[str] | None = None,
-        prepare: Callable[[Any], Any] | None = None,
+        contract: "type[BaseDataContract]",
+        rules: "RuleRegistry | None" = None,
+        natural_key: "list[str] | None" = None,
+        prepare: "Callable[..., Any] | None" = None,
     ) -> None:
         self.name = name
         self.contract = contract
@@ -54,126 +43,167 @@ class Validator:
         self.natural_key = natural_key
         self.prepare = prepare
 
-    def _resolve_contract(self, context: dict[str, Any] | None) -> type[BaseDataContract]:
-        if self.rules is None:
-            return self.contract
-        resolved = self.rules.resolve(context=context)
-        if not resolved:
-            return self.contract
-        return _compile_contract_with_rules(self.contract, resolved)
+    # -- pipeline pieces ------------------------------------------------------
 
-    def _prepare_data(self, data: Any) -> Any:
-        if self.prepare is not None:
-            return self.prepare(data)
-        return data
-
-    @staticmethod
-    def _to_polars(data: Any) -> "pl.DataFrame":
-        """Normalize any input to a polars DataFrame via mountainash relation."""
-        from mountainash.relations import relation
-
-        if isinstance(data, pl.DataFrame):
+    def _prepare_data(self, data: Any, context: "dict[str, Any] | None") -> Any:
+        """17 P6: prepare(data) or prepare(data, context=...) by signature."""
+        if self.prepare is None:
             return data
-        rel = relation(data)
-        return rel.collect()
+        signature = inspect.signature(self.prepare)
+        if "context" in signature.parameters:
+            return self.prepare(data, context=context)
+        return self.prepare(data)
 
     @staticmethod
-    def _slice_data(
-        df: pl.DataFrame,
-        *,
-        head: int | None = None,
-        tail: int | None = None,
-        sample: int | None = None,
-        random_seed: int | None = None,
-    ) -> pl.DataFrame:
-        """Apply head/tail/sample slicing — mirrors BaseDataContract.validate_datacontract."""
+    def _to_polars_frame(rel: Any) -> pl.DataFrame:
+        materialised = rel.to_polars()
+        if isinstance(materialised, pl.LazyFrame):
+            materialised = materialised.collect()
+        return materialised
+
+    @classmethod
+    def _slice(
+        cls, rel: Any, *, head: int | None, tail: int | None,
+        sample: int | None, random_seed: int | None,
+    ) -> Any:
+        """17 P4: slicing happens exactly once, before the runner."""
+        import mountainash as ma
+
         if head is not None:
-            df = df.head(head)
+            rel = rel.head(head)
         if tail is not None:
-            df = df.tail(tail)
+            rel = rel.tail(tail)
         if sample is not None:
-            df = df.sample(n=sample, seed=random_seed)
-        return df
+            if random_seed is None:
+                # Relation.sample is cross-backend (no seed param; Ibis
+                # approximates n via fraction) — stays on the native backend.
+                rel = rel.sample(n=sample)
+            else:
+                # Seeded sampling: Relation.sample has no seed parameter, so
+                # deterministic sampling materialises to Polars (documented
+                # narrowing; follow-on backlog: seed option on Relation.sample).
+                frame = cls._to_polars_frame(rel)
+                rel = ma.relation(frame.sample(n=sample, seed=random_seed))
+        return rel
+
+    # -- public API -----------------------------------------------------------
 
     def validate(
         self,
         data: Any,
         *,
-        context: dict[str, Any] | None = None,
+        context: "dict[str, Any] | None" = None,
         head: int | None = None,
         tail: int | None = None,
         sample: int | None = None,
         random_seed: int | None = None,
+        row_identity: str | None = None,
+        allow_imperfect_key: bool = False,
+        failure_sample: int | None = None,
     ) -> ValidationResult:
-        """Full validation — collects all errors."""
-        prepared = self._to_polars(self._prepare_data(data))
-        sliced = self._slice_data(prepared, head=head, tail=tail, sample=sample, random_seed=random_seed)
-        active_contract = self._resolve_contract(context)
-
-        try:
-            active_contract.validate_datacontract(
-                prepared, head=head, tail=tail, sample=sample, random_seed=random_seed,
-            )
-            return ValidationResult(
-                passes=True,
-                validator_name=self.name,
-                datacontract_name=active_contract.__name__,
-            )
-        except pa.errors.SchemaErrors as e:
-            processor = ValidationResultProcessor(
-                e.failure_cases,
-                source_data=sliced,
-                natural_key=self.natural_key,
-                validator_name=self.name,
-            )
-            return ValidationResult(
-                passes=False,
-                validator_name=self.name,
-                datacontract_name=active_contract.__name__,
-                processor=processor,
-                message=str(e),
-            )
+        """Full validation — collects all check results."""
+        return self._run(
+            data, context=context, head=head, tail=tail, sample=sample,
+            random_seed=random_seed, fail_fast=False, row_identity=row_identity,
+            allow_imperfect_key=allow_imperfect_key, failure_sample=failure_sample,
+        )
 
     def validate_quick(
         self,
         data: Any,
         *,
-        context: dict[str, Any] | None = None,
+        context: "dict[str, Any] | None" = None,
         head: int | None = None,
         tail: int | None = None,
         sample: int | None = None,
         random_seed: int | None = None,
+        row_identity: str | None = None,
+        allow_imperfect_key: bool = False,
+        failure_sample: int | None = None,
     ) -> ValidationResult:
-        """Quick validation — fails on first error."""
-        prepared = self._to_polars(self._prepare_data(data))
-        sliced = self._slice_data(prepared, head=head, tail=tail, sample=sample, random_seed=random_seed)
-        active_contract = self._resolve_contract(context)
+        """Quick validation — same runner, fail_fast=True. Identical shapes."""
+        return self._run(
+            data, context=context, head=head, tail=tail, sample=sample,
+            random_seed=random_seed, fail_fast=True, row_identity=row_identity,
+            allow_imperfect_key=allow_imperfect_key, failure_sample=failure_sample,
+        )
 
-        try:
-            active_contract.validate_datacontract_quick(
-                prepared, head=head, tail=tail, sample=sample, random_seed=random_seed,
-            )
-            return ValidationResult(
-                passes=True,
-                validator_name=self.name,
-                datacontract_name=active_contract.__name__,
-            )
-        except pa.errors.SchemaError as e:
-            fc = getattr(e, "failure_cases", None)
-            processor = (
-                ValidationResultProcessor(
-                    fc,
-                    source_data=sliced,
-                    natural_key=self.natural_key,
-                    validator_name=self.name,
+    def _run(
+        self, data: Any, *, context: "dict[str, Any] | None",
+        head: int | None, tail: int | None, sample: int | None,
+        random_seed: int | None, fail_fast: bool, row_identity: str | None,
+        allow_imperfect_key: bool, failure_sample: int | None,
+    ) -> ValidationResult:
+        import mountainash as ma
+        from mountainash.datacontracts.result_processor import ValidationResultProcessor
+        from mountainash.relations import Relation
+
+        # --- declaration phase (spec §9.4): strictly BEFORE any data is
+        # touched — a bad gate, predicate, as_of, contextual builder, or
+        # duplicate id must surface before prepare's side effects run
+        spec = self.contract.to_typespec()
+        natural_key = self.natural_key or getattr(self.contract.Config, "natural_key", None)
+        identity = resolve_identity(
+            natural_key=natural_key, spec=spec, row_identity=row_identity
+        )
+
+        checks: list[Any] = list(self.contract.to_checks())
+        skipped: list[CheckSummary] = []
+        if self.rules is not None:
+            resolved = self.rules.resolve_detailed(context=context)
+            checks.extend(classify(rule) for rule in resolved.included)
+            skipped = [
+                CheckSummary(
+                    check_id=entry.rule.id,
+                    check_kind=None,  # unknowable without materialising the expression
+                    status="skipped",
+                    diagnostic=entry.reason,
                 )
-                if fc is not None
-                else None
+                for entry in resolved.excluded
+            ]
+
+        # contract checks + resolved rules share one id namespace (spec §9.4)
+        seen_ids: set[str] = set()
+        for check in checks:
+            if check.id in seen_ids:
+                raise CheckDeclarationError(
+                    f"duplicate check id {check.id!r} across contract checks "
+                    "and resolved rules"
+                )
+            seen_ids.add(check.id)
+
+        # --- data phase
+        prepared = self._prepare_data(data, context)
+        rel = prepared if isinstance(prepared, Relation) else ma.relation(prepared)
+        rel = self._slice(rel, head=head, tail=tail, sample=sample, random_seed=random_seed)
+
+        if getattr(self.contract.Config, "coerce", True):
+            rel = rel.conform(spec)
+
+        result = ValidationRunner().validate_relation(
+            rel,
+            checks,
+            identity=identity,
+            allow_imperfect_key=allow_imperfect_key,
+            context=context or {},
+            fail_fast=fail_fast,
+            failure_sample=failure_sample,
+            validator_name=self.name,
+            datacontract_name=self.contract.contract_name(),
+        )
+        if skipped:
+            # skipped summaries are visibility only: appended to the frame,
+            # never part of the runner's pass computation (they cannot fail)
+            result.check_summaries = pl.concat(
+                [result.check_summaries, summaries_frame(skipped)]
             )
-            return ValidationResult(
-                passes=False,
+
+        if not result.passes:
+            result.processor = ValidationResultProcessor(
+                result.failure_cases,
+                source_data=self._to_polars_frame(rel),
+                identity=identity,
+                check_summaries=result.check_summaries,
                 validator_name=self.name,
-                datacontract_name=active_contract.__name__,
-                processor=processor,
-                message=str(e),
             )
+        return result

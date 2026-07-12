@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import pytest
 import polars as pl
-import pandera.polars as pa
 import mountainash as ma
 
 from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.datacontracts.field import Field
 from mountainash.datacontracts.rule import Rule, guarded
 from mountainash.datacontracts.registry import RuleRegistry
 
@@ -15,8 +15,8 @@ class PersonContract(BaseDataContract):
     """Hand-built contract for testing."""
 
     name: str
-    age: int = pa.Field(ge=0)
-    email: str = pa.Field(nullable=True)
+    age: int = Field(ge=0)
+    email: str = Field(nullable=True)
 
 
 @pytest.fixture

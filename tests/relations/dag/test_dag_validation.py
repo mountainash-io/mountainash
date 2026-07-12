@@ -11,7 +11,7 @@ from mountainash.typespec.spec import (
 )
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.relations.dag import RelationDAG
-from mountainash.relations.dag.validation import DAGValidationResult, FKViolation
+from mountainash.relations.dag.validation import DAGValidationResult
 from mountainash.datacontracts.contract import BaseDataContract
 from mountainash.datacontracts.compiler import compile_datacontract
 
@@ -33,8 +33,8 @@ class TestPerTableValidation:
         result = dag.validate(specs={"users": spec})
         assert isinstance(result, DAGValidationResult)
         assert result.passes is True
-        assert "users" in result.table_results
-        assert result.table_results["users"].passes is True
+        assert "users" in result.results
+        assert result.results["users"].passes is True
 
     def test_invalid_data_fails(self):
         dag = _build_dag({"users": pl.DataFrame({"age": [-1, 5]})})
@@ -43,7 +43,7 @@ class TestPerTableValidation:
         ])
         result = dag.validate(specs={"users": spec})
         assert result.passes is False
-        assert result.table_results["users"].passes is False
+        assert result.results["users"].passes is False
 
     def test_accepts_base_data_contract(self):
         class UserContract(BaseDataContract):
@@ -81,7 +81,7 @@ class TestDerivedRelationValidation:
         result = dag.validate(specs={"adults": spec})
 
         assert result.passes is True
-        assert "adults" in result.table_results
+        assert "adults" in result.results
 
     def test_validate_quick_resolves_ref_relations_through_dag(self):
         dag = RelationDAG()
@@ -103,7 +103,7 @@ class TestDerivedRelationValidation:
         result = dag.validate_quick(specs={"adults": spec})
 
         assert result.passes is True
-        assert "adults" in result.table_results
+        assert "adults" in result.results
 
     def test_dependency_edges_do_not_create_fk_checks(self):
         dag = RelationDAG()
@@ -117,7 +117,8 @@ class TestDerivedRelationValidation:
         result = dag.validate(specs={"children": child_spec})
 
         assert result.passes is True
-        assert result.fk_violations == []
+        assert result.fk_result.passes is True
+        assert result.fk_result.check_summaries.height == 0
 
     def test_constraint_edges_without_typespec_foreign_keys_do_not_create_fk_checks(self):
         dag = RelationDAG()
@@ -135,7 +136,8 @@ class TestDerivedRelationValidation:
         result = dag.validate(specs={"parents": parent_spec, "children": child_spec})
 
         assert result.passes is True
-        assert result.fk_violations == []
+        assert result.fk_result.passes is True
+        assert result.fk_result.check_summaries.height == 0
 
 
 class TestFKValidation:
@@ -176,26 +178,30 @@ class TestFKValidation:
         specs = self._make_specs()
         result = dag.validate(specs=specs)
         assert result.passes is True
-        assert len(result.fk_violations) == 0
+        assert result.fk_result.passes is True
+        assert result.fk_result.check_summaries.height == 1
+        assert result.fk_result.check_summaries.row(0, named=True)["status"] == "passed"
 
     def test_orphan_fk_fails(self):
         dag = self._make_fk_dag(orphans=True)
         specs = self._make_specs()
         result = dag.validate(specs=specs)
         assert result.passes is False
-        assert len(result.fk_violations) == 1
-        v = result.fk_violations[0]
-        assert v.child_table == "orders"
-        assert v.parent_table == "customers"
-        assert v.orphan_count == 1
-        assert 99 in v.orphan_sample["customer_id"].to_list()
+        assert result.fk_result.passes is False
+        fk_summary = result.fk_result.check_summaries.row(0, named=True)
+        assert fk_summary["check_kind"] == "foreign_key"
+        assert fk_summary["check_id"] == "fk__orders__customer_id__customers"
+        assert fk_summary["fail_count"] == 1
+        orphan_rows = result.fk_result.failure_cases["row"].struct.unnest()
+        assert 99 in orphan_rows["customer_id"].to_list()
 
     def test_null_fk_excluded_from_check(self):
         dag = self._make_fk_dag(nulls=True)
         specs = self._make_specs()
         result = dag.validate(specs=specs)
         assert result.passes is True
-        assert len(result.fk_violations) == 0
+        assert result.fk_result.passes is True
+        assert result.fk_result.check_summaries.row(0, named=True)["fail_count"] == 0
 
     def test_fk_only_edge_no_dependency_edge(self):
         parents = pl.DataFrame({"id": [1, 2]})
@@ -217,9 +223,18 @@ class TestFKValidation:
         )
         result = dag.validate(specs={"parents": parent_spec, "children": child_spec})
         assert result.passes is False
-        assert len(result.fk_violations) == 1
+        assert result.fk_result.passes is False
+        fk_summary = result.fk_result.check_summaries.row(0, named=True)
+        assert fk_summary["check_id"] == "fk__children__parent_id__parents"
+        assert fk_summary["fail_count"] == 1
 
-    def test_fk_skipped_when_parent_not_in_specs(self):
+    def test_fk_evaluated_when_parent_not_in_specs(self):
+        """Behaviour change (closed-by-default): the FK parent resource is
+        resolved against the DAG's relations, not the caller's `specs` dict —
+        so a parent omitted from `specs` no longer causes the FK check to be
+        silently skipped. The orphan is still detected and surfaces as a
+        real failure (not merely a status="error" placeholder, since the
+        parent relation itself is fully resolvable in the DAG)."""
         parents = pl.DataFrame({"id": [1]})
         children = pl.DataFrame({"parent_id": [99]})
         dag = _build_dag({"parents": parents, "children": children})
@@ -235,8 +250,12 @@ class TestFKValidation:
             ],
         )
         result = dag.validate(specs={"children": child_spec})
-        assert result.passes is True
-        assert len(result.fk_violations) == 0
+        assert result.passes is False
+        assert result.fk_result.passes is False
+        fk_summary = result.fk_result.check_summaries.row(0, named=True)
+        assert fk_summary["check_id"] == "fk__children__parent_id__parents"
+        assert fk_summary["status"] == "failed"
+        assert fk_summary["fail_count"] == 1
 
 
 class TestFastMode:
@@ -251,7 +270,8 @@ class TestFastMode:
         ])
         result = dag.validate_quick(specs={"good": good_spec, "bad": bad_spec})
         assert result.passes is False
-        assert len(result.fk_violations) == 0
+        assert result.fk_result.passes is True
+        assert result.fk_result.check_summaries.height == 0
 
     def test_fast_stops_on_first_fk_violation(self):
         parents = pl.DataFrame({"id": [1]})
@@ -268,4 +288,7 @@ class TestFastMode:
         )
         result = dag.validate_quick(specs={"p": p_spec, "c": c_spec})
         assert result.passes is False
-        assert len(result.fk_violations) == 1
+        assert result.fk_result.passes is False
+        fk_summary = result.fk_result.check_summaries.row(0, named=True)
+        assert fk_summary["check_id"] == "fk__c__pid__p"
+        assert fk_summary["fail_count"] == 1

@@ -471,26 +471,35 @@ class RelationDAG:
         specs: dict[str, Any],
         *,
         context: dict[str, Any] | None = None,
+        backend: Optional[str] = None,
+        failure_sample: Optional[int] = None,
     ) -> "DAGValidationResult":
-        """Full validation — validate all tables and check all FK relationships.
+        """Full validation via the backend-agnostic ValidationRunner.
 
-        Phase 1: Materialise and validate each table via its datacontract.
-        Phase 2: Check FK referential integrity using cached DataFrames.
+        Per-resource checks compile from each spec/contract; FK row-integrity
+        checks are generated from constraint_metadata + spec foreign keys by
+        validation.fk.build_fk_checks and compiled as relation anti-joins.
         """
         from mountainash.relations.dag.validation import validate
 
-        return validate(self, specs, context=context)
+        return validate(
+            self, specs, context=context, backend=backend, failure_sample=failure_sample
+        )
 
     def validate_quick(
         self,
         specs: dict[str, Any],
         *,
         context: dict[str, Any] | None = None,
+        backend: Optional[str] = None,
+        failure_sample: Optional[int] = None,
     ) -> "DAGValidationResult":
-        """Fast validation — stop on first table failure or FK violation."""
+        """Fast validation via the ValidationRunner (fail_fast=True; identical shapes)."""
         from mountainash.relations.dag.validation import validate_quick
 
-        return validate_quick(self, specs, context=context)
+        return validate_quick(
+            self, specs, context=context, backend=backend, failure_sample=failure_sample
+        )
 
     def _unknown_ref_error(self, missing: str) -> "UnknownRelationRef":
         """Unified missing-upstream error, naming registered dependents."""
