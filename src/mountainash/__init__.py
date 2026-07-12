@@ -104,17 +104,20 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
 
     if _PydanticBaseModel is not None and isinstance(source, type) and issubclass(source, _PydanticBaseModel):
         from mountainash.typespec.extraction import extract_from_pydantic
+
         _spec = extract_from_pydantic(source)
         return contract_from_typespec(_spec)
 
     if isinstance(source, (str, _Path)):
         from mountainash.typespec.frictionless import typespec_from_frictionless
+
         _spec = typespec_from_frictionless(source)
         return contract_from_typespec(_spec)
 
     if isinstance(source, dict):
         if "fields" in source:
             from mountainash.typespec.frictionless import typespec_from_frictionless
+
             _spec = typespec_from_frictionless(source)
             return contract_from_typespec(_spec)
         _spec = TypeSpec.from_simple_dict(source)
