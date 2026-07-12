@@ -79,6 +79,11 @@ def test_context_flows_to_every_validator():
     assert result.results["accounts"].context == {"batch_id": "2026010100001"}
 
 
+def test_empty_steps_rejected():
+    with pytest.raises(ValueError, match="at least one step"):
+        ValidationPlan(name="p", steps=[])
+
+
 def test_duplicate_step_names_rejected():
     with pytest.raises(ValueError, match="duplicate"):
         ValidationPlan(

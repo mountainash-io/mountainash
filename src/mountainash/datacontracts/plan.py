@@ -45,6 +45,8 @@ class ValidationPlan:
         self.steps = list(steps)
         self.context = context
         self.fail_fast = fail_fast
+        if not self.steps:
+            raise ValueError("ValidationPlan requires at least one step")
         seen: set[str] = set()
         for step_name, _validator, _data in self.steps:
             if step_name in seen:
