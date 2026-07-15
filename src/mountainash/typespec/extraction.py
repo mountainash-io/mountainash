@@ -10,8 +10,10 @@ All extractors use lazy imports to avoid loading unnecessary dependencies.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, get_type_hints
+import enum
 import logging
+import types
 
 from mountainash.core.dtypes import TypeTarget, registry
 
@@ -95,22 +97,37 @@ def extract_from_dataclass(
 
     fields = []
 
-    for field_name, field_info in dataclass_type.__dataclass_fields__.items():
-        # Get the type annotation
-        field_type = field_info.type
+    # Resolve postponed (string) annotations once per class. Under
+    # `from __future__ import annotations`, dataclasses.fields()[i].type is
+    # an unresolved string; get_type_hints() evaluates it in the class's
+    # module namespace, returning real type/typing objects for every field
+    # (also a no-op for classes that never used postponed annotations).
+    resolved_hints = get_type_hints(dataclass_type, include_extras=True)
 
-        # Handle Optional types (Union[X, None])
+    for field_name, field_info in dataclass_type.__dataclass_fields__.items():
+        # Get the resolved type annotation, falling back to the raw
+        # Field.type if get_type_hints somehow omitted this field.
+        field_type = resolved_hints.get(field_name, field_info.type)
+
+        # Handle Optional types: typing.Union[X, None] (Optional[X]) and,
+        # under PEP 604, X | None (types.UnionType — a distinct object with
+        # no __origin__ pointing at typing.Union).
         is_optional = False
-        if hasattr(field_type, '__origin__'):
-            # Handle Union, Optional, List, etc.
-            origin = field_type.__origin__
-            if origin is Union:
-                # Check if it's Optional (Union[X, None])
-                args = field_type.__args__
-                if type(None) in args:
-                    is_optional = True
-                    # Get the non-None type
-                    field_type = next(arg for arg in args if arg is not type(None))
+        origin = getattr(field_type, '__origin__', None)
+        if origin is Union or isinstance(field_type, types.UnionType):
+            args = getattr(field_type, '__args__', ())
+            if type(None) in args:
+                is_optional = True
+                # Get the non-None type
+                field_type = next(arg for arg in args if arg is not type(None))
+
+        # Enum fields resolve via their native value mixin — StrEnum -> str,
+        # IntEnum -> int, etc. — rather than falling through to ANY.
+        if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
+            for native_base in (str, int, float, bool, bytes):
+                if issubclass(field_type, native_base):
+                    field_type = native_base
+                    break
 
         # Convert Python type to universal type
         try:
