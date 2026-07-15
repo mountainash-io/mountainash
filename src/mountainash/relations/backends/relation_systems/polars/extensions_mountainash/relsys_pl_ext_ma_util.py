@@ -6,11 +6,44 @@ from typing import Any, Optional
 
 import polars as pl
 
-from mountainash.relations.dag.errors import UnsupportedResourceFormat
+from mountainash.relations.dag.errors import (
+    ResourceSchemaCastError,
+    UnsupportedResourceFormat,
+)
 
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
+
+
+def _declared_polars_schema(table_schema: Any) -> Optional[dict[str, Any]]:
+    """Resolve a resource's ``table_schema`` to a Polars {name: dtype} map.
+
+    ``table_schema`` may be a raw Frictionless dict or an already-built
+    ``TypeSpec`` (``DataResource.table_schema`` is ``Optional[Any]``). Reuses
+    the same resolver ``empty_frame`` uses (``to_polars_schema`` ->
+    ``_resolve_field_native``): ``ANY`` -> ``STRING``, honours unparameterised
+    ``backend_type``. Keys on the field *output* name, so ``rename_from`` never
+    enters this path. Returns ``None`` for a missing or unknown-shaped schema
+    (read un-cast — do not guess); a genuinely malformed dict lets
+    ``typespec_from_frictionless`` raise (no swallow wrapper — item 53 §8.2).
+    """
+    if table_schema is None:
+        return None
+    from mountainash.typespec.spec import TypeSpec
+
+    if isinstance(table_schema, TypeSpec):
+        spec = table_schema
+    elif isinstance(table_schema, dict):
+        from mountainash.typespec.frictionless import typespec_from_frictionless
+
+        spec = typespec_from_frictionless(table_schema)
+    else:
+        return None
+
+    from mountainash.typespec.converters import to_polars_schema
+
+    return to_polars_schema(spec)
 
 
 class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSystemProtocol[pl.LazyFrame]):
@@ -177,5 +210,24 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
     def _read_inline(resource: Any) -> pl.LazyFrame:
         from mountainash.pydata.ingress.pydata_ingress import PydataIngress
 
-        df = PydataIngress.convert(resource.data)
+        df = PydataIngress.convert(resource.data)  # eager pl.DataFrame
+
+        # Restore the declared dtype of columns Polars could not type from the
+        # inline data (an all-null OR zero-row column infers pl.Null). Cast
+        # ONLY those null-inferred columns to the declared dtype (Null-only
+        # policy, item 53 §3.3): typed columns are never touched, so no
+        # strict-cast regression is possible for data that diverges from its
+        # schema.
+        declared = _declared_polars_schema(resource.table_schema)
+        if declared:
+            casts = {
+                name: dt
+                for name, dt in declared.items()
+                if name in df.columns and df.schema[name] == pl.Null
+            }
+            if casts:
+                try:
+                    df = df.cast(casts)
+                except pl.exceptions.PolarsError as e:
+                    raise ResourceSchemaCastError(resource.name, casts) from e
         return df.lazy()

@@ -32,6 +32,24 @@ def _get_ibis_ext():
     return MountainashIbisExtensionRelationSystem()
 
 
+def _collect_pl(native) -> pl.DataFrame:
+    """Normalise any backend's read_resource result to a pl.DataFrame so its
+    schema/dtypes can be asserted uniformly. For Ibis this goes through
+    to_pyarrow(), proving the declared dtype survived the Arrow/memtable
+    boundary (not just the in-Polars cast)."""
+    if hasattr(native, "to_pyarrow") and not hasattr(native, "collect"):  # ibis Table
+        return pl.from_arrow(native.to_pyarrow())
+    if hasattr(native, "collect"):
+        native = native.collect()
+    if hasattr(native, "to_native"):  # narwhals -> pl.DataFrame
+        native = native.to_native()
+    if isinstance(native, pl.DataFrame):
+        return native
+    if hasattr(native, "to_arrow"):
+        return pl.from_arrow(native.to_arrow())
+    raise TypeError(f"Cannot normalise {type(native)}")
+
+
 def _to_dict_list(native) -> list[dict]:
     """Convert any backend's native result to a list of dicts for assertion.
 
@@ -394,3 +412,174 @@ class TestDialectFailClosed:
                            dialect=TableDialect(comment_char="#"))
         with pytest.raises(UnsupportedResourceFormat, match="comment_char"):
             _to_dict_list(_collect_via_dag(res, backend))
+
+
+# ---------------------------------------------------------------------------
+# Item 53 — inline reads honor the declared schema (typed-null dtype loss)
+# ---------------------------------------------------------------------------
+
+
+class TestInlineReadSchemaFidelity:
+    """Item 53: inline reads restore the declared dtype of null-inferred columns."""
+
+    def test_any_all_null_becomes_string(self, backend_ext):
+        res = DataResource(
+            name="t", format="json",
+            data={"id": [1], "note": [None]},
+            schema={"fields": [
+                {"name": "id", "type": "integer"},
+                {"name": "note", "type": "any"},
+            ]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["note"] == pl.String
+        assert df.schema["id"] == pl.Int64
+
+    def test_backend_type_unparameterized_honored(self, backend_ext):
+        res = DataResource(
+            name="t", format="json",
+            data={"ts": [None]},
+            schema={"fields": [
+                {"name": "ts", "type": "any",
+                 "x-mountainash": {"backend_type": "Datetime"}},
+            ]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["ts"] == pl.Datetime
+
+    def test_concrete_types_all_null(self, backend_ext):
+        res = DataResource(
+            name="t", format="json",
+            data={"i": [None], "b": [None], "d": [None]},
+            schema={"fields": [
+                {"name": "i", "type": "integer"},
+                {"name": "b", "type": "boolean"},
+                {"name": "d", "type": "date"},
+            ]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["i"] == pl.Int64
+        assert df.schema["b"] == pl.Boolean
+        assert df.schema["d"] == pl.Date
+
+    def test_table_schema_as_typespec_object(self, backend_ext):
+        from mountainash.typespec.frictionless import typespec_from_frictionless
+        spec = typespec_from_frictionless(
+            {"fields": [{"name": "note", "type": "any"}]}
+        )
+        res = DataResource(name="t", format="json", data={"note": [None]}, schema=spec)
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["note"] == pl.String
+
+    def test_typed_non_null_column_untouched(self, backend_ext):
+        # Null-only policy: a typed column is never recast, even if its
+        # inferred dtype diverges from the schema (schema says string, data
+        # is int -> stays Int64).
+        res = DataResource(
+            name="t", format="json",
+            data={"x": [1, 2]},
+            schema={"fields": [{"name": "x", "type": "string"}]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["x"] == pl.Int64
+
+    def test_no_table_schema_is_noop(self, backend_ext):
+        res = DataResource(name="t", format="json", data={"note": [None]})
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["note"] == pl.Null  # unchanged pre-fix behaviour
+
+    def test_rename_from_does_not_null_column(self, backend_ext):
+        # Data already renamed to the output name; schema carries rename_from.
+        # to_polars_schema keys on output name, so the dtype still applies and
+        # no all-null renamed column appears (the backlog caveat, proven moot).
+        res = DataResource(
+            name="t", format="json",
+            data={"provider_id": [1], "note": [None]},
+            schema={"fields": [
+                {"name": "provider_id", "type": "integer",
+                 "x-mountainash": {"rename_from": "id"}},
+                {"name": "note", "type": "any"},
+            ]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.columns == ["provider_id", "note"]
+        assert df.schema["provider_id"] == pl.Int64
+        assert df.schema["note"] == pl.String
+
+    def test_zero_row_column_completed(self, backend_ext):
+        res = DataResource(
+            name="t", format="json",
+            data={"note": []},
+            schema={"fields": [{"name": "note", "type": "any"}]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["note"] == pl.String
+        assert df.height == 0
+
+
+class TestInlineReadItem54Deferred:
+    """Assert the CURRENT (item-53) behaviour of dtypes deferred to item 54.
+    These are NOT the aspirational result — they lock what item 53 delivers so
+    item 54 can flip them deliberately. Do not 'fix' these here."""
+
+    def test_parameterized_backend_type_falls_to_string(self, backend_ext):
+        # tz-aware Datetime string contains '(' -> parse_type_string returns
+        # None -> ANY -> String. Item 54 will honour it.
+        res = DataResource(
+            name="t", format="json",
+            data={"ts": [None]},
+            schema={"fields": [
+                {"name": "ts", "type": "any",
+                 "x-mountainash": {"backend_type": "Datetime(time_zone='UTC')"}},
+            ]},
+        )
+        df = _collect_pl(backend_ext.read_resource(res))
+        assert df.schema["ts"] == pl.String  # item 54: should become tz-aware Datetime
+
+
+class TestInlineReadCastError:
+    def test_cast_failure_raises_typed_error(self):
+        from mountainash.relations.dag.errors import ResourceSchemaCastError
+
+        ext = _get_polars_ext()
+        # A null-inferred column always casts cleanly (Null -> anything), so the
+        # cast-failure branch cannot be reached with real data. Force it by
+        # monkeypatching pl.DataFrame.cast to assert the error TYPE/shape.
+        res = DataResource(
+            name="bad", format="json",
+            data={"note": [None]},
+            schema={"fields": [{"name": "note", "type": "any"}]},
+        )
+        orig = pl.DataFrame.cast
+
+        def boom(self, *a, **k):
+            raise pl.exceptions.InvalidOperationError("forced")
+
+        pl.DataFrame.cast = boom
+        try:
+            with pytest.raises(ResourceSchemaCastError) as ei:
+                ext.read_resource(res)
+        finally:
+            pl.DataFrame.cast = orig
+        assert ei.value.resource == "bad"
+        assert "note" in ei.value.casts
+
+
+class TestInlineReadRoundTrip:
+    def test_datapackage_dag_collect_preserves_all_null_dtype(self):
+        from mountainash.typespec.datapackage import DataPackage
+
+        pkg = DataPackage(resources=[
+            DataResource(
+                name="sleep", type="table", format="json",
+                data={"id": [1], "reason": [None]},
+                schema={"fields": [
+                    {"name": "id", "type": "integer"},
+                    {"name": "reason", "type": "any"},
+                ]},
+            ),
+        ])
+        dag = pkg.to_relation_dag()
+        result = dag.collect("sleep")
+        df = result.collect() if hasattr(result, "collect") else result
+        assert df.schema["reason"] == pl.String
