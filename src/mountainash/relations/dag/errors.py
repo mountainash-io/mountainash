@@ -49,3 +49,27 @@ class UnknownRelationRef(DAGError, KeyError):
     # key here); the other DAGError leaves render cleanly via RuntimeError/
     # ValueError, so match them for consistent tracebacks and logs.
     __str__ = Exception.__str__
+
+
+class ResourceSchemaCastError(DAGError, ValueError):
+    """Raised when applying a resource's declared schema dtypes to its inline
+    data fails at read time.
+
+    The inline-read path (`_read_inline`) casts null-inferred columns to the
+    dtype declared in `resource.table_schema` (see item 53). Casting a
+    `pl.Null` column succeeds for every dtype the type resolver produces today;
+    this error surfaces the rare failure with the resource name and the
+    offending `{column: dtype}` map, rather than a bare Polars error or a
+    silent null-cast (`strict=False` is never used — Test Integrity).
+
+    `ValueError` mixin matches the sibling data-level DAG errors
+    (`UnsupportedResourceFormat`, `MissingResourceSchema`).
+    """
+
+    def __init__(self, resource: str, casts: dict) -> None:
+        self.resource = resource
+        self.casts = casts
+        super().__init__(
+            f"Failed to apply declared schema dtypes to inline resource "
+            f"{resource!r}: casts={ {k: str(v) for k, v in casts.items()} }"
+        )
