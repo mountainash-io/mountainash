@@ -569,7 +569,7 @@ class Relation(RelationBase):
                 pass
         return repr(result)
 
-    def collect(self, *, unwrap: bool = True) -> Any:
+    def collect(self, *, unwrap: bool = True, backend: Optional[str] = None) -> Any:
         """Execute the plan and return a fully materialized native result.
 
         Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
@@ -581,10 +581,13 @@ class Relation(RelationBase):
                 the caller receives the underlying pandas / PyArrow frame.
                 Pass *False* to keep the narwhals wrapper (useful for internal
                 code that needs narwhals-level operations on the result).
+            backend: Optional explicit backend name, overriding auto-detection
+                -- see :meth:`_compile_and_execute_with_visitor`. Mirrors
+                :meth:`collect_with_drift`'s ``backend`` override.
         """
         from mountainash.core.limitations import enrich_materialization
 
-        result, visitor = self._compile_and_execute_with_visitor()
+        result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         return enrich_materialization(
             visitor.backend, lambda: _materialize(result, unwrap=unwrap)
         )

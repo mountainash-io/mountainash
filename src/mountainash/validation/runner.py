@@ -97,11 +97,41 @@ class ValidationRunner:
         from mountainash.relations import relation as as_relation
 
         rel = relation if isinstance(relation, Relation) else as_relation(relation)
-        if backend is not None:
-            # _compile_and_execute_with_visitor returns (result, visitor) —
-            # unpack; wrapping the tuple would corrupt the run.
-            native, _visitor = rel._compile_and_execute_with_visitor(backend=backend)
-            rel = as_relation(native)
+        # Collapse the (possibly conform-laden) plan to a concrete frame ONCE,
+        # up front, so every per-check executor below runs against materialized
+        # data. Without this, each check re-collects the whole plan — including
+        # a full-contract conform — so cost is O(checks × contract_fields)
+        # (item 56). ``collect(unwrap=False)`` is eager AND backend-preserving
+        # (it keeps narwhals/ibis wrappers), so re-wrapping round-trips the
+        # backend and outcome semantics are byte-identical across all backends.
+        # (An explicit ``backend`` still overrides auto-detection — the DAG
+        # path relies on it — and materialising an already-concrete frame is
+        # cheap.)
+        #
+        # A plan-level failure here (most commonly a conform cast failure) must
+        # honour the same isolation contract as a per-check executor failure
+        # (spec §6.5, ``_guarded``): it degrades to ``status="error"`` for every
+        # check and still returns a ``ValidationResult`` — it must not raise out
+        # of the runner. ``check_kind`` is evaluated per check first, so a
+        # genuine declaration error (``UnknownCheckTypeError``) still raises,
+        # ahead of the data-phase failure.
+        try:
+            rel = as_relation(rel.collect(unwrap=False, backend=backend))
+        except Exception as exc:  # noqa: BLE001 — isolation is the contract
+            identity = identity or RowIdentity("none")
+            summaries = [
+                self._error_summary(check, check_kind(check), exc) for check in checks
+            ]
+            return ValidationResult(
+                passes=passes_from_summaries(summaries),
+                validator_name=validator_name,
+                datacontract_name=datacontract_name,
+                context=dict(context or {}),
+                check_summaries=summaries_frame(summaries),
+                failure_cases=combine_failure_frames([], identity),
+                identity=identity,
+                identity_diagnostics={},
+            )
 
         identity = identity or RowIdentity("none")
         identity_diagnostics: dict[str, Any] = {}
@@ -154,6 +184,18 @@ class ValidationRunner:
                 f"check kind {kind!r} has no executor"
             ) from None
 
+    @staticmethod
+    def _error_summary(check: Any, kind: "str | None", exc: BaseException) -> CheckSummary:
+        """Isolation summary (spec §6.5): an execution exception — per check
+        or, up front, the one-shot materialisation — becomes status='error'."""
+        return CheckSummary(
+            check_id=check.id,
+            check_kind=kind,
+            status="error",
+            severity=getattr(check, "severity", "blocking"),
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
     def _guarded(
         self, executor: Any, rel: "Relation", check: Any, kind: str,
         identity: RowIdentity, failure_sample: int | None,
@@ -164,13 +206,7 @@ class ValidationRunner:
         try:
             summary, failures = executor(rel, check, identity, failure_sample)
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
-            summary = CheckSummary(
-                check_id=check.id,
-                check_kind=kind,
-                status="error",
-                severity=getattr(check, "severity", "blocking"),
-                error=f"{type(exc).__name__}: {exc}",
-            )
+            summary = self._error_summary(check, kind, exc)
             failures = pl.DataFrame()
         summary.elapsed = time.perf_counter() - start
         return summary, failures
