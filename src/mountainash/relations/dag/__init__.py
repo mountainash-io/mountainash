@@ -26,6 +26,7 @@ __getattr__, __dir__, __all__ = lazy_loader.attach(
         ],
         "protocol": ["RelationDAGProtocol"],
         "resource_ref": ["ResourceRef"],
+        "traversal": ["relation_children", "walk_refs"],
         "validation": ["DAGValidationResult"],
     },
 )
