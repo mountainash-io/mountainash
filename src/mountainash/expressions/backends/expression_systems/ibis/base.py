@@ -59,6 +59,24 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
 
     BACKEND_NAME: str = "ibis"
 
+    def _lift_deferred(self, x: Any, y: Any) -> tuple[Any, Any]:
+        """Fix the one broken operand ordering: concrete-left ∘ Deferred-right.
+
+        ``col()`` yields a ``Deferred``; ``lit()`` a concrete value. ONLY
+        ``concrete ∘ Deferred`` (``lit + col``, ``5 + col``) crashes — the
+        concrete literal's arithmetic dunder raises on a right-hand ``Deferred``
+        instead of deferring (upstream Ibis #11742 / IB-TYPE-01). Every other
+        ordering already works and MUST be left byte-identical, so lift ONLY the
+        concrete left operand and ONLY when the right is a ``Deferred``. The
+        method body is unchanged and operand order is preserved (safe for
+        non-commutative ops).
+        """
+        from ibis.common.deferred import Deferred, deferred
+
+        if not isinstance(x, Deferred) and isinstance(y, Deferred):
+            x = deferred(x)
+        return x, y
+
     def _extract_literal_if_possible(self, expr: Any) -> Any:
         """Extract literal value from an Ibis expression.
 
