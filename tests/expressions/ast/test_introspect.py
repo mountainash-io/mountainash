@@ -112,3 +112,56 @@ class TestWalk:
         # to value-equal FieldReferenceNodes; walk yields both.
         nodes = list(walk(ma.col("a") + ma.col("a")))
         assert _fields(nodes) == ["a", "a"]
+
+
+from mountainash.expressions.introspect import collect_field_references
+
+
+class TestCollectFieldReferences:
+    def test_bare_column(self):
+        assert collect_field_references(ma.col("a")) == {"a"}
+
+    def test_compound(self):
+        assert collect_field_references(ma.col("a") + ma.col("b")) == {"a", "b"}
+
+    def test_nested_when_then(self):
+        expr = ma.when(ma.col("a") > ma.lit(1)).then(ma.col("b")).otherwise(ma.col("c"))
+        assert collect_field_references(expr) == {"a", "b", "c"}
+
+    def test_window_partition_included_C1(self):
+        # C1 headline — hard assert, no hedge.
+        assert collect_field_references(ma.col("x").sum().over("g")) == {"x", "g"}
+
+    def test_window_order_by_column_is_absent_documented_gap(self):
+        # order_by columns are SortField.column (raw str), never a
+        # FieldReferenceNode, so a node-based collector cannot see them.
+        # This is the documented §3.3 limitation, asserted intentionally.
+        expr = ma.col("x").sum().over("g", order_by="t")
+        assert collect_field_references(expr) == {"x", "g"}  # "t" absent by design
+
+    def test_alias_name_is_not_a_field_ref(self):
+        assert collect_field_references(ma.col("a").alias("z")) == {"a"}
+
+    def test_literal_only_is_empty(self):
+        assert collect_field_references(ma.lit(1) + ma.lit(2)) == set()
+
+    def test_duplicate_columns_dedup(self):
+        assert collect_field_references(ma.col("a") + ma.col("a")) == {"a"}
+
+    def test_wrapper_and_raw_node_agree(self):
+        expr = ma.col("a") + ma.col("b")
+        assert collect_field_references(expr) == collect_field_references(expr._node)
+
+    def test_non_expression_input_raises_typeerror(self):
+        with pytest.raises(TypeError):
+            collect_field_references(42)
+
+    def test_bare_string_column_is_rejected(self):
+        # §3.4 scope boundary: bare-string columns are a relations concern,
+        # explicitly out of scope for expressions.introspect.
+        with pytest.raises(TypeError):
+            collect_field_references("a")
+
+    def test_none_is_rejected(self):
+        with pytest.raises(TypeError):
+            collect_field_references(None)

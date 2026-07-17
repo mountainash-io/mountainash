@@ -120,3 +120,23 @@ def _walk_breadth_first(root: ExpressionNode) -> Iterator[ExpressionNode]:
         node = queue.popleft()
         yield node
         queue.extend(iter_child_nodes(node))
+
+
+def collect_field_references(expr: Any) -> set[str]:
+    """Every source-column name referenced by ``expr``, de-duplicated.
+
+    Returns the ``field`` of every :class:`FieldReferenceNode` in the tree
+    (window ``partition_by`` refs included). A literal-only expression yields
+    the empty set; repeated columns collapse to one entry.
+
+    Limitation: surfaces only node-form references. Raw-string column
+    shortcuts that never become nodes — notably window ``order_by`` columns
+    (``SortField.column``) — are not included; a node-based collector cannot
+    see a non-node, and a string-based one cannot tell a column name from an
+    arbitrary option string.
+    """
+    return {
+        node.field
+        for node in walk(expr)
+        if isinstance(node, FieldReferenceNode)
+    }
