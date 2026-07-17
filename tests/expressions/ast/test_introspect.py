@@ -165,3 +165,14 @@ class TestCollectFieldReferences:
     def test_none_is_rejected(self):
         with pytest.raises(TypeError):
             collect_field_references(None)
+
+
+class TestPublicExport:
+    def test_reexported_from_expressions_package(self):
+        import mountainash.expressions as mexpr
+
+        assert mexpr.collect_field_references(mexpr.col("a")) == {"a"}
+        assert callable(mexpr.iter_child_nodes)
+        assert callable(mexpr.walk)
+        for name in ("iter_child_nodes", "walk", "collect_field_references"):
+            assert name in mexpr.__all__

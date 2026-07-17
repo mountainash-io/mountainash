@@ -57,6 +57,15 @@ from .core.constants import (
     CONST_EXPRESSION_NODE_TYPES,
 )
 
+# ========================================
+# AST introspection (public, item 226a)
+# ========================================
+from .introspect import (
+    collect_field_references,
+    iter_child_nodes,
+    walk,
+)
+
 """Mountain Ash Expressions
 
 A sophisticated expression system for building cross-backend DataFrame operations.
@@ -141,4 +150,9 @@ __all__ = [
     # Constants
     "CONST_LOGIC_TYPES",
     "CONST_EXPRESSION_NODE_TYPES",
+
+    # AST introspection
+    "iter_child_nodes",
+    "walk",
+    "collect_field_references",
 ]
