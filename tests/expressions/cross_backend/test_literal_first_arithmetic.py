@@ -92,19 +92,13 @@ class TestLiteralFirstArithmetic:
         result = collect_expr(df, ma.lit(3) + ma.lit(4))
         assert result and set(result) == {7}
 
-    def test_string_literal_receiver_deferred_arg_still_raises_KNOWN_GAP(
-        self, backend_name, backend_factory, collect_expr
-    ):
-        # OUT OF SCOPE for 226b (item 226c; same root cause, different fix site;
-        # upstream Ibis #11742 documents the StringScalar break). A literal string
-        # receiver with a Deferred argument still crashes on ibis. Tracked so the
-        # 226c fix flips it. Assert the CATEGORY, not the message. The observed
-        # crash is SignatureValidationError; its stable base is
-        # ibis.common.annotations.ValidationError (NOT IbisError — that is not a
-        # superclass here).
-        if not backend_name.startswith("ibis-"):
-            pytest.skip("gap is ibis-Deferred-specific")
-        from ibis.common.annotations import ValidationError
+    def test_string_literal_receiver_deferred_arg_now_works(self, backend_name, backend_factory, collect_expr):
+        # Formerly the item 226c KNOWN GAP (this asserted it still crashed).
+        # Fixed by _lift_deferred_receiver — a literal string receiver with a
+        # Deferred argument now compiles on ibis. Full 15-method acceptance lives
+        # in backends/ibis/test_string_lift_all_methods.py; here we confirm the
+        # headline case on the ibis backends that support columnar string args.
+        if backend_name not in ("ibis-duckdb", "ibis-sqlite"):
+            pytest.skip("columnar string-arg support is a separate per-backend matrix")
         df = backend_factory.create({"s": ["abcx", "zzz"], "sub": ["bc", "q"]}, backend_name)
-        with pytest.raises(ValidationError):
-            collect_expr(df, ma.lit("abcx").str.contains(ma.col("sub")))
+        assert collect_expr(df, ma.lit("abcx").str.contains(ma.col("sub"))) == [True, False]
