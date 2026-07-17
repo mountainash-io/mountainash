@@ -75,7 +75,7 @@ Total divergences tracked: **94**
 
 | ID | Summary | Backends | Root Cause | Workaround | Status |
 |---|---|---|---|---|---|
-| IB-TYPE-01 | Arithmetic operators fail with LHS numeric literals — InputTypeError on nested/deferred expressions | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_bug | Strict xfail | Open |
+| IB-TYPE-01 | Arithmetic operators fail with LHS numeric literals — InputTypeError on nested/deferred expressions | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_bug | Fixed locally (`_lift_deferred`, item 226b) | Fixed locally |
 | IB-TYPE-02 | NaN handling differs from Python semantics on DuckDB and SQLite | ibis-duckdb, ibis-sqlite | by_design | Accepted (documented) | By Design |
 | IB-TYPE-03 | DuckDB type resolution issues with certain expression compositions | ibis-duckdb | upstream_bug | Strict xfail | Investigating |
 
@@ -842,14 +842,15 @@ Total divergences tracked: **94**
 |---|---|
 | Project | ibis |
 | Category | Type System |
-| Root Cause | upstream_bug |
+| Root Cause | upstream_bug (fixed locally) |
 | Affected Backends | ibis-duckdb, ibis-polars, ibis-sqlite |
-| Status | Open |
-| Workaround | Strict xfail |
-| Upstream Issue | https://github.com/ibis-project/ibis/issues/11742 |
-| Xfail Refs | tests/cross_backend/test_expression_builder_api.py:336,353,371,388,405,423,440, tests/cross_backend/test_comparison_missing_close.py:61,62,63 |
-| Notes | 10 xfails. Highest-count single issue. Confirmed upstream bug. |
-| Last Verified | 2026-05-11 |
+| Status | Fixed locally (2026-07-17, item 226b) |
+| Workaround | `IbisBaseExpressionSystem._lift_deferred` lifts the concrete left operand into the Deferred world for the one crashing ordering (`concrete ∘ Deferred`, i.e. `lit + col` / `5 + col`), so `lit ∘ col` compiles symmetric with `col ∘ lit`. |
+| Upstream Issue | https://github.com/ibis-project/ibis/issues/11742 (kept for monitoring — remove the local lift when upstream lands) |
+| Formerly-Xfailed (now passing) | `test_expression_builder_api.py::TestReverseArithmeticOperators` (`test_radd`/`rsub`/`rmul`/`rtruediv`/`rmod`/`rpow`/`rfloordiv`); `test_arithmetic.py::TestArithmeticEdgeCases::test_subtract_from_zero`; `test_comparison_missing_close.py::TestIsClose` (all 3 ibis backends). |
+| Regression Coverage | `test_literal_first_arithmetic.py` (cross-backend, incl. string concat + `floor_divide`); `backends/ibis/test_arithmetic_lift_all_methods.py` (all routed methods); `backends/ibis/test_lift_deferred.py` (gate unit); `backends/ibis/test_deferred_wrapper_available.py` (coupling smoke). |
+| Notes | Was "10 xfails, highest-count single issue." All resolved. The 3 `is_close` xfails were mislabeled "nested abs() expressions" — actually the same literal-left arithmetic bug (`is_close` builds `MULTIPLY(lit, abs(other))` / `ADD(lit, …)`). String-receiver + Deferred-arg string methods (`lit.str.contains(col)`) remain OPEN as item 226c (same family, different fix site). |
+| Last Verified | 2026-07-17 |
 
 ### IB-TYPE-02: NaN handling differs from Python semantics on DuckDB and SQLite
 
