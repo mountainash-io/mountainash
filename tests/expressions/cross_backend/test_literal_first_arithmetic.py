@@ -39,6 +39,12 @@ class TestLiteralFirstArithmetic:
         df = backend_factory.create({"n": [2, 3, 4]}, backend_name)
         assert collect_expr(df, ma.lit(2) ** ma.col("n")) == [4, 8, 16]
 
+    def test_lit_floordiv_col(self, backend_name, backend_factory, collect_expr):
+        # floor_divide lives in the Mountainash extension arithmetic system, a
+        # separate file from the Substrait ops — but the same literal-left crash.
+        df = backend_factory.create({"n": [3, 5, 7]}, backend_name)
+        assert collect_expr(df, ma.lit(100) // ma.col("n")) == [33, 20, 14]
+
     def test_lit_str_concat_col(self, backend_name, backend_factory, collect_expr):
         df = backend_factory.create({"c": ["x", "y"]}, backend_name)
         assert collect_expr(df, ma.lit("sev/") + ma.col("c")) == ["sev/x", "sev/y"]

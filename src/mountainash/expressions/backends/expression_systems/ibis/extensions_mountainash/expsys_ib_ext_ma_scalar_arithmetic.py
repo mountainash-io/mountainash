@@ -47,4 +47,5 @@ class MountainAshIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, 
         Returns:
             Floor of x / y.
         """
+        x, y = self._lift_deferred(x, y)
         return x // y
