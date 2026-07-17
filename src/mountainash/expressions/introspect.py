@@ -79,3 +79,44 @@ def iter_child_nodes(node: Any) -> list[ExpressionNode]:
     for name in type(node).model_fields:
         _collect(getattr(node, name))
     return children
+
+
+def walk(
+    expr: Any,
+    *,
+    order: Literal["depth_first", "breadth_first"] = "depth_first",
+) -> Iterator[ExpressionNode]:
+    """Yield every node in ``expr``'s tree, root first.
+
+    ``order="depth_first"`` (default): pre-order DFS, left-to-right — root,
+    then each child's full subtree in ``iter_child_nodes`` order.
+    ``order="breadth_first"``: level-order BFS (mirrors ``ast.walk``).
+
+    The input is unwrapped and type-checked (``TypeError`` on a non-node)
+    **before** ``order`` is validated (``ValueError`` on an unknown order), so
+    a bad input is reported ahead of a bad order. Both checks are eager (they
+    fire on the call, not on first iteration).
+
+    Expression ASTs are acyclic (frozen, bottom-up-constructed nodes), so this
+    always terminates; a shared subtree is yielded once per edge (no de-dup).
+    """
+    root = _unwrap(expr)
+    if order not in _ORDERS:
+        raise ValueError(f"order must be one of {_ORDERS}, got {order!r}")
+    if order == "depth_first":
+        return _walk_depth_first(root)
+    return _walk_breadth_first(root)
+
+
+def _walk_depth_first(node: ExpressionNode) -> Iterator[ExpressionNode]:
+    yield node
+    for child in iter_child_nodes(node):
+        yield from _walk_depth_first(child)
+
+
+def _walk_breadth_first(root: ExpressionNode) -> Iterator[ExpressionNode]:
+    queue: deque[ExpressionNode] = deque([root])
+    while queue:
+        node = queue.popleft()
+        yield node
+        queue.extend(iter_child_nodes(node))

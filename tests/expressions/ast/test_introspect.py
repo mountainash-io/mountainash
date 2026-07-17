@@ -60,3 +60,55 @@ class TestIterChildNodes:
     def test_non_expression_input_raises_typeerror(self):
         with pytest.raises(TypeError):
             iter_child_nodes(42)
+
+
+from mountainash.expressions.introspect import walk
+
+
+class TestWalk:
+    # (col("a") + col("b")) * col("c"): root MULTIPLY, args [ADD(a,b), c].
+    def _expr(self):
+        return (ma.col("a") + ma.col("b")) * ma.col("c")
+
+    def test_dfs_order_left_to_right(self):
+        nodes = list(walk(self._expr(), order="depth_first"))
+        assert [type(n).__name__ for n in nodes] == [
+            "ScalarFunctionNode",  # MULTIPLY (root)
+            "ScalarFunctionNode",  # ADD
+            "FieldReferenceNode",  # a
+            "FieldReferenceNode",  # b
+            "FieldReferenceNode",  # c
+        ]
+        assert _fields(nodes) == ["a", "b", "c"]
+
+    def test_bfs_order_level_by_level(self):
+        nodes = list(walk(self._expr(), order="breadth_first"))
+        # level 0: MULTIPLY; level 1: ADD, c; level 2: a, b
+        assert _fields(nodes) == ["c", "a", "b"]
+
+    def test_root_is_yielded_first(self):
+        expr = self._expr()
+        first = next(iter(walk(expr)))
+        assert first is expr._node
+
+    def test_default_order_is_depth_first(self):
+        assert list(walk(self._expr())) == list(walk(self._expr(), order="depth_first"))
+
+    def test_bad_order_raises_valueerror(self):
+        with pytest.raises(ValueError):
+            list(walk(self._expr(), order="sideways"))
+
+    def test_input_checked_before_order(self):
+        # Non-node input raises TypeError even with a bad order (input first).
+        with pytest.raises(TypeError):
+            walk(42, order="sideways")
+
+    def test_non_expression_input_raises_typeerror(self):
+        with pytest.raises(TypeError):
+            walk(42)
+
+    def test_shared_subtree_yielded_once_per_edge(self):
+        # §3.5 invariant: no de-duplication. col("a") + col("a") has two edges
+        # to value-equal FieldReferenceNodes; walk yields both.
+        nodes = list(walk(ma.col("a") + ma.col("a")))
+        assert _fields(nodes) == ["a", "a"]
