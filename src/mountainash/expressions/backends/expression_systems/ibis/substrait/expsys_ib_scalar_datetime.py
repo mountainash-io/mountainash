@@ -122,6 +122,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Returns:
             Datetime with interval added.
         """
+        x, y = self._lift_deferred(x, y)
         return x + y
 
     def subtract(
@@ -139,6 +140,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Returns:
             Datetime with interval subtracted.
         """
+        x, y = self._lift_deferred(x, y)
         return x - y
 
     def multiply(
@@ -156,6 +158,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Returns:
             Scaled interval.
         """
+        x, y = self._lift_deferred(x, y)
         return x * y
 
     def add_intervals(
@@ -173,6 +176,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Returns:
             Combined interval.
         """
+        x, y = self._lift_deferred(x, y)
         return x + y
 
     # =========================================================================

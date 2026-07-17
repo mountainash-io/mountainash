@@ -224,6 +224,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Left-padded string.
         """
         fill_char = ibis.literal(" ") if characters is None else characters
+        input = self._lift_deferred_receiver(input, length, fill_char)
         return self._call_with_expr_support(
             lambda: input.lpad(length, fill_char),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
@@ -249,6 +250,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Right-padded string.
         """
         fill_char = ibis.literal(" ") if characters is None else characters
+        input = self._lift_deferred_receiver(input, length, fill_char)
         return self._call_with_expr_support(
             lambda: input.rpad(length, fill_char),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
@@ -304,6 +306,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Substring expression.
         """
+        input = self._lift_deferred_receiver(input, start, length)
         if length is None:
             return self._call_with_expr_support(
                 lambda: input.substr(start),
@@ -324,6 +327,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         count: IbisValueExpr,
     ) -> IbisValueExpr:
         """Extract count characters from the left."""
+        input = self._lift_deferred_receiver(input, count)
         return self._call_with_expr_support(
             lambda: input.left(count),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
@@ -337,6 +341,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         count: IbisValueExpr,
     ) -> IbisValueExpr:
         """Extract count characters from the right."""
+        input = self._lift_deferred_receiver(input, count)
         return self._call_with_expr_support(
             lambda: input.right(count),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
@@ -380,6 +385,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether the input string contains the substring."""
+        input = self._lift_deferred_receiver(input, substring)
         if case_sensitivity == "CASE_INSENSITIVE":
             return self._call_with_expr_support(
                 lambda: input.lower().contains(substring.lower()),
@@ -400,6 +406,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether input string starts with the substring."""
+        input = self._lift_deferred_receiver(input, substring)
         if case_sensitivity == "CASE_INSENSITIVE":
             return self._call_with_expr_support(
                 lambda: input.lower().startswith(substring.lower()),
@@ -420,6 +427,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether input string ends with the substring."""
+        input = self._lift_deferred_receiver(input, substring)
         if case_sensitivity == "CASE_INSENSITIVE":
             return self._call_with_expr_support(
                 lambda: input.lower().endswith(substring.lower()),
@@ -449,6 +457,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Position (1-indexed), or 0 if not found.
         """
+        input = self._lift_deferred_receiver(input, substring)
         # Ibis find returns 0-based or -1; add 1 to make 1-indexed
         return input.find(substring) + ibis.literal(1)
 
@@ -589,6 +598,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             literally rather than as a regex. Column-ref patterns (no extractable
             literal) fall back to the raw expression.
         """
+        input = self._lift_deferred_receiver(input, substring, replacement)
         pattern = self._extract_literal_if_possible(substring)
         if isinstance(pattern, str):
             escaped = re.escape(pattern)
@@ -620,6 +630,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Repeated string.
         """
+        input = self._lift_deferred_receiver(input, count)
         return self._call_with_expr_support(
             lambda: input.repeat(count),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
@@ -658,6 +669,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Boolean expression.
         """
+        input = self._lift_deferred_receiver(input, match)
         return self._call_with_expr_support(
             lambda: input.like(match),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
@@ -691,6 +703,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             Matched substring or null.
         """
+        input = self._lift_deferred_receiver(input, pattern)
         group_index = 0 if group is None else (group if isinstance(group, int) else 0)
         return self._call_with_expr_support(
             lambda: input.re_extract(pattern, group_index),
@@ -834,6 +847,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             String with replacements.
         """
+        input = self._lift_deferred_receiver(input, pattern, replacement)
         return self._call_with_expr_support(
             lambda: input.re_replace(pattern, replacement),
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
@@ -860,6 +874,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Returns:
             List of strings.
         """
+        input = self._lift_deferred_receiver(input, separator)
         return input.split(separator)
 
     def regexp_string_split(

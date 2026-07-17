@@ -298,10 +298,6 @@ class TestReverseArithmeticOperators:
         # 5 + col("a") - calls __radd__
         expr = 5 + ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         actual = collect_expr(df, expr)
         expected = [15, 25, 35]
@@ -315,10 +311,6 @@ class TestReverseArithmeticOperators:
         # 100 - col("a") - calls __rsub__
         expr = 100 - ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         actual = collect_expr(df, expr)
 
@@ -333,10 +325,6 @@ class TestReverseArithmeticOperators:
         # 5 * col("a") - calls __rmul__
         expr = 5 * ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         actual = collect_expr(df, expr)
         expected = [50, 100, 150]
@@ -350,10 +338,6 @@ class TestReverseArithmeticOperators:
         # 100 / col("a") - calls __rtruediv__
         expr = 100 / ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         actual = collect_expr(df, expr)
         expected = [50.0, 25.0, 20.0]
@@ -367,10 +351,6 @@ class TestReverseArithmeticOperators:
         # 100 % col("a") - calls __rmod__
         expr = 100 % ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
 
         actual = collect_expr(df, expr)
@@ -385,10 +365,6 @@ class TestReverseArithmeticOperators:
         # 2 ** col("a") - calls __rpow__
         expr = 2 ** ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         actual = collect_expr(df, expr)
         expected = [4, 8, 16]
@@ -402,10 +378,6 @@ class TestReverseArithmeticOperators:
         # 100 // col("a") - calls __rfloordiv__
         expr = 100 // ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis issue: https://github.com/ibis-project/ibis/issues/11742. Raises InputTypeError.  Unable to infer datatype.*Deferred")
 
         actual = collect_expr(df, expr)
 

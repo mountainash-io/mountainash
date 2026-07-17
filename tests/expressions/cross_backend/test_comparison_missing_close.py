@@ -45,15 +45,19 @@ class TestNeMissing:
         assert actual == [False, False, True], f"[{backend_name}] got {actual}"
 
 
+# is_close builds literal-left arithmetic internally — MULTIPLY(lit rel_tol, abs(other))
+# and ADD(lit abs_tol, rel_part) — so the ibis crash here was the literal-first
+# arithmetic bug (IB-TYPE-01 / Ibis #11742), NOT "nested abs()" as the old xfail
+# reason claimed. Resolved by _lift_deferred (item 226b); the ibis params now run.
 IS_CLOSE_BACKENDS = [
     "polars",
     "polars-lazy",
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="Ibis type inference fails on nested abs() expressions")),
-    pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="Ibis type inference fails on nested abs() expressions")),
-    pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="Ibis type inference fails on nested abs() expressions")),
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
 ]
 
 

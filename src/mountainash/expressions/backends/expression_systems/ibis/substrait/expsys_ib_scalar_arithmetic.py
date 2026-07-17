@@ -46,6 +46,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Returns:
             Sum of x and y.
         """
+        x, y = self._lift_deferred(x, y)
         return x + y
 
     def subtract(
@@ -65,6 +66,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Returns:
             Difference x - y.
         """
+        x, y = self._lift_deferred(x, y)
         return x - y
 
     def multiply(
@@ -84,6 +86,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Returns:
             Product of x and y.
         """
+        x, y = self._lift_deferred(x, y)
         return x * y
 
     def divide(
@@ -109,6 +112,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Returns:
             Quotient x / y.
         """
+        x, y = self._lift_deferred(x, y)
         return x / y
 
     def modulus(
@@ -132,6 +136,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Returns:
             Remainder of x / y.
         """
+        x, y = self._lift_deferred(x, y)
         return x % y
 
     def power(
@@ -151,6 +156,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Returns:
             x raised to the power y.
         """
+        x, y = self._lift_deferred(x, y)
         return x.pow(y)
 
     def negate(
@@ -362,6 +368,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
         """Get the arctangent of y/x, using the signs to determine the quadrant."""
+        x, y = self._lift_deferred(x, y)
         return x.atan2(y)
 
     # =========================================================================
@@ -405,6 +412,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Return the bitwise AND of two integers."""
+        x, y = self._lift_deferred(x, y)
         return x & y
 
     def bitwise_or(
@@ -414,6 +422,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Return the bitwise OR of two integers."""
+        x, y = self._lift_deferred(x, y)
         return x | y
 
     def bitwise_xor(
@@ -423,6 +432,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Return the bitwise XOR of two integers."""
+        x, y = self._lift_deferred(x, y)
         return x ^ y
 
     def shift_left(
@@ -432,6 +442,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Bitwise shift left."""
+        base, shift = self._lift_deferred(base, shift)
         return base << shift
 
     def shift_right(
@@ -441,6 +452,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
     ) -> IbisNumericExpr:
         """Bitwise signed shift right."""
+        base, shift = self._lift_deferred(base, shift)
         return base >> shift
 
     def shift_right_unsigned(
