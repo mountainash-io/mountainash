@@ -77,6 +77,27 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             x = deferred(x)
         return x, y
 
+    def _lift_deferred_receiver(self, receiver: Any, *args: Any) -> Any:
+        """Method-call analog of ``_lift_deferred`` for ``receiver.method(*args)``.
+
+        A concrete literal receiver's method RAISES when handed a ``Deferred``
+        argument (``lit.str.contains(col)``, ``lit.repeat(col)``) — the same
+        concrete-∘-Deferred asymmetry as literal-first arithmetic (item 226b /
+        Ibis #11742), here on the string/method-dispatch path (item 226c). Lift
+        the receiver into the Deferred world ONLY when it is concrete AND at
+        least one argument is a ``Deferred`` (the sole crashing shape); every
+        already-working shape (Deferred receiver, all-concrete args) is returned
+        unchanged. Arguments are left untouched (order preserved). ``None`` args
+        are ignored (never Deferred), so optional params pass through safely.
+        """
+        from ibis.common.deferred import Deferred, deferred
+
+        if not isinstance(receiver, Deferred) and any(
+            isinstance(a, Deferred) for a in args
+        ):
+            receiver = deferred(receiver)
+        return receiver
+
     def _extract_literal_if_possible(self, expr: Any) -> Any:
         """Extract literal value from an Ibis expression.
 
