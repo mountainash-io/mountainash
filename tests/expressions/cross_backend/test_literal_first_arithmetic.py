@@ -67,3 +67,44 @@ class TestLiteralFirstArithmetic:
         assert lit_first == [90, 80, 70]
         assert col_first == [-90, -80, -70]
         assert lit_first != col_first
+
+    # --- scope-negatives: paths the gate MUST leave untouched (spec §5.6) ---
+
+    def test_lit_gt_col_still_works(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create({"n": [10, 20, 30]}, backend_name)
+        assert collect_expr(df, ma.lit(15) > ma.col("n")) == [True, False, False]
+
+    def test_lit_bool_and_col_still_works(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create({"b": [True, False, True]}, backend_name)
+        assert collect_expr(df, ma.lit(True) & ma.col("b")) == [True, False, True]
+
+    def test_col_first_arithmetic_unchanged(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create({"n": [10, 20, 30]}, backend_name)
+        assert collect_expr(df, ma.col("n") + ma.lit(5)) == [15, 25, 35]
+
+    def test_both_literal_add_unchanged(self, backend_name, backend_factory, collect_expr):
+        # A pure literal+literal expression collapses to a single scalar row on
+        # polars/pandas/narwhals but broadcasts to the column length on ibis — a
+        # row-count divergence orthogonal to this fix. Assert the VALUE (every
+        # element is 7) backend-agnostically; the point is only that the
+        # both-concrete path is left unchanged by the literal-left gate.
+        df = backend_factory.create({"n": [1, 2]}, backend_name)
+        result = collect_expr(df, ma.lit(3) + ma.lit(4))
+        assert result and set(result) == {7}
+
+    def test_string_literal_receiver_deferred_arg_still_raises_KNOWN_GAP(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        # OUT OF SCOPE for 226b (item 226c; same root cause, different fix site;
+        # upstream Ibis #11742 documents the StringScalar break). A literal string
+        # receiver with a Deferred argument still crashes on ibis. Tracked so the
+        # 226c fix flips it. Assert the CATEGORY, not the message. The observed
+        # crash is SignatureValidationError; its stable base is
+        # ibis.common.annotations.ValidationError (NOT IbisError — that is not a
+        # superclass here).
+        if not backend_name.startswith("ibis-"):
+            pytest.skip("gap is ibis-Deferred-specific")
+        from ibis.common.annotations import ValidationError
+        df = backend_factory.create({"s": ["abcx", "zzz"], "sub": ["bc", "q"]}, backend_name)
+        with pytest.raises(ValidationError):
+            collect_expr(df, ma.lit("abcx").str.contains(ma.col("sub")))

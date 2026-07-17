@@ -46,3 +46,17 @@ def test_atan2_literal_left():
     # order-sensitively (x=literal 1.0, y=col n) — not merely "3 floats".
     expected = [math.atan2(1.0, n) for n in (2, 3, 4)]
     assert out == pytest.approx(expected)
+
+
+def test_extraction_path_intact_add_days():
+    """add_days extracts a literal amount via _extract_literal_if_possible; the
+    arithmetic-method edits must not disturb that untouched ibis path."""
+    import datetime
+    import mountainash.expressions as ma
+    con = ibis.duckdb.connect()
+    df = con.create_table(
+        "dt", {"d": [datetime.datetime(2020, 1, 1), datetime.datetime(2020, 1, 2)]}
+    )
+    be = ma.col("d").dt.add_days(ma.lit(3)).compile(df)
+    out = df.select(be.name("r"))["r"].execute().tolist()
+    assert [v.date().isoformat() for v in out] == ["2020-01-04", "2020-01-05"]
