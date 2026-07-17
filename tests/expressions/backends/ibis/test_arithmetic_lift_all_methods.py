@@ -48,6 +48,50 @@ def test_atan2_literal_left():
     assert out == pytest.approx(expected)
 
 
+def test_datetime_interval_methods_literal_left():
+    """Substrait interval ops (add/subtract/multiply/add_intervals) are binary
+    arithmetic too — literal-datetime/interval on the left + a Deferred column
+    crashed identically before the lift (item 226b). Assert they now execute."""
+    import datetime
+    from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_datetime import (
+        SubstraitIbisScalarDatetimeExpressionSystem as DtSys,
+    )
+    dt = DtSys()
+    con = ibis.duckdb.connect()
+    t = con.create_table(
+        "iv",
+        {
+            "ivl": [datetime.timedelta(days=1), datetime.timedelta(days=2)],
+            "n": [2, 3],
+        },
+    )
+
+    def _run(built):
+        expr = built.resolve(t)
+        return t.select(expr.name("r"))["r"].execute().tolist()
+
+    lit_dt = ibis.literal(datetime.datetime(2020, 1, 1))
+    lit_ivl = ibis.literal(datetime.timedelta(days=5))
+
+    add_out = _run(dt.add(lit_dt, ibis._["ivl"]))
+    assert [v.date().isoformat() for v in add_out] == ["2020-01-02", "2020-01-03"]
+
+    sub_out = _run(dt.subtract(lit_dt, ibis._["ivl"]))
+    assert [v.date().isoformat() for v in sub_out] == ["2019-12-31", "2019-12-30"]
+
+    # multiply: interval * n  → 5 days * [2, 3] = [10, 15] days
+    mul_out = _run(dt.multiply(lit_ivl, ibis._["n"]))
+    assert [v.days for v in mul_out] == [10, 15]
+
+    # add_intervals is commutative, so literal-left MUST equal the already-working
+    # column-first order (duckdb splits the sum across days/micros components, so
+    # a raw .days read is unreliable — the order-equivalence is the true invariant
+    # and directly proves the lift is correct).
+    addi_lit_left = _run(dt.add_intervals(lit_ivl, ibis._["ivl"]))
+    addi_col_first = t.select((t.ivl + lit_ivl).name("r"))["r"].execute().tolist()
+    assert addi_lit_left == addi_col_first
+
+
 def test_extraction_path_intact_add_days():
     """add_days extracts a literal amount via _extract_literal_if_possible; the
     arithmetic-method edits must not disturb that untouched ibis path."""
