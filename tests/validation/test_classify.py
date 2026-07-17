@@ -103,3 +103,14 @@ def test_row_attributes_carry_through():
         fields=["age"],
         metadata={"severity": "high"},
     )
+
+
+def test_window_partition_field_still_row_after_introspect_refactor():
+    # item 226a: the generalized iter_child_nodes makes _walk newly descend
+    # into WindowSpec.partition_by, so the partition field "g" becomes visible
+    # to classify. §4.0 proves this is inert because has_window dominates the
+    # decision — the rule must stay a RowRule. (Existing
+    # test_windowed_aggregate_is_row already exercises over("group"); this
+    # names the post-refactor invariant explicitly.)
+    check = classify(_Rule("wp", ma.col("x").sum().over("g").gt(0)))
+    assert isinstance(check, RowRule)
