@@ -487,8 +487,6 @@ class TestArithmeticEdgeCases:
 
     def test_subtract_from_zero(self, backend_name, backend_factory, collect_expr):
         """Test subtracting from zero (negation)."""
-        from ibis.common.exceptions import InputTypeError
-
         data = {
             "a": [10, -20, 30, 0]
         }
@@ -496,19 +494,11 @@ class TestArithmeticEdgeCases:
 
         expr = 0 - ma.col("a")
 
-        # Known Ibis bug: https://github.com/ibis-project/ibis/issues/11742
-        # Reverse operators with literals fail with InputTypeError
-        if backend_name.startswith("ibis-"):
-            with pytest.raises(InputTypeError, match="Unable to infer datatype.*Deferred"):
-                backend_expr = expr.compile(df)
-                result = df.select(backend_expr.name("result"))
-                _ = result["result"].execute().tolist()
-        else:
-            actual = collect_expr(df, expr)
-            expected = [-10, 20, -30, 0]
-            assert actual == expected, (
-                f"[{backend_name}] Expected {expected}, got {actual}"
-            )
+        actual = collect_expr(df, expr)
+        expected = [-10, 20, -30, 0]
+        assert actual == expected, (
+            f"[{backend_name}] Expected {expected}, got {actual}"
+        )
 
     def test_complex_chained_operations(self, backend_name, backend_factory, collect_expr):
         """Test complex chained arithmetic operations.
