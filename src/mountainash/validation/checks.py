@@ -220,30 +220,9 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
 )
+from mountainash.expressions.introspect import iter_child_nodes  # noqa: E402
 
 _AGGREGATE_KEY_TYPES = (FKEY_SUBSTRAIT_SCALAR_AGGREGATE, FKEY_MOUNTAINASH_SCALAR_AGGREGATE)
-
-
-def _iter_child_nodes(node: ExpressionNode) -> "list[ExpressionNode]":
-    """Direct ExpressionNode children via pydantic-field introspection.
-
-    Expression nodes have no children() accessor; they are frozen pydantic
-    models, so any field holding a node — or an arbitrarily nested list/tuple
-    of nodes (e.g. IfThenNode.conditions is list[tuple[node, node]]) — is a
-    child edge. Recurse through containers so nested nodes are not missed.
-    """
-    children: list[ExpressionNode] = []
-
-    def _collect(value: Any) -> None:
-        if isinstance(value, ExpressionNode):
-            children.append(value)
-        elif isinstance(value, (list, tuple)):
-            for item in value:
-                _collect(item)
-
-    for name in type(node).model_fields:
-        _collect(getattr(node, name))
-    return children
 
 
 @dataclass
@@ -274,7 +253,7 @@ def _walk(
         profile.has_field = True
         if not under_reducing_agg:
             profile.has_exposed_field = True
-    for child in _iter_child_nodes(node):
+    for child in iter_child_nodes(node):
         _walk(child, profile, under_reducing_agg=under_reducing_agg, under_window=under_window)
 
 
