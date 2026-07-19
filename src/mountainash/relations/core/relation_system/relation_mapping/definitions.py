@@ -217,7 +217,7 @@ MOUNTAINASH_OPERATIONS = [
         substrait_rel=None,
         is_extension=True,
         extension_uri=MountainashRelExtension.UTIL,
-        protocol_method=SubstraitFetchRelationSystemProtocol.fetch_from_end,
+        protocol_method=ExtProto.fetch_from_end,
         args=(_IN, ArgBinding("count", ArgKind.LITERAL)),
     ),
     RelationOperationDef(
@@ -226,7 +226,7 @@ MOUNTAINASH_OPERATIONS = [
         substrait_rel=None,
         is_extension=True,
         extension_uri=MountainashRelExtension.UTIL,
-        protocol_method=SubstraitJoinRelationSystemProtocol.join_asof,
+        protocol_method=ExtProto.join_asof,
         handler=handlers.visit_join_asof,
     ),
     RelationOperationDef(

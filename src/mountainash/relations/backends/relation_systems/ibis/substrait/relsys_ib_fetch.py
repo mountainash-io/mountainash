@@ -24,10 +24,3 @@ class SubstraitIbisFetchRelationSystem(SubstraitFetchRelationSystemProtocol[ir.T
         if offset > 0:
             return relation.limit(None, offset=offset)
         return relation
-
-    def fetch_from_end(self, relation: ir.Table, count: int, /) -> ir.Table:
-        # Ibis does not have a native .tail() method.
-        # Materialise the total row count and compute the offset.
-        n = relation.count().execute()
-        offset = max(0, n - count)
-        return relation.limit(count, offset=offset)

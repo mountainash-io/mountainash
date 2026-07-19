@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol
+from typing import Optional, Protocol
 
 from mountainash.core.constants import JoinType
 from mountainash.core.types import RelationT
@@ -21,15 +21,4 @@ class SubstraitJoinRelationSystemProtocol(Protocol[RelationT]):
         left_on: Optional[list[str]],
         right_on: Optional[list[str]],
         suffix: str,
-    ) -> RelationT: ...
-
-    def join_asof(
-        self,
-        left: RelationT,
-        right: RelationT,
-        *,
-        on: str,
-        by: Optional[list[str]],
-        strategy: str,
-        tolerance: Any,
     ) -> RelationT: ...

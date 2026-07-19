@@ -65,13 +65,13 @@ class TestSubstraitSortProtocol:
 
 
 class TestSubstraitFetchProtocol:
-    @pytest.mark.parametrize("method", ["fetch", "fetch_from_end"])
+    @pytest.mark.parametrize("method", ["fetch"])
     def test_has_method(self, method: str):
         assert hasattr(SubstraitFetchRelationSystemProtocol, method)
 
 
 class TestSubstraitJoinProtocol:
-    @pytest.mark.parametrize("method", ["join", "join_asof"])
+    @pytest.mark.parametrize("method", ["join"])
     def test_has_method(self, method: str):
         assert hasattr(SubstraitJoinRelationSystemProtocol, method)
 
@@ -96,6 +96,8 @@ class TestMountainashExtensionProtocol:
         "unpivot",
         "pivot",
         "top_k",
+        "fetch_from_end",
+        "join_asof",
     ])
     def test_has_method(self, method: str):
         assert hasattr(MountainashExtensionRelationSystemProtocol, method)
@@ -160,13 +162,9 @@ class _DummyRelationSystem(RelationSystem):
     # --- Substrait: fetch ---
     def fetch(self, relation, offset, count, /):
         return relation
-    def fetch_from_end(self, relation, count, /):
-        return relation
 
     # --- Substrait: join ---
     def join(self, left, right, *, join_type, on=None, left_on=None, right_on=None, suffix="_right"):
-        return left
-    def join_asof(self, left, right, *, on, by=None, strategy="backward", tolerance=None):
         return left
 
     # --- Substrait: aggregate ---
@@ -194,6 +192,10 @@ class _DummyRelationSystem(RelationSystem):
         return relation
     def top_k(self, relation, /, *, k, by, descending=True):
         return relation
+    def fetch_from_end(self, relation, count, /):
+        return relation
+    def join_asof(self, left, right, *, on, by=None, strategy="backward", tolerance=None):
+        return left
 
 
 class TestRelationSystemRegistry:

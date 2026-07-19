@@ -124,6 +124,11 @@ def _build_join_asof(df: Any, df_right: Any, **kw: Any) -> Any:
     return ma.relation(df).join_asof(ma.relation(df_right), on="a").collect()
 
 
+def _build_fetch_from_end(df: Any, df_right: Any, **kw: Any) -> Any:
+    # .tail() produces FetchRelNode(from_end=True) → RKEY_MOUNTAINASH_REL.FETCH_FROM_END.
+    return ma.relation(df).tail(2).collect()
+
+
 def _build_aggregate(df: Any, df_right: Any, **kw: Any) -> Any:
     return ma.relation(df).group_by("c").agg(
         ma.col("a").sum()
@@ -196,6 +201,7 @@ _OPERATIONS: dict[str, Callable[..., Any]] = {
     "join_inner": _build_join_inner,
     "join_left": _build_join_left,
     "join_asof": _build_join_asof,
+    "fetch_from_end": _build_fetch_from_end,
     "aggregate": _build_aggregate,
     "unique": _build_unique,
     "concat": _build_concat,

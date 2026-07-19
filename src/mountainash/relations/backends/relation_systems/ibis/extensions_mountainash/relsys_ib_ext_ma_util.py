@@ -168,3 +168,27 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         )
         lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
         return ibis.memtable(lf.collect().to_arrow())
+
+    def fetch_from_end(self, relation: ir.Table, count: int, /) -> ir.Table:
+        # Ibis does not have a native .tail() method.
+        # Materialise the total row count and compute the offset.
+        n = relation.count().execute()
+        offset = max(0, n - count)
+        return relation.limit(count, offset=offset)
+
+    def join_asof(
+        self,
+        left: ir.Table,
+        right: ir.Table,
+        *,
+        on: str,
+        by: Optional[list[str]],
+        strategy: str,
+        tolerance: Any,
+    ) -> ir.Table:
+        kwargs: dict[str, Any] = {"on": on}
+        if by is not None:
+            kwargs["by"] = by
+        if tolerance is not None:
+            kwargs["tolerance"] = tolerance
+        return left.asof_join(right, **kwargs)

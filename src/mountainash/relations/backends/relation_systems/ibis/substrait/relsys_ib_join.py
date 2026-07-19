@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 import ibis.expr.types as ir
 
@@ -78,20 +78,3 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol[ir.Tab
                 result = result.drop(*right_keys)
 
         return result
-
-    def join_asof(
-        self,
-        left: ir.Table,
-        right: ir.Table,
-        *,
-        on: str,
-        by: Optional[list[str]],
-        strategy: str,
-        tolerance: Any,
-    ) -> ir.Table:
-        kwargs: dict[str, Any] = {"on": on}
-        if by is not None:
-            kwargs["by"] = by
-        if tolerance is not None:
-            kwargs["tolerance"] = tolerance
-        return left.asof_join(right, **kwargs)

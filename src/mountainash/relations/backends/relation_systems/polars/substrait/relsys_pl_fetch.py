@@ -21,6 +21,3 @@ class SubstraitPolarsFetchRelationSystem(SubstraitFetchRelationSystemProtocol[pl
             # All remaining rows from offset onward.
             return relation.slice(offset)
         return relation.slice(offset, count)
-
-    def fetch_from_end(self, relation: pl.LazyFrame, count: int, /) -> pl.LazyFrame:
-        return relation.tail(count)
