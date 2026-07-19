@@ -8,7 +8,6 @@ from mountainash.core.types import KnownLimitation
 from mountainash.relations.backends.relation_systems.base import BaseRelationSystem
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
-    RKEY_SUBSTRAIT_REL,
 )
 
 
@@ -26,7 +25,7 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             native_errors=(NotImplementedError,),
             workaround="Use the Polars backend for unnest.",
         ),
-        (RKEY_SUBSTRAIT_REL.JOIN_ASOF, WILDCARD_PARAM): KnownLimitation(
+        (RKEY_MOUNTAINASH_REL.JOIN_ASOF, WILDCARD_PARAM): KnownLimitation(
             message=(
                 "join_asof(tolerance=...) is not supported by the Narwhals "
                 "backend; narwhals join_asof has no tolerance parameter."
