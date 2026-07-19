@@ -56,10 +56,39 @@ class RelationOperationDef:
         return inspect.signature(self.protocol_method)
 
 
+def classify_relation_def(d: "RelationOperationDef") -> str | None:
+    """Return the serialization class of a def, or None if its metadata is invalid.
+
+    Exactly one of three valid states (spec §5.4):
+      - "direct":    substrait_rel set; lowers_to None; not an extension.
+      - "lowered":   lowers_to set; substrait_rel None; not an extension.
+      - "extension": both None; is_extension True with an extension_uri.
+    """
+    if d.is_extension:
+        if d.substrait_rel is None and d.lowers_to is None and d.extension_uri is not None:
+            return "extension"
+        return None
+    # non-extension: must carry no extension_uri, and exactly one of rel/lowers_to
+    if d.extension_uri is not None:
+        return None
+    if d.substrait_rel is not None and d.lowers_to is None:
+        return "direct"
+    if d.substrait_rel is None and d.lowers_to is not None:
+        return "lowered"
+    return None
+
+
 def _validate_def(d: RelationOperationDef) -> None:
     if d.protocol_method is None and d.handler is None:
         raise ValueError(
             f"{d.operation_key}: definition needs a protocol_method or handler"
+        )
+    if classify_relation_def(d) is None:
+        raise ValueError(
+            f"RelationOperationDef {d.operation_key} has invalid serialization "
+            f"classification: substrait_rel={d.substrait_rel!r}, lowers_to={d.lowers_to!r}, "
+            f"is_extension={d.is_extension!r}, extension_uri={d.extension_uri!r}. "
+            f"Must be exactly one of direct / lowered / extension (spec §5.4)."
         )
     if d.node_type is None:
         return  # metadata-only row (EMPTY_FRAME) — nothing to bind
