@@ -15,6 +15,11 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, List, Callable, TYPE_CHECKING
 import inspect
 
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    SubstraitExtension,
+    MountainashExtension,
+)
+
 if TYPE_CHECKING:
     from enum import Enum
 
@@ -89,6 +94,35 @@ class ExpressionFunctionDef:
         if method is None:
             return None
         return inspect.signature(method)
+
+
+def _uri_values(holder: type) -> frozenset[str]:
+    return frozenset(
+        v for k, v in vars(holder).items()
+        if not k.startswith("_") and isinstance(v, str)
+    )
+
+
+_SUBSTRAIT_URIS = _uri_values(SubstraitExtension)
+_MOUNTAINASH_URIS = _uri_values(MountainashExtension)
+
+
+def classify_expression_def(d: ExpressionFunctionDef) -> str | None:
+    """Return the provenance class of a def, or None if its metadata is invalid.
+
+    Valid states (see spec §4.4):
+      - "substrait":  is_extension is False, substrait_uri is a SubstraitExtension
+                      value, substrait_name is not None.
+      - "extension":  is_extension is True, substrait_uri is a MountainashExtension
+                      value, substrait_name is not None.
+    """
+    if d.substrait_name is None or d.substrait_uri is None:
+        return None
+    if d.is_extension is False and d.substrait_uri in _SUBSTRAIT_URIS:
+        return "substrait"
+    if d.is_extension is True and d.substrait_uri in _MOUNTAINASH_URIS:
+        return "extension"
+    return None
 
 
 class ExpressionFunctionRegistry:
