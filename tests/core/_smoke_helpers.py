@@ -197,8 +197,8 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND: lambda: b.all(),
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR: lambda: b.any(),
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
-        FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE: lambda: s.str.to_date("%Y-%m-%d"),
-        FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME: lambda: s.str.to_datetime("%Y-%m-%d"),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
         # Category B: composite API pattern
         FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),

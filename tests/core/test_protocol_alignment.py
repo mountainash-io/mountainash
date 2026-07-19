@@ -750,10 +750,8 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(reason="Special node type (FieldReferenceNode), not dispatched via function registry", since="2026-05-12"),
     (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(reason="Special node type (LiteralNode), not dispatched via function registry", since="2026-05-12"),
     # Mountainash Scalar Datetime — methods not yet in function registry
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "assume_timezone"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "strftime"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
 }
 

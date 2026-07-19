@@ -8,25 +8,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from ..api_builder_base import BaseExpressionAPIBuilder
+from ..api_builder_base import BaseExpressionAPIBuilder, _reject_expression
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+)
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarDatetimeAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-
-
-def _reject_expression(param_name: str, value: Any, method_name: str) -> None:
-    """Raise TypeError if an expression is passed where a literal option is required."""
-    from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
-    if isinstance(value, (ExpressionNode, BaseExpressionAPIBuilder, BaseExpressionAPI)):
-        raise TypeError(
-            f"{method_name}({param_name}=...) requires a literal value, not an expression. "
-            f"Options must be raw Python values (see principle: arguments-vs-options.md)."
-        )
 
 
 class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarDatetimeAPIBuilderProtocol):
@@ -844,60 +836,10 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         )
         return self._build(node)
 
-    def assume_timezone(
-        self,
-        timezone: str,
-    ) -> BaseExpressionAPI:
-        """
-        Assume the timestamp is in the specified timezone.
-
-        Converts a local timestamp to UTC-relative timestamp
-        using the given timezone.
-
-        Substrait: assume_timezone
-
-        Args:
-            timezone: IANA timezone name (e.g., "America/New_York", "UTC").
-
-        Returns:
-            New ExpressionAPI with assume_timezone node.
-        """
-        _reject_expression("timezone", timezone, "assume_timezone")
-        node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
-            arguments=[self._node],
-            options={"timezone": timezone},
-        )
-        return self._build(node)
-
-    # ========================================
-    # Formatting
-    # ========================================
-
-    def strftime(
-        self,
-        format: str,
-    ) -> BaseExpressionAPI:
-        """
-        Format datetime as string.
-
-        Uses strftime format codes.
-
-        Substrait: strftime
-
-        Args:
-            format: Format string (e.g., "%Y-%m-%d %H:%M:%S").
-
-        Returns:
-            New ExpressionAPI with strftime node.
-        """
-        _reject_expression("format", format, "strftime")
-        node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
-            arguments=[self._node],
-            options={"format": format},
-        )
-        return self._build(node)
+    # assume_timezone / strftime are official Substrait functions_datetime.yaml
+    # ops — their canonical definitions live on SubstraitScalarDatetimeAPIBuilder
+    # (resolved here via MRO). The Polars-compat `replace_time_zone` alias below
+    # delegates to the inherited assume_timezone.
 
     # ========================================
     # Flexible Duration Offset
@@ -1179,5 +1121,12 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
     weekday = day_of_week
     ordinal_day = day_of_year
     convert_time_zone = to_timezone
-    replace_time_zone = assume_timezone
     epoch = unix_timestamp
+
+    def replace_time_zone(self, timezone: str, /) -> BaseExpressionAPI:
+        """Alias for assume_timezone() — Polars compatibility.
+
+        Delegates to the inherited (Substrait) assume_timezone, which owns the
+        canonical definition of this official functions_datetime.yaml op.
+        """
+        return self.assume_timezone(timezone)

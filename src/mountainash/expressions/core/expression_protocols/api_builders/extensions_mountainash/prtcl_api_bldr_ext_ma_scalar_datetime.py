@@ -478,17 +478,8 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
         """Convert to specified timezone."""
         ...
 
-    def assume_timezone(self, timezone: str) -> BaseExpressionAPI:
-        """Assume the timestamp is in the specified timezone."""
-        ...
-
-    # =========================================================================
-    # Formatting
-    # =========================================================================
-
-    def strftime(self, format: str) -> BaseExpressionAPI:
-        """Format datetime as string using strftime format codes."""
-        ...
+    # assume_timezone / strftime are official Substrait ops — declared on
+    # SubstraitScalarDatetimeAPIBuilderProtocol, not here.
 
     # Polars-compatible aliases
     def week(self, /) -> BaseExpressionAPI:

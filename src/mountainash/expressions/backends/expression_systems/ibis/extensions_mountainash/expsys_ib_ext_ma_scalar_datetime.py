@@ -629,48 +629,6 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have convert_time_zone - fallback
         return x
 
-    def assume_timezone(
-        self,
-        x: IbisTemporalExpr,
-        timezone: str,
-        /,
-    ) -> IbisValueExpr:
-        """Assume the timestamp is in the specified timezone.
-
-        Args:
-            x: Datetime expression (timezone-naive).
-            timezone: Timezone to assume (IANA format).
-
-        Returns:
-            Timezone-aware datetime.
-
-        Note:
-            Ibis may not have timezone assignment. Falls back to input.
-        """
-        # Ibis doesn't have replace_time_zone - fallback
-        return x
-
-    # =========================================================================
-    # Formatting Methods
-    # =========================================================================
-
-    def strftime(
-        self,
-        x: IbisTemporalExpr,
-        format: str,
-        /,
-    ) -> IbisValueExpr:
-        """Format datetime as string.
-
-        Args:
-            x: Datetime expression.
-            format: strftime format string.
-
-        Returns:
-            Formatted string.
-        """
-        return x.strftime(format)
-
     # =========================================================================
     # Snapshot Methods (Static)
     # =========================================================================

@@ -2,7 +2,10 @@
 import pytest
 import mountainash.expressions as ma
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, FieldReferenceNode, LiteralNode
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+)
 
 
 class TestDatetimeExtraction:
@@ -114,7 +117,7 @@ class TestDatetimeTimezone:
         expr = ma.col("ts").dt.assume_timezone("UTC")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
-        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE
 
 
 class TestDatetimeFormatting:
@@ -122,7 +125,7 @@ class TestDatetimeFormatting:
         expr = ma.col("ts").dt.strftime("%Y-%m-%d")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
-        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.STRFTIME
 
 
 class TestDatetimeComponents:

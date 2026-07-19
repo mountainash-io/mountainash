@@ -608,45 +608,6 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
 
         return x.dt.convert_time_zone(timezone)
 
-    def assume_timezone(
-        self,
-        x: PolarsExpr,
-        timezone: str,
-        /,
-    ) -> PolarsExpr:
-        """Assume the timestamp is in the specified timezone.
-
-        Args:
-            x: Datetime expression (timezone-naive).
-            timezone: Timezone to assume (IANA format).
-
-        Returns:
-            Timezone-aware datetime.
-        """
-        return x.dt.replace_time_zone(timezone)
-
-    # =========================================================================
-    # Formatting Methods
-    # =========================================================================
-
-    def strftime(
-        self,
-        x: PolarsExpr,
-        format: str,
-        /,
-    ) -> PolarsExpr:
-        """Format datetime as string.
-
-        Args:
-            x: Datetime expression.
-            format: strftime format string.
-
-        Returns:
-            Formatted string.
-        """
-
-        return x.dt.strftime(format)
-
     # =========================================================================
     # Snapshot Methods (Static)
     # =========================================================================

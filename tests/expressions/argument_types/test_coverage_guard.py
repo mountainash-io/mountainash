@@ -471,7 +471,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("MountainAshNameExpressionSystemProtocol", "alias", "name"),
         ("MountainAshNameExpressionSystemProtocol", "prefix", "prefix"),
         ("MountainAshNameExpressionSystemProtocol", "suffix", "suffix"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "assume_timezone", "timezone"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "ceil", "unit"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "component"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
@@ -480,7 +479,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "is_dst", "timezone"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "offset_by", "offset"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "round", "unit"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "strftime", "format"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
         ("MountainAshScalarDatetimeExpressionSystemProtocol", "truncate", "unit"),
         ("MountainAshScalarListExpressionSystemProtocol", "list_diff", "n"),
@@ -1012,11 +1010,6 @@ _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
 ] = {
     (
         "SubstraitScalarDatetimeExpressionSystemProtocol",
-        "assume_timezone",
-        "x",
-    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "assume_timezone", "x"),
-    (
-        "SubstraitScalarDatetimeExpressionSystemProtocol",
         "extract",
         "x",
     ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "x"),
@@ -1025,11 +1018,6 @@ _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
         "extract_boolean",
         "x",
     ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "x"),
-    (
-        "SubstraitScalarDatetimeExpressionSystemProtocol",
-        "strftime",
-        "x",
-    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "strftime", "x"),
     (
         "SubstraitScalarSetExpressionSystemProtocol",
         "is_in",

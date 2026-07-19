@@ -458,28 +458,6 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         """Convert to specified timezone."""
         ...
 
-    def assume_timezone(
-        self,
-        x: ExpressionT,
-        timezone: str,
-        /,
-    ) -> ExpressionT:
-        """Assume the timestamp is in the specified timezone."""
-        ...
-
-    # =========================================================================
-    # Formatting
-    # =========================================================================
-
-    def strftime(
-        self,
-        x: ExpressionT,
-        format: str,
-        /,
-    ) -> ExpressionT:
-        """Format datetime as string."""
-        ...
-
     # =========================================================================
     # Snapshot
     # =========================================================================

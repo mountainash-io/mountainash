@@ -64,7 +64,7 @@ TESTED_PARAMS: list[tuple] = [
     # assume_timezone.timezone, ceil.unit, floor.unit, round.unit, truncate.unit,
     # strftime.format, to_timezone.timezone: reclassified as option (concrete str) in
     # protocol commit 5fd72c5 — removed from TESTED_PARAMS.
-    (FK_MA_DT.ASSUME_TIMEZONE, "x"),
+    (FK_DT.ASSUME_TIMEZONE, "x"),
     (FK_MA_DT.CEIL, "x"),
     ("day", "x"),
     ("day_of_week", "x"),
@@ -115,7 +115,7 @@ TESTED_PARAMS: list[tuple] = [
     ("round_calendar", "x"),
     ("round_temporal", "x"),
     ("second", "x"),
-    (FK_MA_DT.STRFTIME, "x"),
+    (FK_DT.STRFTIME, "x"),
     ("strptime_date", "x"),
     ("strptime_time", "x"),
     ("strptime_timestamp", "x"),

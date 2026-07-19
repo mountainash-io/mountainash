@@ -48,6 +48,10 @@ class MountainashExtension:
     ARITHMETIC = "file://extensions/functions_arithmetic.yaml"
     COMPARISON = "file://extensions/functions_comparison.yaml"
     STRING = "file://extensions/functions_string.yaml"
+    WINDOW = "file://extensions/functions_window.yaml"
+    STRUCT = "file://extensions/functions_struct.yaml"
+    LIST = "file://extensions/functions_list.yaml"
+    AGGREGATE = "file://extensions/functions_aggregate.yaml"
 
 
 
@@ -452,6 +456,12 @@ class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     # Arithmetic
     ADD_INTERVALS = auto()
 
+    # Migrated from mountainash namespace — catalog functions_datetime.yaml ops
+    ASSUME_TIMEZONE = auto()
+    STRFTIME = auto()
+    STRPTIME_DATE = auto()
+    STRPTIME_TIMESTAMP = auto()
+
 
 class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     """Mountainash datetime functions.
@@ -512,10 +522,6 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
 
     # Timezone
     TO_TIMEZONE = auto()
-    ASSUME_TIMEZONE = auto()
-
-    # Formatting
-    STRFTIME = auto()
 
     # Snapshot
     TODAY = auto()
@@ -585,8 +591,6 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
 
     REGEX_CONTAINS = "regex_contains"
     STRIP_SUFFIX = "strip_suffix"
-    TO_DATE = "to_date"
-    TO_DATETIME = "to_datetime"
     TO_TIME = "to_time"
     TO_INTEGER = "to_integer"
     JSON_DECODE = "json_decode"
@@ -783,6 +787,11 @@ MountainashFunction = Union[
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
+    FKEY_MOUNTAINASH_SCALAR_STRUCT,
+    FKEY_MOUNTAINASH_SCALAR_SET,
+    FKEY_MOUNTAINASH_WINDOW,
 ]
 
 # All function enums

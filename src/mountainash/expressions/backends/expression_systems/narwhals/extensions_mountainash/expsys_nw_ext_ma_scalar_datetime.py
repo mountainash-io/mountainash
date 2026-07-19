@@ -635,49 +635,6 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         # Narwhals doesn't have convert_time_zone - fallback
         return x
 
-    def assume_timezone(
-        self,
-        x: NarwhalsExpr,
-        timezone: str,
-        /,
-    ) -> NarwhalsExpr:
-        """Assume the timestamp is in the specified timezone.
-
-        Args:
-            x: Datetime expression (timezone-naive).
-            timezone: Timezone to assume (IANA format).
-
-        Returns:
-            Timezone-aware datetime.
-
-        Note:
-            Narwhals may not have timezone assignment. Returns input as fallback.
-        """
-        # Narwhals doesn't have replace_time_zone - fallback
-        return x
-
-    # =========================================================================
-    # Formatting Methods
-    # =========================================================================
-
-    def strftime(
-        self,
-        x: NarwhalsExpr,
-        /,
-        format: str = "%Y-%m-%d %H:%M:%S",
-    ) -> NarwhalsExpr:
-        """Format datetime as string.
-
-        Args:
-            x: Datetime expression.
-            format: strftime format string.
-
-        Returns:
-            Formatted string.
-
-        """
-        return x.dt.to_string(format)
-
     # =========================================================================
     # Snapshot Methods (Static)
     # =========================================================================
