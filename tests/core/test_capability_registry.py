@@ -203,3 +203,12 @@ class TestQueries:
         )
         assert len(violations) == 1
         assert violations[0].operation_key is FK_STR.LPAD
+
+    def test_snapshot_restore_round_trips_kinds(self):
+        # snapshot/restore must cover _kinds too (symmetric with reset), else a
+        # test that registers a SERIALIZE identity leaks into the next module.
+        snap = CapabilityRegistry.snapshot()
+        CapabilityRegistry._register_identity("substrait", TargetKind.SERIALIZE)
+        assert CapabilityRegistry._kinds.get("substrait") is TargetKind.SERIALIZE
+        CapabilityRegistry.restore(snap)
+        assert "substrait" not in CapabilityRegistry._kinds

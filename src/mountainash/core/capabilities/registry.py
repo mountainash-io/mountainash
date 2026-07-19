@@ -254,12 +254,19 @@ class CapabilityRegistry:
 
     # -- test isolation -----------------------------------------------------
     @classmethod
-    def snapshot(cls) -> Dict[_Key, CapabilityFact]:
-        return dict(cls._facts)
+    def snapshot(cls) -> Tuple[Dict[_Key, CapabilityFact], Dict[str, TargetKind]]:
+        """Opaque round-trip token for test isolation — captures BOTH _facts
+        and _kinds so restore() is symmetric with reset(). Callers must treat
+        the return value as opaque (feed it only to restore())."""
+        return dict(cls._facts), dict(cls._kinds)
 
     @classmethod
-    def restore(cls, snapshot: Dict[_Key, CapabilityFact]) -> None:
-        cls._facts = dict(snapshot)
+    def restore(
+        cls, snapshot: Tuple[Dict[_Key, CapabilityFact], Dict[str, TargetKind]]
+    ) -> None:
+        facts, kinds = snapshot
+        cls._facts = dict(facts)
+        cls._kinds = dict(kinds)
 
     @classmethod
     def reset(cls) -> None:
