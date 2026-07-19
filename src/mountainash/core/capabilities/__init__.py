@@ -1,4 +1,5 @@
 """Capability spine — schema, registry, backend identity (spec 2026-07-05)."""
+from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALECTS
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
@@ -13,6 +14,7 @@ from mountainash.core.capabilities.schema import (
 )
 
 __all__ = [
+    "BackendIdentity",
     "Boundary",
     "CapabilityFact",
     "CapabilityLevel",
@@ -20,6 +22,7 @@ __all__ = [
     "DivergenceKind",
     "Fidelity",
     "GapKind",
+    "KNOWN_DIALECTS",
     "KnownGap",
     "TargetKind",
     "WILDCARD_PARAM",

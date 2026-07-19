@@ -6,9 +6,12 @@ re-exports these names for backwards compatibility.
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 from mountainash.core.constants import CONST_BACKEND
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.identity import BackendIdentity
 
 # Backend alias mapping
 _BACKEND_ALIASES: Dict[str, CONST_BACKEND] = {
@@ -111,3 +114,62 @@ def identify_backend(dataframe_or_backend: Any) -> CONST_BACKEND:
         f"Module: {module_name}, Class: {class_name}. "
         f"Tip: Try wrapping your DataFrame with narwhals: nw.from_native(df)"
     )
+
+
+def _narwhals_dialect(nw_frame: Any) -> str | None:
+    """Dialect name for a narwhals DataFrame/LazyFrame.
+
+    Uses the same `implementation` property identify_backend already reads
+    for the narwhals-ibis rejection. Lazy polars-backed frames map to the
+    existing 'narwhals-lazy' vocabulary name.
+    """
+    impl = getattr(nw_frame, "implementation", None)
+    if impl is None or not hasattr(impl, "value"):
+        return None
+    impl_name = impl.value
+    is_lazy = type(nw_frame).__name__ == "LazyFrame"
+    if impl_name == "polars":
+        return "narwhals-lazy" if is_lazy else "narwhals-polars"
+    return f"narwhals-{impl_name}"
+
+
+def identify_backend_identity(dataframe_or_backend: Any) -> "BackendIdentity":
+    """Resolve (family, dialect) from a DataFrame/Table (spec Section 1).
+
+    Dialect resolution is best-effort: unknown/unbound sources yield
+    dialect=None and the capability gate degrades to family-level facts —
+    exactly today's KNOWN_EXPR_LIMITATIONS granularity, never worse.
+    """
+    from mountainash.core.capabilities.identity import BackendIdentity
+
+    family = identify_backend(dataframe_or_backend)
+    obj = dataframe_or_backend
+
+    if isinstance(obj, (str, CONST_BACKEND)):
+        return BackendIdentity(family, "polars" if family is CONST_BACKEND.POLARS else None)
+
+    if family is CONST_BACKEND.POLARS:
+        return BackendIdentity(family, "polars")
+
+    if family is CONST_BACKEND.NARWHALS:
+        dialect = _narwhals_dialect(obj)
+        if dialect is None:
+            # Native frame that identify_backend accepted via the narwhals
+            # wrap fallback (pandas, pyarrow, ...) — wrap to read implementation.
+            try:
+                import narwhals as nw
+
+                dialect = _narwhals_dialect(nw.from_native(obj))
+            except (TypeError, ValueError):
+                dialect = None
+        return BackendIdentity(family, dialect)
+
+    if family is CONST_BACKEND.IBIS:
+        try:
+            backend = obj._find_backend(use_default=False)
+            return BackendIdentity(family, f"ibis-{backend.name}")
+        except Exception:
+            # Unbound tables / memtables — dialect unknown at compile time.
+            return BackendIdentity(family, None)
+
+    return BackendIdentity(family, None)
