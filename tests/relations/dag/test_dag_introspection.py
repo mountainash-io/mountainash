@@ -85,3 +85,33 @@ class TestDAGToDot:
         dag.add("derived", dag.ref("raw").select("a"))
         dot = dag.to_dot()
         assert '"raw" -> "derived"' in dot
+
+
+class TestTraversalReexport:
+    """The relation-tree traversal helpers are part of the public package surface."""
+
+    def test_helpers_importable_from_package(self):
+        import mountainash.relations.dag as dag_pkg
+        from mountainash.relations.dag import relation_children, walk_refs
+
+        assert callable(relation_children)
+        assert callable(walk_refs)
+        assert "relation_children" in dag_pkg.__all__
+        assert "walk_refs" in dag_pkg.__all__
+
+    def test_walk_refs_collects_ref_names(self):
+        from mountainash.relations.dag import walk_refs
+
+        dag = RelationDAG()
+        dag.add("raw", ma.relation(pl.LazyFrame({"a": [1]})))
+        derived = dag.ref("raw").select("a")
+        assert walk_refs(derived._node) == {"raw"}
+
+    def test_relation_children_returns_structural_children(self):
+        from mountainash.relations.dag import relation_children
+
+        dag = RelationDAG()
+        dag.add("raw", ma.relation(pl.LazyFrame({"a": [1]})))
+        # ProjectRelNode over a single input relation.
+        node = dag.ref("raw").select("a")._node
+        assert len(relation_children(node)) == 1
