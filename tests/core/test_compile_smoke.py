@@ -580,7 +580,7 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_STRING.LPAD", "polars"): "ValueError: expected a string of length 1 Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_STRING.RPAD", "polars"): "ValueError: expected a string of length 1 Since 2026-05-18.",
     # ── Other (2 entries) ──
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE", "polars"): "ComputeError: unable to parse time zone: 'x'. Please check the Time Zone Database for a list of available time zones. Since 2026-05-18.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE", "polars"): "ComputeError: unable to parse time zone: 'x'. Please check the Time Zone Database for a list of available time zones. Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "polars"): "InvalidOperationError: `Expr.list.to_struct` requires either `fields` to be a sequence or `upper_bound` to be set. Since 2026-05-18.",
 
     # ── Pydantic ValidationError (7 entries) ──
@@ -613,12 +613,12 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-sqlite"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
     # ── Smoke expr builder: newly-exposed backend limitations (21 entries) ──
     # TO_DATE / TO_DATETIME — Narwhals backend does not implement strptime
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE", "pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE", "narwhals-polars"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE", "narwhals-pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME", "pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME", "narwhals-polars"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME", "narwhals-pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "narwhals-polars"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "narwhals-pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "narwhals-polars"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "narwhals-pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
     # RANK (average method) — Ibis SQL has no rank(method='average') equivalent
     ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",

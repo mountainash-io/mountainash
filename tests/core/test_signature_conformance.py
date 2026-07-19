@@ -456,7 +456,7 @@ _KNOWN_OPTIONS_DRIFT: dict[str, str] = {
         "Registry has 'separator' but protocol has 'null_handling' — different option sets. Since 2026-05-18.",
     "FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING":
         "Registry has 'start','length' but protocol has 'negative_start' — options not aligned. Since 2026-05-18.",
-    "FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME":
+    "FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP":
         "Protocol has required 'timezone' option not in registry — timezone handled by API builder. Since 2026-05-18.",
     "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT":
         "Protocol extract(component, input) — component is a required positional option not in registry. Since 2026-05-18.",
