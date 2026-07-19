@@ -17,9 +17,6 @@ import narwhals as nw
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME,
-)
 
 
 if TYPE_CHECKING:
@@ -222,7 +219,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_years(
         self,
         x: NarwhalsExpr,
-        years: NarwhalsExpr,
+        years: int,
         /,
     ) -> NarwhalsExpr:
         """Add years to a datetime.
@@ -234,17 +231,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with years added.
         """
-        years_val = self._extract_literal_if_possible(years)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(years_val)}y"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
-            years=years,
-        )
+        return x.dt.offset_by(f"{int(years)}y")
 
     def add_months(
         self,
         x: NarwhalsExpr,
-        months: NarwhalsExpr,
+        months: int,
         /,
     ) -> NarwhalsExpr:
         """Add months to a datetime.
@@ -256,17 +248,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with months added.
         """
-        months_val = self._extract_literal_if_possible(months)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(months_val)}mo"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
-            months=months,
-        )
+        return x.dt.offset_by(f"{int(months)}mo")
 
     def add_days(
         self,
         x: NarwhalsExpr,
-        days: NarwhalsExpr,
+        days: int,
         /,
     ) -> NarwhalsExpr:
         """Add days to a datetime.
@@ -278,17 +265,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with days added.
         """
-        days_val = self._extract_literal_if_possible(days)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(days_val)}d"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
-            days=days,
-        )
+        return x.dt.offset_by(f"{int(days)}d")
 
     def add_hours(
         self,
         x: NarwhalsExpr,
-        hours: NarwhalsExpr,
+        hours: int,
         /,
     ) -> NarwhalsExpr:
         """Add hours to a datetime.
@@ -300,17 +282,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with hours added.
         """
-        hours_val = self._extract_literal_if_possible(hours)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(hours_val)}h"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
-            hours=hours,
-        )
+        return x.dt.offset_by(f"{int(hours)}h")
 
     def add_minutes(
         self,
         x: NarwhalsExpr,
-        minutes: NarwhalsExpr,
+        minutes: int,
         /,
     ) -> NarwhalsExpr:
         """Add minutes to a datetime.
@@ -322,17 +299,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with minutes added.
         """
-        minutes_val = self._extract_literal_if_possible(minutes)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(minutes_val)}m"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
-            minutes=minutes,
-        )
+        return x.dt.offset_by(f"{int(minutes)}m")
 
     def add_seconds(
         self,
         x: NarwhalsExpr,
-        seconds: NarwhalsExpr,
+        seconds: int,
         /,
     ) -> NarwhalsExpr:
         """Add seconds to a datetime.
@@ -344,17 +316,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with seconds added.
         """
-        seconds_val = self._extract_literal_if_possible(seconds)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(seconds_val)}s"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
-            seconds=seconds,
-        )
+        return x.dt.offset_by(f"{int(seconds)}s")
 
     def add_milliseconds(
         self,
         x: NarwhalsExpr,
-        milliseconds: NarwhalsExpr,
+        milliseconds: int,
         /,
     ) -> NarwhalsExpr:
         """Add milliseconds to a datetime.
@@ -369,18 +336,13 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Note:
             Narwhals offset_by may not support 'ms'. Falls back to microseconds.
         """
-        ms_val = self._extract_literal_if_possible(milliseconds)
         # Convert to microseconds: 1ms = 1000us
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(ms_val) * 1000}us"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
-            milliseconds=milliseconds,
-        )
+        return x.dt.offset_by(f"{int(milliseconds) * 1000}us")
 
     def add_microseconds(
         self,
         x: NarwhalsExpr,
-        microseconds: NarwhalsExpr,
+        microseconds: int,
         /,
     ) -> NarwhalsExpr:
         """Add microseconds to a datetime.
@@ -392,12 +354,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with microseconds added.
         """
-        us_val = self._extract_literal_if_possible(microseconds)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(us_val)}us"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
-            microseconds=microseconds,
-        )
+        return x.dt.offset_by(f"{int(microseconds)}us")
 
     # =========================================================================
     # Date Difference Methods

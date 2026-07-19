@@ -65,19 +65,27 @@ class BaseExpressionSystem(ABC):
         function_key: Any,
         **named_args: Any,
     ) -> Any:
-        """Call a native backend function, enriching errors for known limitations.
+        """Call a native backend op, enriching known-limitation failures.
 
-        Args:
-            fn: Zero-arg callable that invokes the native backend operation.
-            function_key: The FKEY_* enum value for registry lookup.
-            **named_args: Parameter names mapped to their values, used to
-                identify which parameter caused the error in registry lookup.
+        Registry-first (migrated backends + conditioned MATERIALIZE facts),
+        class-dict fallback (unmigrated backends keep their old enrichment —
+        the per-backend-safe-migration invariant). Only facts with
+        native_errors participate; BUILD facts gate at the visitor and never
+        reach here.
         """
+        from mountainash.core.capabilities import CapabilityRegistry
         from mountainash.core.limitations import call_with_limitation_enrichment
 
+        limitations = dict(self.KNOWN_EXPR_LIMITATIONS)
+        for param in named_args:
+            fact = CapabilityRegistry.capability_for(
+                function_key, param, self.backend_type, self.dialect
+            )
+            if fact is not None and fact.native_errors:
+                limitations[(function_key, param)] = fact
         return call_with_limitation_enrichment(
             fn,
-            limitations=self.KNOWN_EXPR_LIMITATIONS,
+            limitations=limitations,
             backend_name=self.BACKEND_NAME,
             operation_key=function_key,
             named_args=tuple(named_args),

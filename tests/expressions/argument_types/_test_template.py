@@ -112,27 +112,6 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     if limitation is None:
         return None
 
-    if backend == "narwhals-polars":
-        from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_SUBSTRAIT_SCALAR_STRING as _FK_STR,
-        )
-        _NW_POLARS_FIXED: set[tuple[Any, str]] = {
-            (_FK_STR.CONTAINS, "substring"),
-            (_FK_STR.LIKE, "match"),
-            (_FK_STR.REPLACE, "replacement"),
-            (_FK_STR.REGEXP_REPLACE, "replacement"),
-            (_FK_STR.STARTS_WITH, "substring"),
-            (_FK_STR.ENDS_WITH, "substring"),
-        }
-        if (function_key, param_name) in _NW_POLARS_FIXED:
-            return None
-        if "literal" in limitation.message.lower() or "not accept expression" in limitation.message.lower():
-            return pytest.mark.xfail(
-                strict=False,
-                raises=BackendCapabilityError,
-                reason=f"[non-strict] {limitation.message}",
-            )
-
     return pytest.mark.xfail(
         strict=True,
         raises=BackendCapabilityError,
