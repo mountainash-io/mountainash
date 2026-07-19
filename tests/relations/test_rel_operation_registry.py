@@ -112,6 +112,19 @@ class TestRegistration:
             RelationOperationRegistry.register(_filter_def())
 
 
+def test_relation_def_has_lowers_to_default_none():
+    from mountainash.relations.core.relation_system.relation_mapping.registry import (
+        RelationOperationDef,
+    )
+    from enum import Enum, auto
+
+    class _K(Enum):
+        A = auto()
+
+    d = RelationOperationDef(operation_key=_K.A, substrait_rel="ProjectRel")
+    assert d.lowers_to is None
+
+
 class TestLazyInit:
     def test_registry_self_initializes_from_definitions(self):
         RelationOperationRegistry.reset()

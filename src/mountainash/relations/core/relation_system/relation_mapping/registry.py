@@ -39,7 +39,8 @@ class RelationOperationDef:
 
     operation_key: Enum
     node_type: Optional[type] = None       # None only for non-node-dispatched ops
-    substrait_rel: Optional[str] = None    # Substrait Rel message name; None = no direct mapping
+    substrait_rel: Optional[str] = None    # Substrait Rel message name; None = no direct 1:1 mapping
+    lowers_to: Optional[str] = None        # Substrait Rel this op transforms into (no direct message)
     substrait_op: Optional[str] = None     # message-level variant, e.g. "SET_OP_UNION_DISTINCT"
     extension_uri: Optional[str] = None
     is_extension: bool = False
