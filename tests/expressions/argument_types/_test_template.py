@@ -57,33 +57,58 @@ def _materialize_arg(
     raise ValueError(input_type)
 
 
-def _get_registry(backend: str):
+_FIXTURE_IDENTITY = {
+    # argument-types fixture name -> (family, dialect)
+    "polars": ("polars", "polars"),
+    "ibis": ("ibis", None),  # generic memtable ibis — family-level facts only
+    "narwhals-polars": ("narwhals", "narwhals-polars"),
+    "narwhals-pandas": ("narwhals", "narwhals-pandas"),
+}
+
+
+def _registry_lookup(backend: str, function_key, param_name: str):
+    """Resolve a capability fact (new spine) or legacy KnownLimitation.
+
+    During per-backend migration a backend may still carry its old
+    KNOWN_EXPR_LIMITATIONS dict; consult the spine first, then fall back.
+    """
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.constants import CONST_BACKEND
+
+    family_name, dialect = _FIXTURE_IDENTITY[backend]
+    fact = CapabilityRegistry.capability_for(
+        function_key, param_name, CONST_BACKEND(family_name), dialect
+    )
+    if fact is not None:
+        if fact.level in (CapabilityLevel.EXPR_CAPABLE, CapabilityLevel.POLYMORPHIC):
+            return None  # not a limitation on this dialect
+        return fact
+
+    # Legacy fallback (removed by Task 12 once all backends are migrated)
     if backend == "polars":
-        from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem as B
+        from mountainash.expressions.backends.expression_systems.polars.base import (
+            PolarsBaseExpressionSystem as B,
+        )
     elif backend == "ibis":
-        from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem as B
-    elif backend in ("narwhals-polars", "narwhals-pandas"):
-        from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem as B
+        from mountainash.expressions.backends.expression_systems.ibis.base import (
+            IbisBaseExpressionSystem as B,
+        )
     else:
-        raise ValueError(backend)
-    return B.KNOWN_EXPR_LIMITATIONS
+        from mountainash.expressions.backends.expression_systems.narwhals.base import (
+            NarwhalsBaseExpressionSystem as B,
+        )
+    return B.KNOWN_EXPR_LIMITATIONS.get((function_key, param_name))
 
 
 def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_type: str):
-    """Returns a pytest.mark.xfail if the registry declares this combination limited,
-    and the input type actually exercises the limitation (col/complex, not raw/lit).
-
-    narwhals-polars: the KNOWN_EXPR_LIMITATIONS registry is shared with narwhals-pandas,
-    but narwhals often passes expressions through to Polars which handles them fine.
-    _NW_POLARS_FIXED tracks ops confirmed to work — these get NO xfail (regression
-    detection). Other Narwhals "literal values" limitations use strict=False (an
-    unexpected pass is fine, a failure is expected).
-    """
+    """Registry-driven xfail. Dialect-scoped EXPR_CAPABLE refinements make
+    the old _NW_POLARS_FIXED allowlist unnecessary: _registry_lookup returns
+    None for narwhals-polars where upstream fixed the gap, so no xfail is
+    applied and a regression surfaces as an ordinary failure."""
     if input_type in ("raw", "lit"):
         return None
 
-    registry = _get_registry(backend)
-    limitation = registry.get((function_key, param_name))
+    limitation = _registry_lookup(backend, function_key, param_name)
     if limitation is None:
         return None
 
@@ -142,8 +167,7 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     if op.execution_mode == "over":
         expr = expr.over("__group__")
 
-    registry = _get_registry(backend)
-    limitation = registry.get((op.function_key, op.param_name))
+    limitation = _registry_lookup(backend, op.function_key, op.param_name)
 
     try:
         compiled = expr.compile(df)
