@@ -7,7 +7,7 @@ uniform RKEY_ prefixes.
 
 Namespace rule: an RKEY lives in the namespace of the protocol file that
 owns its method. Substrait-namespace RKEYs without a direct Substrait
-mapping (FETCH_FROM_END, JOIN_ASOF, PROJECT_DROP, PROJECT_RENAME) record
+mapping (PROJECT_DROP, PROJECT_RENAME) record
 that via ``substrait_rel=None`` in their registry defs.
 """
 from __future__ import annotations
@@ -36,9 +36,7 @@ class RKEY_SUBSTRAIT_REL(Enum):
     FILTER = auto()
     SORT = auto()
     FETCH = auto()
-    FETCH_FROM_END = auto()
     JOIN = auto()
-    JOIN_ASOF = auto()
     AGGREGATE = auto()
     DISTINCT = auto()
     UNION_ALL = auto()
@@ -66,6 +64,8 @@ class RKEY_MOUNTAINASH_REL(Enum):
     READ_RESOURCE = auto()
     CONFORM = auto()
     EMPTY_FRAME = auto()
+    FETCH_FROM_END = auto()
+    JOIN_ASOF = auto()
 
 
 RelationKeyEnum = Union[RKEY_SUBSTRAIT_REL, RKEY_MOUNTAINASH_REL]

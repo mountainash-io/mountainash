@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from mountainash.core.constants import ExecutionTarget, JoinType
 from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
     RKEY_SUBSTRAIT_REL,
 )
 
@@ -48,5 +49,5 @@ class JoinRelNode(RelationNode):
     @property
     def operation_key(self):
         if self.join_type == JoinType.ASOF:
-            return RKEY_SUBSTRAIT_REL.JOIN_ASOF
+            return RKEY_MOUNTAINASH_REL.JOIN_ASOF
         return RKEY_SUBSTRAIT_REL.JOIN

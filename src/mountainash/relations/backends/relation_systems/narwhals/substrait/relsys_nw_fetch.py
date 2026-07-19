@@ -28,6 +28,3 @@ class SubstraitNarwhalsFetchRelationSystem(
         if count is None:
             return sliced
         return sliced.head(count)
-
-    def fetch_from_end(self, relation: Any, count: int, /) -> Any:
-        return relation.tail(count)

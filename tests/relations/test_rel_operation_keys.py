@@ -10,8 +10,8 @@ def test_substrait_rkey_members():
     )
     expected = {
         "READ", "PROJECT_SELECT", "PROJECT_WITH_COLUMNS", "PROJECT_DROP",
-        "PROJECT_RENAME", "FILTER", "SORT", "FETCH", "FETCH_FROM_END",
-        "JOIN", "JOIN_ASOF", "AGGREGATE", "DISTINCT",
+        "PROJECT_RENAME", "FILTER", "SORT", "FETCH",
+        "JOIN", "AGGREGATE", "DISTINCT",
         "UNION_ALL", "UNION_DISTINCT",
     }
     assert {m.name for m in RKEY_SUBSTRAIT_REL} == expected
@@ -23,7 +23,7 @@ def test_mountainash_rkey_members():
     )
     expected = {
         "DROP_NULLS", "DROP_NANS", "WITH_ROW_INDEX", "EXPLODE", "SAMPLE",
-        "UNPIVOT", "PIVOT", "TOP_K", "UNNEST",
+        "UNPIVOT", "PIVOT", "TOP_K", "UNNEST", "FETCH_FROM_END", "JOIN_ASOF",
         "SOURCE", "REF", "READ_RESOURCE", "CONFORM", "EMPTY_FRAME",
     }
     assert {m.name for m in RKEY_MOUNTAINASH_REL} == expected
@@ -91,14 +91,16 @@ class TestOperationKeyDerivation:
     def test_fetch_variants(self):
         from mountainash.relations.core.relation_system.relation_keys.enums import (
             RKEY_SUBSTRAIT_REL as RS,
+            RKEY_MOUNTAINASH_REL as RM,
         )
         from mountainash.relations.core.relation_nodes import FetchRelNode
         assert FetchRelNode(input=_read(), count=3).operation_key is RS.FETCH
-        assert FetchRelNode(input=_read(), count=3, from_end=True).operation_key is RS.FETCH_FROM_END
+        assert FetchRelNode(input=_read(), count=3, from_end=True).operation_key is RM.FETCH_FROM_END
 
     def test_join_variants_and_by_field(self):
         from mountainash.relations.core.relation_system.relation_keys.enums import (
             RKEY_SUBSTRAIT_REL as RS,
+            RKEY_MOUNTAINASH_REL as RM,
         )
         from mountainash.relations.core.relation_nodes import JoinRelNode
         j = JoinRelNode(left=_read(), right=_read(), join_type=JoinType.INNER, on=["a"])
@@ -106,7 +108,7 @@ class TestOperationKeyDerivation:
         a = JoinRelNode(
             left=_read(), right=_read(), join_type=JoinType.ASOF, on=["a"], by=["g"],
         )
-        assert a.operation_key is RS.JOIN_ASOF
+        assert a.operation_key is RM.JOIN_ASOF
         assert a.by == ["g"]
 
     def test_aggregate_vs_distinct(self):

@@ -65,3 +65,28 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
         (callers convert raw Frictionless dicts first).
         """
         ...
+
+    def fetch_from_end(self, relation: RelationT, count: int, /) -> RelationT:
+        """Fetch the last ``count`` rows (``tail``) — no Substrait FetchRel form.
+
+        Substrait ``FetchRel`` counts from the start (offset/count); fetching
+        from the end is a Mountainash convenience with no standard equivalent.
+        """
+        ...
+
+    def join_asof(
+        self,
+        left: RelationT,
+        right: RelationT,
+        *,
+        on: str,
+        by: Optional[list[str]],
+        strategy: str,
+        tolerance: Any,
+    ) -> RelationT:
+        """As-of (nearest-key) join — no Substrait JoinRel form.
+
+        Substrait's ``JoinRel`` join-type enum has no ``ASOF`` member; as-of
+        join is a Mountainash addition.
+        """
+        ...

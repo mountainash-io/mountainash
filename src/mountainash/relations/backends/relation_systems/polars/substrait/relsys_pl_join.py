@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 import polars as pl
 
@@ -68,21 +68,3 @@ class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol[pl.L
                     ).drop(right_key)
 
         return result
-
-    def join_asof(
-        self,
-        left: pl.LazyFrame,
-        right: pl.LazyFrame,
-        *,
-        on: str,
-        by: Optional[list[str]],
-        strategy: str,
-        tolerance: Any,
-    ) -> pl.LazyFrame:
-        return left.join_asof(
-            right,
-            on=on,
-            by=by if by else None,
-            strategy=strategy,
-            tolerance=tolerance,
-        )

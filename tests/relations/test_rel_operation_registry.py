@@ -16,12 +16,14 @@ from mountainash.relations.core.relation_protocols.relation_systems.substrait im
 )
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_SUBSTRAIT_REL,
+    MountainashRelExtension,
 )
 from mountainash.relations.core.relation_system.relation_mapping.registry import (
     ArgBinding,
     ArgKind,
     RelationOperationDef,
     RelationOperationRegistry,
+    classify_relation_def,
 )
 
 
@@ -102,6 +104,7 @@ class TestRegistration:
             node_type=None,
             substrait_rel=None,
             is_extension=True,
+            extension_uri=MountainashRelExtension.CONFORM,
             protocol_method=MountainashExtensionRelationSystemProtocol.empty_frame,
         )
         RelationOperationRegistry.register(d)  # no raise
@@ -112,9 +115,55 @@ class TestRegistration:
             RelationOperationRegistry.register(_filter_def())
 
 
+def test_relation_def_has_lowers_to_default_none():
+    from mountainash.relations.core.relation_system.relation_mapping.registry import (
+        RelationOperationDef,
+    )
+    from enum import Enum, auto
+
+    class _K(Enum):
+        A = auto()
+
+    d = RelationOperationDef(operation_key=_K.A, substrait_rel="ProjectRel")
+    assert d.lowers_to is None
+
+
 class TestLazyInit:
     def test_registry_self_initializes_from_definitions(self):
         RelationOperationRegistry.reset()
         d = RelationOperationRegistry.get(RKEY_SUBSTRAIT_REL.READ)
         assert d.operation_key is RKEY_SUBSTRAIT_REL.READ
         RelationOperationRegistry.reset()
+
+
+class _K(Enum):
+    A = auto()
+
+
+def _def(**kw):
+    return RelationOperationDef(operation_key=_K.A, **kw)
+
+
+class TestClassifyRelationDef:
+    def test_classify_direct(self):
+        assert classify_relation_def(_def(substrait_rel="ProjectRel")) == "direct"
+
+    def test_classify_lowered(self):
+        assert classify_relation_def(_def(lowers_to="ProjectRel")) == "lowered"
+
+    def test_classify_extension(self):
+        d = _def(is_extension=True, extension_uri=MountainashRelExtension.UTIL)
+        assert classify_relation_def(d) == "extension"
+
+    def test_invalid_both_rel_and_lowers(self):
+        assert classify_relation_def(_def(substrait_rel="ProjectRel", lowers_to="ProjectRel")) is None
+
+    def test_invalid_both_none_not_extension(self):
+        assert classify_relation_def(_def()) is None
+
+    def test_invalid_direct_carrying_extension_flag(self):
+        d = _def(substrait_rel="ReadRel", is_extension=True, extension_uri=MountainashRelExtension.UTIL)
+        assert classify_relation_def(d) is None
+
+    def test_invalid_extension_without_uri(self):
+        assert classify_relation_def(_def(is_extension=True)) is None

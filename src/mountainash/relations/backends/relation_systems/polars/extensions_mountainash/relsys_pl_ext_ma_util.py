@@ -231,3 +231,24 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
                 except pl.exceptions.PolarsError as e:
                     raise ResourceSchemaCastError(resource.name, casts) from e
         return df.lazy()
+
+    def fetch_from_end(self, relation: pl.LazyFrame, count: int, /) -> pl.LazyFrame:
+        return relation.tail(count)
+
+    def join_asof(
+        self,
+        left: pl.LazyFrame,
+        right: pl.LazyFrame,
+        *,
+        on: str,
+        by: Optional[list[str]],
+        strategy: str,
+        tolerance: Any,
+    ) -> pl.LazyFrame:
+        return left.join_asof(
+            right,
+            on=on,
+            by=by if by else None,
+            strategy=strategy,
+            tolerance=tolerance,
+        )

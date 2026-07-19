@@ -87,28 +87,3 @@ class SubstraitNarwhalsJoinRelationSystem(
                 result = result.with_columns(select_exprs).drop(cols_to_drop)
 
         return result
-
-    def join_asof(
-        self,
-        left: Any,
-        right: Any,
-        *,
-        on: str,
-        by: Optional[list[str]],
-        strategy: str,
-        tolerance: Any,
-    ) -> Any:
-        # narwhals join_asof (DataFrame and LazyFrame) has no `tolerance`
-        # parameter, so forwarding it always raises. Only the no-tolerance case
-        # is expressible on this backend.
-        if tolerance is not None:
-            raise NotImplementedError(
-                "join_asof(tolerance=...) is not supported by the Narwhals "
-                "backend; narwhals join_asof has no tolerance parameter."
-            )
-        return left.join_asof(
-            right,
-            on=on,
-            by=by if by else None,
-            strategy=strategy,
-        )
