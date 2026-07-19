@@ -95,14 +95,16 @@ SUBSTRAIT_OPERATIONS = [
     RelationOperationDef(
         operation_key=RS.PROJECT_DROP,
         node_type=ProjectRelNode,
-        substrait_rel=None,  # lowers to ProjectRel emit-mapping
+        substrait_rel=None,
+        lowers_to="ProjectRel",
         protocol_method=SubstraitProjectRelationSystemProtocol.project_drop,
         args=(_IN, ArgBinding("expressions", ArgKind.EXPRESSION_LIST)),
     ),
     RelationOperationDef(
         operation_key=RS.PROJECT_RENAME,
         node_type=ProjectRelNode,
-        substrait_rel=None,  # lowers to ProjectRel emit-mapping
+        substrait_rel=None,
+        lowers_to="ProjectRel",
         protocol_method=SubstraitProjectRelationSystemProtocol.project_rename,
         args=(_IN, ArgBinding("rename_mapping", ArgKind.LITERAL)),
     ),
