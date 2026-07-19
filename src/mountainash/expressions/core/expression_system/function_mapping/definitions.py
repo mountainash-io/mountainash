@@ -2193,8 +2193,8 @@ def register_all_functions() -> None:
     MOUNTAINASH_STRUCT_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD,
-            substrait_uri=None,
-            substrait_name=None,
+            substrait_uri=MountainashExtension.STRUCT,
+            substrait_name="struct_field",
             is_extension=True,
             options=("field_name",),
             protocol_method=MountainAshScalarStructExpressionSystemProtocol.struct_field,
@@ -2428,8 +2428,9 @@ def register_all_functions() -> None:
     MOUNTAINASH_AGGREGATE_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_AGGREGATE.COUNT_DISTINCT,
-            substrait_uri=None,
-            substrait_name=None,
+            substrait_uri=MountainashExtension.AGGREGATE,
+            substrait_name="n_unique",
+            is_extension=True,
             protocol_method=MountainashExtensionAggregateExpressionSystemProtocol.n_unique,
         ),
     ]
