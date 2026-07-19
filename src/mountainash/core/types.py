@@ -299,14 +299,19 @@ class BackendCapabilityError(MountainashError):
         *,
         backend: str,
         function_key: Any,
-        limitation: KnownLimitation | None = None,
+        limitation: Any = None,  # KnownLimitation | CapabilityFact
     ) -> None:
         parts = [f"[{backend}] {message}"]
-        if limitation:
-            if limitation.workaround:
-                parts.append(f"Workaround: {limitation.workaround}")
-            if limitation.upstream_issue:
-                parts.append(f"Upstream: {limitation.upstream_issue}")
+        if limitation is not None:
+            workaround = getattr(limitation, "workaround", None)
+            if workaround:
+                parts.append(f"Workaround: {workaround}")
+            upstream_url = getattr(limitation, "upstream_issue", None)
+            if upstream_url:
+                parts.append(f"Upstream: {upstream_url}")
+            upstream_ref = getattr(limitation, "upstream_ref", None)
+            if upstream_ref:
+                parts.append(f"Upstream ref: {upstream_ref}")
         super().__init__("\n".join(parts))
         self.backend = backend
         self.function_key = function_key

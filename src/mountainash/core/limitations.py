@@ -4,7 +4,9 @@ Extracted from expressions' BaseExpressionSystem._call_with_expr_support so
 both subsystems enrich known backend quirks identically. Lookup order per
 failure: each named arg's ``(operation_key, param)`` entry, then the
 ``(operation_key, "*")`` wildcard (how handler-routed relation operations
-and the materialization boundary participate).
+and the materialization boundary participate). The *limitations* mapping
+may hold either :class:`KnownLimitation` or :class:`CapabilityFact` entries
+(the spine's MATERIALIZE residue).
 """
 from __future__ import annotations
 
