@@ -115,3 +115,20 @@ class BaseExpressionAPIBuilder:
             New ExpressionAPI instance of the same type as the parent.
         """
         return self._api.create(node)
+
+
+def _reject_expression(param_name: str, value: Any, method_name: str) -> None:
+    """Raise TypeError if an expression is passed where a literal option is required.
+
+    Options must be raw Python values, not expressions (see principle:
+    arguments-vs-options.md). Shared by all API builders that expose
+    literal-only option parameters.
+    """
+    from ..api_base import BaseExpressionAPI
+    from ...expression_nodes import ExpressionNode
+
+    if isinstance(value, (ExpressionNode, BaseExpressionAPIBuilder, BaseExpressionAPI)):
+        raise TypeError(
+            f"{method_name}({param_name}=...) requires a literal value, not an expression. "
+            f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+        )
