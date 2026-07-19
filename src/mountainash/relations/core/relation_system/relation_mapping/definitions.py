@@ -2,9 +2,9 @@
 
 Substrait metadata columns: ``substrait_rel`` is the Substrait Rel message
 name; ``None`` marks a convenience variant with no direct mapping
-(FETCH_FROM_END, JOIN_ASOF, PROJECT_DROP, PROJECT_RENAME) — a future
-serializer must lower or reject those explicitly. ``substrait_op`` carries
-message-level variants (SetRel). Extension ops carry mountainash URIs.
+(PROJECT_DROP, PROJECT_RENAME) — a future serializer must lower or reject
+those explicitly. ``substrait_op`` carries message-level variants (SetRel).
+Extension ops carry mountainash URIs.
 """
 from __future__ import annotations
 
@@ -130,25 +130,11 @@ SUBSTRAIT_OPERATIONS = [
         args=(_IN, ArgBinding("offset", ArgKind.LITERAL), ArgBinding("count", ArgKind.LITERAL)),
     ),
     RelationOperationDef(
-        operation_key=RS.FETCH_FROM_END,
-        node_type=FetchRelNode,
-        substrait_rel=None,  # tail() convenience — no Substrait equivalent
-        protocol_method=SubstraitFetchRelationSystemProtocol.fetch_from_end,
-        args=(_IN, ArgBinding("count", ArgKind.LITERAL)),
-    ),
-    RelationOperationDef(
         operation_key=RS.JOIN,
         node_type=JoinRelNode,
         substrait_rel="JoinRel",
         protocol_method=SubstraitJoinRelationSystemProtocol.join,
         handler=handlers.visit_join,  # cross-backend right-side coercion
-    ),
-    RelationOperationDef(
-        operation_key=RS.JOIN_ASOF,
-        node_type=JoinRelNode,
-        substrait_rel=None,  # no AsofJoinRel in core Substrait
-        protocol_method=SubstraitJoinRelationSystemProtocol.join_asof,
-        handler=handlers.visit_join_asof,
     ),
     RelationOperationDef(
         operation_key=RS.AGGREGATE,
@@ -224,6 +210,24 @@ MOUNTAINASH_OPERATIONS = [
         is_extension=True,
         extension_uri=MountainashRelExtension.CONFORM,
         handler=handlers.visit_conform,
+    ),
+    RelationOperationDef(
+        operation_key=RM.FETCH_FROM_END,
+        node_type=FetchRelNode,
+        substrait_rel=None,
+        is_extension=True,
+        extension_uri=MountainashRelExtension.UTIL,
+        protocol_method=SubstraitFetchRelationSystemProtocol.fetch_from_end,
+        args=(_IN, ArgBinding("count", ArgKind.LITERAL)),
+    ),
+    RelationOperationDef(
+        operation_key=RM.JOIN_ASOF,
+        node_type=JoinRelNode,
+        substrait_rel=None,
+        is_extension=True,
+        extension_uri=MountainashRelExtension.UTIL,
+        protocol_method=SubstraitJoinRelationSystemProtocol.join_asof,
+        handler=handlers.visit_join_asof,
     ),
     RelationOperationDef(
         # No node type: invoked from the conform path, not node dispatch.
