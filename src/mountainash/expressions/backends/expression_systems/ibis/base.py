@@ -9,12 +9,20 @@ from typing import Any
 
 import ibis.expr.types as ir
 
-from mountainash.core.types import KnownLimitation
+from mountainash.core.capabilities import CapabilityFact, CapabilityLevel, CapabilityRegistry
 from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
+
+
+_IB_DT_MSG = "Ibis datetime offset operations require literal integer values"
+_IB_STR_MSG = (
+    "Ibis has no native equivalent; mountainash composes this operation "
+    "from literal parameters — dynamic column parameters are unsupported"
+)
 
 
 class IbisBaseExpressionSystem(BaseExpressionSystem):
@@ -24,22 +32,37 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
     Ibis protocol implementations.
     """
 
-    _IB_DATETIME_OFFSET_LITERAL_ONLY = KnownLimitation(
-        message="Ibis datetime offset operations require literal integer values",
-        native_errors=(TypeError,),
-        workaround="Use a literal integer for the offset amount",
-    )
+    BACKEND_NAME: str = "ibis"
 
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
-        (FK_DT.ADD_YEARS, "years"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MONTHS, "months"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_DAYS, "days"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_HOURS, "hours"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MINUTES, "minutes"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_SECONDS, "seconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MILLISECONDS, "milliseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MICROSECONDS, "microseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-    }
+    CAPABILITIES: tuple[CapabilityFact, ...] = tuple(
+        CapabilityFact(
+            operation_key=op, param=param, level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.IBIS, message=_IB_DT_MSG,
+            workaround="Use a literal integer for the offset amount",
+            since="2026-07-05",
+        )
+        for op, param in [
+            (FK_DT.ADD_YEARS, "years"), (FK_DT.ADD_MONTHS, "months"),
+            (FK_DT.ADD_DAYS, "days"), (FK_DT.ADD_HOURS, "hours"),
+            (FK_DT.ADD_MINUTES, "minutes"), (FK_DT.ADD_SECONDS, "seconds"),
+            (FK_DT.ADD_MILLISECONDS, "milliseconds"),
+            (FK_DT.ADD_MICROSECONDS, "microseconds"),
+        ]
+    ) + tuple(
+        CapabilityFact(
+            operation_key=op, param=param, level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.IBIS, message=_IB_STR_MSG,
+            workaround="Use a literal value, or the polars backend",
+            since="2026-07-05",
+        )
+        for op, param in [
+            (FK_STR.TRIM, "characters"), (FK_STR.LTRIM, "characters"),
+            (FK_STR.RTRIM, "characters"),
+            (FK_STR.CENTER, "length"), (FK_STR.CENTER, "character"),
+            (FK_STR.REPLACE_SLICE, "start"), (FK_STR.REPLACE_SLICE, "length"),
+            (FK_STR.REPLACE_SLICE, "replacement"),
+        ]
+    )
 
     @property
     def backend_type(self) -> CONST_BACKEND:
@@ -56,8 +79,6 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             True if expr is an Ibis expression type.
         """
         return isinstance(expr, (ir.Column, ir.Scalar, ir.Expr))
-
-    BACKEND_NAME: str = "ibis"
 
     def _lift_deferred(self, x: Any, y: Any) -> tuple[Any, Any]:
         """Fix the one broken operand ordering: concrete-left ∘ Deferred-right.
@@ -169,3 +190,6 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
                 pass
 
         return None
+
+
+CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, IbisBaseExpressionSystem.CAPABILITIES)

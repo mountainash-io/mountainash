@@ -21,6 +21,22 @@ if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
 
 
+def _escape_char_class(characters: str) -> str:
+    """Escape a literal character set for use inside a regex [...] class.
+
+    Only four characters are special inside a class: \\ ] ^ -
+    (^ only when first, - only when medial — escape both unconditionally
+    for cross-engine safety on duckdb/sqlite/polars regex flavours).
+    """
+    out = []
+    for ch in characters:
+        if ch in ("\\", "]", "^", "-"):
+            out.append("\\" + ch)
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarStringExpressionProtocol.
 
@@ -159,52 +175,49 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        characters: IbisValueExpr = None,
+        characters: str | None = None,
     ) -> IbisValueExpr:
         """Remove characters from both sides of the string.
 
-        Args:
-            input: String expression.
-            characters: Characters to remove (default: whitespace).
-
-        Returns:
-            Trimmed string.
+        `characters` arrives as a raw literal (visitor gate, LITERAL_ONLY);
+        composed via anchored re_replace since Ibis strip() takes no charset.
         """
-        return input.strip()
+        if characters is None:
+            return input.strip()
+        esc = _escape_char_class(str(characters))
+        return input.re_replace(f"^[{esc}]+|[{esc}]+$", "")
 
     def ltrim(
         self,
         input: IbisValueExpr,
         /,
-        characters: IbisValueExpr = None,
+        characters: str | None = None,
     ) -> IbisValueExpr:
         """Remove characters from the left side of the string.
 
-        Args:
-            input: String expression.
-            characters: Characters to remove (default: whitespace).
-
-        Returns:
-            Left-trimmed string.
+        `characters` arrives as a raw literal (visitor gate, LITERAL_ONLY);
+        composed via anchored re_replace since Ibis lstrip() takes no charset.
         """
-        return input.lstrip()
+        if characters is None:
+            return input.lstrip()
+        esc = _escape_char_class(str(characters))
+        return input.re_replace(f"^[{esc}]+", "")
 
     def rtrim(
         self,
         input: IbisValueExpr,
         /,
-        characters: IbisValueExpr = None,
+        characters: str | None = None,
     ) -> IbisValueExpr:
         """Remove characters from the right side of the string.
 
-        Args:
-            input: String expression.
-            characters: Characters to remove (default: whitespace).
-
-        Returns:
-            Right-trimmed string.
+        `characters` arrives as a raw literal (visitor gate, LITERAL_ONLY);
+        composed via anchored re_replace since Ibis rstrip() takes no charset.
         """
-        return input.rstrip()
+        if characters is None:
+            return input.rstrip()
+        esc = _escape_char_class(str(characters))
+        return input.re_replace(f"[{esc}]+$", "")
 
     def lpad(
         self,
@@ -262,26 +275,23 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        length: IbisValueExpr,
-        character: IbisValueExpr = None,
+        length: int,
+        character: str | None = None,
         padding: Any = None,
     ) -> IbisValueExpr:
-        """Center the input string by padding both sides.
+        """Center the input string (Python str.center semantics: extra pad
+        goes right; strings already >= length are returned unchanged).
 
-        Args:
-            input: String expression.
-            length: Target length.
-            character: Single padding character (default: space).
-            padding: Which side gets extra padding (ignored).
-
-        Returns:
-            Centered string.
-
-        Note:
-            Ibis doesn't have center. Falls back to input.
+        Oracle: today's cross-backend behaviour per parameter-sensitivity
+        tests (approved B2 semantics decision — NOT the Substrait docstring
+        edge semantics; see spec Disposition table).
         """
-        # Ibis doesn't have center - fallback
-        return input
+        char = " " if character is None else str(character)
+        n = int(length)
+        cur_len = input.length()
+        pad_left_target = cur_len + (n - cur_len) // 2
+        composed = input.lpad(pad_left_target, char).rpad(n, char)
+        return (cur_len >= n).ifelse(input, composed)
 
     # =========================================================================
     # Substring Operations
@@ -352,26 +362,18 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        start: IbisValueExpr,
-        length: IbisValueExpr,
-        replacement: IbisValueExpr,
+        start: int,
+        length: int,
+        replacement: str,
     ) -> IbisValueExpr:
-        """Replace a slice of the input string.
-
-        Args:
-            input: String expression.
-            start: Starting position (1-indexed).
-            length: Length to replace.
-            replacement: Replacement string.
-
-        Returns:
-            String with replaced slice.
-
-        Note:
-            Ibis doesn't have replace_slice. Falls back to input.
-        """
-        # Ibis doesn't have replace_slice - fallback
-        return input
+        """Replace a slice (1-indexed start, clamped — matches the Polars
+        implementation's observed semantics, the approved B2 oracle)."""
+        offset = int(start) - 1 if int(start) > 0 else 0
+        repl = str(replacement)
+        len_val = int(length)
+        return input.substr(0, offset).concat(
+            ibis.literal(repl), input.substr(offset + len_val)
+        )
 
     # =========================================================================
     # Search Operations
@@ -599,6 +601,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             literal) fall back to the raw expression.
         """
         input = self._lift_deferred_receiver(input, substring, replacement)
+        # A3 permanent exception: `replace` extracts the literal pattern when
+        # available so it can be regex-escaped; dynamic column patterns still
+        # fall through to the raw expression path.
         pattern = self._extract_literal_if_possible(substring)
         if isinstance(pattern, str):
             escaped = re.escape(pattern)

@@ -132,9 +132,9 @@ TRIM_CUSTOM_CHARS_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
-    pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
-    pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
 ]
 
 LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS = [
@@ -143,9 +143,9 @@ LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
-    pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
-    pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis trim ignores custom chars")),
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
 ]
 
 
@@ -177,14 +177,16 @@ class TestTrimParameterSensitivity:
 
     @pytest.mark.parametrize("backend_name", LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS)
     def test_rtrim_custom_chars_value(self, backend_name, backend_factory, collect_expr):
-        """rtrim('#') strips trailing hashes."""
-        data = {"val": ["hello##", "world#"]}
+        """rtrim('#') strips ONLY trailing hashes (mid-string '#' is kept)."""
+        # The first value carries a mid-string '#' so this test distinguishes a
+        # correct end-anchored rtrim from one that strips the char class anywhere.
+        data = {"val": ["he#llo##", "world#"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.rtrim("#")
         actual = collect_expr(df, expr)
 
-        assert actual == ["hello", "world"], f"[{backend_name}] got {actual}"
+        assert actual == ["he#llo", "world"], f"[{backend_name}] got {actual}"
 
     @pytest.mark.parametrize("backend_name", TRIM_CUSTOM_CHARS_BACKENDS)
     def test_trim_sensitivity(self, backend_name, backend_factory, assert_parameter_sensitivity):
@@ -375,9 +377,14 @@ class TestDatetimeParameterSensitivity:
     "polars",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
     pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis no center")),
-    pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis no center")),
-    pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis no center")),
+    pytest.param(
+        "ibis-polars",
+        marks=pytest.mark.xfail(
+            reason="ibis-polars does not support columnar length argument in str.lpad/rpad"
+        ),
+    ),
+    "ibis-duckdb",
+    "ibis-sqlite",
 ])
 class TestCenterParameterSensitivity:
     """center(width, char) parameters must reach the backend."""
@@ -417,9 +424,9 @@ class TestCenterParameterSensitivity:
     "polars",
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
     pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis no replace_slice")),
-    pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis no replace_slice")),
-    pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="ibis no replace_slice")),
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
 ])
 class TestReplaceSliceParameterSensitivity:
     """replace_slice(start, length, replacement) parameters must reach backend."""
