@@ -48,6 +48,10 @@ class MountainashExtension:
     ARITHMETIC = "file://extensions/functions_arithmetic.yaml"
     COMPARISON = "file://extensions/functions_comparison.yaml"
     STRING = "file://extensions/functions_string.yaml"
+    WINDOW = "file://extensions/functions_window.yaml"
+    STRUCT = "file://extensions/functions_struct.yaml"
+    LIST = "file://extensions/functions_list.yaml"
+    AGGREGATE = "file://extensions/functions_aggregate.yaml"
 
 
 
