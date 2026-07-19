@@ -69,3 +69,22 @@ def test_invalid_missing_name():
         is_extension=False,
     )
     assert classify_expression_def(d) is None
+
+
+def test_every_registered_def_has_valid_provenance():
+    from mountainash.expressions.core.expression_system.function_mapping.registry import (
+        ExpressionFunctionRegistry,
+        classify_expression_def,
+    )
+
+    invalid = [
+        key
+        for key in ExpressionFunctionRegistry.list_all()
+        if classify_expression_def(ExpressionFunctionRegistry.get(key)) is None
+    ]
+    assert not invalid, (
+        "ExpressionFunctionDefs with incomplete/inconsistent provenance metadata "
+        "(each must be Substrait-catalog [is_extension=False + SubstraitExtension URI + name] "
+        "or Mountainash-extension [is_extension=True + MountainashExtension URI + name]):\n"
+        + "\n".join(f"  - {k}" for k in invalid)
+    )
