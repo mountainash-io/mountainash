@@ -45,6 +45,9 @@ class BaseExpressionSystem(ABC):
 
     BACKEND_NAME: str = "unknown"
 
+    def __init__(self, dialect: str | None = None) -> None:
+        self.dialect = dialect
+
     def _extract_literal_if_possible(self, expr: Any) -> Any:
         """Extract the raw Python value from a literal expression, if possible.
 
@@ -79,3 +82,10 @@ class BaseExpressionSystem(ABC):
             operation_key=function_key,
             named_args=tuple(named_args),
         )
+
+
+from mountainash.core.capabilities.core_facts import (  # noqa: E402
+    register_core_polymorphic_facts,
+)
+
+register_core_polymorphic_facts()  # noqa: E402

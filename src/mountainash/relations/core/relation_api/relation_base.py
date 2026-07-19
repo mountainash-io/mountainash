@@ -58,10 +58,16 @@ class RelationBase:
                 raise ValueError(f"unknown backend: {backend!r}")
         else:
             resolved_backend = self._detect_backend_from(node)
+        dialect: str | None = None
+        leaf = self._find_leaf_read_node(node)
+        if leaf is not None:
+            from mountainash.core.backend_detection import identify_backend_identity
+
+            dialect = identify_backend_identity(leaf.dataframe).dialect
         relation_system_cls = get_relation_system(resolved_backend)
-        relation_system = relation_system_cls()
+        relation_system = relation_system_cls(dialect=dialect)
         expression_system_cls = get_expression_system(resolved_backend)
-        expression_system = expression_system_cls()
+        expression_system = expression_system_cls(dialect=dialect)
         expr_visitor = UnifiedExpressionVisitor(expression_system)
         visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
         return visitor.visit(node), visitor

@@ -19,3 +19,6 @@ class BaseRelationSystem:
     KNOWN_REL_LIMITATIONS: dict[tuple[Any, str], "KnownLimitation"] = {}
 
     BACKEND_NAME: str = "unknown"
+
+    def __init__(self, dialect: str | None = None) -> None:
+        self.dialect = dialect

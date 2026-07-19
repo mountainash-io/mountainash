@@ -26,7 +26,7 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY, SUBSTRAIT_ARITHMETIC_WINDOW, FKEY_MOUNTAINASH_WINDOW
+from ..expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW, FKEY_MOUNTAINASH_WINDOW
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
@@ -49,14 +49,16 @@ class UnifiedExpressionVisitor:
         >>> backend_expr = visitor.visit(node)
     """
 
-    def __init__(self, expression_system: Any) -> None:
+    def __init__(self, expression_system: Any, enforce_capabilities: bool = True) -> None:
         """Initialize the visitor with a backend expression system.
 
         Args:
             expression_system: Backend ExpressionSystem instance
                               (e.g., PolarsExpressionSystem, IbisExpressionSystem)
+            enforce_capabilities: When False, skip the compile-time capability gate.
         """
         self.backend = expression_system
+        self.enforce_capabilities = enforce_capabilities
 
     def _resolve_argument(
         self,
@@ -305,6 +307,83 @@ class UnifiedExpressionVisitor:
 
         return self.backend.col(node.field)
 
+    def _gate_and_resolve_args(self, function_key, arguments, protocol_method):
+        """Per-argument capability gate (spec Section 2).
+
+        LITERAL_ONLY + LiteralNode -> raw value; LITERAL_ONLY + dynamic ->
+        compile-time BackendCapabilityError; UNSUPPORTED -> immediate error;
+        POLYMORPHIC -> LiteralNode unwraps, expressions compile; default ->
+        visit normally. Conditioned facts (fact.condition set) never gate
+        here — they are enforced backend-side.
+        """
+        import inspect
+
+        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+        from mountainash.core.types import BackendCapabilityError
+
+        backend_family = self.backend.backend_type
+        dialect = getattr(self.backend, "dialect", None)
+
+        # Map node.arguments positions to protocol param names.
+        # Signature shape: (self, input, /, a, b=None, *varargs) — skip self;
+        # a VAR_POSITIONAL param name applies to all remaining arguments.
+        sig_params = [
+            p for p in inspect.signature(protocol_method).parameters.values()
+            if p.name != "self"
+        ]
+
+        def _param_name_for(index: int) -> str | None:
+            if index < len(sig_params):
+                return sig_params[index].name
+            if sig_params and sig_params[-1].kind is inspect.Parameter.VAR_POSITIONAL:
+                return sig_params[-1].name
+            return None
+
+        resolved = []
+        for i, arg in enumerate(arguments):
+            param_name = _param_name_for(i)
+            fact = None
+            if self.enforce_capabilities and param_name is not None:
+                fact = CapabilityRegistry.capability_for(
+                    function_key, param_name, backend_family, dialect
+                )
+                if fact is not None and fact.condition is not None:
+                    fact = None  # conditioned facts don't gate structurally
+
+            level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
+
+            if level is CapabilityLevel.UNSUPPORTED:
+                raise BackendCapabilityError(
+                    fact.message,
+                    backend=self.backend.BACKEND_NAME,
+                    function_key=function_key,
+                    limitation=fact,
+                )
+            if level is CapabilityLevel.LITERAL_ONLY:
+                if isinstance(arg, LiteralNode):
+                    resolved.append(arg.value)
+                elif isinstance(arg, ExpressionNode):
+                    raise BackendCapabilityError(
+                        fact.message,
+                        backend=self.backend.BACKEND_NAME,
+                        function_key=function_key,
+                        limitation=fact,
+                    )
+                else:
+                    resolved.append(arg)  # already a raw value
+            elif level is CapabilityLevel.POLYMORPHIC:
+                if isinstance(arg, LiteralNode):
+                    resolved.append(arg.value)
+                elif isinstance(arg, ExpressionNode):
+                    resolved.append(self.visit(arg))
+                else:
+                    resolved.append(arg)
+            else:
+                resolved.append(
+                    self.visit(arg) if isinstance(arg, ExpressionNode) else arg
+                )
+        return resolved
+
     def visit_scalar_function(self, node: ScalarFunctionNode) -> SupportedExpressions:
         """Compile a scalar function call to backend expression.
 
@@ -330,32 +409,9 @@ class UnifiedExpressionVisitor:
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
-        # Special handling for functions that need raw values from LiteralNodes
-        # instead of visiting them as expressions (which would convert them to
-        # backend literals like pl.lit("A") instead of raw values like "A")
-        from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_SET
-        _raw_value_functions = {
-            FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
-        }
-        if node.function_key in _raw_value_functions:
-            args = []
-            for i, arg in enumerate(node.arguments):
-                # For is_in/is_not_in: first arg (needle) should be visited,
-                # rest (haystack) should be raw values
-                if node.function_key in (FKEY_MOUNTAINASH_SCALAR_SET.IS_IN, FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN) and i == 0:
-                    args.append(self.visit(arg) if isinstance(arg, ExpressionNode) else arg)
-                elif isinstance(arg, LiteralNode):
-                    args.append(arg.value)
-                elif isinstance(arg, ExpressionNode):
-                    args.append(self.visit(arg))
-                else:
-                    args.append(arg)
-        else:
-            # Resolve arguments by visiting child nodes
-            args = [self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-                    for arg in node.arguments]
+        args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method
+        )
 
         # Get the backend method
         if not hasattr(self.backend, method_name):
@@ -427,35 +483,46 @@ class UnifiedExpressionVisitor:
             Backend cast expression
         """
         input_expr = self.visit(node.input)
+        if self.enforce_capabilities:
+            from mountainash.core.capabilities import (
+                CapabilityLevel, CapabilityRegistry, WILDCARD_PARAM,
+            )
+            from mountainash.core.types import BackendCapabilityError
+            from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+
+            fact = CapabilityRegistry.capability_for(
+                FKEY_SUBSTRAIT_CAST.CAST, WILDCARD_PARAM,
+                self.backend.backend_type, getattr(self.backend, "dialect", None),
+            )
+            if fact is not None and fact.condition is None \
+                    and fact.level is CapabilityLevel.UNSUPPORTED:
+                raise BackendCapabilityError(
+                    fact.message, backend=self.backend.BACKEND_NAME,
+                    function_key=FKEY_SUBSTRAIT_CAST.CAST, limitation=fact,
+                )
         return self.backend.cast(
             input_expr, node.target_type, failure_behavior=node.failure_behavior
         )
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
-        """Compile a membership test (IN operator) to backend expression.
+        """Compile a membership test (IN operator) to backend expression."""
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_SET,
+        )
+        from mountainash.expressions.core.expression_system.function_mapping.registry import (
+            ExpressionFunctionRegistry,
+        )
 
-        Args:
-            node: SingularOrListNode with value and options list
-
-        Returns:
-            Backend is_in expression
-        """
-        value_expr = self.visit(node.value)
-
-        # Options can be nodes or literal values
-        # For is_in, we typically pass the literal values directly
-        options = []
-        for opt in node.options:
-            if isinstance(opt, LiteralNode):
-                # Extract literal value for the list
-                options.append(opt.value)
-            elif isinstance(opt, SubstraitNode):
-                # Compile and add (for expression-based membership)
-                options.append(self.visit(opt))
-            else:
-                # Already a value
-                options.append(opt)
-
+        protocol_method = ExpressionFunctionRegistry.get_protocol_method(
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN
+        )
+        # needle maps to param 0; every options member maps to *haystack
+        # (VAR_POSITIONAL) via _param_name_for's trailing-varargs rule.
+        value_expr, *options = self._gate_and_resolve_args(
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            (node.value, *node.options),
+            protocol_method,
+        )
         return self.backend.is_in(value_expr, *options)
 
     def visit_window_function(self, node: WindowFunctionNode) -> SupportedExpressions:
@@ -489,10 +556,9 @@ class UnifiedExpressionVisitor:
         method_name = protocol_method.__name__
 
         # Resolve arguments
-        compiled_args = [
-            self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-            for arg in node.arguments
-        ]
+        compiled_args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method
+        )
 
         # Call backend method
         method = getattr(self.backend, method_name)

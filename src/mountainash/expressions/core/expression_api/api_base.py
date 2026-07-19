@@ -178,15 +178,16 @@ class BaseExpressionAPI(ABC):
             >>> # Raw sentinels: for testing/debugging
             >>> backend_expr = expr.compile(df, booleanizer=None)
         """
-        from ..expression_system.expsys_base import identify_backend, get_expression_system
+        from ..expression_system.expsys_base import get_expression_system
+        from mountainash.core.backend_detection import identify_backend_identity
 
         # Auto-booleanize non-terminal ternary expressions
         node_to_compile = self._maybe_booleanize(booleanizer)
 
         # Detect backend and get ExpressionSystem
-        backend_type = identify_backend(dataframe)
-        expression_system_class = get_expression_system(backend_type)
-        expression_system = expression_system_class()
+        identity = identify_backend_identity(dataframe)
+        expression_system_class = get_expression_system(identity.family)
+        expression_system = expression_system_class(dialect=identity.dialect)
 
         # Check if this is an ExpressionNode
         from ..expression_nodes import ExpressionNode
