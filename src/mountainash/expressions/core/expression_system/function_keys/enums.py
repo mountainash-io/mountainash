@@ -456,6 +456,12 @@ class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     # Arithmetic
     ADD_INTERVALS = auto()
 
+    # Migrated from mountainash namespace — catalog functions_datetime.yaml ops
+    ASSUME_TIMEZONE = auto()
+    STRFTIME = auto()
+    STRPTIME_DATE = auto()
+    STRPTIME_TIMESTAMP = auto()
+
 
 class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     """Mountainash datetime functions.
@@ -516,10 +522,6 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
 
     # Timezone
     TO_TIMEZONE = auto()
-    ASSUME_TIMEZONE = auto()
-
-    # Formatting
-    STRFTIME = auto()
 
     # Snapshot
     TODAY = auto()
@@ -589,8 +591,6 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
 
     REGEX_CONTAINS = "regex_contains"
     STRIP_SUFFIX = "strip_suffix"
-    TO_DATE = "to_date"
-    TO_DATETIME = "to_datetime"
     TO_TIME = "to_time"
     TO_INTEGER = "to_integer"
     JSON_DECODE = "json_decode"

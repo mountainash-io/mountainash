@@ -14,6 +14,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_STRING,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
 )
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 
@@ -153,7 +154,7 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
     def to_date(self, format: str) -> BaseExpressionAPI:
         """Parse string to date using format string."""
         node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
             arguments=[self._node],
             options={"format": format},
         )
@@ -162,7 +163,7 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
     def to_datetime(self, format: str) -> BaseExpressionAPI:
         """Parse string to datetime using format string."""
         node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
             arguments=[self._node],
             options={"format": format},
         )

@@ -762,16 +762,16 @@ def register_all_functions() -> None:
             options=("suffix",),
         ),
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATE,
-            substrait_uri=None,
-            substrait_name=None,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
+            substrait_name="strptime_date",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_date,
             options=("format",),
         ),
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_DATETIME,
-            substrait_uri=None,
-            substrait_name=None,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
+            substrait_name="strptime_timestamp",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
             options=("format",),
         ),
@@ -1920,7 +1920,7 @@ def register_all_functions() -> None:
         #     protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.to_timezone,
         # ),
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="assume_timezone",
             options=("timezone",),
@@ -1928,7 +1928,7 @@ def register_all_functions() -> None:
         ),
         # Formatting
         ExpressionFunctionDef(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRFTIME,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strftime",
             options=("format",),

@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+)
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarDatetimeAPIBuilderProtocol
 
@@ -864,7 +867,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         """
         _reject_expression("timezone", timezone, "assume_timezone")
         node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
             arguments=[self._node],
             options={"timezone": timezone},
         )
@@ -893,7 +896,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         """
         _reject_expression("format", format, "strftime")
         node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRFTIME,
             arguments=[self._node],
             options={"format": format},
         )
