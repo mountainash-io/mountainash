@@ -167,6 +167,28 @@ class TestNoOrphanKeys:
             assert d.protocol_method is not None or d.handler is not None, key
 
 
+class TestProvenanceClassification:
+    def test_every_relation_def_has_valid_classification(self):
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            RelationOperationRegistry,
+            classify_relation_def,
+        )
+
+        # NOTE: list_all() (registry.py:132-135) returns operation KEYS, not defs —
+        # fetch each def with .get(key), matching the existing audit tests
+        # (test_rel_wiring_audit_registry.py:103-107, :165-167).
+        invalid = [
+            key
+            for key in RelationOperationRegistry.list_all()
+            if classify_relation_def(RelationOperationRegistry.get(key)) is None
+        ]
+        assert not invalid, (
+            "RelationOperationDefs with invalid serialization classification "
+            "(each must be exactly one of direct / lowered / extension, spec §5.4):\n"
+            + "\n".join(f"  - {k}" for k in invalid)
+        )
+
+
 class TestNodeCoverage:
     def _all_node_subclasses(self):
         import mountainash.relations  # noqa: F401  (loads core nodes)
