@@ -239,7 +239,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         /,
         length: PolarsExpr,
-        characters: PolarsExpr = None,
+        characters: str | None = None,
     ) -> PolarsExpr:
         """Left-pad the input string to specified length.
 
@@ -251,19 +251,15 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Left-padded string.
         """
-        fill_char = " " if characters is None else self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.pad_start(length, fill_char=str(fill_char)),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
-            length=length,
-        )
+        fill_char = " " if characters is None else str(characters)
+        return input.str.pad_start(length, fill_char=fill_char)
 
     def rpad(
         self,
         input: PolarsExpr,
         /,
         length: PolarsExpr,
-        characters: PolarsExpr = None,
+        characters: str | None = None,
     ) -> PolarsExpr:
         """Right-pad the input string to specified length.
 
@@ -275,19 +271,15 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Right-padded string.
         """
-        fill_char = " " if characters is None else self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.pad_end(length, fill_char=str(fill_char)),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
-            length=length,
-        )
+        fill_char = " " if characters is None else str(characters)
+        return input.str.pad_end(length, fill_char=fill_char)
 
     def center(
         self,
         input: PolarsExpr,
         /,
-        length: PolarsExpr,
-        character: PolarsExpr = None,
+        length: int,
+        character: str | None = None,
         padding: Any = None,
     ) -> PolarsExpr:
         """Center the input string by padding both sides.
@@ -301,10 +293,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Centered string.
         """
-        fill_char_val = " " if character is None else self._extract_literal_if_possible(character)
-        length_val = self._extract_literal_if_possible(length)
-        target_len = int(length_val)
-        char = str(fill_char_val) if not isinstance(fill_char_val, str) else fill_char_val
+        char = " " if character is None else str(character)
+        target_len = int(length)
         return input.map_elements(
             lambda s: s.center(target_len, char) if s is not None else None,
             return_dtype=pl.String,
@@ -376,11 +366,11 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        start: PolarsExpr,
-        length: PolarsExpr,
-        replacement: PolarsExpr,
+        start: int,
+        length: int,
+        replacement: str,
     ) -> PolarsExpr:
-        """Replace a slice of the input string.
+        """Replace a slice of the input string (1-indexed start, clamped).
 
         Args:
             input: String expression.
@@ -391,12 +381,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             String with replaced slice.
         """
-        start_val = self._extract_literal_if_possible(start)
-        length_val = self._extract_literal_if_possible(length)
-        replacement_val = self._extract_literal_if_possible(replacement)
-        offset = int(start_val) - 1 if int(start_val) > 0 else 0
-        repl = str(replacement_val)
-        len_val = int(length_val)
+        offset = int(start) - 1 if int(start) > 0 else 0
+        repl = str(replacement)
+        len_val = int(length)
         return input.map_elements(
             lambda s: (s[:offset] + repl + s[offset + len_val :]) if s is not None else None,
             return_dtype=pl.String,
@@ -612,7 +599,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        substring: PolarsExpr,
+        substring: str,
         replacement: PolarsExpr,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
@@ -633,7 +620,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        count: PolarsExpr,
+        count: int,
     ) -> PolarsExpr:
         """Repeat a string count number of times.
 
@@ -644,8 +631,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Repeated string.
         """
-        count_val = self._extract_literal_if_possible(count)
-        n = int(count_val)
+        n = int(count)
         return input.map_elements(
             lambda s: s * n if s is not None else None,
             return_dtype=pl.String,
@@ -670,7 +656,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        match: PolarsExpr,
+        match: str,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
         """SQL LIKE pattern matching (% and _ wildcards).
@@ -683,10 +669,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
-        # Extract literal value — SQL LIKE → regex conversion requires a string
-        pattern = self._extract_literal_if_possible(match)
-
-        pattern_str = str(pattern)
+        pattern_str = str(match)
         # Convert SQL LIKE pattern to regex
         # Use placeholders to avoid conflicts during escaping
         like_pattern = pattern_str.replace("%", "\x00PERCENT\x00").replace("_", "\x00UNDERSCORE\x00")
@@ -809,7 +792,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        pattern: PolarsExpr,
+        pattern: str,
         replacement: PolarsExpr,
         position: Optional[int] = None,
         occurrence: Optional[int] = None,
@@ -834,19 +817,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         # If occurrence is 0 or None, replace all
         if occurrence is None or occurrence == 0:
-            return self._call_with_expr_support(
-                lambda: input.str.replace_all(pattern, replacement, literal=False),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
-                pattern=pattern,
-                replacement=replacement,
-            )
+            return input.str.replace_all(pattern, replacement, literal=False)
         # Replace first occurrence only
-        return self._call_with_expr_support(
-            lambda: input.str.replace(pattern, replacement, literal=False),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
-            pattern=pattern,
-            replacement=replacement,
-        )
+        return input.str.replace(pattern, replacement, literal=False)
 
     # =========================================================================
     # Split Operations
