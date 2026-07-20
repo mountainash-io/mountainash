@@ -23,15 +23,10 @@ except ModuleNotFoundError:  # pragma: no cover
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "known-divergences.md"
-YAML_REGISTRY = (
-    PROJECT_ROOT.parent
-    / "mountainash-central"
-    / "01.principles"
-    / "mountainash"
-    / "h.backlog"
-    / "upstream-issues"
-    / "upstream-issues.yaml"
-)
+# Registry moved in-repo in capability-spine Phase 2 (was mountainash-central).
+# Phase 4 retargets this generator's *source* to core.capabilities.divergences
+# (KNOWN_DIVERGENCES) joined with this registry; until then it reads the YAML.
+YAML_REGISTRY = PROJECT_ROOT / "registry" / "upstream-issues.yaml"
 
 TIMESTAMP_PREFIX = "> Last generated: "
 

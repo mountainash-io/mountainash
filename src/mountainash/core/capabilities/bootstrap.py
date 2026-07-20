@@ -2,8 +2,12 @@
 
 Any consumer that enumerates CapabilityRegistry.facts() (probes, integrity
 guards, upstream-join tests, report generators, plan validation) calls this
-first. Backends whose optional dependency is absent are skipped — their
-facts simply don't load, matching how the backend itself behaves.
+first. Declaration modules are import-safe pure data and are loaded
+unconditionally, so capability facts register even when an optional native
+backend (e.g. ibis) is not installed. The declaration modules import no
+backend library themselves; a backend's native library is imported only when
+that backend is actually available (its implementation package probes the
+dependency and skips cleanly when absent).
 """
 from __future__ import annotations
 
@@ -11,10 +15,8 @@ import importlib
 
 _DECLARATION_MODULES = (
     "mountainash.expressions.backends.expression_systems.polars.base",
-    "mountainash.expressions.backends.expression_systems.ibis.base",
+    "mountainash.expressions.backends.expression_systems.ibis_capabilities",
     "mountainash.expressions.backends.expression_systems.narwhals.base",
-    "mountainash.relations.backends.relation_systems.polars.base",
-    "mountainash.relations.backends.relation_systems.ibis.base",
     "mountainash.relations.backends.relation_systems.narwhals.base",
     "mountainash.core.capabilities.core_facts",
 )
@@ -23,17 +25,12 @@ _loaded = False
 
 
 def load_all_capability_declarations() -> None:
-    """Import every declaration module (idempotent). Optional backends whose
-    dependency is missing are skipped, exactly as the backend itself would be.
-    """
+    """Import every declaration module unconditionally and idempotently."""
     global _loaded
     if _loaded:
         return
     for module in _DECLARATION_MODULES:
-        try:
-            importlib.import_module(module)
-        except ImportError:
-            continue  # optional backend not installed — its facts don't apply
+        importlib.import_module(module)
     from mountainash.core.capabilities.core_facts import register_core_polymorphic_facts
 
     register_core_polymorphic_facts()

@@ -35,6 +35,17 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
             level=CapabilityLevel.LITERAL_ONLY,
             backend=CONST_BACKEND.POLARS,
             message=message, workaround=workaround, since="2026-07-05",
+            upstream_ref={
+                (FK_STR.REPLACE, "substring"): "PL-STR-01",
+                (FK_STR.REGEXP_REPLACE, "pattern"): "PL-STR-02",
+                (FK_STR.REPEAT, "count"): "PL-STR-03",
+                (FK_STR.CENTER, "length"): "PL-STR-03",
+                (FK_STR.CENTER, "character"): "PL-STR-03",
+                (FK_STR.REPLACE_SLICE, "start"): "PL-STR-03",
+                (FK_STR.REPLACE_SLICE, "length"): "PL-STR-03",
+                (FK_STR.LPAD, "characters"): "PL-STR-03",
+                (FK_STR.RPAD, "characters"): "PL-STR-03",
+            }.get((op, param)),
         )
         for op, param, message, workaround in [
             (FK_STR.REPLACE, "substring",
@@ -106,4 +117,3 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
 
 
 CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, PolarsBaseExpressionSystem.CAPABILITIES)
-

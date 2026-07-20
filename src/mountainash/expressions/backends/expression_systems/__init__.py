@@ -15,14 +15,21 @@ __all__ = [
     "PolarsExpressionSystem",
 ]
 
+# Optional backends: probe the dependency itself so a genuine "backend not
+# installed" is skipped, but a real (nested) ImportError inside the backend's
+# own module surfaces instead of being silently swallowed.
 try:
+    import narwhals  # noqa: F401 — optional-backend availability probe
+except ImportError:
+    pass  # narwhals not installed — skip its expression system
+else:
     from .narwhals import NarwhalsExpressionSystem
     __all__.append("NarwhalsExpressionSystem")
-except ImportError:
-    pass
 
 try:
+    import ibis  # noqa: F401 — optional-backend availability probe
+except ImportError:
+    pass  # ibis not installed — skip its expression system
+else:
     from .ibis import IbisExpressionSystem
     __all__.append("IbisExpressionSystem")
-except ImportError:
-    pass

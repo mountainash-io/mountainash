@@ -127,6 +127,25 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 message=_NW_STRING_MSG,
                 workaround="Use a literal string value instead of a column reference",
                 since="2026-07-05",
+                upstream_ref={
+                    (FK_STR.STARTS_WITH, "substring"): "NW-STR-01",
+                    (FK_STR.ENDS_WITH, "substring"): "NW-STR-01",
+                    (FK_STR.CONTAINS, "substring"): "NW-STR-01",
+                    (FK_STR.REPLACE, "substring"): "NW-STR-03",
+                    (FK_STR.REPLACE, "replacement"): "NW-STR-03",
+                    (FK_STR.LIKE, "match"): "NW-STR-01",
+                    (FK_STR.REGEXP_REPLACE, "pattern"): "NW-STR-05",
+                    (FK_STR.REGEXP_REPLACE, "replacement"): "NW-STR-05",
+                    (FK_STR.SUBSTRING, "start"): "NW-STR-06",
+                    (FK_STR.SUBSTRING, "length"): "NW-STR-06",
+                    (FK_STR.LPAD, "length"): "NW-STR-06",
+                    (FK_STR.RPAD, "length"): "NW-STR-06",
+                    (FK_STR.LEFT, "count"): "NW-STR-06",
+                    (FK_STR.RIGHT, "count"): "NW-STR-06",
+                    (FK_STR.TRIM, "characters"): "NW-STR-07",
+                    (FK_STR.LTRIM, "characters"): "NW-STR-07",
+                    (FK_STR.RTRIM, "characters"): "NW-STR-07",
+                }.get((op, param)),
             )
             for op, param in _STRING_LITERAL_ONLY
         )
@@ -136,12 +155,14 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
                 message="Narwhals str.lpad() requires a single literal fill character, not a column expression",
                 workaround="Use a literal single-character string", since="2026-07-05",
+                upstream_ref="NW-STR-06",
             ),
             CapabilityFact(
                 operation_key=FK_STR.RPAD, param="characters",
                 level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
                 message="Narwhals str.rpad() requires a single literal fill character, not a column expression",
                 workaround="Use a literal single-character string", since="2026-07-05",
+                upstream_ref="NW-STR-06",
             ),
             # NOTE: the legacy dict's defensive (REGEX_CONTAINS, "pattern")
             # entry is intentionally NOT migrated: pattern is annotated `str`
@@ -162,6 +183,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 boundary=Boundary.MATERIALIZE,
                 native_errors=_NW_LIST_NATIVE_ERRORS,
                 probe_exempt=_NW_LIST_PROBE_EXEMPT,
+                upstream_ref="NW-LIST-01",
             ),
             CapabilityFact(
                 operation_key=FK_MA_TERN.T_IS_NOT_IN, param="collection",
@@ -173,6 +195,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 boundary=Boundary.MATERIALIZE,
                 native_errors=_NW_LIST_NATIVE_ERRORS,
                 probe_exempt=_NW_LIST_PROBE_EXEMPT,
+                upstream_ref="NW-LIST-01",
             ),
         )
         + tuple(
@@ -183,6 +206,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 message=_NW_DT_MSG,
                 workaround="Use a literal integer for the offset amount",
                 since="2026-07-05",
+                upstream_ref="NW-DT-01",
             )
             for op, param in _DT_LITERAL_ONLY
         )
@@ -193,6 +217,13 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 backend=CONST_BACKEND.NARWHALS, dialect=dialect,
                 message="fixed upstream on the polars-backed narwhals path",
                 since="2026-07-05",
+                upstream_ref={
+                    (FK_STR.CONTAINS, "substring"): "NW-STR-01",
+                    (FK_STR.STARTS_WITH, "substring"): "NW-STR-01",
+                    (FK_STR.ENDS_WITH, "substring"): "NW-STR-01",
+                    (FK_STR.REPLACE, "replacement"): "NW-STR-03",
+                    (FK_STR.REGEXP_REPLACE, "replacement"): "NW-STR-05",
+                }.get((op, param)),
             )
             for op, param in _POLARS_BACKED_FIXED
             for dialect in ("narwhals-polars", "narwhals-lazy")
