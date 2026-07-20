@@ -380,8 +380,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if case_sensitivity == "CASE_INSENSITIVE":
             return input.str.to_lowercase().str.contains(
-                    substring.str.to_lowercase(), literal=True
-                )
+                substring.str.to_lowercase(), literal=True
+            )
         return input.str.contains(substring, literal=True)
 
     def starts_with(
