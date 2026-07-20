@@ -3,8 +3,11 @@
 Any consumer that enumerates CapabilityRegistry.facts() (probes, integrity
 guards, upstream-join tests, report generators, plan validation) calls this
 first. Declaration modules are import-safe pure data and are loaded
-unconditionally. Optional native backends are imported only by their
-implementation classes, not here.
+unconditionally, so capability facts register even when an optional native
+backend (e.g. ibis) is not installed. The declaration modules import no
+backend library themselves; a backend's native library is imported only when
+that backend is actually available (its implementation package probes the
+dependency and skips cleanly when absent).
 """
 from __future__ import annotations
 

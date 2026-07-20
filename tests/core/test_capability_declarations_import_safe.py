@@ -26,6 +26,9 @@ def test_ibis_capabilities_register_without_ibis_installed():
         from mountainash.core.capabilities import CapabilityRegistry
         from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
         load_all_capability_declarations()
+        # No transitive ibis import occurred: the declaration path never
+        # successfully imported the blocked backend.
+        assert "ibis" not in sys.modules, "ibis was imported despite being blocked"
         refs = {f.upstream_ref for f in CapabilityRegistry.facts() if f.upstream_ref}
         n_ibis = sum(1 for f in CapabilityRegistry.facts() if str(f.backend) == "ibis")
         assert "IB-DT-01" in refs, "IB-DT-01 missing without ibis: " + repr(sorted(refs))

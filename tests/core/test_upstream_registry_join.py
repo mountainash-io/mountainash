@@ -110,3 +110,20 @@ def test_pending_entries_are_real_open_and_justified():
             "— it does not need parking; remove it from the pending set"
         )
         assert reason.strip(), f"parked {entry_id} has an empty reason"
+
+    # Each bucket's reasons must carry the bucket's classification descriptor,
+    # so a future misparking (e.g. a divergence-worded reason in the capability
+    # bucket) is caught here rather than silently misleading Phase 3's draining.
+    for entry_id, reason in _PENDING_DIVERGENCE_FACTS.items():
+        assert "divergence" in reason, f"{entry_id}: divergence bucket reason must say 'divergence'"
+    for entry_id, reason in _PENDING_CAPABILITY_FACTS.items():
+        assert "capability gap" in reason, (
+            f"{entry_id}: capability bucket reason must say 'capability gap'"
+        )
+        assert "result divergence" not in reason, (
+            f"{entry_id}: capability-bucket entry is mislabelled 'result divergence'"
+        )
+    for entry_id, reason in _PENDING_INTERNAL_GAPS.items():
+        assert "internal-wiring gap" in reason, (
+            f"{entry_id}: internal bucket reason must say 'internal-wiring gap'"
+        )
