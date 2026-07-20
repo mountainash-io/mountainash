@@ -7,15 +7,10 @@ import importlib
 from typing import Any, Iterable
 
 from expressions.argument_types._introspection import ProtocolParam, introspect_protocols
+from mountainash.core.capabilities import GapKind, KnownGap  # noqa: F401
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
-
-
-@dataclass(frozen=True)
-class KnownGap:
-    reason: str
-    since: str
 
 
 @dataclass(frozen=True)

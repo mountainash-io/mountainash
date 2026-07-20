@@ -8,10 +8,11 @@ strict-xfailed, every RKEY has a def, and every node type is dispatchable.
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass
+from datetime import date
 
 import pytest
 
+from mountainash.core.capabilities import GapKind, KnownGap
 from mountainash.relations.backends.relation_systems.polars import PolarsRelationSystem
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
@@ -66,27 +67,31 @@ REL_WIRING_PROTOCOL_REGISTRY = {
 }
 
 
-@dataclass(frozen=True)
-class KnownGap:
-    reason: str
-    since: str  # "Since YYYY-MM-DD ..."
-
-
 KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     (SubstraitSetRelationSystemProtocol, "union_multiset"): KnownGap(
-        "Substrait SetOp domain; no consumer demand yet", "Since 2026-07-03"
+        gap_kind=GapKind.ASPIRATIONAL,
+        reason="Substrait SetOp domain; no consumer demand yet",
+        since="2026-07-03",
     ),
     (SubstraitSetRelationSystemProtocol, "minus_primary"): KnownGap(
-        "Substrait SetOp domain; no consumer demand yet", "Since 2026-07-03"
+        gap_kind=GapKind.ASPIRATIONAL,
+        reason="Substrait SetOp domain; no consumer demand yet",
+        since="2026-07-03",
     ),
     (SubstraitSetRelationSystemProtocol, "minus_multiset"): KnownGap(
-        "Substrait SetOp domain; no consumer demand yet", "Since 2026-07-03"
+        gap_kind=GapKind.ASPIRATIONAL,
+        reason="Substrait SetOp domain; no consumer demand yet",
+        since="2026-07-03",
     ),
     (SubstraitSetRelationSystemProtocol, "intersection_primary"): KnownGap(
-        "Substrait SetOp domain; no consumer demand yet", "Since 2026-07-03"
+        gap_kind=GapKind.ASPIRATIONAL,
+        reason="Substrait SetOp domain; no consumer demand yet",
+        since="2026-07-03",
     ),
     (SubstraitSetRelationSystemProtocol, "intersection_multiset"): KnownGap(
-        "Substrait SetOp domain; no consumer demand yet", "Since 2026-07-03"
+        gap_kind=GapKind.ASPIRATIONAL,
+        reason="Substrait SetOp domain; no consumer demand yet",
+        since="2026-07-03",
     ),
 }
 
@@ -145,7 +150,7 @@ class TestWiringAudit:
     def test_every_aspirational_entry_has_reason_and_date(self):
         for (proto, m), gap in KNOWN_ASPIRATIONAL.items():
             assert gap.reason, (proto, m)
-            assert gap.since.startswith("Since 20"), (proto, m)
+            date.fromisoformat(gap.since)
 
     def test_no_stale_aspirational_entries(self):
         for proto, m in KNOWN_ASPIRATIONAL:

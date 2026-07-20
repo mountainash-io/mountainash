@@ -31,9 +31,9 @@ from datetime import date
 from pathlib import Path
 from typing import Protocol, Set, List, Type
 from dataclasses import dataclass, field
-import warnings
 
 from expressions.argument_types._coverage_guard_helpers import (
+    GapKind,
     KnownGap,
 )
 
@@ -707,60 +707,62 @@ MOUNTAINASH_PROTOCOLS = [
 # These are xfailed in the wiring audit, not hard failures.
 KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     # Substrait Aggregate Arithmetic — not yet in function registry
-    (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
     # Substrait Aggregate String — not yet in function registry
-    (SubstraitAggregateStringExpressionSystemProtocol, "string_agg"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): KnownGap(reason="No backend support yet", since="2026-05-12"),
+    (SubstraitAggregateStringExpressionSystemProtocol, "string_agg"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarArithmeticExpressionSystemProtocol, "factorial"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No backend support yet", since="2026-05-12"),
     # Substrait Scalar Comparison — distinct operations
-    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): KnownGap(reason="No ENUM, no function mapping, no API builder", since="2026-05-12"),
-    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): KnownGap(reason="No ENUM, no function mapping, no API builder", since="2026-05-12"),
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_not_distinct_from"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No ENUM, no function mapping, no API builder", since="2026-05-12"),
+    (SubstraitScalarComparisonExpressionSystemProtocol, "is_distinct_from"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No ENUM, no function mapping, no API builder", since="2026-05-12"),
     # Substrait Scalar Datetime — most methods use Mountainash extension dispatch
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): KnownGap(reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): KnownGap(reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): KnownGap(reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "add"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "subtract"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "multiply"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime dispatch via Mountainash extensions", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lt"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
+    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
     # Substrait Scalar Geometry — not yet in function registry
-    (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "collection_extract"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "dimension"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "envelope"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "flip_coordinates"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "geometry_type"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "is_closed"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "is_empty"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "is_ring"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "is_simple"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "is_valid"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "make_line"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "minimum_bounding_circle"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "num_points"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "point"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "remove_repeated_points"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "x_coordinate"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
-    (SubstraitScalarGeometryExpressionSystemProtocol, "y_coordinate"): KnownGap(reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "collection_extract"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "dimension"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "envelope"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "flip_coordinates"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "geometry_type"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_closed"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_empty"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_ring"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_simple"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "is_valid"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "make_line"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "minimum_bounding_circle"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "num_points"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "point"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "remove_repeated_points"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "x_coordinate"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
+    (SubstraitScalarGeometryExpressionSystemProtocol, "y_coordinate"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
     # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode
-    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(reason="Special node type (FieldReferenceNode), not dispatched via function registry", since="2026-05-12"),
-    (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(reason="Special node type (LiteralNode), not dispatched via function registry", since="2026-05-12"),
+    (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Special node type (FieldReferenceNode), not dispatched via function registry", since="2026-05-12"),
+    (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Special node type (LiteralNode), not dispatched via function registry", since="2026-05-12"),
     # Mountainash Scalar Datetime — methods not yet in function registry
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
+    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
 }
 
 KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {
     (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(
+        gap_kind=GapKind.ASPIRATIONAL,
         reason="Argument channel is tested, but expression node is intentionally not registry-dispatched",
         since="2026-05-12",
     ),
     (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(
+        gap_kind=GapKind.ASPIRATIONAL,
         reason="Argument channel is tested, but literal node is intentionally not registry-dispatched",
         since="2026-05-12",
     ),
@@ -1560,17 +1562,4 @@ class TestWiringAuditHelpers:
             f"{sorted(stale_allowed)}"
         )
 
-    def test_known_aspirational_staleness_warns(self):
-        today = date(2026, 5, 12)
-        threshold_days = 183
-        for (protocol_cls, method_name), gap in KNOWN_ASPIRATIONAL.items():
-            age_days = (today - date.fromisoformat(gap.since)).days
-            if age_days > threshold_days:
-                warnings.warn(
-                    (
-                        f"{protocol_cls.__name__}.{method_name} has been aspirational "
-                        f"for {age_days} days: {gap.reason}"
-                    ),
-                    UserWarning,
-                    stacklevel=2,
-                )
+    # staleness centralized in tests/core/test_gap_staleness.py

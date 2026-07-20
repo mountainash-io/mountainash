@@ -18,6 +18,8 @@ _DECLARATION_MODULES = (
     "mountainash.expressions.backends.expression_systems.ibis_capabilities",
     "mountainash.expressions.backends.expression_systems.narwhals.base",
     "mountainash.relations.backends.relation_systems.narwhals.base",
+    "mountainash.relations.backends.relation_systems.polars.base",
+    "mountainash.relations.backends.relation_systems.ibis_relation_capabilities",
     "mountainash.core.capabilities.core_facts",
 )
 
