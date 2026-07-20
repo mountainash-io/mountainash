@@ -8,6 +8,7 @@ they are not pure expression transforms.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.divergence_helpers import xfail_divergence
 
 FLOAT_BACKENDS = [
     "polars",
@@ -74,7 +75,7 @@ class TestClip:
         "pandas",
         "narwhals",
         "ibis-polars",
-        pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="DuckDB is_nan/is_not_nan returns NULL for non-float types")),
+        pytest.param("ibis-duckdb", marks=xfail_divergence("IB-TYPE-02", backend="ibis-duckdb")),
     ],
 )
 class TestIsNotNan:
@@ -100,7 +101,7 @@ class TestIsNotNan:
         "pandas",
         "narwhals",
         "ibis-polars",
-        pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="DuckDB isnan() not working correctly via ibis for fill_nan")),
+        pytest.param("ibis-duckdb", marks=xfail_divergence("IB-TYPE-02", backend="ibis-duckdb")),
     ],
 )
 class TestFillNan:
