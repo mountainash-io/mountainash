@@ -32,7 +32,10 @@ def test_ibis_capabilities_register_without_ibis_installed():
         refs = {f.upstream_ref for f in CapabilityRegistry.facts() if f.upstream_ref}
         n_ibis = sum(1 for f in CapabilityRegistry.facts() if str(f.backend) == "ibis")
         assert "IB-DT-01" in refs, "IB-DT-01 missing without ibis: " + repr(sorted(refs))
-        assert n_ibis == 19, "expected 19 ibis facts, got %d" % n_ibis
+        assert n_ibis == 20, (
+            "expected 20 ibis facts (19 ibis expression facts + 1 ibis relation "
+            "escape_char fact), got %d" % n_ibis
+        )
         print("OK", n_ibis)
         '''
     )
@@ -42,4 +45,4 @@ def test_ibis_capabilities_register_without_ibis_installed():
     assert result.returncode == 0, (
         "subprocess failed:\nSTDOUT:\n" + result.stdout + "\nSTDERR:\n" + result.stderr
     )
-    assert "OK 19" in result.stdout
+    assert "OK 20" in result.stdout

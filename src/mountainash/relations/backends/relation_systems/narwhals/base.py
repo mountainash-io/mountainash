@@ -36,6 +36,16 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             since="2026-07-05",
             condition="tolerance is not None",
         ),
+        CapabilityFact(
+            operation_key=RKEY_MOUNTAINASH_REL.READ_RESOURCE, param="resource",
+            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
+            message="CSV dialect field 'escape_char' is not native-safe on this backend's "
+                    "reader — routed to the CsvSpec fallback reader",
+            workaround="none needed — mountainash routes automatically",
+            since="2026-07-05",
+            condition="resource.dialect.escape_char is set",
+            probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
+        ),
     )
 
     @property
