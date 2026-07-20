@@ -35,7 +35,9 @@ class TestStructuralInvariant:
         from mountainash.relations.backends.relation_systems.base import (
             BaseRelationSystem,
         )
-        assert BaseRelationSystem.KNOWN_REL_LIMITATIONS == {}
+        # The legacy KNOWN_REL_LIMITATIONS dict was retired in the spine's
+        # Phase 1 (its absence is guarded by test_no_legacy_registries_remain).
+        assert not hasattr(BaseRelationSystem, "KNOWN_REL_LIMITATIONS")
         assert BaseRelationSystem.BACKEND_NAME == "unknown"
 
     def test_all_backends_carry_backend_name(self):
@@ -45,50 +47,64 @@ class TestStructuralInvariant:
         assert PolarsRelationSystem.BACKEND_NAME == "polars"
 
 
-class TestMaterializeBoundary:
-    def test_materialize_failures_consult_boundary_entries(self, monkeypatch):
-        from mountainash.core.limitations import MATERIALIZE_BOUNDARY, WILDCARD_PARAM
-        from mountainash.core.types import KnownLimitation
-        from mountainash.relations.backends.relation_systems.polars import (
-            PolarsRelationSystem,
-        )
+@pytest.fixture
+def _polars_materialize_residue():
+    """Register an isolated MATERIALIZE-boundary CapabilityFact for polars so
+    a native ColumnNotFoundError at collect enriches to BackendCapabilityError.
 
-        monkeypatch.setattr(
-            PolarsRelationSystem,
-            "KNOWN_REL_LIMITATIONS",
-            {
-                (MATERIALIZE_BOUNDARY, WILDCARD_PARAM): KnownLimitation(
+    Residue is matched by native exception type (registry.residue_for), so the
+    carrier op key (UNNEST, unused by these plans) is irrelevant to the match —
+    it only has to be a real registered relation op for registration to
+    validate. snapshot/restore keeps the fact out of every other test.
+    """
+    from mountainash.core.capabilities import (
+        Boundary,
+        CapabilityFact,
+        CapabilityLevel,
+        CapabilityRegistry,
+    )
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_MOUNTAINASH_REL,
+    )
+
+    snap = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.register_backend(
+            CONST_BACKEND.POLARS,
+            [
+                CapabilityFact(
+                    operation_key=RKEY_MOUNTAINASH_REL.UNNEST,
+                    param="*",
+                    level=CapabilityLevel.UNSUPPORTED,
+                    backend=CONST_BACKEND.POLARS,
                     message="materialize-time quirk",
+                    boundary=Boundary.MATERIALIZE,
                     native_errors=(pl.exceptions.ColumnNotFoundError,),
+                    since="2026-07-05",
                 )
-            },
-            raising=False,
+            ],
         )
+        yield
+    finally:
+        CapabilityRegistry.restore(snap)
+
+
+class TestMaterializeBoundary:
+    def test_materialize_failures_consult_boundary_entries(
+        self, _polars_materialize_residue
+    ):
         rel = ma.relation(pl.DataFrame({"a": [1]}).lazy()).filter(
             ma.col("missing") > 0
         )
         with pytest.raises(BackendCapabilityError, match="materialize-time quirk"):
             rel.collect()
 
-    def test_dag_collect_with_drift_consults_boundary_entries(self, monkeypatch):
-        from mountainash.core.limitations import MATERIALIZE_BOUNDARY, WILDCARD_PARAM
-        from mountainash.core.types import KnownLimitation
-        from mountainash.relations.backends.relation_systems.polars import (
-            PolarsRelationSystem,
-        )
+    def test_dag_collect_with_drift_consults_boundary_entries(
+        self, _polars_materialize_residue
+    ):
         from mountainash.relations.dag import RelationDAG
 
-        monkeypatch.setattr(
-            PolarsRelationSystem,
-            "KNOWN_REL_LIMITATIONS",
-            {
-                (MATERIALIZE_BOUNDARY, WILDCARD_PARAM): KnownLimitation(
-                    message="materialize-time quirk",
-                    native_errors=(pl.exceptions.ColumnNotFoundError,),
-                )
-            },
-            raising=False,
-        )
         dag = RelationDAG()
         dag.add(
             "bad",

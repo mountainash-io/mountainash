@@ -228,6 +228,7 @@ MOUNTAINASH_OPERATIONS = [
         extension_uri=MountainashRelExtension.UTIL,
         protocol_method=ExtProto.join_asof,
         handler=handlers.visit_join_asof,
+        gate_params=("tolerance",),
     ),
     RelationOperationDef(
         # No node type: invoked from the conform path, not node dispatch.

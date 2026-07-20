@@ -1,34 +1,16 @@
-"""Unit tests for KnownLimitation and BackendCapabilityError."""
+"""Unit tests for BackendCapabilityError.
+
+The legacy ``KnownLimitation`` dataclass was retired in the capability spine's
+Phase 1; the enrichment ``limitation`` payload is now a ``CapabilityFact``
+(the spine's MATERIALIZE residue). ``CapabilityFact`` itself is unit-tested in
+``test_capability_schema.py``.
+"""
 
 import pytest
-from mountainash.core.types import KnownLimitation, BackendCapabilityError
 
-
-class TestKnownLimitation:
-    def test_frozen_dataclass(self):
-        lim = KnownLimitation(
-            message="test limitation",
-            native_errors=(TypeError,),
-        )
-        assert lim.message == "test limitation"
-        assert lim.native_errors == (TypeError,)
-        assert lim.upstream_issue is None
-        assert lim.workaround is None
-
-    def test_with_all_fields(self):
-        lim = KnownLimitation(
-            message="test",
-            native_errors=(TypeError, ValueError),
-            upstream_issue="https://github.com/pola-rs/polars/issues/123",
-            workaround="Use a literal value",
-        )
-        assert lim.upstream_issue == "https://github.com/pola-rs/polars/issues/123"
-        assert lim.workaround == "Use a literal value"
-
-    def test_immutable(self):
-        lim = KnownLimitation(message="test", native_errors=(TypeError,))
-        with pytest.raises(AttributeError):
-            lim.message = "changed"
+from mountainash.core.capabilities import Boundary, CapabilityFact, CapabilityLevel
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.types import BackendCapabilityError
 
 
 class TestBackendCapabilityError:
@@ -45,32 +27,44 @@ class TestBackendCapabilityError:
         assert err.limitation is None
 
     def test_error_with_limitation(self):
-        lim = KnownLimitation(
+        fact = CapabilityFact(
+            operation_key="STARTS_WITH",
+            param="prefix",
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.NARWHALS,
             message="test",
-            native_errors=(TypeError,),
             workaround="Use a literal",
-            upstream_issue="https://github.com/example/issue/1",
+            upstream_ref="NW-STR-01",
+            boundary=Boundary.MATERIALIZE,
+            native_errors=(TypeError,),
+            since="2026-07-05",
         )
         err = BackendCapabilityError(
             "cannot do this",
             backend="narwhals",
             function_key="STARTS_WITH",
-            limitation=lim,
+            limitation=fact,
         )
         msg = str(err)
         assert "Workaround: Use a literal" in msg
-        assert "Upstream: https://github.com/example/issue/1" in msg
+        assert "Upstream ref: NW-STR-01" in msg
 
     def test_error_without_workaround(self):
-        lim = KnownLimitation(
+        fact = CapabilityFact(
+            operation_key="REPLACE",
+            param="substring",
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.POLARS,
             message="test",
+            boundary=Boundary.MATERIALIZE,
             native_errors=(TypeError,),
+            since="2026-07-05",
         )
         err = BackendCapabilityError(
             "cannot do this",
             backend="polars",
             function_key="REPLACE",
-            limitation=lim,
+            limitation=fact,
         )
         msg = str(err)
         assert "Workaround" not in msg

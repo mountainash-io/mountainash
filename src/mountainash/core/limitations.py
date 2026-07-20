@@ -4,14 +4,15 @@ Extracted from expressions' BaseExpressionSystem._call_with_expr_support so
 both subsystems enrich known backend quirks identically. Lookup order per
 failure: each named arg's ``(operation_key, param)`` entry, then the
 ``(operation_key, "*")`` wildcard (how handler-routed relation operations
-and the materialization boundary participate).
+and the materialization boundary participate). The *limitations* mapping
+holds :class:`CapabilityFact` entries (the spine's MATERIALIZE residue).
 """
 from __future__ import annotations
 
 from enum import Enum, auto
 from typing import Any, Callable, Iterable, Mapping
 
-from mountainash.core.types import BackendCapabilityError, KnownLimitation
+from mountainash.core.types import BackendCapabilityError
 
 WILDCARD_PARAM = "*"
 
@@ -31,7 +32,7 @@ MATERIALIZE_BOUNDARY = _Boundary.MATERIALIZE
 def call_with_limitation_enrichment(
     fn: Callable[[], Any],
     *,
-    limitations: Mapping[tuple, "KnownLimitation"],
+    limitations: Mapping[tuple, Any],
     backend_name: str,
     operation_key: Any,
     named_args: Iterable[str],
@@ -41,8 +42,8 @@ def call_with_limitation_enrichment(
 
     Args:
         fn: Zero-arg callable invoking the native backend operation.
-        limitations: The backend's ``(operation_key, param) -> KnownLimitation``
-            table (``KNOWN_EXPR_LIMITATIONS`` / ``KNOWN_REL_LIMITATIONS``).
+        limitations: A ``(operation_key, param) -> CapabilityFact`` table
+            (the spine's MATERIALIZE residue).
         backend_name: Backend identifier for the raised error.
         operation_key: FKEY/RKEY enum member (or a boundary sentinel).
         named_args: Parameter names that may identify the failing entry;
@@ -66,18 +67,31 @@ def call_with_limitation_enrichment(
 
 
 def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
-    """Materialization-boundary enrichment (spec §3.8): lazy backends
-    surface some failures only at collect time; consult the backend's
-    ``(MATERIALIZE_BOUNDARY, "*")`` limitation entries. Shared by
-    Relation.collect(), Relation.collect_with_drift(), and
-    RelationDAG.collect_with_drift()."""
-    limitations = getattr(backend, "KNOWN_REL_LIMITATIONS", None)
-    if not limitations:
-        return fn()
-    return call_with_limitation_enrichment(
-        fn,
-        limitations=limitations,
-        backend_name=getattr(backend, "BACKEND_NAME", "unknown"),
-        operation_key=MATERIALIZE_BOUNDARY,
-        named_args=(),
+    """Materialization-boundary enrichment: consult the spine's MATERIALIZE
+    residue (matched by native exception type — residue facts keep their
+    real operation keys)."""
+    from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.types import BackendCapabilityError
+
+    family = getattr(backend, "backend_type", None)
+    residue = (
+        CapabilityRegistry.residue_for(family, getattr(backend, "dialect", None))
+        if family is not None
+        else {}
     )
+    if not residue:
+        return fn()
+    try:
+        return fn()
+    except BackendCapabilityError:
+        raise  # already enriched — never re-wrap
+    except Exception as exc:
+        for (op_key, _param), fact in residue.items():
+            if isinstance(exc, fact.native_errors):
+                raise BackendCapabilityError(
+                    fact.message,
+                    backend=getattr(backend, "BACKEND_NAME", "unknown"),
+                    function_key=op_key,
+                    limitation=fact,
+                ) from exc
+        raise

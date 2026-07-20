@@ -11,7 +11,8 @@ The visitor:
 """
 
 from __future__ import annotations
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
+from functools import lru_cache
 import inspect
 
 from ..expression_nodes import (
@@ -26,10 +27,25 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY, SUBSTRAIT_ARITHMETIC_WINDOW, FKEY_MOUNTAINASH_WINDOW
+from ..expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW, FKEY_MOUNTAINASH_WINDOW
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
+
+
+@lru_cache(maxsize=None)
+def _protocol_sig_params(protocol_method: Any) -> tuple:
+    """Protocol parameters (minus ``self``) for a protocol method.
+
+    ``protocol_method`` is the stable per-operation object stored on the
+    registry's function def, so it is a sound cache key: the same operation
+    resolves the same method object on every dispatch. Caching here avoids
+    re-running ``inspect.signature`` on every ``_gate_and_resolve_args`` call.
+    """
+    return tuple(
+        p for p in inspect.signature(protocol_method).parameters.values()
+        if p.name != "self"
+    )
 
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
@@ -49,76 +65,16 @@ class UnifiedExpressionVisitor:
         >>> backend_expr = visitor.visit(node)
     """
 
-    def __init__(self, expression_system: Any) -> None:
+    def __init__(self, expression_system: Any, enforce_capabilities: bool = True) -> None:
         """Initialize the visitor with a backend expression system.
 
         Args:
             expression_system: Backend ExpressionSystem instance
                               (e.g., PolarsExpressionSystem, IbisExpressionSystem)
+            enforce_capabilities: When False, skip the compile-time capability gate.
         """
         self.backend = expression_system
-
-    def _resolve_argument(
-        self,
-        arg: Any,
-        param: Optional[inspect.Parameter] = None,
-    ) -> Any:
-        """Resolve an argument using protocol type hints.
-
-        This method determines how to process an argument based on:
-        1. Whether it's a SubstraitNode (needs recursive visiting)
-        2. Whether it's already a backend expression (pass through)
-        3. The protocol signature type hint (determines wrapping behavior)
-        4. The raw value type (primitives may need lit() wrapping)
-
-        Args:
-            arg: The argument to resolve (SubstraitNode or raw value)
-            param: Optional protocol parameter for type introspection
-
-        Returns:
-            Resolved argument ready for backend method call.
-
-        Type Hint Behavior:
-            - SupportedExpressions: Visit the node or wrap in lit()
-            - str, int, float, bool: Pass through as-is (primitive kwarg)
-            - Any/no hint: Visit if node, pass through otherwise
-        """
-        # If it's a SubstraitNode, always visit recursively
-        if isinstance(arg, SubstraitNode):
-            return self.visit(arg)
-
-        # Check if arg is already a backend expression (native passthrough)
-        # This handles cases where a native expression was wrapped in LiteralNode
-        # without dtype="native", or when expressions are passed directly
-        if self._is_backend_expression(arg):
-            return arg
-
-        # If no parameter info, treat primitives as needing lit() wrapping
-        # This maintains backward compatibility
-        if param is None:
-            # Raw value that isn't a node - likely needs wrapping
-            # But we can't wrap here without context; return as-is
-            return arg
-
-        # Check the type annotation for guidance
-        annotation = param.annotation
-        if annotation == inspect.Parameter.empty:
-            # No type hint - return as-is
-            return arg
-
-        # Get the string representation of the annotation
-        # Handle both string annotations and actual types
-        annotation_str = str(annotation) if not isinstance(annotation, str) else annotation
-
-        # If annotation indicates expression type, the caller should have
-        # passed a node. If they passed a raw value, wrap in lit()
-        if "SupportedExpressions" in annotation_str or "Expr" in annotation_str:
-            # This should be an expression - wrap raw values
-            return self.backend.lit(arg)
-
-        # Primitive types (str, int, float, bool) - pass through as-is
-        # These are typically keyword arguments or configuration values
-        return arg
+        self.enforce_capabilities = enforce_capabilities
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.
@@ -163,84 +119,6 @@ class UnifiedExpressionVisitor:
             return 'narwhals'
         else:
             return type(value).__name__
-
-    def _resolve_options(
-        self,
-        options: Optional[Dict[str, Any]],
-        signature: Optional[inspect.Signature],
-    ) -> Dict[str, Any]:
-        """Resolve options (keyword arguments) using protocol type hints.
-
-        Args:
-            options: Options dict from ScalarFunctionNode
-            signature: Protocol method signature for type introspection
-
-        Returns:
-            Dict of resolved keyword arguments.
-
-        Example:
-            >>> opts = {"precision": 0.01, "ignore_case": True}
-            >>> resolved = visitor._resolve_options(opts, sig)
-        """
-        if not options:
-            return {}
-
-        if signature is None:
-            # No signature available - pass through as-is
-            return dict(options)
-
-        resolved = {}
-        for key, value in options.items():
-            # Look up parameter in signature
-            param = signature.parameters.get(key)
-            resolved[key] = self._resolve_argument(value, param)
-
-        return resolved
-
-    def _resolve_args_with_signature(
-        self,
-        func_name: str,
-        args: list,
-        options: Optional[Dict[str, Any]],
-    ) -> tuple[list, Dict[str, Any]]:
-        """Resolve positional and keyword arguments using protocol signature.
-
-        This is the main entry point for protocol-informed argument resolution.
-
-        Args:
-            func_name: Function name for signature lookup
-            args: List of SubstraitNode arguments
-            options: Optional options dict
-
-        Returns:
-            Tuple of (resolved_args, resolved_options)
-        """
-        # Get protocol signature (cached)
-        signature = self._get_signature(func_name)
-
-        if signature is None:
-            # No protocol signature - fall back to simple resolution
-            resolved_args = [self.visit(arg) for arg in args]
-            resolved_opts = dict(options) if options else {}
-            return resolved_args, resolved_opts
-
-        # Get positional parameters (excluding 'self')
-        params = list(signature.parameters.values())
-        pos_params = [p for p in params if p.kind in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        ) and p.name != 'self']
-
-        # Resolve positional arguments with type hints
-        resolved_args = []
-        for i, arg in enumerate(args):
-            param = pos_params[i] if i < len(pos_params) else None
-            resolved_args.append(self._resolve_argument(arg, param))
-
-        # Resolve keyword arguments
-        resolved_opts = self._resolve_options(options, signature)
-
-        return resolved_args, resolved_opts
 
     def visit(self, node: SubstraitNode) -> SupportedExpressions:
         """Visit a node and return the compiled backend expression.
@@ -305,6 +183,79 @@ class UnifiedExpressionVisitor:
 
         return self.backend.col(node.field)
 
+    def _gate_and_resolve_args(self, function_key, arguments, protocol_method):
+        """Per-argument capability gate (spec Section 2).
+
+        LITERAL_ONLY + LiteralNode -> raw value; LITERAL_ONLY + dynamic ->
+        compile-time BackendCapabilityError; UNSUPPORTED -> immediate error;
+        POLYMORPHIC -> LiteralNode unwraps, expressions compile; default ->
+        visit normally. Conditioned facts (fact.condition set) never gate
+        here — they are enforced backend-side.
+        """
+        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+        from mountainash.core.types import BackendCapabilityError
+
+        backend_family = self.backend.backend_type
+        dialect = getattr(self.backend, "dialect", None)
+
+        # Map node.arguments positions to protocol param names.
+        # Signature shape: (self, input, /, a, b=None, *varargs) — skip self;
+        # a VAR_POSITIONAL param name applies to all remaining arguments.
+        # Cached per protocol_method (stable registry object).
+        sig_params = _protocol_sig_params(protocol_method)
+
+        def _param_name_for(index: int) -> str | None:
+            if index < len(sig_params):
+                return sig_params[index].name
+            if sig_params and sig_params[-1].kind is inspect.Parameter.VAR_POSITIONAL:
+                return sig_params[-1].name
+            return None
+
+        resolved = []
+        for i, arg in enumerate(arguments):
+            param_name = _param_name_for(i)
+            fact = None
+            if self.enforce_capabilities and param_name is not None:
+                fact = CapabilityRegistry.capability_for(
+                    function_key, param_name, backend_family, dialect
+                )
+                if fact is not None and fact.condition is not None:
+                    fact = None  # conditioned facts don't gate structurally
+
+            level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
+
+            if level is CapabilityLevel.UNSUPPORTED:
+                raise BackendCapabilityError(
+                    fact.message,
+                    backend=self.backend.BACKEND_NAME,
+                    function_key=function_key,
+                    limitation=fact,
+                )
+            if level is CapabilityLevel.LITERAL_ONLY:
+                if isinstance(arg, LiteralNode):
+                    resolved.append(arg.value)
+                elif isinstance(arg, ExpressionNode):
+                    raise BackendCapabilityError(
+                        fact.message,
+                        backend=self.backend.BACKEND_NAME,
+                        function_key=function_key,
+                        limitation=fact,
+                    )
+                else:
+                    resolved.append(arg)  # already a raw value
+            elif level is CapabilityLevel.POLYMORPHIC:
+                if isinstance(arg, LiteralNode):
+                    resolved.append(arg.value)
+                elif isinstance(arg, ExpressionNode):
+                    resolved.append(self.visit(arg))
+                else:
+                    resolved.append(arg)
+            else:
+                resolved.append(
+                    self.visit(arg) if isinstance(arg, ExpressionNode) else arg
+                )
+        return resolved
+
     def visit_scalar_function(self, node: ScalarFunctionNode) -> SupportedExpressions:
         """Compile a scalar function call to backend expression.
 
@@ -330,32 +281,9 @@ class UnifiedExpressionVisitor:
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
-        # Special handling for functions that need raw values from LiteralNodes
-        # instead of visiting them as expressions (which would convert them to
-        # backend literals like pl.lit("A") instead of raw values like "A")
-        from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_SET
-        _raw_value_functions = {
-            FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
-        }
-        if node.function_key in _raw_value_functions:
-            args = []
-            for i, arg in enumerate(node.arguments):
-                # For is_in/is_not_in: first arg (needle) should be visited,
-                # rest (haystack) should be raw values
-                if node.function_key in (FKEY_MOUNTAINASH_SCALAR_SET.IS_IN, FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN) and i == 0:
-                    args.append(self.visit(arg) if isinstance(arg, ExpressionNode) else arg)
-                elif isinstance(arg, LiteralNode):
-                    args.append(arg.value)
-                elif isinstance(arg, ExpressionNode):
-                    args.append(self.visit(arg))
-                else:
-                    args.append(arg)
-        else:
-            # Resolve arguments by visiting child nodes
-            args = [self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-                    for arg in node.arguments]
+        args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method
+        )
 
         # Get the backend method
         if not hasattr(self.backend, method_name):
@@ -427,35 +355,46 @@ class UnifiedExpressionVisitor:
             Backend cast expression
         """
         input_expr = self.visit(node.input)
+        if self.enforce_capabilities:
+            from mountainash.core.capabilities import (
+                CapabilityLevel, CapabilityRegistry, WILDCARD_PARAM,
+            )
+            from mountainash.core.types import BackendCapabilityError
+            from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+
+            fact = CapabilityRegistry.capability_for(
+                FKEY_SUBSTRAIT_CAST.CAST, WILDCARD_PARAM,
+                self.backend.backend_type, getattr(self.backend, "dialect", None),
+            )
+            if fact is not None and fact.condition is None \
+                    and fact.level is CapabilityLevel.UNSUPPORTED:
+                raise BackendCapabilityError(
+                    fact.message, backend=self.backend.BACKEND_NAME,
+                    function_key=FKEY_SUBSTRAIT_CAST.CAST, limitation=fact,
+                )
         return self.backend.cast(
             input_expr, node.target_type, failure_behavior=node.failure_behavior
         )
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
-        """Compile a membership test (IN operator) to backend expression.
+        """Compile a membership test (IN operator) to backend expression."""
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_SET,
+        )
+        from mountainash.expressions.core.expression_system.function_mapping.registry import (
+            ExpressionFunctionRegistry,
+        )
 
-        Args:
-            node: SingularOrListNode with value and options list
-
-        Returns:
-            Backend is_in expression
-        """
-        value_expr = self.visit(node.value)
-
-        # Options can be nodes or literal values
-        # For is_in, we typically pass the literal values directly
-        options = []
-        for opt in node.options:
-            if isinstance(opt, LiteralNode):
-                # Extract literal value for the list
-                options.append(opt.value)
-            elif isinstance(opt, SubstraitNode):
-                # Compile and add (for expression-based membership)
-                options.append(self.visit(opt))
-            else:
-                # Already a value
-                options.append(opt)
-
+        protocol_method = ExpressionFunctionRegistry.get_protocol_method(
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN
+        )
+        # needle maps to param 0; every options member maps to *haystack
+        # (VAR_POSITIONAL) via _param_name_for's trailing-varargs rule.
+        value_expr, *options = self._gate_and_resolve_args(
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            (node.value, *node.options),
+            protocol_method,
+        )
         return self.backend.is_in(value_expr, *options)
 
     def visit_window_function(self, node: WindowFunctionNode) -> SupportedExpressions:
@@ -489,10 +428,9 @@ class UnifiedExpressionVisitor:
         method_name = protocol_method.__name__
 
         # Resolve arguments
-        compiled_args = [
-            self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-            for arg in node.arguments
-        ]
+        compiled_args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method
+        )
 
         # Call backend method
         method = getattr(self.backend, method_name)

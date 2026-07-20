@@ -49,6 +49,7 @@ class RelationOperationDef:
     options: tuple = ()                    # node fields passed raw as kwargs
     options_field: Optional[str] = None    # dict field spread as **kwargs (ExtensionRelNode.options)
     handler: Optional[Callable] = None     # custom compile override: (node, visitor) -> Any
+    gate_params: tuple[str, ...] = ()      # extra node fields that gate capability facts
 
     def get_signature(self) -> Optional[inspect.Signature]:
         if self.protocol_method is None:
@@ -110,6 +111,12 @@ def _validate_def(d: RelationOperationDef) -> None:
             f"{d.operation_key}: options_field {d.options_field!r} does not "
             f"exist on {d.node_type.__name__}"
         )
+    for gate_param in d.gate_params:
+        if gate_param not in model_fields:
+            raise ValueError(
+                f"{d.operation_key}: gate_param {gate_param!r} does not exist "
+                f"on {d.node_type.__name__}"
+            )
     if d.handler is not None:
         return  # handler owns the calling convention
     sig = d.get_signature()

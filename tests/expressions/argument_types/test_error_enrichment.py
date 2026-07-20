@@ -1,46 +1,88 @@
-"""Positively assert that BackendCapabilityError carries registry metadata."""
+"""Positively assert that BackendCapabilityError carries capability-fact metadata.
+
+Migrated to the capability spine (spec 2026-07-05): backend limitations now live
+as CapabilityFacts in CapabilityRegistry, not per-backend KNOWN_EXPR_LIMITATIONS
+dicts. Two fact boundaries matter here:
+
+- BUILD facts (LITERAL_ONLY/UNSUPPORTED) gate at the visitor before the native
+  call, so they carry no ``native_errors``.
+- MATERIALIZE facts (conditioned, value/dtype-dependent) are enriched by
+  ``_call_with_expr_support`` when the native op raises — these carry
+  ``native_errors``.
+"""
 from __future__ import annotations
 
 import pytest
 
+# Importing the backend systems triggers their module-bottom register_backend()
+# calls, so CapabilityRegistry is populated by collection time.
+from mountainash.core.capabilities import Boundary, CapabilityRegistry
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
-from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
-from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
-from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.base import (  # noqa: F401
+    IbisBaseExpressionSystem,
+)
+from mountainash.expressions.backends.expression_systems.narwhals.base import (
+    NarwhalsBaseExpressionSystem,
+)
+from mountainash.expressions.backends.expression_systems.polars.base import (  # noqa: F401
+    PolarsBaseExpressionSystem,
+)
 
-REGISTRIES = {
-    "polars": PolarsBaseExpressionSystem.KNOWN_EXPR_LIMITATIONS,
-    "ibis": IbisBaseExpressionSystem.KNOWN_EXPR_LIMITATIONS,
-    "narwhals": NarwhalsBaseExpressionSystem.KNOWN_EXPR_LIMITATIONS,
-}
+_ALL_FACTS = CapabilityRegistry.facts()
 
 
-@pytest.mark.parametrize("backend,registry", [(k, v) for k, v in REGISTRIES.items()])
-def test_registry_entries_have_required_fields(backend: str, registry):
-    for (fkey, pname), limitation in registry.items():
-        assert limitation.message, f"{backend}:{fkey}:{pname} missing message"
-        assert limitation.native_errors, f"{backend}:{fkey}:{pname} missing native_errors"
-        assert isinstance(limitation.native_errors, tuple)
-        for e in limitation.native_errors:
+def _fact_id(fact) -> str:
+    op = getattr(fact.operation_key, "name", fact.operation_key)
+    backend = getattr(fact.backend, "value", fact.backend)
+    dialect = f"@{fact.dialect}" if fact.dialect else ""
+    return f"{backend}{dialect}:{op}:{fact.param}"
+
+
+@pytest.mark.parametrize("fact", _ALL_FACTS, ids=[_fact_id(f) for f in _ALL_FACTS])
+def test_capability_facts_have_required_fields(fact):
+    """Every registered CapabilityFact is well-formed for its boundary.
+
+    Parametrized over the live registry so it validates the migrated facts of
+    every registered backend (never vacuous; auto-covers backends as they
+    migrate). It does NOT assert a fact *count* — completeness of the migration
+    is the job of the closed-by-default integrity guards (Task 11/12).
+    """
+    assert fact.message, f"{_fact_id(fact)} missing message"
+    if fact.boundary is Boundary.MATERIALIZE:
+        # Enriched at _call_with_expr_support — must declare the native errors it catches.
+        assert fact.native_errors, f"{_fact_id(fact)} MATERIALIZE fact missing native_errors"
+        assert isinstance(fact.native_errors, tuple)
+        for e in fact.native_errors:
             assert isinstance(e, type) and issubclass(e, Exception)
+    else:
+        # BUILD facts gate at the visitor before the native call, so by design
+        # they carry no native_errors (schema keeps them empty).
+        assert fact.native_errors == ()
 
 
 def test_backend_capability_error_preserves_limitation_message():
-    """When triggered, BackendCapabilityError carries the registry's message and workaround.
+    """When triggered, BackendCapabilityError carries the fact's message and workaround.
 
-    Directly invokes _call_with_expr_support on the narwhals backend to simulate
-    the native-side failure that a known limitation would produce. This avoids
-    depending on whether the underlying library raises synchronously at build
-    time vs lazily at execution time.
+    Exercises the enrichment path directly on ``_call_with_expr_support`` using a
+    MATERIALIZE-boundary fact (Narwhals ``t_is_in`` on the per-row list-column
+    path, which narwhals rejects with ``TypeError``). Sourcing the fact from the
+    registry — rather than a class dict — is the whole point of the migration;
+    BUILD-gated string ops like ``starts_with`` no longer reach this path.
     """
     from mountainash.expressions.core.expression_system.function_keys.enums import (
-        FKEY_SUBSTRAIT_SCALAR_STRING,
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
     )
 
     sys = NarwhalsBaseExpressionSystem()
-    fkey = FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH
-    limitation = sys.KNOWN_EXPR_LIMITATIONS[(fkey, "substring")]
-    exc_cls = limitation.native_errors[0]
+    fkey = FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN
+    fact = CapabilityRegistry.capability_for(
+        fkey, "collection", CONST_BACKEND.NARWHALS, sys.dialect
+    )
+    assert fact is not None and fact.native_errors, (
+        "expected a MATERIALIZE-enriched t_is_in fact with native_errors"
+    )
+    exc_cls = fact.native_errors[0]
 
     def simulated_native_failure():
         raise exc_cls("simulated native backend failure")
@@ -49,7 +91,7 @@ def test_backend_capability_error_preserves_limitation_message():
         sys._call_with_expr_support(
             simulated_native_failure,
             function_key=fkey,
-            substring="not_a_literal",
+            collection="not_a_literal",
         )
     err = exc_info.value
     assert err.limitation is not None

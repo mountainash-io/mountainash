@@ -168,7 +168,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        characters: NarwhalsExpr = None,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Remove characters from both sides of the string.
 
@@ -181,18 +181,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         """
         if characters is None:
             return input.str.strip_chars()
-        chars_val = self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.strip_chars(chars_val),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM,
-            characters=characters,
-        )
+        return input.str.strip_chars(characters)
 
     def ltrim(
         self,
         input: NarwhalsExpr,
         /,
-        characters: NarwhalsExpr = None,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Remove characters from the left side of the string.
 
@@ -210,18 +205,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         """
         if characters is None:
             return input.str.strip_chars()
-        chars_val = self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.strip_chars(chars_val),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
-            characters=characters,
-        )
+        return input.str.strip_chars(characters)
 
     def rtrim(
         self,
         input: NarwhalsExpr,
         /,
-        characters: NarwhalsExpr = None,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Remove characters from the right side of the string.
 
@@ -239,44 +229,29 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         """
         if characters is None:
             return input.str.strip_chars()
-        chars_val = self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.strip_chars(chars_val),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
-            characters=characters,
-        )
+        return input.str.strip_chars(characters)
 
     def lpad(
         self,
         input: NarwhalsExpr,
         /,
-        length: NarwhalsExpr,
-        characters: NarwhalsExpr = None,
+        length: NarwhalsExpr | int,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Left-pad the input string to specified length."""
-        length_raw = self._extract_literal_if_possible(length)
-        fill_raw = " " if characters is None else self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.pad_start(int(length_raw), str(fill_raw)),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
-            length=length,
-        )
+        fill = str(characters) if characters is not None else " "
+        return input.str.pad_start(int(length), fill)
 
     def rpad(
         self,
         input: NarwhalsExpr,
         /,
-        length: NarwhalsExpr,
-        characters: NarwhalsExpr = None,
+        length: NarwhalsExpr | int,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Right-pad the input string to specified length."""
-        length_raw = self._extract_literal_if_possible(length)
-        fill_raw = " " if characters is None else self._extract_literal_if_possible(characters)
-        return self._call_with_expr_support(
-            lambda: input.str.pad_end(int(length_raw), str(fill_raw)),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
-            length=length,
-        )
+        fill = str(characters) if characters is not None else " "
+        return input.str.pad_end(int(length), fill)
 
     def center(
         self,
@@ -311,8 +286,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        start: NarwhalsExpr,
-        length: NarwhalsExpr = None,
+        start: NarwhalsExpr | int,
+        length: NarwhalsExpr | int = None,
         negative_start: Any = None,
     ) -> NarwhalsExpr:
         """Extract a substring.
@@ -326,52 +301,27 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Substring expression.
         """
-        # Narwhals str.slice requires int args (no expression support).
-        # Unwrap literals; column refs pass through and will be caught below.
-        start_val = self._extract_literal_if_possible(start)
-        length_val = self._extract_literal_if_possible(length) if length is not None else None
-
-        def _call() -> NarwhalsExpr:
-            # Coerce to int (extraction may return float for numeric literals)
-            sv = int(start_val) if start_val is not None else 0
-            if length_val is None:
-                return input.str.slice(sv)
-            return input.str.slice(sv, int(length_val))
-
-        return self._call_with_expr_support(
-            _call,
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-            start=start,
-            length=length,
-        )
+        if length is None:
+            return input.str.slice(int(start))
+        return input.str.slice(int(start), int(length))
 
     def left(
         self,
         input: NarwhalsExpr,
         /,
-        count: NarwhalsExpr,
+        count: NarwhalsExpr | int,
     ) -> NarwhalsExpr:
         """Extract count characters from the left."""
-        count_raw = self._extract_literal_if_possible(count)
-        return self._call_with_expr_support(
-            lambda: input.str.head(int(count_raw)),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
-            count=count,
-        )
+        return input.str.head(int(count))
 
     def right(
         self,
         input: NarwhalsExpr,
         /,
-        count: NarwhalsExpr,
+        count: NarwhalsExpr | int,
     ) -> NarwhalsExpr:
         """Extract count characters from the right."""
-        count_raw = self._extract_literal_if_possible(count)
-        return self._call_with_expr_support(
-            lambda: input.str.tail(int(count_raw)),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
-            count=count,
-        )
+        return input.str.tail(int(count))
 
     def replace_slice(
         self,
@@ -406,7 +356,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        substring: NarwhalsExpr,
+        substring: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Whether the input string contains the substring.
@@ -419,28 +369,19 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.contains expects a string pattern, not an Expr.
-        # Unwrap nw.lit("...") to a raw value; column refs pass through and
-        # will be caught by _call_with_expr_support with an enriched error.
-        pattern = self._extract_literal_if_possible(substring)
         if case_sensitivity == "CASE_INSENSITIVE":
-            lowered = pattern.lower() if isinstance(pattern, str) else pattern
-            return self._call_with_expr_support(
-                lambda: input.str.to_lowercase().str.contains(lowered),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-                substring=substring,
-            )
-        return self._call_with_expr_support(
-            lambda: input.str.contains(pattern),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-            substring=substring,
-        )
+            if isinstance(substring, str):
+                lowered = substring.lower()
+            else:
+                lowered = substring.str.to_lowercase()
+            return input.str.to_lowercase().str.contains(lowered)
+        return input.str.contains(substring)
 
     def starts_with(
         self,
         input: NarwhalsExpr,
         /,
-        substring: NarwhalsExpr,
+        substring: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Whether input string starts with the substring.
@@ -453,28 +394,19 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.starts_with expects a string pattern, not an Expr.
-        # Unwrap nw.lit("...") to a raw value; column refs pass through and
-        # will be caught by _call_with_expr_support with an enriched error.
-        prefix = self._extract_literal_if_possible(substring)
         if case_sensitivity == "CASE_INSENSITIVE":
-            lowered = prefix.lower() if isinstance(prefix, str) else prefix
-            return self._call_with_expr_support(
-                lambda: input.str.to_lowercase().str.starts_with(lowered),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
-                substring=substring,
-            )
-        return self._call_with_expr_support(
-            lambda: input.str.starts_with(prefix),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
-            substring=substring,
-        )
+            if isinstance(substring, str):
+                lowered = substring.lower()
+            else:
+                lowered = substring.str.to_lowercase()
+            return input.str.to_lowercase().str.starts_with(lowered)
+        return input.str.starts_with(substring)
 
     def ends_with(
         self,
         input: NarwhalsExpr,
         /,
-        substring: NarwhalsExpr,
+        substring: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Whether input string ends with the substring.
@@ -487,22 +419,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.ends_with expects a string pattern, not an Expr.
-        # Unwrap nw.lit("...") to a raw value; column refs pass through and
-        # will be caught by _call_with_expr_support with an enriched error.
-        suffix = self._extract_literal_if_possible(substring)
         if case_sensitivity == "CASE_INSENSITIVE":
-            lowered = suffix.lower() if isinstance(suffix, str) else suffix
-            return self._call_with_expr_support(
-                lambda: input.str.to_lowercase().str.ends_with(lowered),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
-                substring=substring,
-            )
-        return self._call_with_expr_support(
-            lambda: input.str.ends_with(suffix),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
-            substring=substring,
-        )
+            if isinstance(substring, str):
+                lowered = substring.lower()
+            else:
+                lowered = substring.str.to_lowercase()
+            return input.str.to_lowercase().str.ends_with(lowered)
+        return input.str.ends_with(substring)
 
     def strpos(
         self,
@@ -640,8 +563,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        substring: NarwhalsExpr,
-        replacement: NarwhalsExpr,
+        substring: NarwhalsExpr | str,
+        replacement: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Replace all occurrences of substring with replacement.
@@ -655,19 +578,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             String with replacements.
         """
-        # Narwhals/Pandas str.replace_all expects string patterns, not Expr.
-        # Unwrap literals; column refs pass through and will be caught below.
-        pattern = self._extract_literal_if_possible(substring)
-        repl = self._extract_literal_if_possible(replacement)
         # Substrait `replace` is literal substring substitution (regex is the
         # separate `regexp_replace`). replace_all defaults to literal=False, so
         # a regex metacharacter in the pattern (e.g. ".") would match wrongly.
-        return self._call_with_expr_support(
-            lambda: input.str.replace_all(pattern, repl, literal=True),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
-            substring=substring,
-            replacement=replacement,
-        )
+        return input.str.replace_all(substring, replacement, literal=True)
 
     def repeat(
         self,
@@ -707,39 +621,29 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        match: NarwhalsExpr,
+        match: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """SQL LIKE pattern matching (% and _ wildcards).
 
+        The SQL-LIKE -> regex conversion is Python-side and requires a literal
+        pattern (gated LITERAL_ONLY on every narwhals dialect), so `match`
+        always arrives as a raw string here.
+
         Args:
             input: String expression.
-            match: SQL LIKE pattern.
+            match: SQL LIKE pattern (literal string).
             case_sensitivity: Case sensitivity option.
 
         Returns:
             Boolean expression.
         """
-        # Narwhals/Pandas str.contains expects a string pattern, not an Expr.
-        # Unwrap literals; column refs pass through and will be caught below.
-        pattern = self._extract_literal_if_possible(match)
-
-        def _call() -> NarwhalsExpr:
-            if isinstance(pattern, str):
-                # Convert SQL LIKE pattern to regex
-                like_pattern = pattern.replace("%", "\x00PERCENT\x00").replace("_", "\x00UNDERSCORE\x00")
-                regex_pattern = re.escape(like_pattern)
-                regex_pattern = regex_pattern.replace("\x00PERCENT\x00", ".*").replace("\x00UNDERSCORE\x00", ".")
-                regex_pattern = f"^{regex_pattern}$"
-                return input.str.contains(regex_pattern)
-            # Fallback for non-string patterns
-            return input.str.contains(pattern)
-
-        return self._call_with_expr_support(
-            _call,
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
-            match=match,
-        )
+        # Convert SQL LIKE pattern to regex
+        like_pattern = match.replace("%", "\x00PERCENT\x00").replace("_", "\x00UNDERSCORE\x00")
+        regex_pattern = re.escape(like_pattern)
+        regex_pattern = regex_pattern.replace("\x00PERCENT\x00", ".*").replace("\x00UNDERSCORE\x00", ".")
+        regex_pattern = f"^{regex_pattern}$"
+        return input.str.contains(regex_pattern)
 
     def regexp_match_substring(
         self,
@@ -887,8 +791,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        pattern: NarwhalsExpr,
-        replacement: NarwhalsExpr,
+        pattern: NarwhalsExpr | str,
+        replacement: NarwhalsExpr | str,
         position: Optional[int] = None,
         occurrence: Optional[int] = None,
         case_sensitivity: Any = None,
@@ -910,16 +814,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             String with replacements.
         """
-        # Narwhals/Pandas str.replace_all expects string patterns, not Expr.
-        # Unwrap literals; column refs pass through and will be caught below.
-        regex_pattern = self._extract_literal_if_possible(pattern)
-        repl = self._extract_literal_if_possible(replacement)
-        return self._call_with_expr_support(
-            lambda: input.str.replace_all(regex_pattern, repl),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
-            pattern=pattern,
-            replacement=replacement,
-        )
+        return input.str.replace_all(pattern, replacement)
 
     # =========================================================================
     # Split Operations

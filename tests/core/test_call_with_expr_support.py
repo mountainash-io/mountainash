@@ -40,13 +40,14 @@ class TestCallWithExprSupport:
                 substring="hello",
             )
 
-    def test_narwhals_known_limitation_enriches_error(self):
+    def test_narwhals_build_fact_does_not_enrich(self):
         sys = NarwhalsBaseExpressionSystem()
 
         def raise_type_error():
             raise TypeError("expected a string")
 
-        with pytest.raises(BackendCapabilityError, match="narwhals"):
+        # BUILD facts gate at the visitor, not here.
+        with pytest.raises(TypeError):
             sys._call_with_expr_support(
                 raise_type_error,
                 function_key=FK.STARTS_WITH,
@@ -68,47 +69,11 @@ class TestCallWithExprSupport:
 
 
 class TestExtractLiteralIfPossible:
-
-    def test_polars_raw_value_passes_through(self):
-        sys = PolarsBaseExpressionSystem()
-        assert sys._extract_literal_if_possible("hello") == "hello"
-        assert sys._extract_literal_if_possible(42) == 42
-        assert sys._extract_literal_if_possible(None) is None
-
-    def test_polars_literal_expr_extracts(self):
-        import polars as pl
-
-        sys = PolarsBaseExpressionSystem()
-        result = sys._extract_literal_if_possible(pl.lit("hello"))
-        assert result == "hello"
-
-    def test_polars_column_ref_passes_through(self):
-        import polars as pl
-
-        sys = PolarsBaseExpressionSystem()
-        col_expr = pl.col("name")
-        result = sys._extract_literal_if_possible(col_expr)
-        assert isinstance(result, pl.Expr)
-
-    def test_narwhals_raw_value_passes_through(self):
-        sys = NarwhalsBaseExpressionSystem()
-        assert sys._extract_literal_if_possible("hello") == "hello"
-        assert sys._extract_literal_if_possible(42) == 42
-
-    def test_narwhals_literal_expr_extracts(self):
-        import narwhals as nw
-
-        sys = NarwhalsBaseExpressionSystem()
-        result = sys._extract_literal_if_possible(nw.lit("hello"))
-        assert result == "hello"
-
-    def test_narwhals_column_ref_passes_through(self):
-        import narwhals as nw
-
-        sys = NarwhalsBaseExpressionSystem()
-        col_expr = nw.col("name")
-        result = sys._extract_literal_if_possible(col_expr)
-        assert isinstance(result, nw.Expr)
+    """Only Ibis retains ``_extract_literal_if_possible`` (its replace()
+    extraction-without-narrowing override). The base default and the
+    polars/narwhals overrides were retired in the spine's Phase 1 —
+    extraction moved to the visitor gate; their absence is guarded by
+    ``test_capability_integrity.test_no_extractor_heuristics_remain``."""
 
     def test_ibis_extracts_literal(self):
         import ibis

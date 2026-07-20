@@ -17,10 +17,6 @@ import ibis
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME,
-)
-
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr, IbisTemporalExpr
 
@@ -212,7 +208,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_years(
         self,
         x: IbisTemporalExpr,
-        years: IbisValueExpr,
+        years: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add years to a datetime.
@@ -224,17 +220,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with years added.
         """
-        years_val = self._extract_literal_if_possible(years)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(years=years_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
-            years=years,
-        )
+        return x + ibis.interval(years=int(years))
 
     def add_months(
         self,
         x: IbisTemporalExpr,
-        months: IbisValueExpr,
+        months: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add months to a datetime.
@@ -246,17 +237,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with months added.
         """
-        months_val = self._extract_literal_if_possible(months)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(months=months_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
-            months=months,
-        )
+        return x + ibis.interval(months=int(months))
 
     def add_days(
         self,
         x: IbisTemporalExpr,
-        days: IbisValueExpr,
+        days: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add days to a datetime.
@@ -268,17 +254,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with days added.
         """
-        days_val = self._extract_literal_if_possible(days)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(days=days_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
-            days=days,
-        )
+        return x + ibis.interval(days=int(days))
 
     def add_hours(
         self,
         x: IbisTemporalExpr,
-        hours: IbisValueExpr,
+        hours: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add hours to a datetime.
@@ -290,17 +271,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with hours added.
         """
-        hours_val = self._extract_literal_if_possible(hours)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(hours=hours_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
-            hours=hours,
-        )
+        return x + ibis.interval(hours=int(hours))
 
     def add_minutes(
         self,
         x: IbisTemporalExpr,
-        minutes: IbisValueExpr,
+        minutes: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add minutes to a datetime.
@@ -312,17 +288,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with minutes added.
         """
-        minutes_val = self._extract_literal_if_possible(minutes)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(minutes=minutes_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
-            minutes=minutes,
-        )
+        return x + ibis.interval(minutes=int(minutes))
 
     def add_seconds(
         self,
         x: IbisTemporalExpr,
-        seconds: IbisValueExpr,
+        seconds: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add seconds to a datetime.
@@ -334,17 +305,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with seconds added.
         """
-        seconds_val = self._extract_literal_if_possible(seconds)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(seconds=seconds_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
-            seconds=seconds,
-        )
+        return x + ibis.interval(seconds=int(seconds))
 
     def add_milliseconds(
         self,
         x: IbisTemporalExpr,
-        milliseconds: IbisValueExpr,
+        milliseconds: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add milliseconds to a datetime.
@@ -356,17 +322,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with milliseconds added.
         """
-        ms_val = self._extract_literal_if_possible(milliseconds)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(milliseconds=ms_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
-            milliseconds=milliseconds,
-        )
+        return x + ibis.interval(milliseconds=int(milliseconds))
 
     def add_microseconds(
         self,
         x: IbisTemporalExpr,
-        microseconds: IbisValueExpr,
+        microseconds: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add microseconds to a datetime.
@@ -378,12 +339,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         Returns:
             Datetime with microseconds added.
         """
-        us_val = self._extract_literal_if_possible(microseconds)
-        return self._call_with_expr_support(
-            lambda: x + ibis.interval(microseconds=us_val),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
-            microseconds=microseconds,
-        )
+        return x + ibis.interval(microseconds=int(microseconds))
 
     # =========================================================================
     # Date Difference Methods

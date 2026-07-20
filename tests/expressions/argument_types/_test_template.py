@@ -57,56 +57,46 @@ def _materialize_arg(
     raise ValueError(input_type)
 
 
-def _get_registry(backend: str):
-    if backend == "polars":
-        from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem as B
-    elif backend == "ibis":
-        from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem as B
-    elif backend in ("narwhals-polars", "narwhals-pandas"):
-        from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem as B
-    else:
-        raise ValueError(backend)
-    return B.KNOWN_EXPR_LIMITATIONS
+_FIXTURE_IDENTITY = {
+    # argument-types fixture name -> (family, dialect)
+    "polars": ("polars", "polars"),
+    "ibis": ("ibis", None),  # generic memtable ibis — family-level facts only
+    "narwhals-polars": ("narwhals", "narwhals-polars"),
+    "narwhals-pandas": ("narwhals", "narwhals-pandas"),
+}
+
+
+def _registry_lookup(backend: str, function_key, param_name: str):
+    """Resolve a capability fact from the spine for this (op, param, dialect).
+
+    Returns the gating fact, or None when the op/param is unconstrained on
+    this dialect (EXPR_CAPABLE / POLYMORPHIC, or no fact registered).
+    """
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.constants import CONST_BACKEND
+
+    family_name, dialect = _FIXTURE_IDENTITY[backend]
+    fact = CapabilityRegistry.capability_for(
+        function_key, param_name, CONST_BACKEND(family_name), dialect
+    )
+    if fact is not None:
+        if fact.level in (CapabilityLevel.EXPR_CAPABLE, CapabilityLevel.POLYMORPHIC):
+            return None  # not a limitation on this dialect
+        return fact
+    return None
 
 
 def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_type: str):
-    """Returns a pytest.mark.xfail if the registry declares this combination limited,
-    and the input type actually exercises the limitation (col/complex, not raw/lit).
-
-    narwhals-polars: the KNOWN_EXPR_LIMITATIONS registry is shared with narwhals-pandas,
-    but narwhals often passes expressions through to Polars which handles them fine.
-    _NW_POLARS_FIXED tracks ops confirmed to work — these get NO xfail (regression
-    detection). Other Narwhals "literal values" limitations use strict=False (an
-    unexpected pass is fine, a failure is expected).
-    """
+    """Registry-driven xfail. Dialect-scoped EXPR_CAPABLE refinements make
+    the old _NW_POLARS_FIXED allowlist unnecessary: _registry_lookup returns
+    None for narwhals-polars where upstream fixed the gap, so no xfail is
+    applied and a regression surfaces as an ordinary failure."""
     if input_type in ("raw", "lit"):
         return None
 
-    registry = _get_registry(backend)
-    limitation = registry.get((function_key, param_name))
+    limitation = _registry_lookup(backend, function_key, param_name)
     if limitation is None:
         return None
-
-    if backend == "narwhals-polars":
-        from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_SUBSTRAIT_SCALAR_STRING as _FK_STR,
-        )
-        _NW_POLARS_FIXED: set[tuple[Any, str]] = {
-            (_FK_STR.CONTAINS, "substring"),
-            (_FK_STR.LIKE, "match"),
-            (_FK_STR.REPLACE, "replacement"),
-            (_FK_STR.REGEXP_REPLACE, "replacement"),
-            (_FK_STR.STARTS_WITH, "substring"),
-            (_FK_STR.ENDS_WITH, "substring"),
-        }
-        if (function_key, param_name) in _NW_POLARS_FIXED:
-            return None
-        if "literal" in limitation.message.lower() or "not accept expression" in limitation.message.lower():
-            return pytest.mark.xfail(
-                strict=False,
-                raises=BackendCapabilityError,
-                reason=f"[non-strict] {limitation.message}",
-            )
 
     return pytest.mark.xfail(
         strict=True,
@@ -142,8 +132,7 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     if op.execution_mode == "over":
         expr = expr.over("__group__")
 
-    registry = _get_registry(backend)
-    limitation = registry.get((op.function_key, op.param_name))
+    limitation = _registry_lookup(backend, op.function_key, op.param_name)
 
     try:
         compiled = expr.compile(df)
