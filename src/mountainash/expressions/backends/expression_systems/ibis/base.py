@@ -40,6 +40,7 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             backend=CONST_BACKEND.IBIS, message=_IB_DT_MSG,
             workaround="Use a literal integer for the offset amount",
             since="2026-07-05",
+            upstream_ref="IB-DT-01",
         )
         for op, param in [
             (FK_DT.ADD_YEARS, "years"), (FK_DT.ADD_MONTHS, "months"),
