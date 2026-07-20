@@ -36,14 +36,22 @@ _NW_LIST_MSG = (
     "list.contains on any native backend — its `item` parameter is typed "
     "`NonNestedLiteral` and rejects Expr."
 )
+# Native errors the eager (narwhals-pandas) list-contains path can raise —
+# preserved verbatim from the pre-spine _NW_LIST_CONTAINS_LIMITED. Enriched
+# into BackendCapabilityError at the is_in/is_not_in call site's
+# _call_with_expr_support wrapper. (The narwhals-polars path raises lazily at
+# materialize, outside the dispatch wrapper — a known un-enriched gap the
+# probe_exempt note documents; closing it needs expression-level materialize
+# enrichment, tracked as a follow-up.)
+_NW_LIST_NATIVE_ERRORS = (TypeError, AttributeError, ValueError)
 _NW_LIST_PROBE_EXEMPT = (
     "MATERIALIZE-boundary, structure-conditioned: the `collection` param takes "
     "a list-typed argument, which the scalar-argument OP_SPECS probe matrix "
     "cannot model. The dynamic list-column path is also non-uniform across the "
-    "narwhals matrix (narwhals-polars raises NarwhalsError, narwhals-pandas "
-    "silently returns False), so no single strict-xfail probe is well-defined. "
-    "The limitation is caught by native_errors enrichment (integrity guard #4), "
-    "not a BUILD-gate probe."
+    "narwhals matrix (narwhals-polars raises NarwhalsError lazily at "
+    "materialize; narwhals-pandas silently returns False), so no single "
+    "strict-xfail probe is well-defined. The eager errors are enriched via "
+    "native_errors (integrity guard #4); the limitation is not BUILD-gateable."
 )
 
 
@@ -143,7 +151,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 # see the DECIDED note below this block.
                 condition="collection compiles to an expression (per-row list-column path); literal collections always work",
                 boundary=Boundary.MATERIALIZE,
-                native_errors=(TypeError,),
+                native_errors=_NW_LIST_NATIVE_ERRORS,
                 probe_exempt=_NW_LIST_PROBE_EXEMPT,
             ),
             CapabilityFact(
@@ -154,7 +162,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 since="2026-07-05",
                 condition="collection compiles to an expression (per-row list-column path); literal collections always work",
                 boundary=Boundary.MATERIALIZE,
-                native_errors=(TypeError,),
+                native_errors=_NW_LIST_NATIVE_ERRORS,
                 probe_exempt=_NW_LIST_PROBE_EXEMPT,
             ),
         )
