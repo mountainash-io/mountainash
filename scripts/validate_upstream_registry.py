@@ -5,7 +5,7 @@ Usage:
     python scripts/validate_upstream_registry.py [PATH]
 
 Default path:
-    ../mountainash-central/01.principles/mountainash/h.backlog/upstream-issues/upstream-issues.yaml
+    registry/upstream-issues.yaml
     (relative to the repo root, i.e. the parent of the directory containing this script)
 
 Exit codes:
@@ -16,6 +16,8 @@ Exit codes:
 import re
 import sys
 from pathlib import Path
+
+from mountainash.core.capabilities import KNOWN_DIALECTS
 
 try:
     import yaml
@@ -43,20 +45,10 @@ VALID_ROOT_CAUSES = {
     "mountainash_internal",
 }
 
-# Source of truth: tests/fixtures/backend_registry.py REGISTRY. Keep in sync
-# with the cross-backend test matrix — every backend a test can parametrize
-# over may legitimately appear in an entry's affected_backends.
-VALID_BACKENDS = {
-    "polars",
-    "polars-lazy",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "narwhals-lazy",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite",
-}
+VALID_BACKENDS = sorted(
+    {d for dialects in KNOWN_DIALECTS.values() for d in dialects}
+    | {family.value for family in KNOWN_DIALECTS}
+)
 
 VALID_STATUSES = {
     "needs_filing",
@@ -155,6 +147,13 @@ def validate(data: object) -> list[str]:
         for field in sorted(REQUIRED_FIELDS):
             if field not in entry:
                 errors.append(f"{prefix}: missing required field '{field}'.")
+
+        for field in ("known_expr_limitations", "xfail_refs"):
+            if field in entry:
+                errors.append(
+                    f"{entry_id}: legacy linkage field '{field}' — "
+                    "use upstream_ref on the code side"
+                )
 
         # Rule 3: project
         project = entry.get("project")
@@ -277,15 +276,7 @@ def validate(data: object) -> list[str]:
 
 def main() -> int:
     repo_root = Path(__file__).parent.parent
-    default_path = (
-        repo_root.parent
-        / "mountainash-central"
-        / "01.principles"
-        / "mountainash"
-        / "h.backlog"
-        / "upstream-issues"
-        / "upstream-issues.yaml"
-    )
+    default_path = repo_root / "registry" / "upstream-issues.yaml"
 
     if len(sys.argv) > 2:
         print(f"Usage: {sys.argv[0]} [PATH]", file=sys.stderr)
