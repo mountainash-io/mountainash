@@ -175,7 +175,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        characters: str | None = None,
+        characters: IbisValueExpr | str | None = None,
     ) -> IbisValueExpr:
         """Remove characters from both sides of the string.
 
@@ -191,7 +191,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        characters: str | None = None,
+        characters: IbisValueExpr | str | None = None,
     ) -> IbisValueExpr:
         """Remove characters from the left side of the string.
 
@@ -207,7 +207,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        characters: str | None = None,
+        characters: IbisValueExpr | str | None = None,
     ) -> IbisValueExpr:
         """Remove characters from the right side of the string.
 
@@ -275,8 +275,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        length: int,
-        character: str | None = None,
+        length: IbisValueExpr | int,
+        character: IbisValueExpr | str | None = None,
         padding: Any = None,
     ) -> IbisValueExpr:
         """Center the input string (Python str.center semantics: extra pad
@@ -362,9 +362,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        start: int,
-        length: int,
-        replacement: str,
+        start: IbisValueExpr | int,
+        length: IbisValueExpr | int,
+        replacement: IbisValueExpr | str,
     ) -> IbisValueExpr:
         """Replace a slice (1-indexed start, clamped — matches the Polars
         implementation's observed semantics, the approved B2 oracle)."""

@@ -19,6 +19,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 @pytest.fixture(autouse=True)
 def _isolated_registry():
     snapshot = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
     yield
     CapabilityRegistry.restore(snapshot)
 

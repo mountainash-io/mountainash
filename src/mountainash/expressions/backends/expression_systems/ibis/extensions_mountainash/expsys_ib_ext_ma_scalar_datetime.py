@@ -208,7 +208,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_years(
         self,
         x: IbisTemporalExpr,
-        years: IbisValueExpr,
+        years: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add years to a datetime.
@@ -225,7 +225,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_months(
         self,
         x: IbisTemporalExpr,
-        months: IbisValueExpr,
+        months: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add months to a datetime.
@@ -242,7 +242,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_days(
         self,
         x: IbisTemporalExpr,
-        days: IbisValueExpr,
+        days: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add days to a datetime.
@@ -259,7 +259,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_hours(
         self,
         x: IbisTemporalExpr,
-        hours: IbisValueExpr,
+        hours: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add hours to a datetime.
@@ -276,7 +276,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_minutes(
         self,
         x: IbisTemporalExpr,
-        minutes: IbisValueExpr,
+        minutes: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add minutes to a datetime.
@@ -293,7 +293,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_seconds(
         self,
         x: IbisTemporalExpr,
-        seconds: IbisValueExpr,
+        seconds: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add seconds to a datetime.
@@ -310,7 +310,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_milliseconds(
         self,
         x: IbisTemporalExpr,
-        milliseconds: IbisValueExpr,
+        milliseconds: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add milliseconds to a datetime.
@@ -327,7 +327,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def add_microseconds(
         self,
         x: IbisTemporalExpr,
-        microseconds: IbisValueExpr,
+        microseconds: IbisValueExpr | int,
         /,
     ) -> IbisValueExpr:
         """Add microseconds to a datetime.

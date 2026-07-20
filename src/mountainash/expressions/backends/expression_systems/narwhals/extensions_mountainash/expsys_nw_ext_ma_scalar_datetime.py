@@ -219,7 +219,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_years(
         self,
         x: NarwhalsExpr,
-        years: int,
+        years: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add years to a datetime.
@@ -236,7 +236,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_months(
         self,
         x: NarwhalsExpr,
-        months: int,
+        months: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add months to a datetime.
@@ -253,7 +253,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_days(
         self,
         x: NarwhalsExpr,
-        days: int,
+        days: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add days to a datetime.
@@ -270,7 +270,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_hours(
         self,
         x: NarwhalsExpr,
-        hours: int,
+        hours: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add hours to a datetime.
@@ -287,7 +287,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_minutes(
         self,
         x: NarwhalsExpr,
-        minutes: int,
+        minutes: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add minutes to a datetime.
@@ -304,7 +304,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_seconds(
         self,
         x: NarwhalsExpr,
-        seconds: int,
+        seconds: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add seconds to a datetime.
@@ -321,7 +321,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_milliseconds(
         self,
         x: NarwhalsExpr,
-        milliseconds: int,
+        milliseconds: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add milliseconds to a datetime.
@@ -342,7 +342,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_microseconds(
         self,
         x: NarwhalsExpr,
-        microseconds: int,
+        microseconds: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add microseconds to a datetime.

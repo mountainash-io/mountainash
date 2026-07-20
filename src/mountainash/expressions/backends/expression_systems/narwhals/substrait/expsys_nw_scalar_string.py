@@ -168,7 +168,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        characters: str = None,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Remove characters from both sides of the string.
 
@@ -187,7 +187,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        characters: str = None,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Remove characters from the left side of the string.
 
@@ -211,7 +211,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        characters: str = None,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Remove characters from the right side of the string.
 
@@ -235,8 +235,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        length: int,
-        characters: str = None,
+        length: NarwhalsExpr | int,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Left-pad the input string to specified length."""
         fill = str(characters) if characters is not None else " "
@@ -246,8 +246,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        length: int,
-        characters: str = None,
+        length: NarwhalsExpr | int,
+        characters: NarwhalsExpr | str = None,
     ) -> NarwhalsExpr:
         """Right-pad the input string to specified length."""
         fill = str(characters) if characters is not None else " "
@@ -286,8 +286,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        start: int,
-        length: int = None,
+        start: NarwhalsExpr | int,
+        length: NarwhalsExpr | int = None,
         negative_start: Any = None,
     ) -> NarwhalsExpr:
         """Extract a substring.
@@ -309,7 +309,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        count: int,
+        count: NarwhalsExpr | int,
     ) -> NarwhalsExpr:
         """Extract count characters from the left."""
         return input.str.head(int(count))
@@ -318,7 +318,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        count: int,
+        count: NarwhalsExpr | int,
     ) -> NarwhalsExpr:
         """Extract count characters from the right."""
         return input.str.tail(int(count))
@@ -563,7 +563,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        substring: str,
+        substring: NarwhalsExpr | str,
         replacement: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
@@ -621,7 +621,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        match: str,
+        match: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """SQL LIKE pattern matching (% and _ wildcards).
@@ -791,7 +791,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        pattern: str,
+        pattern: NarwhalsExpr | str,
         replacement: NarwhalsExpr | str,
         position: Optional[int] = None,
         occurrence: Optional[int] = None,

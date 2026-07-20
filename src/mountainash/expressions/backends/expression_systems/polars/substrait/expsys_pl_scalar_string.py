@@ -239,7 +239,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         /,
         length: PolarsExpr,
-        characters: str | None = None,
+        characters: PolarsExpr | str | None = None,
     ) -> PolarsExpr:
         """Left-pad the input string to specified length.
 
@@ -259,7 +259,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         input: PolarsExpr,
         /,
         length: PolarsExpr,
-        characters: str | None = None,
+        characters: PolarsExpr | str | None = None,
     ) -> PolarsExpr:
         """Right-pad the input string to specified length.
 
@@ -278,8 +278,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        length: int,
-        character: str | None = None,
+        length: PolarsExpr | int,
+        character: PolarsExpr | str | None = None,
         padding: Any = None,
     ) -> PolarsExpr:
         """Center the input string by padding both sides.
@@ -366,9 +366,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        start: int,
-        length: int,
-        replacement: str,
+        start: PolarsExpr | int,
+        length: PolarsExpr | int,
+        replacement: PolarsExpr | str,
     ) -> PolarsExpr:
         """Replace a slice of the input string (1-indexed start, clamped).
 
@@ -599,7 +599,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        substring: str,
+        substring: PolarsExpr | str,
         replacement: PolarsExpr,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
@@ -620,7 +620,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        count: int,
+        count: PolarsExpr | int,
     ) -> PolarsExpr:
         """Repeat a string count number of times.
 
@@ -656,7 +656,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        match: str,
+        match: PolarsExpr | str,
         case_sensitivity: Any = None,
     ) -> PolarsExpr:
         """SQL LIKE pattern matching (% and _ wildcards).
@@ -792,7 +792,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        pattern: str,
+        pattern: PolarsExpr | str,
         replacement: PolarsExpr,
         position: Optional[int] = None,
         occurrence: Optional[int] = None,

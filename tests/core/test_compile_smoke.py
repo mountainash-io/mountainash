@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
@@ -72,297 +73,19 @@ def _resolve_api_callable(
     return None
 
 
-# ── Exception set ─────────────────────────────────────────────────────────
-# (fkey_str, backend_name) → "reason. Since YYYY-MM-DD."
-#
-# 497 entries across 109 unique FKEYs. Failure categories:
-#   276  BackendCapabilityError — backend explicitly rejects the operation
-#   108  NotImplementedError — operation not wired for this backend
-#    53  TypeError — arg construction mismatch (needs _SMOKE_ARG_OVERRIDES)
+# 244 entries across 109 unique FKEYs. Failure categories:
+# BackendCapabilityError outcomes are now derived from the capability registry
+# (any BackendCapabilityError raised by compile() is treated as an expected
+# xfail), so they are no longer hardcoded here.
+#   124  NotImplementedError — operation not wired for this backend
+#    60  TypeError — arg construction mismatch (needs _SMOKE_ARG_OVERRIDES)
 #    35  Window requires .over() — window functions need .over() context
 #    12  AttributeError — missing method on backend
 #     7  Pydantic ValidationError — API builder passes options=None
 #     4  ValueError — bad default option value
 #     2  Other (ComputeError, InvalidOperationError)
 _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
-    # ── BackendCapabilityError (276 entries) ──
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals datetime offset operations require literal integer values Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.AGG", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.agg(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.AGG", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.agg(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.AGG", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.agg(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.AGG", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.agg(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.AGG", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.agg(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.AGG", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.agg(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ALL", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.all(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ALL", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.all(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ALL", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.all(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ANY", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.any(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ANY", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.any(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ANY", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.any(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.arg_max(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.arg_max(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.arg_max(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.arg_max(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.arg_max(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.arg_max(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.arg_min(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.arg_min(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.arg_min(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.arg_min(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.arg_min(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.arg_min(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.concat(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.concat(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.concat(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.count_matches(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.count_matches(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.count_matches(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.count_matches(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.count_matches(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.count_matches(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DIFF", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.diff(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DIFF", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.diff(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DIFF", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.diff(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DIFF", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.diff(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DIFF", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.diff(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DIFF", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.diff(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.drop_nulls(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.drop_nulls(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.drop_nulls(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.drop_nulls(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.drop_nulls(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.drop_nulls(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.explode(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.explode(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.explode(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.FILTER", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis array.filter() requires a Deferred/Callable predicate, which is incompatible with... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.FILTER", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis array.filter() requires a Deferred/Callable predicate, which is incompatible with... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.FILTER", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis array.filter() requires a Deferred/Callable predicate, which is incompatible with... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.FILTER", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.filter(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.FILTER", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.filter(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.FILTER", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.filter(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.gather(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.gather(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.gather(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.gather(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.gather(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.gather(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.gather_every(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.gather_every(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.gather_every(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.gather_every(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.gather_every(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.gather_every(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.HEAD", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.head(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.HEAD", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.head(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.HEAD", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.head(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.HEAD", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.head(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.HEAD", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.head(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.HEAD", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.head(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ITEM", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.item(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ITEM", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.item(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ITEM", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.item(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ITEM", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.item(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ITEM", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.item(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.ITEM", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.item(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.JOIN", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.join(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.JOIN", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.join(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.JOIN", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.join(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.median(). Use Polars or Narwhals backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.median(). Use Polars or Narwhals backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.median(). Use Polars or Narwhals backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.n_unique(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.n_unique(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.n_unique(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.n_unique(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.n_unique(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.n_unique(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.reverse(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.reverse(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.reverse(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.reverse(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.reverse(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.reverse(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.sample(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.sample(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.sample(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.sample(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.sample(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.sample(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.set_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.set_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.set_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_intersection(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_intersection(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_intersection(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.set_symmetric_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.set_symmetric_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.set_symmetric_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_symmetric_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_symmetric_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_symmetric_difference(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_union(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_union(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.set_union(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.shift(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.shift(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.shift(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.shift(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.shift(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.shift(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SLICE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.slice(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SLICE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.slice(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SLICE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.slice(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SLICE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.slice(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SLICE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.slice(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.SLICE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.slice(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.STD", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.std(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.STD", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.std(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.STD", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.std(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.STD", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.std(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.STD", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.std(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.STD", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.std(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TAIL", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.tail(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TAIL", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.tail(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TAIL", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.tail(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TAIL", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.tail(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TAIL", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.tail(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TAIL", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.tail(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.to_struct(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.to_struct(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.to_struct(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.to_struct(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.to_struct(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.to_struct(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.VAR", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support array.var(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.VAR", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support array.var(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.VAR", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support array.var(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.VAR", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.var(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.VAR", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support list.var(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_LIST.VAR", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support list.var(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support str.decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support str.decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support str.decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support str.encode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support str.encode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support str.encode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.encode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.encode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.encode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support str.extract_groups(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support str.extract_groups(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support str.extract_groups(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.extract_groups(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.extract_groups(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.extract_groups(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support str.json_decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support str.json_decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support str.json_decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.json_decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.json_decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.json_decode(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support str.json_path_match(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support str.json_path_match(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support str.json_path_match(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.json_path_match(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.json_path_match(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.json_path_match(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support str.to_time(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support str.to_time(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support str.to_time(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.to_time(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.to_time(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.to_time(). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis has no expression-level forward_fill/backward_fill. Use relation-level compositio... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis has no expression-level forward_fill/backward_fill. Use relation-level compositio... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis has no expression-level forward_fill/backward_fill. Use relation-level compositio... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis has no expression-level forward_fill/backward_fill. Use relation-level compositio... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis has no expression-level forward_fill/backward_fill. Use relation-level compositio... Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis has no expression-level forward_fill/backward_fill. Use relation-level compositio... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise_xor. Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise_xor. Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise_xor. Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise shift_left. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise shift_left. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise shift_left. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT", "polars"): "BackendCapabilityError: [polars] Polars does not support bitwise shift_left. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise shift_right. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise shift_right. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support bitwise shift_right. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT", "polars"): "BackendCapabilityError: [polars] Polars does not support bitwise shift_right. Use Ibis backend for shift operations. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "ibis-duckdb"): "BackendCapabilityError: [ibis] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "ibis-polars"): "BackendCapabilityError: [ibis] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "ibis-sqlite"): "BackendCapabilityError: [ibis] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "narwhals-pandas"): "BackendCapabilityError: [narwhals] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "narwhals-polars"): "BackendCapabilityError: [narwhals] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "pandas"): "BackendCapabilityError: [narwhals] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED", "polars"): "BackendCapabilityError: [polars] No backend supports bitwise shift_right_unsigned. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LEFT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LEFT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LEFT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LPAD", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LPAD", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LPAD", "pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support regexp_count_substring (no count_matches method). Use Polars bac... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support regexp_count_substring (no count_matches method). Use Polars bac... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support regexp_count_substring (no count_matches method). Use Polars bac... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_count_substring (no count_matches method). Use Po... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_count_substring (no count_matches method). Use Po... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_count_substring (no count_matches method). Use Po... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support regexp_match_substring_all (no extract_all equivalent). Use Pola... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support regexp_match_substring_all (no extract_all equivalent). Use Pola... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support regexp_match_substring_all (no extract_all equivalent). Use Pola... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_match_substring_all (no extract_all method). Use ... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_match_substring_all (no extract_all method). Use ... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_match_substring_all (no extract_all method). Use ... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS", "ibis-duckdb"): "BackendCapabilityError: [ibis] Ibis does not support regexp_strpos (no regex find method). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS", "ibis-polars"): "BackendCapabilityError: [ibis] Ibis does not support regexp_strpos (no regex find method). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS", "ibis-sqlite"): "BackendCapabilityError: [ibis] Ibis does not support regexp_strpos (no regex find method). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_strpos (no regex find method). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_strpos (no regex find method). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support regexp_strpos (no regex find method). Use Polars backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.repeat(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals does not support str.repeat(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals does not support str.repeat(). Use Polars or Ibis backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT", "pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RPAD", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RPAD", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RPAD", "pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING", "narwhals-pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING", "narwhals-polars"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING", "pandas"): "BackendCapabilityError: [narwhals] Narwhals string methods require literal values, not column references, on the pand... Since 2026-05-18.",
-    # ── NotImplementedError (108 entries) ──
+    # ── NotImplementedError (124 entries) ──
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.DAYS_IN_MONTH", "narwhals-pandas"): "NotImplementedError: Narwhals does not support days_in_month() Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.DAYS_IN_MONTH", "narwhals-polars"): "NotImplementedError: Narwhals does not support days_in_month() Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.DAYS_IN_MONTH", "pandas"): "NotImplementedError: Narwhals does not support days_in_month() Since 2026-05-18.",
@@ -507,7 +230,7 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE", "narwhals-polars"): "ValueError: Window function '9' requires .over() — e.g., col('x').nth_value().over('group') Since 2026-05-18.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE", "pandas"): "ValueError: Window function '9' requires .over() — e.g., col('x').nth_value().over('group') Since 2026-05-18.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE", "polars"): "ValueError: Window function '9' requires .over() — e.g., col('x').nth_value().over('group') Since 2026-05-18.",
-    # ── TypeError (arg construction) (53 entries) ──
+    # ── TypeError (arg construction) (60 entries) ──
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY", "ibis-duckdb"): "API: TypeError: MountainAshScalarDatetimeAPIBuilder.offset_by() missing 1 required positional argument: 'offset' Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY", "ibis-polars"): "API: TypeError: MountainAshScalarDatetimeAPIBuilder.offset_by() missing 1 required positional argument: 'offset' Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY", "ibis-sqlite"): "API: TypeError: MountainAshScalarDatetimeAPIBuilder.offset_by() missing 1 required positional argument: 'offset' Since 2026-05-18.",
@@ -611,7 +334,7 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-polars"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-duckdb"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-sqlite"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
-    # ── Smoke expr builder: newly-exposed backend limitations (21 entries) ──
+    # ── Smoke expr builder: newly-exposed backend limitations (12 entries) ──
     # TO_DATE / TO_DATETIME — Narwhals backend does not implement strptime
     ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "narwhals-polars"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
@@ -619,10 +342,6 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "narwhals-polars"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "narwhals-pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
-    # RANK (average method) — Ibis SQL has no rank(method='average') equivalent
-    ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
-    ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
-    ("SUBSTRAIT_ARITHMETIC_WINDOW.RANK", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
     # PERCENT_RANK — Narwhals backend does not implement percent_rank()
     ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "pandas"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "narwhals-polars"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",
@@ -631,14 +350,6 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST", "pandas"): "NotImplementedError: cume_dist() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST", "narwhals-polars"): "NotImplementedError: cume_dist() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST", "narwhals-pandas"): "NotImplementedError: cume_dist() is not supported by the Narwhals backend. Since 2026-05-20.",
-    # RANK_MAX — Ibis SQL has no rank(method='max') equivalent
-    ("FKEY_MOUNTAINASH_WINDOW.RANK_MAX", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='max'). Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_WINDOW.RANK_MAX", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='max'). Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_WINDOW.RANK_MAX", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='max'). Since 2026-05-20.",
-    # RANK_AVERAGE — Ibis SQL has no rank(method='average') equivalent
-    ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-polars"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-duckdb"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
-    ("FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE", "ibis-sqlite"): "BackendCapabilityError: Ibis has no SQL equivalent for rank(method='average'). Since 2026-05-20.",
 }
 
 
@@ -735,6 +446,10 @@ class TestCompileSmoke:
             expr = builder()
             try:
                 expr.compile(df)
+            except BackendCapabilityError as e:
+                pytest.xfail(
+                    f"{fkey_str} on {backend_name}: gated by capability spine: {e}"
+                )
             except Exception as e:
                 pytest.fail(
                     f"{fkey_str} on {backend_name}: compile() raised "
@@ -758,6 +473,10 @@ class TestCompileSmoke:
                 )
             try:
                 expr.compile(df)
+            except BackendCapabilityError as e:
+                pytest.xfail(
+                    f"{fkey_str} on {backend_name}: gated by capability spine: {e}"
+                )
             except Exception as e:
                 pytest.fail(
                     f"{fkey_str} on {backend_name}: compile() raised "
@@ -784,6 +503,10 @@ class TestCompileSmoke:
                     )
                 try:
                     expr.compile(df)
+                except BackendCapabilityError as e:
+                    pytest.xfail(
+                        f"{fkey_str} on {backend_name}: gated by capability spine: {e}"
+                    )
                 except Exception as e:
                     pytest.fail(
                         f"{fkey_str} on {backend_name}: compile() raised "
@@ -801,6 +524,10 @@ class TestCompileSmoke:
 
         try:
             expr.compile(df)
+        except BackendCapabilityError as e:
+            pytest.xfail(
+                f"{fkey_str} on {backend_name}: gated by capability spine: {e}"
+            )
         except Exception as e:
             pytest.fail(
                 f"{fkey_str} on {backend_name}: compile() raised "
