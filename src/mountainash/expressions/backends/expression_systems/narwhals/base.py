@@ -217,6 +217,13 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 backend=CONST_BACKEND.NARWHALS, dialect=dialect,
                 message="fixed upstream on the polars-backed narwhals path",
                 since="2026-07-05",
+                upstream_ref={
+                    (FK_STR.CONTAINS, "substring"): "NW-STR-01",
+                    (FK_STR.STARTS_WITH, "substring"): "NW-STR-01",
+                    (FK_STR.ENDS_WITH, "substring"): "NW-STR-01",
+                    (FK_STR.REPLACE, "replacement"): "NW-STR-03",
+                    (FK_STR.REGEXP_REPLACE, "replacement"): "NW-STR-05",
+                }.get((op, param)),
             )
             for op, param in _POLARS_BACKED_FIXED
             for dialect in ("narwhals-polars", "narwhals-lazy")

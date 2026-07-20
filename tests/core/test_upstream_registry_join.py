@@ -23,22 +23,30 @@ _ZERO_REF_OK = {
 }
 
 _PENDING_DIVERGENCE_FACTS: dict[str, str] = {
-    # id -> reason. All drained by Phase 3 (DivergenceFact authoring).
-    "IB-AGG-02": "capability gap — no mode aggregate; becomes DivergenceFact in Phase 3. Since 2026-07-20.",
-    "IB-REL-01": "capability gap — window functions unsupported on ibis-polars; becomes DivergenceFact in Phase 3. Since 2026-07-20.",
-    "IB-CTE-01": "result divergence — Ibis strips RECURSIVE from CTE SQL; becomes DivergenceFact in Phase 3. Since 2026-07-20.",
-    "NW-MATH-03": "capability gap — is_finite/is_infinite gaps; becomes DivergenceFact in Phase 3. Since 2026-07-20.",
-    "NW-LIST-04": "result divergence — list.get() rejects negative indices; becomes DivergenceFact in Phase 3. Since 2026-07-20.",
-    "NW-LIST-06": "result divergence — list.last() fails through get(-1); becomes DivergenceFact in Phase 3. Since 2026-07-20.",
-    "MA-WIRE-01": "internal-wiring gap — bitwise operations are protocol stubs; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-02": "internal-wiring gap — shift operations are protocol stubs; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-03": "internal-wiring gap — conditional builder is not in _FLAT_NAMESPACES; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-04": "internal-wiring gap — is_dst rejects options=None; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-06": "internal-wiring gap — aggregate signatures mismatch; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-08": "internal-wiring gap — aspirational protocol methods remain unwired; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-09": "internal-wiring gap — string tier3 operations are Polars-only; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-10": "internal-wiring gap — forward_fill/backward_fill are unwired for Ibis; wiring backlog, not an upstream divergence. Since 2026-07-20.",
-    "MA-WIRE-11": "internal-wiring gap — median() is unavailable on col(); wiring backlog, not an upstream divergence. Since 2026-07-20.",
+    # id -> reason. Genuine result divergences become DivergenceFacts in Phase 3.
+    "IB-CTE-01": "result divergence — Ibis strips RECURSIVE from CTE SQL → DivergenceFact in Phase 3. Since 2026-07-20.",
+}
+
+_PENDING_CAPABILITY_FACTS: dict[str, str] = {
+    # id -> reason. Capability gaps become CapabilityFacts in Phase 3.
+    "IB-AGG-02": "capability gap — no mode aggregate → CapabilityFact in Phase 3. Since 2026-07-20.",
+    "IB-REL-01": "capability gap — window functions unsupported on ibis-polars → CapabilityFact in Phase 3. Since 2026-07-20.",
+    "NW-MATH-03": "capability gap — is_finite/is_infinite gaps → CapabilityFact in Phase 3. Since 2026-07-20.",
+    "NW-LIST-04": "capability gap — list.get() rejects negative indices → CapabilityFact in Phase 3. Since 2026-07-20.",
+    "NW-LIST-06": "capability gap — list.last() fails through get(-1) → CapabilityFact in Phase 3. Since 2026-07-20.",
+}
+
+_PENDING_INTERNAL_GAPS: dict[str, str] = {
+    # id -> reason. Internal-wiring gaps may never become facts.
+    "MA-WIRE-01": "internal-wiring gap — bitwise operations are protocol stubs; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-02": "internal-wiring gap — shift operations are protocol stubs; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-03": "internal-wiring gap — conditional builder is not in _FLAT_NAMESPACES; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-04": "internal-wiring gap — is_dst rejects options=None; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-06": "internal-wiring gap — aggregate signatures mismatch; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-08": "internal-wiring gap — aspirational protocol methods remain unwired; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-09": "internal-wiring gap — string tier3 operations are Polars-only; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-10": "internal-wiring gap — forward_fill/backward_fill are unwired for Ibis; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
+    "MA-WIRE-11": "internal-wiring gap — median() is unavailable on col(); tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
 }
 
 
@@ -69,6 +77,8 @@ def test_every_open_yaml_entry_is_referenced_from_code():
         if (
             entry_id not in refs
             and entry_id not in _PENDING_DIVERGENCE_FACTS
+            and entry_id not in _PENDING_CAPABILITY_FACTS
+            and entry_id not in _PENDING_INTERNAL_GAPS
             and entry["status"] not in _ZERO_REF_OK
         )
     )
@@ -77,3 +87,26 @@ def test_every_open_yaml_entry_is_referenced_from_code():
         "relevant fact/xfail, or correct the entry's status: "
         f"{orphaned}"
     )
+
+
+def test_pending_entries_are_real_open_and_justified():
+    entries = _yaml_entries()
+    all_pending = {
+        **_PENDING_DIVERGENCE_FACTS,
+        **_PENDING_CAPABILITY_FACTS,
+        **_PENDING_INTERNAL_GAPS,
+    }
+    # No id appears in two buckets.
+    keys = (
+        list(_PENDING_DIVERGENCE_FACTS)
+        + list(_PENDING_CAPABILITY_FACTS)
+        + list(_PENDING_INTERNAL_GAPS)
+    )
+    assert len(keys) == len(set(keys)), "an id is parked in more than one bucket"
+    for entry_id, reason in all_pending.items():
+        assert entry_id in entries, f"parked id not in registry: {entry_id}"
+        assert entries[entry_id]["status"] not in _ZERO_REF_OK, (
+            f"parked {entry_id} has a zero-ref-OK status ({entries[entry_id]['status']}) "
+            "— it does not need parking; remove it from the pending set"
+        )
+        assert reason.strip(), f"parked {entry_id} has an empty reason"
