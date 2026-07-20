@@ -5,15 +5,14 @@ both subsystems enrich known backend quirks identically. Lookup order per
 failure: each named arg's ``(operation_key, param)`` entry, then the
 ``(operation_key, "*")`` wildcard (how handler-routed relation operations
 and the materialization boundary participate). The *limitations* mapping
-may hold either :class:`KnownLimitation` or :class:`CapabilityFact` entries
-(the spine's MATERIALIZE residue).
+holds :class:`CapabilityFact` entries (the spine's MATERIALIZE residue).
 """
 from __future__ import annotations
 
 from enum import Enum, auto
 from typing import Any, Callable, Iterable, Mapping
 
-from mountainash.core.types import BackendCapabilityError, KnownLimitation
+from mountainash.core.types import BackendCapabilityError
 
 WILDCARD_PARAM = "*"
 
@@ -33,7 +32,7 @@ MATERIALIZE_BOUNDARY = _Boundary.MATERIALIZE
 def call_with_limitation_enrichment(
     fn: Callable[[], Any],
     *,
-    limitations: Mapping[tuple, "KnownLimitation"],
+    limitations: Mapping[tuple, Any],
     backend_name: str,
     operation_key: Any,
     named_args: Iterable[str],
@@ -43,8 +42,8 @@ def call_with_limitation_enrichment(
 
     Args:
         fn: Zero-arg callable invoking the native backend operation.
-        limitations: The backend's ``(operation_key, param) -> KnownLimitation``
-            table (``KNOWN_EXPR_LIMITATIONS`` / ``KNOWN_REL_LIMITATIONS``).
+        limitations: A ``(operation_key, param) -> CapabilityFact`` table
+            (the spine's MATERIALIZE residue).
         backend_name: Backend identifier for the raised error.
         operation_key: FKEY/RKEY enum member (or a boundary sentinel).
         named_args: Parameter names that may identify the failing entry;
@@ -70,8 +69,7 @@ def call_with_limitation_enrichment(
 def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
     """Materialization-boundary enrichment: consult the spine's MATERIALIZE
     residue (matched by native exception type — residue facts keep their
-    real operation keys) plus any legacy KNOWN_REL_LIMITATIONS entries
-    keyed (MATERIALIZE_BOUNDARY, "*") (removed by Task 12)."""
+    real operation keys)."""
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.types import BackendCapabilityError
 
@@ -81,8 +79,7 @@ def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
         if family is not None
         else {}
     )
-    legacy = getattr(backend, "KNOWN_REL_LIMITATIONS", None) or {}
-    if not residue and not legacy:
+    if not residue:
         return fn()
     try:
         return fn()
@@ -97,12 +94,4 @@ def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
                     function_key=op_key,
                     limitation=fact,
                 ) from exc
-        legacy_hit = legacy.get((MATERIALIZE_BOUNDARY, WILDCARD_PARAM))
-        if legacy_hit and isinstance(exc, legacy_hit.native_errors):
-            raise BackendCapabilityError(
-                legacy_hit.message,
-                backend=getattr(backend, "BACKEND_NAME", "unknown"),
-                function_key=MATERIALIZE_BOUNDARY,
-                limitation=legacy_hit,
-            ) from exc
         raise

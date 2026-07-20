@@ -3,18 +3,26 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.core.capabilities import Boundary, CapabilityFact, CapabilityLevel
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.limitations import (
     MATERIALIZE_BOUNDARY,
     WILDCARD_PARAM,
     call_with_limitation_enrichment,
 )
-from mountainash.core.types import BackendCapabilityError, KnownLimitation
+from mountainash.core.types import BackendCapabilityError
 
 KEY = "op_key"
-LIM = KnownLimitation(
+LIM = CapabilityFact(
+    operation_key=KEY,
+    param="tolerance",
+    level=CapabilityLevel.LITERAL_ONLY,
+    backend=CONST_BACKEND.NARWHALS,
     message="known quirk",
-    native_errors=(NotImplementedError,),
     workaround="use polars",
+    boundary=Boundary.MATERIALIZE,
+    native_errors=(NotImplementedError,),
+    since="2026-07-05",
 )
 
 

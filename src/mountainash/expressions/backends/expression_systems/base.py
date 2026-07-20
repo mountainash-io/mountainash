@@ -11,7 +11,6 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.constants import CONST_BACKEND
-    from mountainash.core.types import KnownLimitation
 
 
 class BaseExpressionSystem(ABC):
@@ -39,24 +38,10 @@ class BaseExpressionSystem(ABC):
         """
         ...
 
-    # Class-level registry for known expression argument limitations.
-    # Keys are (function_key_enum_value, param_name) tuples.
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], "KnownLimitation"] = {}
-
     BACKEND_NAME: str = "unknown"
 
     def __init__(self, dialect: str | None = None) -> None:
         self.dialect = dialect
-
-    def _extract_literal_if_possible(self, expr: Any) -> Any:
-        """Extract the raw Python value from a literal expression, if possible.
-
-        Some native APIs (e.g., Narwhals/Pandas str methods) require raw Python
-        values, not expression objects, even for literal values. This method
-        unwraps literal expressions back to raw values. Column references and
-        complex expressions pass through unchanged.
-        """
-        return expr
 
     def _call_with_expr_support(
         self,
@@ -67,16 +52,15 @@ class BaseExpressionSystem(ABC):
     ) -> Any:
         """Call a native backend op, enriching known-limitation failures.
 
-        Registry-first (migrated backends + conditioned MATERIALIZE facts),
-        class-dict fallback (unmigrated backends keep their old enrichment —
-        the per-backend-safe-migration invariant). Only facts with
-        native_errors participate; BUILD facts gate at the visitor and never
-        reach here.
+        Registry-sourced: only conditioned MATERIALIZE facts (those declaring
+        native_errors) participate; BUILD facts gate at the visitor and never
+        reach here. The legacy per-backend KNOWN_EXPR_LIMITATIONS class dicts
+        were retired in the spine's Phase 1.
         """
         from mountainash.core.capabilities import CapabilityRegistry
         from mountainash.core.limitations import call_with_limitation_enrichment
 
-        limitations = dict(self.KNOWN_EXPR_LIMITATIONS)
+        limitations: dict[tuple[Any, str], Any] = {}
         for param in named_args:
             fact = CapabilityRegistry.capability_for(
                 function_key, param, self.backend_type, self.dialect

@@ -69,47 +69,11 @@ class TestCallWithExprSupport:
 
 
 class TestExtractLiteralIfPossible:
-
-    def test_polars_raw_value_passes_through(self):
-        sys = PolarsBaseExpressionSystem()
-        assert sys._extract_literal_if_possible("hello") == "hello"
-        assert sys._extract_literal_if_possible(42) == 42
-        assert sys._extract_literal_if_possible(None) is None
-
-    def test_polars_extractor_is_noop_after_migration(self):
-        import polars as pl
-
-        sys = PolarsBaseExpressionSystem()
-        res = sys._extract_literal_if_possible(pl.lit("hello"))
-        assert isinstance(res, pl.Expr)
-
-    def test_polars_column_ref_passes_through(self):
-        import polars as pl
-
-        sys = PolarsBaseExpressionSystem()
-        col_expr = pl.col("name")
-        result = sys._extract_literal_if_possible(col_expr)
-        assert isinstance(result, pl.Expr)
-
-    def test_narwhals_raw_value_passes_through(self):
-        sys = NarwhalsBaseExpressionSystem()
-        assert sys._extract_literal_if_possible("hello") == "hello"
-        assert sys._extract_literal_if_possible(42) == 42
-
-    def test_narwhals_extractor_is_noop_after_migration(self):
-        import narwhals as nw
-
-        sys = NarwhalsBaseExpressionSystem()
-        res = sys._extract_literal_if_possible(nw.lit("hello"))
-        assert isinstance(res, nw.Expr)
-
-    def test_narwhals_column_ref_passes_through(self):
-        import narwhals as nw
-
-        sys = NarwhalsBaseExpressionSystem()
-        col_expr = nw.col("name")
-        result = sys._extract_literal_if_possible(col_expr)
-        assert isinstance(result, nw.Expr)
+    """Only Ibis retains ``_extract_literal_if_possible`` (its replace()
+    extraction-without-narrowing override). The base default and the
+    polars/narwhals overrides were retired in the spine's Phase 1 —
+    extraction moved to the visitor gate; their absence is guarded by
+    ``test_capability_integrity.test_no_extractor_heuristics_remain``."""
 
     def test_ibis_extracts_literal(self):
         import ibis

@@ -67,10 +67,10 @@ _FIXTURE_IDENTITY = {
 
 
 def _registry_lookup(backend: str, function_key, param_name: str):
-    """Resolve a capability fact (new spine) or legacy KnownLimitation.
+    """Resolve a capability fact from the spine for this (op, param, dialect).
 
-    During per-backend migration a backend may still carry its old
-    KNOWN_EXPR_LIMITATIONS dict; consult the spine first, then fall back.
+    Returns the gating fact, or None when the op/param is unconstrained on
+    this dialect (EXPR_CAPABLE / POLYMORPHIC, or no fact registered).
     """
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
     from mountainash.core.constants import CONST_BACKEND
@@ -83,21 +83,7 @@ def _registry_lookup(backend: str, function_key, param_name: str):
         if fact.level in (CapabilityLevel.EXPR_CAPABLE, CapabilityLevel.POLYMORPHIC):
             return None  # not a limitation on this dialect
         return fact
-
-    # Legacy fallback (removed by Task 12 once all backends are migrated)
-    if backend == "polars":
-        from mountainash.expressions.backends.expression_systems.polars.base import (
-            PolarsBaseExpressionSystem as B,
-        )
-    elif backend == "ibis":
-        from mountainash.expressions.backends.expression_systems.ibis.base import (
-            IbisBaseExpressionSystem as B,
-        )
-    else:
-        from mountainash.expressions.backends.expression_systems.narwhals.base import (
-            NarwhalsBaseExpressionSystem as B,
-        )
-    return B.KNOWN_EXPR_LIMITATIONS.get((function_key, param_name))
+    return None
 
 
 def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_type: str):

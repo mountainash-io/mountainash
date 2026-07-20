@@ -1,4 +1,5 @@
 """Capability spine — schema, registry, backend identity (spec 2026-07-05)."""
+from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
 from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALECTS
 from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
 from mountainash.core.capabilities.schema import (
@@ -29,4 +30,5 @@ __all__ = [
     "KnownGap",
     "TargetKind",
     "WILDCARD_PARAM",
+    "load_all_capability_declarations",
 ]

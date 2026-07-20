@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
 
-from dataclasses import dataclass
 from mountainash.core.errors import MountainashError
 
 
@@ -267,23 +266,8 @@ def is_pyarrow_array(obj: Any) -> TypeGuard['PyArrowArray']:
     return type(obj).__module__.startswith("pyarrow") and type(obj).__name__ == "Array"
 
 # ============================================================================
-# Backend Capability — Known Limitations
+# Backend Capability — compile-time error surface
 # ============================================================================
-
-
-@dataclass(frozen=True)
-class KnownLimitation:
-    """Documents a known backend limitation for expression-typed arguments.
-
-    Consulted only when the backend raises a native error — never gates
-    execution. When the upstream library adds support, the error stops
-    being raised and this entry becomes dormant.
-    """
-
-    message: str
-    native_errors: tuple[type[Exception], ...]
-    upstream_issue: str | None = None
-    workaround: str | None = None
 
 
 class BackendCapabilityError(MountainashError):
@@ -299,7 +283,7 @@ class BackendCapabilityError(MountainashError):
         *,
         backend: str,
         function_key: Any,
-        limitation: Any = None,  # KnownLimitation | CapabilityFact
+        limitation: Any = None,  # CapabilityFact (spine MATERIALIZE residue)
     ) -> None:
         parts = [f"[{backend}] {message}"]
         if limitation is not None:

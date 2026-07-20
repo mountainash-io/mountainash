@@ -65,7 +65,7 @@ class UnifiedRelationVisitor:
         handler = RelationVisitRegistry.get(type(node))
         if handler is not None:
             try:
-                return self._with_limitation_enrichment(node, lambda: handler(node, self))
+                return handler(node, self)
             except Exception as e:
                 # Re-raise with context. Use add_note when available (Python 3.11+)
                 # rather than reconstructing the exception (which breaks custom __init__
@@ -83,31 +83,7 @@ class UnifiedRelationVisitor:
             RelationOperationRegistry,
         )
         op = RelationOperationRegistry.get(key)
-        return self._with_limitation_enrichment(node, lambda: self._dispatch(node, op), op)
-
-    def _with_limitation_enrichment(self, node, fn, op=None):
-        """Structural enrichment invariant (spec §3.8): every dispatch —
-        declarative and handler-routed — flows through the core helper."""
-        limitations = getattr(self.backend, "KNOWN_REL_LIMITATIONS", None)
-        key = node.operation_key
-        if not limitations or key is None:
-            return fn()
-        from mountainash.core.limitations import call_with_limitation_enrichment
-        return call_with_limitation_enrichment(
-            fn,
-            limitations=limitations,
-            backend_name=getattr(self.backend, "BACKEND_NAME", "unknown"),
-            operation_key=key,
-            named_args=self._named_args_for(node, op),
-        )
-
-    def _named_args_for(self, node, op) -> tuple:
-        if op is None or op.handler is not None:
-            return ()  # handler-routed: wildcard entries only
-        named = [b.field for b in op.args] + list(op.options)
-        if op.options_field is not None:
-            named.extend(getattr(node, op.options_field, {}))
-        return tuple(named)
+        return self._dispatch(node, op)
 
     def _gate_capabilities(self, node, op) -> None:
         """Compile-time capability gate (spec Section 2, relations side).
