@@ -192,18 +192,51 @@ def _parse_kel_from_class_body(source: str, backend: str, est_cases: int) -> lis
 
 
 def collect_kel_entries() -> list[KelGap]:
-    """Parse KNOWN_EXPR_LIMITATIONS from each backend base class via AST.
+    """Gating expression capability facts (LITERAL_ONLY / UNSUPPORTED), read
+    from the capability spine registry.
+
+    Since the spine's Phase 1 the KEL data lives on each backend's
+    ``CAPABILITIES`` tuple (registered in ``CapabilityRegistry``), not the old
+    ``KNOWN_EXPR_LIMITATIONS`` dicts — so this reads the registry rather than
+    AST-parsing the backend base classes. (The AST helpers above are now
+    unused; the Phase-4 report retarget rewrites the remaining collectors.)
 
     Est. cases per entry:
       polars: 2 input types (col, complex) × 1 backend = 2
       narwhals: 2 input types × 2 sub-backends (narwhals-polars + narwhals-pandas) = 4
-               (approximate — some narwhals-polars ops pass and are in _NW_POLARS_FIXED)
       ibis: 2 input types × 1 backend = 2
     """
+    from mountainash.core.capabilities import (
+        CapabilityLevel,
+        CapabilityRegistry,
+        load_all_capability_declarations,
+    )
+    from mountainash.expressions.core.expression_system.function_mapping.registry import (
+        ExpressionFunctionRegistry,
+    )
+
+    load_all_capability_declarations()
     backend_est = {"polars": 2, "narwhals": 4, "ibis": 2}
+    gating = (CapabilityLevel.LITERAL_ONLY, CapabilityLevel.UNSUPPORTED)
     gaps: list[KelGap] = []
-    for backend, path in BACKEND_BASE_FILES.items():
-        gaps.extend(_parse_kel_from_class_body(path.read_text(), backend, backend_est[backend]))
+    for fact in CapabilityRegistry.facts():
+        if fact.level not in gating:
+            continue
+        backend = getattr(fact.backend, "value", fact.backend)
+        if backend not in backend_est:
+            continue
+        # KEL is an expression-domain concept — skip relation-domain facts.
+        try:
+            ExpressionFunctionRegistry.get(fact.operation_key)
+        except KeyError:
+            continue
+        gaps.append(KelGap(
+            backend=backend,
+            op_name=fact.operation_key.name.lower(),
+            param_name=fact.param,
+            message=fact.message,
+            est_cases=backend_est[backend],
+        ))
     return sorted(gaps, key=lambda g: (g.backend, g.op_name, g.param_name))
 
 
@@ -434,7 +467,7 @@ def render_report() -> str:
         "## Argument Types — Expression-Limited Operations (KEL)",
         "",
         "Operations that accept raw/lit arguments but reject `col`/`complex` expressions.",
-        "Source: `KNOWN_EXPR_LIMITATIONS` in each backend base class.",
+        "Source: gating expression `CapabilityFact`s (LITERAL_ONLY/UNSUPPORTED) in the capability registry.",
         "Est. cases: polars=2, narwhals=4 (2 sub-backends), ibis=2 per entry.",
         "",
         "| Backend | Operation | Param | Est. cases | Message |",
