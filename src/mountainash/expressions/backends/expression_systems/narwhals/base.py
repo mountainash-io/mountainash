@@ -36,22 +36,31 @@ _NW_LIST_MSG = (
     "list.contains on any native backend — its `item` parameter is typed "
     "`NonNestedLiteral` and rejects Expr."
 )
-# Native errors the eager (narwhals-pandas) list-contains path can raise —
-# preserved verbatim from the pre-spine _NW_LIST_CONTAINS_LIMITED. Enriched
-# into BackendCapabilityError at the is_in/is_not_in call site's
-# _call_with_expr_support wrapper. (The narwhals-polars path raises lazily at
-# materialize, outside the dispatch wrapper — a known un-enriched gap the
-# probe_exempt note documents; closing it needs expression-level materialize
-# enrichment, tracked as a follow-up.)
+# Native errors the list.contains(Expr) path can raise — preserved verbatim
+# from the pre-spine _NW_LIST_CONTAINS_LIMITED. Enrichment coverage (verified
+# empirically 2026-07-20, narwhals 2.23.0 / polars 1.42.1):
+#   * narwhals-pandas (eager): list.contains(Expr) raises TypeError at the
+#     is_in/is_not_in call site, caught by the _call_with_expr_support wrapper.
+#   * narwhals-polars (lazy): list.contains(Expr) builds successfully and the
+#     TypeError fires at materialize, AFTER the dispatch wrapper has returned.
+#     When the expression is embedded in a Relation, that TypeError is caught
+#     and enriched to BackendCapabilityError by the relation-collect boundary
+#     (core.limitations.enrich_materialization) — this residue fact participates
+#     there via boundary=MATERIALIZE. So both the eager and the relation-embedded
+#     lazy paths are covered; a *standalone* compiled expression (col.compile(df),
+#     user-collected) has no mountainash-controlled materialize boundary and is
+#     the only un-enriched case — but that path also mis-compiles is_in-over-a-
+#     column entirely (scalar equality, not list.contains); see backlog item 60.
 _NW_LIST_NATIVE_ERRORS = (TypeError, AttributeError, ValueError)
 _NW_LIST_PROBE_EXEMPT = (
     "MATERIALIZE-boundary, structure-conditioned: the `collection` param takes "
     "a list-typed argument, which the scalar-argument OP_SPECS probe matrix "
-    "cannot model. The dynamic list-column path is also non-uniform across the "
-    "narwhals matrix (narwhals-polars raises NarwhalsError lazily at "
-    "materialize; narwhals-pandas silently returns False), so no single "
-    "strict-xfail probe is well-defined. The eager errors are enriched via "
-    "native_errors (integrity guard #4); the limitation is not BUILD-gateable."
+    "cannot model. The dynamic list-column path is non-uniform across the "
+    "narwhals matrix (narwhals-polars raises TypeError lazily at materialize; "
+    "narwhals-pandas raises TypeError eagerly), so no single strict-xfail probe "
+    "is well-defined. The errors are enriched via native_errors (integrity "
+    "guard #4) at the dispatch wrapper (eager) or the relation-collect boundary "
+    "(lazy, when embedded in a Relation); the limitation is not BUILD-gateable."
 )
 
 
