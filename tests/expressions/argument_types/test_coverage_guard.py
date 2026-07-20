@@ -13,6 +13,7 @@ import typing
 from typing import get_type_hints
 
 from expressions.argument_types._coverage_guard_helpers import (
+    GapKind,
     KnownGap,
     TestedParamRef,
     canonicalize_tested_param,
@@ -88,6 +89,7 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     # List ops - mostly Polars-only, argument expression support is backend-specific
     **{
         key: KnownGap(
+            gap_kind=GapKind.UNTESTED_ARGUMENT,
             reason="List argument expression support is backend-specific",
             since="2026-05-12",
         )
@@ -149,6 +151,7 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     # Duration extraction - Ibis has no total_* methods
     **{
         key: KnownGap(
+            gap_kind=GapKind.UNTESTED_ARGUMENT,
             reason="Ibis has no total_* duration extraction methods",
             since="2026-05-12",
         )
@@ -167,6 +170,7 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
 
 _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], KnownGap] = {
     key: KnownGap(
+        gap_kind=GapKind.UNTESTED_ARGUMENT,
         reason=(
             "TESTED_PARAMS is protocol accounting metadata here; operation matrix "
             "coverage is blocked by current backend/test infrastructure limitations"
@@ -461,6 +465,7 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
 
 _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     key: KnownGap(
+        gap_kind=GapKind.UNTESTED_OPTION,
         reason=(
             "Option behavior coverage is not implemented yet; tracked explicitly "
             "by option-param guard"
@@ -683,15 +688,18 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
 
 _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
     ("SubstraitFieldReferenceExpressionSystemProtocol", "col"): KnownGap(
+        gap_kind=GapKind.OTHER,
         reason="Special node type (FieldReferenceNode), not dispatched through scalar function registry",
         since="2026-05-12",
     ),
     ("SubstraitLiteralExpressionSystemProtocol", "lit"): KnownGap(
+        gap_kind=GapKind.OTHER,
         reason="Special node type (LiteralNode), not dispatched through scalar function registry",
         since="2026-05-12",
     ),
     **{
         key: KnownGap(
+            gap_kind=GapKind.OTHER,
             reason="TESTED_PARAMS operation is covered, but registry protocol_method wiring is not in place yet",
             since="2026-05-12",
         )
@@ -782,94 +790,117 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
 
 _KNOWN_UNRESOLVED_TESTED_PARAMS: dict[tuple[str, str], KnownGap] = {
     ("buffer", "buffer_radius"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.buffer",
         since="2026-05-12",
     ),
     ("buffer", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.buffer",
         since="2026-05-12",
     ),
     ("centroid", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.centroid",
         since="2026-05-12",
     ),
     ("col", "x"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitFieldReferenceExpressionSystemProtocol.col",
         since="2026-05-12",
     ),
     ("collection_extract", "geom_collection"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.collection_extract",
         since="2026-05-12",
     ),
     ("dimension", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.dimension",
         since="2026-05-12",
     ),
     ("envelope", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.envelope",
         since="2026-05-12",
     ),
     ("flip_coordinates", "geom_collection"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.flip_coordinates",
         since="2026-05-12",
     ),
     ("geometry_type", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.geometry_type",
         since="2026-05-12",
     ),
     ("is_closed", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_closed",
         since="2026-05-12",
     ),
     ("is_empty", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_empty",
         since="2026-05-12",
     ),
     ("is_ring", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_ring",
         since="2026-05-12",
     ),
     ("is_simple", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_simple",
         since="2026-05-12",
     ),
     ("is_valid", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.is_valid",
         since="2026-05-12",
     ),
     ("make_line", "geom1"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.make_line",
         since="2026-05-12",
     ),
     ("make_line", "geom2"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.make_line",
         since="2026-05-12",
     ),
     ("minimum_bounding_circle", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.minimum_bounding_circle",
         since="2026-05-12",
     ),
     ("num_points", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.num_points",
         since="2026-05-12",
     ),
     ("point", "x"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.point",
         since="2026-05-12",
     ),
     ("point", "y"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.point",
         since="2026-05-12",
     ),
     ("remove_repeated_points", "geom"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.remove_repeated_points",
         since="2026-05-12",
     ),
     ("x_coordinate", "point"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.x_coordinate",
         since="2026-05-12",
     ),
     ("y_coordinate", "point"): KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason="String TESTED_PARAMS entry lives in misc; protocol is SubstraitScalarGeometryExpressionSystemProtocol.y_coordinate",
         since="2026-05-12",
     ),
@@ -994,6 +1025,7 @@ _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_ALIASES: dict[
 
 _KNOWN_UNRESOLVED_TESTED_ARGUMENT_PARAM_GAPS: dict[tuple[str, str], KnownGap] = {
     source: KnownGap(
+        gap_kind=GapKind.UNRESOLVED_PARAM,
         reason=(
             "String TESTED_PARAMS entry is covered but cannot yet be resolved to a "
             "protocol-qualified key by the category resolver"
@@ -1044,6 +1076,7 @@ _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
 _ALLOWED_CROSS_CATEGORY_TESTED_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     **{
         key: KnownGap(
+            gap_kind=GapKind.OTHER,
             reason=(
                 "Datetime comparison dispatch is implemented by scalar comparison "
                 "registry/backend methods"
@@ -1063,6 +1096,7 @@ _ALLOWED_CROSS_CATEGORY_TESTED_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     },
     **{
         key: KnownGap(
+            gap_kind=GapKind.OTHER,
             reason=(
                 "Substrait cast argument coverage is centralized in the misc "
                 "argument-type module"
@@ -1075,6 +1109,7 @@ _ALLOWED_CROSS_CATEGORY_TESTED_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     },
     **{
         key: KnownGap(
+            gap_kind=GapKind.OTHER,
             reason=(
                 "Substrait conditional argument coverage is centralized in the "
                 "misc argument-type module"
@@ -1089,6 +1124,7 @@ _ALLOWED_CROSS_CATEGORY_TESTED_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     },
     **{
         key: KnownGap(
+            gap_kind=GapKind.OTHER,
             reason=(
                 "Substrait set argument coverage is centralized in the misc "
                 "argument-type module"
