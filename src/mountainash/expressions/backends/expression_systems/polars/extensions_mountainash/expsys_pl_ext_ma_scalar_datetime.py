@@ -16,9 +16,6 @@ import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME,
-)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
@@ -232,11 +229,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with years added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(years.cast(pl.Utf8) + "y"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
-            years=years,
-        )
+        return x.dt.offset_by(years.cast(pl.Utf8) + "y")
 
     def add_months(
         self,
@@ -253,11 +246,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with months added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(months.cast(pl.Utf8) + "mo"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
-            months=months,
-        )
+        return x.dt.offset_by(months.cast(pl.Utf8) + "mo")
 
     def add_days(
         self,
@@ -274,11 +263,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with days added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(days.cast(pl.Utf8) + "d"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
-            days=days,
-        )
+        return x.dt.offset_by(days.cast(pl.Utf8) + "d")
 
     def add_hours(
         self,
@@ -295,11 +280,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with hours added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(hours.cast(pl.Utf8) + "h"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
-            hours=hours,
-        )
+        return x.dt.offset_by(hours.cast(pl.Utf8) + "h")
 
     def add_minutes(
         self,
@@ -316,11 +297,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with minutes added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(minutes.cast(pl.Utf8) + "m"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
-            minutes=minutes,
-        )
+        return x.dt.offset_by(minutes.cast(pl.Utf8) + "m")
 
     def add_seconds(
         self,
@@ -337,11 +314,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with seconds added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(seconds.cast(pl.Utf8) + "s"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
-            seconds=seconds,
-        )
+        return x.dt.offset_by(seconds.cast(pl.Utf8) + "s")
 
     def add_milliseconds(
         self,
@@ -358,11 +331,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with milliseconds added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
-            milliseconds=milliseconds,
-        )
+        return x.dt.offset_by(milliseconds.cast(pl.Utf8) + "ms")
 
     def add_microseconds(
         self,
@@ -379,11 +348,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Datetime with microseconds added.
         """
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(microseconds.cast(pl.Utf8) + "us"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
-            microseconds=microseconds,
-        )
+        return x.dt.offset_by(microseconds.cast(pl.Utf8) + "us")
 
     # =========================================================================
     # Date Difference Methods

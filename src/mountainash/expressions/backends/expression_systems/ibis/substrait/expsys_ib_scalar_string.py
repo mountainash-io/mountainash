@@ -238,12 +238,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         fill_char = ibis.literal(" ") if characters is None else characters
         input = self._lift_deferred_receiver(input, length, fill_char)
-        return self._call_with_expr_support(
-            lambda: input.lpad(length, fill_char),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
-            length=length,
-            characters=fill_char,
-        )
+        return input.lpad(length, fill_char)
 
     def rpad(
         self,
@@ -264,12 +259,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         fill_char = ibis.literal(" ") if characters is None else characters
         input = self._lift_deferred_receiver(input, length, fill_char)
-        return self._call_with_expr_support(
-            lambda: input.rpad(length, fill_char),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
-            length=length,
-            characters=fill_char,
-        )
+        return input.rpad(length, fill_char)
 
     def center(
         self,
@@ -318,17 +308,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         input = self._lift_deferred_receiver(input, start, length)
         if length is None:
-            return self._call_with_expr_support(
-                lambda: input.substr(start),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-                start=start,
-            )
-        return self._call_with_expr_support(
-            lambda: input.substr(start, length),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-            start=start,
-            length=length,
-        )
+            return input.substr(start)
+        return input.substr(start, length)
 
     def left(
         self,
@@ -338,11 +319,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Extract count characters from the left."""
         input = self._lift_deferred_receiver(input, count)
-        return self._call_with_expr_support(
-            lambda: input.left(count),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
-            count=count,
-        )
+        return input.left(count)
 
     def right(
         self,
@@ -352,11 +329,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Extract count characters from the right."""
         input = self._lift_deferred_receiver(input, count)
-        return self._call_with_expr_support(
-            lambda: input.right(count),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
-            count=count,
-        )
+        return input.right(count)
 
     def replace_slice(
         self,
@@ -389,16 +362,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """Whether the input string contains the substring."""
         input = self._lift_deferred_receiver(input, substring)
         if case_sensitivity == "CASE_INSENSITIVE":
-            return self._call_with_expr_support(
-                lambda: input.lower().contains(substring.lower()),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-                substring=substring,
-            )
-        return self._call_with_expr_support(
-            lambda: input.contains(substring),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-            substring=substring,
-        )
+            return input.lower().contains(substring.lower())
+        return input.contains(substring)
 
     def starts_with(
         self,
@@ -410,16 +375,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """Whether input string starts with the substring."""
         input = self._lift_deferred_receiver(input, substring)
         if case_sensitivity == "CASE_INSENSITIVE":
-            return self._call_with_expr_support(
-                lambda: input.lower().startswith(substring.lower()),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
-                substring=substring,
-            )
-        return self._call_with_expr_support(
-            lambda: input.startswith(substring),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
-            substring=substring,
-        )
+            return input.lower().startswith(substring.lower())
+        return input.startswith(substring)
 
     def ends_with(
         self,
@@ -431,16 +388,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """Whether input string ends with the substring."""
         input = self._lift_deferred_receiver(input, substring)
         if case_sensitivity == "CASE_INSENSITIVE":
-            return self._call_with_expr_support(
-                lambda: input.lower().endswith(substring.lower()),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
-                substring=substring,
-            )
-        return self._call_with_expr_support(
-            lambda: input.endswith(substring),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
-            substring=substring,
-        )
+            return input.lower().endswith(substring.lower())
+        return input.endswith(substring)
 
     def strpos(
         self,
@@ -607,18 +556,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         pattern = self._extract_literal_if_possible(substring)
         if isinstance(pattern, str):
             escaped = re.escape(pattern)
-            return self._call_with_expr_support(
-                lambda: input.re_replace(escaped, replacement),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
-                substring=substring,
-                replacement=replacement,
-            )
-        return self._call_with_expr_support(
-            lambda: input.re_replace(substring, replacement),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
-            substring=substring,
-            replacement=replacement,
-        )
+            return input.re_replace(escaped, replacement)
+        return input.re_replace(substring, replacement)
 
     def repeat(
         self,
@@ -636,11 +575,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Repeated string.
         """
         input = self._lift_deferred_receiver(input, count)
-        return self._call_with_expr_support(
-            lambda: input.repeat(count),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
-            count=count,
-        )
+        return input.repeat(count)
 
     def reverse(self, input: IbisValueExpr, /) -> IbisValueExpr:
         """Return the string in reverse order.
@@ -675,11 +610,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Boolean expression.
         """
         input = self._lift_deferred_receiver(input, match)
-        return self._call_with_expr_support(
-            lambda: input.like(match),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
-            match=match,
-        )
+        return input.like(match)
 
     def regexp_match_substring(
         self,
@@ -710,11 +641,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         """
         input = self._lift_deferred_receiver(input, pattern)
         group_index = 0 if group is None else (group if isinstance(group, int) else 0)
-        return self._call_with_expr_support(
-            lambda: input.re_extract(pattern, group_index),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
-            pattern=pattern,
-        )
+        return input.re_extract(pattern, group_index)
 
     def regexp_match_substring_all(
         self,
@@ -745,7 +672,6 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Ibis doesn't have extract_all. Falls back to single match.
         """
         from mountainash.core.types import BackendCapabilityError
-        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
         raise BackendCapabilityError(
             "Ibis does not support regexp_match_substring_all (no extract_all equivalent). "
             "Use Polars backend.",
@@ -782,7 +708,6 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Ibis doesn't have regex position. Falls back to 0.
         """
         from mountainash.core.types import BackendCapabilityError
-        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
         raise BackendCapabilityError(
             "Ibis does not support regexp_strpos (no regex find method). "
             "Use Polars backend.",
@@ -817,7 +742,6 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Ibis doesn't have regex count. Falls back to 0.
         """
         from mountainash.core.types import BackendCapabilityError
-        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
         raise BackendCapabilityError(
             "Ibis does not support regexp_count_substring (no count_matches method). "
             "Use Polars backend.",
@@ -853,12 +777,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             String with replacements.
         """
         input = self._lift_deferred_receiver(input, pattern, replacement)
-        return self._call_with_expr_support(
-            lambda: input.re_replace(pattern, replacement),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
-            pattern=pattern,
-            replacement=replacement,
-        )
+        return input.re_replace(pattern, replacement)
 
     # =========================================================================
     # Split Operations
