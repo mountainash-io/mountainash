@@ -56,11 +56,30 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             since="2026-07-05",
         )
         for op, param in [
-            (FK_STR.TRIM, "characters"), (FK_STR.LTRIM, "characters"),
-            (FK_STR.RTRIM, "characters"),
             (FK_STR.CENTER, "length"), (FK_STR.CENTER, "character"),
             (FK_STR.REPLACE_SLICE, "start"), (FK_STR.REPLACE_SLICE, "length"),
             (FK_STR.REPLACE_SLICE, "replacement"),
+        ]
+    ) + tuple(
+        # trim/ltrim/rtrim are probe-exempt: with a dynamic `characters` arg the
+        # native path does NOT raise — the composition strips a char-class built
+        # from str(Expr), a silent no-op that returns the input unchanged
+        # (verified: ['xxhelloxx','yyworldyy'] in and out). An exception-based
+        # probe cannot detect this.
+        CapabilityFact(
+            operation_key=op, param=param, level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.IBIS, message=_IB_STR_MSG,
+            workaround="Use a literal value, or the polars backend",
+            since="2026-07-05",
+            probe_exempt=(
+                "dynamic arg silently miscompiles via str(Expr) into a no-op "
+                "char-class, returning the input unchanged rather than raising — "
+                "cannot be confirmed by an exception-based probe"
+            ),
+        )
+        for op, param in [
+            (FK_STR.TRIM, "characters"), (FK_STR.LTRIM, "characters"),
+            (FK_STR.RTRIM, "characters"),
         ]
     )
 

@@ -67,10 +67,25 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
             (FK_STR.RPAD, "characters",
              "Polars str.pad_end() requires a single literal fill character, not a column expression",
              "Use a literal single-character string"),
-            (FK_STR.LIKE, "match",
-             "Polars LIKE requires a literal pattern — the SQL-LIKE to regex conversion happens in Python",
-             "Use a literal SQL LIKE pattern string"),
         ]
+    ) + (
+        # LIKE is probe-exempt: with a dynamic arg the native path does NOT
+        # raise — the SQL-LIKE→regex conversion runs on str(Expr), yielding a
+        # garbage pattern that silently matches nothing. An exception-based
+        # probe cannot detect this (verified: dynamic-arg output [False, False]).
+        CapabilityFact(
+            operation_key=FK_STR.LIKE, param="match",
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.POLARS,
+            message="Polars LIKE requires a literal pattern — the SQL-LIKE to regex conversion happens in Python",
+            workaround="Use a literal SQL LIKE pattern string",
+            since="2026-07-05",
+            probe_exempt=(
+                "dynamic arg silently miscompiles: the SQL-LIKE→regex conversion "
+                "runs on str(Expr), producing a pattern that matches nothing rather "
+                "than raising — cannot be confirmed by an exception-based probe"
+            ),
+        ),
     )
 
     @property

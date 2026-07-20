@@ -36,6 +36,15 @@ _NW_LIST_MSG = (
     "list.contains on any native backend — its `item` parameter is typed "
     "`NonNestedLiteral` and rejects Expr."
 )
+_NW_LIST_PROBE_EXEMPT = (
+    "MATERIALIZE-boundary, structure-conditioned: the `collection` param takes "
+    "a list-typed argument, which the scalar-argument OP_SPECS probe matrix "
+    "cannot model. The dynamic list-column path is also non-uniform across the "
+    "narwhals matrix (narwhals-polars raises NarwhalsError, narwhals-pandas "
+    "silently returns False), so no single strict-xfail probe is well-defined. "
+    "The limitation is caught by native_errors enrichment (integrity guard #4), "
+    "not a BUILD-gate probe."
+)
 
 
 class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
@@ -135,6 +144,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 condition="collection compiles to an expression (per-row list-column path); literal collections always work",
                 boundary=Boundary.MATERIALIZE,
                 native_errors=(TypeError,),
+                probe_exempt=_NW_LIST_PROBE_EXEMPT,
             ),
             CapabilityFact(
                 operation_key=FK_MA_TERN.T_IS_NOT_IN, param="collection",
@@ -145,6 +155,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 condition="collection compiles to an expression (per-row list-column path); literal collections always work",
                 boundary=Boundary.MATERIALIZE,
                 native_errors=(TypeError,),
+                probe_exempt=_NW_LIST_PROBE_EXEMPT,
             ),
         )
         + tuple(
