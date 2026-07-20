@@ -22,10 +22,7 @@ _ZERO_REF_OK = {
     "wont_fix", "resolved_in_mountainash",
 }
 
-_PENDING_DIVERGENCE_FACTS: dict[str, str] = {
-    # id -> reason. Genuine result divergences become DivergenceFacts in Phase 3.
-    "IB-CTE-01": "result divergence — Ibis strips RECURSIVE from CTE SQL → DivergenceFact in Phase 3. Since 2026-07-20.",
-}
+_PENDING_DIVERGENCE_FACTS: dict[str, str] = {}
 
 _PENDING_CAPABILITY_FACTS: dict[str, str] = {
     # id -> reason. Capability gaps become CapabilityFacts in Phase 3.
@@ -56,9 +53,13 @@ def _yaml_entries() -> dict[str, dict]:
 
 
 def _code_refs() -> set[str]:
-    return {
+    from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
+
+    refs = {
         f.upstream_ref for f in CapabilityRegistry.facts() if f.upstream_ref is not None
     }
+    refs |= {divergence.upstream_ref for divergence in KNOWN_DIVERGENCES if divergence.upstream_ref}
+    return refs
 
 
 def test_every_code_ref_resolves_to_a_yaml_entry():

@@ -1445,3 +1445,132 @@ issues:
   notes: Ibis StringValue has re_search, re_extract, re_replace, re_split but no re_extract_all,
     re_count, or re_find. All 3 extended regex ops raise BackendCapabilityError.
   last_verified: '2026-05-11'
+- id: IB-MATH-04
+  project: ibis
+  category: math-ops
+  summary: SQLite performs integer division on two integer operands
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-MATH-05
+  project: ibis
+  category: math-ops
+  summary: SQL modulo takes the sign of the dividend rather than the divisor
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-TYPE-04
+  project: ibis
+  category: type-inference
+  summary: Ibis defers type resolution to its backend, unlike eager Polars
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: https://github.com/ibis-project/ibis/issues/11742
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: MA-MATH-01
+  project: mountainash-internal
+  category: math-ops
+  summary: Intermediate float precision and rounding differ across backends
+  root_cause: by_design
+  affected_backends:
+  - polars
+  - narwhals
+  - ibis
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-DT-09
+  project: ibis
+  category: datetime-ops
+  summary: Ibis today() upcasts date to timestamp and now() uses query-time UTC SQL
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-AGG-04
+  project: ibis
+  category: aggregate-ops
+  summary: Ibis names un-aliased aggregate measures Sum(v) rather than source column v
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-CAST-03
+  project: ibis
+  category: cast-semantics
+  summary: SQLite CAST is lenient and strict casts do not raise on malformed input
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: MA-TYPE-01
+  project: mountainash-internal
+  category: type-system
+  summary: Typed all-NULL columns lose declared dtype through to_polars()'s pandas bridge
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: ''
+  last_verified: '2026-07-05'
+- id: MA-TYPE-02
+  project: mountainash-internal
+  category: type-system
+  summary: All-NULL cast to non-nullable numpy int64/bool dtype raises or corrupts
+  root_cause: mountainash_internal
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: ''
+  last_verified: '2026-07-05'
