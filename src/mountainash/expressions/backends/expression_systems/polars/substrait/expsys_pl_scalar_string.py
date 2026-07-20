@@ -12,9 +12,6 @@ import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarStringExpressionSystemProtocol
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_STRING,
-)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
@@ -182,11 +179,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars()
-        return self._call_with_expr_support(
-            lambda: input.str.strip_chars(characters),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM,
-            characters=characters,
-        )
+        return input.str.strip_chars(characters)
 
     def ltrim(
         self,
@@ -205,11 +198,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars_start()
-        return self._call_with_expr_support(
-            lambda: input.str.strip_chars_start(characters),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
-            characters=characters,
-        )
+        return input.str.strip_chars_start(characters)
 
     def rtrim(
         self,
@@ -228,11 +217,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         if characters is None:
             return input.str.strip_chars_end()
-        return self._call_with_expr_support(
-            lambda: input.str.strip_chars_end(characters),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
-            characters=characters,
-        )
+        return input.str.strip_chars_end(characters)
 
     def lpad(
         self,
@@ -324,17 +309,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             Substring expression.
         """
         if length is None:
-            return self._call_with_expr_support(
-                lambda: input.str.slice(start),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-                start=start,
-            )
-        return self._call_with_expr_support(
-            lambda: input.str.slice(start, length),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-            start=start,
-            length=length,
-        )
+            return input.str.slice(start)
+        return input.str.slice(start, length)
 
     def left(
         self,
@@ -343,11 +319,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         count: PolarsExpr,
     ) -> PolarsExpr:
         """Extract count characters from the left."""
-        return self._call_with_expr_support(
-            lambda: input.str.head(count),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
-            count=count,
-        )
+        return input.str.head(count)
 
     def right(
         self,
@@ -356,11 +328,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         count: PolarsExpr,
     ) -> PolarsExpr:
         """Extract count characters from the right."""
-        return self._call_with_expr_support(
-            lambda: input.str.tail(count),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
-            count=count,
-        )
+        return input.str.tail(count)
 
     def replace_slice(
         self,
@@ -411,18 +379,10 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             Boolean expression.
         """
         if case_sensitivity == "CASE_INSENSITIVE":
-            return self._call_with_expr_support(
-                lambda: input.str.to_lowercase().str.contains(
-                    substring.str.to_lowercase(), literal=True
-                ),
-                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-                substring=substring,
+            return input.str.to_lowercase().str.contains(
+                substring.str.to_lowercase(), literal=True
             )
-        return self._call_with_expr_support(
-            lambda: input.str.contains(substring, literal=True),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
-            substring=substring,
-        )
+        return input.str.contains(substring, literal=True)
 
     def starts_with(
         self,
@@ -483,11 +443,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Integer expression (1-indexed, 0 = not found).
         """
-        return self._call_with_expr_support(
-            lambda: input.str.find(substring).fill_null(-1) + 1,
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
-            substring=substring,
-        )
+        return input.str.find(substring).fill_null(-1) + 1
 
     def count_substring(
         self,
@@ -506,11 +462,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Integer expression.
         """
-        return self._call_with_expr_support(
-            lambda: input.str.count_matches(substring, literal=True),
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
-            substring=substring,
-        )
+        return input.str.count_matches(substring, literal=True)
 
     # =========================================================================
     # Length Operations

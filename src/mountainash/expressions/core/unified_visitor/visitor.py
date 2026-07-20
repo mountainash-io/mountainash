@@ -11,7 +11,8 @@ The visitor:
 """
 
 from __future__ import annotations
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
+from functools import lru_cache
 import inspect
 
 from ..expression_nodes import (
@@ -30,6 +31,21 @@ from ..expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW,
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
+
+
+@lru_cache(maxsize=None)
+def _protocol_sig_params(protocol_method: Any) -> tuple:
+    """Protocol parameters (minus ``self``) for a protocol method.
+
+    ``protocol_method`` is the stable per-operation object stored on the
+    registry's function def, so it is a sound cache key: the same operation
+    resolves the same method object on every dispatch. Caching here avoids
+    re-running ``inspect.signature`` on every ``_gate_and_resolve_args`` call.
+    """
+    return tuple(
+        p for p in inspect.signature(protocol_method).parameters.values()
+        if p.name != "self"
+    )
 
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
@@ -59,68 +75,6 @@ class UnifiedExpressionVisitor:
         """
         self.backend = expression_system
         self.enforce_capabilities = enforce_capabilities
-
-    def _resolve_argument(
-        self,
-        arg: Any,
-        param: Optional[inspect.Parameter] = None,
-    ) -> Any:
-        """Resolve an argument using protocol type hints.
-
-        This method determines how to process an argument based on:
-        1. Whether it's a SubstraitNode (needs recursive visiting)
-        2. Whether it's already a backend expression (pass through)
-        3. The protocol signature type hint (determines wrapping behavior)
-        4. The raw value type (primitives may need lit() wrapping)
-
-        Args:
-            arg: The argument to resolve (SubstraitNode or raw value)
-            param: Optional protocol parameter for type introspection
-
-        Returns:
-            Resolved argument ready for backend method call.
-
-        Type Hint Behavior:
-            - SupportedExpressions: Visit the node or wrap in lit()
-            - str, int, float, bool: Pass through as-is (primitive kwarg)
-            - Any/no hint: Visit if node, pass through otherwise
-        """
-        # If it's a SubstraitNode, always visit recursively
-        if isinstance(arg, SubstraitNode):
-            return self.visit(arg)
-
-        # Check if arg is already a backend expression (native passthrough)
-        # This handles cases where a native expression was wrapped in LiteralNode
-        # without dtype="native", or when expressions are passed directly
-        if self._is_backend_expression(arg):
-            return arg
-
-        # If no parameter info, treat primitives as needing lit() wrapping
-        # This maintains backward compatibility
-        if param is None:
-            # Raw value that isn't a node - likely needs wrapping
-            # But we can't wrap here without context; return as-is
-            return arg
-
-        # Check the type annotation for guidance
-        annotation = param.annotation
-        if annotation == inspect.Parameter.empty:
-            # No type hint - return as-is
-            return arg
-
-        # Get the string representation of the annotation
-        # Handle both string annotations and actual types
-        annotation_str = str(annotation) if not isinstance(annotation, str) else annotation
-
-        # If annotation indicates expression type, the caller should have
-        # passed a node. If they passed a raw value, wrap in lit()
-        if "SupportedExpressions" in annotation_str or "Expr" in annotation_str:
-            # This should be an expression - wrap raw values
-            return self.backend.lit(arg)
-
-        # Primitive types (str, int, float, bool) - pass through as-is
-        # These are typically keyword arguments or configuration values
-        return arg
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.
@@ -165,84 +119,6 @@ class UnifiedExpressionVisitor:
             return 'narwhals'
         else:
             return type(value).__name__
-
-    def _resolve_options(
-        self,
-        options: Optional[Dict[str, Any]],
-        signature: Optional[inspect.Signature],
-    ) -> Dict[str, Any]:
-        """Resolve options (keyword arguments) using protocol type hints.
-
-        Args:
-            options: Options dict from ScalarFunctionNode
-            signature: Protocol method signature for type introspection
-
-        Returns:
-            Dict of resolved keyword arguments.
-
-        Example:
-            >>> opts = {"precision": 0.01, "ignore_case": True}
-            >>> resolved = visitor._resolve_options(opts, sig)
-        """
-        if not options:
-            return {}
-
-        if signature is None:
-            # No signature available - pass through as-is
-            return dict(options)
-
-        resolved = {}
-        for key, value in options.items():
-            # Look up parameter in signature
-            param = signature.parameters.get(key)
-            resolved[key] = self._resolve_argument(value, param)
-
-        return resolved
-
-    def _resolve_args_with_signature(
-        self,
-        func_name: str,
-        args: list,
-        options: Optional[Dict[str, Any]],
-    ) -> tuple[list, Dict[str, Any]]:
-        """Resolve positional and keyword arguments using protocol signature.
-
-        This is the main entry point for protocol-informed argument resolution.
-
-        Args:
-            func_name: Function name for signature lookup
-            args: List of SubstraitNode arguments
-            options: Optional options dict
-
-        Returns:
-            Tuple of (resolved_args, resolved_options)
-        """
-        # Get protocol signature (cached)
-        signature = self._get_signature(func_name)
-
-        if signature is None:
-            # No protocol signature - fall back to simple resolution
-            resolved_args = [self.visit(arg) for arg in args]
-            resolved_opts = dict(options) if options else {}
-            return resolved_args, resolved_opts
-
-        # Get positional parameters (excluding 'self')
-        params = list(signature.parameters.values())
-        pos_params = [p for p in params if p.kind in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        ) and p.name != 'self']
-
-        # Resolve positional arguments with type hints
-        resolved_args = []
-        for i, arg in enumerate(args):
-            param = pos_params[i] if i < len(pos_params) else None
-            resolved_args.append(self._resolve_argument(arg, param))
-
-        # Resolve keyword arguments
-        resolved_opts = self._resolve_options(options, signature)
-
-        return resolved_args, resolved_opts
 
     def visit(self, node: SubstraitNode) -> SupportedExpressions:
         """Visit a node and return the compiled backend expression.
@@ -316,8 +192,6 @@ class UnifiedExpressionVisitor:
         visit normally. Conditioned facts (fact.condition set) never gate
         here — they are enforced backend-side.
         """
-        import inspect
-
         from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
         from mountainash.core.types import BackendCapabilityError
 
@@ -327,10 +201,8 @@ class UnifiedExpressionVisitor:
         # Map node.arguments positions to protocol param names.
         # Signature shape: (self, input, /, a, b=None, *varargs) — skip self;
         # a VAR_POSITIONAL param name applies to all remaining arguments.
-        sig_params = [
-            p for p in inspect.signature(protocol_method).parameters.values()
-            if p.name != "self"
-        ]
+        # Cached per protocol_method (stable registry object).
+        sig_params = _protocol_sig_params(protocol_method)
 
         def _param_name_for(index: int) -> str | None:
             if index < len(sig_params):
