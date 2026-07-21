@@ -150,14 +150,212 @@ REGISTERED_OPTION_PROBES.extend(
 )
 
 
+_OVERFLOW_SPECS = {
+    "add": OptionSpec(
+        FK_ARITH.ADD,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").add(ma.col("w"), overflow=""),
+        lambda: ma.col("v").add(ma.col("w")),
+        {"v": [127], "w": [1]},
+        schema={"v": pl.Int8, "w": pl.Int8},
+    ),
+    "subtract": OptionSpec(
+        FK_ARITH.SUBTRACT,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").subtract(ma.col("w"), overflow=""),
+        lambda: ma.col("v").subtract(ma.col("w")),
+        {"v": [-128], "w": [1]},
+        schema={"v": pl.Int8, "w": pl.Int8},
+    ),
+    "multiply": OptionSpec(
+        FK_ARITH.MULTIPLY,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").multiply(ma.col("w"), overflow=""),
+        lambda: ma.col("v").multiply(ma.col("w")),
+        {"v": [64], "w": [2]},
+        schema={"v": pl.Int8, "w": pl.Int8},
+    ),
+    "divide": OptionSpec(
+        FK_ARITH.DIVIDE,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").divide(ma.col("w"), overflow=""),
+        lambda: ma.col("v").divide(ma.col("w")),
+        {"v": [-128], "w": [-1]},
+        schema={"v": pl.Int8, "w": pl.Int8},
+    ),
+    "modulus": OptionSpec(
+        FK_ARITH.MODULO,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").modulus(ma.col("w"), overflow=""),
+        lambda: ma.col("v").modulus(ma.col("w")),
+        {"v": [-128], "w": [-1]},
+        schema={"v": pl.Int8, "w": pl.Int8},
+    ),
+    "negate": OptionSpec(
+        FK_ARITH.NEGATE,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").negate(overflow=""),
+        lambda: ma.col("v").negate(),
+        {"v": [-128]},
+        schema={"v": pl.Int8},
+    ),
+    "power": OptionSpec(
+        FK_ARITH.POWER,
+        "overflow",
+        "",
+        "int8",
+        lambda: ma.col("v").power(ma.col("w"), overflow=""),
+        lambda: ma.col("v").power(ma.col("w")),
+        {"v": [2], "w": [7]},
+        schema={"v": pl.Int8, "w": pl.Int8},
+    ),
+}
+_WRAPPING_OVERFLOW_OPS = frozenset(_OVERFLOW_SPECS) - {"divide"}
+_OVERFLOW_PROBE_EXEMPT = {
+    (op, backend, "SILENT")
+    for op in _WRAPPING_OVERFLOW_OPS
+    for backend in ("polars", "narwhals-polars", "narwhals-pandas")
+}
+_OVERFLOW_DECLARED = {
+    (op, backend, value)
+    for op in _OVERFLOW_SPECS
+    for backend in ALL_BACKENDS
+    for value in _ABS_VALUES
+    if (op, backend, value) not in _OVERFLOW_PROBE_EXEMPT
+}
+
+
+def _overflow_probe(op: str, value: str) -> OptionSpec:
+    template = _OVERFLOW_SPECS[op]
+    builders = {
+        "add": lambda: ma.col("v").add(ma.col("w"), overflow=value),
+        "subtract": lambda: ma.col("v").subtract(ma.col("w"), overflow=value),
+        "multiply": lambda: ma.col("v").multiply(ma.col("w"), overflow=value),
+        "divide": lambda: ma.col("v").divide(ma.col("w"), overflow=value),
+        "modulus": lambda: ma.col("v").modulus(ma.col("w"), overflow=value),
+        "negate": lambda: ma.col("v").negate(overflow=value),
+        "power": lambda: ma.col("v").power(ma.col("w"), overflow=value),
+    }
+    return OptionSpec(
+        template.fkey,
+        template.option_param,
+        value,
+        template.dtype,
+        builders[op],
+        template.reference_expr,
+        template.data,
+        template.schema,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _OVERFLOW_SPECS[op].fkey,
+        _ARITH_PROTOCOL,
+        op,
+        "overflow",
+        backend,
+        value,
+        "int8",
+        (
+            "probe_exempt"
+            if (op, backend, value) in _OVERFLOW_PROBE_EXEMPT
+            else "declared_unsupported"
+        ),
+        (
+            "explicit SILENT selects native integer wrapping and is "
+            "indistinguishable from omission"
+            if (op, backend, value) in _OVERFLOW_PROBE_EXEMPT
+            else "native behavior does not implement the requested overflow mode"
+        ),
+    )
+    for op in _OVERFLOW_SPECS
+    for backend in ALL_BACKENDS
+    for value in _ABS_VALUES
+)
+
+
+_IBIS_OVERFLOW_ERRORS = frozenset(
+    {"add", "subtract", "multiply", "modulus", "negate"}
+)
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _overflow_probe(op, value),
+        backend,
+        "declared_unsupported",
+        (
+            _duckdb.OutOfRangeException
+            if backend == "ibis" and op in _IBIS_OVERFLOW_ERRORS
+            else OptionProbeDidNotDiscriminateError
+        ),
+    )
+    for op, backend, value in sorted(_OVERFLOW_DECLARED)
+)
+
+
 TESTED_OPTION_PARAMS = [
     (
         _ARITH_PROTOCOL,
         "abs",
         "overflow",
         param_taxonomy(_ARITH_PROTOCOL, "abs", "overflow"),
-    )
+    ),
+    *(
+        (
+            _ARITH_PROTOCOL,
+            op,
+            "overflow",
+            param_taxonomy(_ARITH_PROTOCOL, op, "overflow"),
+        )
+        for op in _OVERFLOW_SPECS
+    ),
 ]
+
+
+@pytest.mark.parametrize(
+    "op,backend,value",
+    sorted(_OVERFLOW_DECLARED),
+    ids=lambda value: str(value),
+)
+def test_arithmetic_overflow_declared_unsupported(op, backend, value, request):
+    spec = _overflow_probe(op, value)
+    request.applymarker(
+        xfail_option_unsupported(spec.fkey, "overflow", value, backend)
+    )
+    df = make_df(spec.data, backend, schema=spec.schema)
+    got = option_result(df, spec.build_expr(), backend)
+    assert got != option_result(df, spec.reference_expr(), backend)
+
+
+@pytest.mark.parametrize(
+    "op,backend",
+    sorted({case[:2] for case in _OVERFLOW_PROBE_EXEMPT}),
+)
+def test_arithmetic_overflow_silent_matches_native_wrapping(op, backend):
+    spec = _overflow_probe(op, "SILENT")
+    df = make_df(spec.data, backend, schema=spec.schema)
+    assert option_result(df, spec.build_expr(), backend) == option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_OVERFLOW_SPECS))
+@pytest.mark.parametrize("value", ["WRAP", "error", ""])
+def test_arithmetic_overflow_rejects_invalid_value_at_build_time(op, value):
+    with pytest.raises(InvalidOptionValueError):
+        _overflow_probe(op, value).build_expr()
 
 
 @pytest.mark.parametrize(

@@ -815,6 +815,22 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
 _KNOWN_UNTESTED_OPTION_PARAMS.pop(
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")
 )
+for _overflow_op in (
+    "add",
+    "subtract",
+    "multiply",
+    "divide",
+    "modulus",
+    "negate",
+    "power",
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarArithmeticExpressionSystemProtocol",
+            _overflow_op,
+            "overflow",
+        )
+    )
 _KNOWN_UNTESTED_OPTION_PARAMS[
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial", "overflow")
 ] = KnownGap(
