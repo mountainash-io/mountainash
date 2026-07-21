@@ -295,6 +295,33 @@ class UnifiedExpressionVisitor:
 
         # Call the method with resolved arguments and options
         options = node.options or {}
+        if options and self.enforce_capabilities:
+            from mountainash.core.capabilities import (
+                CapabilityLevel,
+                CapabilityRegistry,
+            )
+            from mountainash.core.types import BackendCapabilityError
+
+            gating_levels = (
+                CapabilityLevel.UNSUPPORTED,
+                CapabilityLevel.LITERAL_ONLY,
+            )
+            dialect = getattr(self.backend, "dialect", None)
+            for option_name, option_value in options.items():
+                fact = CapabilityRegistry.capability_for(
+                    node.function_key,
+                    option_name,
+                    self.backend.backend_type,
+                    dialect,
+                    option_value=str(option_value),
+                )
+                if fact is not None and fact.level in gating_levels:
+                    raise BackendCapabilityError(
+                        fact.message,
+                        backend=self.backend.BACKEND_NAME,
+                        function_key=node.function_key,
+                        limitation=fact,
+                    )
         if options:
             return method(*args, **options)
         else:
