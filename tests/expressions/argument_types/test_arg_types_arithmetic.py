@@ -22,8 +22,11 @@ from expressions.argument_types._option_helpers import (
     xfail_option_unsupported,
 )
 from expressions.argument_types.option_disposition import (
+    INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
+    REGISTERED_INVALID_OPTION_REJECTIONS,
     REGISTERED_OPTION_PROBES,
+    InvalidOptionRejection,
     OptionCell,
     OptionProbeRegistration,
     param_taxonomy,
@@ -624,6 +627,89 @@ OPTION_DISPOSITIONS.extend(
 )
 
 
+# Invalid strings are unbounded, so the matrix uses one canonical sentinel per
+# activated owner/dtype.  Rejection happens while building the AST, before a
+# backend is selected, but OptionCell retains all fixture identities because
+# fixture remains part of the matrix schema.
+_INVALID_OPTION_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_ARITH.ABS,
+        _ARITH_PROTOCOL,
+        "abs",
+        "overflow",
+        INVALID_OPTION_VALUE,
+        "int8",
+        lambda: ma.col("v").abs(overflow=INVALID_OPTION_VALUE),
+    ),
+    *(
+        InvalidOptionRejection(
+            _SEMANTIC_FKEYS[op],
+            _ARITH_PROTOCOL,
+            op,
+            param,
+            INVALID_OPTION_VALUE,
+            "int64" if op == "modulus" else "float64",
+            lambda op=op, param=param: _semantic_expr(
+                op, param, INVALID_OPTION_VALUE
+            ),
+        )
+        for op, param in _SEMANTIC_VALUES
+    ),
+    *(
+        InvalidOptionRejection(
+            spec.fkey,
+            _ARITH_PROTOCOL,
+            op,
+            "overflow",
+            INVALID_OPTION_VALUE,
+            spec.dtype,
+            lambda op=op: _overflow_probe(op, INVALID_OPTION_VALUE).build_expr(),
+        )
+        for op, spec in _OVERFLOW_SPECS.items()
+    ),
+    *(
+        InvalidOptionRejection(
+            fkey,
+            _ARITH_PROTOCOL,
+            op,
+            "rounding",
+            INVALID_OPTION_VALUE,
+            "float64",
+            lambda op=op: _rounding_expr(op, INVALID_OPTION_VALUE),
+        )
+        for op, fkey in _ROUNDING_FKEYS.items()
+    ),
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_OPTION_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_OPTION_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_OPTION_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_arithmetic_canonical_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
 REGISTERED_OPTION_PROBES.extend(
     OptionProbeRegistration(
         _rounding_probe(op, value),
@@ -733,7 +819,7 @@ def test_arithmetic_semantic_option_matches_native_requested_semantics(
 
 
 @pytest.mark.parametrize("op,param", sorted(_SEMANTIC_VALUES))
-@pytest.mark.parametrize("value", ["INVALID", "nan", ""])
+@pytest.mark.parametrize("value", [INVALID_OPTION_VALUE, "nan", ""])
 def test_arithmetic_semantic_option_rejects_invalid_value_at_build_time(
     op, param, value
 ):
@@ -790,7 +876,7 @@ def test_arithmetic_rounding_declared_unsupported(op, backend, value, request):
 
 
 @pytest.mark.parametrize("op", sorted(_ROUNDING_FKEYS))
-@pytest.mark.parametrize("value", ["INVALID", "ceiling", ""])
+@pytest.mark.parametrize("value", [INVALID_OPTION_VALUE, "ceiling", ""])
 def test_arithmetic_rounding_rejects_invalid_value_at_build_time(op, value):
     with pytest.raises(InvalidOptionValueError):
         _rounding_expr(op, value)

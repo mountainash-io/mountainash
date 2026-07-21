@@ -13,9 +13,12 @@ import pytest
 from expressions.argument_types import option_disposition as disposition
 from expressions.argument_types._option_helpers import OptionSpec
 from expressions.argument_types.option_disposition import (
+    INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
     OPTION_DTYPES,
+    REGISTERED_INVALID_OPTION_REJECTIONS,
     REGISTERED_OPTION_PROBES,
+    InvalidOptionRejection,
     OptionCell,
     OptionProbeRegistration,
     cell_fact_key,
@@ -53,15 +56,18 @@ def isolated_option_state():
     fact_snapshot = CapabilityRegistry.snapshot()
     cells = list(OPTION_DISPOSITIONS)
     probes = list(REGISTERED_OPTION_PROBES)
+    invalid_rejections = list(REGISTERED_INVALID_OPTION_REJECTIONS)
     try:
         CapabilityRegistry.reset()
         OPTION_DISPOSITIONS.clear()
         REGISTERED_OPTION_PROBES.clear()
+        REGISTERED_INVALID_OPTION_REJECTIONS.clear()
         yield
     finally:
         CapabilityRegistry.restore(fact_snapshot)
         OPTION_DISPOSITIONS[:] = cells
         REGISTERED_OPTION_PROBES[:] = probes
+        REGISTERED_INVALID_OPTION_REJECTIONS[:] = invalid_rejections
 
 
 def _option_fact_keys() -> set[tuple[object, str, str, CONST_BACKEND, str | None]]:
@@ -73,11 +79,7 @@ def _option_fact_keys() -> set[tuple[object, str, str, CONST_BACKEND, str | None
 
 
 def test_dispositions_cover_exactly_the_expected_cells() -> None:
-    expected = expected_option_cells()
-    dispositioned = {cell_key(cell) for cell in OPTION_DISPOSITIONS}
-    assert dispositioned == expected, (
-        f"missing: {expected - dispositioned}; extra: {dispositioned - expected}"
-    )
+    disposition.validate_option_matrix_coverage()
 
 
 def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
@@ -182,8 +184,36 @@ def test_unreasoned_introspected_param_enters_expected_cells(monkeypatch) -> Non
 
     assert expected_option_cells() == {
         (FK_ARITH.MODULO, "division_type", "narwhals-polars", "FLOOR", "int64"),
+        (FK_ARITH.MODULO, "division_type", "narwhals-polars", "INVALID", "int64"),
         (FK_ARITH.MODULO, "division_type", "narwhals-pandas", "FLOOR", "int64"),
+        (FK_ARITH.MODULO, "division_type", "narwhals-pandas", "INVALID", "int64"),
     }
+
+
+@pytest.mark.parametrize("mode", ["missing", "extra"])
+def test_option_matrix_coverage_rejects_invalid_cell_drift(
+    isolated_option_state, monkeypatch, mode
+) -> None:
+    cell = OptionCell(
+        FK_ARITH.ABS,
+        "SubstraitScalarArithmeticExpressionSystemProtocol",
+        "abs",
+        "overflow",
+        "polars",
+        "INVALID",
+        "int8",
+        "invalid",
+        "canonical build-time rejection sentinel",
+    )
+    key = cell_key(cell)
+    if mode == "missing":
+        monkeypatch.setattr(disposition, "expected_option_cells", lambda: {key})
+    else:
+        monkeypatch.setattr(disposition, "expected_option_cells", set)
+        OPTION_DISPOSITIONS.append(cell)
+
+    with pytest.raises(AssertionError, match="option cell coverage mismatch"):
+        disposition.validate_option_matrix_coverage()
 
 
 def test_reasoned_introspected_param_is_the_only_expected_exclusion(monkeypatch) -> None:
@@ -345,6 +375,71 @@ def test_disposition_registry_rejects_duplicate_cell_keys(isolated_option_state)
     )
     OPTION_DISPOSITIONS.extend([cell, cell])
     with pytest.raises(AssertionError, match="duplicate option disposition"):
+        validate_option_registries()
+
+
+def test_invalid_cells_require_rejection_coverage_but_no_backend_fact_or_probe(
+    isolated_option_state,
+) -> None:
+    rejection = InvalidOptionRejection(
+        FK_ARITH.ABS,
+        "SubstraitScalarArithmeticExpressionSystemProtocol",
+        "abs",
+        "overflow",
+        INVALID_OPTION_VALUE,
+        "int8",
+        lambda: None,
+    )
+    REGISTERED_INVALID_OPTION_REJECTIONS.append(rejection)
+    OPTION_DISPOSITIONS.extend(
+        OptionCell(
+            rejection.fkey,
+            rejection.protocol,
+            rejection.op,
+            rejection.param,
+            fixture,
+            rejection.value,
+            rejection.dtype,
+            "invalid",
+        )
+        for fixture in ("polars", "ibis", "narwhals-polars", "narwhals-pandas")
+    )
+
+    validate_option_registries()
+    assert CapabilityRegistry.facts() == []
+    assert REGISTERED_OPTION_PROBES == []
+
+
+@pytest.mark.parametrize("mode", ["missing", "extra"])
+def test_invalid_rejection_registry_rejects_owner_drift(
+    isolated_option_state, mode
+) -> None:
+    rejection = InvalidOptionRejection(
+        FK_ARITH.ABS,
+        "SubstraitScalarArithmeticExpressionSystemProtocol",
+        "abs",
+        "overflow",
+        INVALID_OPTION_VALUE,
+        "int8",
+        lambda: None,
+    )
+    if mode == "missing":
+        OPTION_DISPOSITIONS.append(
+            OptionCell(
+                rejection.fkey,
+                rejection.protocol,
+                rejection.op,
+                rejection.param,
+                "polars",
+                rejection.value,
+                rejection.dtype,
+                "invalid",
+            )
+        )
+    else:
+        REGISTERED_INVALID_OPTION_REJECTIONS.append(rejection)
+
+    with pytest.raises(AssertionError, match="invalid rejection/cell mismatch"):
         validate_option_registries()
 
 

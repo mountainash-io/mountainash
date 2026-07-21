@@ -7,6 +7,7 @@ never inputs used to shrink it.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, NamedTuple
 
 from expressions.argument_types._introspection import introspect_protocols
@@ -24,6 +25,13 @@ from mountainash.expressions.core.expression_system.function_mapping.registry im
 
 CellKey = tuple[Any, str, str, str, str]
 FactKey = tuple[Any, str, str, CONST_BACKEND, str | None]
+InvalidRejectionKey = tuple[Any, str, str, str]
+
+
+# Invalid strings form an infinite domain.  This one deliberately impossible
+# value is the finite guard sentinel used to prove every activated option owner
+# rejects invalid input at build time; it is not a claim about all bad strings.
+INVALID_OPTION_VALUE = "INVALID"
 
 
 class OptionCell(NamedTuple):
@@ -54,10 +62,23 @@ class OptionProbeRegistration(NamedTuple):
     ) = None
 
 
+class InvalidOptionRejection(NamedTuple):
+    """One build-time invalid sentinel check for an option owner and dtype."""
+
+    fkey: Any
+    protocol: str
+    op: str
+    param: str
+    value: str
+    dtype: str
+    build_expr: Callable[[], Any]
+
+
 # Category modules append to these in PR-A/B/C.  A probe registration is the
 # exact cell key exercised by an OptionSpec-backed discriminator test.
 OPTION_DISPOSITIONS: list[OptionCell] = []
 REGISTERED_OPTION_PROBES: list[OptionProbeRegistration] = []
+REGISTERED_INVALID_OPTION_REJECTIONS: list[InvalidOptionRejection] = []
 
 
 # The option matrix uses the focused four-fixture argument-types surface from
@@ -193,6 +214,33 @@ def probe_key(probe: OptionProbeRegistration) -> CellKey:
     )
 
 
+def invalid_rejection_key(rejection: InvalidOptionRejection) -> InvalidRejectionKey:
+    """Normalize a pre-backend rejection without inventing a fixture axis."""
+    canonical_op = canonical_operation_name(rejection.fkey)
+    if rejection.op != canonical_op:
+        raise AssertionError(
+            f"invalid rejection op {rejection.op!r} does not match "
+            f"{rejection.fkey!r} canonical protocol method {canonical_op!r}"
+        )
+    if rejection.value != INVALID_OPTION_VALUE:
+        raise AssertionError(
+            f"invalid rejection must use canonical sentinel "
+            f"{INVALID_OPTION_VALUE!r}, got {rejection.value!r}"
+        )
+    return (rejection.fkey, rejection.param, rejection.value, rejection.dtype)
+
+
+def validate_option_matrix_coverage() -> None:
+    """Require exact expected/disposition equality, including invalid cells."""
+    expected = expected_option_cells()
+    dispositioned = {cell_key(cell) for cell in OPTION_DISPOSITIONS}
+    if dispositioned != expected:
+        raise AssertionError(
+            f"option cell coverage mismatch: missing={expected - dispositioned}; "
+            f"extra={dispositioned - expected}"
+        )
+
+
 def validate_option_probe_registration(probe: OptionProbeRegistration) -> None:
     """Reject ambiguous probe roles and unbounded declared native failures."""
     if probe.disposition not in _PROBE_DISPOSITIONS:
@@ -241,6 +289,25 @@ def validate_option_registries() -> None:
     probe_keys = [probe_key(probe) for probe in REGISTERED_OPTION_PROBES]
     if len(probe_keys) != len(set(probe_keys)):
         raise AssertionError("duplicate option probe cell key")
+
+    rejection_keys = [
+        invalid_rejection_key(rejection)
+        for rejection in REGISTERED_INVALID_OPTION_REJECTIONS
+    ]
+    if len(rejection_keys) != len(set(rejection_keys)):
+        raise AssertionError("duplicate invalid option rejection key")
+    invalid_cell_owners = {
+        (cell.fkey, cell.param, cell.value, cell.dtype)
+        for cell in OPTION_DISPOSITIONS
+        if cell.disposition == "invalid"
+    }
+    rejection_owners = set(rejection_keys)
+    if invalid_cell_owners != rejection_owners:
+        raise AssertionError(
+            "invalid rejection/cell mismatch: "
+            f"rejections-only={rejection_owners - invalid_cell_owners}; "
+            f"cells-only={invalid_cell_owners - rejection_owners}"
+        )
 
     for role in _PROBE_DISPOSITIONS:
         cells_for_role = {
@@ -321,11 +388,13 @@ def param_taxonomy(protocol: str, op: str, param: str) -> str:
 
 
 def expected_option_cells() -> set[CellKey]:
-    """Expand every unreasoned option param into domain × dtype × fixture.
+    """Expand every activated option into legal values plus one invalid sentinel.
 
     Scope is introspected-total minus only explicit known-gap reasons.  Neither
     dispositions, registered probes, existing facts, nor tested subsets can
-    remove a parameter from this expectation.
+    remove a parameter from this expectation.  ``INVALID`` is added separately
+    from the pinned legal domain as a finite build-time guard representative;
+    the matrix intentionally does not attempt to enumerate all invalid strings.
     """
     known = _known_untested_option_params()
     fkeys = _fkey_index()
@@ -363,4 +432,14 @@ def expected_option_cells() -> set[CellKey]:
                     expected.add(
                         (fkey, protocol_param.param_name, fixture, value, dtype)
                     )
+            for dtype in OPTION_DTYPES[operation]:
+                expected.add(
+                    (
+                        fkey,
+                        protocol_param.param_name,
+                        fixture,
+                        INVALID_OPTION_VALUE,
+                        dtype,
+                    )
+                )
     return expected
