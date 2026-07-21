@@ -23,7 +23,7 @@ from mountainash.core.constants import CONST_BACKEND
 # backend slot is CONST_BACKEND | str: str families arrive only via the
 # serialization workstream's register_target (spec 2026-07-06); register_backend
 # rejects them via the family-identity check in _validate_fact.
-_Key = Tuple[Any, str, "CONST_BACKEND | str", Optional[str]]
+_Key = Tuple[Any, str, "CONST_BACKEND | str", Optional[str], Optional[str]]
 
 
 @dataclass(frozen=True)
@@ -81,6 +81,22 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
             f"{sorted(KNOWN_DIALECTS[family])}"
         )
     kind, definition = _definition_for(fact.operation_key)
+    if fact.option_value is not None:
+        if fact.param == WILDCARD_PARAM:
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param}): "
+                "value-scoped facts cannot use WILDCARD_PARAM"
+            )
+        if fact.boundary is not Boundary.BUILD:
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param}): "
+                "value-scoped facts must use the BUILD boundary"
+            )
+        if kind != "expression":
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param}): "
+                "value-scoped facts require an expression operation"
+            )
     method = definition.protocol_method
     if fact.param != WILDCARD_PARAM and method is not None:
         sig = inspect.signature(method)
@@ -178,7 +194,13 @@ class CapabilityRegistry:
         cls._register_identity(family.value, TargetKind.EXECUTE)
         for fact in facts:
             _validate_fact(family, fact)
-            key: _Key = (fact.operation_key, fact.param, fact.backend, fact.dialect)
+            key: _Key = (
+                fact.operation_key,
+                fact.param,
+                fact.backend,
+                fact.dialect,
+                fact.option_value,
+            )
             if key in cls._facts:
                 raise ValueError(f"duplicate CapabilityFact key: {key}")
             cls._facts[key] = fact
@@ -190,12 +212,15 @@ class CapabilityRegistry:
         param: str,
         backend: CONST_BACKEND,
         dialect: str | None = None,
+        option_value: str | None = None,
     ) -> CapabilityFact | None:
         for key in (
-            (operation_key, param, backend, dialect),
-            (operation_key, param, backend, None),
-            (operation_key, WILDCARD_PARAM, backend, dialect),
-            (operation_key, WILDCARD_PARAM, backend, None),
+            (operation_key, param, backend, dialect, option_value),
+            (operation_key, param, backend, None, option_value),
+            (operation_key, param, backend, dialect, None),
+            (operation_key, param, backend, None, None),
+            (operation_key, WILDCARD_PARAM, backend, dialect, None),
+            (operation_key, WILDCARD_PARAM, backend, None, None),
         ):
             fact = cls._facts.get(key)
             if fact is not None:
