@@ -23,6 +23,7 @@ from mountainash.core.capabilities import (
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
     FKEY_SUBSTRAIT_SCALAR_ROUNDING,
 )
 
@@ -126,6 +127,105 @@ def test_xfail_option_unsupported_is_noop_without_gating_fact(monkeypatch):
     assert marker.name == "usefixtures"
 
 
+def test_xfail_option_unsupported_marks_literal_only_fact(
+    isolated_capability_registry,
+):
+    key = (
+        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+        "s",
+        CONST_BACKEND.POLARS,
+        None,
+        "1",
+    )
+    CapabilityRegistry._facts.pop(key, None)  # noqa: SLF001
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+                param="s",
+                option_value="1",
+                level=CapabilityLevel.LITERAL_ONLY,
+                backend=CONST_BACKEND.POLARS,
+                message="temporary literal-only self-check",
+                since="2026-07-21",
+                condition="options['s'] == 1",
+            )
+        ],
+    )
+
+    marker = xfail_option_unsupported(
+        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+        "s",
+        "1",
+        "polars",
+    )
+
+    assert marker.name == "xfail"
+    assert marker.kwargs["strict"] is True
+    assert marker.kwargs["raises"] is BackendCapabilityError
+    assert marker.kwargs["reason"] == (
+        "[s=1] temporary literal-only self-check"
+    )
+
+
+def test_xfail_option_unsupported_is_noop_for_resolved_expr_capable_fact(
+    isolated_capability_registry,
+):
+    family_key = (
+        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+        "s",
+        CONST_BACKEND.POLARS,
+        None,
+        "1",
+    )
+    dialect_key = (
+        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+        "s",
+        CONST_BACKEND.POLARS,
+        "polars",
+        "1",
+    )
+    CapabilityRegistry._facts.pop(family_key, None)  # noqa: SLF001
+    CapabilityRegistry._facts.pop(dialect_key, None)  # noqa: SLF001
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+                param="s",
+                option_value="1",
+                level=CapabilityLevel.LITERAL_ONLY,
+                backend=CONST_BACKEND.POLARS,
+                message="temporary family gate",
+                since="2026-07-21",
+                condition="options['s'] == 1",
+            ),
+            CapabilityFact(
+                operation_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+                param="s",
+                option_value="1",
+                level=CapabilityLevel.EXPR_CAPABLE,
+                backend=CONST_BACKEND.POLARS,
+                dialect="polars",
+                message="temporary dialect refinement",
+                since="2026-07-21",
+                condition="options['s'] == 1",
+                probe_exempt="non-gating refinement needs no native probe",
+            ),
+        ],
+    )
+
+    marker = xfail_option_unsupported(
+        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+        "s",
+        "1",
+        "polars",
+    )
+
+    assert marker.name == "usefixtures"
+
+
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_native_option_probe_bypasses_value_gate_and_compares_values(
     backend, isolated_capability_registry
@@ -169,4 +269,51 @@ def test_native_option_probe_bypasses_value_gate_and_compares_values(
     gated_df = make_df(spec.data, backend, schema=spec.schema)
     with pytest.raises(BackendCapabilityError):
         option_result(gated_df, spec.build_expr(), backend)
+    assert native_option_probe(spec, backend) is None
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_native_option_probe_accepts_equal_results(backend):
+    spec = OptionSpec(
+        fkey=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+        option_param="s",
+        option_value="1",
+        dtype="float64",
+        build_expr=lambda: ma.col("v").round(1),
+        reference_expr=lambda: ma.col("v").round(1),
+        data={"v": [1.25, None]},
+        expected_discriminates=False,
+    )
+
+    assert native_option_probe(spec, backend) is None
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "polars",
+        pytest.param(
+            "ibis",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason="DuckDB raises overflow on abs(Int8 minimum)",
+            ),
+        ),
+        "narwhals-polars",
+        "narwhals-pandas",
+    ],
+)
+def test_native_option_probe_forwards_int8_boundary_schema(backend):
+    spec = OptionSpec(
+        fkey=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+        option_param="overflow",
+        option_value="SILENT",
+        dtype="int8",
+        build_expr=lambda: ma.col("v").abs(),
+        reference_expr=lambda: ma.col("v"),
+        data={"v": [-128]},
+        schema={"v": pl.Int8},
+        expected_discriminates=False,
+    )
+
     assert native_option_probe(spec, backend) is None
