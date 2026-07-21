@@ -39,10 +39,19 @@ class OptionCell(NamedTuple):
 
 
 class OptionProbeRegistration(NamedTuple):
-    """An OptionSpec discriminator bound to one concrete fixture dialect."""
+    """A role-specific OptionSpec bound to one concrete fixture dialect.
+
+    Declared-unsupported probes describe the bounded exception produced by the
+    ungated native path.  Their executor uses that metadata in a strict xfail,
+    so native support self-heals as XPASS without accepting unrelated failures.
+    """
 
     spec: OptionSpec
     fixture: str
+    disposition: str
+    expected_native_failure: (
+        type[BaseException] | tuple[type[BaseException], ...] | None
+    ) = None
 
 
 # Category modules append to these in PR-A/B/C.  A probe registration is the
@@ -64,16 +73,53 @@ _FIXTURE_IDENTITY: dict[str, tuple[CONST_BACKEND, str | None]] = {
 # Representative dtypes that expose each pinned arithmetic option's behavior.
 # Unknown option kinds have no fallback: when a later pinned domain is drained,
 # its PR must state applicable dtypes explicitly or expectation generation fails.
-OPTION_DTYPES: dict[tuple[str, str], frozenset[str]] = {
-    key: (
-        frozenset({"int8"})
-        if key[1] == "overflow"
-        else frozenset({"int64"})
-        if key[1] == "division_type"
-        else frozenset({"float64"})
-    )
-    for key in OPTION_DOMAINS
+OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
+    ("abs", "overflow"): ("int8",),
+    ("acos", "on_domain_error"): ("float64",),
+    ("acos", "rounding"): ("float64",),
+    ("acosh", "on_domain_error"): ("float64",),
+    ("acosh", "rounding"): ("float64",),
+    ("add", "overflow"): ("int8",),
+    ("add", "rounding"): ("float64",),
+    ("asin", "on_domain_error"): ("float64",),
+    ("asin", "rounding"): ("float64",),
+    ("asinh", "rounding"): ("float64",),
+    ("atan", "rounding"): ("float64",),
+    ("atan2", "on_domain_error"): ("float64",),
+    ("atan2", "rounding"): ("float64",),
+    ("atanh", "on_domain_error"): ("float64",),
+    ("atanh", "rounding"): ("float64",),
+    ("cos", "rounding"): ("float64",),
+    ("cosh", "rounding"): ("float64",),
+    ("degrees", "rounding"): ("float64",),
+    ("divide", "on_division_by_zero"): ("float64",),
+    ("divide", "on_domain_error"): ("float64",),
+    ("divide", "overflow"): ("int8",),
+    ("divide", "rounding"): ("float64",),
+    ("exp", "rounding"): ("float64",),
+    ("factorial", "overflow"): ("int8",),
+    ("modulus", "division_type"): ("int64",),
+    ("modulus", "on_domain_error"): ("float64",),
+    ("modulus", "overflow"): ("int8",),
+    ("multiply", "overflow"): ("int8",),
+    ("multiply", "rounding"): ("float64",),
+    ("negate", "overflow"): ("int8",),
+    ("power", "overflow"): ("int8",),
+    ("radians", "rounding"): ("float64",),
+    ("sin", "rounding"): ("float64",),
+    ("sinh", "rounding"): ("float64",),
+    ("sqrt", "on_domain_error"): ("float64",),
+    ("sqrt", "rounding"): ("float64",),
+    ("subtract", "overflow"): ("int8",),
+    ("subtract", "rounding"): ("float64",),
+    ("tan", "rounding"): ("float64",),
+    ("tanh", "rounding"): ("float64",),
 }
+
+_CELL_DISPOSITIONS = frozenset(
+    {"honored", "declared_unsupported", "probe_exempt", "invalid"}
+)
+_PROBE_DISPOSITIONS = frozenset({"honored", "declared_unsupported"})
 
 
 # Lazy to avoid a circular import when Task 6 makes the coverage guard consume
@@ -145,6 +191,74 @@ def probe_key(probe: OptionProbeRegistration) -> CellKey:
         probe.spec.option_value,
         probe.spec.dtype,
     )
+
+
+def validate_option_probe_registration(probe: OptionProbeRegistration) -> None:
+    """Reject ambiguous probe roles and unbounded declared native failures."""
+    if probe.disposition not in _PROBE_DISPOSITIONS:
+        raise AssertionError(
+            f"invalid option probe disposition {probe.disposition!r}; "
+            f"allowed: {sorted(_PROBE_DISPOSITIONS)}"
+        )
+    probe_key(probe)
+    failure = probe.expected_native_failure
+    if probe.disposition == "honored":
+        if failure is not None:
+            raise AssertionError("honored probe cannot set expected_native_failure")
+        return
+    failures = failure if isinstance(failure, tuple) else (failure,)
+    if not failures or any(
+        item is None or not isinstance(item, type) or not issubclass(item, BaseException)
+        for item in failures
+    ):
+        raise AssertionError(
+            "declared_unsupported probe requires a bounded expected_native_failure"
+        )
+    broad_failures = {BaseException, Exception, AssertionError}
+    if any(item in broad_failures for item in failures):
+        raise AssertionError(
+            "declared_unsupported probe requires a specific native exception, "
+            "not BaseException, Exception, or AssertionError"
+        )
+
+
+def validate_option_registries() -> None:
+    """Validate labels and uniqueness before integrity guards form sets."""
+    invalid_cells = [
+        cell for cell in OPTION_DISPOSITIONS if cell.disposition not in _CELL_DISPOSITIONS
+    ]
+    if invalid_cells:
+        raise AssertionError(
+            f"invalid option disposition(s): {invalid_cells}; "
+            f"allowed: {sorted(_CELL_DISPOSITIONS)}"
+        )
+    cell_keys = [cell_key(cell) for cell in OPTION_DISPOSITIONS]
+    if len(cell_keys) != len(set(cell_keys)):
+        raise AssertionError("duplicate option disposition cell key")
+
+    for probe in REGISTERED_OPTION_PROBES:
+        validate_option_probe_registration(probe)
+    probe_keys = [probe_key(probe) for probe in REGISTERED_OPTION_PROBES]
+    if len(probe_keys) != len(set(probe_keys)):
+        raise AssertionError("duplicate option probe cell key")
+
+    for role in _PROBE_DISPOSITIONS:
+        cells_for_role = {
+            cell_key(cell)
+            for cell in OPTION_DISPOSITIONS
+            if cell.disposition == role
+        }
+        probes_for_role = {
+            probe_key(probe)
+            for probe in REGISTERED_OPTION_PROBES
+            if probe.disposition == role
+        }
+        if cells_for_role != probes_for_role:
+            raise AssertionError(
+                f"{role} probe/cell mismatch: "
+                f"probes-only={probes_for_role - cells_for_role}; "
+                f"cells-only={cells_for_role - probes_for_role}"
+            )
 
 
 def cell_fact_key(cell: OptionCell) -> FactKey:

@@ -99,6 +99,10 @@ class OptionSpec(NamedTuple):
     expected_discriminates: bool = True
 
 
+class OptionProbeDidNotDiscriminateError(AssertionError):
+    """The raw native path accepted an option but did not honor its semantics."""
+
+
 def _extract_values(df: Any, compiled: Any, backend: str) -> list[Any]:
     """Select a compiled native expression with null-preserving extraction."""
     alias = "__option_probe_result__"
@@ -132,4 +136,8 @@ def native_option_probe(spec: OptionSpec, backend: str) -> None:
     df = make_df(spec.data, backend, schema=spec.schema)
     got = _materialize_native_values(df, spec.build_expr(), backend)
     reference = _materialize_native_values(df, spec.reference_expr(), backend)
-    assert (got != reference) is spec.expected_discriminates
+    if (got != reference) is not spec.expected_discriminates:
+        raise OptionProbeDidNotDiscriminateError(
+            f"{spec.fkey!r} {spec.option_param}={spec.option_value!r} did not "
+            f"produce expected_discriminates={spec.expected_discriminates}"
+        )

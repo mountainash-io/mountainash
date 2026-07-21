@@ -23,6 +23,7 @@ from expressions.argument_types.option_disposition import (
     fact_key,
     probe_key,
     resolve_cell_fact,
+    validate_option_registries,
 )
 from mountainash.core.capabilities import (
     CapabilityFact,
@@ -90,12 +91,36 @@ def test_honored_cells_and_discriminator_probes_are_mutually_backed() -> None:
         for cell in OPTION_DISPOSITIONS
         if cell.disposition == "honored"
     }
-    registered = {probe_key(probe) for probe in REGISTERED_OPTION_PROBES}
-    assert len(registered) == len(REGISTERED_OPTION_PROBES), "duplicate option probe"
+    registered = {
+        probe_key(probe)
+        for probe in REGISTERED_OPTION_PROBES
+        if probe.disposition == "honored"
+    }
     assert registered == honored, (
         f"probe/cell mismatch: probes-only={registered - honored}; "
         f"cells-only={honored - registered}"
     )
+
+
+def test_declared_cells_and_native_failure_probes_are_mutually_backed() -> None:
+    declared = {
+        cell_key(cell)
+        for cell in OPTION_DISPOSITIONS
+        if cell.disposition == "declared_unsupported"
+    }
+    registered = {
+        probe_key(probe)
+        for probe in REGISTERED_OPTION_PROBES
+        if probe.disposition == "declared_unsupported"
+    }
+    assert registered == declared, (
+        f"probe/cell mismatch: probes-only={registered - declared}; "
+        f"cells-only={declared - registered}"
+    )
+
+
+def test_option_registries_are_well_formed() -> None:
+    validate_option_registries()
 
 
 def test_probe_exempt_cells_have_dialect_scoped_expr_capable_facts() -> None:
@@ -172,6 +197,21 @@ def test_reasoned_introspected_param_is_the_only_expected_exclusion(monkeypatch)
     assert expected_option_cells() == set()
 
 
+def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -> None:
+    expected = {
+        key: (
+            ("int8",)
+            if key[1] == "overflow"
+            else ("int64",)
+            if key == ("modulus", "division_type")
+            else ("float64",)
+        )
+        for key in disposition.OPTION_DOMAINS
+    }
+    assert disposition.OPTION_DTYPES == expected
+    assert set(disposition.OPTION_DTYPES) == set(disposition.OPTION_DOMAINS)
+
+
 def test_cell_and_fact_keys_preserve_fkey_fixture_and_narwhals_dialect(
     isolated_option_state,
 ) -> None:
@@ -240,15 +280,103 @@ def test_honored_probe_registration_remains_per_fixture(isolated_option_state) -
             reference_expr=lambda: None,
             data={},
         )
-        REGISTERED_OPTION_PROBES.append(OptionProbeRegistration(spec, cell.fixture))
+        REGISTERED_OPTION_PROBES.append(
+            OptionProbeRegistration(spec, cell.fixture, "honored")
+        )
 
     honored = {
         cell_key(cell)
         for cell in OPTION_DISPOSITIONS
         if cell.disposition == "honored"
     }
-    assert honored == {probe_key(probe) for probe in REGISTERED_OPTION_PROBES}
-    assert len(honored) == 2
+    assert honored == {probe_key(probe) for probe in REGISTERED_OPTION_PROBES} == {
+        (FK_ARITH.MODULO, "division_type", "narwhals-polars", "FLOOR", "int64"),
+        (FK_ARITH.MODULO, "division_type", "narwhals-pandas", "FLOOR", "int64"),
+    }
+
+
+@pytest.mark.parametrize("bad_disposition", ["", "supported", "arbitrary"])
+def test_disposition_registry_rejects_unknown_labels(
+    isolated_option_state, bad_disposition
+) -> None:
+    OPTION_DISPOSITIONS.append(
+        OptionCell(
+            FK_ARITH.ABS, "P", "abs", "overflow", "polars", "ERROR", "int8",
+            bad_disposition,
+        )
+    )
+    with pytest.raises(AssertionError, match="invalid option disposition"):
+        validate_option_registries()
+
+
+def test_disposition_registry_rejects_duplicate_cell_keys(isolated_option_state) -> None:
+    cell = OptionCell(
+        FK_ARITH.ABS, "P", "abs", "overflow", "polars", "ERROR", "int8", "invalid"
+    )
+    OPTION_DISPOSITIONS.extend([cell, cell])
+    with pytest.raises(AssertionError, match="duplicate option disposition"):
+        validate_option_registries()
+
+
+def test_probe_registry_rejects_unknown_roles(isolated_option_state) -> None:
+    spec = OptionSpec(
+        FK_ARITH.ABS, "overflow", "ERROR", "int8", lambda: None, lambda: None, {}
+    )
+    REGISTERED_OPTION_PROBES.append(
+        OptionProbeRegistration(spec, "polars", "probe_exempt")
+    )
+    with pytest.raises(AssertionError, match="invalid option probe disposition"):
+        validate_option_registries()
+
+
+def test_probe_registry_rejects_duplicate_cell_keys(isolated_option_state) -> None:
+    spec = OptionSpec(
+        FK_ARITH.ABS, "overflow", "ERROR", "int8", lambda: None, lambda: None, {}
+    )
+    probe = OptionProbeRegistration(spec, "polars", "honored")
+    REGISTERED_OPTION_PROBES.extend([probe, probe])
+    with pytest.raises(AssertionError, match="duplicate option probe"):
+        validate_option_registries()
+
+
+def test_declared_probe_requires_bounded_native_failure(isolated_option_state) -> None:
+    spec = OptionSpec(
+        FK_ARITH.ABS, "overflow", "ERROR", "int8", lambda: None, lambda: None, {}
+    )
+    REGISTERED_OPTION_PROBES.append(
+        OptionProbeRegistration(spec, "polars", "declared_unsupported")
+    )
+    with pytest.raises(AssertionError, match="expected_native_failure"):
+        validate_option_registries()
+
+
+@pytest.mark.parametrize("broad_failure", [BaseException, Exception, AssertionError])
+def test_declared_probe_rejects_broad_native_failure_types(
+    isolated_option_state, broad_failure
+) -> None:
+    spec = OptionSpec(
+        FK_ARITH.ABS, "overflow", "ERROR", "int8", lambda: None, lambda: None, {}
+    )
+    REGISTERED_OPTION_PROBES.append(
+        OptionProbeRegistration(
+            spec, "polars", "declared_unsupported", broad_failure
+        )
+    )
+    with pytest.raises(AssertionError, match="specific native exception"):
+        validate_option_registries()
+
+
+@pytest.mark.parametrize("role", ["honored", "declared_unsupported"])
+def test_probe_role_coverage_fails_when_registration_is_missing(
+    isolated_option_state, role
+) -> None:
+    OPTION_DISPOSITIONS.append(
+        OptionCell(
+            FK_ARITH.ABS, "P", "abs", "overflow", "polars", "ERROR", "int8", role
+        )
+    )
+    with pytest.raises(AssertionError, match=rf"{role} probe/cell mismatch"):
+        validate_option_registries()
 
 
 @pytest.mark.parametrize(
