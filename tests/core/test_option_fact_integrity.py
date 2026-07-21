@@ -203,7 +203,9 @@ def test_reasoned_introspected_param_is_the_only_expected_exclusion(monkeypatch)
 def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -> None:
     expected = {
         key: (
-            ("int8",)
+            ("int64",)
+            if key == ("power", "overflow")
+            else ("int8",)
             if key[1] == "overflow"
             else ("int64",)
             if key == ("modulus", "division_type")
@@ -213,6 +215,22 @@ def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -
     }
     assert disposition.OPTION_DTYPES == expected
     assert set(disposition.OPTION_DTYPES) == set(disposition.OPTION_DOMAINS)
+
+
+@pytest.mark.parametrize("value", ["ERROR", "SATURATE", "SILENT"])
+def test_power_overflow_facts_give_i64_specific_guidance(value: str) -> None:
+    fact = CapabilityRegistry.capability_for(
+        FK_ARITH.POWER,
+        "overflow",
+        CONST_BACKEND.IBIS,
+        None,
+        option_value=value,
+    )
+
+    assert fact is not None
+    assert "i64 power" in fact.message
+    assert "wider" not in fact.workaround
+    assert "base and exponent" in fact.workaround
 
 
 def test_cell_and_fact_keys_preserve_fkey_fixture_and_narwhals_dialect(

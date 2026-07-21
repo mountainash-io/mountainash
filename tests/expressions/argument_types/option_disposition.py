@@ -104,7 +104,7 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("multiply", "overflow"): ("int8",),
     ("multiply", "rounding"): ("float64",),
     ("negate", "overflow"): ("int8",),
-    ("power", "overflow"): ("int8",),
+    ("power", "overflow"): ("int64",),
     ("radians", "rounding"): ("float64",),
     ("sin", "rounding"): ("float64",),
     ("sinh", "rounding"): ("float64",),

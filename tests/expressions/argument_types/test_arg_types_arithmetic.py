@@ -215,11 +215,12 @@ _OVERFLOW_SPECS = {
         FK_ARITH.POWER,
         "overflow",
         "",
-        "int8",
+        "int64",
         lambda: ma.col("v").power(ma.col("w"), overflow=""),
         lambda: ma.col("v").power(ma.col("w")),
-        {"v": [2], "w": [7]},
-        schema={"v": pl.Int8, "w": pl.Int8},
+        # 2**63 is exactly one above signed Int64 max (2**63 - 1).
+        {"v": [2], "w": [63]},
+        schema={"v": pl.Int64, "w": pl.Int64},
     ),
 }
 _WRAPPING_OVERFLOW_OPS = frozenset(_OVERFLOW_SPECS) - {"divide"}
@@ -268,16 +269,23 @@ OPTION_DISPOSITIONS.extend(
         "overflow",
         backend,
         value,
-        "int8",
+        _OVERFLOW_SPECS[op].dtype,
         (
             "probe_exempt"
             if (op, backend, value) in _OVERFLOW_PROBE_EXEMPT
             else "declared_unsupported"
         ),
         (
-            "explicit SILENT selects native integer wrapping and is "
+            "explicit SILENT selects native i64 power wrapping and is "
+            "indistinguishable from omission"
+            if op == "power"
+            and (op, backend, value) in _OVERFLOW_PROBE_EXEMPT
+            else "explicit SILENT selects native integer wrapping and is "
             "indistinguishable from omission"
             if (op, backend, value) in _OVERFLOW_PROBE_EXEMPT
+            else "native behavior does not implement the pinned i64 power "
+            "overflow mode"
+            if op == "power"
             else "native behavior does not implement the requested overflow mode"
         ),
     )
@@ -303,6 +311,14 @@ REGISTERED_OPTION_PROBES.extend(
     )
     for op, backend, value in sorted(_OVERFLOW_DECLARED)
 )
+
+
+def test_power_overflow_probe_uses_pinned_int64_boundary() -> None:
+    spec = _OVERFLOW_SPECS["power"]
+
+    assert spec.dtype == "int64"
+    assert spec.data == {"v": [2], "w": [63]}
+    assert spec.schema == {"v": pl.Int64, "w": pl.Int64}
 
 
 TESTED_OPTION_PARAMS = [

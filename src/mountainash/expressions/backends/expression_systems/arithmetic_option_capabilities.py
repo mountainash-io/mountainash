@@ -22,6 +22,18 @@ _DEFAULT_EQUIVALENT = (
     "The explicit option selects the native backend's existing behavior, so "
     "it is observably equivalent to omission and cannot discriminate"
 )
+_POWER_UNSUPPORTED_MESSAGE = (
+    "The native backend does not implement the requested Substrait i64 power "
+    "overflow mode"
+)
+_POWER_DEFAULT_EQUIVALENT = (
+    "Explicit SILENT selects the native backend's i64 power wrapping behavior, "
+    "so it is observably equivalent to omission and cannot discriminate"
+)
+_POWER_WORKAROUND = (
+    "Pre-check the i64 base and exponent and handle out-of-range powers before "
+    "calling power()"
+)
 
 
 def _fact(
@@ -33,6 +45,7 @@ def _fact(
     *,
     probe_exempt: str | None = None,
 ) -> CapabilityFact:
+    is_power = operation_key is FK_ARITH.POWER
     return CapabilityFact(
         operation_key=operation_key,
         param="overflow",
@@ -41,11 +54,19 @@ def _fact(
         backend=backend,
         dialect=dialect,
         message=(
-            _DEFAULT_EQUIVALENT
+            _POWER_DEFAULT_EQUIVALENT
+            if is_power and level is CapabilityLevel.EXPR_CAPABLE
+            else _POWER_UNSUPPORTED_MESSAGE
+            if is_power
+            else _DEFAULT_EQUIVALENT
             if level is CapabilityLevel.EXPR_CAPABLE
             else _UNSUPPORTED_MESSAGE
         ),
-        workaround="Cast operands to a wider integer dtype before the operation",
+        workaround=(
+            _POWER_WORKAROUND
+            if is_power
+            else "Cast operands to a wider integer dtype before the operation"
+        ),
         since=_SINCE,
         probe_exempt=probe_exempt,
     )
