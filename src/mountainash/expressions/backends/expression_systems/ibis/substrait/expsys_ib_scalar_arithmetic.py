@@ -98,9 +98,9 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
-        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Divide x by y.
 

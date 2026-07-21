@@ -97,9 +97,9 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
-        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Divide x by y.
 

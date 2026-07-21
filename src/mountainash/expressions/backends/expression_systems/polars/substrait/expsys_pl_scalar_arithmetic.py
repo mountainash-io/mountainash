@@ -95,9 +95,9 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
-        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Divide x by y.
 
