@@ -850,6 +850,32 @@ for _semantic_op, _semantic_param in (
             _semantic_param,
         )
     )
+for _rounding_op in (
+    "acos",
+    "acosh",
+    "asin",
+    "asinh",
+    "atan",
+    "atan2",
+    "atanh",
+    "cos",
+    "cosh",
+    "degrees",
+    "exp",
+    "radians",
+    "sin",
+    "sinh",
+    "sqrt",
+    "tan",
+    "tanh",
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarArithmeticExpressionSystemProtocol",
+            _rounding_op,
+            "rounding",
+        )
+    )
 _KNOWN_UNTESTED_OPTION_PARAMS[
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial", "overflow")
 ] = KnownGap(

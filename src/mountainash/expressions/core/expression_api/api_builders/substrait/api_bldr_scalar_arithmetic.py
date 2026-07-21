@@ -56,6 +56,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
         *,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> BaseExpressionAPI:
         """
         Addition: self + other.
@@ -70,7 +71,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
             arguments=[self._node, other_node],
-            options=_validated_options("add", overflow=overflow),
+            options=_validated_options("add", overflow=overflow, rounding=rounding),
         )
         return self._build(node)
 
@@ -79,6 +80,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
         *,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> BaseExpressionAPI:
         """
         Subtraction: self - other.
@@ -93,7 +95,9 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
             arguments=[self._node, other_node],
-            options=_validated_options("subtract", overflow=overflow),
+            options=_validated_options(
+                "subtract", overflow=overflow, rounding=rounding
+            ),
         )
         return self._build(node)
 
@@ -124,6 +128,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
         *,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> BaseExpressionAPI:
         """
         Multiplication: self * other.
@@ -138,7 +143,9 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
             arguments=[self._node, other_node],
-            options=_validated_options("multiply", overflow=overflow),
+            options=_validated_options(
+                "multiply", overflow=overflow, rounding=rounding
+            ),
         )
         return self._build(node)
 
@@ -147,6 +154,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
         *,
         overflow: Any = None,
+        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
     ) -> BaseExpressionAPI:
@@ -166,6 +174,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
             options=_validated_options(
                 "divide",
                 overflow=overflow,
+                rounding=rounding,
                 on_domain_error=on_domain_error,
                 on_division_by_zero=on_division_by_zero,
             ),

@@ -241,17 +241,88 @@ _SEMANTIC_FACTS = {
 }
 
 
+_ROUNDING_KEYS = {
+    FK_ARITH.ACOS,
+    FK_ARITH.ACOSH,
+    FK_ARITH.ADD,
+    FK_ARITH.ASIN,
+    FK_ARITH.ASINH,
+    FK_ARITH.ATAN,
+    FK_ARITH.ATAN2,
+    FK_ARITH.ATANH,
+    FK_ARITH.COS,
+    FK_ARITH.COSH,
+    FK_ARITH.DEGREES,
+    FK_ARITH.DIVIDE,
+    FK_ARITH.EXP,
+    FK_ARITH.MULTIPLY,
+    FK_ARITH.RADIANS,
+    FK_ARITH.SIN,
+    FK_ARITH.SINH,
+    FK_ARITH.SQRT,
+    FK_ARITH.SUBTRACT,
+    FK_ARITH.TAN,
+    FK_ARITH.TANH,
+}
+_ROUNDING_VALUES = (
+    "CEILING",
+    "FLOOR",
+    "TIE_AWAY_FROM_ZERO",
+    "TIE_TO_EVEN",
+    "TRUNCATE",
+)
+_ROUNDING_UNSUPPORTED = (
+    "The native backend does not implement the requested Substrait IEEE "
+    "rounding mode"
+)
+
+
+def _rounding_facts(
+    backend: CONST_BACKEND, dialect: str | None
+) -> tuple[CapabilityFact, ...]:
+    return tuple(
+        CapabilityFact(
+            operation_key=operation_key,
+            param="rounding",
+            option_value=value,
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=backend,
+            dialect=dialect,
+            message=_ROUNDING_UNSUPPORTED,
+            workaround=(
+                "Evaluate with native rounding, then apply an explicit "
+                "application-level numeric policy"
+            ),
+            since=_SINCE,
+        )
+        for operation_key in _ROUNDING_KEYS
+        for value in _ROUNDING_VALUES
+    )
+
+
+_ROUNDING_FACTS = {
+    fixture: _rounding_facts(backend, dialect)
+    for fixture, (backend, dialect) in _FIXTURE_IDENTITIES.items()
+}
+
+
 CapabilityRegistry.register_backend(
     CONST_BACKEND.POLARS,
-    POLARS_ARITHMETIC_OPTION_CAPABILITIES + _SEMANTIC_FACTS["polars"],
+    POLARS_ARITHMETIC_OPTION_CAPABILITIES
+    + _SEMANTIC_FACTS["polars"]
+    + _ROUNDING_FACTS["polars"],
 )
 CapabilityRegistry.register_backend(
     CONST_BACKEND.IBIS,
-    IBIS_ARITHMETIC_OPTION_CAPABILITIES + _SEMANTIC_FACTS["ibis"],
+    IBIS_ARITHMETIC_OPTION_CAPABILITIES
+    + _SEMANTIC_FACTS["ibis"]
+    + _ROUNDING_FACTS["ibis"],
 )
 CapabilityRegistry.register_backend(
     CONST_BACKEND.NARWHALS,
     NARWHALS_ARITHMETIC_OPTION_CAPABILITIES
     + _SEMANTIC_FACTS["narwhals-polars"]
-    + _SEMANTIC_FACTS["narwhals-pandas"],
+    + _SEMANTIC_FACTS["narwhals-pandas"]
+    + _ROUNDING_FACTS["narwhals-polars"]
+    + _ROUNDING_FACTS["narwhals-pandas"],
 )

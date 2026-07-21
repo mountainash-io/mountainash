@@ -35,6 +35,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Add two values.
 
@@ -55,6 +56,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Subtract y from x.
 
@@ -75,6 +77,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Multiply two values.
 
@@ -95,6 +98,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
     ) -> IbisNumericExpr:

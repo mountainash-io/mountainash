@@ -35,6 +35,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Add two values.
 
@@ -54,6 +55,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Subtract y from x.
 
@@ -73,6 +75,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Multiply two values.
 
@@ -92,6 +95,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
     ) -> PolarsExpr:

@@ -37,6 +37,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Add two values.
 
@@ -56,6 +57,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Subtract y from x.
 
@@ -75,6 +77,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Multiply two values.
 
@@ -94,6 +97,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
     ) -> NarwhalsExpr:

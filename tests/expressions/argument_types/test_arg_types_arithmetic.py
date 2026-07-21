@@ -88,6 +88,43 @@ TESTED_PARAMS: list[tuple] = [
 ]
 
 
+@pytest.mark.parametrize(
+    ("build", "fkey"),
+    [
+        pytest.param(
+            lambda: ma.col("v").add(ma.col("w"), rounding="CEILING"),
+            FK_ARITH.ADD,
+            id="add",
+        ),
+        pytest.param(
+            lambda: ma.col("v").subtract(ma.col("w"), rounding="CEILING"),
+            FK_ARITH.SUBTRACT,
+            id="subtract",
+        ),
+        pytest.param(
+            lambda: ma.col("v").multiply(ma.col("w"), rounding="CEILING"),
+            FK_ARITH.MULTIPLY,
+            id="multiply",
+        ),
+        pytest.param(
+            lambda: ma.col("v").divide(ma.col("w"), rounding="CEILING"),
+            FK_ARITH.DIVIDE,
+            id="divide",
+        ),
+        pytest.param(
+            lambda: ma.col("v").sin(rounding="CEILING"),
+            FK_ARITH.SIN,
+            id="sin",
+        ),
+    ],
+)
+def test_arithmetic_rounding_option_is_emitted(build, fkey):
+    node = build()._node
+
+    assert node.function_key is fkey
+    assert node.options == {"rounding": "CEILING"}
+
+
 _ARITH_PROTOCOL = "SubstraitScalarArithmeticExpressionSystemProtocol"
 _ABS_VALUES = ("ERROR", "SATURATE", "SILENT")
 _ABS_PROBE_EXEMPT = {
@@ -474,6 +511,132 @@ REGISTERED_OPTION_PROBES.extend(
 )
 
 
+_ROUNDING_VALUES = (
+    "CEILING",
+    "FLOOR",
+    "TIE_AWAY_FROM_ZERO",
+    "TIE_TO_EVEN",
+    "TRUNCATE",
+)
+_ROUNDING_FKEYS = {
+    "acos": FK_ARITH.ACOS,
+    "acosh": FK_ARITH.ACOSH,
+    "add": FK_ARITH.ADD,
+    "asin": FK_ARITH.ASIN,
+    "asinh": FK_ARITH.ASINH,
+    "atan": FK_ARITH.ATAN,
+    "atan2": FK_ARITH.ATAN2,
+    "atanh": FK_ARITH.ATANH,
+    "cos": FK_ARITH.COS,
+    "cosh": FK_ARITH.COSH,
+    "degrees": FK_ARITH.DEGREES,
+    "divide": FK_ARITH.DIVIDE,
+    "exp": FK_ARITH.EXP,
+    "multiply": FK_ARITH.MULTIPLY,
+    "radians": FK_ARITH.RADIANS,
+    "sin": FK_ARITH.SIN,
+    "sinh": FK_ARITH.SINH,
+    "sqrt": FK_ARITH.SQRT,
+    "subtract": FK_ARITH.SUBTRACT,
+    "tan": FK_ARITH.TAN,
+    "tanh": FK_ARITH.TANH,
+}
+_ROUNDING_BINARY_OPS = {"add", "subtract", "multiply", "divide", "atan2"}
+_ROUNDING_INPUTS = {
+    "add": ({"v": [1.0], "w": [2.0**-53]}, {"v": pl.Float64, "w": pl.Float64}),
+    "subtract": ({"v": [1.0], "w": [0.1]}, {"v": pl.Float64, "w": pl.Float64}),
+    "multiply": ({"v": [0.1], "w": [0.2]}, {"v": pl.Float64, "w": pl.Float64}),
+    "divide": ({"v": [1.0], "w": [10.0]}, {"v": pl.Float64, "w": pl.Float64}),
+    "atan2": ({"v": [0.1], "w": [0.2]}, {"v": pl.Float64, "w": pl.Float64}),
+    "acosh": ({"v": [2.0]}, {"v": pl.Float64}),
+    "sqrt": ({"v": [2.0]}, {"v": pl.Float64}),
+    **{
+        op: ({"v": [0.1]}, {"v": pl.Float64})
+        for op in _ROUNDING_FKEYS
+        if op not in {"add", "subtract", "multiply", "divide", "atan2", "acosh", "sqrt"}
+    },
+}
+
+
+def _rounding_expr(op: str, value: str | None = None):
+    kwargs = {} if value is None else {"rounding": value}
+    method = getattr(ma.col("v"), op)
+    if op in _ROUNDING_BINARY_OPS:
+        return method(ma.col("w"), **kwargs)
+    return method(**kwargs)
+
+
+def _rounding_probe(op: str, value: str) -> OptionSpec:
+    data, schema = _ROUNDING_INPUTS[op]
+    return OptionSpec(
+        _ROUNDING_FKEYS[op],
+        "rounding",
+        value,
+        "float64",
+        lambda: _rounding_expr(op, value),
+        lambda: _rounding_expr(op),
+        data,
+        schema,
+    )
+
+
+_IBIS_UNIMPLEMENTED_ROUNDING_OPS = {
+    "acosh",
+    "asinh",
+    "atanh",
+    "cosh",
+    "sinh",
+    "tanh",
+}
+_NARWHALS_IMPLEMENTED_ROUNDING_OPS = {
+    "add",
+    "divide",
+    "exp",
+    "multiply",
+    "sqrt",
+    "subtract",
+}
+
+
+def _rounding_native_failure(op: str, backend: str) -> type[BaseException]:
+    if backend == "ibis" and op in _IBIS_UNIMPLEMENTED_ROUNDING_OPS:
+        return NotImplementedError
+    if backend.startswith("narwhals") and op not in _NARWHALS_IMPLEMENTED_ROUNDING_OPS:
+        return NotImplementedError
+    return OptionProbeDidNotDiscriminateError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _ARITH_PROTOCOL,
+        op,
+        "rounding",
+        backend,
+        value,
+        "float64",
+        "declared_unsupported",
+        "native behavior does not implement the requested IEEE rounding mode",
+    )
+    for op, fkey in _ROUNDING_FKEYS.items()
+    for backend in ALL_BACKENDS
+    for value in _ROUNDING_VALUES
+)
+
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _rounding_probe(op, value),
+        backend,
+        "declared_unsupported",
+        _rounding_native_failure(op, backend),
+    )
+    for op in _ROUNDING_FKEYS
+    for backend in ALL_BACKENDS
+    for value in _ROUNDING_VALUES
+)
+
+
 def test_power_overflow_probe_uses_pinned_int64_boundary() -> None:
     spec = _OVERFLOW_SPECS["power"]
 
@@ -506,6 +669,15 @@ TESTED_OPTION_PARAMS = [
             param_taxonomy(_ARITH_PROTOCOL, op, param),
         )
         for op, param in _SEMANTIC_VALUES
+    ),
+    *(
+        (
+            _ARITH_PROTOCOL,
+            op,
+            "rounding",
+            param_taxonomy(_ARITH_PROTOCOL, op, "rounding"),
+        )
+        for op in _ROUNDING_FKEYS
     ),
 ]
 
@@ -601,6 +773,27 @@ def test_arithmetic_overflow_silent_matches_native_wrapping(op, backend):
 def test_arithmetic_overflow_rejects_invalid_value_at_build_time(op, value):
     with pytest.raises(InvalidOptionValueError):
         _overflow_probe(op, value).build_expr()
+
+
+@pytest.mark.parametrize("op", sorted(_ROUNDING_FKEYS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+@pytest.mark.parametrize("value", _ROUNDING_VALUES)
+def test_arithmetic_rounding_declared_unsupported(op, backend, value, request):
+    spec = _rounding_probe(op, value)
+    request.applymarker(
+        xfail_option_unsupported(spec.fkey, "rounding", value, backend)
+    )
+    df = make_df(spec.data, backend, schema=spec.schema)
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_ROUNDING_FKEYS))
+@pytest.mark.parametrize("value", ["INVALID", "ceiling", ""])
+def test_arithmetic_rounding_rejects_invalid_value_at_build_time(op, value):
+    with pytest.raises(InvalidOptionValueError):
+        _rounding_expr(op, value)
 
 
 @pytest.mark.parametrize(

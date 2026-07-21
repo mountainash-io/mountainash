@@ -22,14 +22,14 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
     These methods accept flexible inputs and return BaseExpressionAPI for chaining.
     """
 
-    def add(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None) -> BaseExpressionAPI:
+    def add(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None, rounding: Any = None) -> BaseExpressionAPI:
         """Add two values.
 
         Substrait: add
         """
         ...
 
-    def subtract(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None) -> BaseExpressionAPI:
+    def subtract(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None, rounding: Any = None) -> BaseExpressionAPI:
         """Subtract one value from another.
 
         Substrait: subtract
@@ -43,7 +43,7 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def multiply(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None) -> BaseExpressionAPI:
+    def multiply(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None, rounding: Any = None) -> BaseExpressionAPI:
         """Multiply two values.
 
         Substrait: multiply
@@ -56,6 +56,7 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         /,
         *,
         overflow: Any = None,
+        rounding: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
     ) -> BaseExpressionAPI:
