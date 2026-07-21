@@ -13,10 +13,14 @@ def pytest_collection_modifyitems(items):
         item.add_marker(pytest.mark.argument_types)
 
 
-def make_df(data: dict[str, list[Any]], backend: str):
+def make_df(
+    data: dict[str, list[Any]],
+    backend: str,
+    schema: dict[str, Any] | None = None,
+):
     """Materialize a dict of columns into a backend-native DataFrame."""
     import polars as pl
-    pdf = pl.DataFrame(data)
+    pdf = pl.DataFrame(data, schema=schema)
     if backend == "polars":
         return pdf
     if backend == "ibis":
