@@ -95,7 +95,12 @@ def _collect_option_param_taxonomy() -> dict[tuple[str, str, str], str]:
     taxonomy_by_param: dict[tuple[str, str, str], str] = {}
     for module_name in _CATEGORY_MODULES:
         mod = importlib.import_module(f"expressions.argument_types.{module_name}")
-        for protocol, op, param, taxonomy in getattr(mod, "TESTED_OPTION_PARAMS", []):
+        for entry in getattr(mod, "TESTED_OPTION_PARAMS", []):
+            assert type(entry) is tuple and len(entry) == 4, (
+                "TESTED_OPTION_PARAMS entry must be a tuple of length 4; "
+                f"got {entry!r}"
+            )
+            protocol, op, param, taxonomy = entry
             assert taxonomy in _TAXONOMY_CLASSES, (
                 f"Unknown option-parameter taxonomy {taxonomy!r} for "
                 f"{(protocol, op, param)!r}"
@@ -114,7 +119,7 @@ def _collect_tested_option_params() -> set[tuple[str, str, str]]:
     return set(_collect_option_param_taxonomy())
 
 
-def _install_fake_option_module(monkeypatch, entries: list[tuple[str, ...]]) -> None:
+def _install_fake_option_module(monkeypatch, entries: list[object]) -> None:
     module_name = "expressions.argument_types._fake_opt"
     fake = types.ModuleType(module_name)
     fake.TESTED_OPTION_PARAMS = entries
@@ -150,6 +155,32 @@ def test_collect_tested_option_params_rejects_invalid_taxonomy(monkeypatch):
     )
 
     with pytest.raises(AssertionError, match="Unknown option-parameter taxonomy"):
+        _collect_tested_option_params()
+
+
+def test_collect_tested_option_params_rejects_four_element_list(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [["Protocol", "operation", "option", "value-sensitive"]],
+    )
+
+    with pytest.raises(
+        AssertionError,
+        match="TESTED_OPTION_PARAMS entry must be a tuple of length 4",
+    ):
+        _collect_tested_option_params()
+
+
+def test_collect_tested_option_params_rejects_wrong_length_tuple(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [("Protocol", "operation", "option")],
+    )
+
+    with pytest.raises(
+        AssertionError,
+        match="TESTED_OPTION_PARAMS entry must be a tuple of length 4",
+    ):
         _collect_tested_option_params()
 
 
