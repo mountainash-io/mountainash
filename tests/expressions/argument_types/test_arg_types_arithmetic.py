@@ -2,12 +2,30 @@
 from __future__ import annotations
 
 import pytest
+import polars as pl
+import _duckdb
+
+import mountainash as ma
+from mountainash.core.errors import InvalidOptionValueError
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC as FK_MA_ARITH,
 )
-from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types._option_helpers import (
+    OptionProbeDidNotDiscriminateError,
+    OptionSpec,
+    option_result,
+    xfail_option_unsupported,
+)
+from expressions.argument_types.option_disposition import (
+    OPTION_DISPOSITIONS,
+    REGISTERED_OPTION_PROBES,
+    OptionCell,
+    OptionProbeRegistration,
+    param_taxonomy,
+)
 from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
@@ -66,6 +84,106 @@ TESTED_PARAMS: list[tuple] = [
     (FK_ARITH.TAN, "x"),
     (FK_ARITH.TANH, "x"),
 ]
+
+
+_ARITH_PROTOCOL = "SubstraitScalarArithmeticExpressionSystemProtocol"
+_ABS_VALUES = ("ERROR", "SATURATE", "SILENT")
+_ABS_PROBE_EXEMPT = {
+    (backend, "SILENT")
+    for backend in ("polars", "narwhals-polars", "narwhals-pandas")
+}
+_ABS_DECLARED = {
+    (backend, value)
+    for backend in ALL_BACKENDS
+    for value in _ABS_VALUES
+    if (backend, value) not in _ABS_PROBE_EXEMPT
+}
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_ARITH.ABS,
+        _ARITH_PROTOCOL,
+        "abs",
+        "overflow",
+        backend,
+        value,
+        "int8",
+        "probe_exempt" if (backend, value) in _ABS_PROBE_EXEMPT else "declared_unsupported",
+        (
+            "explicit SILENT selects the native wrapping behavior and is "
+            "indistinguishable from omission"
+            if (backend, value) in _ABS_PROBE_EXEMPT
+            else "native behavior does not implement the requested overflow mode"
+        ),
+    )
+    for backend in ALL_BACKENDS
+    for value in _ABS_VALUES
+)
+
+
+def _abs_probe(value: str) -> OptionSpec:
+    return OptionSpec(
+        FK_ARITH.ABS,
+        "overflow",
+        value,
+        "int8",
+        lambda value=value: ma.col("v").abs(overflow=value),
+        lambda: ma.col("v").abs(),
+        {"v": [-128]},
+        schema={"v": pl.Int8},
+    )
+
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _abs_probe(value),
+        backend,
+        "declared_unsupported",
+        (
+            _duckdb.OutOfRangeException
+            if backend == "ibis"
+            else OptionProbeDidNotDiscriminateError
+        ),
+    )
+    for backend, value in sorted(_ABS_DECLARED)
+)
+
+
+TESTED_OPTION_PARAMS = [
+    (
+        _ARITH_PROTOCOL,
+        "abs",
+        "overflow",
+        param_taxonomy(_ARITH_PROTOCOL, "abs", "overflow"),
+    )
+]
+
+
+@pytest.mark.parametrize(
+    "backend,value",
+    sorted(_ABS_DECLARED),
+    ids=lambda value: str(value),
+)
+def test_abs_overflow_declared_unsupported(backend, value, request):
+    request.applymarker(
+        xfail_option_unsupported(FK_ARITH.ABS, "overflow", value, backend)
+    )
+    df = make_df({"v": [-128]}, backend, schema={"v": pl.Int8})
+    got = option_result(df, ma.col("v").abs(overflow=value), backend)
+    assert got == [128]
+
+
+@pytest.mark.parametrize("backend", sorted({case[0] for case in _ABS_PROBE_EXEMPT}))
+def test_abs_overflow_silent_matches_native_wrapping(backend):
+    df = make_df({"v": [-128]}, backend, schema={"v": pl.Int8})
+    assert option_result(df, ma.col("v").abs(overflow="SILENT"), backend) == [-128]
+
+
+@pytest.mark.parametrize("value", ["WRAP", "error", ""])
+def test_abs_overflow_rejects_invalid_value_at_build_time(value):
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("v").abs(overflow=value)
 
 OP_SPECS: list[OpSpec] = [
     OpSpec(

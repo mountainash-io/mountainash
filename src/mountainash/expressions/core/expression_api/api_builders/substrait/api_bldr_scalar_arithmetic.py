@@ -12,12 +12,22 @@ from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
+from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import validate_option
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarArithmeticAPIBuilderProtocol
 
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
     from ....expression_nodes import ExpressionNode
+
+
+def _validated_options(op_name: str, **values: Any) -> dict[str, str]:
+    """Validate and retain only explicitly supplied Substrait options."""
+    return {
+        name: validate_option(op_name, name, value)
+        for name, value in values.items()
+        if value is not None
+    }
 
 
 class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarArithmeticAPIBuilderProtocol):
@@ -44,6 +54,8 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
     def add(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
+        overflow: Any = None,
     ) -> BaseExpressionAPI:
         """
         Addition: self + other.
@@ -58,12 +70,15 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
             arguments=[self._node, other_node],
+            options=_validated_options("add", overflow=overflow),
         )
         return self._build(node)
 
     def subtract(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
+        overflow: Any = None,
     ) -> BaseExpressionAPI:
         """
         Subtraction: self - other.
@@ -78,6 +93,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
             arguments=[self._node, other_node],
+            options=_validated_options("subtract", overflow=overflow),
         )
         return self._build(node)
 
@@ -106,6 +122,8 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
     def multiply(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
+        overflow: Any = None,
     ) -> BaseExpressionAPI:
         """
         Multiplication: self * other.
@@ -120,12 +138,17 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
             arguments=[self._node, other_node],
+            options=_validated_options("multiply", overflow=overflow),
         )
         return self._build(node)
 
     def divide(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
+        overflow: Any = None,
+        on_domain_error: Any = None,
+        on_division_by_zero: Any = None,
     ) -> BaseExpressionAPI:
         """
         Division: self / other.
@@ -140,6 +163,12 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
             arguments=[self._node, other_node],
+            options=_validated_options(
+                "divide",
+                overflow=overflow,
+                on_domain_error=on_domain_error,
+                on_division_by_zero=on_division_by_zero,
+            ),
         )
         return self._build(node)
 
@@ -172,6 +201,10 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
     def modulus(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
+        division_type: Any = None,
+        overflow: Any = None,
+        on_domain_error: Any = None,
     ) -> BaseExpressionAPI:
         """
         Modulo: self % other.
@@ -186,6 +219,12 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
             arguments=[self._node, other_node],
+            options=_validated_options(
+                "modulus",
+                division_type=division_type,
+                overflow=overflow,
+                on_domain_error=on_domain_error,
+            ),
         )
         return self._build(node)
 
@@ -214,6 +253,8 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
     def power(
         self,
         other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
+        overflow: Any = None,
     ) -> BaseExpressionAPI:
         """
         Exponentiation: self ** other.
@@ -228,6 +269,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
             arguments=[self._node, other_node],
+            options=_validated_options("power", overflow=overflow),
         )
         return self._build(node)
 
@@ -257,7 +299,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
     # Unary Arithmetic Operations
     # ========================================
 
-    def negate(self) -> BaseExpressionAPI:
+    def negate(self, overflow: Any = None) -> BaseExpressionAPI:
         """
         Negation: -self.
 
@@ -269,6 +311,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
             arguments=[self._node],
+            options=_validated_options("negate", overflow=overflow),
         )
         return self._build(node)
 
@@ -284,6 +327,9 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
             arguments=[self._node],
+            options=_validated_options(
+                "sqrt", rounding=rounding, on_domain_error=on_domain_error
+            ),
         )
         return self._build(node)
 
@@ -296,6 +342,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
             arguments=[self._node],
+            options=_validated_options("exp", rounding=rounding),
         )
         return self._build(node)
 
@@ -310,6 +357,7 @@ Integer values allow the specification of overflow behavior to handle the uneven
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
             arguments=[self._node],
+            options=_validated_options("abs", overflow=overflow),
         )
         return self._build(node)
 
@@ -339,124 +387,155 @@ Negative inputs will raise an error.
         """
         ...
 
-    def sin(self) -> BaseExpressionAPI:
+    def sin(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the sine of a value in radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
             arguments=[self._node],
+            options=_validated_options("sin", rounding=rounding),
         )
         return self._build(node)
 
-    def cos(self) -> BaseExpressionAPI:
+    def cos(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the cosine of a value in radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
             arguments=[self._node],
+            options=_validated_options("cos", rounding=rounding),
         )
         return self._build(node)
 
-    def tan(self) -> BaseExpressionAPI:
+    def tan(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the tangent of a value in radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
             arguments=[self._node],
+            options=_validated_options("tan", rounding=rounding),
         )
         return self._build(node)
 
-    def sinh(self) -> BaseExpressionAPI:
+    def sinh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic sine of a value."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
             arguments=[self._node],
+            options=_validated_options("sinh", rounding=rounding),
         )
         return self._build(node)
 
-    def cosh(self) -> BaseExpressionAPI:
+    def cosh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic cosine of a value."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
             arguments=[self._node],
+            options=_validated_options("cosh", rounding=rounding),
         )
         return self._build(node)
 
-    def tanh(self) -> BaseExpressionAPI:
+    def tanh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic tangent of a value."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
             arguments=[self._node],
+            options=_validated_options("tanh", rounding=rounding),
         )
         return self._build(node)
 
-    def asin(self) -> BaseExpressionAPI:
+    def asin(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the arcsine of a value in radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
             arguments=[self._node],
+            options=_validated_options(
+                "asin", rounding=rounding, on_domain_error=on_domain_error
+            ),
         )
         return self._build(node)
 
-    def acos(self) -> BaseExpressionAPI:
+    def acos(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the arccosine of a value in radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
             arguments=[self._node],
+            options=_validated_options(
+                "acos", rounding=rounding, on_domain_error=on_domain_error
+            ),
         )
         return self._build(node)
 
-    def atan(self) -> BaseExpressionAPI:
+    def atan(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the arctangent of a value in radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
             arguments=[self._node],
+            options=_validated_options("atan", rounding=rounding),
         )
         return self._build(node)
 
-    def asinh(self) -> BaseExpressionAPI:
+    def asinh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic arcsine of a value."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
             arguments=[self._node],
+            options=_validated_options("asinh", rounding=rounding),
         )
         return self._build(node)
 
-    def acosh(self) -> BaseExpressionAPI:
+    def acosh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic arccosine of a value."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
             arguments=[self._node],
+            options=_validated_options(
+                "acosh", rounding=rounding, on_domain_error=on_domain_error
+            ),
         )
         return self._build(node)
 
-    def atanh(self) -> BaseExpressionAPI:
+    def atanh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic arctangent of a value."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
             arguments=[self._node],
+            options=_validated_options(
+                "atanh", rounding=rounding, on_domain_error=on_domain_error
+            ),
         )
         return self._build(node)
 
-    def atan2(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    def atan2(
+        self,
+        other: Union[BaseExpressionAPI, ExpressionNode, Any],
+        *,
+        rounding: Any = None,
+        on_domain_error: Any = None,
+    ) -> BaseExpressionAPI:
         """Get the arctangent of y/x (self/other) in radians."""
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
             arguments=[self._node, other_node],
+            options=_validated_options(
+                "atan2", rounding=rounding, on_domain_error=on_domain_error
+            ),
         )
         return self._build(node)
 
-    def radians(self) -> BaseExpressionAPI:
+    def radians(self, rounding: Any = None) -> BaseExpressionAPI:
         """Convert angle from degrees to radians."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
             arguments=[self._node],
+            options=_validated_options("radians", rounding=rounding),
         )
         return self._build(node)
 
-    def degrees(self) -> BaseExpressionAPI:
+    def degrees(self, rounding: Any = None) -> BaseExpressionAPI:
         """Convert angle from radians to degrees."""
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
             arguments=[self._node],
+            options=_validated_options("degrees", rounding=rounding),
         )
         return self._build(node)
 

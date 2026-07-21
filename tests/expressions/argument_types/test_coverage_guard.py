@@ -812,6 +812,20 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     }
 }
 
+_KNOWN_UNTESTED_OPTION_PARAMS.pop(
+    ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")
+)
+_KNOWN_UNTESTED_OPTION_PARAMS[
+    ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial", "overflow")
+] = KnownGap(
+    gap_kind=GapKind.UNTESTED_OPTION,
+    reason=(
+        "operation not implemented (no FKEY) — see backlog: "
+        "substrait-arithmetic-missing-ops"
+    ),
+    since="2026-07-21",
+)
+
 
 _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
     ("SubstraitFieldReferenceExpressionSystemProtocol", "col"): KnownGap(

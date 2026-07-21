@@ -49,6 +49,9 @@ def isolated_option_state():
     cells = list(OPTION_DISPOSITIONS)
     probes = list(REGISTERED_OPTION_PROBES)
     try:
+        CapabilityRegistry.reset()
+        OPTION_DISPOSITIONS.clear()
+        REGISTERED_OPTION_PROBES.clear()
         yield
     finally:
         CapabilityRegistry.restore(fact_snapshot)
