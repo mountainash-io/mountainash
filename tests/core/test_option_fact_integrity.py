@@ -14,6 +14,7 @@ from expressions.argument_types import option_disposition as disposition
 from expressions.argument_types._option_helpers import OptionSpec
 from expressions.argument_types.option_disposition import (
     OPTION_DISPOSITIONS,
+    OPTION_DTYPES,
     REGISTERED_OPTION_PROBES,
     OptionCell,
     OptionProbeRegistration,
@@ -41,6 +42,10 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 load_all_capability_declarations()
 
 _GATING = (CapabilityLevel.UNSUPPORTED, CapabilityLevel.LITERAL_ONLY)
+
+
+def test_modulus_domain_probe_uses_pinned_integer_overload() -> None:
+    assert OPTION_DTYPES[("modulus", "on_domain_error")] == ("int64",)
 
 
 @pytest.fixture
@@ -208,7 +213,11 @@ def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -
             else ("int8",)
             if key[1] == "overflow"
             else ("int64",)
-            if key == ("modulus", "division_type")
+            if key
+            in {
+                ("modulus", "division_type"),
+                ("modulus", "on_domain_error"),
+            }
             else ("float64",)
         )
         for key in disposition.OPTION_DOMAINS

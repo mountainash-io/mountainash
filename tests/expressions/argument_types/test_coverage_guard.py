@@ -831,6 +831,25 @@ for _overflow_op in (
             "overflow",
         )
     )
+for _semantic_op, _semantic_param in (
+    ("acos", "on_domain_error"),
+    ("acosh", "on_domain_error"),
+    ("asin", "on_domain_error"),
+    ("atan2", "on_domain_error"),
+    ("atanh", "on_domain_error"),
+    ("sqrt", "on_domain_error"),
+    ("divide", "on_domain_error"),
+    ("divide", "on_division_by_zero"),
+    ("modulus", "division_type"),
+    ("modulus", "on_domain_error"),
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarArithmeticExpressionSystemProtocol",
+            _semantic_op,
+            _semantic_param,
+        )
+    )
 _KNOWN_UNTESTED_OPTION_PARAMS[
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial", "overflow")
 ] = KnownGap(

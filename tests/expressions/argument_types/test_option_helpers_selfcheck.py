@@ -288,6 +288,25 @@ def test_native_option_probe_accepts_equal_results(backend):
     assert native_option_probe(spec, backend) is None
 
 
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_native_option_probe_treats_nan_results_as_equal(backend):
+    spec = OptionSpec(
+        fkey=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+        option_param="on_division_by_zero",
+        option_value="IEEE",
+        dtype="float64",
+        build_expr=lambda: ma.col("v").divide(
+            ma.col("w"), on_division_by_zero="IEEE"
+        ),
+        reference_expr=lambda: ma.col("v").divide(ma.col("w")),
+        data={"v": [0.0], "w": [0.0]},
+        schema={"v": pl.Float64, "w": pl.Float64},
+        expected_discriminates=False,
+    )
+
+    assert native_option_probe(spec, backend) is None
+
+
 @pytest.mark.parametrize(
     "backend",
     [

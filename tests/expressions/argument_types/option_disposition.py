@@ -99,7 +99,7 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("exp", "rounding"): ("float64",),
     ("factorial", "overflow"): ("int8",),
     ("modulus", "division_type"): ("int64",),
-    ("modulus", "on_domain_error"): ("float64",),
+    ("modulus", "on_domain_error"): ("int64",),
     ("modulus", "overflow"): ("int8",),
     ("multiply", "overflow"): ("int8",),
     ("multiply", "rounding"): ("float64",),

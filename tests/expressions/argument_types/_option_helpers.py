@@ -7,6 +7,7 @@ xfails to turn into XPASS when a native backend gains support.
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Callable, NamedTuple
 
 import pytest
@@ -131,12 +132,24 @@ def _materialize_native_values(df: Any, expr: Any, backend: str) -> list[Any]:
     return _extract_values(df, compiled, backend)
 
 
+def _option_values_equal(left: list[Any], right: list[Any]) -> bool:
+    """Compare probe outputs while treating corresponding NaNs as equal."""
+    if len(left) != len(right):
+        return False
+    return all(
+        (isinstance(x, float) and isinstance(y, float) and math.isnan(x) and math.isnan(y))
+        or x == y
+        for x, y in zip(left, right, strict=True)
+    )
+
+
 def native_option_probe(spec: OptionSpec, backend: str) -> None:
     """Assert an option expression discriminates on the ungated native path."""
     df = make_df(spec.data, backend, schema=spec.schema)
     got = _materialize_native_values(df, spec.build_expr(), backend)
     reference = _materialize_native_values(df, spec.reference_expr(), backend)
-    if (got != reference) is not spec.expected_discriminates:
+    discriminates = not _option_values_equal(got, reference)
+    if discriminates is not spec.expected_discriminates:
         raise OptionProbeDidNotDiscriminateError(
             f"{spec.fkey!r} {spec.option_param}={spec.option_value!r} did not "
             f"produce expected_discriminates={spec.expected_discriminates}"

@@ -1,6 +1,8 @@
 """Argument channel tests for arithmetic operations."""
 from __future__ import annotations
 
+import math
+
 import pytest
 import polars as pl
 import _duckdb
@@ -147,6 +149,165 @@ REGISTERED_OPTION_PROBES.extend(
         ),
     )
     for backend, value in sorted(_ABS_DECLARED)
+)
+
+
+_SEMANTIC_VALUES = {
+    ("acos", "on_domain_error"): ("NAN", "ERROR"),
+    ("acosh", "on_domain_error"): ("NAN", "ERROR"),
+    ("asin", "on_domain_error"): ("NAN", "ERROR"),
+    ("atan2", "on_domain_error"): ("NAN", "ERROR"),
+    ("atanh", "on_domain_error"): ("NAN", "ERROR"),
+    ("sqrt", "on_domain_error"): ("NAN", "ERROR"),
+    ("divide", "on_domain_error"): ("NAN", "NULL", "ERROR"),
+    ("divide", "on_division_by_zero"): ("IEEE", "LIMIT", "NULL", "ERROR"),
+    ("modulus", "division_type"): ("TRUNCATE", "FLOOR"),
+    ("modulus", "on_domain_error"): ("NULL", "ERROR"),
+}
+_SEMANTIC_FKEYS = {
+    "acos": FK_ARITH.ACOS,
+    "acosh": FK_ARITH.ACOSH,
+    "asin": FK_ARITH.ASIN,
+    "atan2": FK_ARITH.ATAN2,
+    "atanh": FK_ARITH.ATANH,
+    "sqrt": FK_ARITH.SQRT,
+    "divide": FK_ARITH.DIVIDE,
+    "modulus": FK_ARITH.MODULO,
+}
+_SEMANTIC_INPUTS = {
+    ("acos", "on_domain_error"): ({"v": [2.0]}, {"v": pl.Float64}),
+    ("acosh", "on_domain_error"): ({"v": [0.0]}, {"v": pl.Float64}),
+    ("asin", "on_domain_error"): ({"v": [2.0]}, {"v": pl.Float64}),
+    ("atan2", "on_domain_error"): (
+        {"v": [math.nan], "w": [1.0]},
+        {"v": pl.Float64, "w": pl.Float64},
+    ),
+    ("atanh", "on_domain_error"): ({"v": [2.0]}, {"v": pl.Float64}),
+    ("sqrt", "on_domain_error"): ({"v": [-1.0]}, {"v": pl.Float64}),
+    ("divide", "on_domain_error"): (
+        {"v": [math.nan], "w": [1.0]},
+        {"v": pl.Float64, "w": pl.Float64},
+    ),
+    ("divide", "on_division_by_zero"): (
+        {"v": [0.0], "w": [0.0]},
+        {"v": pl.Float64, "w": pl.Float64},
+    ),
+    ("modulus", "division_type"): (
+        {"v": [-5], "w": [3]},
+        {"v": pl.Int64, "w": pl.Int64},
+    ),
+    ("modulus", "on_domain_error"): (
+        {"v": [5], "w": [0]},
+        {"v": pl.Int64, "w": pl.Int64},
+    ),
+}
+_SEMANTIC_EXEMPT = {
+    ("acos", "on_domain_error", "polars", "NAN"),
+    ("acosh", "on_domain_error", "polars", "NAN"),
+    ("asin", "on_domain_error", "polars", "NAN"),
+    ("atan2", "on_domain_error", "polars", "NAN"),
+    ("atanh", "on_domain_error", "polars", "NAN"),
+    ("sqrt", "on_domain_error", "polars", "NAN"),
+    ("sqrt", "on_domain_error", "narwhals-polars", "NAN"),
+    ("divide", "on_domain_error", "polars", "NAN"),
+    ("divide", "on_domain_error", "narwhals-polars", "NAN"),
+    ("divide", "on_domain_error", "narwhals-pandas", "NULL"),
+    ("divide", "on_division_by_zero", "polars", "IEEE"),
+    ("divide", "on_division_by_zero", "narwhals-polars", "IEEE"),
+    ("divide", "on_division_by_zero", "narwhals-pandas", "NULL"),
+    ("modulus", "division_type", "polars", "FLOOR"),
+    ("modulus", "division_type", "narwhals-polars", "FLOOR"),
+    ("modulus", "division_type", "narwhals-pandas", "FLOOR"),
+    ("modulus", "on_domain_error", "polars", "NULL"),
+    ("modulus", "on_domain_error", "narwhals-polars", "NULL"),
+    ("modulus", "on_domain_error", "narwhals-pandas", "NULL"),
+}
+_SEMANTIC_DECLARED = {
+    (op, param, backend, value)
+    for (op, param), values in _SEMANTIC_VALUES.items()
+    for backend in ALL_BACKENDS
+    for value in values
+    if (op, param, backend, value) not in _SEMANTIC_EXEMPT
+}
+
+
+def _semantic_expr(op: str, param: str, value: str | None = None):
+    kwargs = {} if value is None else {param: value}
+    method = getattr(ma.col("v"), op)
+    if op in {"atan2", "divide", "modulus"}:
+        return method(ma.col("w"), **kwargs)
+    return method(**kwargs)
+
+
+def _semantic_probe(op: str, param: str, value: str) -> OptionSpec:
+    data, schema = _SEMANTIC_INPUTS[(op, param)]
+    return OptionSpec(
+        _SEMANTIC_FKEYS[op],
+        param,
+        value,
+        "int64" if op == "modulus" else "float64",
+        lambda: _semantic_expr(op, param, value),
+        lambda: _semantic_expr(op, param),
+        data,
+        schema,
+    )
+
+
+def _semantic_native_failure(
+    op: str, param: str, backend: str, value: str
+) -> type[BaseException]:
+    if backend.startswith("narwhals") and op in {
+        "acos",
+        "acosh",
+        "asin",
+        "atan2",
+        "atanh",
+    }:
+        return NotImplementedError
+    if backend == "ibis":
+        if op in {"acos", "asin"}:
+            return _duckdb.InvalidInputException
+        if op in {"acosh", "atanh"}:
+            return NotImplementedError
+        if op == "sqrt":
+            return _duckdb.OutOfRangeException
+    return OptionProbeDidNotDiscriminateError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _SEMANTIC_FKEYS[op],
+        _ARITH_PROTOCOL,
+        op,
+        param,
+        backend,
+        value,
+        "int64" if op == "modulus" else "float64",
+        (
+            "probe_exempt"
+            if (op, param, backend, value) in _SEMANTIC_EXEMPT
+            else "declared_unsupported"
+        ),
+        (
+            "native omission already has the requested semantics and is "
+            "indistinguishable from the explicit option"
+            if (op, param, backend, value) in _SEMANTIC_EXEMPT
+            else "native behavior does not implement the requested option semantics"
+        ),
+    )
+    for (op, param), values in _SEMANTIC_VALUES.items()
+    for backend in ALL_BACKENDS
+    for value in values
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _semantic_probe(op, param, value),
+        backend,
+        "declared_unsupported",
+        _semantic_native_failure(op, param, backend, value),
+    )
+    for op, param, backend, value in sorted(_SEMANTIC_DECLARED)
 )
 
 
@@ -337,7 +498,75 @@ TESTED_OPTION_PARAMS = [
         )
         for op in _OVERFLOW_SPECS
     ),
+    *(
+        (
+            _ARITH_PROTOCOL,
+            op,
+            param,
+            param_taxonomy(_ARITH_PROTOCOL, op, param),
+        )
+        for op, param in _SEMANTIC_VALUES
+    ),
 ]
+
+
+def _assert_requested_semantics(value: str, got: list[object]) -> None:
+    if value == "FLOOR":
+        assert got == [1]
+    elif value == "TRUNCATE":
+        assert got == [-2]
+    elif value in {"NAN", "IEEE"}:
+        assert len(got) == 1
+        assert isinstance(got[0], float) and math.isnan(got[0])
+    elif value == "NULL":
+        assert got == [None]
+    elif value == "LIMIT":
+        assert got == [math.inf]
+    else:
+        raise AssertionError(f"no result assertion for {value}")
+
+
+@pytest.mark.parametrize(
+    "op,param,backend,value",
+    sorted(_SEMANTIC_DECLARED),
+    ids=lambda value: str(value),
+)
+def test_arithmetic_semantic_option_declared_unsupported(
+    op, param, backend, value, request
+):
+    spec = _semantic_probe(op, param, value)
+    request.applymarker(
+        xfail_option_unsupported(spec.fkey, param, value, backend)
+    )
+    df = make_df(spec.data, backend, schema=spec.schema)
+    got = option_result(df, spec.build_expr(), backend)
+    if value == "ERROR":
+        pytest.fail("requested ERROR semantics returned a value")
+    _assert_requested_semantics(value, got)
+
+
+@pytest.mark.parametrize(
+    "op,param,backend,value",
+    sorted(_SEMANTIC_EXEMPT),
+    ids=lambda value: str(value),
+)
+def test_arithmetic_semantic_option_matches_native_requested_semantics(
+    op, param, backend, value
+):
+    spec = _semantic_probe(op, param, value)
+    df = make_df(spec.data, backend, schema=spec.schema)
+    _assert_requested_semantics(
+        value, option_result(df, spec.build_expr(), backend)
+    )
+
+
+@pytest.mark.parametrize("op,param", sorted(_SEMANTIC_VALUES))
+@pytest.mark.parametrize("value", ["INVALID", "nan", ""])
+def test_arithmetic_semantic_option_rejects_invalid_value_at_build_time(
+    op, param, value
+):
+    with pytest.raises(InvalidOptionValueError):
+        _semantic_expr(op, param, value)
 
 
 @pytest.mark.parametrize(
