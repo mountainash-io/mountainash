@@ -289,6 +289,7 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Args:
             other: Exponent value or expression.
+            overflow: Substrait overflow mode.
 
         Returns:
             New ExpressionAPI with power node.
@@ -333,6 +334,9 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Substrait: negate
 
+        Args:
+            overflow: Substrait overflow mode.
+
         Returns:
             New ExpressionAPI with negation node.
         """
@@ -351,6 +355,10 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Substrait: sqrt
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
         """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
@@ -366,6 +374,9 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Substrait: exp
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
         """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
@@ -381,6 +392,9 @@ Integer values allow the specification of overflow behavior to handle the uneven
 
         Substrait: abs
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
+
+        Args:
+            overflow: Substrait overflow mode.
         """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
@@ -412,11 +426,18 @@ Negative inputs will raise an error.
 
         Substrait: factorial
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
+
+        Args:
+            overflow: Substrait overflow mode.
         """
         ...
 
     def sin(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the sine of a value in radians."""
+        """Get the sine of a value in radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
             arguments=[self._node],
@@ -425,7 +446,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def cos(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the cosine of a value in radians."""
+        """Get the cosine of a value in radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
             arguments=[self._node],
@@ -434,7 +459,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def tan(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the tangent of a value in radians."""
+        """Get the tangent of a value in radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
             arguments=[self._node],
@@ -443,7 +472,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def sinh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic sine of a value."""
+        """Get the hyperbolic sine of a value.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
             arguments=[self._node],
@@ -452,7 +485,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def cosh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic cosine of a value."""
+        """Get the hyperbolic cosine of a value.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
             arguments=[self._node],
@@ -461,7 +498,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def tanh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic tangent of a value."""
+        """Get the hyperbolic tangent of a value.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
             arguments=[self._node],
@@ -470,7 +511,12 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def asin(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the arcsine of a value in radians."""
+        """Get the arcsine of a value in radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
             arguments=[self._node],
@@ -481,7 +527,12 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def acos(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the arccosine of a value in radians."""
+        """Get the arccosine of a value in radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
             arguments=[self._node],
@@ -492,7 +543,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def atan(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the arctangent of a value in radians."""
+        """Get the arctangent of a value in radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
             arguments=[self._node],
@@ -501,7 +556,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def asinh(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic arcsine of a value."""
+        """Get the hyperbolic arcsine of a value.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
             arguments=[self._node],
@@ -510,7 +569,12 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def acosh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic arccosine of a value."""
+        """Get the hyperbolic arccosine of a value.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
             arguments=[self._node],
@@ -521,7 +585,12 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def atanh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
-        """Get the hyperbolic arctangent of a value."""
+        """Get the hyperbolic arctangent of a value.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
             arguments=[self._node],
@@ -538,7 +607,13 @@ Negative inputs will raise an error.
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> BaseExpressionAPI:
-        """Get the arctangent of y/x (self/other) in radians."""
+        """Get the arctangent of y/x (self/other) in radians.
+
+        Args:
+            other: Second coordinate expression.
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
+        """
         other_node = self._to_substrait_node(other)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
@@ -550,7 +625,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def radians(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Convert angle from degrees to radians."""
+        """Convert angle from degrees to radians.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
             arguments=[self._node],
@@ -559,7 +638,11 @@ Negative inputs will raise an error.
         return self._build(node)
 
     def degrees(self, rounding: Any = None) -> BaseExpressionAPI:
-        """Convert angle from radians to degrees."""
+        """Convert angle from radians to degrees.
+
+        Args:
+            rounding: Substrait IEEE rounding mode.
+        """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
             arguments=[self._node],
