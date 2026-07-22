@@ -600,6 +600,14 @@ def test_probe_role_coverage_fails_when_registration_is_missing(
         ((("probe_exempt", ""), ("invalid", "")), "probe-exempt-honor"),
         (
             (
+                ("probe_exempt", "intended-error-path"),
+                ("probe_exempt", ""),
+                ("invalid", ""),
+            ),
+            "probe-exempt-honor",
+        ),
+        (
+            (
                 ("probe_exempt", ""),
                 ("declared_unsupported", ""),
                 ("invalid", ""),

@@ -406,14 +406,14 @@ def param_taxonomy(protocol: str, op: str, param: str) -> str:
     legal = [cell for cell in cells if cell.disposition != "invalid"]
     if not legal:
         return "validation-only"
+    if all(cell.disposition == "probe_exempt" for cell in legal):
+        return "probe-exempt-honor"
     if any(
         cell.disposition in {"honored", "probe_exempt"}
         and cell.reason == "intended-error-path"
         for cell in legal
     ):
         return "error-sensitive"
-    if all(cell.disposition == "probe_exempt" for cell in legal):
-        return "probe-exempt-honor"
     if any(cell.disposition in {"honored", "probe_exempt"} for cell in legal):
         return "value-sensitive"
     return "capability-declared"
