@@ -1,8 +1,8 @@
 """Closed-by-default integrity for literal option disposition cells.
 
-The production matrix is deliberately empty until the arithmetic slice drains
-its named gaps.  Synthetic self-checks below prove the helpers do not become
-vacuous while that is true.
+The populated matrix, executable probes, concrete facts, and family defaults
+must remain bidirectionally exact. Synthetic self-checks exercise drift paths
+without coupling to production keys.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import pytest
 from expressions.argument_types import option_disposition as disposition
 from expressions.argument_types._option_helpers import OptionSpec
 from expressions.argument_types.option_disposition import (
+    OPTION_FAMILY_DEFAULT_FACT_KEYS,
     INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
     OPTION_DTYPES,
@@ -57,24 +58,30 @@ def isolated_option_state():
     cells = list(OPTION_DISPOSITIONS)
     probes = list(REGISTERED_OPTION_PROBES)
     invalid_rejections = list(REGISTERED_INVALID_OPTION_REJECTIONS)
+    family_defaults = set(OPTION_FAMILY_DEFAULT_FACT_KEYS)
     try:
         CapabilityRegistry.reset()
         OPTION_DISPOSITIONS.clear()
         REGISTERED_OPTION_PROBES.clear()
         REGISTERED_INVALID_OPTION_REJECTIONS.clear()
+        OPTION_FAMILY_DEFAULT_FACT_KEYS.clear()
         yield
     finally:
         CapabilityRegistry.restore(fact_snapshot)
         OPTION_DISPOSITIONS[:] = cells
         REGISTERED_OPTION_PROBES[:] = probes
         REGISTERED_INVALID_OPTION_REJECTIONS[:] = invalid_rejections
+        OPTION_FAMILY_DEFAULT_FACT_KEYS.clear()
+        OPTION_FAMILY_DEFAULT_FACT_KEYS.update(family_defaults)
 
 
 def _option_fact_keys() -> set[tuple[object, str, str, CONST_BACKEND, str | None]]:
     return {
         fact_key(fact)
         for fact in CapabilityRegistry.facts()
-        if fact.option_value is not None and fact.level in _GATING
+        if fact.option_value is not None
+        and fact.level in _GATING
+        and fact.dialect is not None
     }
 
 
@@ -93,6 +100,43 @@ def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
         f"fact/cell mismatch: facts-only={fact_keys - declared_keys}; "
         f"cells-only={declared_keys - fact_keys}"
     )
+
+
+def test_family_default_option_facts_are_mutually_backed() -> None:
+    family_defaults = {
+        fact_key(fact)
+        for fact in CapabilityRegistry.facts()
+        if fact.option_value is not None
+        and fact.level in _GATING
+        and fact.dialect is None
+    }
+    assert family_defaults == OPTION_FAMILY_DEFAULT_FACT_KEYS
+
+
+def test_duckdb_refinement_precedes_ibis_family_default() -> None:
+    fact = CapabilityRegistry.capability_for(
+        FK_ARITH.ABS,
+        "overflow",
+        CONST_BACKEND.IBIS,
+        "ibis-duckdb",
+        option_value="ERROR",
+    )
+
+    assert fact is not None
+    assert fact.level is CapabilityLevel.EXPR_CAPABLE
+    assert fact.dialect == "ibis-duckdb"
+    assert fact.probe_exempt
+    for dialect in (None, "ibis-sqlite"):
+        family_default = CapabilityRegistry.capability_for(
+            FK_ARITH.ABS,
+            "overflow",
+            CONST_BACKEND.IBIS,
+            dialect,
+            option_value="ERROR",
+        )
+        assert family_default is not None
+        assert family_default.level is CapabilityLevel.UNSUPPORTED
+        assert family_default.dialect is None
 
 
 def test_honored_cells_and_discriminator_probes_are_mutually_backed() -> None:
@@ -443,14 +487,23 @@ def test_invalid_rejection_registry_rejects_owner_drift(
         validate_option_registries()
 
 
-def test_probe_registry_rejects_unknown_roles(isolated_option_state) -> None:
+def test_probe_exempt_role_requires_exact_registration(isolated_option_state) -> None:
     spec = OptionSpec(
         FK_ARITH.ABS, "overflow", "ERROR", "int8", lambda: None, lambda: None, {}
     )
-    REGISTERED_OPTION_PROBES.append(
-        OptionProbeRegistration(spec, "polars", "probe_exempt")
+    OPTION_DISPOSITIONS.append(
+        OptionCell(
+            FK_ARITH.ABS,
+            "P",
+            "abs",
+            "overflow",
+            "polars",
+            "ERROR",
+            "int8",
+            "probe_exempt",
+        )
     )
-    with pytest.raises(AssertionError, match="invalid option probe disposition"):
+    with pytest.raises(AssertionError, match="probe_exempt probe/cell mismatch"):
         validate_option_registries()
 
 
@@ -491,7 +544,42 @@ def test_declared_probe_rejects_broad_native_failure_types(
         validate_option_registries()
 
 
-@pytest.mark.parametrize("role", ["honored", "declared_unsupported"])
+@pytest.mark.parametrize("broad_failure", [BaseException, Exception, AssertionError])
+def test_probe_exempt_rejects_broad_intended_exception_types(
+    isolated_option_state, broad_failure
+) -> None:
+    spec = OptionSpec(
+        FK_ARITH.ABS,
+        "overflow",
+        "ERROR",
+        "int8",
+        lambda: None,
+        lambda: None,
+        {},
+        expected_discriminates=False,
+        expected_native_exception=broad_failure,
+    )
+    OPTION_DISPOSITIONS.append(
+        OptionCell(
+            FK_ARITH.ABS,
+            "P",
+            "abs",
+            "overflow",
+            "polars",
+            "ERROR",
+            "int8",
+            "probe_exempt",
+        )
+    )
+    REGISTERED_OPTION_PROBES.append(
+        OptionProbeRegistration(spec, "polars", "probe_exempt")
+    )
+
+    with pytest.raises(AssertionError, match="specific intended exception"):
+        validate_option_registries()
+
+
+@pytest.mark.parametrize("role", ["honored", "declared_unsupported", "probe_exempt"])
 def test_probe_role_coverage_fails_when_registration_is_missing(
     isolated_option_state, role
 ) -> None:
@@ -507,12 +595,24 @@ def test_probe_role_coverage_fails_when_registration_is_missing(
 @pytest.mark.parametrize(
     ("dispositions", "expected"),
     [
-        ((('invalid', ''),), "validation-only"),
-        ((('declared_unsupported', ''),), "capability-declared"),
-        ((('probe_exempt', ''),), "probe-exempt-honor"),
-        ((('honored', ''),), "value-sensitive"),
+        ((("invalid", ""),), "validation-only"),
+        ((("declared_unsupported", ""),), "capability-declared"),
+        ((("probe_exempt", ""), ("invalid", "")), "probe-exempt-honor"),
         (
-            (("declared_unsupported", ""), ("honored", "intended-error-path")),
+            (
+                ("probe_exempt", ""),
+                ("declared_unsupported", ""),
+                ("invalid", ""),
+            ),
+            "value-sensitive",
+        ),
+        ((("honored", ""), ("invalid", "")), "value-sensitive"),
+        (
+            (
+                ("probe_exempt", "intended-error-path"),
+                ("declared_unsupported", ""),
+                ("invalid", ""),
+            ),
             "error-sensitive",
         ),
     ],

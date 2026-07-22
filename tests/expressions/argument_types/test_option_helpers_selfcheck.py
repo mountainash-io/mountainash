@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 import polars as pl
+import _duckdb
 
 import mountainash as ma
 from expressions.argument_types._option_helpers import (
@@ -16,10 +17,12 @@ from expressions.argument_types._option_helpers import (
 )
 from expressions.argument_types.conftest import ALL_BACKENDS, make_df
 from mountainash.core.capabilities import (
+    BackendIdentity,
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
 )
+from mountainash.core.backend_detection import identify_backend_identity
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -30,16 +33,41 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 
 _FIXTURE_IDENTITY = {
     "polars": (CONST_BACKEND.POLARS, "polars"),
-    "ibis": (CONST_BACKEND.IBIS, None),
+    "ibis": (CONST_BACKEND.IBIS, "ibis-duckdb"),
     "narwhals-polars": (CONST_BACKEND.NARWHALS, "narwhals-polars"),
     "narwhals-pandas": (CONST_BACKEND.NARWHALS, "narwhals-pandas"),
 }
+
+
+def test_focused_ibis_fixture_is_duckdb_bound() -> None:
+    df = make_df({"v": [-128]}, "ibis", schema={"v": pl.Int8})
+
+    assert identify_backend_identity(df) == BackendIdentity(
+        CONST_BACKEND.IBIS, "ibis-duckdb"
+    )
+
+
+def test_native_option_probe_accepts_exact_equivalent_intended_exceptions() -> None:
+    spec = OptionSpec(
+        fkey=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+        option_param="overflow",
+        option_value="ERROR",
+        dtype="int8",
+        build_expr=lambda: ma.col("v").abs(overflow="ERROR"),
+        reference_expr=lambda: ma.col("v").abs(),
+        data={"v": [-128]},
+        schema={"v": pl.Int8},
+        expected_native_exception=_duckdb.OutOfRangeException,
+    )
+
+    assert native_option_probe(spec, "ibis") is None
 
 
 @pytest.fixture
 def isolated_capability_registry():
     snapshot = CapabilityRegistry.snapshot()
     try:
+        CapabilityRegistry.reset()
         yield
     finally:
         CapabilityRegistry.restore(snapshot)
@@ -130,14 +158,6 @@ def test_xfail_option_unsupported_is_noop_without_gating_fact(monkeypatch):
 def test_xfail_option_unsupported_marks_literal_only_fact(
     isolated_capability_registry,
 ):
-    key = (
-        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
-        "s",
-        CONST_BACKEND.POLARS,
-        None,
-        "1",
-    )
-    CapabilityRegistry._facts.pop(key, None)  # noqa: SLF001
     CapabilityRegistry.register_backend(
         CONST_BACKEND.POLARS,
         [
@@ -172,22 +192,6 @@ def test_xfail_option_unsupported_marks_literal_only_fact(
 def test_xfail_option_unsupported_is_noop_for_resolved_expr_capable_fact(
     isolated_capability_registry,
 ):
-    family_key = (
-        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
-        "s",
-        CONST_BACKEND.POLARS,
-        None,
-        "1",
-    )
-    dialect_key = (
-        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
-        "s",
-        CONST_BACKEND.POLARS,
-        "polars",
-        "1",
-    )
-    CapabilityRegistry._facts.pop(family_key, None)  # noqa: SLF001
-    CapabilityRegistry._facts.pop(dialect_key, None)  # noqa: SLF001
     CapabilityRegistry.register_backend(
         CONST_BACKEND.POLARS,
         [
@@ -231,14 +235,6 @@ def test_native_option_probe_bypasses_value_gate_and_compares_values(
     backend, isolated_capability_registry
 ):
     family, dialect = _FIXTURE_IDENTITY[backend]
-    key = (
-        FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
-        "s",
-        family,
-        dialect,
-        "1",
-    )
-    CapabilityRegistry._facts.pop(key, None)  # noqa: SLF001
     CapabilityRegistry.register_backend(
         family,
         [

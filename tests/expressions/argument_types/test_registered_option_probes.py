@@ -88,6 +88,7 @@ def test_declared_probe_params_use_bounded_strict_native_xfail() -> None:
             lambda: None,
             lambda: None,
             {},
+            expected_discriminates=False,
         ),
         "polars",
         "declared_unsupported",
@@ -101,3 +102,28 @@ def test_declared_probe_params_use_bounded_strict_native_xfail() -> None:
         "raises": OptionProbeDidNotDiscriminateError,
         "reason": marker.kwargs["reason"],
     }
+
+
+def test_probe_exempt_params_execute_without_xfail() -> None:
+    from expressions.argument_types._option_helpers import OptionSpec
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    )
+
+    registration = OptionProbeRegistration(
+        OptionSpec(
+            FK_ARITH.ABS,
+            "overflow",
+            "ERROR",
+            "int8",
+            lambda: None,
+            lambda: None,
+            {},
+            expected_discriminates=False,
+        ),
+        "ibis",
+        "probe_exempt",
+    )
+
+    [param] = _probe_params([registration])
+    assert param.marks == []

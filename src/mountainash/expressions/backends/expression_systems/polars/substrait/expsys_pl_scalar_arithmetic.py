@@ -27,6 +27,11 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
     - modulus: Modulo/remainder
     - power: Exponentiation
     - negate: Negation
+
+    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
+    ``on_division_by_zero``, and ``division_type`` options are accepted for
+    protocol alignment. Native Polars behavior is used; capability facts gate
+    modes that do not match it.
     """
 
     def add(
@@ -43,6 +48,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Sum of x and y.
@@ -63,6 +69,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Difference x - y.
@@ -83,6 +90,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Product of x and y.
@@ -109,6 +117,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             overflow: Overflow handling (ignored in Polars).
             on_domain_error: Domain error handling (ignored in Polars).
             on_division_by_zero: Division by zero handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Quotient x / y.

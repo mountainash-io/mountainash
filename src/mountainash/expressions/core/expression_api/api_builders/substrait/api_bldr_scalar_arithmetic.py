@@ -45,6 +45,12 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
         modulo: Modulo (%)
         power: Exponentiation (**)
         floor_divide: Floor division (//)
+
+    Substrait option keywords are validated before node construction:
+    ``overflow`` selects overflow handling; ``rounding`` selects the IEEE
+    rounding direction; ``on_domain_error`` and ``on_division_by_zero`` select
+    exceptional-result behavior; and ``division_type`` selects signed remainder
+    semantics. Explicit options are preserved on the node for capability gating.
     """
 
     # ========================================
@@ -63,6 +69,8 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Args:
             other: Value or expression to add.
+            overflow: Substrait overflow mode.
+            rounding: Substrait IEEE rounding mode.
 
         Returns:
             New ExpressionAPI with addition node.
@@ -87,6 +95,8 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Args:
             other: Value or expression to subtract.
+            overflow: Substrait overflow mode.
+            rounding: Substrait IEEE rounding mode.
 
         Returns:
             New ExpressionAPI with subtraction node.
@@ -135,6 +145,8 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Args:
             other: Value or expression to multiply by.
+            overflow: Substrait overflow mode.
+            rounding: Substrait IEEE rounding mode.
 
         Returns:
             New ExpressionAPI with multiplication node.
@@ -163,6 +175,10 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Args:
             other: Value or expression to divide by.
+            overflow: Substrait overflow mode.
+            rounding: Substrait IEEE rounding mode.
+            on_domain_error: Result policy for invalid-domain inputs.
+            on_division_by_zero: Result policy for a zero divisor.
 
         Returns:
             New ExpressionAPI with division node.
@@ -220,6 +236,9 @@ class SubstraitScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitSca
 
         Args:
             other: Value or expression for modulo operation.
+            division_type: Signed remainder policy (TRUNCATE or FLOOR).
+            overflow: Substrait overflow mode.
+            on_domain_error: Result policy for invalid-domain inputs.
 
         Returns:
             New ExpressionAPI with modulo node.

@@ -79,13 +79,16 @@ class InvalidOptionRejection(NamedTuple):
 OPTION_DISPOSITIONS: list[OptionCell] = []
 REGISTERED_OPTION_PROBES: list[OptionProbeRegistration] = []
 REGISTERED_INVALID_OPTION_REJECTIONS: list[InvalidOptionRejection] = []
+# Family defaults are real capability facts but have no fifth focused fixture
+# cell. Category modules register their exact keys here for a separate guard.
+OPTION_FAMILY_DEFAULT_FACT_KEYS: set[FactKey] = set()
 
 
 # The option matrix uses the focused four-fixture argument-types surface from
 # Task 4, not the broader nine-fixture repository execution registry.
 _FIXTURE_IDENTITY: dict[str, tuple[CONST_BACKEND, str | None]] = {
     "polars": (CONST_BACKEND.POLARS, "polars"),
-    "ibis": (CONST_BACKEND.IBIS, None),
+    "ibis": (CONST_BACKEND.IBIS, "ibis-duckdb"),
     "narwhals-polars": (CONST_BACKEND.NARWHALS, "narwhals-polars"),
     "narwhals-pandas": (CONST_BACKEND.NARWHALS, "narwhals-pandas"),
 }
@@ -140,7 +143,9 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
 _CELL_DISPOSITIONS = frozenset(
     {"honored", "declared_unsupported", "probe_exempt", "invalid"}
 )
-_PROBE_DISPOSITIONS = frozenset({"honored", "declared_unsupported"})
+_PROBE_DISPOSITIONS = frozenset(
+    {"honored", "declared_unsupported", "probe_exempt"}
+)
 
 
 # Lazy to avoid a circular import when Task 6 makes the coverage guard consume
@@ -250,10 +255,38 @@ def validate_option_probe_registration(probe: OptionProbeRegistration) -> None:
         )
     probe_key(probe)
     failure = probe.expected_native_failure
-    if probe.disposition == "honored":
+    intended_exception = probe.spec.expected_native_exception
+    if intended_exception is not None and (
+        not isinstance(intended_exception, type)
+        or not issubclass(intended_exception, BaseException)
+        or intended_exception in {BaseException, Exception, AssertionError}
+    ):
+        raise AssertionError(
+            "expected_native_exception requires a specific intended exception"
+        )
+    if probe.disposition in {"honored", "probe_exempt"}:
         if failure is not None:
-            raise AssertionError("honored probe cannot set expected_native_failure")
+            raise AssertionError(
+                f"{probe.disposition} probe cannot set expected_native_failure"
+            )
+        if probe.disposition == "honored" and intended_exception is not None:
+            raise AssertionError(
+                "intended native exceptions must use the probe_exempt role"
+            )
+        if (
+            probe.disposition == "probe_exempt"
+            and intended_exception is None
+            and probe.spec.expected_discriminates
+        ):
+            raise AssertionError(
+                "result-equivalent probe_exempt requires "
+                "expected_discriminates=False"
+            )
         return
+    if intended_exception is not None:
+        raise AssertionError(
+            "declared_unsupported probe cannot set expected_native_exception"
+        )
     failures = failure if isinstance(failure, tuple) else (failure,)
     if not failures or any(
         item is None or not isinstance(item, type) or not issubclass(item, BaseException)
@@ -370,20 +403,19 @@ def param_taxonomy(protocol: str, op: str, param: str) -> str:
     ]
     if not cells:
         return "no-op"
-    dispositions = {cell.disposition for cell in cells}
-    if dispositions == {"invalid"}:
+    legal = [cell for cell in cells if cell.disposition != "invalid"]
+    if not legal:
         return "validation-only"
-    if dispositions == {"declared_unsupported"}:
-        return "capability-declared"
     if any(
-        cell.disposition == "honored" and cell.reason == "intended-error-path"
-        for cell in cells
+        cell.disposition in {"honored", "probe_exempt"}
+        and cell.reason == "intended-error-path"
+        for cell in legal
     ):
         return "error-sensitive"
-    if "honored" in dispositions:
-        return "value-sensitive"
-    if dispositions == {"probe_exempt"}:
+    if all(cell.disposition == "probe_exempt" for cell in legal):
         return "probe-exempt-honor"
+    if any(cell.disposition in {"honored", "probe_exempt"} for cell in legal):
+        return "value-sensitive"
     return "capability-declared"
 
 

@@ -8,6 +8,7 @@ import polars as pl
 import _duckdb
 
 import mountainash as ma
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import InvalidOptionValueError
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -24,6 +25,7 @@ from expressions.argument_types._option_helpers import (
 from expressions.argument_types.option_disposition import (
     INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
+    OPTION_FAMILY_DEFAULT_FACT_KEYS,
     REGISTERED_INVALID_OPTION_REJECTIONS,
     REGISTERED_OPTION_PROBES,
     InvalidOptionRejection,
@@ -134,6 +136,7 @@ _ABS_PROBE_EXEMPT = {
     (backend, "SILENT")
     for backend in ("polars", "narwhals-polars", "narwhals-pandas")
 }
+_ABS_PROBE_EXEMPT.add(("ibis", "ERROR"))
 _ABS_DECLARED = {
     (backend, value)
     for backend in ALL_BACKENDS
@@ -153,7 +156,9 @@ OPTION_DISPOSITIONS.extend(
         "int8",
         "probe_exempt" if (backend, value) in _ABS_PROBE_EXEMPT else "declared_unsupported",
         (
-            "explicit SILENT selects the native wrapping behavior and is "
+            "intended-error-path"
+            if backend == "ibis" and value == "ERROR"
+            else "explicit SILENT selects the native wrapping behavior and is "
             "indistinguishable from omission"
             if (backend, value) in _ABS_PROBE_EXEMPT
             else "native behavior does not implement the requested overflow mode"
@@ -189,6 +194,21 @@ REGISTERED_OPTION_PROBES.extend(
         ),
     )
     for backend, value in sorted(_ABS_DECLARED)
+)
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _abs_probe(value)._replace(
+            expected_discriminates=False,
+            expected_native_exception=(
+                _duckdb.OutOfRangeException
+                if backend == "ibis" and value == "ERROR"
+                else None
+            ),
+        ),
+        backend,
+        "probe_exempt",
+    )
+    for backend, value in sorted(_ABS_PROBE_EXEMPT)
 )
 
 
@@ -261,6 +281,14 @@ _SEMANTIC_EXEMPT = {
     ("modulus", "on_domain_error", "polars", "NULL"),
     ("modulus", "on_domain_error", "narwhals-polars", "NULL"),
     ("modulus", "on_domain_error", "narwhals-pandas", "NULL"),
+    ("acos", "on_domain_error", "ibis", "ERROR"),
+    ("asin", "on_domain_error", "ibis", "ERROR"),
+    ("sqrt", "on_domain_error", "ibis", "ERROR"),
+}
+_SEMANTIC_INTENDED_ERROR = {
+    ("acos", "on_domain_error", "ibis", "ERROR"): _duckdb.InvalidInputException,
+    ("asin", "on_domain_error", "ibis", "ERROR"): _duckdb.InvalidInputException,
+    ("sqrt", "on_domain_error", "ibis", "ERROR"): _duckdb.OutOfRangeException,
 }
 _SEMANTIC_DECLARED = {
     (op, param, backend, value)
@@ -329,7 +357,9 @@ OPTION_DISPOSITIONS.extend(
             else "declared_unsupported"
         ),
         (
-            "native omission already has the requested semantics and is "
+            "intended-error-path"
+            if (op, param, backend, value) in _SEMANTIC_INTENDED_ERROR
+            else "native omission already has the requested semantics and is "
             "indistinguishable from the explicit option"
             if (op, param, backend, value) in _SEMANTIC_EXEMPT
             else "native behavior does not implement the requested option semantics"
@@ -348,6 +378,19 @@ REGISTERED_OPTION_PROBES.extend(
         _semantic_native_failure(op, param, backend, value),
     )
     for op, param, backend, value in sorted(_SEMANTIC_DECLARED)
+)
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _semantic_probe(op, param, value)._replace(
+            expected_discriminates=False,
+            expected_native_exception=_SEMANTIC_INTENDED_ERROR.get(
+                (op, param, backend, value)
+            ),
+        ),
+        backend,
+        "probe_exempt",
+    )
+    for op, param, backend, value in sorted(_SEMANTIC_EXEMPT)
 )
 
 
@@ -430,6 +473,16 @@ _OVERFLOW_PROBE_EXEMPT = {
     for op in _WRAPPING_OVERFLOW_OPS
     for backend in ("polars", "narwhals-polars", "narwhals-pandas")
 }
+_IBIS_INTENDED_ERROR_OVERFLOW_OPS = {
+    "add",
+    "subtract",
+    "multiply",
+    "modulus",
+    "negate",
+}
+_OVERFLOW_PROBE_EXEMPT.update(
+    (op, "ibis", "ERROR") for op in _IBIS_INTENDED_ERROR_OVERFLOW_OPS
+)
 _OVERFLOW_DECLARED = {
     (op, backend, value)
     for op in _OVERFLOW_SPECS
@@ -477,7 +530,11 @@ OPTION_DISPOSITIONS.extend(
             else "declared_unsupported"
         ),
         (
-            "explicit SILENT selects native i64 power wrapping and is "
+            "intended-error-path"
+            if op in _IBIS_INTENDED_ERROR_OVERFLOW_OPS
+            and backend == "ibis"
+            and value == "ERROR"
+            else "explicit SILENT selects native i64 power wrapping and is "
             "indistinguishable from omission"
             if op == "power"
             and (op, backend, value) in _OVERFLOW_PROBE_EXEMPT
@@ -511,6 +568,21 @@ REGISTERED_OPTION_PROBES.extend(
         ),
     )
     for op, backend, value in sorted(_OVERFLOW_DECLARED)
+)
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _overflow_probe(op, value)._replace(
+            expected_discriminates=False,
+            expected_native_exception=(
+                _duckdb.OutOfRangeException
+                if backend == "ibis" and value == "ERROR"
+                else None
+            ),
+        ),
+        backend,
+        "probe_exempt",
+    )
+    for op, backend, value in sorted(_OVERFLOW_PROBE_EXEMPT)
 )
 
 
@@ -624,6 +696,20 @@ OPTION_DISPOSITIONS.extend(
     for op, fkey in _ROUNDING_FKEYS.items()
     for backend in ALL_BACKENDS
     for value in _ROUNDING_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        cell.fkey,
+        cell.param,
+        cell.value,
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for cell in OPTION_DISPOSITIONS
+    if cell.protocol == _ARITH_PROTOCOL
+    and cell.fixture == "ibis"
+    and cell.disposition != "invalid"
 )
 
 
@@ -812,6 +898,14 @@ def test_arithmetic_semantic_option_matches_native_requested_semantics(
     op, param, backend, value
 ):
     spec = _semantic_probe(op, param, value)
+    if (op, param, backend, value) in _SEMANTIC_INTENDED_ERROR:
+        with pytest.raises(_SEMANTIC_INTENDED_ERROR[(op, param, backend, value)]):
+            option_result(
+                make_df(spec.data, backend, schema=spec.schema),
+                spec.build_expr(),
+                backend,
+            )
+        return
     df = make_df(spec.data, backend, schema=spec.schema)
     _assert_requested_semantics(
         value, option_result(df, spec.build_expr(), backend)
@@ -844,7 +938,9 @@ def test_arithmetic_overflow_declared_unsupported(op, backend, value, request):
 
 @pytest.mark.parametrize(
     "op,backend",
-    sorted({case[:2] for case in _OVERFLOW_PROBE_EXEMPT}),
+    sorted(
+        {(op, backend) for op, backend, value in _OVERFLOW_PROBE_EXEMPT if value == "SILENT"}
+    ),
 )
 def test_arithmetic_overflow_silent_matches_native_wrapping(op, backend):
     spec = _overflow_probe(op, "SILENT")
@@ -896,10 +992,43 @@ def test_abs_overflow_declared_unsupported(backend, value, request):
     assert got == [128]
 
 
-@pytest.mark.parametrize("backend", sorted({case[0] for case in _ABS_PROBE_EXEMPT}))
+@pytest.mark.parametrize(
+    "backend",
+    sorted({backend for backend, value in _ABS_PROBE_EXEMPT if value == "SILENT"}),
+)
 def test_abs_overflow_silent_matches_native_wrapping(backend):
     df = make_df({"v": [-128]}, backend, schema={"v": pl.Int8})
     assert option_result(df, ma.col("v").abs(overflow="SILENT"), backend) == [-128]
+
+
+@pytest.mark.parametrize(
+    ("op", "expected_exception"),
+    [
+        ("abs", _duckdb.OutOfRangeException),
+        ("add", _duckdb.OutOfRangeException),
+        ("subtract", _duckdb.OutOfRangeException),
+        ("multiply", _duckdb.OutOfRangeException),
+        ("modulus", _duckdb.OutOfRangeException),
+        ("negate", _duckdb.OutOfRangeException),
+        ("acos", _duckdb.InvalidInputException),
+        ("asin", _duckdb.InvalidInputException),
+        ("sqrt", _duckdb.OutOfRangeException),
+    ],
+)
+def test_ibis_duckdb_intended_error_option_reaches_native_exception(
+    op: str, expected_exception: type[BaseException]
+) -> None:
+    if op == "abs":
+        spec = _abs_probe("ERROR")
+    elif op in _OVERFLOW_SPECS:
+        spec = _overflow_probe(op, "ERROR")
+    else:
+        spec = _semantic_probe(op, "on_domain_error", "ERROR")
+
+    df = make_df(spec.data, "ibis", schema=spec.schema)
+    with pytest.raises(expected_exception) as caught:
+        option_result(df, spec.build_expr(), "ibis")
+    assert type(caught.value) is expected_exception
 
 
 @pytest.mark.parametrize("value", ["WRAP", "error", ""])

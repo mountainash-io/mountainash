@@ -42,6 +42,10 @@ _SEMANTIC_DEFAULT_EQUIVALENT = (
     "The native omission path already has the requested arithmetic semantics, "
     "so the explicit option cannot discriminate"
 )
+_INTENDED_ERROR_EQUIVALENT = (
+    "The DuckDB omission path raises the exact exception required by the "
+    "requested ERROR semantics, so the explicit option is equivalent"
+)
 
 
 def _fact(
@@ -139,6 +143,37 @@ IBIS_ARITHMETIC_OPTION_CAPABILITIES = tuple(
     for value in ("ERROR", "SATURATE", "SILENT")
 )
 
+_IBIS_DUCKDB_INTENDED_ERROR_OVERFLOW_KEYS = {
+    FK_ARITH.ABS,
+    FK_ARITH.ADD,
+    FK_ARITH.SUBTRACT,
+    FK_ARITH.MULTIPLY,
+    FK_ARITH.MODULO,
+    FK_ARITH.NEGATE,
+}
+IBIS_DUCKDB_OVERFLOW_REFINEMENTS = tuple(
+    _fact(
+        operation_key,
+        CONST_BACKEND.IBIS,
+        "ibis-duckdb",
+        value,
+        (
+            CapabilityLevel.EXPR_CAPABLE
+            if operation_key in _IBIS_DUCKDB_INTENDED_ERROR_OVERFLOW_KEYS
+            and value == "ERROR"
+            else CapabilityLevel.UNSUPPORTED
+        ),
+        probe_exempt=(
+            _INTENDED_ERROR_EQUIVALENT
+            if operation_key in _IBIS_DUCKDB_INTENDED_ERROR_OVERFLOW_KEYS
+            and value == "ERROR"
+            else None
+        ),
+    )
+    for operation_key in _OVERFLOW_KEYS.values()
+    for value in ("ERROR", "SATURATE", "SILENT")
+)
+
 NARWHALS_ARITHMETIC_OPTION_CAPABILITIES = tuple(
     fact
     for dialect in ("narwhals-polars", "narwhals-pandas")
@@ -172,7 +207,7 @@ _SEMANTIC_DOMAINS = {
 }
 _FIXTURE_IDENTITIES = {
     "polars": (CONST_BACKEND.POLARS, "polars"),
-    "ibis": (CONST_BACKEND.IBIS, None),
+    "ibis": (CONST_BACKEND.IBIS, "ibis-duckdb"),
     "narwhals-polars": (CONST_BACKEND.NARWHALS, "narwhals-polars"),
     "narwhals-pandas": (CONST_BACKEND.NARWHALS, "narwhals-pandas"),
 }
@@ -196,6 +231,14 @@ _SEMANTIC_EXEMPT = {
     ("modulus", "on_domain_error", "polars", "NULL"),
     ("modulus", "on_domain_error", "narwhals-polars", "NULL"),
     ("modulus", "on_domain_error", "narwhals-pandas", "NULL"),
+    ("acos", "on_domain_error", "ibis", "ERROR"),
+    ("asin", "on_domain_error", "ibis", "ERROR"),
+    ("sqrt", "on_domain_error", "ibis", "ERROR"),
+}
+_SEMANTIC_INTENDED_ERROR = {
+    ("acos", "on_domain_error", "ibis", "ERROR"),
+    ("asin", "on_domain_error", "ibis", "ERROR"),
+    ("sqrt", "on_domain_error", "ibis", "ERROR"),
 }
 
 
@@ -215,7 +258,9 @@ def _semantic_facts(
             backend=backend,
             dialect=dialect,
             message=(
-                _SEMANTIC_DEFAULT_EQUIVALENT
+                _INTENDED_ERROR_EQUIVALENT
+                if (operation, param, fixture, value) in _SEMANTIC_INTENDED_ERROR
+                else _SEMANTIC_DEFAULT_EQUIVALENT
                 if (operation, param, fixture, value) in _SEMANTIC_EXEMPT
                 else _SEMANTIC_UNSUPPORTED
             ),
@@ -225,7 +270,9 @@ def _semantic_facts(
             ),
             since=_SINCE,
             probe_exempt=(
-                _SEMANTIC_DEFAULT_EQUIVALENT
+                _INTENDED_ERROR_EQUIVALENT
+                if (operation, param, fixture, value) in _SEMANTIC_INTENDED_ERROR
+                else _SEMANTIC_DEFAULT_EQUIVALENT
                 if (operation, param, fixture, value) in _SEMANTIC_EXEMPT
                 else None
             ),
@@ -239,6 +286,9 @@ _SEMANTIC_FACTS = {
     fixture: _semantic_facts(backend, dialect, fixture)
     for fixture, (backend, dialect) in _FIXTURE_IDENTITIES.items()
 }
+_IBIS_SEMANTIC_FAMILY_DEFAULTS = _semantic_facts(
+    CONST_BACKEND.IBIS, None, "ibis-family-default"
+)
 
 
 _ROUNDING_KEYS = {
@@ -304,6 +354,7 @@ _ROUNDING_FACTS = {
     fixture: _rounding_facts(backend, dialect)
     for fixture, (backend, dialect) in _FIXTURE_IDENTITIES.items()
 }
+_IBIS_ROUNDING_FAMILY_DEFAULTS = _rounding_facts(CONST_BACKEND.IBIS, None)
 
 
 CapabilityRegistry.register_backend(
@@ -315,7 +366,10 @@ CapabilityRegistry.register_backend(
 CapabilityRegistry.register_backend(
     CONST_BACKEND.IBIS,
     IBIS_ARITHMETIC_OPTION_CAPABILITIES
+    + IBIS_DUCKDB_OVERFLOW_REFINEMENTS
+    + _IBIS_SEMANTIC_FAMILY_DEFAULTS
     + _SEMANTIC_FACTS["ibis"]
+    + _IBIS_ROUNDING_FAMILY_DEFAULTS
     + _ROUNDING_FACTS["ibis"],
 )
 CapabilityRegistry.register_backend(

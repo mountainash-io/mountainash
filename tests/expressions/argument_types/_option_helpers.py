@@ -38,7 +38,7 @@ _FIXTURE_FAMILY = {
 }
 _FIXTURE_DIALECT = {
     "polars": "polars",
-    "ibis": None,
+    "ibis": "ibis-duckdb",
     "narwhals-polars": "narwhals-polars",
     "narwhals-pandas": "narwhals-pandas",
 }
@@ -98,6 +98,7 @@ class OptionSpec(NamedTuple):
     data: dict[str, list[Any]]
     schema: dict[str, Any] | None = None
     expected_discriminates: bool = True
+    expected_native_exception: type[BaseException] | None = None
 
 
 class OptionProbeDidNotDiscriminateError(AssertionError):
@@ -144,8 +145,27 @@ def _option_values_equal(left: list[Any], right: list[Any]) -> bool:
 
 
 def native_option_probe(spec: OptionSpec, backend: str) -> None:
-    """Assert an option expression discriminates on the ungated native path."""
+    """Assert exact result or intended-exception semantics on the raw path."""
     df = make_df(spec.data, backend, schema=spec.schema)
+    if spec.expected_native_exception is not None:
+        for label, expression in (
+            ("explicit", spec.build_expr()),
+            ("omission", spec.reference_expr()),
+        ):
+            try:
+                _materialize_native_values(df, expression, backend)
+            except BaseException as exc:
+                if type(exc) is not spec.expected_native_exception:
+                    raise AssertionError(
+                        f"{label} path raised {type(exc)!r}, expected exactly "
+                        f"{spec.expected_native_exception!r}"
+                    ) from exc
+            else:
+                raise AssertionError(
+                    f"{label} path did not raise exactly "
+                    f"{spec.expected_native_exception!r}"
+                )
+        return
     got = _materialize_native_values(df, spec.build_expr(), backend)
     reference = _materialize_native_values(df, spec.reference_expr(), backend)
     discriminates = not _option_values_equal(got, reference)

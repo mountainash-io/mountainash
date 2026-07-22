@@ -2,7 +2,9 @@
 
 Registration is validated at import time (fail-at-import, not at use):
 unknown op keys, params, dialects, or duplicate keys raise ValueError.
-Lookup is a chain of at most four frozen-dict hits.
+Lookup is a chain of at most six dictionary hits: value-specific dialect and
+family facts, value-agnostic dialect and family facts, then dialect and family
+wildcards.
 """
 from __future__ import annotations
 

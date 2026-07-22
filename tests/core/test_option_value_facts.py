@@ -23,18 +23,13 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 def _isolate_registry():
     snap = CapabilityRegistry.snapshot()
     try:
+        CapabilityRegistry.reset()
         yield
     finally:
         CapabilityRegistry.restore(snap)
 
 
 def test_value_specific_fact_gates_only_its_value():
-    # Remove the production key Task 7 may register. The autouse snapshot
-    # restores it after this test; this branch does not yet contain that fact.
-    CapabilityRegistry._facts.pop(  # noqa: SLF001
-        (FK_ARITH.ABS, "overflow", CONST_BACKEND.NARWHALS, None, "ERROR"),
-        None,
-    )
     CapabilityRegistry.register_backend(
         CONST_BACKEND.NARWHALS,
         [
@@ -71,10 +66,6 @@ def test_value_specific_fact_gates_only_its_value():
 
 
 def test_value_specific_lookup_falls_back_to_value_agnostic_fact():
-    CapabilityRegistry._facts.pop(  # noqa: SLF001
-        (FK_ARITH.ABS, "overflow", CONST_BACKEND.POLARS, None, None),
-        None,
-    )
     fallback = CapabilityFact(
         operation_key=FK_ARITH.ABS,
         param="overflow",
@@ -97,11 +88,6 @@ def test_value_specific_lookup_falls_back_to_value_agnostic_fact():
 
 
 def test_value_specific_fact_takes_precedence_over_value_agnostic_fact():
-    for option_value in (None, "ERROR"):
-        CapabilityRegistry._facts.pop(  # noqa: SLF001
-            (FK_ARITH.ABS, "overflow", CONST_BACKEND.POLARS, None, option_value),
-            None,
-        )
     fallback = CapabilityFact(
         operation_key=FK_ARITH.ABS,
         param="overflow",

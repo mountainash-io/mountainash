@@ -27,6 +27,11 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     - modulus: Modulo/remainder
     - power: Exponentiation
     - negate: Negation
+
+    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
+    ``on_division_by_zero``, and ``division_type`` options are accepted for
+    protocol alignment. Native Ibis/DuckDB behavior is used; capability facts
+    gate modes that do not match it.
     """
 
     def add(
@@ -43,6 +48,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Sum of x and y.
@@ -64,6 +70,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Difference x - y.
@@ -85,6 +92,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Product of x and y.
@@ -112,6 +120,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             overflow: Overflow handling (ignored in Ibis).
             on_domain_error: Domain error handling (ignored in Ibis).
             on_division_by_zero: Division by zero handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Quotient x / y.
