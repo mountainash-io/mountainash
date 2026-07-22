@@ -29,14 +29,22 @@ def test_ibis_capabilities_register_without_ibis_installed():
         # No transitive ibis import occurred: the declaration path never
         # successfully imported the blocked backend.
         assert "ibis" not in sys.modules, "ibis was imported despite being blocked"
-        refs = {f.upstream_ref for f in CapabilityRegistry.facts() if f.upstream_ref}
-        n_ibis = sum(1 for f in CapabilityRegistry.facts() if str(f.backend) == "ibis")
+        facts = CapabilityRegistry.facts()
+        refs = {f.upstream_ref for f in facts if f.upstream_ref}
+        ibis_facts = [f for f in facts if str(f.backend) == "ibis"]
+        n_ibis = len(ibis_facts)
+        n_ibis_options = sum(f.option_value is not None for f in ibis_facts)
         assert "IB-DT-01" in refs, "IB-DT-01 missing without ibis: " + repr(sorted(refs))
-        assert n_ibis == 20, (
-            "expected 20 ibis facts (19 ibis expression facts + 1 ibis relation "
-            "escape_char fact), got %d" % n_ibis
+        assert n_ibis_options == 304, (
+            "expected 304 option_value-scoped ibis arithmetic facts "
+            "(152 family defaults + 152 ibis-duckdb refinements), got %d"
+            % n_ibis_options
         )
-        print("OK", n_ibis)
+        assert n_ibis == 324, (
+            "expected 324 ibis facts (20 existing import-safe facts + 304 "
+            "option_value-scoped arithmetic facts), got %d" % n_ibis
+        )
+        print("OK", n_ibis, n_ibis_options)
         '''
     )
     result = subprocess.run(
@@ -45,4 +53,4 @@ def test_ibis_capabilities_register_without_ibis_installed():
     assert result.returncode == 0, (
         "subprocess failed:\nSTDOUT:\n" + result.stdout + "\nSTDERR:\n" + result.stderr
     )
-    assert "OK 20" in result.stdout
+    assert "OK 324 304" in result.stdout
