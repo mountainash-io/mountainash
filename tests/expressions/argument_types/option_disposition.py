@@ -4,6 +4,87 @@ This is test infrastructure shared by the arithmetic, string, and datetime
 option slices.  Expectations come from protocol introspection and named gaps;
 the disposition and probe registries are outputs checked against that scope,
 never inputs used to shrink it.
+
+String option-surface classification (PR-B Task 1)
+====================================================
+
+This is the authoritative classification of every
+``SubstraitScalarStringExpressionSystemProtocol`` entry in
+``_KNOWN_UNTESTED_OPTION_PARAMS``. FKEY names were verified against
+``function_keys/enums.py``; the channel is the current
+``ScalarFunctionNode`` AST channel in ``api_bldr_scalar_string.py``.
+
+| Operation | FKEY | Parameter | Class | Task / reason |
+| --- | --- | --- | --- | --- |
+| ``capitalize`` | ``CAPITALIZE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``center`` | ``CENTER`` | ``padding`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``concat`` | ``CONCAT`` | ``null_handling`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``contains`` | ``CONTAINS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``count_substring`` | ``COUNT_SUBSTRING`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``ends_with`` | ``ENDS_WITH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``initcap`` | ``INITCAP`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``like`` | ``LIKE`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``lower`` | ``LOWER`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``position`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``group`` | O-migrate | Currently argument-channel (phantom expr capability: a literal ``group`` is visited to an Expr and silently collapses to 0); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``occurrence`` | O-migrate | Currently argument-channel (universally literal, honored by no backend); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``position`` | O-migrate | Currently argument-channel (universally literal, honored by no backend); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``group`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``position`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``dotall`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``multiline`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``occurrence`` | O-migrate | Currently argument-channel (universally literal; a genuine Expr raises at ``if occurrence == 0``); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``position`` | O-migrate | Currently argument-channel (universally literal, honored by no backend); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_string_split`` | ``REGEXP_SPLIT`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_string_split`` | ``REGEXP_SPLIT`` | ``dotall`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_string_split`` | ``REGEXP_SPLIT`` | ``multiline`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``occurrence`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``position`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``replace`` | ``REPLACE`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``starts_with`` | ``STARTS_WITH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``strpos`` | ``STRPOS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``substring`` | ``SUBSTRING`` | ``negative_start`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``swapcase`` | ``SWAPCASE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``title`` | ``TITLE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``upper`` | ``UPPER`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+
+There are no N rows: the generated Substrait option source identifies every
+registered parameter above as an option for its operation. In particular,
+``char_set`` is not a no-op classification: it is a real option on the
+case-conversion operations, but those builders do not yet emit it.
+
+Channel unification (regexp ``position``/``occurrence``/``group``):
+Empirical backend audit found no backend accepts a column-reference expression
+for these knobs — they are universally literal-only, and honored by at most the
+literal case (polars/ibis ``group`` via ``str.extract``/``re_extract``). Yet
+``REGEXP_MATCH``/``REGEXP_MATCH_ALL``/``REGEXP_STRPOS``/``REGEXP_COUNT``/
+``REGEXP_REPLACE`` place them inconsistently: on ``node.options`` for
+MATCH_ALL/STRPOS/COUNT (raw ``Optional[int]``) but on ``arguments`` for
+MATCH/REPLACE (expression-typed). The arguments placement is a phantom
+capability that actively misbehaves: with no ``LITERAL_ONLY`` fact registered,
+the visitor visits even a literal (``LiteralNode`` is an ``ExpressionNode``)
+into a backend Expr, the backend ``isinstance(x, int)`` guard is then False,
+and a user-supplied ``group`` silently collapses to 0. Per
+``arguments-vs-options.md`` (universally-literal ⇒ MUST be an option), the five
+``O-migrate`` rows above are moved arguments→options and retyped ``Optional[int]``
+in Task 2 (a signature/channel change only — no ``CapabilityLevel.LITERAL_ONLY``
+fact, which in the options channel would make the value-aware gate raise
+unconditionally). After migration every regexp positional param is option-channel
+and is dispositioned in Task 3 (honor where the native API takes a literal — e.g.
+polars/ibis ``group`` — else a value-scoped ``UNSUPPORTED`` ``CapabilityFact``).
 """
 from __future__ import annotations
 
