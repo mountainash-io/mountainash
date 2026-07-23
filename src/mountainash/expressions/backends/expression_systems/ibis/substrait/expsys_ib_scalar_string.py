@@ -640,7 +640,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             Matched substring or null.
         """
         input = self._lift_deferred_receiver(input, pattern)
-        group_index = 0 if group is None else (group if isinstance(group, int) else 0)
+        # group is a raw int|None option (arguments-vs-options.md); no Expr to guard.
+        group_index = 0 if group is None else group
         return input.re_extract(pattern, group_index)
 
     def regexp_match_substring_all(

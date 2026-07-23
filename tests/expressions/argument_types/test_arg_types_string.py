@@ -480,30 +480,12 @@ OP_SPECS: list[OpSpec] = [
             "sep": [",", ",", ","],
         },
     ),
-    OpSpec(
-        function_key=FK_STR.REGEXP_REPLACE,
-        op_name="regexp_replace_position",
-        build=lambda col, arg: col.str.regexp_replace("o+", "X", position=arg),
-        raw_arg=0,
-        arg_col_name="pos",
-        param_name="position",
-        data={
-            "text": ["hello", "foooo", "world"],
-            "pos": [0, 0, 0],
-        },
-    ),
-    OpSpec(
-        function_key=FK_STR.REGEXP_REPLACE,
-        op_name="regexp_replace_occurrence",
-        build=lambda col, arg: col.str.regexp_replace("o+", "X", occurrence=arg),
-        raw_arg=1,
-        arg_col_name="occ",
-        param_name="occurrence",
-        data={
-            "text": ["hello", "foooo", "world"],
-            "occ": [1, 1, 1],
-        },
-    ),
+    # regexp_replace position/occurrence were argument-type OpSpecs here, but the
+    # channel-unification moved them to the option channel (Optional[int]) — no
+    # backend accepts an expression for them, and the arguments placement silently
+    # dropped literals. They are now tracked by the option-surface matrix
+    # (_KNOWN_UNTESTED_OPTION_PARAMS → dispositioned in the option task), not the
+    # argument-types matrix. See option_disposition.py O-migrate rows.
     # -- Newly-wired regex + split ops --
     OpSpec(
         function_key=FK_STR.REGEXP_MATCH_ALL,

@@ -325,9 +325,9 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_match_substring(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -344,8 +344,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_match_substring_all(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -360,8 +360,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_strpos(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -376,7 +376,7 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_count_substring(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -392,8 +392,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
         replacement: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
         """Replace occurrences matching regex pattern.

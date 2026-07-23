@@ -657,7 +657,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Matched substring or null.
         """
-        group_index = 0 if group is None else (group if isinstance(group, int) else 0)
+        # group is a raw int|None option (arguments-vs-options.md); no Expr to guard.
+        group_index = 0 if group is None else group
         return input.str.extract(pattern, group_index=group_index)
 
     def regexp_match_substring_all(

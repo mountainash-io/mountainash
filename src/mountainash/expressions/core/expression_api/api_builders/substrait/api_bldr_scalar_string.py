@@ -787,9 +787,9 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     def regexp_match_substring(
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        position: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: Optional[bool] = True,
         multiline: Optional[bool] = False,
@@ -813,23 +813,21 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             New ExpressionAPI with regexp_match_substring node.
         """
         pattern_node = self._to_substrait_node(pattern)
-        args = [self._node, pattern_node]
 
-        if position is not None:
-            args.append(self._to_substrait_node(position))
-        if occurrence is not None:
-            args.append(self._to_substrait_node(occurrence))
-        if group is not None:
-            args.append(self._to_substrait_node(group))
-
+        # position/occurrence/group are universally-literal (no backend accepts an
+        # expression) → option channel per arguments-vs-options.md. See the
+        # O-migrate rows in option_disposition.py: placing them in `arguments`
+        # silently visited a literal `group` into an Expr that collapsed to 0.
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
-            arguments=args,
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
-                     "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
-                     "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
-
-
+            arguments=[self._node, pattern_node],
+            options={
+                "position": position,
+                "occurrence": occurrence,
+                "group": group,
+                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
+                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
             },
         )
         return self._build(node)
@@ -924,8 +922,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        position: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
         """
@@ -945,17 +943,17 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """
         pattern_node = self._to_substrait_node(pattern)
         replacement_node = self._to_substrait_node(replacement)
-        args = [self._node, pattern_node, replacement_node]
 
-        if position is not None:
-            args.append(self._to_substrait_node(position))
-        if occurrence is not None:
-            args.append(self._to_substrait_node(occurrence))
-
+        # position/occurrence are universally-literal → option channel (unify;
+        # see arguments-vs-options.md and option_disposition.py O-migrate rows).
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
-            arguments=args,
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            arguments=[self._node, pattern_node, replacement_node],
+            options={
+                "position": position,
+                "occurrence": occurrence,
+                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
+            },
         )
         return self._build(node)
 
