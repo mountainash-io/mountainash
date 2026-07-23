@@ -85,6 +85,73 @@ _REGEXP_UNSUPPORTED_OPS = frozenset(
         "regexp_count_substring",
     }
 )
+_POSITIONAL_IGNORED = (
+    "The native backend does not honor the regexp position/occurrence/group "
+    "option; it is silently ignored rather than applied"
+)
+# Regexp positional int options (arguments-vs-options.md unified these to the
+# option channel in the string PR). Keyed by param -> {op: FKEY}.
+_POSITIONAL_KEYS = {
+    "position": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "occurrence": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "group": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+    },
+}
+# Representative int value the disposition matrix gates (value-scoped, mirroring
+# how enum options enumerate their finite domain).
+_POSITIONAL_VALUE = "2"
+# (op, param, backend-family) triples a native backend genuinely honors — these
+# get NO gating fact (EXPR_CAPABLE by absence). Everything else is declared
+# UNSUPPORTED. Probe-determined empirically: only regexp_match_substring group
+# (polars + ibis) and regexp_replace occurrence (polars) discriminate.
+_POSITIONAL_HONORED = {
+    ("regexp_match_substring", "group", CONST_BACKEND.POLARS),
+    ("regexp_match_substring", "group", CONST_BACKEND.IBIS),
+    ("regexp_replace", "occurrence", CONST_BACKEND.POLARS),
+}
+
+
+def _positional_facts(
+    backend: CONST_BACKEND, dialect: str | None
+) -> tuple[CapabilityFact, ...]:
+    facts = []
+    for param, operations in _POSITIONAL_KEYS.items():
+        for op, operation_key in operations.items():
+            if (op, param, backend) in _POSITIONAL_HONORED:
+                continue
+            op_unavailable = (
+                op in _REGEXP_UNSUPPORTED_OPS
+                and backend is not CONST_BACKEND.POLARS
+            )
+            facts.append(
+                CapabilityFact(
+                    operation_key=operation_key,
+                    param=param,
+                    option_value=_POSITIONAL_VALUE,
+                    level=CapabilityLevel.UNSUPPORTED,
+                    backend=backend,
+                    dialect=dialect,
+                    message=(
+                        _REGEXP_OPERATION_UNAVAILABLE
+                        if op_unavailable
+                        else _POSITIONAL_IGNORED
+                    ),
+                    since=_SINCE,
+                )
+            )
+    return tuple(facts)
 
 
 def _dialect_facts(
@@ -164,7 +231,14 @@ def _dialect_facts(
         for operation_key in operations.values()
         for values in (_REGEXP_FLAG_VALUES[param],)
     )
-    return case_sensitive + case_insensitive + regexp_defaults + regexp_enabled
+    positional = _positional_facts(backend, dialect)
+    return (
+        case_sensitive
+        + case_insensitive
+        + regexp_defaults
+        + regexp_enabled
+        + positional
+    )
 
 
 _POLARS_FACTS = _dialect_facts(CONST_BACKEND.POLARS, "polars")
@@ -211,7 +285,7 @@ _IBIS_FAMILY_DEFAULTS = tuple(
     for op, operation_key in operations.items()
     for values in (_REGEXP_FLAG_VALUES[param],)
     if op in _REGEXP_UNSUPPORTED_OPS
-)
+) + _positional_facts(CONST_BACKEND.IBIS, None)
 _NARWHALS_FACTS = tuple(
     fact
     for dialect in ("narwhals-polars", "narwhals-pandas")

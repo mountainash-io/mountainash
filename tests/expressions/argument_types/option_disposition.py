@@ -230,6 +230,19 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("regexp_strpos", "case_sensitivity"): ("str",),
     ("regexp_strpos", "dotall"): ("str",),
     ("regexp_strpos", "multiline"): ("str",),
+    # Regexp positional int options operate on string data columns, so the
+    # representative dtype is the operand dtype ("str"), NOT the option's own
+    # integer value type. The int value domain lives in OPTION_VALUE_DOMAINS.
+    ("regexp_count_substring", "position"): ("str",),
+    ("regexp_match_substring", "group"): ("str",),
+    ("regexp_match_substring", "occurrence"): ("str",),
+    ("regexp_match_substring", "position"): ("str",),
+    ("regexp_match_substring_all", "group"): ("str",),
+    ("regexp_match_substring_all", "position"): ("str",),
+    ("regexp_replace", "occurrence"): ("str",),
+    ("regexp_replace", "position"): ("str",),
+    ("regexp_strpos", "occurrence"): ("str",),
+    ("regexp_strpos", "position"): ("str",),
     ("sin", "rounding"): ("float64",),
     ("sinh", "rounding"): ("float64",),
     ("sqrt", "on_domain_error"): ("float64",),
@@ -241,6 +254,38 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("tan", "rounding"): ("float64",),
     ("tanh", "rounding"): ("float64",),
 }
+
+# Representative legal values for open-integer options that have NO finite
+# enum domain in the production OPTION_DOMAINS (position/occurrence/group are
+# validated by _require_int_option, not validate_option). This is test-only,
+# mirroring OPTION_DTYPES: the production domain map must stay truthful (an open
+# int has no enumerable legal set), so we supply a single representative value
+# for expected-cell expansion here rather than polluting _option_domains.py.
+# Value-scoped facts document/gate this representative (mirroring how enum
+# options enumerate their full domain); gating every possible integer would
+# require value-wildcard facts and is tracked as a backlog enhancement.
+OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("regexp_count_substring", "position"): ("2",),
+    ("regexp_match_substring", "group"): ("2",),
+    ("regexp_match_substring", "occurrence"): ("2",),
+    ("regexp_match_substring", "position"): ("2",),
+    ("regexp_match_substring_all", "group"): ("2",),
+    ("regexp_match_substring_all", "position"): ("2",),
+    ("regexp_replace", "occurrence"): ("2",),
+    ("regexp_replace", "position"): ("2",),
+    ("regexp_strpos", "occurrence"): ("2",),
+    ("regexp_strpos", "position"): ("2",),
+}
+
+# An option param draws its legal value domain from exactly one source: the
+# pinned production enum domain OR the test-only open-int representative domain.
+_domain_overlap = set(OPTION_DOMAINS) & set(OPTION_VALUE_DOMAINS)
+if _domain_overlap:
+    raise AssertionError(
+        f"option params in both OPTION_DOMAINS and OPTION_VALUE_DOMAINS: "
+        f"{sorted(_domain_overlap)}"
+    )
+
 
 _CELL_DISPOSITIONS = frozenset(
     {"honored", "declared_unsupported", "probe_exempt", "invalid"}
@@ -544,9 +589,13 @@ def expected_option_cells() -> set[CellKey]:
         if identity in known:
             continue
         operation = (protocol_param.op_name, protocol_param.param_name)
-        if operation not in OPTION_DOMAINS:
+        value_domain = OPTION_DOMAINS.get(operation) or OPTION_VALUE_DOMAINS.get(
+            operation
+        )
+        if value_domain is None:
             raise AssertionError(
-                f"unreasoned option param {identity} has no pinned OPTION_DOMAINS entry"
+                f"unreasoned option param {identity} has no pinned value domain "
+                "(OPTION_DOMAINS or OPTION_VALUE_DOMAINS)"
             )
         if operation not in OPTION_DTYPES:
             raise AssertionError(
@@ -561,7 +610,7 @@ def expected_option_cells() -> set[CellKey]:
         for fixture in ALL_BACKENDS:
             if fixture not in _FIXTURE_IDENTITY:
                 raise AssertionError(f"ALL_BACKENDS contains unknown option fixture {fixture!r}")
-            for value in OPTION_DOMAINS[operation]:
+            for value in value_domain:
                 for dtype in OPTION_DTYPES[operation]:
                     expected.add(
                         (fkey, protocol_param.param_name, fixture, value, dtype)

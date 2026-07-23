@@ -642,6 +642,243 @@ TESTED_OPTION_PARAMS.extend(
 )
 
 
+# ============================================================================
+# Regexp positional int options (position / occurrence / group)
+# ----------------------------------------------------------------------------
+# arguments-vs-options.md unified these universally-literal knobs onto the
+# option channel (see the channel-unification bugfix). They carry open integer
+# values rather than an enum domain, so the disposition matrix gates a single
+# representative value ("2"), mirroring how enum options enumerate their finite
+# domain (see OPTION_VALUE_DOMAINS in option_disposition.py). Empirically only
+# regexp_match_substring.group (polars + ibis) and regexp_replace.occurrence
+# (polars) are honored; every other (op, param, backend) is silently ignored or
+# rides an operation that is itself unavailable, so it is declared_unsupported.
+# ============================================================================
+_POSITIONAL_FKEYS = {
+    "position": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "occurrence": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "group": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+    },
+}
+_POSITIONAL_VALUE = "2"
+# Data + pattern chosen so the honored (op, param) cells actually discriminate:
+# group needs capture groups; occurrence needs a repeated match.
+_POSITIONAL_DATA = {
+    "position": ({"text": ["abcABCabc"]}, "abc"),
+    "occurrence": ({"text": ["abcABCabc"]}, "abc"),
+    "group": ({"text": ["abcABCabc"]}, "(a)(b)(c)"),
+}
+# (op, param, fixture) triples honored on the native path (probe-determined).
+_POSITIONAL_HONORED = {
+    ("regexp_match_substring", "group", "polars"),
+    ("regexp_match_substring", "group", "ibis"),
+    ("regexp_replace", "occurrence", "polars"),
+}
+_POSITIONAL_CASES = [
+    (param, op)
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+]
+
+
+def _positional_expr(op: str, param: str, value: str | None):
+    """Build a regexp positional-option expression, omitting when value is None.
+
+    The cell/fact value is the string ``"2"``; the builder consumes a literal
+    int, so a legal value is coerced with ``int`` while the INVALID sentinel is
+    passed through verbatim to exercise ``_require_int_option``'s rejection.
+    """
+    if value is None:
+        kwargs = {}
+    elif value == INVALID_OPTION_VALUE:
+        kwargs = {param: value}
+    else:
+        kwargs = {param: int(value)}
+    _, pattern = _POSITIONAL_DATA[param]
+    string = ma.col("text").str
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    raise AssertionError(f"no regexp positional expression for {op}")
+
+
+def _positional_disposition(op: str, param: str, backend: str) -> str:
+    if (op, param, backend) in _POSITIONAL_HONORED:
+        return "honored"
+    return "declared_unsupported"
+
+
+def _positional_native_failure(op: str, backend: str):
+    if _regexp_operation_unsupported(op, backend):
+        return BackendCapabilityError
+    if op == "regexp_replace" and backend.startswith("narwhals"):
+        # regexp_replace is gate-requiring on narwhals (LITERAL_ONLY pattern);
+        # the raw, gate-bypassing path raises TypeError for any positional value.
+        return TypeError
+    return OptionProbeDidNotDiscriminateError
+
+
+def _positional_probe(op: str, param: str, value: str) -> OptionSpec:
+    data, _ = _POSITIONAL_DATA[param]
+    return OptionSpec(
+        _POSITIONAL_FKEYS[param][op],
+        param,
+        value,
+        "str",
+        lambda: _positional_expr(op, param, value),
+        lambda: _positional_expr(op, param, None),
+        data,
+        expected_discriminates=True,
+    )
+
+
+@pytest.mark.parametrize("param,op", _POSITIONAL_CASES)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_positional_option_disposition(param, op, backend, request):
+    spec = _positional_probe(op, param, _POSITIONAL_VALUE)
+    if _positional_disposition(op, param, backend) == "declared_unsupported":
+        request.applymarker(
+            xfail_option_unsupported(
+                spec.fkey, spec.option_param, spec.option_value, backend
+            )
+        )
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _POSITIONAL_FKEYS[param][op],
+        _STRING_PROTOCOL,
+        op,
+        param,
+        backend,
+        _POSITIONAL_VALUE,
+        "str",
+        _positional_disposition(op, param, backend),
+        (
+            "native backend honors the regexp positional option"
+            if _positional_disposition(op, param, backend) == "honored"
+            else "operation is unsupported on this backend; the option cannot "
+            "be honored"
+            if _regexp_operation_unsupported(op, backend)
+            else "native backend silently ignores the regexp positional option"
+        ),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _positional_probe(op, param, _POSITIONAL_VALUE),
+        backend,
+        _positional_disposition(op, param, backend),
+        _positional_native_failure(op, backend)
+        if _positional_disposition(op, param, backend) == "declared_unsupported"
+        else None,
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        _POSITIONAL_FKEYS[param][op],
+        param,
+        _POSITIONAL_VALUE,
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    if (op, param, "ibis") not in _POSITIONAL_HONORED
+)
+
+_INVALID_POSITIONAL_REJECTIONS = [
+    InvalidOptionRejection(
+        _POSITIONAL_FKEYS[param][op],
+        _STRING_PROTOCOL,
+        op,
+        param,
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op, param=param: _positional_expr(
+            op, param, INVALID_OPTION_VALUE
+        ),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_POSITIONAL_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_POSITIONAL_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_POSITIONAL_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_positional_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    # position/occurrence/group route through _require_int_option, which raises
+    # TypeError for a non-int literal (the enum flags use validate_option and
+    # raise InvalidOptionValueError instead).
+    with pytest.raises(TypeError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        param,
+        param_taxonomy(_STRING_PROTOCOL, op, param),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+)
+
+
 # Full set of (function_key_or_op_name, param_name) pairs covered by this category.
 # String fallbacks are used for ops that lack a matching FKEY enum member yet.
 TESTED_PARAMS: list[tuple] = [

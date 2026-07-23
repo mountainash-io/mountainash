@@ -771,20 +771,14 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarStringExpressionSystemProtocol", "initcap", "char_set"),
         ("SubstraitScalarStringExpressionSystemProtocol", "like", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "lower", "char_set"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "position"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "group"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "occurrence"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "position"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "group"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "position"),
+        # Regexp positional int options (position/occurrence/group) are drained
+        # by the positional disposition matrix in test_arg_types_string.py; the
+        # O-absent regexp_replace/regexp_string_split dotall/multiline entries
+        # below remain untested until their wiring lands.
         ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "dotall"),
         ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "occurrence"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "position"),
         ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "dotall"),
         ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "occurrence"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "position"),
         ("SubstraitScalarStringExpressionSystemProtocol", "replace", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),
