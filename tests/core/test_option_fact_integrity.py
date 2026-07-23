@@ -279,10 +279,12 @@ def test_reasoned_introspected_param_is_the_only_expected_exclusion(monkeypatch)
     assert expected_option_cells() == set()
 
 
-def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -> None:
+def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> None:
     expected = {
         key: (
-            ("int64",)
+            ("str",)
+            if key[1] == "case_sensitivity"
+            else ("int64",)
             if key == ("power", "overflow")
             else ("int8",)
             if key[1] == "overflow"

@@ -812,6 +812,23 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     }
 }
 
+for _case_sensitivity_op in (
+    "contains",
+    "count_substring",
+    "ends_with",
+    "like",
+    "replace",
+    "starts_with",
+    "strpos",
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarStringExpressionSystemProtocol",
+            _case_sensitivity_op,
+            "case_sensitivity",
+        )
+    )
+
 _KNOWN_UNTESTED_OPTION_PARAMS.pop(
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")
 )

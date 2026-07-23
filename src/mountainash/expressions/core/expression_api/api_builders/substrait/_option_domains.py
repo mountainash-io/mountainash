@@ -12,6 +12,7 @@ _ROUNDING = frozenset(
     {"TIE_TO_EVEN", "TIE_AWAY_FROM_ZERO", "TRUNCATE", "CEILING", "FLOOR"}
 )
 _NAN_ERROR = frozenset({"NAN", "ERROR"})
+_CASE_SENSITIVITY = frozenset({"CASE_SENSITIVE", "CASE_INSENSITIVE"})
 
 # Generated from Substrait v0.98.0, commit
 # b322d463804660674e43c9d2b659730375e3026e. The pinned-fixture guard owns
@@ -34,6 +35,8 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("atanh", "rounding"): _ROUNDING,
     ("cos", "rounding"): _ROUNDING,
     ("cosh", "rounding"): _ROUNDING,
+    ("contains", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("count_substring", "case_sensitivity"): _CASE_SENSITIVITY,
     ("degrees", "rounding"): _ROUNDING,
     ("divide", "on_division_by_zero"): frozenset(
         {"IEEE", "LIMIT", "NULL", "ERROR"}
@@ -42,7 +45,9 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("divide", "overflow"): _OVERFLOW,
     ("divide", "rounding"): _ROUNDING,
     ("exp", "rounding"): _ROUNDING,
+    ("ends_with", "case_sensitivity"): _CASE_SENSITIVITY,
     ("factorial", "overflow"): _OVERFLOW,
+    ("like", "case_sensitivity"): _CASE_SENSITIVITY,
     ("modulus", "division_type"): frozenset({"TRUNCATE", "FLOOR"}),
     ("modulus", "on_domain_error"): frozenset({"NULL", "ERROR"}),
     ("modulus", "overflow"): _OVERFLOW,
@@ -51,10 +56,13 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("negate", "overflow"): _OVERFLOW,
     ("power", "overflow"): _OVERFLOW,
     ("radians", "rounding"): _ROUNDING,
+    ("replace", "case_sensitivity"): _CASE_SENSITIVITY,
     ("sin", "rounding"): _ROUNDING,
     ("sinh", "rounding"): _ROUNDING,
     ("sqrt", "on_domain_error"): _NAN_ERROR,
     ("sqrt", "rounding"): _ROUNDING,
+    ("starts_with", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("strpos", "case_sensitivity"): _CASE_SENSITIVITY,
     ("subtract", "overflow"): _OVERFLOW,
     ("subtract", "rounding"): _ROUNDING,
     ("tan", "rounding"): _ROUNDING,

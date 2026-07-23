@@ -3,17 +3,306 @@ from __future__ import annotations
 
 import pytest
 
+import mountainash as ma
+from expressions.argument_types._option_helpers import (
+    OptionProbeDidNotDiscriminateError,
+    OptionSpec,
+    option_result,
+    xfail_option_unsupported,
+)
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types.option_disposition import (
+    INVALID_OPTION_VALUE,
+    OPTION_DISPOSITIONS,
+    OPTION_FAMILY_DEFAULT_FACT_KEYS,
+    REGISTERED_INVALID_OPTION_REJECTIONS,
+    REGISTERED_OPTION_PROBES,
+    InvalidOptionRejection,
+    OptionCell,
+    OptionProbeRegistration,
+    param_taxonomy,
+)
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.errors import InvalidOptionValueError
+from mountainash.expressions.core.expression_api.api_builders.substrait.api_bldr_scalar_string import (
+    _validated_options,
+)
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
-from expressions.argument_types.conftest import ALL_BACKENDS
 from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,
     xfail_if_limited,
 )
+
+
+_STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
+_CASE_SENSITIVITY_FKEYS = {
+    "contains": FK_STR.CONTAINS,
+    "count_substring": FK_STR.COUNT_SUBSTRING,
+    "ends_with": FK_STR.ENDS_WITH,
+    "like": FK_STR.LIKE,
+    "replace": FK_STR.REPLACE,
+    "starts_with": FK_STR.STARTS_WITH,
+    "strpos": FK_STR.STRPOS,
+}
+_CASE_SENSITIVITY_DATA = {
+    "contains": {"text": ["Hello", "other"]},
+    "count_substring": {"text": ["Hello hello", "other"]},
+    "ends_with": {"text": ["say Hello", "other"]},
+    "like": {"text": ["say Hello", "other"]},
+    "replace": {"text": ["Hello hello", "other"]},
+    "starts_with": {"text": ["Hello there", "other"]},
+    "strpos": {"text": ["say Hello", "other"]},
+}
+_CASE_INSENSITIVE_HONORED_OPS = frozenset(
+    {"contains", "ends_with", "starts_with"}
+)
+_CASE_INSENSITIVE_DECLARED_OPS = (
+    frozenset(_CASE_SENSITIVITY_FKEYS) - _CASE_INSENSITIVE_HONORED_OPS
+)
+
+
+def _case_sensitivity_expr(op: str, case_sensitive: bool | None = None):
+    kwargs = {} if case_sensitive is None else {"case_sensitive": case_sensitive}
+    string = ma.col("text").str
+    if op == "contains":
+        return string.contains("hello", **kwargs)
+    if op == "count_substring":
+        return string.count_substring("hello", **kwargs)
+    if op == "ends_with":
+        return string.ends_with("hello", **kwargs)
+    if op == "like":
+        return string.like("%hello%", **kwargs)
+    if op == "replace":
+        return string.replace("hello", "X", **kwargs)
+    if op == "starts_with":
+        return string.starts_with("hello", **kwargs)
+    if op == "strpos":
+        return string.strpos("hello", **kwargs)
+    raise AssertionError(f"no case-sensitivity expression for {op}")
+
+
+def _case_sensitivity_probe(op: str, value: str) -> OptionSpec:
+    return OptionSpec(
+        _CASE_SENSITIVITY_FKEYS[op],
+        "case_sensitivity",
+        value,
+        "str",
+        lambda: _case_sensitivity_expr(op, value == "CASE_SENSITIVE"),
+        lambda: _case_sensitivity_expr(op),
+        _CASE_SENSITIVITY_DATA[op],
+        expected_discriminates=value == "CASE_INSENSITIVE",
+    )
+
+
+def _registered_case_sensitivity_probe(
+    op: str, value: str, backend: str
+) -> OptionSpec:
+    spec = _case_sensitivity_probe(op, value)
+    if (
+        value == "CASE_SENSITIVE"
+        and backend.startswith("narwhals")
+        and op in {"like", "replace"}
+    ):
+        # These two narwhals ops require their pattern/substring as a literal
+        # (gated LITERAL_ONLY on every narwhals dialect — the SQL-LIKE→regex
+        # conversion and literal replace happen Python-side). The native probe
+        # runs enforce_capabilities=False, which BYPASSES that gate, so the
+        # literal is visited into a narwhals Expr and the raw path raises
+        # ('Expr' has no attribute 'replace' for like; an Expr-literal TypeError
+        # for replace) — identically for BOTH the explicit-CASE_SENSITIVE and
+        # omission builds, independent of case_sensitivity. That identical raise
+        # is the probe-exempt equivalence in the raw path; the value-equivalence
+        # of CASE_SENSITIVE to omission is separately verified on the GATED path
+        # by test_case_sensitive_string_option_matches_omission. Controller-
+        # authorised refinement of the locked disposition (gate-requiring ops
+        # cannot be natively probed). Self-heals: if narwhals ever compiles these
+        # raw, the "did not raise" assertion fires.
+        return spec._replace(
+            expected_native_exception=(
+                AttributeError if op == "like" else TypeError
+            )
+        )
+    return spec
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_HONORED_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_insensitive_string_option_discriminates(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_DECLARED_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_insensitive_string_option_declared_unsupported(
+    op, backend, request
+):
+    spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
+    request.applymarker(
+        xfail_option_unsupported(
+            spec.fkey, spec.option_param, spec.option_value, backend
+        )
+    )
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_SENSITIVITY_FKEYS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_sensitive_string_option_matches_omission(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_SENSITIVE")
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) == option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+_CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE")
+_CASE_INSENSITIVE_NATIVE_FAILURES = {
+    (op, backend): (
+        AttributeError
+        if op == "like" and backend.startswith("narwhals")
+        else TypeError
+        if op == "replace" and backend.startswith("narwhals")
+        else OptionProbeDidNotDiscriminateError
+    )
+    for op in _CASE_INSENSITIVE_DECLARED_OPS
+    for backend in ALL_BACKENDS
+}
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        backend,
+        value,
+        "str",
+        (
+            "probe_exempt"
+            if value == "CASE_SENSITIVE"
+            else "honored"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "declared_unsupported"
+        ),
+        (
+            "builder-default CASE_SENSITIVE is indistinguishable from omission"
+            if value == "CASE_SENSITIVE"
+            else "native backend implements CASE_INSENSITIVE semantics"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "native backend does not implement CASE_INSENSITIVE semantics"
+        ),
+    )
+    for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
+    for backend in ALL_BACKENDS
+    for value in _CASE_SENSITIVITY_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _registered_case_sensitivity_probe(op, value, backend),
+        backend,
+        (
+            "probe_exempt"
+            if value == "CASE_SENSITIVE"
+            else "honored"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "declared_unsupported"
+        ),
+        (
+            _CASE_INSENSITIVE_NATIVE_FAILURES[(op, backend)]
+            if value == "CASE_INSENSITIVE"
+            and op in _CASE_INSENSITIVE_DECLARED_OPS
+            else None
+        ),
+    )
+    for op in _CASE_SENSITIVITY_FKEYS
+    for backend in ALL_BACKENDS
+    for value in _CASE_SENSITIVITY_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        _CASE_SENSITIVITY_FKEYS[op],
+        "case_sensitivity",
+        "CASE_INSENSITIVE",
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for op in _CASE_INSENSITIVE_DECLARED_OPS
+)
+
+_INVALID_CASE_SENSITIVITY_REJECTIONS = [
+    InvalidOptionRejection(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op: _validated_options(
+            op, case_sensitivity=INVALID_OPTION_VALUE
+        ),
+    )
+    for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(
+    _INVALID_CASE_SENSITIVITY_REJECTIONS
+)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_CASE_SENSITIVITY_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_CASE_SENSITIVITY_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_string_canonical_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS = [
+    (
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        param_taxonomy(_STRING_PROTOCOL, op, "case_sensitivity"),
+    )
+    for op in _CASE_SENSITIVITY_FKEYS
+]
+
 
 # Full set of (function_key_or_op_name, param_name) pairs covered by this category.
 # String fallbacks are used for ops that lack a matching FKEY enum member yet.

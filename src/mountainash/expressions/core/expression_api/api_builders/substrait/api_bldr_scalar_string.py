@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
+    validate_option,
+)
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarStringAPIBuilderProtocol
@@ -35,6 +38,26 @@ def _require_int_option(op: str, name: str, value: Any) -> None:
             f"{op}({name}=...) requires a literal int, got {type(value).__name__}. "
             f"Options must be raw Python values (see principle: arguments-vs-options.md)."
         )
+
+
+def _validated_options(op_name: str, **values: Any) -> dict[str, str]:
+    """Validate and retain only explicitly supplied Substrait options."""
+    return {
+        name: validate_option(op_name, name, value)
+        for name, value in values.items()
+        if value is not None
+    }
+
+
+def _case_sensitivity_options(
+    op_name: str, case_sensitive: bool
+) -> dict[str, str]:
+    return _validated_options(
+        op_name,
+        case_sensitivity=(
+            "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"
+        ),
+    )
 
 
 class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarStringAPIBuilderProtocol):
@@ -499,7 +522,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
             arguments=[self._node, substring_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("contains", case_sensitive),
         )
         return self._build(node)
 
@@ -524,7 +547,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
             arguments=[self._node, prefix_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("starts_with", case_sensitive),
         )
         return self._build(node)
 
@@ -549,7 +572,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
             arguments=[self._node, suffix_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("ends_with", case_sensitive),
         )
         return self._build(node)
 
@@ -574,7 +597,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
             arguments=[self._node, substring_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("strpos", case_sensitive),
         )
         return self._build(node)
 
@@ -599,7 +622,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
             arguments=[self._node, substring_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("count_substring", case_sensitive),
         )
         return self._build(node)
 
@@ -730,7 +753,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
             arguments=[self._node, old_node, new_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("replace", case_sensitive),
         )
         return self._build(node)
 
@@ -797,7 +820,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
             arguments=[self._node, pattern_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("like", case_sensitive),
         )
         return self._build(node)
 
