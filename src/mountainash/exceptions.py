@@ -11,7 +11,7 @@ level (the root is the only error exported from the package `__init__`).
 """
 from __future__ import annotations
 
-from mountainash.core.errors import MountainashError
+from mountainash.core.errors import InvalidOptionValueError, MountainashError
 from mountainash.conform.errors import (
     ConformError,
     MissingFieldsError,
@@ -45,6 +45,7 @@ from mountainash.validation.errors import (
 
 __all__ = [
     "MountainashError",
+    "InvalidOptionValueError",
     "ConformError",
     "MissingFieldsError",
     "ExtraFieldsError",

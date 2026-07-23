@@ -27,6 +27,11 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     - modulus: Modulo/remainder
     - power: Exponentiation
     - negate: Negation
+
+    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
+    ``on_division_by_zero``, and ``division_type`` options are accepted for
+    protocol alignment. Native Ibis/DuckDB behavior is used; capability facts
+    gate modes that do not match it.
     """
 
     def add(
@@ -35,6 +40,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Add two values.
 
@@ -42,6 +48,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Sum of x and y.
@@ -55,6 +62,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Subtract y from x.
 
@@ -62,6 +70,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Difference x - y.
@@ -75,6 +84,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         y: IbisNumericExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Multiply two values.
 
@@ -82,6 +92,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Product of x and y.
@@ -97,6 +108,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         overflow: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> IbisNumericExpr:
         """Divide x by y.
 
@@ -108,6 +120,7 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             overflow: Overflow handling (ignored in Ibis).
             on_domain_error: Domain error handling (ignored in Ibis).
             on_division_by_zero: Division by zero handling (ignored in Ibis).
+            rounding: IEEE rounding mode (ignored in Ibis).
 
         Returns:
             Quotient x / y.
@@ -187,7 +200,13 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
-        """Square root of the value."""
+        """Square root of the value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+            on_domain_error: Domain error policy (ignored in Ibis).
+        """
         return x.sqrt()
 
     def exp(
@@ -196,7 +215,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """The mathematical constant e raised to the power of x."""
+        """The mathematical constant e raised to the power of x.
+
+        Args:
+            x: Exponent value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.exp()
 
     def abs(
@@ -205,7 +229,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         overflow: Any = None,
     ) -> IbisNumericExpr:
-        """Calculate the absolute value."""
+        """Calculate the absolute value.
+
+        Args:
+            x: Input value.
+            overflow: Overflow mode (ignored in Ibis).
+        """
         return x.abs()
 
     def sign(
@@ -222,7 +251,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         overflow: Any = None,
     ) -> IbisNumericExpr:
-        """Return the factorial of a given integer input."""
+        """Return the factorial of a given integer input.
+
+        Args:
+            n: Integer input.
+            overflow: Overflow mode (ignored in Ibis).
+        """
         raise NotImplementedError(
             "factorial() is not supported by the Ibis backend."
         )
@@ -237,7 +271,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the sine of a value in radians."""
+        """Get the sine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.sin()
 
     def cos(
@@ -246,7 +285,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the cosine of a value in radians."""
+        """Get the cosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.cos()
 
     def tan(
@@ -255,7 +299,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the tangent of a value in radians."""
+        """Get the tangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.tan()
 
     def sinh(
@@ -264,7 +313,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the hyperbolic sine of a value."""
+        """Get the hyperbolic sine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         raise NotImplementedError(
             "sinh() is not directly supported by the Ibis backend."
         )
@@ -275,7 +329,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the hyperbolic cosine of a value."""
+        """Get the hyperbolic cosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         raise NotImplementedError(
             "cosh() is not directly supported by the Ibis backend."
         )
@@ -286,7 +345,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the hyperbolic tangent of a value."""
+        """Get the hyperbolic tangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         raise NotImplementedError(
             "tanh() is not directly supported by the Ibis backend."
         )
@@ -302,7 +366,13 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
-        """Get the arcsine of a value in radians."""
+        """Get the arcsine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+            on_domain_error: Domain error policy (ignored in Ibis).
+        """
         return x.asin()
 
     def acos(
@@ -312,7 +382,13 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
-        """Get the arccosine of a value in radians."""
+        """Get the arccosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+            on_domain_error: Domain error policy (ignored in Ibis).
+        """
         return x.acos()
 
     def atan(
@@ -321,7 +397,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the arctangent of a value in radians."""
+        """Get the arctangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.atan()
 
     def asinh(
@@ -330,7 +411,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Get the hyperbolic arcsine of a value."""
+        """Get the hyperbolic arcsine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         raise NotImplementedError(
             "asinh() is not directly supported by the Ibis backend."
         )
@@ -342,7 +428,13 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
-        """Get the hyperbolic arccosine of a value."""
+        """Get the hyperbolic arccosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+            on_domain_error: Domain error policy (ignored in Ibis).
+        """
         raise NotImplementedError(
             "acosh() is not directly supported by the Ibis backend."
         )
@@ -354,7 +446,13 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
-        """Get the hyperbolic arctangent of a value."""
+        """Get the hyperbolic arctangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Ibis).
+            on_domain_error: Domain error policy (ignored in Ibis).
+        """
         raise NotImplementedError(
             "atanh() is not directly supported by the Ibis backend."
         )
@@ -367,7 +465,14 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> IbisNumericExpr:
-        """Get the arctangent of y/x, using the signs to determine the quadrant."""
+        """Get the arctangent of y/x, using signs to determine the quadrant.
+
+        Args:
+            x: First coordinate.
+            y: Second coordinate.
+            rounding: IEEE rounding mode (ignored in Ibis).
+            on_domain_error: Domain error policy (ignored in Ibis).
+        """
         x, y = self._lift_deferred(x, y)
         return x.atan2(y)
 
@@ -381,7 +486,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Convert angle from degrees to radians."""
+        """Convert angle from degrees to radians.
+
+        Args:
+            x: Input angle.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.radians()
 
     def degrees(
@@ -390,7 +500,12 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         /,
         rounding: Any = None,
     ) -> IbisNumericExpr:
-        """Convert angle from radians to degrees."""
+        """Convert angle from radians to degrees.
+
+        Args:
+            x: Input angle.
+            rounding: IEEE rounding mode (ignored in Ibis).
+        """
         return x.degrees()
 
     # =========================================================================

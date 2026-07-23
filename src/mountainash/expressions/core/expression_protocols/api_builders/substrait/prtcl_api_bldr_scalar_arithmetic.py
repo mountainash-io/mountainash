@@ -22,14 +22,14 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
     These methods accept flexible inputs and return BaseExpressionAPI for chaining.
     """
 
-    def add(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def add(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None, rounding: Any = None) -> BaseExpressionAPI:
         """Add two values.
 
         Substrait: add
         """
         ...
 
-    def subtract(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def subtract(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None, rounding: Any = None) -> BaseExpressionAPI:
         """Subtract one value from another.
 
         Substrait: subtract
@@ -43,14 +43,23 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def multiply(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def multiply(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None, rounding: Any = None) -> BaseExpressionAPI:
         """Multiply two values.
 
         Substrait: multiply
         """
         ...
 
-    def divide(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def divide(
+        self,
+        other: Union[BaseExpressionAPI, ExpressionNode, Any],
+        /,
+        *,
+        overflow: Any = None,
+        rounding: Any = None,
+        on_domain_error: Any = None,
+        on_division_by_zero: Any = None,
+    ) -> BaseExpressionAPI:
         """Divide x by y.
 
         Substrait: divide
@@ -66,7 +75,15 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
 
 
 
-    def modulus(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def modulus(
+        self,
+        other: Union[BaseExpressionAPI, ExpressionNode, Any],
+        /,
+        *,
+        division_type: Any = None,
+        overflow: Any = None,
+        on_domain_error: Any = None,
+    ) -> BaseExpressionAPI:
         """Calculate the remainder when dividing by other.
 
         Substrait: modulus
@@ -80,7 +97,7 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def power(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /) -> BaseExpressionAPI:
+    def power(self, other: Union[BaseExpressionAPI, ExpressionNode, Any], /, *, overflow: Any = None) -> BaseExpressionAPI:
         """Raise to the power of other.
 
         Substrait: power
@@ -95,7 +112,7 @@ class SubstraitScalarArithmeticAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def negate(self) -> BaseExpressionAPI:
+    def negate(self, overflow: Any = None) -> BaseExpressionAPI:
         """Negate the value (-self).
 
         Substrait: negate
@@ -152,63 +169,69 @@ Negative inputs will raise an error.
         """
         ...
 
-    def sin(self) -> BaseExpressionAPI:
+    def sin(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the sine of a value in radians."""
         ...
 
-    def cos(self) -> BaseExpressionAPI:
+    def cos(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the cosine of a value in radians."""
         ...
 
-    def tan(self) -> BaseExpressionAPI:
+    def tan(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the tangent of a value in radians."""
         ...
 
-    def sinh(self) -> BaseExpressionAPI:
+    def sinh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic sine of a value."""
         ...
 
-    def cosh(self) -> BaseExpressionAPI:
+    def cosh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic cosine of a value."""
         ...
 
-    def tanh(self) -> BaseExpressionAPI:
+    def tanh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic tangent of a value."""
         ...
 
-    def asin(self) -> BaseExpressionAPI:
+    def asin(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the arcsine of a value in radians."""
         ...
 
-    def acos(self) -> BaseExpressionAPI:
+    def acos(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the arccosine of a value in radians."""
         ...
 
-    def atan(self) -> BaseExpressionAPI:
+    def atan(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the arctangent of a value in radians."""
         ...
 
-    def asinh(self) -> BaseExpressionAPI:
+    def asinh(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic arcsine of a value."""
         ...
 
-    def acosh(self) -> BaseExpressionAPI:
+    def acosh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic arccosine of a value."""
         ...
 
-    def atanh(self) -> BaseExpressionAPI:
+    def atanh(self, rounding: Any = None, on_domain_error: Any = None) -> BaseExpressionAPI:
         """Get the hyperbolic arctangent of a value."""
         ...
 
-    def atan2(self, other: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    def atan2(
+        self,
+        other: Union[BaseExpressionAPI, ExpressionNode, Any],
+        *,
+        rounding: Any = None,
+        on_domain_error: Any = None,
+    ) -> BaseExpressionAPI:
         """Get the arctangent of y/x (self/other) in radians."""
         ...
 
-    def radians(self) -> BaseExpressionAPI:
+    def radians(self, rounding: Any = None) -> BaseExpressionAPI:
         """Convert angle from degrees to radians."""
         ...
 
-    def degrees(self) -> BaseExpressionAPI:
+    def degrees(self, rounding: Any = None) -> BaseExpressionAPI:
         """Convert angle from radians to degrees."""
         ...
 

@@ -21,6 +21,9 @@ from mountainash.expressions.backends.expression_systems.narwhals import (
 from mountainash.expressions.backends.expression_systems.polars import (
     PolarsExpressionSystem,
 )
+from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
+    SubstraitScalarArithmeticExpressionSystemProtocol,
+)
 import sys
 from pathlib import Path
 
@@ -38,6 +41,55 @@ BACKEND_LEAF_CLASSES = {
     "ibis": IbisExpressionSystem,
     "narwhals": NarwhalsExpressionSystem,
 }
+
+
+_DIVIDE_SIGNATURE_OWNERS = (
+    SubstraitScalarArithmeticExpressionSystemProtocol,
+    PolarsExpressionSystem,
+    IbisExpressionSystem,
+    NarwhalsExpressionSystem,
+)
+
+
+@pytest.mark.parametrize("owner", _DIVIDE_SIGNATURE_OWNERS, ids=lambda cls: cls.__name__)
+def test_divide_preserves_legacy_positional_option_order(owner: type) -> None:
+    signature = inspect.signature(owner.divide)
+    bound = signature.bind(
+        object(),
+        8.0,
+        2.0,
+        "SILENT",
+        "NAN",
+        "IEEE",
+        rounding="CEILING",
+    )
+
+    assert bound.arguments["overflow"] == "SILENT"
+    assert bound.arguments["on_domain_error"] == "NAN"
+    assert bound.arguments["on_division_by_zero"] == "IEEE"
+    assert bound.arguments["rounding"] == "CEILING"
+
+
+@pytest.mark.parametrize(
+    "system_cls",
+    (PolarsExpressionSystem, IbisExpressionSystem, NarwhalsExpressionSystem),
+    ids=("polars", "ibis", "narwhals"),
+)
+def test_divide_invokes_legacy_positional_options_with_keyword_rounding(
+    system_cls: type,
+) -> None:
+    system = system_cls()
+
+    result = system.divide(
+        8.0,
+        2.0,
+        "SILENT",
+        "NAN",
+        "IEEE",
+        rounding="CEILING",
+    )
+
+    assert result == 4.0
 
 # ── A1 Exception set ─────────────────────────────────────────────────────
 # (protocol_name, method_name, backend_name) → "reason. Since YYYY-MM-DD."

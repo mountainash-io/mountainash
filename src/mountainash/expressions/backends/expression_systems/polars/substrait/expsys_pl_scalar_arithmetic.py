@@ -27,6 +27,11 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
     - modulus: Modulo/remainder
     - power: Exponentiation
     - negate: Negation
+
+    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
+    ``on_division_by_zero``, and ``division_type`` options are accepted for
+    protocol alignment. Native Polars behavior is used; capability facts gate
+    modes that do not match it.
     """
 
     def add(
@@ -35,6 +40,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Add two values.
 
@@ -42,6 +48,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Sum of x and y.
@@ -54,6 +61,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Subtract y from x.
 
@@ -61,6 +69,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Difference x - y.
@@ -73,6 +82,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Multiply two values.
 
@@ -80,6 +90,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Product of x and y.
@@ -94,6 +105,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         overflow: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Divide x by y.
 
@@ -105,6 +117,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
             overflow: Overflow handling (ignored in Polars).
             on_domain_error: Domain error handling (ignored in Polars).
             on_division_by_zero: Division by zero handling (ignored in Polars).
+            rounding: IEEE rounding mode (ignored in Polars).
 
         Returns:
             Quotient x / y.
@@ -181,7 +194,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Square root of the value."""
+        """Square root of the value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+            on_domain_error: Domain error policy (ignored in Polars).
+        """
         return x.sqrt()
 
     def exp(
@@ -190,7 +209,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """The mathematical constant e raised to the power of x."""
+        """The mathematical constant e raised to the power of x.
+
+        Args:
+            x: Exponent value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.exp()
 
     def abs(
@@ -199,7 +223,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         overflow: Any = None,
     ) -> PolarsExpr:
-        """Calculate the absolute value."""
+        """Calculate the absolute value.
+
+        Args:
+            x: Input value.
+            overflow: Overflow mode (ignored in Polars).
+        """
         return x.abs()
 
     def sign(
@@ -218,6 +247,10 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
     ) -> PolarsExpr:
         """Return the factorial of a given integer input.
 
+        Args:
+            n: Integer input.
+            overflow: Overflow mode (ignored in Polars).
+
         Note: Polars does not have native factorial support.
         """
         raise NotImplementedError(
@@ -235,7 +268,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the sine of a value in radians."""
+        """Get the sine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.sin()
 
     def cos(
@@ -244,7 +282,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the cosine of a value in radians."""
+        """Get the cosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.cos()
 
     def tan(
@@ -253,7 +296,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the tangent of a value in radians."""
+        """Get the tangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.tan()
 
     def sinh(
@@ -262,7 +310,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic sine of a value."""
+        """Get the hyperbolic sine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.sinh()
 
     def cosh(
@@ -271,7 +324,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic cosine of a value."""
+        """Get the hyperbolic cosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.cosh()
 
     def tanh(
@@ -280,7 +338,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic tangent of a value."""
+        """Get the hyperbolic tangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.tanh()
 
     # =========================================================================
@@ -294,7 +357,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the arcsine of a value in radians."""
+        """Get the arcsine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+            on_domain_error: Domain error policy (ignored in Polars).
+        """
         return x.arcsin()
 
     def acos(
@@ -304,7 +373,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the arccosine of a value in radians."""
+        """Get the arccosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+            on_domain_error: Domain error policy (ignored in Polars).
+        """
         return x.arccos()
 
     def atan(
@@ -313,7 +388,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the arctangent of a value in radians."""
+        """Get the arctangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.arctan()
 
     def asinh(
@@ -322,7 +402,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic arcsine of a value."""
+        """Get the hyperbolic arcsine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.arcsinh()
 
     def acosh(
@@ -332,7 +417,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic arccosine of a value."""
+        """Get the hyperbolic arccosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+            on_domain_error: Domain error policy (ignored in Polars).
+        """
         return x.arccosh()
 
     def atanh(
@@ -342,7 +433,13 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic arctangent of a value."""
+        """Get the hyperbolic arctangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Polars).
+            on_domain_error: Domain error policy (ignored in Polars).
+        """
         return x.arctanh()
 
     def atan2(
@@ -353,7 +450,14 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the arctangent of y/x, using the signs to determine the quadrant."""
+        """Get the arctangent of y/x, using signs to determine the quadrant.
+
+        Args:
+            x: First coordinate.
+            y: Second coordinate.
+            rounding: IEEE rounding mode (ignored in Polars).
+            on_domain_error: Domain error policy (ignored in Polars).
+        """
         return pl.arctan2(x, y)
 
     # =========================================================================
@@ -366,7 +470,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Convert angle from degrees to radians."""
+        """Convert angle from degrees to radians.
+
+        Args:
+            x: Input angle.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.radians()
 
     def degrees(
@@ -375,7 +484,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Convert angle from radians to degrees."""
+        """Convert angle from radians to degrees.
+
+        Args:
+            x: Input angle.
+            rounding: IEEE rounding mode (ignored in Polars).
+        """
         return x.degrees()
 
     # =========================================================================

@@ -77,6 +77,7 @@ class CapabilityFact:
     boundary: Boundary = Boundary.BUILD
     native_errors: tuple[type[Exception], ...] = ()
     condition: str | None = None        # human-readable value/option condition; None = unconditional
+    option_value: str | None = None     # value-scoped option gate; None = value-agnostic (arg facts)
     probe_exempt: str | None = None     # reason when no probe is possible
     fidelity: Fidelity | None = None    # SERIALIZE targets only; must be None on EXECUTE facts
                                         # (validated in register_backend — spec 2026-07-06)

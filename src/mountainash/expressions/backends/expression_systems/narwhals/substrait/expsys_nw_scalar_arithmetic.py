@@ -29,6 +29,11 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     - modulus: Modulo/remainder
     - power: Exponentiation
     - negate: Negation
+
+    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
+    ``on_division_by_zero``, and ``division_type`` options are accepted for
+    protocol alignment. Native Narwhals behavior is used; capability facts gate
+    modes that do not match it.
     """
 
     def add(
@@ -37,6 +42,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Add two values.
 
@@ -44,6 +50,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Narwhals).
+            rounding: IEEE rounding mode (ignored in Narwhals).
 
         Returns:
             Sum of x and y.
@@ -56,6 +63,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Subtract y from x.
 
@@ -63,6 +71,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Narwhals).
+            rounding: IEEE rounding mode (ignored in Narwhals).
 
         Returns:
             Difference x - y.
@@ -75,6 +84,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         y: NarwhalsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Multiply two values.
 
@@ -82,6 +92,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             x: First operand.
             y: Second operand.
             overflow: Overflow handling (ignored in Narwhals).
+            rounding: IEEE rounding mode (ignored in Narwhals).
 
         Returns:
             Product of x and y.
@@ -96,6 +107,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         overflow: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> NarwhalsExpr:
         """Divide x by y.
 
@@ -107,6 +119,7 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             overflow: Overflow handling (ignored in Narwhals).
             on_domain_error: Domain error handling (ignored in Narwhals).
             on_division_by_zero: Division by zero handling (ignored in Narwhals).
+            rounding: IEEE rounding mode (ignored in Narwhals).
 
         Returns:
             Quotient x / y.
@@ -183,7 +196,13 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
-        """Square root of the value."""
+        """Square root of the value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+            on_domain_error: Domain error policy (ignored in Narwhals).
+        """
         return x.sqrt()
 
     def exp(
@@ -192,7 +211,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """The mathematical constant e raised to the power of x."""
+        """The mathematical constant e raised to the power of x.
+
+        Args:
+            x: Exponent value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         return x.exp()
 
     def abs(
@@ -201,7 +225,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         overflow: Any = None,
     ) -> NarwhalsExpr:
-        """Calculate the absolute value."""
+        """Calculate the absolute value.
+
+        Args:
+            x: Input value.
+            overflow: Overflow mode (ignored in Narwhals).
+        """
         return x.abs()
 
     def sign(
@@ -219,7 +248,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         overflow: Any = None,
     ) -> NarwhalsExpr:
-        """Return the factorial of a given integer input."""
+        """Return the factorial of a given integer input.
+
+        Args:
+            n: Integer input.
+            overflow: Overflow mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "factorial() is not supported by the Narwhals backend."
         )
@@ -234,7 +268,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the sine of a value in radians."""
+        """Get the sine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "sin() is not supported by the Narwhals backend."
         )
@@ -245,7 +284,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the cosine of a value in radians."""
+        """Get the cosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "cos() is not supported by the Narwhals backend."
         )
@@ -256,7 +300,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the tangent of a value in radians."""
+        """Get the tangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "tan() is not supported by the Narwhals backend."
         )
@@ -267,7 +316,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the hyperbolic sine of a value."""
+        """Get the hyperbolic sine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "sinh() is not supported by the Narwhals backend."
         )
@@ -278,7 +332,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the hyperbolic cosine of a value."""
+        """Get the hyperbolic cosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "cosh() is not supported by the Narwhals backend."
         )
@@ -289,7 +348,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the hyperbolic tangent of a value."""
+        """Get the hyperbolic tangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "tanh() is not supported by the Narwhals backend."
         )
@@ -305,7 +369,13 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
-        """Get the arcsine of a value in radians."""
+        """Get the arcsine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+            on_domain_error: Domain error policy (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "asin() is not supported by the Narwhals backend."
         )
@@ -317,7 +387,13 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
-        """Get the arccosine of a value in radians."""
+        """Get the arccosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+            on_domain_error: Domain error policy (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "acos() is not supported by the Narwhals backend."
         )
@@ -328,7 +404,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the arctangent of a value in radians."""
+        """Get the arctangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "atan() is not supported by the Narwhals backend."
         )
@@ -339,7 +420,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Get the hyperbolic arcsine of a value."""
+        """Get the hyperbolic arcsine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "asinh() is not supported by the Narwhals backend."
         )
@@ -351,7 +437,13 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
-        """Get the hyperbolic arccosine of a value."""
+        """Get the hyperbolic arccosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+            on_domain_error: Domain error policy (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "acosh() is not supported by the Narwhals backend."
         )
@@ -363,7 +455,13 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
-        """Get the hyperbolic arctangent of a value."""
+        """Get the hyperbolic arctangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+            on_domain_error: Domain error policy (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "atanh() is not supported by the Narwhals backend."
         )
@@ -376,7 +474,14 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> NarwhalsExpr:
-        """Get the arctangent of y/x, using the signs to determine the quadrant."""
+        """Get the arctangent of y/x, using signs to determine the quadrant.
+
+        Args:
+            x: First coordinate.
+            y: Second coordinate.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+            on_domain_error: Domain error policy (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "atan2() is not supported by the Narwhals backend."
         )
@@ -391,7 +496,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Convert angle from degrees to radians."""
+        """Convert angle from degrees to radians.
+
+        Args:
+            x: Input angle.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "radians() is not supported by the Narwhals backend."
         )
@@ -402,7 +512,12 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         /,
         rounding: Any = None,
     ) -> NarwhalsExpr:
-        """Convert angle from radians to degrees."""
+        """Convert angle from radians to degrees.
+
+        Args:
+            x: Input angle.
+            rounding: IEEE rounding mode (ignored in Narwhals).
+        """
         raise NotImplementedError(
             "degrees() is not supported by the Narwhals backend."
         )

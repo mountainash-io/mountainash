@@ -11,3 +11,7 @@ from __future__ import annotations
 
 class MountainashError(Exception):
     """Root of all mountainash-raised typed errors."""
+
+
+class InvalidOptionValueError(MountainashError, ValueError):
+    """Raised when a known Substrait option receives an illegal value."""

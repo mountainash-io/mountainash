@@ -9,8 +9,12 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import sys
+import types
 import typing
 from typing import get_type_hints
+
+import pytest
 
 from expressions.argument_types._coverage_guard_helpers import (
     GapKind,
@@ -77,12 +81,135 @@ def _collect_matrix_executed_param_refs() -> set[TestedParamRef]:
     return {ref for ref in tested_refs if _param_identity(ref) in executed_params}
 
 
-def _collect_tested_option_params() -> set[tuple[str, str, str]]:
-    tested: set[tuple[str, str, str]] = set()
+_TAXONOMY_CLASSES = {
+    "value-sensitive",
+    "error-sensitive",
+    "validation-only",
+    "no-op",
+    "capability-declared",
+    "probe-exempt-honor",
+}
+
+
+def _collect_option_param_taxonomy() -> dict[tuple[str, str, str], str]:
+    taxonomy_by_param: dict[tuple[str, str, str], str] = {}
     for module_name in _CATEGORY_MODULES:
         mod = importlib.import_module(f"expressions.argument_types.{module_name}")
-        tested.update(getattr(mod, "TESTED_OPTION_PARAMS", []))
-    return tested
+        for entry in getattr(mod, "TESTED_OPTION_PARAMS", []):
+            assert type(entry) is tuple and len(entry) == 4, (
+                "TESTED_OPTION_PARAMS entry must be a tuple of length 4; "
+                f"got {entry!r}"
+            )
+            protocol, op, param, taxonomy = entry
+            assert taxonomy in _TAXONOMY_CLASSES, (
+                f"Unknown option-parameter taxonomy {taxonomy!r} for "
+                f"{(protocol, op, param)!r}"
+            )
+            key = (protocol, op, param)
+            previous = taxonomy_by_param.get(key)
+            assert previous is None or previous == taxonomy, (
+                f"Conflicting option-parameter taxonomy for {key!r}: "
+                f"{previous!r} and {taxonomy!r}"
+            )
+            taxonomy_by_param[key] = taxonomy
+    return taxonomy_by_param
+
+
+def _collect_tested_option_params() -> set[tuple[str, str, str]]:
+    return set(_collect_option_param_taxonomy())
+
+
+def _install_fake_option_module(monkeypatch, entries: list[object]) -> None:
+    module_name = "expressions.argument_types._fake_opt"
+    fake = types.ModuleType(module_name)
+    fake.TESTED_OPTION_PARAMS = entries
+    monkeypatch.setitem(sys.modules, module_name, fake)
+    monkeypatch.setattr(
+        "expressions.argument_types.test_coverage_guard._CATEGORY_MODULES",
+        ["_fake_opt"],
+    )
+
+
+def test_collect_tested_option_params_accepts_4tuples(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [
+            (
+                "SubstraitScalarArithmeticExpressionSystemProtocol",
+                "abs",
+                "overflow",
+                "capability-declared",
+            )
+        ],
+    )
+
+    assert _collect_tested_option_params() == {
+        ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")
+    }
+
+
+def test_collect_tested_option_params_rejects_invalid_taxonomy(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [("Protocol", "operation", "option", "not-a-taxonomy")],
+    )
+
+    with pytest.raises(AssertionError, match="Unknown option-parameter taxonomy"):
+        _collect_tested_option_params()
+
+
+def test_collect_tested_option_params_rejects_four_element_list(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [["Protocol", "operation", "option", "value-sensitive"]],
+    )
+
+    with pytest.raises(
+        AssertionError,
+        match="TESTED_OPTION_PARAMS entry must be a tuple of length 4",
+    ):
+        _collect_tested_option_params()
+
+
+def test_collect_tested_option_params_rejects_wrong_length_tuple(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [("Protocol", "operation", "option")],
+    )
+
+    with pytest.raises(
+        AssertionError,
+        match="TESTED_OPTION_PARAMS entry must be a tuple of length 4",
+    ):
+        _collect_tested_option_params()
+
+
+def test_collect_option_param_taxonomy_returns_full_map(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [
+            ("Protocol", "first", "option", "value-sensitive"),
+            ("Protocol", "second", "option", "probe-exempt-honor"),
+        ],
+    )
+
+    assert _collect_option_param_taxonomy() == {
+        ("Protocol", "first", "option"): "value-sensitive",
+        ("Protocol", "second", "option"): "probe-exempt-honor",
+    }
+
+
+def test_collect_option_param_taxonomy_rejects_conflicting_duplicates(monkeypatch):
+    _install_fake_option_module(
+        monkeypatch,
+        [
+            ("Protocol", "operation", "option", "value-sensitive"),
+            ("Protocol", "operation", "option", "no-op"),
+        ],
+    )
+
+    with pytest.raises(AssertionError, match="Conflicting option-parameter taxonomy"):
+        _collect_option_param_taxonomy()
 
 
 _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
@@ -684,6 +811,81 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),
     }
 }
+
+_KNOWN_UNTESTED_OPTION_PARAMS.pop(
+    ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")
+)
+for _overflow_op in (
+    "add",
+    "subtract",
+    "multiply",
+    "divide",
+    "modulus",
+    "negate",
+    "power",
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarArithmeticExpressionSystemProtocol",
+            _overflow_op,
+            "overflow",
+        )
+    )
+for _semantic_op, _semantic_param in (
+    ("acos", "on_domain_error"),
+    ("acosh", "on_domain_error"),
+    ("asin", "on_domain_error"),
+    ("atan2", "on_domain_error"),
+    ("atanh", "on_domain_error"),
+    ("sqrt", "on_domain_error"),
+    ("divide", "on_domain_error"),
+    ("divide", "on_division_by_zero"),
+    ("modulus", "division_type"),
+    ("modulus", "on_domain_error"),
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarArithmeticExpressionSystemProtocol",
+            _semantic_op,
+            _semantic_param,
+        )
+    )
+for _rounding_op in (
+    "acos",
+    "acosh",
+    "asin",
+    "asinh",
+    "atan",
+    "atan2",
+    "atanh",
+    "cos",
+    "cosh",
+    "degrees",
+    "exp",
+    "radians",
+    "sin",
+    "sinh",
+    "sqrt",
+    "tan",
+    "tanh",
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarArithmeticExpressionSystemProtocol",
+            _rounding_op,
+            "rounding",
+        )
+    )
+_KNOWN_UNTESTED_OPTION_PARAMS[
+    ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial", "overflow")
+] = KnownGap(
+    gap_kind=GapKind.UNTESTED_OPTION,
+    reason=(
+        "operation not implemented (no FKEY) — see backlog: "
+        "substrait-arithmetic-missing-ops"
+    ),
+    since="2026-07-21",
+)
 
 
 _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {

@@ -13,15 +13,20 @@ def pytest_collection_modifyitems(items):
         item.add_marker(pytest.mark.argument_types)
 
 
-def make_df(data: dict[str, list[Any]], backend: str):
+def make_df(
+    data: dict[str, list[Any]],
+    backend: str,
+    schema: dict[str, Any] | None = None,
+):
     """Materialize a dict of columns into a backend-native DataFrame."""
     import polars as pl
-    pdf = pl.DataFrame(data)
+    pdf = pl.DataFrame(data, schema=schema)
     if backend == "polars":
         return pdf
     if backend == "ibis":
         import ibis
-        return ibis.memtable(pdf.to_pandas())
+        connection = ibis.duckdb.connect()
+        return connection.create_table("option_test", pdf, overwrite=True)
     if backend == "narwhals-polars":
         import narwhals as nw
         return nw.from_native(pdf, eager_only=True)

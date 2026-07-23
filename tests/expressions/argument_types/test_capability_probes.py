@@ -79,7 +79,10 @@ def _gating_expression_facts():
     return [
         f
         for f in CapabilityRegistry.facts()
-        if f.level in _GATING and f.probe_exempt is None and _is_expression_fact(f)
+        if f.level in _GATING
+        and f.option_value is None
+        and f.probe_exempt is None
+        and _is_expression_fact(f)
     ]
 
 
