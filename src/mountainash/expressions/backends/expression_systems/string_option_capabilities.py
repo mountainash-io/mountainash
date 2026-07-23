@@ -34,6 +34,10 @@ _REGEXP_FLAG_UNSUPPORTED = (
     "The native backend does not implement this regexp flag's non-default "
     "Substrait semantics"
 )
+_REGEXP_OPERATION_UNAVAILABLE = (
+    "The underlying regexp operation is unavailable on this dialect, so its "
+    "option value cannot be honored"
+)
 _CASE_SENSITIVITY_KEYS = {
     "contains": FK_STR.CONTAINS,
     "count_substring": FK_STR.COUNT_SUBSTRING,
@@ -74,6 +78,13 @@ _REGEXP_FLAG_VALUES = {
     "multiline": ("MULTILINE_DISABLED", "MULTILINE_ENABLED"),
     "dotall": ("DOTALL_DISABLED", "DOTALL_ENABLED"),
 }
+_REGEXP_UNSUPPORTED_OPS = frozenset(
+    {
+        "regexp_match_substring_all",
+        "regexp_strpos",
+        "regexp_count_substring",
+    }
+)
 
 
 def _dialect_facts(
@@ -112,15 +123,30 @@ def _dialect_facts(
             operation_key=operation_key,
             param=param,
             option_value=values[0],
-            level=CapabilityLevel.EXPR_CAPABLE,
+            level=(
+                CapabilityLevel.UNSUPPORTED
+                if op in _REGEXP_UNSUPPORTED_OPS
+                and backend is not CONST_BACKEND.POLARS
+                else CapabilityLevel.EXPR_CAPABLE
+            ),
             backend=backend,
             dialect=dialect,
-            message=_REGEXP_FLAG_DEFAULT_EQUIVALENT,
+            message=(
+                _REGEXP_OPERATION_UNAVAILABLE
+                if op in _REGEXP_UNSUPPORTED_OPS
+                and backend is not CONST_BACKEND.POLARS
+                else _REGEXP_FLAG_DEFAULT_EQUIVALENT
+            ),
             since=_SINCE,
-            probe_exempt=_REGEXP_FLAG_DEFAULT_EQUIVALENT,
+            probe_exempt=(
+                None
+                if op in _REGEXP_UNSUPPORTED_OPS
+                and backend is not CONST_BACKEND.POLARS
+                else _REGEXP_FLAG_DEFAULT_EQUIVALENT
+            ),
         )
         for param, operations in _REGEXP_FLAG_KEYS.items()
-        for operation_key in operations.values()
+        for op, operation_key in operations.items()
         for values in (_REGEXP_FLAG_VALUES[param],)
     )
     regexp_enabled = tuple(
@@ -170,6 +196,21 @@ _IBIS_FAMILY_DEFAULTS = tuple(
     for param, operations in _REGEXP_FLAG_KEYS.items()
     for operation_key in operations.values()
     for values in (_REGEXP_FLAG_VALUES[param],)
+) + tuple(
+    CapabilityFact(
+        operation_key=operation_key,
+        param=param,
+        option_value=values[0],
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect=None,
+        message=_REGEXP_OPERATION_UNAVAILABLE,
+        since=_SINCE,
+    )
+    for param, operations in _REGEXP_FLAG_KEYS.items()
+    for op, operation_key in operations.items()
+    for values in (_REGEXP_FLAG_VALUES[param],)
+    if op in _REGEXP_UNSUPPORTED_OPS
 )
 _NARWHALS_FACTS = tuple(
     fact

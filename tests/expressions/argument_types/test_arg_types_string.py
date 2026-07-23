@@ -351,6 +351,18 @@ _REGEXP_UNSUPPORTED_OPS = frozenset(
 )
 
 
+def _regexp_operation_unsupported(op: str, backend: str) -> bool:
+    return op in _REGEXP_UNSUPPORTED_OPS and backend != "polars"
+
+
+def _regexp_flag_disposition(op: str, param: str, value: str, backend: str) -> str:
+    if _regexp_operation_unsupported(op, backend):
+        return "declared_unsupported"
+    if value == _REGEXP_FLAG_DEFAULTS[param]:
+        return "probe_exempt"
+    return "declared_unsupported"
+
+
 def _regexp_flag_expr(op: str, param: str, value: str | None = None):
     """Build a regexp flag expression, omitting the flag when value is None."""
     kwargs = {}
@@ -398,7 +410,7 @@ def _regexp_flag_probe(op: str, param: str, value: str) -> OptionSpec:
 
 
 def _regexp_flag_native_exception(op: str, backend: str):
-    if op in _REGEXP_UNSUPPORTED_OPS and backend != "polars":
+    if _regexp_operation_unsupported(op, backend):
         return BackendCapabilityError
     if op == "regexp_replace" and backend.startswith("narwhals"):
         return TypeError
@@ -413,11 +425,12 @@ def _registered_regexp_flag_probe(
     if (
         native_exception is not None
         and value == _REGEXP_FLAG_DEFAULTS[param]
+        and not _regexp_operation_unsupported(op, backend)
     ):
-        # The raw, gate-bypassing visitor reaches this existing backend failure
-        # for both explicit and omitted default flags. The gated behavior test
-        # below still verifies the value-scoped Unsupported fact. Enabled
-        # declared probes leave the raw exception to their strict xfail.
+        # Narwhals regexp_replace runs on the public gated path, but its raw,
+        # gate-bypassing literal path raises identically for explicit-default
+        # and omission. Keep that runnable operation probe-exempt; declared
+        # probes leave their raw exceptions to the strict xfail registration.
         return spec._replace(expected_native_exception=native_exception)
     return spec
 
@@ -435,20 +448,21 @@ def test_default_regexp_flag_matches_omission(param, op, backend):
     default = _REGEXP_FLAG_DEFAULTS[param]
     spec = _regexp_flag_probe(op, param, default)
     df = make_df(spec.data, backend)
-    native_exception = (
-        BackendCapabilityError
-        if op in _REGEXP_UNSUPPORTED_OPS and backend != "polars"
-        else None
-    )
-
-    if native_exception is not None:
-        # These backends do not implement the underlying operation,
-        # independently of the flag. Both explicit-default and omission must
-        # therefore fail identically.
-        with pytest.raises(native_exception):
-            option_result(df, spec.build_expr(), backend)
-        with pytest.raises(native_exception):
-            option_result(df, spec.reference_expr(), backend)
+    if _regexp_operation_unsupported(op, backend):
+        # Both builds emit the default enum value, whose dialect-scoped option
+        # fact now blocks dispatch before the unavailable backend method runs.
+        for expression in (spec.build_expr(), spec.reference_expr()):
+            with pytest.raises(BackendCapabilityError) as exc_info:
+                option_result(df, expression, backend)
+            limitation = exc_info.value.limitation
+            assert limitation is not None
+            assert limitation.operation_key is spec.fkey
+            assert limitation.param in _REGEXP_FLAG_FKEYS
+            assert (
+                limitation.option_value
+                == _REGEXP_FLAG_DEFAULTS[limitation.param]
+            )
+            assert limitation.level.name == "UNSUPPORTED"
         return
 
     assert option_result(df, spec.build_expr(), backend) == option_result(
@@ -556,14 +570,12 @@ OPTION_DISPOSITIONS.extend(
         backend,
         value,
         "str",
+        _regexp_flag_disposition(op, param, value, backend),
         (
-            "probe_exempt"
-            if value == _REGEXP_FLAG_DEFAULTS[param]
-            else "declared_unsupported"
-        ),
-        (
-            f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is indistinguishable "
-            "from omission"
+            "operation is unsupported on this backend; the option cannot be honored"
+            if _regexp_operation_unsupported(op, backend)
+            else f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is "
+            "indistinguishable from omission"
             if value == _REGEXP_FLAG_DEFAULTS[param]
             else f"native backend does not implement {value} semantics"
         ),
@@ -578,17 +590,14 @@ REGISTERED_OPTION_PROBES.extend(
     OptionProbeRegistration(
         _registered_regexp_flag_probe(op, param, value, backend),
         backend,
-        (
-            "probe_exempt"
-            if value == _REGEXP_FLAG_DEFAULTS[param]
-            else "declared_unsupported"
-        ),
+        _regexp_flag_disposition(op, param, value, backend),
         (
             _regexp_flag_native_exception(op, backend)
             if _regexp_flag_native_exception(op, backend) is not None
             else OptionProbeDidNotDiscriminateError
         )
-        if value != _REGEXP_FLAG_DEFAULTS[param]
+        if _regexp_flag_disposition(op, param, value, backend)
+        == "declared_unsupported"
         else None,
     )
     for param, operations in _REGEXP_FLAG_FKEYS.items()
@@ -607,6 +616,18 @@ OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
     )
     for param, operations in _REGEXP_FLAG_FKEYS.items()
     for fkey in operations.values()
+)
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        fkey,
+        param,
+        _REGEXP_FLAG_DEFAULTS[param],
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+    if op in _REGEXP_UNSUPPORTED_OPS
 )
 
 TESTED_OPTION_PARAMS.extend(
