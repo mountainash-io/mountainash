@@ -302,10 +302,6 @@ class UnifiedExpressionVisitor:
             )
             from mountainash.core.types import BackendCapabilityError
 
-            gating_levels = (
-                CapabilityLevel.UNSUPPORTED,
-                CapabilityLevel.LITERAL_ONLY,
-            )
             dialect = getattr(self.backend, "dialect", None)
             for option_name, option_value in options.items():
                 fact = CapabilityRegistry.capability_for(
@@ -315,7 +311,14 @@ class UnifiedExpressionVisitor:
                     dialect,
                     option_value=str(option_value),
                 )
-                if fact is not None and fact.level in gating_levels:
+                blocks_option = fact is not None and (
+                    fact.level is CapabilityLevel.UNSUPPORTED
+                    or (
+                        fact.level is CapabilityLevel.LITERAL_ONLY
+                        and isinstance(option_value, ExpressionNode)
+                    )
+                )
+                if blocks_option:
                     raise BackendCapabilityError(
                         fact.message,
                         backend=self.backend.BACKEND_NAME,

@@ -20,6 +20,7 @@ from mountainash.expressions.core.expression_system.expsys_base import (
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STRING,
 )
 from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 
@@ -49,7 +50,7 @@ def _compile_node(node, df, backend):
     identity = identify_backend_identity(df)
     assert identity.family is CONST_BACKEND(backend)
     system_cls = get_expression_system(identity.family)
-    visitor = UnifiedExpressionVisitor(system_cls(dialect=_TEST_DIALECT))
+    visitor = UnifiedExpressionVisitor(system_cls(dialect=identity.dialect))
     return visitor.visit(node)
 
 
@@ -77,3 +78,26 @@ def test_declared_unsupported_option_raises_before_dispatch():
 
     with pytest.raises(BackendCapabilityError):
         _compile_node(node, df, "polars")
+
+
+def _trim_node_with_characters(characters):
+    return ScalarFunctionNode(
+        function_key=FK_STRING.TRIM,
+        arguments=[FieldReferenceNode(field="v")],
+        options={"characters": characters},
+    )
+
+
+def test_literal_only_option_allows_a_raw_literal_value():
+    df = make_df({"v": ["xvaluex"]}, "narwhals-polars")
+    node = _trim_node_with_characters("x")
+
+    _compile_node(node, df, "narwhals")
+
+
+def test_literal_only_option_rejects_an_expression_value():
+    df = make_df({"v": ["xvaluex"]}, "narwhals-polars")
+    node = _trim_node_with_characters(FieldReferenceNode(field="policy"))
+
+    with pytest.raises(BackendCapabilityError, match="literal string value"):
+        _compile_node(node, df, "narwhals")
