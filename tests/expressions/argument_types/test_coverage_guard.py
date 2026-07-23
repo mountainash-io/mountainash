@@ -771,14 +771,9 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarStringExpressionSystemProtocol", "initcap", "char_set"),
         ("SubstraitScalarStringExpressionSystemProtocol", "like", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "lower", "char_set"),
-        # Regexp positional int options (position/occurrence/group) are drained
-        # by the positional disposition matrix in test_arg_types_string.py; the
-        # O-absent regexp_replace/regexp_string_split dotall/multiline entries
-        # below remain untested until their wiring lands.
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "multiline"),
+        # Regexp positional int options (position/occurrence/group) and the
+        # regexp_replace/regexp_string_split dotall/multiline flags are drained
+        # by the disposition matrices in test_arg_types_string.py.
         ("SubstraitScalarStringExpressionSystemProtocol", "replace", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),

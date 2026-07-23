@@ -1001,7 +1001,10 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
         position: Optional[int] = None,
         occurrence: Optional[int] = None,
+        *,
         case_sensitive: bool = True,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """
         Replace occurrences matching regex pattern.
@@ -1014,6 +1017,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             position: Start position for search (1-indexed).
             occurrence: Which occurrence to replace (0 = all).
             case_sensitive: Case sensitivity (default: True).
+            multiline: Multiline mode (``^``/``$`` match line boundaries).
+            dotall: Dotall mode (``.`` matches newlines).
 
         Returns:
             New ExpressionAPI with regexp_replace node.
@@ -1032,7 +1037,10 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
                 "position": position,
                 "occurrence": occurrence,
                 **_regexp_flag_options(
-                    "regexp_replace", case_sensitivity=case_sensitive
+                    "regexp_replace",
+                    case_sensitivity=case_sensitive,
+                    multiline=multiline,
+                    dotall=dotall,
                 ),
             },
         )
@@ -1090,7 +1098,10 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     def regexp_string_split(
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *,
         case_sensitive: bool = True,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """
         Split string by regex pattern.
@@ -1100,6 +1111,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Args:
             pattern: Regular expression pattern for separator.
             case_sensitive: Case sensitivity (default: True).
+            multiline: Multiline mode (``^``/``$`` match line boundaries).
+            dotall: Dotall mode (``.`` matches newlines).
 
         Returns:
             New ExpressionAPI with regexp_string_split node.
@@ -1109,7 +1122,10 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
             arguments=[self._node, pattern_node],
             options=_regexp_flag_options(
-                "regexp_string_split", case_sensitivity=case_sensitive
+                "regexp_string_split",
+                case_sensitivity=case_sensitive,
+                multiline=multiline,
+                dotall=dotall,
             ),
         )
         return self._build(node)

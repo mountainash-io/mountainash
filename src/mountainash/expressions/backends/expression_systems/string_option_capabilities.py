@@ -65,12 +65,16 @@ _REGEXP_FLAG_KEYS = {
         "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
         "regexp_strpos": FK_STR.REGEXP_STRPOS,
         "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
     },
     "dotall": {
         "regexp_match_substring": FK_STR.REGEXP_MATCH,
         "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
         "regexp_strpos": FK_STR.REGEXP_STRPOS,
         "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
     },
 }
 _REGEXP_FLAG_VALUES = {
