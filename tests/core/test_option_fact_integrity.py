@@ -283,7 +283,7 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
     expected = {
         key: (
             ("str",)
-            if key[1] == "case_sensitivity"
+            if key[1] in {"case_sensitivity", "multiline", "dotall"}
             else ("int64",)
             if key == ("power", "overflow")
             else ("int8",)

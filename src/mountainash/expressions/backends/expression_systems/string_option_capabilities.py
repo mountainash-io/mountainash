@@ -26,6 +26,14 @@ _CASE_INSENSITIVE_WORKAROUND = (
     "Lowercase the input and search operand explicitly before applying the "
     "case-sensitive operation"
 )
+_REGEXP_FLAG_DEFAULT_EQUIVALENT = (
+    "The builder default emits this regexp flag value, so the explicit option "
+    "is observably equivalent to omission and cannot discriminate"
+)
+_REGEXP_FLAG_UNSUPPORTED = (
+    "The native backend does not implement this regexp flag's non-default "
+    "Substrait semantics"
+)
 _CASE_SENSITIVITY_KEYS = {
     "contains": FK_STR.CONTAINS,
     "count_substring": FK_STR.COUNT_SUBSTRING,
@@ -38,6 +46,33 @@ _CASE_SENSITIVITY_KEYS = {
 _CASE_INSENSITIVE_UNSUPPORTED_KEYS = {
     _CASE_SENSITIVITY_KEYS[op]
     for op in ("count_substring", "like", "replace", "strpos")
+}
+_REGEXP_FLAG_KEYS = {
+    "case_sensitivity": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+    "multiline": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+    },
+    "dotall": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+    },
+}
+_REGEXP_FLAG_VALUES = {
+    "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE"),
+    "multiline": ("MULTILINE_DISABLED", "MULTILINE_ENABLED"),
+    "dotall": ("DOTALL_DISABLED", "DOTALL_ENABLED"),
 }
 
 
@@ -72,7 +107,38 @@ def _dialect_facts(
         )
         for operation_key in _CASE_INSENSITIVE_UNSUPPORTED_KEYS
     )
-    return case_sensitive + case_insensitive
+    regexp_defaults = tuple(
+        CapabilityFact(
+            operation_key=operation_key,
+            param=param,
+            option_value=values[0],
+            level=CapabilityLevel.EXPR_CAPABLE,
+            backend=backend,
+            dialect=dialect,
+            message=_REGEXP_FLAG_DEFAULT_EQUIVALENT,
+            since=_SINCE,
+            probe_exempt=_REGEXP_FLAG_DEFAULT_EQUIVALENT,
+        )
+        for param, operations in _REGEXP_FLAG_KEYS.items()
+        for operation_key in operations.values()
+        for values in (_REGEXP_FLAG_VALUES[param],)
+    )
+    regexp_enabled = tuple(
+        CapabilityFact(
+            operation_key=operation_key,
+            param=param,
+            option_value=values[1],
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=backend,
+            dialect=dialect,
+            message=_REGEXP_FLAG_UNSUPPORTED,
+            since=_SINCE,
+        )
+        for param, operations in _REGEXP_FLAG_KEYS.items()
+        for operation_key in operations.values()
+        for values in (_REGEXP_FLAG_VALUES[param],)
+    )
+    return case_sensitive + case_insensitive + regexp_defaults + regexp_enabled
 
 
 _POLARS_FACTS = _dialect_facts(CONST_BACKEND.POLARS, "polars")
@@ -90,6 +156,20 @@ _IBIS_FAMILY_DEFAULTS = tuple(
         since=_SINCE,
     )
     for operation_key in _CASE_INSENSITIVE_UNSUPPORTED_KEYS
+) + tuple(
+    CapabilityFact(
+        operation_key=operation_key,
+        param=param,
+        option_value=values[1],
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect=None,
+        message=_REGEXP_FLAG_UNSUPPORTED,
+        since=_SINCE,
+    )
+    for param, operations in _REGEXP_FLAG_KEYS.items()
+    for operation_key in operations.values()
+    for values in (_REGEXP_FLAG_VALUES[param],)
 )
 _NARWHALS_FACTS = tuple(
     fact

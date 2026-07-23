@@ -24,6 +24,7 @@ from expressions.argument_types.option_disposition import (
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import InvalidOptionValueError
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_api.api_builders.substrait.api_bldr_scalar_string import (
     _validated_options,
 )
@@ -302,6 +303,322 @@ TESTED_OPTION_PARAMS = [
     )
     for op in _CASE_SENSITIVITY_FKEYS
 ]
+
+
+_REGEXP_FLAG_FKEYS = {
+    "case_sensitivity": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+    "multiline": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+    },
+    "dotall": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+    },
+}
+_REGEXP_FLAG_VALUES = {
+    "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE"),
+    "multiline": ("MULTILINE_DISABLED", "MULTILINE_ENABLED"),
+    "dotall": ("DOTALL_DISABLED", "DOTALL_ENABLED"),
+}
+_REGEXP_FLAG_DEFAULTS = {
+    "case_sensitivity": "CASE_SENSITIVE",
+    "multiline": "MULTILINE_DISABLED",
+    "dotall": "DOTALL_DISABLED",
+}
+_REGEXP_FLAG_DATA = {
+    "case_sensitivity": ({"text": ["Hello"]}, "hello"),
+    "multiline": ({"text": ["a\nb"]}, "^b"),
+    "dotall": ({"text": ["a\nb"]}, "a.b"),
+}
+_REGEXP_UNSUPPORTED_OPS = frozenset(
+    {
+        "regexp_match_substring_all",
+        "regexp_strpos",
+        "regexp_count_substring",
+    }
+)
+
+
+def _regexp_flag_expr(op: str, param: str, value: str | None = None):
+    """Build a regexp flag expression, omitting the flag when value is None."""
+    kwargs = {}
+    if value is not None:
+        kwargs = {
+            {
+                "case_sensitivity": "case_sensitive",
+                "multiline": "multiline",
+                "dotall": "dotall",
+            }[param]: (
+                value == _REGEXP_FLAG_DEFAULTS[param]
+                if param == "case_sensitivity"
+                else value == _REGEXP_FLAG_VALUES[param][1]
+            )
+        }
+    _, pattern = _REGEXP_FLAG_DATA[param]
+    string = ma.col("text").str
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    if op == "regexp_string_split":
+        return string.regexp_string_split(pattern, **kwargs)
+    raise AssertionError(f"no regexp flag expression for {op}")
+
+
+def _regexp_flag_probe(op: str, param: str, value: str) -> OptionSpec:
+    data, _ = _REGEXP_FLAG_DATA[param]
+    return OptionSpec(
+        _REGEXP_FLAG_FKEYS[param][op],
+        param,
+        value,
+        "str",
+        lambda: _regexp_flag_expr(op, param, value),
+        lambda: _regexp_flag_expr(op, param),
+        data,
+        expected_discriminates=value != _REGEXP_FLAG_DEFAULTS[param],
+    )
+
+
+def _regexp_flag_native_exception(op: str, backend: str):
+    if op in _REGEXP_UNSUPPORTED_OPS and backend != "polars":
+        return BackendCapabilityError
+    if op == "regexp_replace" and backend.startswith("narwhals"):
+        return TypeError
+    return None
+
+
+def _registered_regexp_flag_probe(
+    op: str, param: str, value: str, backend: str
+) -> OptionSpec:
+    spec = _regexp_flag_probe(op, param, value)
+    native_exception = _regexp_flag_native_exception(op, backend)
+    if (
+        native_exception is not None
+        and value == _REGEXP_FLAG_DEFAULTS[param]
+    ):
+        # The raw, gate-bypassing visitor reaches this existing backend failure
+        # for both explicit and omitted default flags. The gated behavior test
+        # below still verifies the value-scoped Unsupported fact. Enabled
+        # declared probes leave the raw exception to their strict xfail.
+        return spec._replace(expected_native_exception=native_exception)
+    return spec
+
+
+@pytest.mark.parametrize(
+    "param,op",
+    [
+        (param, op)
+        for param, operations in _REGEXP_FLAG_FKEYS.items()
+        for op in operations
+    ],
+)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_default_regexp_flag_matches_omission(param, op, backend):
+    default = _REGEXP_FLAG_DEFAULTS[param]
+    spec = _regexp_flag_probe(op, param, default)
+    df = make_df(spec.data, backend)
+    native_exception = (
+        BackendCapabilityError
+        if op in _REGEXP_UNSUPPORTED_OPS and backend != "polars"
+        else None
+    )
+
+    if native_exception is not None:
+        # These backends do not implement the underlying operation,
+        # independently of the flag. Both explicit-default and omission must
+        # therefore fail identically.
+        with pytest.raises(native_exception):
+            option_result(df, spec.build_expr(), backend)
+        with pytest.raises(native_exception):
+            option_result(df, spec.reference_expr(), backend)
+        return
+
+    assert option_result(df, spec.build_expr(), backend) == option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize(
+    "param,op",
+    [
+        (param, op)
+        for param, operations in _REGEXP_FLAG_FKEYS.items()
+        for op in operations
+    ],
+)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_enabled_regexp_flag_declared_unsupported(param, op, backend, request):
+    enabled = _REGEXP_FLAG_VALUES[param][1]
+    spec = _regexp_flag_probe(op, param, enabled)
+    request.applymarker(
+        xfail_option_unsupported(
+            spec.fkey, spec.option_param, spec.option_value, backend
+        )
+    )
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+def _regexp_flag_invalid_expr(op: str, param: str):
+    keyword = {
+        "case_sensitivity": "case_sensitive",
+        "multiline": "multiline",
+        "dotall": "dotall",
+    }[param]
+    _, pattern = _REGEXP_FLAG_DATA[param]
+    string = ma.col("text").str
+    kwargs = {keyword: INVALID_OPTION_VALUE}
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    if op == "regexp_string_split":
+        return string.regexp_string_split(pattern, **kwargs)
+    raise AssertionError(f"no regexp flag expression for {op}")
+
+
+_INVALID_REGEXP_FLAG_REJECTIONS = [
+    InvalidOptionRejection(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        param,
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op, param=param: _regexp_flag_invalid_expr(op, param),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_REGEXP_FLAG_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_REGEXP_FLAG_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_REGEXP_FLAG_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_regexp_flag_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        param,
+        backend,
+        value,
+        "str",
+        (
+            "probe_exempt"
+            if value == _REGEXP_FLAG_DEFAULTS[param]
+            else "declared_unsupported"
+        ),
+        (
+            f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is indistinguishable "
+            "from omission"
+            if value == _REGEXP_FLAG_DEFAULTS[param]
+            else f"native backend does not implement {value} semantics"
+        ),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+    for backend in ALL_BACKENDS
+    for value in _REGEXP_FLAG_VALUES[param]
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _registered_regexp_flag_probe(op, param, value, backend),
+        backend,
+        (
+            "probe_exempt"
+            if value == _REGEXP_FLAG_DEFAULTS[param]
+            else "declared_unsupported"
+        ),
+        (
+            _regexp_flag_native_exception(op, backend)
+            if _regexp_flag_native_exception(op, backend) is not None
+            else OptionProbeDidNotDiscriminateError
+        )
+        if value != _REGEXP_FLAG_DEFAULTS[param]
+        else None,
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+    for value in _REGEXP_FLAG_VALUES[param]
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        fkey,
+        param,
+        _REGEXP_FLAG_VALUES[param][1],
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for fkey in operations.values()
+)
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        param,
+        param_taxonomy(_STRING_PROTOCOL, op, param),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op in operations
+)
 
 
 # Full set of (function_key_or_op_name, param_name) pairs covered by this category.

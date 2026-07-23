@@ -13,6 +13,8 @@ _ROUNDING = frozenset(
 )
 _NAN_ERROR = frozenset({"NAN", "ERROR"})
 _CASE_SENSITIVITY = frozenset({"CASE_SENSITIVE", "CASE_INSENSITIVE"})
+_MULTILINE = frozenset({"MULTILINE_DISABLED", "MULTILINE_ENABLED"})
+_DOTALL = frozenset({"DOTALL_DISABLED", "DOTALL_ENABLED"})
 
 # Generated from Substrait v0.98.0, commit
 # b322d463804660674e43c9d2b659730375e3026e. The pinned-fixture guard owns
@@ -57,6 +59,20 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("power", "overflow"): _OVERFLOW,
     ("radians", "rounding"): _ROUNDING,
     ("replace", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_count_substring", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_count_substring", "dotall"): _DOTALL,
+    ("regexp_count_substring", "multiline"): _MULTILINE,
+    ("regexp_match_substring", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_match_substring", "dotall"): _DOTALL,
+    ("regexp_match_substring", "multiline"): _MULTILINE,
+    ("regexp_match_substring_all", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_match_substring_all", "dotall"): _DOTALL,
+    ("regexp_match_substring_all", "multiline"): _MULTILINE,
+    ("regexp_replace", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_string_split", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_strpos", "case_sensitivity"): _CASE_SENSITIVITY,
+    ("regexp_strpos", "dotall"): _DOTALL,
+    ("regexp_strpos", "multiline"): _MULTILINE,
     ("sin", "rounding"): _ROUNDING,
     ("sinh", "rounding"): _ROUNDING,
     ("sqrt", "on_domain_error"): _NAN_ERROR,
