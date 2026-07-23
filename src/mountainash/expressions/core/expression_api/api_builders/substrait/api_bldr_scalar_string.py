@@ -20,6 +20,23 @@ if TYPE_CHECKING:
     from mountainash.expressions.core.expression_nodes import ExpressionNode
 
 
+def _require_int_option(op: str, name: str, value: Any) -> None:
+    """Validate a universally-literal integer option at the API-builder boundary.
+
+    The regexp ``position``/``occurrence``/``group`` knobs are option-channel
+    (no backend accepts an expression — see arguments-vs-options.md). Static
+    typing is the first line of defence; this runtime check rejects a caller
+    that bypasses the type checker (``# type: ignore``, dynamic dispatch, an
+    expression, or a stray string). ``bool`` is excluded because ``bool`` is a
+    subclass of ``int`` but is never a valid position/occurrence/group.
+    """
+    if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+        raise TypeError(
+            f"{op}({name}=...) requires a literal int, got {type(value).__name__}. "
+            f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+        )
+
+
 class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarStringAPIBuilderProtocol):
     """
     String operations APIBuilder (Substrait-aligned).
@@ -812,6 +829,9 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Returns:
             New ExpressionAPI with regexp_match_substring node.
         """
+        _require_int_option("regexp_match_substring", "position", position)
+        _require_int_option("regexp_match_substring", "occurrence", occurrence)
+        _require_int_option("regexp_match_substring", "group", group)
         pattern_node = self._to_substrait_node(pattern)
 
         # position/occurrence/group are universally-literal (no backend accepts an
@@ -848,6 +868,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Substrait: regexp_match_substring_all
         """
+        _require_int_option("regexp_match_substring_all", "position", position)
+        _require_int_option("regexp_match_substring_all", "group", group)
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
@@ -876,6 +898,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Substrait: regexp_strpos
         """
+        _require_int_option("regexp_strpos", "position", position)
+        _require_int_option("regexp_strpos", "occurrence", occurrence)
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
@@ -903,6 +927,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Substrait: regexp_count_substring
         """
+        _require_int_option("regexp_count_substring", "position", position)
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
@@ -941,6 +966,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Returns:
             New ExpressionAPI with regexp_replace node.
         """
+        _require_int_option("regexp_replace", "position", position)
+        _require_int_option("regexp_replace", "occurrence", occurrence)
         pattern_node = self._to_substrait_node(pattern)
         replacement_node = self._to_substrait_node(replacement)
 
