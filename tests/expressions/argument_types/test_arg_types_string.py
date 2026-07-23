@@ -25,9 +25,6 @@ from expressions.argument_types.option_disposition import (
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
-from mountainash.expressions.core.expression_api.api_builders.substrait.api_bldr_scalar_string import (
-    _validated_options,
-)
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
@@ -256,9 +253,7 @@ _INVALID_CASE_SENSITIVITY_REJECTIONS = [
         "case_sensitivity",
         INVALID_OPTION_VALUE,
         "str",
-        lambda op=op: _validated_options(
-            op, case_sensitivity=INVALID_OPTION_VALUE
-        ),
+        lambda op=op: _case_sensitivity_expr(op, INVALID_OPTION_VALUE),
     )
     for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
 ]

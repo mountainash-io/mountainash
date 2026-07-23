@@ -395,6 +395,9 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         position: Optional[int] = None,
         occurrence: Optional[int] = None,
         case_sensitive: bool = True,
+        *,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """Replace occurrences matching regex pattern.
 
@@ -419,6 +422,9 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
         case_sensitive: bool = True,
+        *,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """Split string by regex pattern.
 

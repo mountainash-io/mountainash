@@ -40,6 +40,38 @@ def _require_int_option(op: str, name: str, value: Any) -> None:
         )
 
 
+def _positional_options(**values: Any) -> dict[str, Any]:
+    """Retain only explicitly supplied regexp positional int options.
+
+    Omission must emit NO option key (not ``position=None``): the value-agnostic
+    ``UNSUPPORTED`` capability fact for an unsupported positional param resolves
+    for any value via the registry's ``(op, param, backend, dialect, None)``
+    fallback, and a lingering ``None`` key would make that fact gate the
+    omission path too.
+    """
+    return {name: value for name, value in values.items() if value is not None}
+
+
+def _require_bool_option(op: str, name: str, value: Any) -> None:
+    """Reject a non-boolean flag option at the API-builder boundary.
+
+    ``case_sensitive``/``multiline``/``dotall`` are literal boolean options.
+    Static typing is the first line of defence; this runtime check rejects a
+    caller that bypasses the type checker with an expression, an int, or any
+    arbitrary object — those must NOT be silently coerced to an enum through
+    truthiness (see arguments-vs-options.md). A ``str`` is permitted only as the
+    already-normalized enum form / invalid-value sentinel, validated downstream
+    by ``validate_option``. ``bool`` is a subclass of ``int``, so the explicit
+    ``bool`` check must precede any int handling.
+    """
+    if value is None or isinstance(value, (bool, str)):
+        return
+    raise TypeError(
+        f"{op}({name}=...) requires a bool, got {type(value).__name__}. "
+        f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+    )
+
+
 def _validated_options(op_name: str, **values: Any) -> dict[str, str]:
     """Validate and retain only explicitly supplied Substrait options."""
     return {
@@ -52,10 +84,13 @@ def _validated_options(op_name: str, **values: Any) -> dict[str, str]:
 def _case_sensitivity_options(
     op_name: str, case_sensitive: bool
 ) -> dict[str, str]:
+    _require_bool_option(op_name, "case_sensitivity", case_sensitive)
     return _validated_options(
         op_name,
         case_sensitivity=(
-            "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"
+            case_sensitive
+            if isinstance(case_sensitive, str)
+            else "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"
         ),
     )
 
@@ -67,6 +102,8 @@ def _regexp_flag_options(op_name: str, **values: Any) -> dict[str, str]:
         "multiline": ("MULTILINE_ENABLED", "MULTILINE_DISABLED"),
         "dotall": ("DOTALL_ENABLED", "DOTALL_DISABLED"),
     }
+    for name, value in values.items():
+        _require_bool_option(op_name, name, value)
     normalized = {
         name: value
         if isinstance(value, str)
@@ -882,9 +919,9 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
-                "occurrence": occurrence,
-                "group": group,
+                **_positional_options(
+                    position=position, occurrence=occurrence, group=group
+                ),
                 **_regexp_flag_options(
                     "regexp_match_substring",
                     case_sensitivity=case_sensitive,
@@ -918,8 +955,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
-                "group": group,
+                **_positional_options(position=position, group=group),
                 **_regexp_flag_options(
                     "regexp_match_substring_all",
                     case_sensitivity=case_sensitive,
@@ -951,8 +987,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
-                "occurrence": occurrence,
+                **_positional_options(position=position, occurrence=occurrence),
                 **_regexp_flag_options(
                     "regexp_strpos",
                     case_sensitivity=case_sensitive,
@@ -982,7 +1017,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
+                **_positional_options(position=position),
                 **_regexp_flag_options(
                     "regexp_count_substring",
                     case_sensitivity=case_sensitive,
@@ -1001,8 +1036,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
         position: Optional[int] = None,
         occurrence: Optional[int] = None,
-        *,
         case_sensitive: bool = True,
+        *,
         multiline: bool = None,
         dotall: bool = None,
     ) -> BaseExpressionAPI:
@@ -1034,8 +1069,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
             arguments=[self._node, pattern_node, replacement_node],
             options={
-                "position": position,
-                "occurrence": occurrence,
+                **_positional_options(position=position, occurrence=occurrence),
                 **_regexp_flag_options(
                     "regexp_replace",
                     case_sensitivity=case_sensitive,
@@ -1098,8 +1132,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     def regexp_string_split(
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        *,
         case_sensitive: bool = True,
+        *,
         multiline: bool = None,
         dotall: bool = None,
     ) -> BaseExpressionAPI:

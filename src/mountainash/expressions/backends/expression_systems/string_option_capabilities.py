@@ -139,22 +139,44 @@ def _positional_facts(
                 op in _REGEXP_UNSUPPORTED_OPS
                 and backend is not CONST_BACKEND.POLARS
             )
-            facts.append(
-                CapabilityFact(
-                    operation_key=operation_key,
-                    param=param,
-                    option_value=_POSITIONAL_VALUE,
-                    level=CapabilityLevel.UNSUPPORTED,
-                    backend=backend,
-                    dialect=dialect,
-                    message=(
-                        _REGEXP_OPERATION_UNAVAILABLE
-                        if op_unavailable
-                        else _POSITIONAL_IGNORED
-                    ),
-                    since=_SINCE,
-                )
+            message = (
+                _REGEXP_OPERATION_UNAVAILABLE
+                if op_unavailable
+                else _POSITIONAL_IGNORED
             )
+            # Two facts per declared positional param: the value-scoped fact for
+            # the representative value the disposition matrix samples, and a
+            # value-agnostic (option_value=None) fact so EVERY unsupported
+            # integer is gated, not just the representative. The registry's
+            # (op, param, backend, dialect, None) fallback resolves the wildcard
+            # for any value; the builder drops omitted (None) positional options
+            # so the wildcard never gates the omission path.
+            for option_value in (_POSITIONAL_VALUE, None):
+                facts.append(
+                    CapabilityFact(
+                        operation_key=operation_key,
+                        param=param,
+                        option_value=option_value,
+                        level=CapabilityLevel.UNSUPPORTED,
+                        backend=backend,
+                        dialect=dialect,
+                        message=message,
+                        since=_SINCE,
+                        # The value-agnostic companion is probe-exempt: the
+                        # representative value-scoped fact carries the native
+                        # self-healing probe (via the registered option probes),
+                        # so this fact exists only to gate non-representative
+                        # integers and must not demand its own OpSpec.
+                        probe_exempt=(
+                            None
+                            if option_value is not None
+                            else "value-agnostic companion to the "
+                            "representative-value positional fact; the "
+                            "value-scoped disposition probe drives the "
+                            "native-path check"
+                        ),
+                    )
+                )
     return tuple(facts)
 
 
