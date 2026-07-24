@@ -25,42 +25,42 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
 
 
 
-    def lower(self) -> BaseExpressionAPI:
+    def lower(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Convert to lowercase.
 
         Substrait: lower
         """
         ...
 
-    def upper(self) -> BaseExpressionAPI:
+    def upper(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Convert to uppercase.
 
         Substrait: upper
         """
         ...
 
-    def swapcase(self) -> BaseExpressionAPI:
+    def swapcase(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Swap case of characters.
 
         Substrait: swapcase
         """
         ...
 
-    def capitalize(self) -> BaseExpressionAPI:
+    def capitalize(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Capitalize first character.
 
         Substrait: capitalize
         """
         ...
 
-    def title(self) -> BaseExpressionAPI:
+    def title(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Convert to title case (except articles).
 
         Substrait: title
         """
         ...
 
-    def initcap(self) -> BaseExpressionAPI:
+    def initcap(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Capitalize first character of each word.
 
         Substrait: initcap
@@ -124,6 +124,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         length: Union[BaseExpressionAPI, ExpressionNode, Any, int],
         character: Optional[Union[BaseExpressionAPI, ExpressionNode, Any]] = None,
+        *,
+        padding: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """Center string by padding sides.
 
@@ -135,6 +137,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         start: Union[BaseExpressionAPI, ExpressionNode, Any, int],
         length: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        *,
+        negative_start: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """Extract a substring.
 

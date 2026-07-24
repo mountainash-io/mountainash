@@ -23,6 +23,9 @@ from expressions.argument_types.option_disposition import (
     param_taxonomy,
 )
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.backends.expression_systems.string_option_capabilities import (
+    _BROKEN_STRING_OPS_BY_BACKEND,
+)
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -38,6 +41,20 @@ from expressions.argument_types._test_template import (
 
 
 _STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
+
+_BACKEND_STR_TO_CONST = {
+    "polars": CONST_BACKEND.POLARS,
+    "ibis": CONST_BACKEND.IBIS,
+    "narwhals-polars": CONST_BACKEND.NARWHALS,
+    "narwhals-pandas": CONST_BACKEND.NARWHALS,
+}
+
+
+def _op_broken_on_backend(op: str, backend: str) -> bool:
+    const = _BACKEND_STR_TO_CONST[backend]
+    return op in _BROKEN_STRING_OPS_BY_BACKEND.get(const, frozenset())
+
+
 _CASE_SENSITIVITY_FKEYS = {
     "contains": FK_STR.CONTAINS,
     "count_substring": FK_STR.COUNT_SUBSTRING,
@@ -298,6 +315,491 @@ TESTED_OPTION_PARAMS = [
     )
     for op in _CASE_SENSITIVITY_FKEYS
 ]
+
+
+_CHAR_SET_OPS = {
+    "lower": FK_STR.LOWER,
+    "upper": FK_STR.UPPER,
+    "swapcase": FK_STR.SWAPCASE,
+    "capitalize": FK_STR.CAPITALIZE,
+    "title": FK_STR.TITLE,
+    "initcap": FK_STR.INITCAP,
+}
+_CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
+_CHAR_SET_DATA = {"t": ["ÄBC"]}
+# A broken op cannot honor ANY char_set option. Derived from the production
+# _BROKEN_STRING_OPS_BY_BACKEND (string_option_capabilities.py) — NOT a mirror.
+
+
+def _char_set_broken(op: str, backend: str) -> bool:
+    return _op_broken_on_backend(op, backend)
+
+
+def _char_set_disposition(op: str, value: str, backend: str) -> str:
+    if _char_set_broken(op, backend):
+        return "declared_unsupported"
+    return "probe_exempt" if value == "UTF8" else "declared_unsupported"
+
+
+def _char_set_expr(op: str, char_set: str | None = None):
+    kwargs = {} if char_set is None else {"char_set": char_set}
+    return getattr(ma.col("t").str, op)(**kwargs)
+
+
+def _char_set_probe(op: str, value: str, backend: str) -> OptionSpec:
+    fkey = _CHAR_SET_OPS[op]
+    # On a broken pair the entire op is a no-op, so UTF8 is NOT equivalent to
+    # omission (both return unchanged input, but the op itself is broken).
+    # expected_discriminates=True ensures the native probe raises on broken
+    # pairs, matching the declared_unsupported disposition.
+    discriminate = value == "ASCII_ONLY" or _char_set_broken(op, backend)
+    return OptionSpec(
+        fkey,
+        "char_set",
+        value,
+        "str",
+        lambda: _char_set_expr(op, value),
+        lambda: _char_set_expr(op),
+        _CHAR_SET_DATA,
+        expected_discriminates=discriminate,
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_ascii_only_declared_unsupported(op, backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _CHAR_SET_OPS[op], "char_set", "ASCII_ONLY", backend))
+    df = make_df(_CHAR_SET_DATA, backend)
+    got = option_result(df, _char_set_expr(op, "ASCII_ONLY"), backend)
+    reference = option_result(df, _char_set_expr(op), backend)
+    assert got == reference
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_utf8_equivalent_to_omission(op, backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _CHAR_SET_OPS[op], "char_set", "UTF8", backend))
+    df = make_df(_CHAR_SET_DATA, backend)
+    assert option_result(df, _char_set_expr(op, "UTF8"), backend) \
+        == option_result(df, _char_set_expr(op), backend)
+
+
+def _char_set_native_failure(op: str, backend: str) -> type[BaseException] | None:
+    if _char_set_broken(op, backend):
+        if backend == "ibis" and op == "initcap":
+            return AttributeError
+        return OptionProbeDidNotDiscriminateError
+    return OptionProbeDidNotDiscriminateError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _CHAR_SET_OPS[op],
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        backend,
+        value,
+        "str",
+        _char_set_disposition(op, value, backend),
+        (
+            "op is broken on this backend; char_set cannot be honored"
+            if _char_set_broken(op, backend)
+            else "builder-default UTF8 is indistinguishable from omission"
+            if value == "UTF8"
+            else "native backend does not implement ASCII_ONLY char_set semantics"
+        ),
+    )
+    for op in _CHAR_SET_OPS
+    for backend in ALL_BACKENDS
+    for value in _CHAR_SET_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _char_set_probe(op, value, backend),
+        backend,
+        _char_set_disposition(op, value, backend),
+        _char_set_native_failure(op, backend)
+        if _char_set_disposition(op, value, backend) == "declared_unsupported"
+        else None,
+    )
+    for op in _CHAR_SET_OPS
+    for backend in ALL_BACKENDS
+    for value in _CHAR_SET_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_CHAR_SET_OPS[op], "char_set", value, CONST_BACKEND.IBIS, None)
+    for op in ("swapcase", "title", "initcap")
+    for value in _CHAR_SET_VALUES
+)
+# Working ops on ibis: ASCII_ONLY is UNSUPPORTED as a family default
+# (UTF8 is EXPR_CAPABLE only dialect-scoped via _dialect_facts).
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_CHAR_SET_OPS[op], "char_set", "ASCII_ONLY", CONST_BACKEND.IBIS, None)
+    for op in ("lower", "upper", "capitalize")
+)
+
+_INVALID_CHAR_SET_REJECTIONS = [
+    InvalidOptionRejection(
+        _CHAR_SET_OPS[op],
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op: _char_set_expr(op, INVALID_OPTION_VALUE),
+    )
+    for op in _CHAR_SET_OPS
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_CHAR_SET_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_CHAR_SET_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_CHAR_SET_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_char_set_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        param_taxonomy(_STRING_PROTOCOL, op, "char_set"),
+    )
+    for op in _CHAR_SET_OPS
+)
+
+
+_PADDING_FKEY = FK_STR.CENTER
+_PADDING_DATA = {"t": ["hi"]}
+
+
+def _padding_expr(padding: str | None = None):
+    kwargs = {} if padding is None else {"padding": padding}
+    return ma.col("t").str.center(5, "*", **kwargs)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_left_declared_unsupported(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(_PADDING_FKEY, "padding", "LEFT", backend))
+    df = make_df(_PADDING_DATA, backend)
+    got = option_result(df, _padding_expr("LEFT"), backend)
+    assert got == ["*hi**"]
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_right_equivalent_to_omission(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(_PADDING_FKEY, "padding", "RIGHT", backend))
+    df = make_df(_PADDING_DATA, backend)
+    assert option_result(df, _padding_expr("RIGHT"), backend) \
+        == option_result(df, _padding_expr(), backend)
+
+
+def test_center_padding_rejects_invalid_value():
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("t").str.center(5, "*", padding="BOTH")
+
+
+_PADDING_VALUES = ("RIGHT", "LEFT")
+# Per-backend broken center derived from the production
+# _BROKEN_STRING_OPS_BY_BACKEND (string_option_capabilities.py).
+
+
+def _padding_disposition(value: str, backend: str) -> str:
+    if _op_broken_on_backend("center", backend):
+        return "declared_unsupported"
+    return "probe_exempt" if value == "RIGHT" else "declared_unsupported"
+
+
+def _padding_probe(value: str, backend: str) -> OptionSpec:
+    broken = _op_broken_on_backend("center", backend)
+    discriminate = value == "LEFT" or broken
+    return OptionSpec(
+        _PADDING_FKEY,
+        "padding",
+        value,
+        "str",
+        lambda v=value: _padding_expr(v),
+        lambda: _padding_expr(),
+        _PADDING_DATA,
+        expected_discriminates=discriminate,
+        expected_native_exception=(
+            TypeError
+            if not broken and value == "RIGHT"
+            else None
+        ),
+    )
+
+
+def _padding_native_failure(value: str, backend: str) -> type[BaseException] | None:
+    if _op_broken_on_backend("center", backend):
+        return OptionProbeDidNotDiscriminateError
+    if value == "RIGHT":
+        return None
+    return TypeError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _PADDING_FKEY,
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        backend,
+        value,
+        "str",
+        _padding_disposition(value, backend),
+        (
+            "center is broken on this backend; padding cannot be honored"
+            if _op_broken_on_backend("center", backend)
+            else "builder-default RIGHT is indistinguishable from omission"
+            if value == "RIGHT"
+            else "native backend does not implement LEFT padding semantics"
+        ),
+    )
+    for backend in ALL_BACKENDS
+    for value in _PADDING_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _padding_probe(value, backend),
+        backend,
+        _padding_disposition(value, backend),
+        _padding_native_failure(value, backend)
+        if _padding_disposition(value, backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for value in _PADDING_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.add(
+    (_PADDING_FKEY, "padding", "LEFT", CONST_BACKEND.IBIS, None)
+)
+
+_PADDING_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        _PADDING_FKEY,
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _padding_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_PADDING_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _PADDING_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        param_taxonomy(_STRING_PROTOCOL, "center", "padding"),
+    )
+)
+
+
+_NEGATIVE_START_FKEY = FK_STR.SUBSTRING
+_NEGATIVE_START_DATA = {"t": ["hello"]}
+
+
+def _negative_start_expr(negative_start: str | None = None):
+    kwargs = {} if negative_start is None else {"negative_start": negative_start}
+    return ma.col("t").str.substring(2, 3, **kwargs)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_left_of_beginning_declared_unsupported(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _NEGATIVE_START_FKEY, "negative_start", "LEFT_OF_BEGINNING", backend))
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    got = option_result(df, _negative_start_expr("LEFT_OF_BEGINNING"), backend)
+    assert got == ["llo"]
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_error_declared_unsupported(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _NEGATIVE_START_FKEY, "negative_start", "ERROR", backend))
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    got = option_result(df, _negative_start_expr("ERROR"), backend)
+    assert got == ["llo"]
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_wrap_from_end_equivalent_to_omission(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _NEGATIVE_START_FKEY, "negative_start", "WRAP_FROM_END", backend))
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    assert option_result(df, _negative_start_expr("WRAP_FROM_END"), backend) \
+        == option_result(df, _negative_start_expr(), backend)
+
+
+def test_substring_negative_start_rejects_invalid_value():
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("t").str.substring(2, 3, negative_start="ALLOW")
+
+
+_NEGATIVE_START_VALUES = ("WRAP_FROM_END", "LEFT_OF_BEGINNING", "ERROR")
+
+
+def _negative_start_disposition(value: str, backend: str) -> str:
+    return "probe_exempt" if value == "WRAP_FROM_END" else "declared_unsupported"
+
+
+def _negative_start_probe(value: str, backend: str) -> OptionSpec:
+    discriminate = value != "WRAP_FROM_END"
+    return OptionSpec(
+        _NEGATIVE_START_FKEY,
+        "negative_start",
+        value,
+        "str",
+        lambda v=value: _negative_start_expr(v),
+        lambda: _negative_start_expr(),
+        _NEGATIVE_START_DATA,
+        expected_discriminates=discriminate,
+        expected_native_exception=(
+            TypeError
+            if value == "WRAP_FROM_END" and backend.startswith("narwhals")
+            else None
+        ),
+    )
+
+
+def _negative_start_native_failure(value: str, backend: str) -> type[BaseException] | None:
+    if value == "WRAP_FROM_END":
+        return None
+    if backend.startswith("narwhals"):
+        return TypeError
+    return OptionProbeDidNotDiscriminateError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _NEGATIVE_START_FKEY,
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        backend,
+        value,
+        "str",
+        _negative_start_disposition(value, backend),
+        (
+            "builder-default WRAP_FROM_END is indistinguishable from omission"
+            if value == "WRAP_FROM_END"
+            else "native backend does not implement non-default negative_start semantics"
+        ),
+    )
+    for backend in ALL_BACKENDS
+    for value in _NEGATIVE_START_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _negative_start_probe(value, backend),
+        backend,
+        _negative_start_disposition(value, backend),
+        _negative_start_native_failure(value, backend)
+        if _negative_start_disposition(value, backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for value in _NEGATIVE_START_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_NEGATIVE_START_FKEY, "negative_start", value, CONST_BACKEND.IBIS, None)
+    for value in ("LEFT_OF_BEGINNING", "ERROR")
+)
+
+_INVALID_NEGATIVE_START_REJECTIONS = [
+    InvalidOptionRejection(
+        _NEGATIVE_START_FKEY,
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _negative_start_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_NEGATIVE_START_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_NEGATIVE_START_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        param_taxonomy(_STRING_PROTOCOL, "substring", "negative_start"),
+    )
+)
 
 
 _REGEXP_FLAG_FKEYS = {

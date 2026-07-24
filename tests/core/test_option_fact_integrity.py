@@ -290,8 +290,11 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
             if key[1]
             in {
                 "case_sensitivity",
+                "char_set",
                 "multiline",
                 "dotall",
+                "padding",
+                "negative_start",
                 # Regexp positional int options operate on string data columns.
                 "position",
                 "occurrence",
