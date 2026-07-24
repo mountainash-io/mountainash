@@ -293,6 +293,7 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
                 "char_set",
                 "multiline",
                 "dotall",
+                "padding",
                 # Regexp positional int options operate on string data columns.
                 "position",
                 "occurrence",

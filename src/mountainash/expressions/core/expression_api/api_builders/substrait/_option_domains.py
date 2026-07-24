@@ -13,6 +13,7 @@ _ROUNDING = frozenset(
 )
 _NAN_ERROR = frozenset({"NAN", "ERROR"})
 _CHAR_SET = frozenset({"UTF8", "ASCII_ONLY"})
+_PADDING = frozenset({"RIGHT", "LEFT"})
 _CASE_SENSITIVITY = frozenset({"CASE_SENSITIVE", "CASE_INSENSITIVE"})
 _MULTILINE = frozenset({"MULTILINE_DISABLED", "MULTILINE_ENABLED"})
 _DOTALL = frozenset({"DOTALL_DISABLED", "DOTALL_ENABLED"})
@@ -88,6 +89,7 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("subtract", "rounding"): _ROUNDING,
     ("tan", "rounding"): _ROUNDING,
     ("tanh", "rounding"): _ROUNDING,
+    ("center", "padding"): _PADDING,
     ("capitalize", "char_set"): _CHAR_SET,
     ("initcap", "char_set"): _CHAR_SET,
     ("lower", "char_set"): _CHAR_SET,

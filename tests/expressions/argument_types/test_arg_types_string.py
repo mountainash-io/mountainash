@@ -23,6 +23,9 @@ from expressions.argument_types.option_disposition import (
     param_taxonomy,
 )
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.backends.expression_systems.string_option_capabilities import (
+    _BROKEN_STRING_OPS_BY_BACKEND,
+)
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -38,6 +41,20 @@ from expressions.argument_types._test_template import (
 
 
 _STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
+
+_BACKEND_STR_TO_CONST = {
+    "polars": CONST_BACKEND.POLARS,
+    "ibis": CONST_BACKEND.IBIS,
+    "narwhals-polars": CONST_BACKEND.NARWHALS,
+    "narwhals-pandas": CONST_BACKEND.NARWHALS,
+}
+
+
+def _op_broken_on_backend(op: str, backend: str) -> bool:
+    const = _BACKEND_STR_TO_CONST[backend]
+    return op in _BROKEN_STRING_OPS_BY_BACKEND.get(const, frozenset())
+
+
 _CASE_SENSITIVITY_FKEYS = {
     "contains": FK_STR.CONTAINS,
     "count_substring": FK_STR.COUNT_SUBSTRING,
@@ -310,17 +327,12 @@ _CHAR_SET_OPS = {
 }
 _CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
 _CHAR_SET_DATA = {"t": ["ÄBC"]}
-# Per-backend broken case ops (mirrors _BROKEN_STRING_OPS_BY_BACKEND in
-# string_option_capabilities.py). A broken op cannot honor ANY char_set option.
-_CHAR_SET_BROKEN: dict[str, frozenset[str]] = {
-    "ibis": frozenset({"swapcase", "title", "initcap"}),
-    "narwhals-polars": frozenset({"capitalize", "swapcase", "title", "initcap"}),
-    "narwhals-pandas": frozenset({"capitalize", "swapcase", "title", "initcap"}),
-}
+# A broken op cannot honor ANY char_set option. Derived from the production
+# _BROKEN_STRING_OPS_BY_BACKEND (string_option_capabilities.py) — NOT a mirror.
 
 
 def _char_set_broken(op: str, backend: str) -> bool:
-    return op in _CHAR_SET_BROKEN.get(backend, frozenset())
+    return _op_broken_on_backend(op, backend)
 
 
 def _char_set_disposition(op: str, value: str, backend: str) -> str:
@@ -483,6 +495,155 @@ TESTED_OPTION_PARAMS.extend(
         param_taxonomy(_STRING_PROTOCOL, op, "char_set"),
     )
     for op in _CHAR_SET_OPS
+)
+
+
+_PADDING_FKEY = FK_STR.CENTER
+_PADDING_DATA = {"t": ["hi"]}
+
+
+def _padding_expr(padding: str | None = None):
+    kwargs = {} if padding is None else {"padding": padding}
+    return ma.col("t").str.center(5, "*", **kwargs)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_left_declared_unsupported(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(_PADDING_FKEY, "padding", "LEFT", backend))
+    df = make_df(_PADDING_DATA, backend)
+    got = option_result(df, _padding_expr("LEFT"), backend)
+    assert got == ["*hi**"]
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_right_equivalent_to_omission(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(_PADDING_FKEY, "padding", "RIGHT", backend))
+    df = make_df(_PADDING_DATA, backend)
+    assert option_result(df, _padding_expr("RIGHT"), backend) \
+        == option_result(df, _padding_expr(), backend)
+
+
+def test_center_padding_rejects_invalid_value():
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("t").str.center(5, "*", padding="BOTH")
+
+
+_PADDING_VALUES = ("RIGHT", "LEFT")
+# Per-backend broken center derived from the production
+# _BROKEN_STRING_OPS_BY_BACKEND (string_option_capabilities.py).
+
+
+def _padding_disposition(value: str, backend: str) -> str:
+    if _op_broken_on_backend("center", backend):
+        return "declared_unsupported"
+    return "probe_exempt" if value == "RIGHT" else "declared_unsupported"
+
+
+def _padding_probe(value: str, backend: str) -> OptionSpec:
+    broken = _op_broken_on_backend("center", backend)
+    discriminate = value == "LEFT" or broken
+    return OptionSpec(
+        _PADDING_FKEY,
+        "padding",
+        value,
+        "str",
+        lambda v=value: _padding_expr(v),
+        lambda: _padding_expr(),
+        _PADDING_DATA,
+        expected_discriminates=discriminate,
+        expected_native_exception=(
+            TypeError
+            if not broken and value == "RIGHT"
+            else None
+        ),
+    )
+
+
+def _padding_native_failure(value: str, backend: str) -> type[BaseException] | None:
+    if _op_broken_on_backend("center", backend):
+        return OptionProbeDidNotDiscriminateError
+    if value == "RIGHT":
+        return None
+    return TypeError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _PADDING_FKEY,
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        backend,
+        value,
+        "str",
+        _padding_disposition(value, backend),
+        (
+            "center is broken on this backend; padding cannot be honored"
+            if _op_broken_on_backend("center", backend)
+            else "builder-default RIGHT is indistinguishable from omission"
+            if value == "RIGHT"
+            else "native backend does not implement LEFT padding semantics"
+        ),
+    )
+    for backend in ALL_BACKENDS
+    for value in _PADDING_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _padding_probe(value, backend),
+        backend,
+        _padding_disposition(value, backend),
+        _padding_native_failure(value, backend)
+        if _padding_disposition(value, backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for value in _PADDING_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.add(
+    (_PADDING_FKEY, "padding", "LEFT", CONST_BACKEND.IBIS, None)
+)
+
+_PADDING_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        _PADDING_FKEY,
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _padding_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_PADDING_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _PADDING_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        param_taxonomy(_STRING_PROTOCOL, "center", "padding"),
+    )
 )
 
 

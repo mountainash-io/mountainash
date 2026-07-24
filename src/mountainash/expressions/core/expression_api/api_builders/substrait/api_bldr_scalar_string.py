@@ -447,6 +447,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         self,
         length: Union[BaseExpressionAPI, "ExpressionNode", Any, int],
         character: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any]] = None,
+        *,
+        padding: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """
         Center string by padding both sides.
@@ -456,21 +458,26 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Args:
             length: Target length.
             character: Padding character (default: space).
+            padding: Substrait padding option ({RIGHT, LEFT}; default RIGHT;
+                not honored by any backend).
 
         Returns:
             New ExpressionAPI with center node.
         """
+        options = _validated_options("center", padding=padding)
         length_node = self._to_substrait_node(length)
         if character is None:
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
                 arguments=[self._node, length_node],
+                options=options,
             )
         else:
             char_node = self._to_substrait_node(character)
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
                 arguments=[self._node, length_node, char_node],
+                options=options,
             )
         return self._build(node)
 

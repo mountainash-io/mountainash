@@ -124,6 +124,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         length: Union[BaseExpressionAPI, ExpressionNode, Any, int],
         character: Optional[Union[BaseExpressionAPI, ExpressionNode, Any]] = None,
+        *,
+        padding: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """Center string by padding sides.
 

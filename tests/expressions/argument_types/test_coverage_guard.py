@@ -799,6 +799,9 @@ for _case_sensitivity_op in (
     )
 
 _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+    ("SubstraitScalarStringExpressionSystemProtocol", "center", "padding")
+)
+_KNOWN_UNTESTED_OPTION_PARAMS.pop(
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")
 )
 for _overflow_op in (

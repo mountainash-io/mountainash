@@ -191,6 +191,46 @@ _BROKEN_STRING_OPS_BY_BACKEND: dict[CONST_BACKEND, frozenset[str]] = {
         {"capitalize", "swapcase", "title", "initcap", "center"}
     ),
 }
+_PADDING_VALUES = ("RIGHT", "LEFT")
+_PADDING_OP_BROKEN = (
+    "center is a no-op on this backend, so padding cannot be honored"
+)
+
+
+def _padding_facts(
+    backend: CONST_BACKEND, dialect: str | None
+) -> tuple[CapabilityFact, ...]:
+    facts = []
+    op_broken = _op_broken(backend, "center")
+    for value in _PADDING_VALUES:
+        if op_broken:
+            level, message = CapabilityLevel.UNSUPPORTED, _PADDING_OP_BROKEN
+        elif value == "RIGHT":
+            level = CapabilityLevel.EXPR_CAPABLE
+            message = (
+                "RIGHT is the builder default, so the explicit option is "
+                "observably equivalent to omission and cannot discriminate"
+            )
+        else:
+            level, message = CapabilityLevel.UNSUPPORTED, (
+                "The native backend does not implement LEFT padding semantics "
+                "for center"
+            )
+        if dialect is None and level is CapabilityLevel.EXPR_CAPABLE:
+            continue
+        facts.append(CapabilityFact(
+            operation_key=FK_STR.CENTER, param="padding", option_value=value,
+            level=level, backend=backend, dialect=dialect, message=message,
+            since=_SINCE,
+            probe_exempt=(
+                message
+                if level is CapabilityLevel.EXPR_CAPABLE
+                else None
+            ),
+        ))
+    return tuple(facts)
+
+
 _CHAR_SET_DEFAULT_EQUIVALENT = (
     "The builder default emits UTF8, so the explicit option is "
     "observably equivalent to omission and cannot discriminate"
@@ -326,6 +366,7 @@ def _dialect_facts(
         + regexp_enabled
         + positional
         + _char_set_facts(backend, dialect)
+        + _padding_facts(backend, dialect)
     )
 
 
@@ -373,7 +414,7 @@ _IBIS_FAMILY_DEFAULTS = tuple(
     for op, operation_key in operations.items()
     for values in (_REGEXP_FLAG_VALUES[param],)
     if op in _REGEXP_UNSUPPORTED_OPS
-) + _positional_facts(CONST_BACKEND.IBIS, None) + _char_set_facts(CONST_BACKEND.IBIS, None)
+) + _positional_facts(CONST_BACKEND.IBIS, None) + _char_set_facts(CONST_BACKEND.IBIS, None) + _padding_facts(CONST_BACKEND.IBIS, None)
 _NARWHALS_FACTS = tuple(
     fact
     for dialect in ("narwhals-polars", "narwhals-pandas")
