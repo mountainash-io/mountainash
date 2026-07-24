@@ -39,6 +39,8 @@ import pytest
 
 import mountainash as ma
 
+from mountainash.core.errors import InvalidOptionValueError
+
 # Canonical 4-fixture cross-backend set for datetime `unit` rounding
 # (per the spec): polars → polars, ibis → ibis-duckdb, narwhals-polars,
 # narwhals-pandas. The `1h` unit is portable core (honored uniformly on
@@ -114,3 +116,85 @@ class TestDatetimeUnitDispatch:
             f"[{backend_name}] {op}('1h') on {datetime(2026, 7, 21, 13, 37, 45)} "
             f"expected {[expected]!r}, got {got!r}"
         )
+
+
+# --------------------------------------------------------------------------
+# Task 2: friendly-word normalization + uniform rejection of bad units
+# --------------------------------------------------------------------------
+
+
+# Friendly aliases -> canonical Polars-style duration forms (single multiplier).
+# The api-builder now normalizes friendly -> duration before dispatch, so the
+# two spellings must produce identical results on every backend.
+_FRIENDLY_TO_DURATION: list[tuple[str, str]] = [
+    ("year", "1y"),
+    ("month", "1mo"),
+    ("day", "1d"),
+    ("hour", "1h"),
+    ("minute", "1m"),
+    ("second", "1s"),
+    ("week", "1w"),
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize(("friendly", "duration"), _FRIENDLY_TO_DURATION)
+def test_friendly_unit_normalizes_to_duration_on_polars(
+    friendly: str,
+    duration: str,
+    backend_factory,
+    collect_expr,
+) -> None:
+    """`truncate(<friendly>)` must produce the same value as `truncate(<duration>)` on polars.
+
+    Task 2 wire-up: friendly words were previously passed straight to the
+    backend, so the result depended on the backend (ibis accepted "month"
+    natively; polars raised). After normalization, both spellings are the
+    same canonical duration string before dispatch.
+    """
+    df = backend_factory.create(
+        {"ts": [datetime(2026, 7, 21, 13, 37, 45)]},
+        "polars",
+    )
+
+    friendly_result = collect_expr(
+        df,
+        ma.col("ts").dt.truncate(friendly).name.alias("r"),
+        alias="r",
+    )
+    duration_result = collect_expr(
+        df,
+        ma.col("ts").dt.truncate(duration).name.alias("r"),
+        alias="r",
+    )
+
+    assert friendly_result == duration_result, (
+        f"friendly {friendly!r} -> {friendly_result!r} should equal "
+        f"duration {duration!r} -> {duration_result!r}"
+    )
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("bad", ["fortnight", "13x", "2d", "3h", ""])
+def test_invalid_or_multiplier_unit_rejected_uniformly(
+    bad: str,
+    backend_factory,
+) -> None:
+    """`truncate(<bad>)` must raise InvalidOptionValueError uniformly.
+
+    Before Task 2:
+      - polars passed these through, so `truncate("2d")` and `truncate("3h")`
+        returned wrong/silent results (not rejected) — multiplier>1 must
+        raise.
+      - polars raised an opaque Polars engine error on `"fortnight"` / `"13x"`
+        instead of the typed mountainash `InvalidOptionValueError`.
+    After Task 2, the api-builder normalizes and validates `unit` against
+    `MA_OPTION_DOMAINS[(truncate, unit)]` and raises the typed error.
+    """
+    df = backend_factory.create(
+        {"ts": [datetime(2026, 7, 21, 13, 37, 45)]},
+        "polars",
+    )
+
+    with pytest.raises(InvalidOptionValueError):
+        ma.relation(df).select(ma.col("ts").dt.truncate(bad).name.alias("r")).to_polars()

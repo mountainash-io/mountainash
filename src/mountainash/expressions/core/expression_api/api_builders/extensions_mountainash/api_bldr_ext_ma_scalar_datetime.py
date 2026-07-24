@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder, _reject_expression
 
+from ._ma_option_domains import validate_ma_option
+
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
 )
@@ -709,7 +711,13 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (FLOOR)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Multiplier > 1 is not supported.
 
         Returns:
             New ExpressionAPI with truncate node.
@@ -718,7 +726,11 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
@@ -732,7 +744,13 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (ROUND_TIE_UP)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Multiplier > 1 is not supported.
 
         Returns:
             New ExpressionAPI with round node.
@@ -741,7 +759,11 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
@@ -755,7 +777,13 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (CEIL)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Multiplier > 1 is not supported.
 
         Returns:
             New ExpressionAPI with ceil node.
@@ -764,7 +792,11 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
@@ -778,7 +810,13 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (FLOOR)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Multiplier > 1 is not supported.
 
         Returns:
             New ExpressionAPI with floor node.
@@ -787,7 +825,11 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
