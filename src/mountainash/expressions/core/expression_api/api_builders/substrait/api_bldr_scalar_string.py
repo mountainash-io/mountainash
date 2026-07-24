@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
+    validate_option,
+)
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import SubstraitScalarStringAPIBuilderProtocol
@@ -18,6 +21,97 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait im
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
     from mountainash.expressions.core.expression_nodes import ExpressionNode
+
+
+def _require_int_option(op: str, name: str, value: Any) -> None:
+    """Validate a universally-literal integer option at the API-builder boundary.
+
+    The regexp ``position``/``occurrence``/``group`` knobs are option-channel
+    (no backend accepts an expression — see arguments-vs-options.md). Static
+    typing is the first line of defence; this runtime check rejects a caller
+    that bypasses the type checker (``# type: ignore``, dynamic dispatch, an
+    expression, or a stray string). ``bool`` is excluded because ``bool`` is a
+    subclass of ``int`` but is never a valid position/occurrence/group.
+    """
+    if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+        raise TypeError(
+            f"{op}({name}=...) requires a literal int, got {type(value).__name__}. "
+            f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+        )
+
+
+def _positional_options(**values: Any) -> dict[str, Any]:
+    """Retain only explicitly supplied regexp positional int options.
+
+    Omission must emit NO option key (not ``position=None``): the value-agnostic
+    ``UNSUPPORTED`` capability fact for an unsupported positional param resolves
+    for any value via the registry's ``(op, param, backend, dialect, None)``
+    fallback, and a lingering ``None`` key would make that fact gate the
+    omission path too.
+    """
+    return {name: value for name, value in values.items() if value is not None}
+
+
+def _require_bool_option(op: str, name: str, value: Any) -> None:
+    """Reject a non-boolean flag option at the API-builder boundary.
+
+    ``case_sensitive``/``multiline``/``dotall`` are literal boolean options.
+    Static typing is the first line of defence; this runtime check rejects a
+    caller that bypasses the type checker with an expression, an int, or any
+    arbitrary object — those must NOT be silently coerced to an enum through
+    truthiness (see arguments-vs-options.md). A ``str`` is permitted only as the
+    already-normalized enum form / invalid-value sentinel, validated downstream
+    by ``validate_option``. ``bool`` is a subclass of ``int``, so the explicit
+    ``bool`` check must precede any int handling.
+    """
+    if value is None or isinstance(value, (bool, str)):
+        return
+    raise TypeError(
+        f"{op}({name}=...) requires a bool, got {type(value).__name__}. "
+        f"Options must be raw Python values (see principle: arguments-vs-options.md)."
+    )
+
+
+def _validated_options(op_name: str, **values: Any) -> dict[str, str]:
+    """Validate and retain only explicitly supplied Substrait options."""
+    return {
+        name: validate_option(op_name, name, value)
+        for name, value in values.items()
+        if value is not None
+    }
+
+
+def _case_sensitivity_options(
+    op_name: str, case_sensitive: bool
+) -> dict[str, str]:
+    _require_bool_option(op_name, "case_sensitivity", case_sensitive)
+    return _validated_options(
+        op_name,
+        case_sensitivity=(
+            case_sensitive
+            if isinstance(case_sensitive, str)
+            else "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"
+        ),
+    )
+
+
+def _regexp_flag_options(op_name: str, **values: Any) -> dict[str, str]:
+    """Normalize regexp booleans and validate their Substrait enum options."""
+    enum_values = {
+        "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE"),
+        "multiline": ("MULTILINE_ENABLED", "MULTILINE_DISABLED"),
+        "dotall": ("DOTALL_ENABLED", "DOTALL_DISABLED"),
+    }
+    for name, value in values.items():
+        _require_bool_option(op_name, name, value)
+    normalized = {
+        name: value
+        if isinstance(value, str)
+        else enabled if value else disabled
+        for name, value in values.items()
+        for enabled, disabled in (enum_values[name],)
+    }
+    return _validated_options(op_name, **normalized)
 
 
 class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarStringAPIBuilderProtocol):
@@ -482,7 +576,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
             arguments=[self._node, substring_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("contains", case_sensitive),
         )
         return self._build(node)
 
@@ -507,7 +601,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
             arguments=[self._node, prefix_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("starts_with", case_sensitive),
         )
         return self._build(node)
 
@@ -532,7 +626,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
             arguments=[self._node, suffix_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("ends_with", case_sensitive),
         )
         return self._build(node)
 
@@ -557,7 +651,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
             arguments=[self._node, substring_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("strpos", case_sensitive),
         )
         return self._build(node)
 
@@ -582,7 +676,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
             arguments=[self._node, substring_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("count_substring", case_sensitive),
         )
         return self._build(node)
 
@@ -713,7 +807,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
             arguments=[self._node, old_node, new_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("replace", case_sensitive),
         )
         return self._build(node)
 
@@ -780,16 +874,16 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
             arguments=[self._node, pattern_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_case_sensitivity_options("like", case_sensitive),
         )
         return self._build(node)
 
     def regexp_match_substring(
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        position: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: Optional[bool] = True,
         multiline: Optional[bool] = False,
@@ -812,24 +906,28 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Returns:
             New ExpressionAPI with regexp_match_substring node.
         """
+        _require_int_option("regexp_match_substring", "position", position)
+        _require_int_option("regexp_match_substring", "occurrence", occurrence)
+        _require_int_option("regexp_match_substring", "group", group)
         pattern_node = self._to_substrait_node(pattern)
-        args = [self._node, pattern_node]
 
-        if position is not None:
-            args.append(self._to_substrait_node(position))
-        if occurrence is not None:
-            args.append(self._to_substrait_node(occurrence))
-        if group is not None:
-            args.append(self._to_substrait_node(group))
-
+        # position/occurrence/group are universally-literal (no backend accepts an
+        # expression) → option channel per arguments-vs-options.md. See the
+        # O-migrate rows in option_disposition.py: placing them in `arguments`
+        # silently visited a literal `group` into an Expr that collapsed to 0.
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
-            arguments=args,
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
-                     "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
-                     "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
-
-
+            arguments=[self._node, pattern_node],
+            options={
+                **_positional_options(
+                    position=position, occurrence=occurrence, group=group
+                ),
+                **_regexp_flag_options(
+                    "regexp_match_substring",
+                    case_sensitivity=case_sensitive,
+                    multiline=multiline,
+                    dotall=dotall,
+                ),
             },
         )
         return self._build(node)
@@ -850,16 +948,20 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Substrait: regexp_match_substring_all
         """
+        _require_int_option("regexp_match_substring_all", "position", position)
+        _require_int_option("regexp_match_substring_all", "group", group)
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
-                "group": group,
-                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
-                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
-                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+                **_positional_options(position=position, group=group),
+                **_regexp_flag_options(
+                    "regexp_match_substring_all",
+                    case_sensitivity=case_sensitive,
+                    multiline=multiline,
+                    dotall=dotall,
+                ),
             },
         )
         return self._build(node)
@@ -878,16 +980,20 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Substrait: regexp_strpos
         """
+        _require_int_option("regexp_strpos", "position", position)
+        _require_int_option("regexp_strpos", "occurrence", occurrence)
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
-                "occurrence": occurrence,
-                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
-                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
-                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+                **_positional_options(position=position, occurrence=occurrence),
+                **_regexp_flag_options(
+                    "regexp_strpos",
+                    case_sensitivity=case_sensitive,
+                    multiline=multiline,
+                    dotall=dotall,
+                ),
             },
         )
         return self._build(node)
@@ -905,15 +1011,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Substrait: regexp_count_substring
         """
+        _require_int_option("regexp_count_substring", "position", position)
         pattern_node = self._to_substrait_node(pattern)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
             arguments=[self._node, pattern_node],
             options={
-                "position": position,
-                "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
-                "multiline": "MULTILINE_ENABLED" if multiline else "MULTILINE_DISABLED",
-                "dotall": "DOTALL_ENABLED" if dotall else "DOTALL_DISABLED",
+                **_positional_options(position=position),
+                **_regexp_flag_options(
+                    "regexp_count_substring",
+                    case_sensitivity=case_sensitive,
+                    multiline=multiline,
+                    dotall=dotall,
+                ),
             },
         )
         return self._build(node)
@@ -924,9 +1034,12 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         replacement: Union[BaseExpressionAPI, "ExpressionNode", Any],
-        position: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitive: bool = True,
+        *,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """
         Replace occurrences matching regex pattern.
@@ -939,23 +1052,31 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
             position: Start position for search (1-indexed).
             occurrence: Which occurrence to replace (0 = all).
             case_sensitive: Case sensitivity (default: True).
+            multiline: Multiline mode (``^``/``$`` match line boundaries).
+            dotall: Dotall mode (``.`` matches newlines).
 
         Returns:
             New ExpressionAPI with regexp_replace node.
         """
+        _require_int_option("regexp_replace", "position", position)
+        _require_int_option("regexp_replace", "occurrence", occurrence)
         pattern_node = self._to_substrait_node(pattern)
         replacement_node = self._to_substrait_node(replacement)
-        args = [self._node, pattern_node, replacement_node]
 
-        if position is not None:
-            args.append(self._to_substrait_node(position))
-        if occurrence is not None:
-            args.append(self._to_substrait_node(occurrence))
-
+        # position/occurrence are universally-literal → option channel (unify;
+        # see arguments-vs-options.md and option_disposition.py O-migrate rows).
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
-            arguments=args,
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            arguments=[self._node, pattern_node, replacement_node],
+            options={
+                **_positional_options(position=position, occurrence=occurrence),
+                **_regexp_flag_options(
+                    "regexp_replace",
+                    case_sensitivity=case_sensitive,
+                    multiline=multiline,
+                    dotall=dotall,
+                ),
+            },
         )
         return self._build(node)
 
@@ -1012,6 +1133,9 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         self,
         pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         case_sensitive: bool = True,
+        *,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """
         Split string by regex pattern.
@@ -1021,6 +1145,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Args:
             pattern: Regular expression pattern for separator.
             case_sensitive: Case sensitivity (default: True).
+            multiline: Multiline mode (``^``/``$`` match line boundaries).
+            dotall: Dotall mode (``.`` matches newlines).
 
         Returns:
             New ExpressionAPI with regexp_string_split node.
@@ -1029,7 +1155,12 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
             arguments=[self._node, pattern_node],
-            options={"case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE"},
+            options=_regexp_flag_options(
+                "regexp_string_split",
+                case_sensitivity=case_sensitive,
+                multiline=multiline,
+                dotall=dotall,
+            ),
         )
         return self._build(node)
 

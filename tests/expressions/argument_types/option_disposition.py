@@ -4,6 +4,87 @@ This is test infrastructure shared by the arithmetic, string, and datetime
 option slices.  Expectations come from protocol introspection and named gaps;
 the disposition and probe registries are outputs checked against that scope,
 never inputs used to shrink it.
+
+String option-surface classification (PR-B Task 1)
+====================================================
+
+This is the authoritative classification of every
+``SubstraitScalarStringExpressionSystemProtocol`` entry in
+``_KNOWN_UNTESTED_OPTION_PARAMS``. FKEY names were verified against
+``function_keys/enums.py``; the channel is the current
+``ScalarFunctionNode`` AST channel in ``api_bldr_scalar_string.py``.
+
+| Operation | FKEY | Parameter | Class | Task / reason |
+| --- | --- | --- | --- | --- |
+| ``capitalize`` | ``CAPITALIZE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``center`` | ``CENTER`` | ``padding`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``concat`` | ``CONCAT`` | ``null_handling`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``contains`` | ``CONTAINS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``count_substring`` | ``COUNT_SUBSTRING`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``ends_with`` | ``ENDS_WITH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``initcap`` | ``INITCAP`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``like`` | ``LIKE`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``lower`` | ``LOWER`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_count_substring`` | ``REGEXP_COUNT`` | ``position`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``group`` | O-migrate | Currently argument-channel (phantom expr capability: a literal ``group`` is visited to an Expr and silently collapses to 0); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``occurrence`` | O-migrate | Currently argument-channel (universally literal, honored by no backend); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_match_substring`` | ``REGEXP_MATCH`` | ``position`` | O-migrate | Currently argument-channel (universally literal, honored by no backend); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``group`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_match_substring_all`` | ``REGEXP_MATCH_ALL`` | ``position`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``dotall`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``multiline`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``occurrence`` | O-migrate | Currently argument-channel (universally literal; a genuine Expr raises at ``if occurrence == 0``); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_replace`` | ``REGEXP_REPLACE`` | ``position`` | O-migrate | Currently argument-channel (universally literal, honored by no backend); migrate arguments→options, retyped ``Optional[int]`` (Task 2 unify), then disposition (Task 3). |
+| ``regexp_string_split`` | ``REGEXP_SPLIT`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_string_split`` | ``REGEXP_SPLIT`` | ``dotall`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_string_split`` | ``REGEXP_SPLIT`` | ``multiline`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``dotall`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``multiline`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``occurrence`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``regexp_strpos`` | ``REGEXP_STRPOS`` | ``position`` | O-live | Currently emitted in ``node.options``; behaviour-test (Task 3). |
+| ``replace`` | ``REPLACE`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``starts_with`` | ``STARTS_WITH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``strpos`` | ``STRPOS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
+| ``substring`` | ``SUBSTRING`` | ``negative_start`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``swapcase`` | ``SWAPCASE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``title`` | ``TITLE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``upper`` | ``UPPER`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+
+There are no N rows: the generated Substrait option source identifies every
+registered parameter above as an option for its operation. In particular,
+``char_set`` is not a no-op classification: it is a real option on the
+case-conversion operations, but those builders do not yet emit it.
+
+Channel unification (regexp ``position``/``occurrence``/``group``):
+Empirical backend audit found no backend accepts a column-reference expression
+for these knobs — they are universally literal-only, and honored by at most the
+literal case (polars/ibis ``group`` via ``str.extract``/``re_extract``). Yet
+``REGEXP_MATCH``/``REGEXP_MATCH_ALL``/``REGEXP_STRPOS``/``REGEXP_COUNT``/
+``REGEXP_REPLACE`` place them inconsistently: on ``node.options`` for
+MATCH_ALL/STRPOS/COUNT (raw ``Optional[int]``) but on ``arguments`` for
+MATCH/REPLACE (expression-typed). The arguments placement is a phantom
+capability that actively misbehaves: with no ``LITERAL_ONLY`` fact registered,
+the visitor visits even a literal (``LiteralNode`` is an ``ExpressionNode``)
+into a backend Expr, the backend ``isinstance(x, int)`` guard is then False,
+and a user-supplied ``group`` silently collapses to 0. Per
+``arguments-vs-options.md`` (universally-literal ⇒ MUST be an option), the five
+``O-migrate`` rows above are moved arguments→options and retyped ``Optional[int]``
+in Task 2 (a signature/channel change only — no ``CapabilityLevel.LITERAL_ONLY``
+fact, which in the options channel would make the value-aware gate raise
+unconditionally). After migration every regexp positional param is option-channel
+and is dispositioned in Task 3 (honor where the native API takes a literal — e.g.
+polars/ibis ``group`` — else a value-scoped ``UNSUPPORTED`` ``CapabilityFact``).
 """
 from __future__ import annotations
 
@@ -115,13 +196,17 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("atanh", "rounding"): ("float64",),
     ("cos", "rounding"): ("float64",),
     ("cosh", "rounding"): ("float64",),
+    ("contains", "case_sensitivity"): ("str",),
+    ("count_substring", "case_sensitivity"): ("str",),
     ("degrees", "rounding"): ("float64",),
     ("divide", "on_division_by_zero"): ("float64",),
     ("divide", "on_domain_error"): ("float64",),
     ("divide", "overflow"): ("int8",),
     ("divide", "rounding"): ("float64",),
     ("exp", "rounding"): ("float64",),
+    ("ends_with", "case_sensitivity"): ("str",),
     ("factorial", "overflow"): ("int8",),
+    ("like", "case_sensitivity"): ("str",),
     ("modulus", "division_type"): ("int64",),
     ("modulus", "on_domain_error"): ("int64",),
     ("modulus", "overflow"): ("int8",),
@@ -130,15 +215,81 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("negate", "overflow"): ("int8",),
     ("power", "overflow"): ("int64",),
     ("radians", "rounding"): ("float64",),
+    ("replace", "case_sensitivity"): ("str",),
+    ("regexp_count_substring", "case_sensitivity"): ("str",),
+    ("regexp_count_substring", "dotall"): ("str",),
+    ("regexp_count_substring", "multiline"): ("str",),
+    ("regexp_match_substring", "case_sensitivity"): ("str",),
+    ("regexp_match_substring", "dotall"): ("str",),
+    ("regexp_match_substring", "multiline"): ("str",),
+    ("regexp_match_substring_all", "case_sensitivity"): ("str",),
+    ("regexp_match_substring_all", "dotall"): ("str",),
+    ("regexp_match_substring_all", "multiline"): ("str",),
+    ("regexp_replace", "case_sensitivity"): ("str",),
+    ("regexp_replace", "dotall"): ("str",),
+    ("regexp_replace", "multiline"): ("str",),
+    ("regexp_string_split", "case_sensitivity"): ("str",),
+    ("regexp_string_split", "dotall"): ("str",),
+    ("regexp_string_split", "multiline"): ("str",),
+    ("regexp_strpos", "case_sensitivity"): ("str",),
+    ("regexp_strpos", "dotall"): ("str",),
+    ("regexp_strpos", "multiline"): ("str",),
+    # Regexp positional int options operate on string data columns, so the
+    # representative dtype is the operand dtype ("str"), NOT the option's own
+    # integer value type. The int value domain lives in OPTION_VALUE_DOMAINS.
+    ("regexp_count_substring", "position"): ("str",),
+    ("regexp_match_substring", "group"): ("str",),
+    ("regexp_match_substring", "occurrence"): ("str",),
+    ("regexp_match_substring", "position"): ("str",),
+    ("regexp_match_substring_all", "group"): ("str",),
+    ("regexp_match_substring_all", "position"): ("str",),
+    ("regexp_replace", "occurrence"): ("str",),
+    ("regexp_replace", "position"): ("str",),
+    ("regexp_strpos", "occurrence"): ("str",),
+    ("regexp_strpos", "position"): ("str",),
     ("sin", "rounding"): ("float64",),
     ("sinh", "rounding"): ("float64",),
     ("sqrt", "on_domain_error"): ("float64",),
     ("sqrt", "rounding"): ("float64",),
+    ("starts_with", "case_sensitivity"): ("str",),
+    ("strpos", "case_sensitivity"): ("str",),
     ("subtract", "overflow"): ("int8",),
     ("subtract", "rounding"): ("float64",),
     ("tan", "rounding"): ("float64",),
     ("tanh", "rounding"): ("float64",),
 }
+
+# Representative legal values for open-integer options that have NO finite
+# enum domain in the production OPTION_DOMAINS (position/occurrence/group are
+# validated by _require_int_option, not validate_option). This is test-only,
+# mirroring OPTION_DTYPES: the production domain map must stay truthful (an open
+# int has no enumerable legal set), so we supply a single representative value
+# for expected-cell expansion here rather than polluting _option_domains.py.
+# Value-scoped facts document/gate this representative (mirroring how enum
+# options enumerate their full domain); gating every possible integer would
+# require value-wildcard facts and is tracked as a backlog enhancement.
+OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("regexp_count_substring", "position"): ("2",),
+    ("regexp_match_substring", "group"): ("2",),
+    ("regexp_match_substring", "occurrence"): ("2",),
+    ("regexp_match_substring", "position"): ("2",),
+    ("regexp_match_substring_all", "group"): ("2",),
+    ("regexp_match_substring_all", "position"): ("2",),
+    ("regexp_replace", "occurrence"): ("2",),
+    ("regexp_replace", "position"): ("2",),
+    ("regexp_strpos", "occurrence"): ("2",),
+    ("regexp_strpos", "position"): ("2",),
+}
+
+# An option param draws its legal value domain from exactly one source: the
+# pinned production enum domain OR the test-only open-int representative domain.
+_domain_overlap = set(OPTION_DOMAINS) & set(OPTION_VALUE_DOMAINS)
+if _domain_overlap:
+    raise AssertionError(
+        f"option params in both OPTION_DOMAINS and OPTION_VALUE_DOMAINS: "
+        f"{sorted(_domain_overlap)}"
+    )
+
 
 _CELL_DISPOSITIONS = frozenset(
     {"honored", "declared_unsupported", "probe_exempt", "invalid"}
@@ -442,9 +593,13 @@ def expected_option_cells() -> set[CellKey]:
         if identity in known:
             continue
         operation = (protocol_param.op_name, protocol_param.param_name)
-        if operation not in OPTION_DOMAINS:
+        value_domain = OPTION_DOMAINS.get(operation) or OPTION_VALUE_DOMAINS.get(
+            operation
+        )
+        if value_domain is None:
             raise AssertionError(
-                f"unreasoned option param {identity} has no pinned OPTION_DOMAINS entry"
+                f"unreasoned option param {identity} has no pinned value domain "
+                "(OPTION_DOMAINS or OPTION_VALUE_DOMAINS)"
             )
         if operation not in OPTION_DTYPES:
             raise AssertionError(
@@ -459,7 +614,7 @@ def expected_option_cells() -> set[CellKey]:
         for fixture in ALL_BACKENDS:
             if fixture not in _FIXTURE_IDENTITY:
                 raise AssertionError(f"ALL_BACKENDS contains unknown option fixture {fixture!r}")
-            for value in OPTION_DOMAINS[operation]:
+            for value in value_domain:
                 for dtype in OPTION_DTYPES[operation]:
                     expected.add(
                         (fkey, protocol_param.param_name, fixture, value, dtype)

@@ -771,34 +771,9 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarStringExpressionSystemProtocol", "initcap", "char_set"),
         ("SubstraitScalarStringExpressionSystemProtocol", "like", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "lower", "char_set"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_count_substring", "position"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "group"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "occurrence"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring", "position"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "group"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_match_substring_all", "position"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "occurrence"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_replace", "position"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_string_split", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "dotall"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "multiline"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "occurrence"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "regexp_strpos", "position"),
+        # Regexp positional int options (position/occurrence/group) and the
+        # regexp_replace/regexp_string_split dotall/multiline flags are drained
+        # by the disposition matrices in test_arg_types_string.py.
         ("SubstraitScalarStringExpressionSystemProtocol", "replace", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),
@@ -811,6 +786,23 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),
     }
 }
+
+for _case_sensitivity_op in (
+    "contains",
+    "count_substring",
+    "ends_with",
+    "like",
+    "replace",
+    "starts_with",
+    "strpos",
+):
+    _KNOWN_UNTESTED_OPTION_PARAMS.pop(
+        (
+            "SubstraitScalarStringExpressionSystemProtocol",
+            _case_sensitivity_op,
+            "case_sensitivity",
+        )
+    )
 
 _KNOWN_UNTESTED_OPTION_PARAMS.pop(
     ("SubstraitScalarArithmeticExpressionSystemProtocol", "abs", "overflow")

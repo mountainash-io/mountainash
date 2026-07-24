@@ -279,10 +279,25 @@ def test_reasoned_introspected_param_is_the_only_expected_exclusion(monkeypatch)
     assert expected_option_cells() == set()
 
 
-def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -> None:
+def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> None:
+    # Every option param draws its legal value domain from exactly one owner:
+    # the pinned enum domain OPTION_DOMAINS or the open-int representative domain
+    # OPTION_VALUE_DOMAINS. Both must carry a representative dtype declaration.
+    owners = set(disposition.OPTION_DOMAINS) | set(disposition.OPTION_VALUE_DOMAINS)
     expected = {
         key: (
-            ("int64",)
+            ("str",)
+            if key[1]
+            in {
+                "case_sensitivity",
+                "multiline",
+                "dotall",
+                # Regexp positional int options operate on string data columns.
+                "position",
+                "occurrence",
+                "group",
+            }
+            else ("int64",)
             if key == ("power", "overflow")
             else ("int8",)
             if key[1] == "overflow"
@@ -294,10 +309,10 @@ def test_representative_dtype_policy_exactly_covers_arithmetic_domain_owners() -
             }
             else ("float64",)
         )
-        for key in disposition.OPTION_DOMAINS
+        for key in owners
     }
     assert disposition.OPTION_DTYPES == expected
-    assert set(disposition.OPTION_DTYPES) == set(disposition.OPTION_DOMAINS)
+    assert set(disposition.OPTION_DTYPES) == owners
 
 
 @pytest.mark.parametrize("value", ["ERROR", "SATURATE", "SILENT"])

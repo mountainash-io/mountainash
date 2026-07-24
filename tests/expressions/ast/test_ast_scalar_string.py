@@ -234,3 +234,38 @@ class TestStringAliases:
         expr = ma.col("x").str.strip_suffix("_suf")
         assert isinstance(expr._node, ScalarFunctionNode)
         assert expr._node.options == {"suffix": "_suf"}
+
+
+class TestRegexpPositionalOptionChannel:
+    """position/occurrence/group are universally-literal → option channel (unify).
+
+    Regression guard for the channel-unification: these params must land in
+    ``node.options`` as raw ints, never in ``node.arguments`` (where a literal
+    ``group`` was silently visited to an Expr and collapsed to 0). See
+    arguments-vs-options.md and option_disposition.py's O-migrate rows.
+    """
+
+    def test_regexp_match_substring_group_is_option(self):
+        node = ma.col("x").str.regexp_match_substring(r"(\d+)(\w+)", group=2)._node
+        assert isinstance(node, ScalarFunctionNode)
+        # only the receiver + pattern ride arguments
+        assert len(node.arguments) == 2
+        assert node.options.get("group") == 2
+
+    def test_regexp_match_substring_position_occurrence_are_options(self):
+        node = ma.col("x").str.regexp_match_substring(
+            r"\d+", position=3, occurrence=2
+        )._node
+        assert len(node.arguments) == 2
+        assert node.options.get("position") == 3
+        assert node.options.get("occurrence") == 2
+
+    def test_regexp_replace_position_occurrence_are_options(self):
+        node = ma.col("x").str.regexp_replace(
+            r"\d+", "X", position=3, occurrence=1
+        )._node
+        assert isinstance(node, ScalarFunctionNode)
+        # receiver + pattern + replacement only
+        assert len(node.arguments) == 3
+        assert node.options.get("position") == 3
+        assert node.options.get("occurrence") == 1

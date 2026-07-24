@@ -3,17 +3,880 @@ from __future__ import annotations
 
 import pytest
 
+import mountainash as ma
+from expressions.argument_types._option_helpers import (
+    OptionProbeDidNotDiscriminateError,
+    OptionSpec,
+    option_result,
+    xfail_option_unsupported,
+)
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types.option_disposition import (
+    INVALID_OPTION_VALUE,
+    OPTION_DISPOSITIONS,
+    OPTION_FAMILY_DEFAULT_FACT_KEYS,
+    REGISTERED_INVALID_OPTION_REJECTIONS,
+    REGISTERED_OPTION_PROBES,
+    InvalidOptionRejection,
+    OptionCell,
+    OptionProbeRegistration,
+    param_taxonomy,
+)
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.errors import InvalidOptionValueError
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
-from expressions.argument_types.conftest import ALL_BACKENDS
 from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
     run_argument_matrix,
     xfail_if_limited,
 )
+
+
+_STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
+_CASE_SENSITIVITY_FKEYS = {
+    "contains": FK_STR.CONTAINS,
+    "count_substring": FK_STR.COUNT_SUBSTRING,
+    "ends_with": FK_STR.ENDS_WITH,
+    "like": FK_STR.LIKE,
+    "replace": FK_STR.REPLACE,
+    "starts_with": FK_STR.STARTS_WITH,
+    "strpos": FK_STR.STRPOS,
+}
+_CASE_SENSITIVITY_DATA = {
+    "contains": {"text": ["Hello", "other"]},
+    "count_substring": {"text": ["Hello hello", "other"]},
+    "ends_with": {"text": ["say Hello", "other"]},
+    "like": {"text": ["say Hello", "other"]},
+    "replace": {"text": ["Hello hello", "other"]},
+    "starts_with": {"text": ["Hello there", "other"]},
+    "strpos": {"text": ["say Hello", "other"]},
+}
+_CASE_INSENSITIVE_HONORED_OPS = frozenset(
+    {"contains", "ends_with", "starts_with"}
+)
+_CASE_INSENSITIVE_DECLARED_OPS = (
+    frozenset(_CASE_SENSITIVITY_FKEYS) - _CASE_INSENSITIVE_HONORED_OPS
+)
+
+
+def _case_sensitivity_expr(op: str, case_sensitive: bool | None = None):
+    kwargs = {} if case_sensitive is None else {"case_sensitive": case_sensitive}
+    string = ma.col("text").str
+    if op == "contains":
+        return string.contains("hello", **kwargs)
+    if op == "count_substring":
+        return string.count_substring("hello", **kwargs)
+    if op == "ends_with":
+        return string.ends_with("hello", **kwargs)
+    if op == "like":
+        return string.like("%hello%", **kwargs)
+    if op == "replace":
+        return string.replace("hello", "X", **kwargs)
+    if op == "starts_with":
+        return string.starts_with("hello", **kwargs)
+    if op == "strpos":
+        return string.strpos("hello", **kwargs)
+    raise AssertionError(f"no case-sensitivity expression for {op}")
+
+
+def _case_sensitivity_probe(op: str, value: str) -> OptionSpec:
+    return OptionSpec(
+        _CASE_SENSITIVITY_FKEYS[op],
+        "case_sensitivity",
+        value,
+        "str",
+        lambda: _case_sensitivity_expr(op, value == "CASE_SENSITIVE"),
+        lambda: _case_sensitivity_expr(op),
+        _CASE_SENSITIVITY_DATA[op],
+        expected_discriminates=value == "CASE_INSENSITIVE",
+    )
+
+
+def _registered_case_sensitivity_probe(
+    op: str, value: str, backend: str
+) -> OptionSpec:
+    spec = _case_sensitivity_probe(op, value)
+    if (
+        value == "CASE_SENSITIVE"
+        and backend.startswith("narwhals")
+        and op in {"like", "replace"}
+    ):
+        # These two narwhals ops require their pattern/substring as a literal
+        # (gated LITERAL_ONLY on every narwhals dialect — the SQL-LIKE→regex
+        # conversion and literal replace happen Python-side). The native probe
+        # runs enforce_capabilities=False, which BYPASSES that gate, so the
+        # literal is visited into a narwhals Expr and the raw path raises
+        # ('Expr' has no attribute 'replace' for like; an Expr-literal TypeError
+        # for replace) — identically for BOTH the explicit-CASE_SENSITIVE and
+        # omission builds, independent of case_sensitivity. That identical raise
+        # is the probe-exempt equivalence in the raw path; the value-equivalence
+        # of CASE_SENSITIVE to omission is separately verified on the GATED path
+        # by test_case_sensitive_string_option_matches_omission. Controller-
+        # authorised refinement of the locked disposition (gate-requiring ops
+        # cannot be natively probed). Self-heals: if narwhals ever compiles these
+        # raw, the "did not raise" assertion fires.
+        return spec._replace(
+            expected_native_exception=(
+                AttributeError if op == "like" else TypeError
+            )
+        )
+    return spec
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_HONORED_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_insensitive_string_option_discriminates(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_DECLARED_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_insensitive_string_option_declared_unsupported(
+    op, backend, request
+):
+    spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
+    request.applymarker(
+        xfail_option_unsupported(
+            spec.fkey, spec.option_param, spec.option_value, backend
+        )
+    )
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_SENSITIVITY_FKEYS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_sensitive_string_option_matches_omission(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_SENSITIVE")
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) == option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+_CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE")
+_CASE_INSENSITIVE_NATIVE_FAILURES = {
+    (op, backend): (
+        AttributeError
+        if op == "like" and backend.startswith("narwhals")
+        else TypeError
+        if op == "replace" and backend.startswith("narwhals")
+        else OptionProbeDidNotDiscriminateError
+    )
+    for op in _CASE_INSENSITIVE_DECLARED_OPS
+    for backend in ALL_BACKENDS
+}
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        backend,
+        value,
+        "str",
+        (
+            "probe_exempt"
+            if value == "CASE_SENSITIVE"
+            else "honored"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "declared_unsupported"
+        ),
+        (
+            "builder-default CASE_SENSITIVE is indistinguishable from omission"
+            if value == "CASE_SENSITIVE"
+            else "native backend implements CASE_INSENSITIVE semantics"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "native backend does not implement CASE_INSENSITIVE semantics"
+        ),
+    )
+    for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
+    for backend in ALL_BACKENDS
+    for value in _CASE_SENSITIVITY_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _registered_case_sensitivity_probe(op, value, backend),
+        backend,
+        (
+            "probe_exempt"
+            if value == "CASE_SENSITIVE"
+            else "honored"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "declared_unsupported"
+        ),
+        (
+            _CASE_INSENSITIVE_NATIVE_FAILURES[(op, backend)]
+            if value == "CASE_INSENSITIVE"
+            and op in _CASE_INSENSITIVE_DECLARED_OPS
+            else None
+        ),
+    )
+    for op in _CASE_SENSITIVITY_FKEYS
+    for backend in ALL_BACKENDS
+    for value in _CASE_SENSITIVITY_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        _CASE_SENSITIVITY_FKEYS[op],
+        "case_sensitivity",
+        "CASE_INSENSITIVE",
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for op in _CASE_INSENSITIVE_DECLARED_OPS
+)
+
+_INVALID_CASE_SENSITIVITY_REJECTIONS = [
+    InvalidOptionRejection(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op: _case_sensitivity_expr(op, INVALID_OPTION_VALUE),
+    )
+    for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(
+    _INVALID_CASE_SENSITIVITY_REJECTIONS
+)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_CASE_SENSITIVITY_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_CASE_SENSITIVITY_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_string_canonical_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS = [
+    (
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        param_taxonomy(_STRING_PROTOCOL, op, "case_sensitivity"),
+    )
+    for op in _CASE_SENSITIVITY_FKEYS
+]
+
+
+_REGEXP_FLAG_FKEYS = {
+    "case_sensitivity": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+    "multiline": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+    "dotall": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+}
+_REGEXP_FLAG_VALUES = {
+    "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE"),
+    "multiline": ("MULTILINE_DISABLED", "MULTILINE_ENABLED"),
+    "dotall": ("DOTALL_DISABLED", "DOTALL_ENABLED"),
+}
+_REGEXP_FLAG_DEFAULTS = {
+    "case_sensitivity": "CASE_SENSITIVE",
+    "multiline": "MULTILINE_DISABLED",
+    "dotall": "DOTALL_DISABLED",
+}
+_REGEXP_FLAG_DATA = {
+    "case_sensitivity": ({"text": ["Hello"]}, "hello"),
+    "multiline": ({"text": ["a\nb"]}, "^b"),
+    "dotall": ({"text": ["a\nb"]}, "a.b"),
+}
+_REGEXP_UNSUPPORTED_OPS = frozenset(
+    {
+        "regexp_match_substring_all",
+        "regexp_strpos",
+        "regexp_count_substring",
+    }
+)
+
+
+def _regexp_operation_unsupported(op: str, backend: str) -> bool:
+    return op in _REGEXP_UNSUPPORTED_OPS and backend != "polars"
+
+
+def _regexp_flag_disposition(op: str, param: str, value: str, backend: str) -> str:
+    if _regexp_operation_unsupported(op, backend):
+        return "declared_unsupported"
+    if value == _REGEXP_FLAG_DEFAULTS[param]:
+        return "probe_exempt"
+    return "declared_unsupported"
+
+
+def _regexp_flag_expr(op: str, param: str, value: str | None = None):
+    """Build a regexp flag expression, omitting the flag when value is None."""
+    kwargs = {}
+    if value is not None:
+        kwargs = {
+            {
+                "case_sensitivity": "case_sensitive",
+                "multiline": "multiline",
+                "dotall": "dotall",
+            }[param]: (
+                value == _REGEXP_FLAG_DEFAULTS[param]
+                if param == "case_sensitivity"
+                else value == _REGEXP_FLAG_VALUES[param][1]
+            )
+        }
+    _, pattern = _REGEXP_FLAG_DATA[param]
+    string = ma.col("text").str
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    if op == "regexp_string_split":
+        return string.regexp_string_split(pattern, **kwargs)
+    raise AssertionError(f"no regexp flag expression for {op}")
+
+
+def _regexp_flag_probe(op: str, param: str, value: str) -> OptionSpec:
+    data, _ = _REGEXP_FLAG_DATA[param]
+    return OptionSpec(
+        _REGEXP_FLAG_FKEYS[param][op],
+        param,
+        value,
+        "str",
+        lambda: _regexp_flag_expr(op, param, value),
+        lambda: _regexp_flag_expr(op, param),
+        data,
+        expected_discriminates=value != _REGEXP_FLAG_DEFAULTS[param],
+    )
+
+
+def _regexp_flag_native_exception(op: str, backend: str):
+    if _regexp_operation_unsupported(op, backend):
+        return BackendCapabilityError
+    if op == "regexp_replace" and backend.startswith("narwhals"):
+        return TypeError
+    return None
+
+
+def _registered_regexp_flag_probe(
+    op: str, param: str, value: str, backend: str
+) -> OptionSpec:
+    spec = _regexp_flag_probe(op, param, value)
+    native_exception = _regexp_flag_native_exception(op, backend)
+    if (
+        native_exception is not None
+        and value == _REGEXP_FLAG_DEFAULTS[param]
+        and not _regexp_operation_unsupported(op, backend)
+    ):
+        # Narwhals regexp_replace runs on the public gated path, but its raw,
+        # gate-bypassing literal path raises identically for explicit-default
+        # and omission. Keep that runnable operation probe-exempt; declared
+        # probes leave their raw exceptions to the strict xfail registration.
+        return spec._replace(expected_native_exception=native_exception)
+    return spec
+
+
+@pytest.mark.parametrize(
+    "param,op",
+    [
+        (param, op)
+        for param, operations in _REGEXP_FLAG_FKEYS.items()
+        for op in operations
+    ],
+)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_default_regexp_flag_matches_omission(param, op, backend):
+    default = _REGEXP_FLAG_DEFAULTS[param]
+    spec = _regexp_flag_probe(op, param, default)
+    df = make_df(spec.data, backend)
+    if _regexp_operation_unsupported(op, backend):
+        # Both builds emit the default enum value, whose dialect-scoped option
+        # fact now blocks dispatch before the unavailable backend method runs.
+        for expression in (spec.build_expr(), spec.reference_expr()):
+            with pytest.raises(BackendCapabilityError) as exc_info:
+                option_result(df, expression, backend)
+            limitation = exc_info.value.limitation
+            assert limitation is not None
+            assert limitation.operation_key is spec.fkey
+            assert limitation.param in _REGEXP_FLAG_FKEYS
+            assert (
+                limitation.option_value
+                == _REGEXP_FLAG_DEFAULTS[limitation.param]
+            )
+            assert limitation.level.name == "UNSUPPORTED"
+        return
+
+    assert option_result(df, spec.build_expr(), backend) == option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize(
+    "param,op",
+    [
+        (param, op)
+        for param, operations in _REGEXP_FLAG_FKEYS.items()
+        for op in operations
+    ],
+)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_enabled_regexp_flag_declared_unsupported(param, op, backend, request):
+    enabled = _REGEXP_FLAG_VALUES[param][1]
+    spec = _regexp_flag_probe(op, param, enabled)
+    request.applymarker(
+        xfail_option_unsupported(
+            spec.fkey, spec.option_param, spec.option_value, backend
+        )
+    )
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+def _regexp_flag_invalid_expr(op: str, param: str):
+    keyword = {
+        "case_sensitivity": "case_sensitive",
+        "multiline": "multiline",
+        "dotall": "dotall",
+    }[param]
+    _, pattern = _REGEXP_FLAG_DATA[param]
+    string = ma.col("text").str
+    kwargs = {keyword: INVALID_OPTION_VALUE}
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    if op == "regexp_string_split":
+        return string.regexp_string_split(pattern, **kwargs)
+    raise AssertionError(f"no regexp flag expression for {op}")
+
+
+_INVALID_REGEXP_FLAG_REJECTIONS = [
+    InvalidOptionRejection(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        param,
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op, param=param: _regexp_flag_invalid_expr(op, param),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_REGEXP_FLAG_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_REGEXP_FLAG_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_REGEXP_FLAG_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_regexp_flag_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        param,
+        backend,
+        value,
+        "str",
+        _regexp_flag_disposition(op, param, value, backend),
+        (
+            "operation is unsupported on this backend; the option cannot be honored"
+            if _regexp_operation_unsupported(op, backend)
+            else f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is "
+            "indistinguishable from omission"
+            if value == _REGEXP_FLAG_DEFAULTS[param]
+            else f"native backend does not implement {value} semantics"
+        ),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+    for backend in ALL_BACKENDS
+    for value in _REGEXP_FLAG_VALUES[param]
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _registered_regexp_flag_probe(op, param, value, backend),
+        backend,
+        _regexp_flag_disposition(op, param, value, backend),
+        (
+            _regexp_flag_native_exception(op, backend)
+            if _regexp_flag_native_exception(op, backend) is not None
+            else OptionProbeDidNotDiscriminateError
+        )
+        if _regexp_flag_disposition(op, param, value, backend)
+        == "declared_unsupported"
+        else None,
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+    for value in _REGEXP_FLAG_VALUES[param]
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        fkey,
+        param,
+        _REGEXP_FLAG_VALUES[param][1],
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for fkey in operations.values()
+)
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        fkey,
+        param,
+        _REGEXP_FLAG_DEFAULTS[param],
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+    if op in _REGEXP_UNSUPPORTED_OPS
+)
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        param,
+        param_taxonomy(_STRING_PROTOCOL, op, param),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op in operations
+)
+
+
+# ============================================================================
+# Regexp positional int options (position / occurrence / group)
+# ----------------------------------------------------------------------------
+# arguments-vs-options.md unified these universally-literal knobs onto the
+# option channel (see the channel-unification bugfix). They carry open integer
+# values rather than an enum domain, so the disposition matrix gates a single
+# representative value ("2"), mirroring how enum options enumerate their finite
+# domain (see OPTION_VALUE_DOMAINS in option_disposition.py). Empirically only
+# regexp_match_substring.group (polars + ibis) and regexp_replace.occurrence
+# (polars) are honored; every other (op, param, backend) is silently ignored or
+# rides an operation that is itself unavailable, so it is declared_unsupported.
+# ============================================================================
+_POSITIONAL_FKEYS = {
+    "position": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "occurrence": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "group": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+    },
+}
+_POSITIONAL_VALUE = "2"
+# Data + pattern chosen so the honored (op, param) cells actually discriminate:
+# group needs capture groups; occurrence needs a repeated match.
+_POSITIONAL_DATA = {
+    "position": ({"text": ["abcABCabc"]}, "abc"),
+    "occurrence": ({"text": ["abcABCabc"]}, "abc"),
+    "group": ({"text": ["abcABCabc"]}, "(a)(b)(c)"),
+}
+# (op, param, fixture) triples honored on the native path (probe-determined).
+_POSITIONAL_HONORED = {
+    ("regexp_match_substring", "group", "polars"),
+    ("regexp_match_substring", "group", "ibis"),
+    ("regexp_replace", "occurrence", "polars"),
+}
+_POSITIONAL_CASES = [
+    (param, op)
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+]
+
+
+def _positional_expr(op: str, param: str, value: str | None):
+    """Build a regexp positional-option expression, omitting when value is None.
+
+    The cell/fact value is the string ``"2"``; the builder consumes a literal
+    int, so a legal value is coerced with ``int`` while the INVALID sentinel is
+    passed through verbatim to exercise ``_require_int_option``'s rejection.
+    """
+    if value is None:
+        kwargs = {}
+    elif value == INVALID_OPTION_VALUE:
+        kwargs = {param: value}
+    else:
+        kwargs = {param: int(value)}
+    _, pattern = _POSITIONAL_DATA[param]
+    string = ma.col("text").str
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    raise AssertionError(f"no regexp positional expression for {op}")
+
+
+def _positional_disposition(op: str, param: str, backend: str) -> str:
+    if (op, param, backend) in _POSITIONAL_HONORED:
+        return "honored"
+    return "declared_unsupported"
+
+
+def _positional_native_failure(op: str, backend: str):
+    if _regexp_operation_unsupported(op, backend):
+        return BackendCapabilityError
+    if op == "regexp_replace" and backend.startswith("narwhals"):
+        # regexp_replace is gate-requiring on narwhals (LITERAL_ONLY pattern);
+        # the raw, gate-bypassing path raises TypeError for any positional value.
+        return TypeError
+    return OptionProbeDidNotDiscriminateError
+
+
+def _positional_probe(op: str, param: str, value: str) -> OptionSpec:
+    data, _ = _POSITIONAL_DATA[param]
+    return OptionSpec(
+        _POSITIONAL_FKEYS[param][op],
+        param,
+        value,
+        "str",
+        lambda: _positional_expr(op, param, value),
+        lambda: _positional_expr(op, param, None),
+        data,
+        expected_discriminates=True,
+    )
+
+
+@pytest.mark.parametrize("param,op", _POSITIONAL_CASES)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_positional_option_disposition(param, op, backend, request):
+    spec = _positional_probe(op, param, _POSITIONAL_VALUE)
+    if _positional_disposition(op, param, backend) == "declared_unsupported":
+        request.applymarker(
+            xfail_option_unsupported(
+                spec.fkey, spec.option_param, spec.option_value, backend
+            )
+        )
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _POSITIONAL_FKEYS[param][op],
+        _STRING_PROTOCOL,
+        op,
+        param,
+        backend,
+        _POSITIONAL_VALUE,
+        "str",
+        _positional_disposition(op, param, backend),
+        (
+            "native backend honors the regexp positional option"
+            if _positional_disposition(op, param, backend) == "honored"
+            else "operation is unsupported on this backend; the option cannot "
+            "be honored"
+            if _regexp_operation_unsupported(op, backend)
+            else "native backend silently ignores the regexp positional option"
+        ),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _positional_probe(op, param, _POSITIONAL_VALUE),
+        backend,
+        _positional_disposition(op, param, backend),
+        _positional_native_failure(op, backend)
+        if _positional_disposition(op, param, backend) == "declared_unsupported"
+        else None,
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (
+        _POSITIONAL_FKEYS[param][op],
+        param,
+        _POSITIONAL_VALUE,
+        CONST_BACKEND.IBIS,
+        None,
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    if (op, param, "ibis") not in _POSITIONAL_HONORED
+)
+
+_INVALID_POSITIONAL_REJECTIONS = [
+    InvalidOptionRejection(
+        _POSITIONAL_FKEYS[param][op],
+        _STRING_PROTOCOL,
+        op,
+        param,
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op, param=param: _positional_expr(
+            op, param, INVALID_OPTION_VALUE
+        ),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_POSITIONAL_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_POSITIONAL_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_POSITIONAL_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_positional_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    # position/occurrence/group route through _require_int_option, which raises
+    # TypeError for a non-int literal (the enum flags use validate_option and
+    # raise InvalidOptionValueError instead).
+    with pytest.raises(TypeError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        param,
+        param_taxonomy(_STRING_PROTOCOL, op, param),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+)
+
 
 # Full set of (function_key_or_op_name, param_name) pairs covered by this category.
 # String fallbacks are used for ops that lack a matching FKEY enum member yet.
@@ -480,30 +1343,12 @@ OP_SPECS: list[OpSpec] = [
             "sep": [",", ",", ","],
         },
     ),
-    OpSpec(
-        function_key=FK_STR.REGEXP_REPLACE,
-        op_name="regexp_replace_position",
-        build=lambda col, arg: col.str.regexp_replace("o+", "X", position=arg),
-        raw_arg=0,
-        arg_col_name="pos",
-        param_name="position",
-        data={
-            "text": ["hello", "foooo", "world"],
-            "pos": [0, 0, 0],
-        },
-    ),
-    OpSpec(
-        function_key=FK_STR.REGEXP_REPLACE,
-        op_name="regexp_replace_occurrence",
-        build=lambda col, arg: col.str.regexp_replace("o+", "X", occurrence=arg),
-        raw_arg=1,
-        arg_col_name="occ",
-        param_name="occurrence",
-        data={
-            "text": ["hello", "foooo", "world"],
-            "occ": [1, 1, 1],
-        },
-    ),
+    # regexp_replace position/occurrence were argument-type OpSpecs here, but the
+    # channel-unification moved them to the option channel (Optional[int]) — no
+    # backend accepts an expression for them, and the arguments placement silently
+    # dropped literals. They are now tracked by the option-surface matrix
+    # (_KNOWN_UNTESTED_OPTION_PARAMS → dispositioned in the option task), not the
+    # argument-types matrix. See option_disposition.py O-migrate rows.
     # -- Newly-wired regex + split ops --
     OpSpec(
         function_key=FK_STR.REGEXP_MATCH_ALL,

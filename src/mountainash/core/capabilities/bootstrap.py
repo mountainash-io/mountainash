@@ -15,6 +15,7 @@ import importlib
 
 _DECLARATION_MODULES = (
     "mountainash.expressions.backends.expression_systems.arithmetic_option_capabilities",
+    "mountainash.expressions.backends.expression_systems.string_option_capabilities",
     "mountainash.expressions.backends.expression_systems.polars.base",
     "mountainash.expressions.backends.expression_systems.ibis_capabilities",
     "mountainash.expressions.backends.expression_systems.narwhals.base",
