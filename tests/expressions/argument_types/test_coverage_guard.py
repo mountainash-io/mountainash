@@ -762,15 +762,12 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarLogarithmicExpressionSystemProtocol", "logb", "rounding"),
         ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "rounding"),
         ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "s"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "capitalize", "char_set"),
         ("SubstraitScalarStringExpressionSystemProtocol", "center", "padding"),
         ("SubstraitScalarStringExpressionSystemProtocol", "concat", "null_handling"),
         ("SubstraitScalarStringExpressionSystemProtocol", "contains", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "count_substring", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "ends_with", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "initcap", "char_set"),
         ("SubstraitScalarStringExpressionSystemProtocol", "like", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "lower", "char_set"),
         # Regexp positional int options (position/occurrence/group) and the
         # regexp_replace/regexp_string_split dotall/multiline flags are drained
         # by the disposition matrices in test_arg_types_string.py.
@@ -778,9 +775,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "substring", "negative_start"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "swapcase", "char_set"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "title", "char_set"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "upper", "char_set"),
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "dense_rank", "descending"),
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "rank", "descending"),
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),

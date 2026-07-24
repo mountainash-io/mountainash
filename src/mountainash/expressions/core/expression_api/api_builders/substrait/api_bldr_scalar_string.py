@@ -169,11 +169,15 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     # Case Conversion
     # ========================================
 
-    def lower(self) -> BaseExpressionAPI:
+    def lower(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """
         Convert to lowercase.
 
         Substrait: lower
+
+        Args:
+            char_set: Optional Substrait char_set option ({UTF8, ASCII_ONLY};
+                default UTF8). No backend honors ASCII_ONLY.
 
         Returns:
             New ExpressionAPI with lower node.
@@ -181,14 +185,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
             arguments=[self._node],
+            options=_validated_options("lower", char_set=char_set),
         )
         return self._build(node)
 
-    def upper(self) -> BaseExpressionAPI:
+    def upper(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """
         Convert to uppercase.
 
         Substrait: upper
+
+        Args:
+            char_set: Optional Substrait char_set option ({UTF8, ASCII_ONLY};
+                default UTF8). No backend honors ASCII_ONLY.
 
         Returns:
             New ExpressionAPI with upper node.
@@ -196,14 +205,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
             arguments=[self._node],
+            options=_validated_options("upper", char_set=char_set),
         )
         return self._build(node)
 
-    def swapcase(self) -> BaseExpressionAPI:
+    def swapcase(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """
         Swap case of characters (upper to lower and vice versa).
 
         Substrait: swapcase
+
+        Args:
+            char_set: Optional Substrait char_set option ({UTF8, ASCII_ONLY};
+                default UTF8). No backend honors ASCII_ONLY.
 
         Returns:
             New ExpressionAPI with swapcase node.
@@ -211,14 +225,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
             arguments=[self._node],
+            options=_validated_options("swapcase", char_set=char_set),
         )
         return self._build(node)
 
-    def capitalize(self) -> BaseExpressionAPI:
+    def capitalize(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """
         Capitalize first character.
 
         Substrait: capitalize
+
+        Args:
+            char_set: Optional Substrait char_set option ({UTF8, ASCII_ONLY};
+                default UTF8). No backend honors ASCII_ONLY.
 
         Returns:
             New ExpressionAPI with capitalize node.
@@ -226,14 +245,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
             arguments=[self._node],
+            options=_validated_options("capitalize", char_set=char_set),
         )
         return self._build(node)
 
-    def title(self) -> BaseExpressionAPI:
+    def title(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """
-        Convert to title case (except articles).
+        Title case (except articles).
 
         Substrait: title
+
+        Args:
+            char_set: Optional Substrait char_set option ({UTF8, ASCII_ONLY};
+                default UTF8). No backend honors ASCII_ONLY.
 
         Returns:
             New ExpressionAPI with title node.
@@ -241,14 +265,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
             arguments=[self._node],
+            options=_validated_options("title", char_set=char_set),
         )
         return self._build(node)
 
-    def initcap(self) -> BaseExpressionAPI:
+    def initcap(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """
         Capitalize first character of each word.
 
         Substrait: initcap
+
+        Args:
+            char_set: Optional Substrait char_set option ({UTF8, ASCII_ONLY};
+                default UTF8). No backend honors ASCII_ONLY.
 
         Returns:
             New ExpressionAPI with initcap node.
@@ -256,6 +285,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
             arguments=[self._node],
+            options=_validated_options("initcap", char_set=char_set),
         )
         return self._build(node)
 

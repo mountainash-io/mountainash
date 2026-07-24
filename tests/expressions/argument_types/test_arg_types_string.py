@@ -300,6 +300,192 @@ TESTED_OPTION_PARAMS = [
 ]
 
 
+_CHAR_SET_OPS = {
+    "lower": FK_STR.LOWER,
+    "upper": FK_STR.UPPER,
+    "swapcase": FK_STR.SWAPCASE,
+    "capitalize": FK_STR.CAPITALIZE,
+    "title": FK_STR.TITLE,
+    "initcap": FK_STR.INITCAP,
+}
+_CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
+_CHAR_SET_DATA = {"t": ["ÄBC"]}
+# Per-backend broken case ops (mirrors _BROKEN_STRING_OPS_BY_BACKEND in
+# string_option_capabilities.py). A broken op cannot honor ANY char_set option.
+_CHAR_SET_BROKEN: dict[str, frozenset[str]] = {
+    "ibis": frozenset({"swapcase", "title", "initcap"}),
+    "narwhals-polars": frozenset({"capitalize", "swapcase", "title", "initcap"}),
+    "narwhals-pandas": frozenset({"capitalize", "swapcase", "title", "initcap"}),
+}
+
+
+def _char_set_broken(op: str, backend: str) -> bool:
+    return op in _CHAR_SET_BROKEN.get(backend, frozenset())
+
+
+def _char_set_disposition(op: str, value: str, backend: str) -> str:
+    if _char_set_broken(op, backend):
+        return "declared_unsupported"
+    return "probe_exempt" if value == "UTF8" else "declared_unsupported"
+
+
+def _char_set_expr(op: str, char_set: str | None = None):
+    kwargs = {} if char_set is None else {"char_set": char_set}
+    return getattr(ma.col("t").str, op)(**kwargs)
+
+
+def _char_set_probe(op: str, value: str, backend: str) -> OptionSpec:
+    fkey = _CHAR_SET_OPS[op]
+    # On a broken pair the entire op is a no-op, so UTF8 is NOT equivalent to
+    # omission (both return unchanged input, but the op itself is broken).
+    # expected_discriminates=True ensures the native probe raises on broken
+    # pairs, matching the declared_unsupported disposition.
+    discriminate = value == "ASCII_ONLY" or _char_set_broken(op, backend)
+    return OptionSpec(
+        fkey,
+        "char_set",
+        value,
+        "str",
+        lambda: _char_set_expr(op, value),
+        lambda: _char_set_expr(op),
+        _CHAR_SET_DATA,
+        expected_discriminates=discriminate,
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_ascii_only_declared_unsupported(op, backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _CHAR_SET_OPS[op], "char_set", "ASCII_ONLY", backend))
+    df = make_df(_CHAR_SET_DATA, backend)
+    got = option_result(df, _char_set_expr(op, "ASCII_ONLY"), backend)
+    reference = option_result(df, _char_set_expr(op), backend)
+    assert got == reference
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_utf8_equivalent_to_omission(op, backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _CHAR_SET_OPS[op], "char_set", "UTF8", backend))
+    df = make_df(_CHAR_SET_DATA, backend)
+    assert option_result(df, _char_set_expr(op, "UTF8"), backend) \
+        == option_result(df, _char_set_expr(op), backend)
+
+
+def _char_set_native_failure(op: str, backend: str) -> type[BaseException] | None:
+    if _char_set_broken(op, backend):
+        if backend == "ibis" and op == "initcap":
+            return AttributeError
+        return OptionProbeDidNotDiscriminateError
+    return OptionProbeDidNotDiscriminateError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _CHAR_SET_OPS[op],
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        backend,
+        value,
+        "str",
+        _char_set_disposition(op, value, backend),
+        (
+            "op is broken on this backend; char_set cannot be honored"
+            if _char_set_broken(op, backend)
+            else "builder-default UTF8 is indistinguishable from omission"
+            if value == "UTF8"
+            else "native backend does not implement ASCII_ONLY char_set semantics"
+        ),
+    )
+    for op in _CHAR_SET_OPS
+    for backend in ALL_BACKENDS
+    for value in _CHAR_SET_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _char_set_probe(op, value, backend),
+        backend,
+        _char_set_disposition(op, value, backend),
+        _char_set_native_failure(op, backend)
+        if _char_set_disposition(op, value, backend) == "declared_unsupported"
+        else None,
+    )
+    for op in _CHAR_SET_OPS
+    for backend in ALL_BACKENDS
+    for value in _CHAR_SET_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_CHAR_SET_OPS[op], "char_set", value, CONST_BACKEND.IBIS, None)
+    for op in ("swapcase", "title", "initcap")
+    for value in _CHAR_SET_VALUES
+)
+# Working ops on ibis: ASCII_ONLY is UNSUPPORTED as a family default
+# (UTF8 is EXPR_CAPABLE only dialect-scoped via _dialect_facts).
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_CHAR_SET_OPS[op], "char_set", "ASCII_ONLY", CONST_BACKEND.IBIS, None)
+    for op in ("lower", "upper", "capitalize")
+)
+
+_INVALID_CHAR_SET_REJECTIONS = [
+    InvalidOptionRejection(
+        _CHAR_SET_OPS[op],
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op: _char_set_expr(op, INVALID_OPTION_VALUE),
+    )
+    for op in _CHAR_SET_OPS
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_CHAR_SET_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_CHAR_SET_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_CHAR_SET_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_char_set_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        param_taxonomy(_STRING_PROTOCOL, op, "char_set"),
+    )
+    for op in _CHAR_SET_OPS
+)
+
+
 _REGEXP_FLAG_FKEYS = {
     "case_sensitivity": {
         "regexp_match_substring": FK_STR.REGEXP_MATCH,

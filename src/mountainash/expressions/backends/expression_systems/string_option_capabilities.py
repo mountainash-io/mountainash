@@ -180,6 +180,67 @@ def _positional_facts(
     return tuple(facts)
 
 
+_CHAR_SET_KEYS = {
+    "lower": FK_STR.LOWER, "upper": FK_STR.UPPER, "swapcase": FK_STR.SWAPCASE,
+    "capitalize": FK_STR.CAPITALIZE, "title": FK_STR.TITLE, "initcap": FK_STR.INITCAP,
+}
+_CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
+_BROKEN_STRING_OPS_BY_BACKEND: dict[CONST_BACKEND, frozenset[str]] = {
+    CONST_BACKEND.IBIS: frozenset({"swapcase", "title", "initcap"}),
+    CONST_BACKEND.NARWHALS: frozenset(
+        {"capitalize", "swapcase", "title", "initcap", "center"}
+    ),
+}
+_CHAR_SET_DEFAULT_EQUIVALENT = (
+    "The builder default emits UTF8, so the explicit option is "
+    "observably equivalent to omission and cannot discriminate"
+)
+_CHAR_SET_ASCII_UNSUPPORTED = (
+    "The native backend does not implement ASCII_ONLY char_set semantics for "
+    "this Substrait case operation"
+)
+_CHAR_SET_OP_BROKEN = (
+    "The underlying case operation is unimplemented/incorrect on this backend "
+    "(no-op or missing method), so char_set cannot be honored"
+)
+
+
+def _op_broken(backend: CONST_BACKEND, op: str) -> bool:
+    return op in _BROKEN_STRING_OPS_BY_BACKEND.get(backend, frozenset())
+
+
+def _char_set_facts(
+    backend: CONST_BACKEND, dialect: str | None
+) -> tuple[CapabilityFact, ...]:
+    facts = []
+    for op, operation_key in _CHAR_SET_KEYS.items():
+        op_broken = _op_broken(backend, op)
+        for index, value in enumerate(_CHAR_SET_VALUES):
+            is_default = index == 0
+            if op_broken:
+                level, message, exempt = (
+                    CapabilityLevel.UNSUPPORTED, _CHAR_SET_OP_BROKEN, None)
+            elif is_default:
+                level = CapabilityLevel.EXPR_CAPABLE
+                message = _CHAR_SET_DEFAULT_EQUIVALENT
+                exempt = _CHAR_SET_DEFAULT_EQUIVALENT
+            else:
+                level, message, exempt = (
+                    CapabilityLevel.UNSUPPORTED, _CHAR_SET_ASCII_UNSUPPORTED, None)
+            # EXPR_CAPABLE with dialect=None is illegal; only dialect-scoped
+            # refinements carry probed-exempt facts. Family-default calls with
+            # dialect=None skip EXPR_CAPABLE rows — the dialect-scoped facts
+            # from _dialect_facts cover those for every known dialect.
+            if dialect is None and level is CapabilityLevel.EXPR_CAPABLE:
+                continue
+            facts.append(CapabilityFact(
+                operation_key=operation_key, param="char_set", option_value=value,
+                level=level, backend=backend, dialect=dialect, message=message,
+                since=_SINCE, probe_exempt=exempt,
+            ))
+    return tuple(facts)
+
+
 def _dialect_facts(
     backend: CONST_BACKEND, dialect: str
 ) -> tuple[CapabilityFact, ...]:
@@ -264,6 +325,7 @@ def _dialect_facts(
         + regexp_defaults
         + regexp_enabled
         + positional
+        + _char_set_facts(backend, dialect)
     )
 
 
@@ -311,7 +373,7 @@ _IBIS_FAMILY_DEFAULTS = tuple(
     for op, operation_key in operations.items()
     for values in (_REGEXP_FLAG_VALUES[param],)
     if op in _REGEXP_UNSUPPORTED_OPS
-) + _positional_facts(CONST_BACKEND.IBIS, None)
+) + _positional_facts(CONST_BACKEND.IBIS, None) + _char_set_facts(CONST_BACKEND.IBIS, None)
 _NARWHALS_FACTS = tuple(
     fact
     for dialect in ("narwhals-polars", "narwhals-pandas")
