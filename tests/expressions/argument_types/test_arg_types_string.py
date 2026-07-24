@@ -647,6 +647,161 @@ TESTED_OPTION_PARAMS.append(
 )
 
 
+_NEGATIVE_START_FKEY = FK_STR.SUBSTRING
+_NEGATIVE_START_DATA = {"t": ["hello"]}
+
+
+def _negative_start_expr(negative_start: str | None = None):
+    kwargs = {} if negative_start is None else {"negative_start": negative_start}
+    return ma.col("t").str.substring(2, 3, **kwargs)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_left_of_beginning_declared_unsupported(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _NEGATIVE_START_FKEY, "negative_start", "LEFT_OF_BEGINNING", backend))
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    got = option_result(df, _negative_start_expr("LEFT_OF_BEGINNING"), backend)
+    assert got == ["llo"]
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_error_declared_unsupported(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _NEGATIVE_START_FKEY, "negative_start", "ERROR", backend))
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    got = option_result(df, _negative_start_expr("ERROR"), backend)
+    assert got == ["llo"]
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_wrap_from_end_equivalent_to_omission(backend, request):
+    request.applymarker(
+        xfail_option_unsupported(
+            _NEGATIVE_START_FKEY, "negative_start", "WRAP_FROM_END", backend))
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    assert option_result(df, _negative_start_expr("WRAP_FROM_END"), backend) \
+        == option_result(df, _negative_start_expr(), backend)
+
+
+def test_substring_negative_start_rejects_invalid_value():
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("t").str.substring(2, 3, negative_start="ALLOW")
+
+
+_NEGATIVE_START_VALUES = ("WRAP_FROM_END", "LEFT_OF_BEGINNING", "ERROR")
+
+
+def _negative_start_disposition(value: str, backend: str) -> str:
+    return "probe_exempt" if value == "WRAP_FROM_END" else "declared_unsupported"
+
+
+def _negative_start_probe(value: str, backend: str) -> OptionSpec:
+    discriminate = value != "WRAP_FROM_END"
+    return OptionSpec(
+        _NEGATIVE_START_FKEY,
+        "negative_start",
+        value,
+        "str",
+        lambda v=value: _negative_start_expr(v),
+        lambda: _negative_start_expr(),
+        _NEGATIVE_START_DATA,
+        expected_discriminates=discriminate,
+        expected_native_exception=(
+            TypeError
+            if value == "WRAP_FROM_END" and backend.startswith("narwhals")
+            else None
+        ),
+    )
+
+
+def _negative_start_native_failure(value: str, backend: str) -> type[BaseException] | None:
+    if value == "WRAP_FROM_END":
+        return None
+    if backend.startswith("narwhals"):
+        return TypeError
+    return OptionProbeDidNotDiscriminateError
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _NEGATIVE_START_FKEY,
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        backend,
+        value,
+        "str",
+        _negative_start_disposition(value, backend),
+        (
+            "builder-default WRAP_FROM_END is indistinguishable from omission"
+            if value == "WRAP_FROM_END"
+            else "native backend does not implement non-default negative_start semantics"
+        ),
+    )
+    for backend in ALL_BACKENDS
+    for value in _NEGATIVE_START_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _negative_start_probe(value, backend),
+        backend,
+        _negative_start_disposition(value, backend),
+        _negative_start_native_failure(value, backend)
+        if _negative_start_disposition(value, backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for value in _NEGATIVE_START_VALUES
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_NEGATIVE_START_FKEY, "negative_start", value, CONST_BACKEND.IBIS, None)
+    for value in ("LEFT_OF_BEGINNING", "ERROR")
+)
+
+_INVALID_NEGATIVE_START_REJECTIONS = [
+    InvalidOptionRejection(
+        _NEGATIVE_START_FKEY,
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _negative_start_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_NEGATIVE_START_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_NEGATIVE_START_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        param_taxonomy(_STRING_PROTOCOL, "substring", "negative_start"),
+    )
+)
+
+
 _REGEXP_FLAG_FKEYS = {
     "case_sensitivity": {
         "regexp_match_substring": FK_STR.REGEXP_MATCH,

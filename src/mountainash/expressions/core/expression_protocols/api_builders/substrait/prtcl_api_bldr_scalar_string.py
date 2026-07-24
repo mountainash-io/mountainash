@@ -137,6 +137,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         start: Union[BaseExpressionAPI, ExpressionNode, Any, int],
         length: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        *,
+        negative_start: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """Extract a substring.
 

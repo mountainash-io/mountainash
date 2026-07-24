@@ -774,7 +774,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarStringExpressionSystemProtocol", "replace", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),
-        ("SubstraitScalarStringExpressionSystemProtocol", "substring", "negative_start"),
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "dense_rank", "descending"),
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "rank", "descending"),
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),

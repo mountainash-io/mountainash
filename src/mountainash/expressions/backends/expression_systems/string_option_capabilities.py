@@ -281,6 +281,41 @@ def _char_set_facts(
     return tuple(facts)
 
 
+_NEGATIVE_START_VALUES = ("WRAP_FROM_END", "LEFT_OF_BEGINNING", "ERROR")
+_NEGATIVE_START_DEFAULT_EQUIVALENT = (
+    "The builder default emits WRAP_FROM_END, so the explicit option is "
+    "observably equivalent to omission and cannot discriminate"
+)
+_NEGATIVE_START_UNSUPPORTED = (
+    "The native backend does not implement non-default negative_start semantics "
+    "for substring"
+)
+
+
+def _negative_start_facts(
+    backend: CONST_BACKEND, dialect: str | None
+) -> tuple[CapabilityFact, ...]:
+    facts = []
+    for value in _NEGATIVE_START_VALUES:
+        if value == "WRAP_FROM_END":
+            level = CapabilityLevel.EXPR_CAPABLE
+            message = _NEGATIVE_START_DEFAULT_EQUIVALENT
+            exempt = _NEGATIVE_START_DEFAULT_EQUIVALENT
+        else:
+            level = CapabilityLevel.UNSUPPORTED
+            message = _NEGATIVE_START_UNSUPPORTED
+            exempt = None
+        if dialect is None and level is CapabilityLevel.EXPR_CAPABLE:
+            continue
+        facts.append(CapabilityFact(
+            operation_key=FK_STR.SUBSTRING, param="negative_start",
+            option_value=value,
+            level=level, backend=backend, dialect=dialect, message=message,
+            since=_SINCE, probe_exempt=exempt,
+        ))
+    return tuple(facts)
+
+
 def _dialect_facts(
     backend: CONST_BACKEND, dialect: str
 ) -> tuple[CapabilityFact, ...]:
@@ -367,6 +402,7 @@ def _dialect_facts(
         + positional
         + _char_set_facts(backend, dialect)
         + _padding_facts(backend, dialect)
+        + _negative_start_facts(backend, dialect)
     )
 
 
@@ -414,7 +450,7 @@ _IBIS_FAMILY_DEFAULTS = tuple(
     for op, operation_key in operations.items()
     for values in (_REGEXP_FLAG_VALUES[param],)
     if op in _REGEXP_UNSUPPORTED_OPS
-) + _positional_facts(CONST_BACKEND.IBIS, None) + _char_set_facts(CONST_BACKEND.IBIS, None) + _padding_facts(CONST_BACKEND.IBIS, None)
+) + _positional_facts(CONST_BACKEND.IBIS, None) + _char_set_facts(CONST_BACKEND.IBIS, None) + _padding_facts(CONST_BACKEND.IBIS, None) + _negative_start_facts(CONST_BACKEND.IBIS, None)
 _NARWHALS_FACTS = tuple(
     fact
     for dialect in ("narwhals-polars", "narwhals-pandas")

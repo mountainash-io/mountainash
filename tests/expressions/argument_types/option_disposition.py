@@ -196,6 +196,7 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("atanh", "rounding"): ("float64",),
     ("capitalize", "char_set"): ("str",),
     ("center", "padding"): ("str",),
+    ("substring", "negative_start"): ("str",),
     ("initcap", "char_set"): ("str",),
     ("lower", "char_set"): ("str",),
     ("swapcase", "char_set"): ("str",),

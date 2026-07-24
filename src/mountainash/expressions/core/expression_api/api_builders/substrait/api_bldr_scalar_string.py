@@ -489,6 +489,8 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         self,
         start: Union[BaseExpressionAPI, "ExpressionNode", Any, int],
         length: Optional[Union[BaseExpressionAPI, "ExpressionNode", Any, int]] = None,
+        *,
+        negative_start: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """
         Extract a substring.
@@ -498,21 +500,27 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Args:
             start: Start position (1-indexed).
             length: Number of characters (optional).
+            negative_start: Optional Substrait negative_start option ({WRAP_FROM_END,
+                LEFT_OF_BEGINNING, ERROR}; default WRAP_FROM_END). No backend honors
+                non-default values.
 
         Returns:
             New ExpressionAPI with substring node.
         """
+        options = _validated_options("substring", negative_start=negative_start)
         start_node = self._to_substrait_node(start)
         if length is None:
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
                 arguments=[self._node, start_node],
+                options=options,
             )
         else:
             length_node = self._to_substrait_node(length)
             node = ScalarFunctionNode(
                 function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
                 arguments=[self._node, start_node, length_node],
+                options=options,
             )
         return self._build(node)
 
