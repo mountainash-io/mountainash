@@ -21,6 +21,23 @@ if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr, IbisTemporalExpr
 
 
+# Ibis .truncate() expects a bare unit letter, not the Polars-style "<n><unit>" duration.
+# Shared by truncate() and floor_dt() (floor == truncate for datetime). Units with no
+# entry here (e.g. "1q") fall through unmapped and raise a native ibis error — declared
+# UNSUPPORTED on ibis via capability facts.
+_IBIS_TRUNCATE_UNIT_MAPPING = {
+    "1y": "Y",
+    "1mo": "M",
+    "1w": "W",
+    "1d": "D",
+    "1h": "h",
+    "1m": "m",
+    "1s": "s",
+    "1ms": "ms",
+    "1us": "us",
+}
+
+
 class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarDatetimeExpressionProtocol.
 
@@ -487,18 +504,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         """
         # Ibis truncate expects just the unit letter, not "1d" format
         # Convert "1d" -> "D", "1h" -> "h", etc.
-        unit_mapping = {
-            "1y": "Y",
-            "1mo": "M",
-            "1w": "W",
-            "1d": "D",
-            "1h": "h",
-            "1m": "m",
-            "1s": "s",
-            "1ms": "ms",
-            "1us": "us",
-        }
-        unit_mapped = unit_mapping.get(unit, unit)
+        unit_mapped = _IBIS_TRUNCATE_UNIT_MAPPING.get(unit, unit)
         return x.truncate(unit_mapped)
 
     def round_dt(
@@ -557,8 +563,15 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         Returns:
             Floor datetime.
+
+        Note:
+            floor == truncate for datetime (both drop the sub-unit remainder), so
+            ibis floor is honored wherever truncate is. Applies the same Polars-style
+            duration -> ibis unit-letter mapping as truncate (round_dt/ceil_dt have no
+            native ibis impl and are declared UNSUPPORTED via capability facts instead).
         """
-        return x.truncate(unit)
+        unit_mapped = _IBIS_TRUNCATE_UNIT_MAPPING.get(unit, unit)
+        return x.truncate(unit_mapped)
 
     # =========================================================================
     # Timezone Methods

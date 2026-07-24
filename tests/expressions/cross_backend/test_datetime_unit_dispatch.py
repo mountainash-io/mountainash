@@ -54,16 +54,18 @@ ALL_BACKENDS_DATETIME_UNIT = (
     "narwhals-pandas",
 )
 
-# (backend, op) → reason. Pre-existing per-backend fall-back divergences
-# unrelated to the Task 1 dispatch fix; declared as CapabilityFacts in Task 3.
+# (backend, op) → reason. round/ceil have no native datetime impl on ibis or narwhals
+# (the silent truncate-fallback is an anti-pattern); Task 3 declares them UNSUPPORTED so
+# the visitor raises a clean BackendCapabilityError. ibis floor was fixed in Task 3
+# (floor == truncate; applies the unit-mapping) and is NO LONGER divergent — its removal
+# from this map was forced by the strict xfail flipping to XPASS, exactly as intended.
 _KNOWN_FALLBACK_DIVERGENCES: dict[tuple[str, str], str] = {
-    ("ibis-duckdb", "round"): "ibis datetime round falls back to truncate w/o unit-format normalization (Task 2/3)",
-    ("ibis-duckdb", "ceil"): "ibis datetime ceil falls back to truncate w/o unit-format normalization (Task 2/3)",
-    ("ibis-duckdb", "floor"): "ibis datetime floor falls back to truncate w/o unit-format normalization (Task 2/3)",
-    ("narwhals-polars", "round"): "narwhals datetime round falls back to truncate (no native round; Task 3 CapabilityFact)",
-    ("narwhals-polars", "ceil"): "narwhals datetime ceil falls back to truncate (no native ceil; Task 3 CapabilityFact)",
-    ("narwhals-pandas", "round"): "narwhals datetime round falls back to truncate (no native round; Task 3 CapabilityFact)",
-    ("narwhals-pandas", "ceil"): "narwhals datetime ceil falls back to truncate (no native ceil; Task 3 CapabilityFact)",
+    ("ibis-duckdb", "round"): "ibis has no native datetime round; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
+    ("ibis-duckdb", "ceil"): "ibis has no native datetime ceil; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
+    ("narwhals-polars", "round"): "narwhals has no native datetime round; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
+    ("narwhals-polars", "ceil"): "narwhals has no native datetime ceil; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
+    ("narwhals-pandas", "round"): "narwhals has no native datetime round; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
+    ("narwhals-pandas", "ceil"): "narwhals has no native datetime ceil; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
 }
 
 

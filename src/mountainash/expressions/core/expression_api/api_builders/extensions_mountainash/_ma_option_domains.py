@@ -17,15 +17,18 @@ if TYPE_CHECKING:
     )
 
 # Canonical duration forms (single-multiplier named units). Portable core is a subset
-# (see the plan / spec); the divergent members (1w, 1q, 1ns) are legal input but declared
+# (see the plan / spec); the divergent members (1w, 1q) are legal input but declared
 # per-backend by capability facts (Task 3). Multiplier > 1 is deliberately excluded.
-_UNIT_DURATION = frozenset({"1y", "1mo", "1w", "1d", "1h", "1m", "1s", "1ms", "1us", "1q", "1ns"})
+# `1ns`/`nanosecond` are excluded entirely: polars `round("1ns")` triggers an uncatchable
+# pyo3 PanicException (divisor-by-zero) and datetime is microsecond-precision in practice,
+# so nanosecond rounding is degenerate — rejected uniformly at the api-builder.
+_UNIT_DURATION = frozenset({"1y", "1mo", "1w", "1d", "1h", "1m", "1s", "1ms", "1us", "1q"})
 
 # Friendly aliases -> canonical duration. Applied before validation/dispatch.
 _UNIT_FRIENDLY = {
     "year": "1y", "quarter": "1q", "month": "1mo", "week": "1w", "day": "1d",
     "hour": "1h", "minute": "1m", "second": "1s",
-    "millisecond": "1ms", "microsecond": "1us", "nanosecond": "1ns",
+    "millisecond": "1ms", "microsecond": "1us",
 }
 
 # Legal input set = duration forms + friendly aliases.
