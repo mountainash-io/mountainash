@@ -508,7 +508,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         """
         return x.dt.truncate(unit)
 
-    def round(
+    def round_dt(
         self,
         x: NarwhalsExpr,
         *,
@@ -529,7 +529,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         # Narwhals doesn't have round - fallback to truncate
         return x.dt.truncate(unit)
 
-    def ceil(
+    def ceil_dt(
         self,
         x: NarwhalsExpr,
         *,
@@ -550,7 +550,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         # Narwhals doesn't have ceil - fallback to truncate
         return x.dt.truncate(unit)
 
-    def floor(
+    def floor_dt(
         self,
         x: NarwhalsExpr,
         *,

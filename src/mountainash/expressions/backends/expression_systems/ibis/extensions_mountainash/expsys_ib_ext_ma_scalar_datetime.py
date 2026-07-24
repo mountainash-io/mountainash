@@ -501,7 +501,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         unit_mapped = unit_mapping.get(unit, unit)
         return x.truncate(unit_mapped)
 
-    def round(
+    def round_dt(
         self,
         x: IbisTemporalExpr,
         *,
@@ -522,7 +522,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have round - fallback to truncate
         return x.truncate(unit)
 
-    def ceil(
+    def ceil_dt(
         self,
         x: IbisTemporalExpr,
         *,
@@ -543,7 +543,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         # Ibis doesn't have ceil - fallback to truncate
         return x.truncate(unit)
 
-    def floor(
+    def floor_dt(
         self,
         x: IbisTemporalExpr,
         *,

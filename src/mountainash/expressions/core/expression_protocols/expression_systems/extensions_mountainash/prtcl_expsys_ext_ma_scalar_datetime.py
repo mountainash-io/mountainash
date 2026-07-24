@@ -8,7 +8,7 @@ Extensions providing convenient datetime operations beyond Substrait standard:
 - Boolean extraction (is_leap_year, is_dst) - wrappers for Substrait extract_boolean()
 - Date arithmetic (add_years, add_months, add_days, etc.) - wrappers for Substrait add()
 - Date difference (diff_years, diff_months, diff_days, etc.) - wrappers for Substrait subtract()
-- Truncation/rounding (truncate, round, ceil, floor) - wrappers for Substrait round_temporal()
+- Truncation/rounding (truncate, round_dt, ceil_dt, floor_dt) - wrappers for Substrait round_temporal()
 - Flexible duration offset (offset_by) - CUSTOM EXTENSION
 - Natural language filtering (within_last, older_than, etc.) - CUSTOM EXTENSION
 - Snapshot (today, now) - CUSTOM EXTENSION
@@ -349,7 +349,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         """Truncate datetime to the specified unit (floor)."""
         ...
 
-    def round(
+    def round_dt(
         self,
         x: ExpressionT,
         /,
@@ -359,7 +359,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         """Round datetime to the nearest unit."""
         ...
 
-    def ceil(
+    def ceil_dt(
         self,
         x: ExpressionT,
         /,
@@ -369,7 +369,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         """Round datetime up to the next unit."""
         ...
 
-    def floor(
+    def floor_dt(
         self,
         x: ExpressionT,
         /,
