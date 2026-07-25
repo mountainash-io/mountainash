@@ -96,6 +96,9 @@ from expressions.argument_types._option_helpers import OptionSpec
 from expressions.argument_types.conftest import ALL_BACKENDS
 from mountainash.core.capabilities import CapabilityFact, CapabilityRegistry
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import (
+    MA_OPTION_DOMAINS,
+)
 from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
     OPTION_DOMAINS,
 )
@@ -265,6 +268,12 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("subtract", "rounding"): ("float64",),
     ("tan", "rounding"): ("float64",),
     ("tanh", "rounding"): ("float64",),
+    # Datetime MA-extension unit options. The operand column dtype is the
+    # Frictionless "datetime" string (mapping to MountainashDtype.TIMESTAMP).
+    ("truncate", "unit"): ("datetime",),
+    ("round_dt", "unit"): ("datetime",),
+    ("ceil_dt", "unit"): ("datetime",),
+    ("floor_dt", "unit"): ("datetime",),
 }
 
 # Representative legal values for open-integer options that have NO finite
@@ -297,6 +306,21 @@ if _domain_overlap:
         f"option params in both OPTION_DOMAINS and OPTION_VALUE_DOMAINS: "
         f"{sorted(_domain_overlap)}"
     )
+# Mountainash-extension option domains are physically separate (substrait-vs-mountainash
+# ENFORCED principle). The three sources must be pairwise disjoint: a given (op, param)
+# draws its legal value domain from exactly ONE of OPTION_DOMAINS, OPTION_VALUE_DOMAINS,
+# or MA_OPTION_DOMAINS.
+for left, right in (
+    (OPTION_DOMAINS, MA_OPTION_DOMAINS),
+    (OPTION_VALUE_DOMAINS, MA_OPTION_DOMAINS),
+):
+    overlap = set(left) & set(right)
+    if overlap:
+        raise AssertionError(
+            f"option params in both {left.__qualname__ if hasattr(left, '__qualname__') else left!r} "
+            f"and {right.__qualname__ if hasattr(right, '__qualname__') else right!r}: "
+            f"{sorted(overlap)}"
+        )
 
 
 _CELL_DISPOSITIONS = frozenset(
@@ -337,8 +361,17 @@ def _fkey_index() -> dict[tuple[str, str], Any]:
         method = definition.protocol_method
         # OPTION_DOMAINS is pinned from Substrait extension YAML.  Mountainash
         # convenience aliases may intentionally reuse a Substrait method (for
-        # example RANK_AVERAGE -> rank) and are not domain owners.
-        if method is None or definition.is_extension:
+        # example RANK_AVERAGE -> rank) and are not domain owners; their
+        # protocol_method lives in a Substrait-named class and is skipped
+        # below. Real Mountainash domain owners (for example the datetime
+        # ``truncate``/``round_dt``/``ceil_dt``/``floor_dt`` keys wired to
+        # ``MountainAshScalarDatetimeExpressionSystemProtocol``) carry a
+        # protocol_method in a ``MountainAsh*`` class and ARE included in
+        # the index — otherwise the disposition guard cannot resolve their
+        # (protocol, op_name) tuple to a fkey.
+        if method is None:
+            continue
+        if definition.is_extension and "MountainAsh" not in method.__qualname__:
             continue
         protocol = method.__qualname__.rsplit(".", 1)[0]
         key = (protocol, method.__name__)
@@ -601,8 +634,10 @@ def expected_option_cells() -> set[CellKey]:
         if identity in known:
             continue
         operation = (protocol_param.op_name, protocol_param.param_name)
-        value_domain = OPTION_DOMAINS.get(operation) or OPTION_VALUE_DOMAINS.get(
-            operation
+        value_domain = (
+            OPTION_DOMAINS.get(operation)
+            or MA_OPTION_DOMAINS.get(operation)
+            or OPTION_VALUE_DOMAINS.get(operation)
         )
         if value_domain is None:
             raise AssertionError(
