@@ -603,12 +603,8 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("MountainAshNameExpressionSystemProtocol", "alias", "name"),
         ("MountainAshNameExpressionSystemProtocol", "prefix", "prefix"),
         ("MountainAshNameExpressionSystemProtocol", "suffix", "suffix"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "component"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "is_dst", "timezone"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "offset_by", "offset"),
-        ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
+        # NOTE: datetime option params are retagged below with precise, backlog-linked
+        # reasons (see _KNOWN_UNTESTED_OPTION_PARAMS.update(...) after this comprehension).
         ("MountainAshScalarListExpressionSystemProtocol", "list_diff", "n"),
         ("MountainAshScalarListExpressionSystemProtocol", "list_diff", "null_behavior"),
         ("MountainAshScalarListExpressionSystemProtocol", "list_gather", "null_on_oob"),
@@ -723,24 +719,8 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarArithmeticExpressionSystemProtocol", "tan", "rounding"),
         ("SubstraitScalarArithmeticExpressionSystemProtocol", "tanh", "rounding"),
         ("SubstraitScalarComparisonExpressionSystemProtocol", "between", "closed"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "assume_timezone", "timezone"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "component"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp", "timezone"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "unit"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "multiple"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "origin"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strftime", "format"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "format"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time", "format"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "format"),
-        ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "timezone"),
+        # NOTE: Substrait datetime option params are retagged below with precise,
+        # backlog-linked reasons (see the .update(...) calls after this comprehension).
         ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln", "on_domain_error"),
         ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln", "on_log_zero"),
         ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln", "rounding"),
@@ -775,6 +755,65 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),
     }
 }
+
+# Datetime option params — retagged with precise, backlog-linked reasons (PR-C).
+# 18 missing-op params: the operation is not exposed by the API builder, so the option
+# cannot be wired until the op exists.
+_KNOWN_UNTESTED_OPTION_PARAMS.update(
+    {
+        key: KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "operation not implemented in API builder — the option cannot be "
+                "wired until the op exists; see backlog: substrait-datetime-missing-ops"
+            ),
+            since="2026-07-25",
+        )
+        for key in {
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "component"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "component"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "unit"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "multiple"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "origin"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "format"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time", "format"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "format"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "timezone"),
+        }
+    }
+)
+# 6 free-string (open-value) params: the op is wired and the option flows, but a clean
+# cross-backend disposition needs an open-value option pattern (no finite domain).
+_KNOWN_UNTESTED_OPTION_PARAMS.update(
+    {
+        key: KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "free-string (open-value) option — the op is wired and the option "
+                "flows, but cross-backend disposition needs an open-value option "
+                "pattern; see backlog: datetime-open-value-option-disposition"
+            ),
+            since="2026-07-25",
+        )
+        for key in {
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "is_dst", "timezone"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "offset_by", "offset"),
+            ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "assume_timezone", "timezone"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp", "timezone"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strftime", "format"),
+        }
+    }
+)
 
 for _case_sensitivity_op in (
     "contains",
