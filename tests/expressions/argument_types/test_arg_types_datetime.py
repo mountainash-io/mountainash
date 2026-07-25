@@ -28,11 +28,30 @@ from datetime import datetime, timedelta
 import pytest
 
 import mountainash as ma
+from mountainash.core.errors import InvalidOptionValueError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_DT,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
 )
-from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types._option_helpers import (
+    OptionProbeDidNotDiscriminateError,
+    OptionSpec,
+    option_result,
+    xfail_option_unsupported,
+)
+from expressions.argument_types.option_disposition import (
+    INVALID_OPTION_VALUE,
+    OPTION_DISPOSITIONS,
+    OPTION_FAMILY_DEFAULT_FACT_KEYS,
+    REGISTERED_INVALID_OPTION_REJECTIONS,
+    REGISTERED_OPTION_PROBES,
+    InvalidOptionRejection,
+    OptionCell,
+    OptionProbeRegistration,
+    param_taxonomy,
+)
+from mountainash.core.constants import CONST_BACKEND
 from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
@@ -387,3 +406,455 @@ if OP_SPECS:
     @pytest.mark.parametrize("op,backend,input_type", _params())
     def test_argument_channel(op: OpSpec, backend: str, input_type: str):
         run_argument_matrix(op, backend, input_type)
+
+
+# ============================================================================
+# Datetime `unit` option disposition (PR-C Task 3b)
+# ----------------------------------------------------------------------------
+# Verified matrix (controller Step-0 probe of all four fixtures, post-Task-3a):
+#
+#   | op          | polars | ibis (ibis-duckdb)         | narwhals (each dialect)    |
+#   |-------------|--------|----------------------------|----------------------------|
+#   | truncate    | ALL    | honor core+1w; declare 1q  | honor core+1q; declare 1w  |
+#   | floor_dt    | ALL    | honor core+1w; declare 1q  | honor core+1q; declare 1w  |
+#   | round_dt    | ALL    | declare EVERY value        | declare EVERY value        |
+#   | ceil_dt     | ALL    | declare EVERY value        | declare EVERY value        |
+#
+# Portable core = {1y, 1mo, 1d, 1h, 1m, 1s, 1ms, 1us}. 1ns was dropped in
+# Task 3a; the validator rejects it before the visitor. The visitor (with
+# enforce_capabilities=True) raises BackendCapabilityError from the value-scoped
+# UNSUPPORTED facts declared in datetime_option_capabilities.py. Backend
+# round/ceil/floor impls are NOT edited — the capability facts are the only
+# honesty mechanism. Per the brief, family / dialect separation mirrors the
+# string `padding` slice: ibis declared values get BOTH a family-default
+# (dialect=None) fact AND a dialect="ibis-duckdb" fact; narwhals declared
+# values get per-dialect facts only (NEVER a single dialect=None narwhals
+# family fact).
+# ============================================================================
+
+_DATETIME_PROTOCOL = "MountainAshScalarDatetimeExpressionSystemProtocol"
+_DT = datetime(2026, 7, 21, 13, 37, 45)
+_DATETIME_UNIT_DATA = {"ts": [_DT]}
+
+# Per-build-value reference unit. The unit option has no default (the
+# protocol marks ``unit: str`` as required), so the reference cannot be a
+# no-op omission — it must be a DIFFERENT always-honored value than the
+# build's. The test input (2026-07-21 13:37:45) is microsecond-aligned, so
+# 1s, 1ms, 1us all give the same result; the reference for those fine units
+# must use a coarser unit (1m, 1d, 1h, …) to actually differ. Each pair
+# is hand-picked so build and reference always produce different results
+# on every backend — critical for the ``expected_discriminates=True`` check
+# on HONORED cells.
+_REFERENCE_VALUE_BY_BUILD = {
+    "1y": "1mo",
+    "1mo": "1d",
+    "1q": "1y",
+    "1d": "1h",
+    "1h": "1d",
+    "1m": "1h",
+    "1s": "1m",
+    "1ms": "1m",
+    "1us": "1m",
+    "1w": "1d",
+    # Friendly aliases — same value semantics as their canonical duration
+    # form; the api builder normalizes them before validation. The
+    # disposition inherits the same honored/declared matrix as the
+    # canonical form (e.g. "year" is honored everywhere, "quarter" is
+    # declared on ibis, "week" is declared on narwhals).
+    "year": "1mo",
+    "quarter": "1y",
+    "month": "1d",
+    "week": "1d",
+    "day": "1h",
+    "hour": "1d",
+    "minute": "1h",
+    "second": "1m",
+    "millisecond": "1m",
+    "microsecond": "1m",
+}
+
+_UNIT_OP_FKEYS = {
+    "truncate": FK_MA_DT.TRUNCATE,
+    "round_dt": FK_MA_DT.ROUND,
+    "ceil_dt": FK_MA_DT.CEIL,
+    "floor_dt": FK_MA_DT.FLOOR,
+}
+# The public api-builder method names — `truncate` and `floor` differ from
+# the registry names; `round` and `ceil` map to round_dt/ceil_dt via the
+# _*_dt MRO rename (Task 1). Mirroring the *api* names (not the FKEY names)
+# in OPTION_DISPOSITIONS keeps the per-fixture disposition cell aligned with
+# what the user types — OptionCell.op is canonical to the FKEY's
+# protocol_method.__name__ (round_dt/ceil_dt/floor_dt/truncate).
+_UNIT_API_METHODS = {
+    "truncate": "truncate",
+    "round_dt": "round",
+    "ceil_dt": "ceil",
+    "floor_dt": "floor",
+}
+# All MA domain values: duration forms + friendly aliases. Mirrors the
+# MA_OPTION_DOMAINS lookup; per-value disposition is inherited from the
+# canonical duration form (e.g. "year" -> "1y", "quarter" -> "1q").
+_ALL_UNIT_VALUES = (
+    "1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q",
+    "year", "quarter", "month", "week", "day", "hour", "minute",
+    "second", "millisecond", "microsecond",
+)
+
+
+def _unit_expr(op: str, value: str):
+    """Build a unit-rounding expression with an explicit value."""
+    return getattr(ma.col("ts").dt, _UNIT_API_METHODS[op])(value)
+
+
+def _unit_reference_expr(op: str, build_value: str):
+    """Reference expression — always a DIFFERENT always-honored value."""
+    return _unit_expr(op, _REFERENCE_VALUE_BY_BUILD[build_value])
+
+
+# (op, value) pairs HELD OUT of the ibis-duckdb honor set; declared on ibis.
+# Friendly aliases inherit the same disposition as their canonical duration
+# form ("quarter" -> "1q", "week" -> "1w"), per the api-builder's friendly
+# normalization at validate_ma_option.
+_IBIS_DUCKDB_DECLARED_DURATION = {
+    "truncate": {"1q"},
+    "floor_dt": {"1q"},
+    "round_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q"},
+    "ceil_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q"},
+}
+_NARWHALS_DECLARED_DURATION = {
+    "truncate": {"1w"},
+    "floor_dt": {"1w"},
+    "round_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q"},
+    "ceil_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q"},
+}
+_FRIENDLY_TO_DURATION = {
+    "year": "1y", "quarter": "1q", "month": "1mo", "week": "1w",
+    "day": "1d", "hour": "1h", "minute": "1m", "second": "1s",
+    "millisecond": "1ms", "microsecond": "1us",
+}
+_IBIS_DUCKDB_DECLARED = {
+    op: declared | {friendly for friendly, dur in _FRIENDLY_TO_DURATION.items() if dur in declared}
+    for op, declared in _IBIS_DUCKDB_DECLARED_DURATION.items()
+}
+_NARWHALS_DECLARED = {
+    op: declared | {friendly for friendly, dur in _FRIENDLY_TO_DURATION.items() if dur in declared}
+    for op, declared in _NARWHALS_DECLARED_DURATION.items()
+}
+
+
+def _unit_disposition(op: str, value: str, backend: str) -> str:
+    """Mirror the verified matrix: honored or declared_unsupported per cell."""
+    if backend == "polars":
+        return "honored"  # polars honors ALL values; the matrix column
+    if backend == "ibis":
+        return "declared_unsupported" if value in _IBIS_DUCKDB_DECLARED[op] else "honored"
+    # narwhals-polars and narwhals-pandas share the same per-dialect fact sets.
+    return "declared_unsupported" if value in _NARWHALS_DECLARED[op] else "honored"
+
+
+def _unit_reason(op: str, value: str, backend: str) -> str:
+    if _unit_disposition(op, value, backend) == "honored":
+        return "native backend honors the unit on this op"
+    if backend == "ibis":
+        if op in {"round_dt", "ceil_dt"}:
+            return "ibis has no native datetime round/ceil; silently falling back to truncate would return a wrong value"
+        return "ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter')"
+    # narwhals
+    if op in {"round_dt", "ceil_dt"}:
+        return "narwhals has no native datetime round/ceil; silently falling back to truncate would return a wrong value"
+    return "narwhals truncate rejects the week unit '1w' (and its friendly alias 'week')"
+
+
+def _unit_probe(op: str, value: str, backend: str) -> OptionSpec:
+    """Raw-path probe (enforce_capabilities=False). Mirrors the padding slice.
+
+    For HONORED cells, the spec sets ``expected_discriminates=True`` (the raw
+    path discriminates against the reference value; no fact gates the gated
+    path so the exact discriminator doesn't matter for the disposition). For
+    DECLARED cells, the spec leaves ``expected_native_exception=None`` and
+    the registration carries the bounded ``expected_native_failure`` — per
+    the probe-role contract in ``validate_option_probe_registration``, a
+    ``declared_unsupported`` probe cannot set both the spec's intended
+    exception AND the registration's native failure.
+
+    For the narwhals round_dt/ceil_dt non-``1w`` cells, the raw path silently
+    falls back to truncate (no raise). The spec uses the SAME value for the
+    reference so build == reference, and the probe raises the standard
+    ``OptionProbeDidNotDiscriminateError`` "accepted but did not honor
+    semantics" sentinel — the strict xfail matches, the test passes, and the
+    value's silent-wrong behaviour stays honest via the gated-path
+    BackendCapabilityError and the disposition's "native backend does not
+    implement the requested semantics" reason.
+    """
+    disposition = _unit_disposition(op, value, backend)
+    if disposition == "honored":
+        return OptionSpec(
+            _UNIT_OP_FKEYS[op],
+            "unit",
+            value,
+            "datetime",
+            lambda v=value: _unit_expr(op, v),
+            lambda v=value: _unit_reference_expr(op, v),
+            _DATETIME_UNIT_DATA,
+            expected_discriminates=True,
+        )
+    # declared_unsupported
+    if backend == "ibis":
+        # ibis round_dt/ceil_dt/truncate pass the unit to x.truncate directly,
+        # which raises SignatureValidationError on every un-mapped value (1q
+        # is not in the mapping; round/ceil ignore the mapping entirely). The
+        # reference is a different always-honored value; build raises, the
+        # reference succeeds — the native path test catches the build's
+        # raise.
+        return OptionSpec(
+            _UNIT_OP_FKEYS[op],
+            "unit",
+            value,
+            "datetime",
+            lambda v=value: _unit_expr(op, v),
+            lambda v=value: _unit_reference_expr(op, v),
+            _DATETIME_UNIT_DATA,
+            expected_discriminates=True,
+        )
+    # narwhals
+    canonical = _FRIENDLY_TO_DURATION.get(value, value)
+    if canonical == "1w":
+        # narwhals truncate rejects "1w" (and its friendly alias "week")
+        # -> ValueError; build raises, the reference succeeds.
+        return OptionSpec(
+            _UNIT_OP_FKEYS[op],
+            "unit",
+            value,
+            "datetime",
+            lambda v=value: _unit_expr(op, v),
+            lambda v=value: _unit_reference_expr(op, v),
+            _DATETIME_UNIT_DATA,
+            expected_discriminates=True,
+        )
+    # narwhals round_dt/ceil_dt silently fall back to truncate on non-1w
+    # values: there is NO native-path raise. The build uses the test value
+    # and the reference uses the SAME value, so build == reference and the
+    # probe raises OptionProbeDidNotDiscriminateError (the "did not honor
+    # semantics" sentinel) via the discriminator-mismatch path. The
+    # strict xfail matches.
+    return OptionSpec(
+        _UNIT_OP_FKEYS[op],
+        "unit",
+        value,
+        "datetime",
+        lambda v=value: _unit_expr(op, v),
+        lambda v=value: _unit_expr(op, v),  # same value → always equal
+        _DATETIME_UNIT_DATA,
+        expected_discriminates=True,  # mismatch: probe raises sentinel
+    )
+
+
+def _unit_native_failure(op: str, value: str, backend: str):
+    """Bounded raw-path exception per (op, value, backend).
+
+    Used as the registration's ``expected_native_failure`` for declared cells.
+    Per validate_option_probe_registration: must be a specific exception type,
+    never a broad ``BaseException``/``Exception``/``AssertionError``.
+
+    The friendly alias inherits the disposition of its canonical duration
+    form (e.g. ``"week"`` -> ``"1w"``), so the native failure is the same.
+    """
+    if backend == "ibis":
+        from ibis.common.annotations import SignatureValidationError
+        return SignatureValidationError
+    # narwhals
+    canonical = _FRIENDLY_TO_DURATION.get(value, value)
+    if canonical == "1w":
+        return ValueError
+    # narwhals round_dt/ceil_dt non-1w values: raw path silently truncates
+    # (build == reference); the registration surfaces this via
+    # OptionProbeDidNotDiscriminateError, the standard "accepted but did not
+    # honor semantics" sentinel.
+    return OptionProbeDidNotDiscriminateError
+
+
+# Per-op, per-unit HONORED result (verified by the controller Step-0 probe).
+# Used by the behavior tests to assert the gated path produces the right
+# value. ibis floor_dt = truncate (Task 3a); both share the truncate table.
+# polars has real native round/ceil with full semantics; narwhals round/ceil
+# are declared on EVERY value so no round/ceil entry is needed for narwhals.
+_HONORED_RESULTS: dict[str, dict[str, datetime]] = {
+    "truncate": {
+        "1y": datetime(2026, 1, 1, 0, 0),
+        "1mo": datetime(2026, 7, 1, 0, 0),
+        "1d": datetime(2026, 7, 21, 0, 0),
+        "1h": datetime(2026, 7, 21, 13, 0),
+        "1m": datetime(2026, 7, 21, 13, 37),
+        "1s": datetime(2026, 7, 21, 13, 37, 45),
+        "1ms": datetime(2026, 7, 21, 13, 37, 45),
+        "1us": datetime(2026, 7, 21, 13, 37, 45),
+        "1w": datetime(2026, 7, 20, 0, 0),
+        "1q": datetime(2026, 7, 1, 0, 0),
+    },
+    "round_dt": {
+        "1y": datetime(2027, 1, 1, 0, 0),
+        "1mo": datetime(2026, 8, 1, 0, 0),
+        "1d": datetime(2026, 7, 22, 0, 0),
+        "1h": datetime(2026, 7, 21, 14, 0),
+        "1m": datetime(2026, 7, 21, 13, 38),
+        "1s": datetime(2026, 7, 21, 13, 37, 45),
+        "1ms": datetime(2026, 7, 21, 13, 37, 45),
+        "1us": datetime(2026, 7, 21, 13, 37, 45),
+        "1w": datetime(2026, 7, 20, 0, 0),
+        "1q": datetime(2026, 7, 1, 0, 0),
+    },
+    "ceil_dt": {
+        "1y": datetime(2027, 1, 1, 0, 0),
+        "1mo": datetime(2026, 8, 1, 0, 0),
+        "1d": datetime(2026, 7, 22, 0, 0),
+        "1h": datetime(2026, 7, 21, 14, 0),
+        "1m": datetime(2026, 7, 21, 13, 38),
+        "1s": datetime(2026, 7, 21, 13, 37, 45),
+        "1ms": datetime(2026, 7, 21, 13, 37, 45),
+        "1us": datetime(2026, 7, 21, 13, 37, 45),
+        "1w": datetime(2026, 7, 27, 0, 0),
+        "1q": datetime(2026, 10, 1, 0, 0),
+    },
+    "floor_dt": {
+        "1y": datetime(2026, 1, 1, 0, 0),
+        "1mo": datetime(2026, 7, 1, 0, 0),
+        "1d": datetime(2026, 7, 21, 0, 0),
+        "1h": datetime(2026, 7, 21, 13, 0),
+        "1m": datetime(2026, 7, 21, 13, 37),
+        "1s": datetime(2026, 7, 21, 13, 37, 45),
+        "1ms": datetime(2026, 7, 21, 13, 37, 45),
+        "1us": datetime(2026, 7, 21, 13, 37, 45),
+        "1w": datetime(2026, 7, 20, 0, 0),
+        "1q": datetime(2026, 7, 1, 0, 0),
+    },
+}
+
+
+@pytest.mark.parametrize("op", sorted(_UNIT_OP_FKEYS))
+@pytest.mark.parametrize("value", _ALL_UNIT_VALUES)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_datetime_unit_option_honored_or_declared(
+    op: str, value: str, backend: str, request
+) -> None:
+    """Honored asserts the real result; declared is xfailed by the value-scoped fact.
+
+    The disposition matrix gates this with ``xfail_option_unsupported`` so that
+    an upstream support addition self-heals to XPASS.  Per-backend xfail only;
+    no hard counts. The friendly alias inherits the same expected result as
+    its canonical duration form (the api builder normalizes "week" -> "1w"
+    before the value reaches the visitor, so the materialized row is
+    identical).
+    """
+    fkey = _UNIT_OP_FKEYS[op]
+    request.applymarker(
+        xfail_option_unsupported(fkey, "unit", value, backend)
+    )
+    df = make_df(_DATETIME_UNIT_DATA, backend)
+    canonical = _FRIENDLY_TO_DURATION.get(value, value)
+    expected = _HONORED_RESULTS[op][canonical]
+    got = option_result(df, _unit_expr(op, value), backend)
+    assert got == [expected], (
+        f"[{backend}] {op}('{value}') on {_DT!r} expected {[expected]!r}, got {got!r}"
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _UNIT_OP_FKEYS[op],
+        _DATETIME_PROTOCOL,
+        op,
+        "unit",
+        backend,
+        value,
+        "datetime",
+        _unit_disposition(op, value, backend),
+        _unit_reason(op, value, backend),
+    )
+    for op in sorted(_UNIT_OP_FKEYS)
+    for backend in ALL_BACKENDS
+    for value in _ALL_UNIT_VALUES
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _unit_probe(op, value, backend),
+        backend,
+        _unit_disposition(op, value, backend),
+        _unit_native_failure(op, value, backend)
+        if _unit_disposition(op, value, backend) == "declared_unsupported"
+        else None,
+    )
+    for op in sorted(_UNIT_OP_FKEYS)
+    for backend in ALL_BACKENDS
+    for value in _ALL_UNIT_VALUES
+)
+
+# OPTION_FAMILY_DEFAULT_FACT_KEYS — the ibis dialect=None family-default facts.
+# Each entry is a 5-tuple (fkey, param, value, family, dialect=None). Mirrors
+# the string padding slice: the family default protects every other ibis
+# dialect (ibis-sqlite, ibis-bigquery, …) from silently re-accepting a value
+# the family cannot honor. Only declared values get a family-default entry.
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (_UNIT_OP_FKEYS[op], "unit", value, CONST_BACKEND.IBIS, None)
+    for op in sorted(_UNIT_OP_FKEYS)
+    for value in _ALL_UNIT_VALUES
+    if value in _IBIS_DUCKDB_DECLARED[op]
+)
+
+
+def _datetime_unit_invalid_expr(op: str, value: str):
+    return _unit_expr(op, value)
+
+
+_INVALID_DATETIME_UNIT_REJECTIONS = [
+    InvalidOptionRejection(
+        _UNIT_OP_FKEYS[op],
+        _DATETIME_PROTOCOL,
+        op,
+        "unit",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda op=op: _datetime_unit_invalid_expr(op, INVALID_OPTION_VALUE),
+    )
+    for op in sorted(_UNIT_OP_FKEYS)
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_DATETIME_UNIT_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_DATETIME_UNIT_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_DATETIME_UNIT_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_datetime_unit_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS: list[tuple] = []
+TESTED_OPTION_PARAMS.extend(
+    (
+        _DATETIME_PROTOCOL,
+        op,
+        "unit",
+        param_taxonomy(_DATETIME_PROTOCOL, op, "unit"),
+    )
+    for op in sorted(_UNIT_OP_FKEYS)
+)

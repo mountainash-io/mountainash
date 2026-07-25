@@ -281,9 +281,14 @@ def test_reasoned_introspected_param_is_the_only_expected_exclusion(monkeypatch)
 
 def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> None:
     # Every option param draws its legal value domain from exactly one owner:
-    # the pinned enum domain OPTION_DOMAINS or the open-int representative domain
-    # OPTION_VALUE_DOMAINS. Both must carry a representative dtype declaration.
-    owners = set(disposition.OPTION_DOMAINS) | set(disposition.OPTION_VALUE_DOMAINS)
+    # the pinned enum domain OPTION_DOMAINS, the open-int representative domain
+    # OPTION_VALUE_DOMAINS, or the MA-extension domain MA_OPTION_DOMAINS. All
+    # three owners must carry a representative dtype declaration.
+    owners = (
+        set(disposition.OPTION_DOMAINS)
+        | set(disposition.OPTION_VALUE_DOMAINS)
+        | set(disposition.MA_OPTION_DOMAINS)
+    )
     expected = {
         key: (
             ("str",)
@@ -310,6 +315,8 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
                 ("modulus", "division_type"),
                 ("modulus", "on_domain_error"),
             }
+            else ("datetime",)
+            if key[1] == "unit"
             else ("float64",)
         )
         for key in owners

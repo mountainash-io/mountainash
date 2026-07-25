@@ -1891,7 +1891,7 @@ def register_all_functions() -> None:
             substrait_name="round",
             options=("unit",),
             is_extension=True,
-            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.round,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.round_dt,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
@@ -1899,7 +1899,7 @@ def register_all_functions() -> None:
             substrait_name="ceil",
             options=("unit",),
             is_extension=True,
-            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.ceil,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.ceil_dt,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR,
@@ -1907,7 +1907,7 @@ def register_all_functions() -> None:
             substrait_name="floor",
             options=("unit",),
             is_extension=True,
-            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.floor,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.floor_dt,
         ),
         # Timezone
         # TODO: to_timezone not yet defined in any protocol

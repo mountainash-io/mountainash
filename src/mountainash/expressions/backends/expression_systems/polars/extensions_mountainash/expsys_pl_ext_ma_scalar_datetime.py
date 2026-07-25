@@ -33,7 +33,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     Plus convenience methods for common operations:
     - Date arithmetic: add_days, add_months, add_years, etc.
     - Date difference: diff_days, diff_months, diff_years, etc.
-    - Truncation: truncate, round, ceil, floor
+    - Truncation: truncate, round_dt, ceil_dt, floor_dt
     - Timezone: to_timezone, assume_timezone
     - Formatting: strftime
     """
@@ -496,7 +496,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         """
         return x.dt.truncate(unit)
 
-    def round(
+    def round_dt(
         self,
         x: PolarsExpr,
         *,
@@ -513,7 +513,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         """
         return x.dt.round(unit)
 
-    def ceil(
+    def ceil_dt(
         self,
         x: PolarsExpr,
         *,
@@ -533,7 +533,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         # If truncated != original, add one unit
         return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
 
-    def floor(
+    def floor_dt(
         self,
         x: PolarsExpr,
         *,
