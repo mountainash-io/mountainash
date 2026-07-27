@@ -131,6 +131,34 @@ def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
         f"registered class fact(s) not exercised by any class-backed declared cell: {unexercised_class_facts}"
     )
 
+    # 3. Family-default class arm (final-review Minor): a family-default
+    # (dialect=None) class fact — e.g. the ibis dialect=None defaults that
+    # protect non-duckdb ibis dialects — has no per-fixture cell (the matrix
+    # only instantiates ibis-duckdb). Closed-by-default: each must SHADOW an
+    # exercised dialect-scoped class fact with the same (op, param, backend,
+    # value_class), never be orphaned.
+    exercised_class_identities = {
+        (f.operation_key, f.param, f.backend, f.value_class)
+        for f in resolved_class_facts
+    }
+    family_default_class_facts = {
+        fact
+        for fact in CapabilityRegistry.facts()
+        if fact.value_class is not None
+        and fact.level in _GATING
+        and fact.dialect is None
+    }
+    orphaned_family_default_class_facts = {
+        fact
+        for fact in family_default_class_facts
+        if (fact.operation_key, fact.param, fact.backend, fact.value_class)
+        not in exercised_class_identities
+    }
+    assert not orphaned_family_default_class_facts, (
+        "family-default class fact(s) with no exercised dialect-scoped sibling: "
+        f"{orphaned_family_default_class_facts}"
+    )
+
 
 
 
