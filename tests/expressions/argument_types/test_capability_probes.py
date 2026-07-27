@@ -81,6 +81,7 @@ def _gating_expression_facts():
         for f in CapabilityRegistry.facts()
         if f.level in _GATING
         and f.option_value is None
+        and f.value_class is None  # value-class facts route to the class probe system, not the argument-probe guard (items 63/64, round-2 I-1)
         and f.probe_exempt is None
         and _is_expression_fact(f)
     ]
