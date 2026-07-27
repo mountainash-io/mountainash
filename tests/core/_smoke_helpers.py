@@ -36,10 +36,12 @@ _BOOL_COLS = ["e"]
 def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_CAST,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
     )
 
     return {
         FKEY_SUBSTRAIT_CAST.CAST: ([ma.col("a")], {"dtype": "str"}),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE: ([ma.col("a"), "UTC"], {}),
     }
 
 

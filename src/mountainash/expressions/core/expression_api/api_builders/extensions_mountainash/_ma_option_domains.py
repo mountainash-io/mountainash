@@ -65,9 +65,37 @@ def validate_ma_option(
     op_name = _op_name_for_fkey(fkey)
     normalized = normalize_unit(str(value))
     legal = MA_OPTION_DOMAINS.get((op_name, option_name))
-    if legal is not None and normalized not in legal:
+    if legal is not None:
+        # Branch 1: finite canonical / friendly domain.
+        if normalized in legal:
+            return normalized
+        # Branch 2: open multiplier class (>= 2) — pass through un-enumerated.
+        if option_name == "unit":
+            from mountainash.core.capabilities.schema import ValueClass
+            from mountainash.core.capabilities.value_classes import matches
+
+            if matches(ValueClass.DURATION_MULTIPLIER, str(value)):
+                return str(value)
+        # Branch 3: reject.
         raise InvalidOptionValueError(
             f"invalid {option_name}={value!r} for {op_name}; legal: {sorted(legal)} "
-            f"(multiplier>1 not supported — see backlog capability-value-predicate-mechanism)"
+            f"(or integer multiplier ≥2 like '2d', '3h')"
         )
     return normalized
+
+
+
+def validate_open_value(value_class: Any, param: str, value: Any, op: str) -> Any:
+    """Reject an open-value option whose value fails its value-class predicate.
+
+    Used for timezone (IANA_TIMEZONE) and offset (POLARS_OFFSET) at the builder
+    boundary. strftime is NOT validated here (open domain — spec §4.2).
+    """
+    from mountainash.core.capabilities.value_classes import matches
+
+    if not matches(value_class, value):
+        raise InvalidOptionValueError(
+            f"{op}: invalid {param} {value!r} (expected {value_class.value})"
+        )
+    return value
+

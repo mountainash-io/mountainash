@@ -68,6 +68,12 @@ class SubstraitScalarDatetimeAPIBuilder(
             New ExpressionAPI with assume_timezone node.
         """
         _reject_expression("timezone", timezone, "assume_timezone")
+        from mountainash.core.capabilities.schema import ValueClass
+        from ..extensions_mountainash._ma_option_domains import validate_open_value
+
+        timezone = validate_open_value(
+            ValueClass.IANA_TIMEZONE, "timezone", timezone, "assume_timezone"
+        )
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
             arguments=[self._node],
