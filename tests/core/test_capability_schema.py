@@ -11,6 +11,7 @@ from mountainash.core.capabilities.schema import (
     DivergenceKind,
     GapKind,
     KnownGap,
+    ValueClass,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -104,3 +105,23 @@ class TestDivergenceFact:
                 operation_keys=(), backends=("polars",),
                 summary="s", impact="i", since="2026-07-05",
             )
+
+
+def test_value_class_and_option_value_are_mutually_exclusive():
+    with pytest.raises(ValueError, match="exactly one"):
+        _fact(option_value="2d", value_class=ValueClass.DURATION_MULTIPLIER)
+
+def test_value_class_fact_rejects_wildcard_param():
+    with pytest.raises(ValueError, match="value-class"):
+        _fact(param=WILDCARD_PARAM, value_class=ValueClass.DURATION_MULTIPLIER)
+
+def test_value_class_fact_rejects_materialize_boundary():
+    with pytest.raises(ValueError, match="value-class"):
+        _fact(value_class=ValueClass.DURATION_MULTIPLIER, boundary=Boundary.MATERIALIZE,
+              native_errors=(ValueError,))
+
+def test_value_class_fact_valid_shape_constructs():
+    f = _fact(value_class=ValueClass.DURATION_MULTIPLIER)
+    assert f.value_class is ValueClass.DURATION_MULTIPLIER
+    assert f.option_value is None
+

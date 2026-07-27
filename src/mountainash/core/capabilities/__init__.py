@@ -12,6 +12,7 @@ from mountainash.core.capabilities.schema import (
     GapKind,
     KnownGap,
     TargetKind,
+    ValueClass,
     WILDCARD_PARAM,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "KNOWN_DIALECTS",
     "KnownGap",
     "TargetKind",
+    "ValueClass",
     "WILDCARD_PARAM",
     "load_all_capability_declarations",
 ]
