@@ -128,6 +128,8 @@ class OptionCell(NamedTuple):
     dtype: str
     disposition: str
     reason: str = ""
+    backing_mode: str = "absence"
+
 
 
 class OptionProbeRegistration(NamedTuple):
@@ -274,6 +276,10 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("round_dt", "unit"): ("datetime",),
     ("ceil_dt", "unit"): ("datetime",),
     ("floor_dt", "unit"): ("datetime",),
+    # Datetime open-value options.
+    ("assume_timezone", "timezone"): ("datetime",),
+    ("offset_by", "offset"): ("datetime",),
+    ("strftime", "format"): ("datetime",),
 }
 
 # Representative legal values for open-integer options that have NO finite
@@ -298,29 +304,86 @@ OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
     ("regexp_strpos", "position"): ("2",),
 }
 
-# An option param draws its legal value domain from exactly one source: the
-# pinned production enum domain OR the test-only open-int representative domain.
-_domain_overlap = set(OPTION_DOMAINS) & set(OPTION_VALUE_DOMAINS)
-if _domain_overlap:
-    raise AssertionError(
-        f"option params in both OPTION_DOMAINS and OPTION_VALUE_DOMAINS: "
-        f"{sorted(_domain_overlap)}"
-    )
-# Mountainash-extension option domains are physically separate (substrait-vs-mountainash
-# ENFORCED principle). The three sources must be pairwise disjoint: a given (op, param)
-# draws its legal value domain from exactly ONE of OPTION_DOMAINS, OPTION_VALUE_DOMAINS,
-# or MA_OPTION_DOMAINS.
-for left, right in (
-    (OPTION_DOMAINS, MA_OPTION_DOMAINS),
-    (OPTION_VALUE_DOMAINS, MA_OPTION_DOMAINS),
-):
-    overlap = set(left) & set(right)
-    if overlap:
-        raise AssertionError(
-            f"option params in both {left.__qualname__ if hasattr(left, '__qualname__') else left!r} "
-            f"and {right.__qualname__ if hasattr(right, '__qualname__') else right!r}: "
-            f"{sorted(overlap)}"
-        )
+# Representative legal values for open-string and value-class option params.
+_MA_OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("assume_timezone", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
+    ("offset_by", "offset"): ("1d", "-3mo", "2h30m"),
+    ("strftime", "format"): ("%Y-%m-%d", "%H:%M:%S"),
+    ("truncate", "unit"): ("2d", "3h"),
+    ("round_dt", "unit"): ("2d", "3h"),
+    ("ceil_dt", "unit"): ("2d", "3h"),
+    ("floor_dt", "unit"): ("2d", "3h"),
+}
+
+
+class OpenDomainOptionSpec(NamedTuple):
+    """An open-domain option param exempt from INVALID sentinel generation."""
+
+    protocol: str
+    op: str
+    param: str
+    since: str
+    rationale: str
+
+
+_OPEN_DOMAIN_OPTIONS: dict[tuple[str, str, str], OpenDomainOptionSpec] = {
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strftime", "format"): OpenDomainOptionSpec(
+        protocol="SubstraitScalarDatetimeExpressionSystemProtocol",
+        op="strftime",
+        param="format",
+        since="2026-07-27",
+        rationale=(
+            "strftime format string is unvalidated open-domain string; "
+            "no invalid cell or build rejection expected"
+        ),
+    ),
+}
+
+# The four sources must be pairwise disjoint, EXCEPT for the unit keys on
+# (MA_OPTION_DOMAINS, _MA_OPTION_VALUE_DOMAINS) which legitimately carry both
+# finite units and multiplier representatives.
+_FOUR_UNIT_KEYS = {
+    ("truncate", "unit"),
+    ("round_dt", "unit"),
+    ("ceil_dt", "unit"),
+    ("floor_dt", "unit"),
+}
+
+_all_domain_sources = (
+    ("OPTION_DOMAINS", OPTION_DOMAINS),
+    ("MA_OPTION_DOMAINS", MA_OPTION_DOMAINS),
+    ("OPTION_VALUE_DOMAINS", OPTION_VALUE_DOMAINS),
+    ("_MA_OPTION_VALUE_DOMAINS", _MA_OPTION_VALUE_DOMAINS),
+)
+
+for i in range(len(_all_domain_sources)):
+    for j in range(i + 1, len(_all_domain_sources)):
+        left_name, left_src = _all_domain_sources[i]
+        right_name, right_src = _all_domain_sources[j]
+        overlap = set(left_src) & set(right_src)
+        if {left_name, right_name} == {"MA_OPTION_DOMAINS", "_MA_OPTION_VALUE_DOMAINS"}:
+            overlap = overlap - _FOUR_UNIT_KEYS
+        if overlap:
+            raise AssertionError(
+                f"option params in both {left_name} and {right_name}: {sorted(overlap)}"
+            )
+
+from mountainash.core.capabilities.value_classes import matches, ValueClass
+
+for unit_key in _FOUR_UNIT_KEYS:
+    finite_vals = MA_OPTION_DOMAINS[unit_key]
+    mult_vals = _MA_OPTION_VALUE_DOMAINS[unit_key]
+    for v in finite_vals:
+        if matches(ValueClass.DURATION_MULTIPLIER, v):
+            raise AssertionError(
+                f"finite unit value {v!r} unexpectedly matches DURATION_MULTIPLIER"
+            )
+    for v in mult_vals:
+        if v in finite_vals:
+            raise AssertionError(
+                f"multiplier unit representative {v!r} found in finite domain {finite_vals!r}"
+            )
+
 
 
 _CELL_DISPOSITIONS = frozenset(
@@ -552,6 +615,38 @@ def validate_option_registries() -> None:
                 f"cells-only={cells_for_role - probes_for_role}"
             )
 
+    _ALLOWED_BACKING_MODES = {"class", "exact-fallback", "absence"}
+    invalid_backing_modes = [
+        cell for cell in OPTION_DISPOSITIONS if cell.backing_mode not in _ALLOWED_BACKING_MODES
+    ]
+    if invalid_backing_modes:
+        raise AssertionError(
+            f"invalid option cell backing_mode(s): {invalid_backing_modes}; "
+            f"allowed: {sorted(_ALLOWED_BACKING_MODES)}"
+        )
+
+    # Open-domain options registry validation (design-review round-2 I-4)
+    active_identities = {
+        (p.protocol_name, p.op_name, p.param_name): (p.op_name, p.param_name)
+        for p in introspect_protocols()
+        if p.kind == "option"
+    }
+    for key, spec in _OPEN_DOMAIN_OPTIONS.items():
+        if key not in active_identities:
+            raise AssertionError(
+                f"open-domain option spec {key} is not an active introspected option"
+            )
+        op_param = active_identities[key]
+        if (
+            op_param not in OPTION_DOMAINS
+            and op_param not in MA_OPTION_DOMAINS
+            and op_param not in OPTION_VALUE_DOMAINS
+            and op_param not in _MA_OPTION_VALUE_DOMAINS
+        ):
+            raise AssertionError(
+                f"open-domain option spec {key} has no registered value domain"
+            )
+
 
 def cell_fact_key(cell: OptionCell) -> FactKey:
     """Map a per-fixture cell to the five-axis capability fact identity."""
@@ -584,6 +679,21 @@ def resolve_cell_fact(cell: OptionCell) -> CapabilityFact | None:
         ),
         None,
     )
+
+
+def resolve_cell_class_fact(cell: OptionCell) -> CapabilityFact | None:
+    """Resolve a cell's fact via CapabilityRegistry.capability_for matching a value_class."""
+    family, dialect = _FIXTURE_IDENTITY[cell.fixture]
+    fact = CapabilityRegistry.capability_for(
+        cell.fkey,
+        cell.param,
+        family,
+        dialect,
+        option_value=cell.value,
+    )
+    if fact is not None and fact.value_class is not None:
+        return fact
+    return None
 
 
 def param_taxonomy(protocol: str, op: str, param: str) -> str:
@@ -634,11 +744,18 @@ def expected_option_cells() -> set[CellKey]:
         if identity in known:
             continue
         operation = (protocol_param.op_name, protocol_param.param_name)
-        value_domain = (
-            OPTION_DOMAINS.get(operation)
-            or MA_OPTION_DOMAINS.get(operation)
-            or OPTION_VALUE_DOMAINS.get(operation)
-        )
+        if operation in _FOUR_UNIT_KEYS:
+            value_domain = (
+                tuple(MA_OPTION_DOMAINS[operation])
+                + _MA_OPTION_VALUE_DOMAINS[operation]
+            )
+        else:
+            value_domain = (
+                OPTION_DOMAINS.get(operation)
+                or MA_OPTION_DOMAINS.get(operation)
+                or OPTION_VALUE_DOMAINS.get(operation)
+                or _MA_OPTION_VALUE_DOMAINS.get(operation)
+            )
         if value_domain is None:
             raise AssertionError(
                 f"unreasoned option param {identity} has no pinned value domain "
@@ -662,14 +779,15 @@ def expected_option_cells() -> set[CellKey]:
                     expected.add(
                         (fkey, protocol_param.param_name, fixture, value, dtype)
                     )
-            for dtype in OPTION_DTYPES[operation]:
-                expected.add(
-                    (
-                        fkey,
-                        protocol_param.param_name,
-                        fixture,
-                        INVALID_OPTION_VALUE,
-                        dtype,
+            if identity not in _OPEN_DOMAIN_OPTIONS:
+                for dtype in OPTION_DTYPES[operation]:
+                    expected.add(
+                        (
+                            fkey,
+                            protocol_param.param_name,
+                            fixture,
+                            INVALID_OPTION_VALUE,
+                            dtype,
+                        )
                     )
-                )
     return expected

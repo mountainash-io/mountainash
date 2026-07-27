@@ -17,6 +17,8 @@ _DECLARATION_MODULES = (
     "mountainash.expressions.backends.expression_systems.arithmetic_option_capabilities",
     "mountainash.expressions.backends.expression_systems.string_option_capabilities",
     "mountainash.expressions.backends.expression_systems.datetime_option_capabilities",
+    "mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_ma",
+    "mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_substrait",
     "mountainash.expressions.backends.expression_systems.polars.base",
     "mountainash.expressions.backends.expression_systems.ibis_capabilities",
     "mountainash.expressions.backends.expression_systems.narwhals.base",

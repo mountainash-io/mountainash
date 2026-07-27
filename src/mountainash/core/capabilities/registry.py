@@ -18,6 +18,7 @@ from mountainash.core.capabilities.schema import (
     CapabilityFact,
     CapabilityLevel,
     TargetKind,
+    ValueClass,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -26,6 +27,7 @@ from mountainash.core.constants import CONST_BACKEND
 # serialization workstream's register_target (spec 2026-07-06); register_backend
 # rejects them via the family-identity check in _validate_fact.
 _Key = Tuple[Any, str, "CONST_BACKEND | str", Optional[str], Optional[str]]
+_ValueClassKey = Tuple[Any, str, "CONST_BACKEND | str", Optional[str], ValueClass]
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,22 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
                 f"CapabilityFact({fact.operation_key}, {fact.param}): "
                 "value-scoped facts require an expression operation"
             )
+    if fact.value_class is not None:
+        if fact.param == WILDCARD_PARAM:
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param}): "
+                "value-class facts cannot use WILDCARD_PARAM"
+            )
+        if fact.boundary is not Boundary.BUILD:
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param}): "
+                "value-class facts must use the BUILD boundary"
+            )
+        if kind != "expression":
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param}): "
+                "value-class facts require an expression operation"
+            )
     method = definition.protocol_method
     if fact.param != WILDCARD_PARAM and method is not None:
         sig = inspect.signature(method)
@@ -167,6 +185,7 @@ class CapabilityRegistry:
 
     _facts: Dict[_Key, CapabilityFact] = {}
     _kinds: Dict[str, TargetKind] = {}  # family name -> kind (spec 2026-07-06)
+    _value_class_facts: Dict[_ValueClassKey, CapabilityFact] = {}
 
     @classmethod
     def _register_identity(cls, name: str, kind: TargetKind) -> None:
@@ -196,6 +215,18 @@ class CapabilityRegistry:
         cls._register_identity(family.value, TargetKind.EXECUTE)
         for fact in facts:
             _validate_fact(family, fact)
+            if fact.value_class is not None:
+                vkey: _ValueClassKey = (
+                    fact.operation_key,
+                    fact.param,
+                    fact.backend,
+                    fact.dialect,
+                    fact.value_class,
+                )
+                if vkey in cls._value_class_facts:
+                    raise ValueError(f"duplicate value-class CapabilityFact key: {vkey}")
+                cls._value_class_facts[vkey] = fact
+                continue
             key: _Key = (
                 fact.operation_key,
                 fact.param,
@@ -206,6 +237,39 @@ class CapabilityRegistry:
             if key in cls._facts:
                 raise ValueError(f"duplicate CapabilityFact key: {key}")
             cls._facts[key] = fact
+
+    @classmethod
+    def _value_class_fact(
+        cls,
+        operation_key: Any,
+        param: str,
+        backend: CONST_BACKEND,
+        dialect: str | None,
+        value: str,
+    ) -> CapabilityFact | None:
+        from mountainash.core.capabilities.value_classes import matches
+
+        for scope in (dialect, None):  # dialect slice before family slice
+            hits = [
+                fact
+                for (op, p, be, dl, vc), fact in cls._value_class_facts.items()
+                if op == operation_key
+                and p == param
+                and be == backend
+                and dl == scope
+                and matches(vc, value)
+            ]
+            if len(hits) > 1:
+                classes = sorted(
+                    {f.value_class.value for f in hits if f.value_class is not None}
+                )
+                raise ValueError(
+                    f"two distinct value classes match {value!r} at "
+                    f"({operation_key}, {param}, {backend}, {scope}): {classes}"
+                )
+            if hits:
+                return hits[0]
+        return None
 
     @classmethod
     def capability_for(
@@ -219,6 +283,17 @@ class CapabilityRegistry:
         for key in (
             (operation_key, param, backend, dialect, option_value),
             (operation_key, param, backend, None, option_value),
+        ):
+            fact = cls._facts.get(key)
+            if fact is not None:
+                return fact
+        if option_value is not None:
+            vc_fact = cls._value_class_fact(
+                operation_key, param, backend, dialect, option_value
+            )
+            if vc_fact is not None:
+                return vc_fact
+        for key in (
             (operation_key, param, backend, dialect, None),
             (operation_key, param, backend, None, None),
             (operation_key, WILDCARD_PARAM, backend, dialect, None),
@@ -239,7 +314,7 @@ class CapabilityRegistry:
         conditioned: bool | None = None,
     ) -> List[CapabilityFact]:
         out = []
-        for fact in cls._facts.values():
+        for fact in (*cls._facts.values(), *cls._value_class_facts.values()):
             if level is not None and fact.level is not level:
                 continue
             if backend is not None and fact.backend is not backend:
@@ -281,21 +356,34 @@ class CapabilityRegistry:
 
     # -- test isolation -----------------------------------------------------
     @classmethod
-    def snapshot(cls) -> Tuple[Dict[_Key, CapabilityFact], Dict[str, TargetKind]]:
+    def snapshot(
+        cls,
+    ) -> Tuple[
+        Dict[_Key, CapabilityFact],
+        Dict[str, TargetKind],
+        Dict[_ValueClassKey, CapabilityFact],
+    ]:
         """Opaque round-trip token for test isolation — captures BOTH _facts
         and _kinds so restore() is symmetric with reset(). Callers must treat
         the return value as opaque (feed it only to restore())."""
-        return dict(cls._facts), dict(cls._kinds)
+        return dict(cls._facts), dict(cls._kinds), dict(cls._value_class_facts)
 
     @classmethod
     def restore(
-        cls, snapshot: Tuple[Dict[_Key, CapabilityFact], Dict[str, TargetKind]]
+        cls,
+        snapshot: Tuple[
+            Dict[_Key, CapabilityFact],
+            Dict[str, TargetKind],
+            Dict[_ValueClassKey, CapabilityFact],
+        ],
     ) -> None:
-        facts, kinds = snapshot
+        facts, kinds, vclass = snapshot
         cls._facts = dict(facts)
         cls._kinds = dict(kinds)
+        cls._value_class_facts = dict(vclass)
 
     @classmethod
     def reset(cls) -> None:
         cls._facts = {}
         cls._kinds = {}
+        cls._value_class_facts = {}

@@ -56,6 +56,21 @@ class Fidelity(Enum):
     EXTENSION = "extension"         # mountainash URN / custom step — foreign consumers need the declaration
 
 
+class ValueClass(Enum):
+    """Unbounded value-space a fact matches by predicate (spec 2026-07-25).
+
+    A value-class fact gates the *entire* class on a backend; register one only
+    where a representative slice agrees (see value_classes.REPRESENTATIVE_SLICES
+    and the spec's backend-binary agreement rule). A class is usable for gating
+    ONLY when the api-builder validates the param to exactly that predicate's
+    domain (gate-domain == production-domain, spec §3.2). strftime is open
+    (unvalidated) so it has NO value-class — it gates value-agnostically.
+    """
+    DURATION_MULTIPLIER = "duration_multiplier"   # <int> >= 2 + unit, e.g. 2d, 3h
+    IANA_TIMEZONE = "iana_timezone"               # tz-database membership
+    POLARS_OFFSET = "polars_offset"               # signed Polars duration string
+
+
 def _validate_since(since: str, owner: str) -> None:
     if not _SINCE_RE.match(since):
         raise ValueError(f"{owner}: since must be YYYY-MM-DD, got {since!r}")
@@ -81,6 +96,7 @@ class CapabilityFact:
     probe_exempt: str | None = None     # reason when no probe is possible
     fidelity: Fidelity | None = None    # SERIALIZE targets only; must be None on EXECUTE facts
                                         # (validated in register_backend — spec 2026-07-06)
+    value_class: ValueClass | None = None   # value-class fact; option_value MUST be None
 
     def __post_init__(self) -> None:
         _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
@@ -100,6 +116,24 @@ class CapabilityFact:
                 f"CapabilityFact({self.operation_key}, {self.param}): upstream_ref "
                 f"{self.upstream_ref!r} does not match PROJ-CAT-NN grammar"
             )
+        if self.value_class is not None:
+            if self.option_value is not None:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a fact is "
+                    "exactly one of exact-value (option_value), value-class "
+                    "(value_class), or value-agnostic (neither) — not both "
+                    "option_value and value_class"
+                )
+            if self.param == WILDCARD_PARAM:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): "
+                    "value-class facts cannot use WILDCARD_PARAM"
+                )
+            if self.boundary is not Boundary.BUILD:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): "
+                    "value-class facts must use the BUILD boundary"
+                )
 
 
 class DivergenceKind(Enum):

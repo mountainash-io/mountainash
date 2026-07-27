@@ -177,21 +177,16 @@ def test_friendly_unit_normalizes_to_duration_on_polars(
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("bad", ["fortnight", "13x", "2d", "3h", ""])
-def test_invalid_or_multiplier_unit_rejected_uniformly(
+@pytest.mark.parametrize("bad", ["fortnight", "13x", ""])
+def test_invalid_unit_rejected_uniformly(
     bad: str,
     backend_factory,
 ) -> None:
     """`truncate(<bad>)` must raise InvalidOptionValueError uniformly.
 
-    Before Task 2:
-      - polars passed these through, so `truncate("2d")` and `truncate("3h")`
-        returned wrong/silent results (not rejected) — multiplier>1 must
-        raise.
-      - polars raised an opaque Polars engine error on `"fortnight"` / `"13x"`
-        instead of the typed mountainash `InvalidOptionValueError`.
-    After Task 2, the api-builder normalizes and validates `unit` against
-    `MA_OPTION_DOMAINS[(truncate, unit)]` and raises the typed error.
+    Integer multipliers ≥ 2 (e.g. "2d", "3h") are now accepted via
+    DURATION_MULTIPLIER. Genuine garbage units ("fortnight", "13x", "") must
+    still raise InvalidOptionValueError.
     """
     df = backend_factory.create(
         {"ts": [datetime(2026, 7, 21, 13, 37, 45)]},
@@ -200,3 +195,78 @@ def test_invalid_or_multiplier_unit_rejected_uniformly(
 
     with pytest.raises(InvalidOptionValueError):
         ma.relation(df).select(ma.col("ts").dt.truncate(bad).name.alias("r")).to_polars()
+
+
+# --------------------------------------------------------------------------
+# Task 4: unit multiplier (>=2) support and open-value validation
+# --------------------------------------------------------------------------
+from mountainash.core.capabilities.schema import ValueClass
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import (
+    validate_ma_option,
+    validate_open_value,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
+)
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("2d", "2d"), ("3h", "3h"), ("12mo", "12mo"),
+    ("1d", "1d"), ("day", "1d"),
+])
+def test_validate_unit_accepts_multiplier_and_canonical(value, expected):
+    assert validate_ma_option(FK.TRUNCATE, "unit", value) == expected
+
+
+@pytest.mark.parametrize("value", ["0d", "02d", "2x", "2ns", "2", "INVALID"])
+def test_validate_unit_rejects_garbage(value):
+    with pytest.raises(InvalidOptionValueError):
+        validate_ma_option(FK.TRUNCATE, "unit", value)
+
+
+@pytest.mark.parametrize("value", ["UTC", "Australia/Sydney"])
+def test_validate_open_timezone_accepts_iana(value):
+    assert validate_open_value(ValueClass.IANA_TIMEZONE, "timezone", value, "is_dst") == value
+
+
+@pytest.mark.parametrize("value", ["Not/AZone", "", "garbage"])
+def test_validate_open_timezone_rejects_non_iana(value):
+    with pytest.raises(InvalidOptionValueError):
+        validate_open_value(ValueClass.IANA_TIMEZONE, "timezone", value, "is_dst")
+
+
+def test_validate_open_offset_rejects_garbage():
+    with pytest.raises(InvalidOptionValueError):
+        validate_open_value(ValueClass.POLARS_OFFSET, "offset", "garbage", "offset_by")
+
+
+def test_is_dst_builder_validation():
+    # no-arg must work without raising
+    expr_no_arg = ma.col("ts").dt.is_dst()
+    assert expr_no_arg is not None
+    # valid IANA timezone
+    expr_valid = ma.col("ts").dt.is_dst("Australia/Sydney")
+    assert expr_valid is not None
+    # invalid timezone raises
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("ts").dt.is_dst("Not/AZone")
+
+
+def test_offset_by_builder_validation():
+    # valid offset
+    expr_valid = ma.col("ts").dt.offset_by("2d")
+    assert expr_valid is not None
+    # invalid offset raises
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("ts").dt.offset_by("garbage")
+
+
+def test_assume_timezone_builder_validation():
+    # valid timezone
+    expr_valid = ma.col("ts").dt.assume_timezone("UTC")
+    assert expr_valid is not None
+    # invalid timezone raises
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("ts").dt.assume_timezone("invalid_zone")
+
+

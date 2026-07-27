@@ -793,27 +793,27 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
 )
 # 6 free-string (open-value) params: the op is wired and the option flows, but a clean
 # cross-backend disposition needs an open-value option pattern (no finite domain).
-_KNOWN_UNTESTED_OPTION_PARAMS.update(
-    {
-        key: KnownGap(
-            gap_kind=GapKind.UNTESTED_OPTION,
-            reason=(
-                "free-string (open-value) option — the op is wired and the option "
-                "flows, but cross-backend disposition needs an open-value option "
-                "pattern; see backlog: datetime-open-value-option-disposition"
-            ),
-            since="2026-07-25",
-        )
-        for key in {
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "is_dst", "timezone"),
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "offset_by", "offset"),
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "assume_timezone", "timezone"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp", "timezone"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strftime", "format"),
-        }
-    }
+_KNOWN_UNTESTED_OPTION_PARAMS[
+    ("MountainAshScalarDatetimeExpressionSystemProtocol", "is_dst", "timezone")
+] = KnownGap(
+    gap_kind=GapKind.UNTESTED_OPTION,
+    reason=(
+        "is_dst is a placeholder stub (constant False on all backends); "
+        "timezone option non-functional — see backlog: is-dst-placeholder-implementation"
+    ),
+    since="2026-07-25",
 )
+
+for key in {
+    ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp", "timezone"),
+}:
+    _KNOWN_UNTESTED_OPTION_PARAMS[key] = KnownGap(
+        gap_kind=GapKind.UNTESTED_OPTION,
+        reason="unwired op — wire + disposition in backlog item 62",
+        since="2026-07-25",
+    )
+
 
 for _case_sensitivity_op in (
     "contains",

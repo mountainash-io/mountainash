@@ -90,16 +90,76 @@ def test_dispositions_cover_exactly_the_expected_cells() -> None:
 
 
 def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
+    # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts
     fact_keys = _option_fact_keys()
-    declared_keys = {
+    exact_declared_keys = {
         cell_fact_key(cell)
         for cell in OPTION_DISPOSITIONS
-        if cell.disposition == "declared_unsupported"
+        if cell.disposition == "declared_unsupported" and cell.backing_mode != "class"
     }
-    assert fact_keys == declared_keys, (
-        f"fact/cell mismatch: facts-only={fact_keys - declared_keys}; "
-        f"cells-only={declared_keys - fact_keys}"
+    assert fact_keys == exact_declared_keys, (
+        f"exact fact/cell mismatch: facts-only={fact_keys - exact_declared_keys}; "
+        f"cells-only={exact_declared_keys - fact_keys}"
     )
+
+    # 2. Class Arm: class-backed declared cells <-> value-class capability facts
+    class_declared_cells = [
+        cell
+        for cell in OPTION_DISPOSITIONS
+        if cell.disposition == "declared_unsupported" and cell.backing_mode == "class"
+    ]
+    for cell in class_declared_cells:
+        fact = disposition.resolve_cell_class_fact(cell)
+        assert fact is not None, f"class-backed declared cell {cell} failed to resolve to a class fact"
+        assert fact.value_class is not None, f"resolved fact for class cell {cell} has no value_class: {fact}"
+        assert fact.level in _GATING, f"resolved class fact for cell {cell} has level {fact.level!r}, not in _GATING"
+
+    registered_class_facts = {
+        fact
+        for fact in CapabilityRegistry.facts()
+        if fact.value_class is not None
+        and fact.level in _GATING
+        and fact.dialect is not None
+    }
+    resolved_class_facts = {
+        disposition.resolve_cell_class_fact(cell)
+        for cell in class_declared_cells
+        if disposition.resolve_cell_class_fact(cell) is not None
+    }
+    unexercised_class_facts = registered_class_facts - resolved_class_facts
+    assert not unexercised_class_facts, (
+        f"registered class fact(s) not exercised by any class-backed declared cell: {unexercised_class_facts}"
+    )
+
+    # 3. Family-default class arm (final-review Minor): a family-default
+    # (dialect=None) class fact — e.g. the ibis dialect=None defaults that
+    # protect non-duckdb ibis dialects — has no per-fixture cell (the matrix
+    # only instantiates ibis-duckdb). Closed-by-default: each must SHADOW an
+    # exercised dialect-scoped class fact with the same (op, param, backend,
+    # value_class), never be orphaned.
+    exercised_class_identities = {
+        (f.operation_key, f.param, f.backend, f.value_class)
+        for f in resolved_class_facts
+    }
+    family_default_class_facts = {
+        fact
+        for fact in CapabilityRegistry.facts()
+        if fact.value_class is not None
+        and fact.level in _GATING
+        and fact.dialect is None
+    }
+    orphaned_family_default_class_facts = {
+        fact
+        for fact in family_default_class_facts
+        if (fact.operation_key, fact.param, fact.backend, fact.value_class)
+        not in exercised_class_identities
+    }
+    assert not orphaned_family_default_class_facts, (
+        "family-default class fact(s) with no exercised dialect-scoped sibling: "
+        f"{orphaned_family_default_class_facts}"
+    )
+
+
 
 
 def test_family_default_option_facts_are_mutually_backed() -> None:
@@ -288,6 +348,7 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
         set(disposition.OPTION_DOMAINS)
         | set(disposition.OPTION_VALUE_DOMAINS)
         | set(disposition.MA_OPTION_DOMAINS)
+        | set(disposition._MA_OPTION_VALUE_DOMAINS)
     )
     expected = {
         key: (
@@ -316,13 +377,14 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
                 ("modulus", "on_domain_error"),
             }
             else ("datetime",)
-            if key[1] == "unit"
+            if key[1] in {"unit", "timezone", "offset", "format"}
             else ("float64",)
         )
         for key in owners
     }
     assert disposition.OPTION_DTYPES == expected
     assert set(disposition.OPTION_DTYPES) == owners
+
 
 
 @pytest.mark.parametrize("value", ["ERROR", "SATURATE", "SILENT"])

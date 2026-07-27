@@ -351,11 +351,17 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         """
         options = {}
         if timezone is not None:
+            from ._ma_option_domains import validate_open_value
+            from mountainash.core.capabilities.schema import ValueClass
+
+            timezone = validate_open_value(
+                ValueClass.IANA_TIMEZONE, "timezone", timezone, "is_dst"
+            )
             options["timezone"] = timezone
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
             arguments=[self._node],
-            options=options if options else None,
+            options=options,
         )
         return self._build(node)
 
@@ -717,7 +723,9 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
                 friendly words (``"year"``, ``"month"``, …). The portable core
                 ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
                 ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
-                declared per-backend. Multiplier > 1 is not supported.
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with truncate node.
@@ -750,7 +758,9 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
                 friendly words (``"year"``, ``"month"``, …). The portable core
                 ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
                 ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
-                declared per-backend. Multiplier > 1 is not supported.
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with round node.
@@ -783,7 +793,9 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
                 friendly words (``"year"``, ``"month"``, …). The portable core
                 ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
                 ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
-                declared per-backend. Multiplier > 1 is not supported.
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with ceil node.
@@ -816,7 +828,9 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
                 friendly words (``"year"``, ``"month"``, …). The portable core
                 ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
                 ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
-                declared per-backend. Multiplier > 1 is not supported.
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with floor node.
@@ -911,6 +925,13 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
             from ....utils.temporal import to_offset_string
 
             offset = to_offset_string(offset)
+
+        from ._ma_option_domains import validate_open_value
+        from mountainash.core.capabilities.schema import ValueClass
+
+        offset = validate_open_value(
+            ValueClass.POLARS_OFFSET, "offset", offset, "offset_by"
+        )
 
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY,
