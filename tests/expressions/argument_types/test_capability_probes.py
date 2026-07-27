@@ -87,6 +87,14 @@ def _gating_expression_facts():
     ]
 
 
+def test_value_class_facts_do_not_enter_argument_probe_system() -> None:
+    gating_facts = _gating_expression_facts()
+    assert not any(f.value_class is not None for f in gating_facts), (
+        "value-class facts must not enter the argument-probe system"
+    )
+
+
+
 # Dialects the argument-types matrix cannot instantiate (closed-by-default:
 # a skipped dialect must be listed here with a reason, never silently dropped).
 # narwhals-lazy shares the narwhals-polars implementation — its facts are

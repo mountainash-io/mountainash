@@ -15,10 +15,12 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 @pytest.fixture(autouse=True)
 def _isolate():
     snap = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
     try:
         yield
     finally:
         CapabilityRegistry.restore(snap)
+
 
 
 def _class_fact(**kw):
