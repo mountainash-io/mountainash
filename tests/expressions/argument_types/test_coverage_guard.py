@@ -589,6 +589,22 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
     }
 }
 
+for key in {
+    ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'to_timezone', 'x'),
+    ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'local_timestamp', 'x'),
+}:
+    _KNOWN_METADATA_ONLY_TESTED_PARAMS[key] = KnownGap(
+        gap_kind=GapKind.UNTESTED_ARGUMENT,
+        reason=(
+            "argument-matrix coverage blocked: the matrix's registry-driven xfail "
+            "(_test_template.xfail_if_limited) resolves capability_for() with no option "
+            "value, so it cannot see the IANA_TIMEZONE value-class fact that gates this "
+            "op on ibis — same blocker as assume_timezone/strftime. See backlog: "
+            "arg-matrix-xfail-blind-to-value-class-facts"
+        ),
+        since="2026-07-29",
+    )
+
 
 _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     key: KnownGap(
@@ -804,16 +820,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS[
     since="2026-07-25",
 )
 
-for key in {
-    ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone", "timezone"),
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp", "timezone"),
-}:
-    _KNOWN_UNTESTED_OPTION_PARAMS[key] = KnownGap(
-        gap_kind=GapKind.UNTESTED_OPTION,
-        reason="unwired op — wire + disposition in backlog item 62",
-        since="2026-07-25",
-    )
-
 
 for _case_sensitivity_op in (
     "contains",
@@ -942,7 +948,6 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
             ("MountainAshScalarDatetimeExpressionSystemProtocol", "quarter"),
             ("MountainAshScalarDatetimeExpressionSystemProtocol", "second"),
             ("MountainAshScalarDatetimeExpressionSystemProtocol", "timezone_offset"),
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "to_timezone"),
             ("MountainAshScalarDatetimeExpressionSystemProtocol", "unix_timestamp"),
             ("MountainAshScalarDatetimeExpressionSystemProtocol", "week_of_year"),
             ("MountainAshScalarDatetimeExpressionSystemProtocol", "year"),
@@ -990,7 +995,6 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "add_intervals"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "gt"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "gte"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "local_timestamp"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "lt"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "lte"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "multiply"),
