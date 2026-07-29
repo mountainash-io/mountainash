@@ -17,6 +17,7 @@ from expressions.argument_types.conftest import make_df
 from mountainash.core.capabilities import (
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
     load_all_capability_declarations,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -68,7 +69,12 @@ def xfail_option_unsupported(
     backend: str,
     dialect: str | None = None,
 ):
-    """Return a strict xfail marker for a gating value-scoped capability fact."""
+    """Return a strict xfail marker for a gating value-scoped capability fact.
+
+    Only GATE facts gate (backlog 66a): a ROUTER_METADATA or MATERIALIZE_RESIDUE
+    fact never raises at the visitor, so it must not produce a gating xfail here.
+    Selecting on level alone would re-create the very defect 66a closed.
+    """
     resolved_dialect = dialect if dialect is not None else _FIXTURE_DIALECT[backend]
     fact = CapabilityRegistry.capability_for(
         fkey,
@@ -77,7 +83,11 @@ def xfail_option_unsupported(
         resolved_dialect,
         option_value=option_value,
     )
-    if fact is not None and fact.level in _GATING:
+    if (
+        fact is not None
+        and fact.level in _GATING
+        and fact.enforcement is Enforcement.GATE
+    ):
         return pytest.mark.xfail(
             strict=True,
             raises=BackendCapabilityError,
