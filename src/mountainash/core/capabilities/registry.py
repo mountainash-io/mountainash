@@ -342,6 +342,33 @@ class CapabilityRegistry:
         return out
 
     @classmethod
+    def router_facts(
+        cls,
+        operation_key: Any,
+        backend: CONST_BACKEND,
+        dialect: str | None = None,
+    ) -> Tuple[CapabilityFact, ...]:
+        """ROUTER_METADATA facts for an op on a backend, in registration order.
+
+        These never gate. They document WHY a backend takes a non-native
+        path; the routing decision itself stays in the router, and no
+        production router calls this accessor yet. On polars/narwhals the
+        declared condition matches their routing predicate exactly; ibis
+        routes more broadly, which is why routing is not derived from facts
+        (see the 66a plan's spec-deviation note). The bridge test in
+        tests/relations/backends/test_resource_files.py fails on any router
+        fact with no registered probe, so a declaration cannot go unexercised.
+        """
+        return tuple(
+            fact
+            for fact in cls.facts(
+                backend=backend, enforcement=Enforcement.ROUTER_METADATA
+            )
+            if fact.operation_key == operation_key
+            and (fact.dialect is None or fact.dialect == dialect)
+        )
+
+    @classmethod
     def validate_plan_capabilities(
         cls,
         operation_keys: Iterable[Any],
