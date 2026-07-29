@@ -36,9 +36,11 @@ Each category has `core/` (cross-cutting) and module-specific subdirectories. Se
 |----------|-------|--------|---------|
 | substrait-first-design.md | core | ENFORCED | All operations align with Substrait specification; custom ops in separate extension namespace |
 | three-layer-separation.md | core | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
+| capability-as-call-property.md | core | PROPOSED | Capability is a property of a bound call, not one parameter; lookup vs "what forbids this call" are two APIs |
 | minimal-ast.md | expressions | ENFORCED | 9 expression node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
 | unified-visitor.md | expressions | ADOPTED | Single visitor dispatches all expression node types via function registry lookup |
 | wiring-matrix.md | expressions | ADOPTED | Every expression operation must be wired through all six architecture layers |
+| gate-then-lower.md | expressions | PROPOSED | Gate the canonical node, then lower into primitives — never expand at build time |
 | relational-ast.md | relations | ENFORCED | 10 core Substrait-aligned relation nodes plus Mountainash extension leaf nodes |
 | relation-visitor-composition.md | relations | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
 | relation-dag-orchestrator.md | dag | ADOPTED | RelationDAG is a thin orchestrator over the existing visitor (+1 ref_resolver param, +2 leaf nodes) |
