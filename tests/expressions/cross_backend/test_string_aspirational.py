@@ -6,6 +6,7 @@ Tests for newly wired string operations. Backend support varies significantly.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from mountainash.core.types import BackendCapabilityError
 
 POLARS_IBIS = [
     "polars",
@@ -32,6 +33,20 @@ POLARS_ONLY = [
 # All backends passing — use ALL_BACKENDS (was POLARS_NARWHALS_IBIS, all entries passing)
 POLARS_NARWHALS_IBIS = ALL_BACKENDS
 
+# narwhals title/initcap are now correct on ASCII. The `pandas` fixture is itself
+# narwhals-wrapped (backend_helpers.py:274-281), so the to_titlecase fix applies to it too
+# -> pandas is UNMARKED. ibis title/initcap stay hard-gated -> strict xfail on the raise.
+_IBIS_TITLE_GATED = pytest.mark.xfail(
+    strict=True, raises=BackendCapabilityError, reason="ibis title/initcap gated (61a)",
+)
+TITLE_BACKENDS = [
+    "polars", "polars-lazy", "pandas",
+    "narwhals-polars", "narwhals-pandas",
+    pytest.param("ibis-polars", marks=_IBIS_TITLE_GATED),
+    pytest.param("ibis-duckdb", marks=_IBIS_TITLE_GATED),
+    pytest.param("ibis-sqlite", marks=_IBIS_TITLE_GATED),
+]
+
 
 # =============================================================================
 # Case conversion
@@ -50,13 +65,23 @@ class TestCapitalize:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", TITLE_BACKENDS)
 class TestTitle:
     def test_title(self, backend_name, backend_factory, collect_expr):
         data = {"val": ["hello world", "foo bar"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").str.title()
         actual = collect_expr(df, expr)
+        assert actual == ["Hello World", "Foo Bar"], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", TITLE_BACKENDS)
+class TestInitcap:
+    def test_initcap(self, backend_name, backend_factory, collect_expr):
+        data = {"val": ["hello world", "foo bar"]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.col("val").str.initcap())
         assert actual == ["Hello World", "Foo Bar"], f"[{backend_name}] got {actual}"
 
 

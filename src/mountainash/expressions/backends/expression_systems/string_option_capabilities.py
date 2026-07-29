@@ -188,9 +188,7 @@ _CHAR_SET_KEYS = {
 _CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
 _BROKEN_STRING_OPS_BY_BACKEND: dict[CONST_BACKEND, frozenset[str]] = {
     CONST_BACKEND.IBIS: frozenset({"swapcase", "title", "initcap"}),
-    CONST_BACKEND.NARWHALS: frozenset(
-        {"capitalize", "swapcase", "title", "initcap", "center"}
-    ),
+    CONST_BACKEND.NARWHALS: frozenset({"capitalize", "swapcase", "center"}),
 }
 _PADDING_VALUES = ("RIGHT", "LEFT")
 _PADDING_OP_BROKEN = (

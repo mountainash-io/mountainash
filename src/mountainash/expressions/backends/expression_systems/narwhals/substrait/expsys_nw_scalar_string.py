@@ -125,7 +125,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         char_set: Any = None,
     ) -> NarwhalsExpr:
-        """Convert to title case (capitalize first char of each word except articles).
+        """Convert to title case.
 
         Args:
             input: String expression.
@@ -135,10 +135,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             Title-cased string.
 
         Note:
-            Narwhals doesn't have title. Returns input unchanged as fallback.
+            Maps to Narwhals str.to_titlecase(), matching Polars' documented
+            non-article-aware simplification.
         """
-        # Narwhals doesn't have title - fallback
-        return input
+        return input.str.to_titlecase()
 
     def initcap(
         self,
@@ -148,17 +148,17 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     ) -> NarwhalsExpr:
         """Capitalize first character of each word.
 
-        Unlike title(), this includes articles.
-
         Args:
             input: String expression.
             char_set: Character set (ignored in Narwhals).
 
         Returns:
             String with each word capitalized.
+
+        Note:
+            Maps to Narwhals str.to_titlecase().
         """
-        # Narwhals doesn't have initcap - fallback
-        return input
+        return input.str.to_titlecase()
 
     # =========================================================================
     # Trim and Pad Operations
