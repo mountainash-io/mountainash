@@ -194,3 +194,24 @@ def test_op_level_gate_ignores_materialize_residue(isolated_registry):
 def test_op_level_gate_no_fact_compiles():
     _compile_polars(ma.today())  # no raise
 
+
+def test_enforced_visitor_construction_bootstraps_declarations():
+    """Cold-path regression guard: a gating consumer must load the capability
+    declaration modules before it can gate. Constructing an enforce_capabilities
+    visitor triggers load_all_capability_declarations(), so gates fire even on a
+    cold path where nothing else imported the declaration module. Runs in a fresh
+    interpreter because the module-level _loaded flag is already True in-process."""
+    import subprocess
+    import sys
+
+    code = (
+        "import mountainash.core.capabilities.bootstrap as b\n"
+        "from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor\n"
+        "assert b._loaded is False, 'importing the visitor must not bootstrap by itself'\n"
+        "UnifiedExpressionVisitor(object(), enforce_capabilities=False)\n"
+        "assert b._loaded is False, 'a non-enforcing visitor must not bootstrap'\n"
+        "UnifiedExpressionVisitor(object(), enforce_capabilities=True)\n"
+        "assert b._loaded is True, 'enforced visitor construction did not bootstrap declarations'\n"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)
+

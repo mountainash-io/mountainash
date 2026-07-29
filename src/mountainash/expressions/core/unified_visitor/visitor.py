@@ -75,6 +75,13 @@ class UnifiedExpressionVisitor:
         """
         self.backend = expression_system
         self.enforce_capabilities = enforce_capabilities
+        if enforce_capabilities:
+            # A gating consumer must ensure the capability declaration modules
+            # are imported before querying the registry (bootstrap.py contract):
+            # otherwise a gate silently no-ops on a cold path where nothing has
+            # imported the declaration module. Idempotent (guarded by _loaded).
+            from mountainash.core.capabilities import load_all_capability_declarations
+            load_all_capability_declarations()
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.
