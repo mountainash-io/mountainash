@@ -11,24 +11,23 @@ to exercise a genuine sub-expression rather than a bare column reference.
 
 Skipped params (not added as OP_SPECS):
 - diff_milliseconds.other: API builder has no diff_milliseconds method (returns None).
-- to_timezone.timezone: FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE is not in the
-  Polars function registry (KeyError at compile time).
-- assume_timezone.timezone, strftime.format, truncate.unit, ceil.unit, floor.unit,
-  round.unit: these are passed as options (not visited expressions) in the API builder;
-  lit/col/complex input types fail with TypeError.  ceil/floor/round are additionally
-  broken even with raw args (name collision with numeric rounding).
+- assume_timezone.timezone, to_timezone.timezone, local_timestamp.timezone, strftime.format,
+  truncate.unit, ceil.unit, floor.unit, round.unit: these are passed as options
+  (not visited expressions) in the API builder; lit/col/complex input types fail with TypeError.
+  ceil/floor/round are additionally broken even with raw args (name collision with numeric rounding).
 - extract.component, extract.timezone, extract_boolean.component: internal dispatch
   params used by the visitor, not exposed via the fluent API.
 - round_temporal.*, round_calendar.*: options (int/str literals), not expression args.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 import mountainash as ma
 from mountainash.core.errors import InvalidOptionValueError
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_DT,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
@@ -80,9 +79,9 @@ TESTED_PARAMS: list[tuple] = [
     (FK_MA_DT.ADD_SECONDS, "x"),
     (FK_MA_DT.ADD_YEARS, "x"),
     (FK_MA_DT.ADD_YEARS, "years"),
-    # assume_timezone.timezone, ceil.unit, floor.unit, round.unit, truncate.unit,
-    # strftime.format, to_timezone.timezone: reclassified as option (concrete str) in
-    # protocol commit 5fd72c5 — removed from TESTED_PARAMS.
+    # assume_timezone.timezone, to_timezone.timezone, local_timestamp.timezone, ceil.unit,
+    # floor.unit, round.unit, truncate.unit, strftime.format: reclassified as option
+    # (concrete str) — tested in TESTED_OPTION_PARAMS.
     (FK_DT.ASSUME_TIMEZONE, "x"),
     (FK_MA_DT.CEIL, "x"),
     ("day", "x"),
@@ -1080,6 +1079,254 @@ REGISTERED_OPTION_PROBES.extend(
 )
 
 
+# 4. to_timezone
+_TO_TIMEZONE_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
+_TO_TZ_DATA = {"ts": [datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc)]}
+
+
+def _to_tz_expr(tz: str):
+    return ma.col("ts").dt.to_timezone(tz).dt.hour()
+
+
+def _to_tz_ref_expr(tz: str):
+    ref_tz = "UTC" if tz != "UTC" else "Australia/Sydney"
+    return _to_tz_expr(ref_tz)
+
+
+def _to_tz_disposition(backend: str) -> str:
+    return "declared_unsupported" if backend == "ibis" else "honored"
+
+
+def _to_tz_backing_mode(backend: str) -> str:
+    return "class" if backend == "ibis" else "absence"
+
+
+def _to_tz_reason(backend: str) -> str:
+    if backend == "ibis":
+        return (
+            "to_timezone is correct only at the materialization boundary -- the "
+            "target zone lives in the ibis output dtype, not in the engine (SQL is a "
+            "bare CAST AS TIMESTAMPTZ), so any expression composed on the result "
+            "raises UnsupportedOperationError"
+        )
+    return "native backend honors to_timezone"
+
+
+def _to_tz_probe(tz: str, backend: str) -> OptionSpec:
+    if _to_tz_disposition(backend) == "honored":
+        return OptionSpec(
+            FK_MA_DT.TO_TIMEZONE,
+            "timezone",
+            tz,
+            "datetime",
+            lambda t=tz: _to_tz_expr(t),
+            lambda t=tz: _to_tz_ref_expr(t),
+            _TO_TZ_DATA,
+            expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_MA_DT.TO_TIMEZONE,
+        "timezone",
+        tz,
+        "datetime",
+        lambda t=tz: _to_tz_expr(t),
+        lambda t=tz: _to_tz_expr(t),
+        _TO_TZ_DATA,
+        expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_MA_DT.TO_TIMEZONE,
+        _MA_DT_PROTOCOL,
+        "to_timezone",
+        "timezone",
+        backend,
+        tz,
+        "datetime",
+        _to_tz_disposition(backend),
+        _to_tz_reason(backend),
+        _to_tz_backing_mode(backend),
+    )
+    for backend in ALL_BACKENDS
+    for tz in _TO_TIMEZONE_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _to_tz_probe(tz, backend),
+        backend,
+        _to_tz_disposition(backend),
+        BackendCapabilityError
+        if _to_tz_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for tz in _TO_TIMEZONE_DOMAIN
+)
+
+_TO_TIMEZONE_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_MA_DT.TO_TIMEZONE,
+        _MA_DT_PROTOCOL,
+        "to_timezone",
+        "timezone",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _to_tz_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_TO_TIMEZONE_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _TO_TIMEZONE_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _TO_TIMEZONE_INVALID_REJECTIONS)
+def test_to_timezone_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+# 5. local_timestamp
+_LOCAL_TS_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
+
+
+def _local_ts_expr(tz: str):
+    return ma.col("ts").dt.local_timestamp(tz)
+
+
+def _local_ts_ref_expr(tz: str):
+    ref_tz = "UTC" if tz != "UTC" else "Australia/Sydney"
+    return _local_ts_expr(ref_tz)
+
+
+def _local_ts_disposition(backend: str) -> str:
+    return "declared_unsupported" if backend == "ibis" else "honored"
+
+
+def _local_ts_backing_mode(backend: str) -> str:
+    return "class" if backend == "ibis" else "absence"
+
+
+def _local_ts_reason(backend: str) -> str:
+    if backend == "ibis":
+        return (
+            "local_timestamp returns the UTC wall clock, not the target-zone wall "
+            "clock -- ibis has no timezone method and the naive re-cast discards the "
+            "conversion"
+        )
+    return "native backend honors local_timestamp"
+
+
+def _local_ts_probe(tz: str, backend: str) -> OptionSpec:
+    if _local_ts_disposition(backend) == "honored":
+        return OptionSpec(
+            FK_DT.LOCAL_TIMESTAMP,
+            "timezone",
+            tz,
+            "datetime",
+            lambda t=tz: _local_ts_expr(t),
+            lambda t=tz: _local_ts_ref_expr(t),
+            _DATETIME_UNIT_DATA,
+            expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.LOCAL_TIMESTAMP,
+        "timezone",
+        tz,
+        "datetime",
+        lambda t=tz: _local_ts_expr(t),
+        lambda t=tz: _local_ts_expr(t),
+        _DATETIME_UNIT_DATA,
+        expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.LOCAL_TIMESTAMP,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "local_timestamp",
+        "timezone",
+        backend,
+        tz,
+        "datetime",
+        _local_ts_disposition(backend),
+        _local_ts_reason(backend),
+        _local_ts_backing_mode(backend),
+    )
+    for backend in ALL_BACKENDS
+    for tz in _LOCAL_TS_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _local_ts_probe(tz, backend),
+        backend,
+        _local_ts_disposition(backend),
+        BackendCapabilityError
+        if _local_ts_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for tz in _LOCAL_TS_DOMAIN
+)
+
+_LOCAL_TS_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.LOCAL_TIMESTAMP,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "local_timestamp",
+        "timezone",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _local_ts_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_LOCAL_TS_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _LOCAL_TS_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _LOCAL_TS_INVALID_REJECTIONS)
+def test_local_timestamp_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
 TESTED_OPTION_PARAMS: list[tuple] = []
 TESTED_OPTION_PARAMS.extend(
     (
@@ -1109,5 +1356,18 @@ TESTED_OPTION_PARAMS.extend([
         "format",
         param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "strftime", "format"),
     ),
+    (
+        _MA_DT_PROTOCOL,
+        "to_timezone",
+        "timezone",
+        param_taxonomy(_MA_DT_PROTOCOL, "to_timezone", "timezone"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "local_timestamp",
+        "timezone",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "local_timestamp", "timezone"),
+    ),
 ])
+
 

@@ -1,3 +1,5 @@
+from enum import Enum
+
 from expressions.argument_types._introspection import ProtocolParam, introspect_protocols
 from expressions.argument_types._coverage_guard_helpers import (
     canonicalize_tested_param,
@@ -7,6 +9,13 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_DT,
 )
+
+
+class _FakeKey(Enum):
+    # Synthetic enum to test by-name fallback resolution when key is not registry-wired.
+    # Real unwired enum members get wired over time, breaking this test if real members are used.
+    LOCAL_TIMESTAMP = "local_timestamp"
+
 
 
 def test_introspector_returns_non_empty():
@@ -50,7 +59,7 @@ def test_canonicalize_tested_param_preserves_category_provenance():
 def test_canonicalize_tested_param_resolves_unregistered_enum_by_name():
     ref = canonicalize_tested_param(
         module_name="test_arg_types_datetime",
-        original_key=FK_DT.LOCAL_TIMESTAMP,
+        original_key=_FakeKey.LOCAL_TIMESTAMP,
         param_name="x",
     )
     assert ref.protocol_name == "SubstraitScalarDatetimeExpressionSystemProtocol"

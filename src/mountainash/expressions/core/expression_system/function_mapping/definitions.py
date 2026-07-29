@@ -1910,21 +1910,27 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.floor_dt,
         ),
         # Timezone
-        # TODO: to_timezone not yet defined in any protocol
-        # ExpressionFunctionDef(
-        #     function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
-        #     substrait_uri=MountainashExtension.DATETIME,
-        #     substrait_name="to_timezone",
-        #     options=("timezone",),
-        #     is_extension=True,
-        #     protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.to_timezone,
-        # ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="to_timezone",
+            options=("timezone",),
+            is_extension=True,
+            protocol_method=MountainAshScalarDatetimeExpressionSystemProtocol.to_timezone,
+        ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="assume_timezone",
             options=("timezone",),
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.assume_timezone,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
+            substrait_name="local_timestamp",
+            options=("timezone",),
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.local_timestamp,
         ),
         # Formatting
         ExpressionFunctionDef(

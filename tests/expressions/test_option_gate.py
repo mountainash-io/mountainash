@@ -101,3 +101,14 @@ def test_literal_only_option_rejects_an_expression_value():
 
     with pytest.raises(BackendCapabilityError, match="literal string value"):
         _compile_node(node, df, "narwhals")
+
+
+@pytest.mark.parametrize("method", ["to_timezone", "local_timestamp"])
+def test_timezone_ops_reject_non_iana_value(method):
+    """Gate domain == production domain: only IANA zones may reach the visitor."""
+    import mountainash as ma
+    from mountainash.core.errors import InvalidOptionValueError
+
+    with pytest.raises(InvalidOptionValueError, match="timezone"):
+        getattr(ma.col("x").dt, method)("Not/AZone")
+

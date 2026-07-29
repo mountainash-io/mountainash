@@ -80,7 +80,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             raise BackendCapabilityError(
                 "Narwhals does not support ISO week extraction",
                 backend="narwhals",
-                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT,
+                # no generic EXTRACT key exists yet; PR-C adds it (item 62)
+                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
             )
 
         if comp in component_map:
@@ -574,8 +575,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def to_timezone(
         self,
         x: NarwhalsExpr,
-        timezone: str,
         /,
+        timezone: str,
     ) -> NarwhalsExpr:
         """Convert to specified timezone.
 
@@ -585,12 +586,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns:
             Datetime in target timezone.
-
-        Note:
-            Narwhals may not have timezone conversion. Returns input as fallback.
         """
-        # Narwhals doesn't have convert_time_zone - fallback
-        return x
+        return x.dt.convert_time_zone(timezone)
 
     # =========================================================================
     # Snapshot Methods (Static)

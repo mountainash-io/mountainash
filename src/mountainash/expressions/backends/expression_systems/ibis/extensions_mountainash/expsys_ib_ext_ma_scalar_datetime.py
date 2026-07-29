@@ -16,9 +16,18 @@ import ibis
 
 from ..base import IbisBaseExpressionSystem
 
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+)
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr, IbisTemporalExpr
+
+_TO_TIMEZONE_UNSUPPORTED = (
+    "to_timezone is not supported on ibis — the target zone never reaches the "
+    "engine; see datetime_value_class_capabilities_ma.py"
+)
 
 
 # Ibis .truncate() expects a bare unit letter, not the Polars-style "<n><unit>" duration.
@@ -580,23 +589,20 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def to_timezone(
         self,
         x: IbisTemporalExpr,
-        timezone: str,
         /,
+        timezone: str,
     ) -> IbisValueExpr:
         """Convert to specified timezone.
 
-        Args:
-            x: Datetime expression (must be timezone-aware).
-            timezone: Target timezone (IANA format).
-
-        Returns:
-            Datetime in target timezone.
-
-        Note:
-            Ibis may not have timezone conversion. Falls back to input.
+        Declared UNSUPPORTED on ibis (see
+        datetime_value_class_capabilities_ma.py) -- the capability gate raises
+        before this method is reached. The raise here is defence in depth.
         """
-        # Ibis doesn't have convert_time_zone - fallback
-        return x
+        raise BackendCapabilityError(
+            _TO_TIMEZONE_UNSUPPORTED,
+            backend="ibis",
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+        )
 
     # =========================================================================
     # Snapshot Methods (Static)
