@@ -885,6 +885,12 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
             New ExpressionAPI with to_timezone node.
         """
         _reject_expression("timezone", timezone, "to_timezone")
+        from mountainash.core.capabilities.schema import ValueClass
+        from ._ma_option_domains import validate_open_value
+
+        timezone = validate_open_value(
+            ValueClass.IANA_TIMEZONE, "timezone", timezone, "to_timezone"
+        )
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
             arguments=[self._node],

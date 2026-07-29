@@ -46,6 +46,13 @@ class SubstraitScalarDatetimeAPIBuilder(
         Returns:
             New ExpressionAPI with local_timestamp node.
         """
+        _reject_expression("timezone", timezone, "local_timestamp")
+        from mountainash.core.capabilities.schema import ValueClass
+        from ..extensions_mountainash._ma_option_domains import validate_open_value
+
+        timezone = validate_open_value(
+            ValueClass.IANA_TIMEZONE, "timezone", timezone, "local_timestamp"
+        )
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP,
             arguments=[self._node],
