@@ -189,10 +189,15 @@ class UnifiedExpressionVisitor:
         LITERAL_ONLY + LiteralNode -> raw value; LITERAL_ONLY + dynamic ->
         compile-time BackendCapabilityError; UNSUPPORTED -> immediate error;
         POLYMORPHIC -> LiteralNode unwraps, expressions compile; default ->
-        visit normally. Conditioned facts (fact.condition set) never gate
-        here — they are enforced backend-side.
+        visit normally. Only GATE facts gate here — ROUTER_METADATA is
+        consumed by a backend router and MATERIALIZE_RESIDUE enriches an
+        error raised after this returns.
         """
-        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+        from mountainash.core.capabilities import (
+            CapabilityLevel,
+            CapabilityRegistry,
+            Enforcement,
+        )
         from mountainash.core.types import BackendCapabilityError
 
         backend_family = self.backend.backend_type
@@ -219,8 +224,8 @@ class UnifiedExpressionVisitor:
                 fact = CapabilityRegistry.capability_for(
                     function_key, param_name, backend_family, dialect
                 )
-                if fact is not None and fact.condition is not None:
-                    fact = None  # conditioned facts don't gate structurally
+                if fact is not None and fact.enforcement is not Enforcement.GATE:
+                    fact = None  # router metadata / materialize residue never gate here
 
             level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
 
@@ -299,6 +304,7 @@ class UnifiedExpressionVisitor:
             from mountainash.core.capabilities import (
                 CapabilityLevel,
                 CapabilityRegistry,
+                Enforcement,
             )
             from mountainash.core.types import BackendCapabilityError
 
@@ -311,11 +317,15 @@ class UnifiedExpressionVisitor:
                     dialect,
                     option_value=str(option_value),
                 )
-                blocks_option = fact is not None and (
-                    fact.level is CapabilityLevel.UNSUPPORTED
-                    or (
-                        fact.level is CapabilityLevel.LITERAL_ONLY
-                        and isinstance(option_value, ExpressionNode)
+                blocks_option = (
+                    fact is not None
+                    and fact.enforcement is Enforcement.GATE
+                    and (
+                        fact.level is CapabilityLevel.UNSUPPORTED
+                        or (
+                            fact.level is CapabilityLevel.LITERAL_ONLY
+                            and isinstance(option_value, ExpressionNode)
+                        )
                     )
                 )
                 if blocks_option:
@@ -387,7 +397,7 @@ class UnifiedExpressionVisitor:
         input_expr = self.visit(node.input)
         if self.enforce_capabilities:
             from mountainash.core.capabilities import (
-                CapabilityLevel, CapabilityRegistry, WILDCARD_PARAM,
+                CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
             )
             from mountainash.core.types import BackendCapabilityError
             from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
@@ -396,7 +406,7 @@ class UnifiedExpressionVisitor:
                 FKEY_SUBSTRAIT_CAST.CAST, WILDCARD_PARAM,
                 self.backend.backend_type, getattr(self.backend, "dialect", None),
             )
-            if fact is not None and fact.condition is None \
+            if fact is not None and fact.enforcement is Enforcement.GATE \
                     and fact.level is CapabilityLevel.UNSUPPORTED:
                 raise BackendCapabilityError(
                     fact.message, backend=self.backend.BACKEND_NAME,

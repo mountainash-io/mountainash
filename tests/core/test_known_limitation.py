@@ -8,7 +8,12 @@ Phase 1; the enrichment ``limitation`` payload is now a ``CapabilityFact``
 
 import pytest
 
-from mountainash.core.capabilities import Boundary, CapabilityFact, CapabilityLevel
+from mountainash.core.capabilities import (
+    Boundary,
+    CapabilityFact,
+    CapabilityLevel,
+    Enforcement,
+)
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 
@@ -35,6 +40,7 @@ class TestBackendCapabilityError:
             message="test",
             workaround="Use a literal",
             upstream_ref="NW-STR-01",
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
             boundary=Boundary.MATERIALIZE,
             native_errors=(TypeError,),
             since="2026-07-05",
@@ -56,6 +62,7 @@ class TestBackendCapabilityError:
             level=CapabilityLevel.LITERAL_ONLY,
             backend=CONST_BACKEND.POLARS,
             message="test",
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
             boundary=Boundary.MATERIALIZE,
             native_errors=(TypeError,),
             since="2026-07-05",

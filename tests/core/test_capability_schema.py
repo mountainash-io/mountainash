@@ -9,6 +9,7 @@ from mountainash.core.capabilities.schema import (
     CapabilityLevel,
     DivergenceFact,
     DivergenceKind,
+    Enforcement,
     GapKind,
     KnownGap,
     ValueClass,
@@ -59,8 +60,8 @@ class TestCapabilityFact:
 
     def test_materialize_requires_native_errors(self):
         with pytest.raises(ValueError, match="native_errors"):
-            _fact(boundary=Boundary.MATERIALIZE)
-        _fact(boundary=Boundary.MATERIALIZE, native_errors=(TypeError,))  # ok
+            _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE, boundary=Boundary.MATERIALIZE)
+        _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE, boundary=Boundary.MATERIALIZE, native_errors=(TypeError,))  # ok
 
     def test_expr_capable_only_as_dialect_refinement(self):
         # Explicit EXPR_CAPABLE is only legal dialect-scoped (spec Section 1)
@@ -117,7 +118,7 @@ def test_value_class_fact_rejects_wildcard_param():
 
 def test_value_class_fact_rejects_materialize_boundary():
     with pytest.raises(ValueError, match="value-class"):
-        _fact(value_class=ValueClass.DURATION_MULTIPLIER, boundary=Boundary.MATERIALIZE,
+        _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE, value_class=ValueClass.DURATION_MULTIPLIER, boundary=Boundary.MATERIALIZE,
               native_errors=(ValueError,))
 
 def test_value_class_fact_valid_shape_constructs():

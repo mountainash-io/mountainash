@@ -1,6 +1,10 @@
 """The CSV dialect routing tables and the declared facts stay in sync."""
 
-from mountainash.core.capabilities import CapabilityRegistry, load_all_capability_declarations
+from mountainash.core.capabilities import (
+    CapabilityRegistry,
+    Enforcement,
+    load_all_capability_declarations,
+)
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.backends.relation_systems.resource_files import (
     _MAPPABLE_DIALECT_FIELDS,
@@ -17,7 +21,7 @@ def test_every_fallback_routed_field_is_declared():
     fallback_fields = _MAPPABLE_DIALECT_FIELDS - _NATIVE_SAFE_DIALECT_FIELDS
     declared_conditions = {
         fact.condition
-        for fact in CapabilityRegistry.facts(conditioned=True)
+        for fact in CapabilityRegistry.facts(enforcement=Enforcement.ROUTER_METADATA)
         if "dialect." in (fact.condition or "")
     }
     undeclared = {

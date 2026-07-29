@@ -17,6 +17,7 @@ from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
+    Enforcement,
     TargetKind,
     ValueClass,
     WILDCARD_PARAM,
@@ -141,7 +142,7 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
         and kind == "expression"
         and method is not None
         and fact.level in (CapabilityLevel.LITERAL_ONLY, CapabilityLevel.POLYMORPHIC)
-        and fact.condition is None
+        and fact.enforcement is Enforcement.GATE
     ):
         annotation = inspect.signature(method).parameters[fact.param].annotation
         if "ExpressionT" not in str(annotation):
@@ -149,20 +150,19 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
                 f"CapabilityFact({fact.operation_key}, {fact.param!r}): "
                 f"{fact.level.name} declared on an option-typed param "
                 f"(annotation {annotation!r}, not ExpressionT) — options are "
-                "always literal; use UNSUPPORTED (with condition if "
-                "value-dependent) or drop the fact"
+                "always literal; use UNSUPPORTED, or declare a non-GATE enforcement role, "
+                "or drop the fact"
             )
-    # Gateability (Codex plan-review c1): a param-scoped, UNCONDITIONED,
-    # gating fact on a handler-routed relation op only ever fires through
-    # gate_params — reject silently-dead declarations at registration.
-    # Conditioned facts are exempt: their condition may be finer than the
-    # gate can evaluate (e.g. CSV dialect.escape_char) and they are
-    # legitimately enforced backend/router-side outside gate_params.
+    # Gateability (Codex plan-review c1): a param-scoped GATE fact on a
+    # handler-routed relation op only ever fires through gate_params — reject
+    # silently-dead declarations at registration. Non-GATE roles are exempt:
+    # ROUTER_METADATA is consumed by the backend router and
+    # MATERIALIZE_RESIDUE fires after the visitor returns.
     if (
         kind == "relation"
         and fact.param != WILDCARD_PARAM
         and fact.level is CapabilityLevel.UNSUPPORTED
-        and fact.condition is None
+        and fact.enforcement is Enforcement.GATE
         and getattr(definition, "handler", None) is not None
     ):
         gateable = (
@@ -175,8 +175,7 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
                 f"CapabilityFact({fact.operation_key}, {fact.param!r}): the op is "
                 "handler-routed and this param is not in its args/options/"
                 "gate_params — the fact could never gate. Add the param to the "
-                "op's gate_params (RelationOperationDef) or use a wildcard/"
-                "conditioned fact."
+                "op's gate_params (RelationOperationDef) or declare a non-GATE enforcement role."
             )
 
 
@@ -312,6 +311,7 @@ class CapabilityRegistry:
         backend: CONST_BACKEND | None = None,
         boundary: Boundary | None = None,
         conditioned: bool | None = None,
+        enforcement: Enforcement | None = None,
     ) -> List[CapabilityFact]:
         out = []
         for fact in (*cls._facts.values(), *cls._value_class_facts.values()):
@@ -323,6 +323,8 @@ class CapabilityRegistry:
                 continue
             if conditioned is not None and (fact.condition is not None) != conditioned:
                 continue
+            if enforcement is not None and fact.enforcement is not enforcement:
+                continue
             out.append(fact)
         return out
 
@@ -332,10 +334,39 @@ class CapabilityRegistry:
     ) -> Dict[Tuple[Any, str], CapabilityFact]:
         """MATERIALIZE-boundary facts as an enrichment mapping (op, param) -> fact."""
         out: Dict[Tuple[Any, str], CapabilityFact] = {}
-        for fact in cls.facts(backend=backend, boundary=Boundary.MATERIALIZE):
+        for fact in cls.facts(
+            backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
+        ):
             if fact.dialect is None or fact.dialect == dialect:
                 out[(fact.operation_key, fact.param)] = fact
         return out
+
+    @classmethod
+    def router_facts(
+        cls,
+        operation_key: Any,
+        backend: CONST_BACKEND,
+        dialect: str | None = None,
+    ) -> Tuple[CapabilityFact, ...]:
+        """ROUTER_METADATA facts for an op on a backend, in registration order.
+
+        These never gate. They document WHY a backend takes a non-native
+        path; the routing decision itself stays in the router, and no
+        production router calls this accessor yet. On polars/narwhals the
+        declared condition matches their routing predicate exactly; ibis
+        routes more broadly, which is why routing is not derived from facts
+        (see the 66a plan's spec-deviation note). The bridge test in
+        tests/relations/backends/test_resource_files.py fails on any router
+        fact with no registered probe, so a declaration cannot go unexercised.
+        """
+        return tuple(
+            fact
+            for fact in cls.facts(
+                backend=backend, enforcement=Enforcement.ROUTER_METADATA
+            )
+            if fact.operation_key == operation_key
+            and (fact.dialect is None or fact.dialect == dialect)
+        )
 
     @classmethod
     def validate_plan_capabilities(
@@ -348,7 +379,11 @@ class CapabilityRegistry:
         violations = []
         for op_key in operation_keys:
             fact = cls.capability_for(op_key, WILDCARD_PARAM, backend, dialect)
-            if fact is not None and fact.level is CapabilityLevel.UNSUPPORTED:
+            if (
+                fact is not None
+                and fact.enforcement is Enforcement.GATE
+                and fact.level is CapabilityLevel.UNSUPPORTED
+            ):
                 violations.append(
                     CapabilityViolation(operation_key=op_key, param=fact.param, fact=fact)
                 )

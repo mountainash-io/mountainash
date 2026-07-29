@@ -14,6 +14,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
 )
 from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -180,6 +181,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 # ExpressionNode, so this must never gate structurally —
                 # see the DECIDED note below this block.
                 condition="collection compiles to an expression (per-row list-column path); literal collections always work",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
                 boundary=Boundary.MATERIALIZE,
                 native_errors=_NW_LIST_NATIVE_ERRORS,
                 probe_exempt=_NW_LIST_PROBE_EXEMPT,
@@ -192,6 +194,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 workaround="Use a literal collection, the polars backend, or an ibis backend",
                 since="2026-07-05",
                 condition="collection compiles to an expression (per-row list-column path); literal collections always work",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
                 boundary=Boundary.MATERIALIZE,
                 native_errors=_NW_LIST_NATIVE_ERRORS,
                 probe_exempt=_NW_LIST_PROBE_EXEMPT,

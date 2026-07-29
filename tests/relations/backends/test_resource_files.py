@@ -6,12 +6,23 @@ import gzip
 import pyarrow as pa
 import pytest
 
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.dag.errors import (
     MissingFilesDependency,
     UnsupportedResourceFormat,
 )
 from mountainash.typespec.datapackage import DataResource, TableDialect
 from mountainash.relations.backends.relation_systems import resource_files as rf
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _load_capabilities():
+    from mountainash.core.capabilities import load_all_capability_declarations
+
+    load_all_capability_declarations()
 
 
 # ---- dialect mapping (pure; files present) --------------------------------
@@ -227,3 +238,92 @@ def test_missing_format_dependency_normalises_to_missing_files(monkeypatch, tmp_
     res = DataResource(name="d", path=str(p), format="csv")
     with pytest.raises(MissingFilesDependency, match=r"mountainash\[files\]|optional"):
         rf.parse_resource_to_arrow(res)
+
+
+class TestRouterMetadataBridge:
+    """Closed-by-default: every ROUTER_METADATA fact must have a router that
+    honours it. An unrecognised router fact FAILS here rather than being
+    skipped — see closed-by-default-verification (ADOPTED)."""
+
+    # The registry's FULL identity -> (predicate, dialect exercising the
+    # declared condition). Normal facts are keyed by
+    # (operation, param, backend, dialect, option_value) and value-class facts
+    # by value_class; BOTH discriminators are legal on a ROUTER_METADATA fact,
+    # so both belong here. Omitting them would let two router facts differing
+    # only by option_value collapse to one entry, with a single probe silently
+    # covering both.
+    ROUTER_PROBES = {
+        ("READ_RESOURCE", "resource", CONST_BACKEND.POLARS, None, None, None): (
+            rf.dialect_native_safe, TableDialect(escape_char="\\"),
+        ),
+        ("READ_RESOURCE", "resource", CONST_BACKEND.NARWHALS, None, None, None): (
+            rf.dialect_native_safe, TableDialect(escape_char="\\"),
+        ),
+        ("READ_RESOURCE", "resource", CONST_BACKEND.IBIS, None, None, None): (
+            rf.dialect_is_default, TableDialect(escape_char="\\"),
+        ),
+    }
+
+    @staticmethod
+    def _identity(fact):
+        return (
+            fact.operation_key.name, fact.param, fact.backend,
+            fact.dialect, fact.option_value, fact.value_class,
+        )
+
+    def test_declared_router_facts_and_registered_probes_are_the_same_set(self):
+        """Closed by fact identity, in BOTH directions: an undeclared probe is
+        as much a defect as an unprobed declaration."""
+        from mountainash.core.capabilities import CapabilityRegistry, Enforcement
+
+        declared = {
+            self._identity(f)
+            for f in CapabilityRegistry.facts(
+                enforcement=Enforcement.ROUTER_METADATA
+            )
+        }
+        assert declared == set(self.ROUTER_PROBES), (
+            f"unprobed declarations: {declared - set(self.ROUTER_PROBES)}; "
+            f"stale probes: {set(self.ROUTER_PROBES) - declared}. A router "
+            f"declaration no router exercises is inert — add its probe here, "
+            f"or change its enforcement role."
+        )
+
+    def test_each_declared_condition_actually_diverts_its_backend(self):
+        """Every probe runs: the declared dialect must fail its backend's own
+        routing predicate (so the read diverts to the fallback), and a default
+        dialect must pass it. The predicates differ per backend — polars and
+        narwhals use dialect_native_safe, ibis dialect_is_default — which is
+        why routing is not derived from the facts (see the spec-deviation
+        note)."""
+        for identity, (predicate, dialect) in self.ROUTER_PROBES.items():
+            assert predicate(dialect) is False, identity
+            assert predicate(TableDialect()) is True, identity
+
+    def test_router_facts_accessor_returns_the_declaration(self):
+        """Derived from ROUTER_PROBES, never from a hard-coded length: this
+        must keep passing when a second polars router fact is added, without
+        a second test to update alongside the bridge."""
+        from mountainash.core.capabilities import CapabilityRegistry, Enforcement
+
+        expected = {
+            k for k in self.ROUTER_PROBES
+            if k[0] == "READ_RESOURCE" and k[2] == CONST_BACKEND.POLARS
+        }
+        facts = CapabilityRegistry.router_facts(
+            RKEY_MOUNTAINASH_REL.READ_RESOURCE, CONST_BACKEND.POLARS
+        )
+        assert {self._identity(f) for f in facts} == expected
+        assert all(f.enforcement is Enforcement.ROUTER_METADATA for f in facts)
+        assert all("escape_char" in (f.condition or "") for f in facts)
+
+    def test_router_facts_excludes_gating_facts(self):
+        from mountainash.core.capabilities import CapabilityRegistry
+
+        assert (
+            CapabilityRegistry.router_facts(
+                RKEY_MOUNTAINASH_REL.JOIN_ASOF, CONST_BACKEND.NARWHALS
+            )
+            == ()
+        )
+

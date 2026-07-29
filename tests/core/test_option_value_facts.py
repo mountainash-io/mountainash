@@ -8,6 +8,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -146,6 +147,7 @@ def test_value_scoped_non_build_fact_is_rejected():
                     option_value="ERROR",
                     level=CapabilityLevel.UNSUPPORTED,
                     backend=CONST_BACKEND.POLARS,
+                    enforcement=Enforcement.MATERIALIZE_RESIDUE,
                     boundary=Boundary.MATERIALIZE,
                     native_errors=(RuntimeError,),
                     since="2026-07-21",

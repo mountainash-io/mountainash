@@ -14,6 +14,7 @@ from mountainash.core.capabilities import (
     Boundary,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
     load_all_capability_declarations,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -129,8 +130,12 @@ def test_materialize_facts_declare_native_errors():
         assert fact.native_errors, fact
 
 
-def test_conditioned_facts_are_enumerable():
-    """Spec Section 1: the conditioned residue is a registry query."""
-    conditioned = CapabilityRegistry.facts(conditioned=True)
-    keys = {(f.operation_key.name, f.param) for f in conditioned}
-    assert ("JOIN_ASOF", "tolerance") in keys
+def test_non_gating_facts_are_enumerable():
+    """Backlog 66a: the non-gating residue is a registry query, keyed on role."""
+    gating = {
+        (f.operation_key.name, f.param)
+        for f in CapabilityRegistry.facts(enforcement=Enforcement.GATE)
+    }
+    assert ("JOIN_ASOF", "tolerance") in gating
+    router = CapabilityRegistry.facts(enforcement=Enforcement.ROUTER_METADATA)
+    assert {f.operation_key.name for f in router} == {"READ_RESOURCE"}

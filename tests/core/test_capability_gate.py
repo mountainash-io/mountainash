@@ -64,10 +64,29 @@ class TestUnsupportedGate:
             ma.col("text").str.contains("b").compile(DF)
 
 
-class TestConditionedFactsDoNotGate:
-    def test_condition_set_means_structural_gate_skips(self):
+class TestConditionIsProseOnly:
+    """Backlog 66a: a prose condition no longer disables gating.
+
+    This class previously asserted the inverse (TestConditionedFactsDoNotGate).
+    The spec makes that behaviour the defect: adding documentation to a fact
+    silently turned its capability off, with every test still passing.
+    """
+
+    def test_conditioned_fact_with_default_enforcement_gates(self):
         _register(CapabilityLevel.LITERAL_ONLY, condition="only when x")
-        # Conditioned facts are enforced backend-side, never by the visitor gate.
+        with pytest.raises(BackendCapabilityError):
+            ma.col("text").str.contains(ma.col("pat")).compile(DF)
+
+    def test_non_gate_enforcement_skips_the_structural_gate(self):
+        from mountainash.core.capabilities import Boundary, Enforcement
+
+        _register(
+            CapabilityLevel.LITERAL_ONLY,
+            condition="collection compiles to an expression",
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            boundary=Boundary.MATERIALIZE,
+            native_errors=(ValueError,),
+        )
         compiled = ma.col("text").str.contains(ma.col("pat")).compile(DF)
         assert compiled is not None
 

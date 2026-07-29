@@ -21,6 +21,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
 )
 from mountainash.core.backend_detection import identify_backend_identity
 from mountainash.core.constants import CONST_BACKEND
@@ -116,6 +117,7 @@ def test_xfail_option_unsupported_uses_fixture_family_and_dialect(monkeypatch, b
         return SimpleNamespace(
             level=CapabilityLevel.UNSUPPORTED,
             message="unsupported option value",
+            enforcement=Enforcement.GATE,
         )
 
     monkeypatch.setattr(CapabilityRegistry, "capability_for", fake_lookup)
@@ -165,9 +167,9 @@ def test_xfail_option_unsupported_marks_literal_only_fact(
                 operation_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
                 param="s",
                 option_value="1",
-                level=CapabilityLevel.LITERAL_ONLY,
+                level=CapabilityLevel.UNSUPPORTED,
                 backend=CONST_BACKEND.POLARS,
-                message="temporary literal-only self-check",
+                message="temporary unsupported self-check",
                 since="2026-07-21",
                 condition="options['s'] == 1",
             )
@@ -185,7 +187,7 @@ def test_xfail_option_unsupported_marks_literal_only_fact(
     assert marker.kwargs["strict"] is True
     assert marker.kwargs["raises"] is BackendCapabilityError
     assert marker.kwargs["reason"] == (
-        "[s=1] temporary literal-only self-check"
+        "[s=1] temporary unsupported self-check"
     )
 
 
@@ -199,7 +201,7 @@ def test_xfail_option_unsupported_is_noop_for_resolved_expr_capable_fact(
                 operation_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
                 param="s",
                 option_value="1",
-                level=CapabilityLevel.LITERAL_ONLY,
+                level=CapabilityLevel.UNSUPPORTED,
                 backend=CONST_BACKEND.POLARS,
                 message="temporary family gate",
                 since="2026-07-21",
