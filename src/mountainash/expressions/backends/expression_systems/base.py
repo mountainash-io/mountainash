@@ -52,12 +52,10 @@ class BaseExpressionSystem(ABC):
     ) -> Any:
         """Call a native backend op, enriching known-limitation failures.
 
-        Registry-sourced: only conditioned MATERIALIZE facts (those declaring
-        native_errors) participate; BUILD facts gate at the visitor and never
-        reach here. The legacy per-backend KNOWN_EXPR_LIMITATIONS class dicts
-        were retired in the spine's Phase 1.
+        Registry-sourced: only MATERIALIZE_RESIDUE facts participate;
+        GATE facts gate at the visitor and never reach here.
         """
-        from mountainash.core.capabilities import CapabilityRegistry
+        from mountainash.core.capabilities import CapabilityRegistry, Enforcement
         from mountainash.core.limitations import call_with_limitation_enrichment
 
         limitations: dict[tuple[Any, str], Any] = {}
@@ -65,7 +63,10 @@ class BaseExpressionSystem(ABC):
             fact = CapabilityRegistry.capability_for(
                 function_key, param, self.backend_type, self.dialect
             )
-            if fact is not None and fact.native_errors:
+            if (
+                fact is not None
+                and fact.enforcement is Enforcement.MATERIALIZE_RESIDUE
+            ):
                 limitations[(function_key, param)] = fact
         return call_with_limitation_enrichment(
             fn,

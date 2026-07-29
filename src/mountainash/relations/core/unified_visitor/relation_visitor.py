@@ -93,7 +93,7 @@ class UnifiedRelationVisitor:
         fires ONLY when the node's field is populated (Codex finding #2 —
         narwhals join_asof is fine without tolerance).
         """
-        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, WILDCARD_PARAM
+        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM
         from mountainash.core.types import BackendCapabilityError
 
         family = getattr(self.backend, "backend_type", None)
@@ -113,23 +113,23 @@ class UnifiedRelationVisitor:
         fact = CapabilityRegistry.capability_for(
             op.operation_key, WILDCARD_PARAM, family, dialect
         )
-        if fact is not None and fact.condition is None \
+        if fact is not None and fact.enforcement is Enforcement.GATE \
                 and fact.level is CapabilityLevel.UNSUPPORTED:
             _raise(fact)
 
         # Param-scoped facts — fire only when the node field is populated.
-        # Conditioned facts (fact.condition set) fire ONLY through gate_params:
-        # listing a param there is the def author declaring "populated node
-        # field == condition met". A conditioned fact whose condition is finer
-        # than field-populated (e.g. a sub-field like dialect.escape_char)
-        # must NOT be in gate_params — it stays backend/router-side.
+        # Only GATE facts reach the gate; ROUTER_METADATA is consumed by the
+        # backend router and MATERIALIZE_RESIDUE enriches a later error.
+        # gate_params keeps its narrowed job: declaring that a populated node
+        # field is sufficient evidence for a GATE fact to fire on a
+        # handler-routed op.
         param_names = tuple(b.field for b in op.args) + tuple(op.options) + op.gate_params
         for param in param_names:
             fact = CapabilityRegistry.capability_for(op.operation_key, param, family, dialect)
             if fact is None or fact.level is not CapabilityLevel.UNSUPPORTED:
                 continue
-            if fact.condition is not None and param not in op.gate_params:
-                continue  # condition finer than the gate can evaluate
+            if fact.enforcement is not Enforcement.GATE:
+                continue
             if getattr(node, param, None) is not None:
                 _raise(fact)
 
