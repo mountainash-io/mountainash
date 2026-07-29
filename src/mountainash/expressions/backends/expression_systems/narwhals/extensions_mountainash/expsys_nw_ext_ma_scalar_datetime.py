@@ -80,7 +80,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
             raise BackendCapabilityError(
                 "Narwhals does not support ISO week extraction",
                 backend="narwhals",
-                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT,
+                # no generic EXTRACT key exists yet; PR-C adds it (item 62)
+                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
             )
 
         if comp in component_map:
