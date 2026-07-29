@@ -19,6 +19,7 @@ def _all() -> tuple[DivergenceFact, ...]:
         FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_AR,
         FKEY_SUBSTRAIT_SCALAR_BOOLEAN as FK_BOOL,
         FKEY_SUBSTRAIT_SCALAR_COMPARISON as FK_CMP,
+        FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
     )
 
     return (
@@ -196,6 +197,17 @@ def _all() -> tuple[DivergenceFact, ...]:
             workaround="Use polars, narwhals-polars, narwhals-lazy, or an Ibis backend",
             upstream_ref="MA-TYPE-02",
             since="2026-07-05",
+        ),
+        DivergenceFact(
+            id="NW-STR-14",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(FK_STR.TITLE, FK_STR.INITCAP),
+            backends=("narwhals-pandas",),
+            summary="narwhals-pandas title/initcap route to pandas str.title(); its Unicode titlecasing of sharp-S/ligatures differs from polars to_titlecase (e.g. 'ße' -> 'ẞe' vs 'SSe')",
+            impact="title()/initcap() on narwhals-pandas may differ from polars/narwhals-polars on non-ASCII inputs (sharp-S, ligatures); ASCII is identical",
+            workaround="Use polars or narwhals-polars where exact polars titlecasing of non-ASCII is required",
+            upstream_ref=None,
+            since="2026-07-29",
         ),
     )
 
