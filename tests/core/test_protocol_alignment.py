@@ -722,7 +722,6 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     (SubstraitScalarDatetimeExpressionSystemProtocol, "lte"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "local_timestamp"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
@@ -752,7 +751,6 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     # Mountainash Scalar Datetime — methods not yet in function registry
     (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "to_timezone"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
 }
 
 KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {
