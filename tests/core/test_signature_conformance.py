@@ -605,3 +605,81 @@ class TestOptionsRegistryConsistency:
             assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
                 f"_KNOWN_OPTIONS_DRIFT[{key}] has no date: {reason!r}"
             )
+
+
+# ── A4: Options Keyword-Bindable Guard ───────────────────────────────────
+
+
+def _collect_a4_cases() -> list[tuple[str, tuple[str, ...], object]]:
+    """Collect (fkey_str, registered_options, protocol_method) for option binding."""
+    ExpressionFunctionRegistry._init_registry()
+    return [
+        (str(fkey), fdef.options, fdef.protocol_method)
+        for fkey, fdef in ExpressionFunctionRegistry._functions.items()
+        if fdef.protocol_method is not None and fdef.options
+    ]
+
+
+_A4_CASES = _collect_a4_cases()
+
+
+class TestOptionsAreKeywordBindable:
+    """A4: every registered option must be bindable as a keyword.
+
+    The visitor dispatches options as keywords (`method(*compiled_args,
+    **options)`, unified_visitor/visitor.py). An option declared
+    POSITIONAL_ONLY on the protocol method therefore raises TypeError at
+    compile time for every call that passes it -- the op is unwireable, and
+    nothing detects that until a user calls it.
+
+    This is the class behind item 62 PR-A: to_timezone declared
+    `(self, x, timezone, /)` and had no ExpressionFunctionDef, so the two
+    defects masked each other.
+    """
+
+    @pytest.mark.parametrize(
+        ("fkey_str", "registered_options", "protocol_method"),
+        _A4_CASES,
+        ids=[fk for fk, _, _ in _A4_CASES],
+    )
+    def test_registered_option_is_keyword_bindable(
+        self,
+        fkey_str: str,
+        registered_options: tuple[str, ...],
+        protocol_method: object,
+    ) -> None:
+        sig = inspect.signature(protocol_method)
+        positional_only = {
+            name
+            for name, p in sig.parameters.items()
+            if p.kind == inspect.Parameter.POSITIONAL_ONLY
+        }
+        offenders = sorted(set(registered_options) & positional_only)
+        assert not offenders, (
+            f"{fkey_str}: option(s) {offenders} are POSITIONAL_ONLY on "
+            f"{protocol_method.__qualname__}, but the visitor dispatches "
+            f"options as keywords. Move the '/' so they are "
+            f"POSITIONAL_OR_KEYWORD. Signature: {sig}"
+        )
+
+
+def test_no_option_bearing_def_escapes_the_a4_guard() -> None:
+    """A4's collector skips protocol_method=None; nothing may hide there.
+
+    Without this, a def registered with options but no protocol_method is
+    silently absent from _A4_CASES -- a positional-only option would go
+    undetected, which is the exact silent-inertness this guard exists to
+    prevent (closed-by-default-verification).
+    """
+    ExpressionFunctionRegistry._init_registry()
+    unbound = sorted(
+        str(fkey)
+        for fkey, fdef in ExpressionFunctionRegistry._functions.items()
+        if fdef.options and fdef.protocol_method is None
+    )
+    assert not unbound, (
+        f"defs registered with options but no protocol_method: {unbound}. "
+        "These are invisible to the A4 keyword-bindability guard -- either "
+        "wire protocol_method or drop the options."
+    )
+
