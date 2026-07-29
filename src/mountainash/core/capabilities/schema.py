@@ -163,6 +163,19 @@ class CapabilityFact:
                     f"CapabilityFact({self.operation_key}, {self.param}): "
                     "value-class facts must use the BUILD boundary"
                 )
+        if (
+            self.param == WILDCARD_PARAM
+            and self.enforcement is Enforcement.GATE
+            and self.level is CapabilityLevel.LITERAL_ONLY
+        ):
+            raise ValueError(
+                f"CapabilityFact({self.operation_key}, {self.param}): a GATE WILDCARD_PARAM "
+                f"(whole-op) fact may be UNSUPPORTED (whole-op gate), POLYMORPHIC (whole-op "
+                f"literal-or-expression args), or a dialect-scoped EXPR_CAPABLE refinement — "
+                f"never LITERAL_ONLY, which at the whole-op level means every argument is "
+                f"literal-only and must therefore be an option, not an argument "
+                f"(arguments-vs-options.md)"
+            )
         expected = _LEGAL_BOUNDARY[self.enforcement]
         if self.boundary is not expected:
             raise ValueError(

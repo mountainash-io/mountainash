@@ -126,3 +126,46 @@ def test_value_class_fact_valid_shape_constructs():
     assert f.value_class is ValueClass.DURATION_MULTIPLIER
     assert f.option_value is None
 
+
+def test_gate_wildcard_literal_only_rejected():
+    # A whole-op (WILDCARD) LITERAL_ONLY arg-fact means "every argument is literal-only",
+    # which by arguments-vs-options.md must be an option, not an argument — so it is illegal.
+    with pytest.raises(ValueError, match="WILDCARD"):
+        CapabilityFact(
+            operation_key=FK_STR.SWAPCASE, param=WILDCARD_PARAM,
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x", since="2026-07-29",
+        )
+
+
+def test_gate_wildcard_literal_only_rejected_even_with_probe_exempt():
+    # probe_exempt must NOT open an escape hatch: LITERAL_ONLY at the whole-op level is
+    # illegal regardless of whether the fact carries a probe exemption.
+    with pytest.raises(ValueError, match="WILDCARD"):
+        CapabilityFact(
+            operation_key=FK_STR.SWAPCASE, param=WILDCARD_PARAM,
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x", since="2026-07-29",
+            probe_exempt="whole-op gate",
+        )
+
+
+def test_gate_wildcard_unsupported_ok():
+    CapabilityFact(
+        operation_key=FK_STR.SWAPCASE, param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.IBIS,
+        dialect=None, message="x", since="2026-07-29",
+    )  # no raise
+
+
+def test_gate_wildcard_polymorphic_ok():
+    # Whole-op POLYMORPHIC declaration (the established COLLECT_VALUES / core_facts.py
+    # pattern): every argument is literal-or-expression. Legal, and probe-exempt by design.
+    CapabilityFact(
+        operation_key=FK_STR.SWAPCASE, param=WILDCARD_PARAM,
+        level=CapabilityLevel.POLYMORPHIC, backend=CONST_BACKEND.IBIS,
+        dialect=None, message="x", since="2026-07-29",
+        probe_exempt="polymorphic — both paths supported by design",
+    )  # no raise
+
+
