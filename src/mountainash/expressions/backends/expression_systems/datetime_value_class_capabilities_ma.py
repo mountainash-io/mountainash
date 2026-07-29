@@ -12,7 +12,7 @@ Probe matrix — DURATION_MULTIPLIER and IANA_TIMEZONE, all-fixtures:
 | floor_dt    | honored | RAISED             | honored         | honored         |
 | round_dt    | honored | RAISED             | SILENTLY-WRONG  | SILENTLY-WRONG  |
 | ceil_dt     | honored | RAISED             | SILENTLY-WRONG  | SILENTLY-WRONG  |
-| to_timezone | honored | SILENTLY-WRONG     | honored         | honored         |
+| to_timezone | honored | UNCOMPOSABLE       | honored         | honored         |
 
 - ibis raises for EVERY multiplier on ALL four rounding ops: `TimestampTruncate` rejects
   the Polars-style "<n><unit>" duration form (SignatureValidationError) — the
@@ -24,8 +24,8 @@ Probe matrix — DURATION_MULTIPLIER and IANA_TIMEZONE, all-fixtures:
 - polars honors every multiplier on all four ops -> NO fact.
 - to_timezone on ibis is correct ONLY at the result-materialization boundary (the
   target zone lives in the ibis output dtype, but SQL is a bare CAST AS TIMESTAMPTZ),
-  so any expression composed on the result raises UnsupportedOperationError. Declared
-  UNSUPPORTED so the capability gate raises BackendCapabilityError.
+  so any expression composed on the result raises UnsupportedOperationError (UNCOMPOSABLE).
+  Declared UNSUPPORTED so the capability gate raises BackendCapabilityError.
 
 A value-class gates soundly here because the api-builder validates parameters to
 their respective value-class domains (spec Section 3.2).
