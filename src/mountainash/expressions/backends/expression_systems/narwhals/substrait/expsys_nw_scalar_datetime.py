@@ -294,12 +294,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
 
         Returns:
             Local timestamp in the given timezone.
-
-        Note:
-            Narwhals doesn't have timezone conversion. Falls back to input.
         """
-        # Narwhals doesn't have timezone conversion - fallback
-        return x
+        return x.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
 
     # =========================================================================
     # Substrait Parsing Operations

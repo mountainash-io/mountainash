@@ -585,12 +585,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns:
             Datetime in target timezone.
-
-        Note:
-            Narwhals may not have timezone conversion. Returns input as fallback.
         """
-        # Narwhals doesn't have convert_time_zone - fallback
-        return x
+        return x.dt.convert_time_zone(timezone)
 
     # =========================================================================
     # Snapshot Methods (Static)
