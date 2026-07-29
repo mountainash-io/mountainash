@@ -13,11 +13,20 @@ from typing import TYPE_CHECKING, Optional
 
 import ibis
 
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+)
 from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarDatetimeExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
+
+_LOCAL_TIMESTAMP_UNSUPPORTED = (
+    "local_timestamp is not supported on ibis — it yields the UTC wall clock, "
+    "not the target zone wall clock; see datetime_value_class_capabilities_substrait.py"
+)
 
 
 class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol["IbisValueExpr"]):
@@ -285,18 +294,15 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
     ) -> IbisValueExpr:
         """Convert UTC-relative timestamp_tz to local timestamp.
 
-        Args:
-            x: UTC timestamp expression.
-            timezone: Target timezone (IANA format).
-
-        Returns:
-            Local timestamp in the given timezone.
-
-        Note:
-            Ibis may not have timezone conversion. Falls back to input.
+        Declared UNSUPPORTED on ibis (see
+        datetime_value_class_capabilities_substrait.py) -- the capability gate
+        raises before this method is reached. The raise here is defence in depth.
         """
-        # Ibis doesn't have robust timezone conversion - fallback
-        return x
+        raise BackendCapabilityError(
+            _LOCAL_TIMESTAMP_UNSUPPORTED,
+            backend="ibis",
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP,
+        )
 
     # =========================================================================
     # Substrait Parsing Operations

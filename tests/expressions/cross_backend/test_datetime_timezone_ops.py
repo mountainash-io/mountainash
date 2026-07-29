@@ -11,6 +11,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities import load_all_capability_declarations
+from mountainash.core.types import BackendCapabilityError
+
+load_all_capability_declarations()
 
 TEMPORAL_BACKENDS = [
     "polars",
@@ -26,6 +30,7 @@ TEMPORAL_BACKENDS = [
 # Task 4. Until that task lands these fail; from Task 4 on they raise
 # BackendCapabilityError and are covered by TestTimezoneOpsIbisGate instead.
 HONORING_BACKENDS = [b for b in TEMPORAL_BACKENDS if not b.startswith("ibis")]
+IBIS_BACKENDS = [b for b in TEMPORAL_BACKENDS if b.startswith("ibis")]
 
 NY = "America/New_York"
 
@@ -76,3 +81,26 @@ class TestDtLocalTimestamp:
             datetime(2024, 7, 15, 8, 0),
         ]
         assert all(v.tzinfo is None for v in actual)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", IBIS_BACKENDS)
+@pytest.mark.parametrize("method", ["to_timezone", "local_timestamp"])
+class TestTimezoneOpsIbisGate:
+    def test_raises_capability_error(
+        self, method, backend_name, backend_factory, collect_expr
+    ):
+        """ibis honors neither op composably; the gate raises before dispatch.
+
+        to_timezone is correct at the materialization boundary ONLY -- the
+        target zone lives in the ibis output dtype, not in the engine, so any
+        expression composed on the result raises UnsupportedOperationError.
+        local_timestamp is outright wrong (UTC wall clock). Probed on all
+        three dialects; ibis-sqlite refuses the cast outright. See spec
+        Section 2.3.1.
+        """
+        df = backend_factory.create(TZ_DATA, backend_name)
+        expr = getattr(ma.col("x").dt, method)(NY)
+        with pytest.raises(BackendCapabilityError, match="timezone"):
+            collect_expr(df, expr)
+
