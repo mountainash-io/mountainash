@@ -49,6 +49,7 @@ Each category has `core/` (cross-cutting) and module-specific subdirectories. Se
 | Document | Scope | Status | Summary |
 |----------|-------|--------|---------|
 | protocol-as-contract.md | core | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
+| explicit-enforcement-role.md | core | ADOPTED | A field that documents must not also decide; CapabilityFact.enforcement is an explicit closed enum defaulting to the strict GATE role |
 | function-key-enums.md | expressions | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
 | expression-type-generics.md | expressions | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types |
 | node-type-design.md | expressions | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
