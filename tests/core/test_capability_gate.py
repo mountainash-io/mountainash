@@ -114,3 +114,83 @@ class TestPolymorphicPreserved:
         assert lit_path is not None
         expr_path = ma.t_col("v").t_is_in(ma.col("allowed")).compile(df)
         assert expr_path is not None
+
+
+from mountainash.core.capabilities import (
+    Boundary,
+    WILDCARD_PARAM,
+    Enforcement,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+)
+from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
+from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+
+
+def _compile_polars(expr):
+    system = get_expression_system(CONST_BACKEND.POLARS)(dialect="polars")
+    return UnifiedExpressionVisitor(system, enforce_capabilities=True).visit(expr._node)
+
+
+@pytest.fixture
+def isolated_registry():
+    snap = CapabilityRegistry.snapshot()
+    try:
+        yield
+    finally:
+        CapabilityRegistry.restore(snap)
+
+
+def test_op_level_gate_raises_for_zero_arg_op(isolated_registry):
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
+            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
+            dialect=None, message="today unsupported (test)", since="2026-07-29",
+        )
+    ])
+    with pytest.raises(BackendCapabilityError):
+        _compile_polars(ma.today())
+
+
+def test_op_level_gate_ignores_dialect_scoped_expr_capable(isolated_registry):
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
+            level=CapabilityLevel.EXPR_CAPABLE, backend=CONST_BACKEND.POLARS,
+            dialect="polars", message="refinement (test)", since="2026-07-29",
+            probe_exempt="refinement",
+        )
+    ])
+    _compile_polars(ma.today())  # no raise
+
+
+def test_op_level_gate_ignores_router_metadata(isolated_registry):
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
+            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
+            dialect=None, message="router only (test)", since="2026-07-29",
+            enforcement=Enforcement.ROUTER_METADATA,  # boundary defaults to BUILD (legal)
+        )
+    ])
+    _compile_polars(ma.today())  # no raise
+
+
+def test_op_level_gate_ignores_materialize_residue(isolated_registry):
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
+            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
+            dialect=None, message="residue only (test)", since="2026-07-29",
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            boundary=Boundary.MATERIALIZE, native_errors=(ValueError,),  # required for MATERIALIZE
+        )
+    ])
+    _compile_polars(ma.today())  # no raise
+
+
+def test_op_level_gate_no_fact_compiles():
+    _compile_polars(ma.today())  # no raise
+

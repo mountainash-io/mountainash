@@ -286,6 +286,26 @@ class UnifiedExpressionVisitor:
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
+        if self.enforce_capabilities:
+            from mountainash.core.capabilities import (
+                CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
+            )
+            from mountainash.core.types import BackendCapabilityError
+
+            op_fact = CapabilityRegistry.capability_for(
+                node.function_key, WILDCARD_PARAM,
+                self.backend.backend_type, getattr(self.backend, "dialect", None),
+            )
+            if (
+                op_fact is not None
+                and op_fact.enforcement is Enforcement.GATE
+                and op_fact.level is CapabilityLevel.UNSUPPORTED
+            ):
+                raise BackendCapabilityError(
+                    op_fact.message, backend=self.backend.BACKEND_NAME,
+                    function_key=node.function_key, limitation=op_fact,
+                )
+
         args = self._gate_and_resolve_args(
             node.function_key, node.arguments, protocol_method
         )
