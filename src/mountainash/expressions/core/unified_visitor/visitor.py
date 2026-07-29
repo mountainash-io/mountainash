@@ -75,6 +75,13 @@ class UnifiedExpressionVisitor:
         """
         self.backend = expression_system
         self.enforce_capabilities = enforce_capabilities
+        if enforce_capabilities:
+            # A gating consumer must ensure the capability declaration modules
+            # are imported before querying the registry (bootstrap.py contract):
+            # otherwise a gate silently no-ops on a cold path where nothing has
+            # imported the declaration module. Idempotent (guarded by _loaded).
+            from mountainash.core.capabilities import load_all_capability_declarations
+            load_all_capability_declarations()
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.
@@ -285,6 +292,26 @@ class UnifiedExpressionVisitor:
 
         # Get method name from protocol method
         method_name = protocol_method.__name__
+
+        if self.enforce_capabilities:
+            from mountainash.core.capabilities import (
+                CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
+            )
+            from mountainash.core.types import BackendCapabilityError
+
+            op_fact = CapabilityRegistry.capability_for(
+                node.function_key, WILDCARD_PARAM,
+                self.backend.backend_type, getattr(self.backend, "dialect", None),
+            )
+            if (
+                op_fact is not None
+                and op_fact.enforcement is Enforcement.GATE
+                and op_fact.level is CapabilityLevel.UNSUPPORTED
+            ):
+                raise BackendCapabilityError(
+                    op_fact.message, backend=self.backend.BACKEND_NAME,
+                    function_key=node.function_key, limitation=op_fact,
+                )
 
         args = self._gate_and_resolve_args(
             node.function_key, node.arguments, protocol_method

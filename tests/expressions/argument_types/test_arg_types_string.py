@@ -1937,6 +1937,9 @@ _NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
     (FK_STR.REGEXP_MATCH_ALL, "pattern"),
     (FK_STR.REGEXP_COUNT, "pattern"),
     (FK_STR.REGEXP_STRPOS, "pattern"),
+    # center: whole-op gated on narwhals (no per-row-width pad) — 61a
+    (FK_STR.CENTER, "length"),
+    (FK_STR.CENTER, "character"),
     # string extension ops with no narwhals support
     ("to_time", "x"),
     ("encode", "x"),

@@ -48,6 +48,12 @@ class UnifiedRelationVisitor:
         # stays None (not assessed).
         self.key_context = key_context
         self.enforce_capabilities = enforce_capabilities
+        if enforce_capabilities:
+            # A gating consumer must ensure the capability declaration modules
+            # are imported before querying the registry (bootstrap.py contract);
+            # idempotent (guarded by _loaded). Covers _gate_capabilities below.
+            from mountainash.core.capabilities import load_all_capability_declarations
+            load_all_capability_declarations()
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id
