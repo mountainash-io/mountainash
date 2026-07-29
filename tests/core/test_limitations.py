@@ -3,7 +3,12 @@ from __future__ import annotations
 
 import pytest
 
-from mountainash.core.capabilities import Boundary, CapabilityFact, CapabilityLevel
+from mountainash.core.capabilities import (
+    Boundary,
+    CapabilityFact,
+    CapabilityLevel,
+    Enforcement,
+)
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.limitations import (
     MATERIALIZE_BOUNDARY,
@@ -20,6 +25,7 @@ LIM = CapabilityFact(
     backend=CONST_BACKEND.NARWHALS,
     message="known quirk",
     workaround="use polars",
+    enforcement=Enforcement.MATERIALIZE_RESIDUE,
     boundary=Boundary.MATERIALIZE,
     native_errors=(NotImplementedError,),
     since="2026-07-05",

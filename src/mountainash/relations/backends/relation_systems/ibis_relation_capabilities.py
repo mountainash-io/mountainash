@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from mountainash.core.capabilities import CapabilityFact, CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities import (
+    CapabilityFact,
+    CapabilityLevel,
+    CapabilityRegistry,
+    Enforcement,
+)
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
@@ -18,6 +23,7 @@ IBIS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
         workaround="none needed — mountainash routes automatically",
         since="2026-07-05",
         condition="resource.dialect.escape_char is set",
+        enforcement=Enforcement.ROUTER_METADATA,
         probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
     ),
 )

@@ -6,6 +6,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -35,6 +36,7 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             workaround="Drop tolerance= or use the Polars backend.",
             since="2026-07-05",
             condition="tolerance is not None",
+            enforcement=Enforcement.GATE,
         ),
         CapabilityFact(
             operation_key=RKEY_MOUNTAINASH_REL.READ_RESOURCE, param="resource",
@@ -44,6 +46,7 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             workaround="none needed — mountainash routes automatically",
             since="2026-07-05",
             condition="resource.dialect.escape_char is set",
+            enforcement=Enforcement.ROUTER_METADATA,
             probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
         ),
     )

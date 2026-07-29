@@ -62,6 +62,7 @@ def _polars_materialize_residue():
         CapabilityFact,
         CapabilityLevel,
         CapabilityRegistry,
+        Enforcement,
     )
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.relations.core.relation_system.relation_keys.enums import (
@@ -79,6 +80,7 @@ def _polars_materialize_residue():
                     level=CapabilityLevel.UNSUPPORTED,
                     backend=CONST_BACKEND.POLARS,
                     message="materialize-time quirk",
+                    enforcement=Enforcement.MATERIALIZE_RESIDUE,
                     boundary=Boundary.MATERIALIZE,
                     native_errors=(pl.exceptions.ColumnNotFoundError,),
                     since="2026-07-05",

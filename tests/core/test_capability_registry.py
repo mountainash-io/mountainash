@@ -6,6 +6,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
     Fidelity,
     TargetKind,
     WILDCARD_PARAM,
@@ -186,8 +187,8 @@ class TestQueries:
         CapabilityRegistry.register_backend(
             CONST_BACKEND.POLARS,
             [_fact(),
-             _fact(param="length", boundary=Boundary.MATERIALIZE,
-                   native_errors=(TypeError,))],
+             _fact(param="length", enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                   boundary=Boundary.MATERIALIZE, native_errors=(TypeError,))],
         )
         assert len(CapabilityRegistry.facts(backend=CONST_BACKEND.POLARS)) == 2
         assert len(CapabilityRegistry.facts(boundary=Boundary.MATERIALIZE)) == 1

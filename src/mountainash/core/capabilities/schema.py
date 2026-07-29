@@ -35,6 +35,34 @@ class Boundary(Enum):
     MATERIALIZE = "materialize"     # runtime-enrichment residue (value/dtype-dependent)
 
 
+class Enforcement(Enum):
+    """What the system DOES about a limitation (spec 2026-07-28, backlog 66a).
+
+    A separate axis from Boundary, which says WHEN the limitation manifests.
+    The two are not orthogonal — each role admits exactly one boundary — but
+    Boundary.BUILD admits two roles, so it cannot distinguish a gate from a
+    router declaration on its own. The default is the strict role: a fact whose
+    author did not think about enforcement gates, rather than silently not
+    gating. `condition` is prose and is read by nothing that decides anything.
+
+    enforcement           | legal boundary
+    ----------------------|---------------
+    GATE                  | BUILD
+    ROUTER_METADATA       | BUILD
+    MATERIALIZE_RESIDUE   | MATERIALIZE
+    """
+    GATE = "gate"                                # visitor raises before backend dispatch
+    ROUTER_METADATA = "router_metadata"          # a backend router consumes this; never raises
+    MATERIALIZE_RESIDUE = "materialize_residue"  # enriches an error raised after the visitor
+
+
+_LEGAL_BOUNDARY = {
+    Enforcement.GATE: Boundary.BUILD,
+    Enforcement.ROUTER_METADATA: Boundary.BUILD,
+    Enforcement.MATERIALIZE_RESIDUE: Boundary.MATERIALIZE,
+}
+
+
 class TargetKind(Enum):
     """Forward-compat identity axis (spec 2026-07-06 serialization-targets).
 
@@ -97,6 +125,7 @@ class CapabilityFact:
     fidelity: Fidelity | None = None    # SERIALIZE targets only; must be None on EXECUTE facts
                                         # (validated in register_backend — spec 2026-07-06)
     value_class: ValueClass | None = None   # value-class fact; option_value MUST be None
+    enforcement: Enforcement = Enforcement.GATE  # what the system does; condition is prose only
 
     def __post_init__(self) -> None:
         _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
@@ -134,6 +163,15 @@ class CapabilityFact:
                     f"CapabilityFact({self.operation_key}, {self.param}): "
                     "value-class facts must use the BUILD boundary"
                 )
+        expected = _LEGAL_BOUNDARY[self.enforcement]
+        if self.boundary is not expected:
+            raise ValueError(
+                f"CapabilityFact({self.operation_key}, {self.param}): "
+                f"{self.enforcement.name} enforcement requires the "
+                f"{expected.name} boundary, got {self.boundary.name} — routing "
+                "is a build-time path choice and residue is a materialize-time "
+                "enrichment; see the 66a compatibility table"
+            )
 
 
 class DivergenceKind(Enum):

@@ -17,6 +17,7 @@ from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
+    Enforcement,
     TargetKind,
     ValueClass,
     WILDCARD_PARAM,
@@ -312,6 +313,7 @@ class CapabilityRegistry:
         backend: CONST_BACKEND | None = None,
         boundary: Boundary | None = None,
         conditioned: bool | None = None,
+        enforcement: Enforcement | None = None,
     ) -> List[CapabilityFact]:
         out = []
         for fact in (*cls._facts.values(), *cls._value_class_facts.values()):
@@ -322,6 +324,8 @@ class CapabilityRegistry:
             if boundary is not None and fact.boundary is not boundary:
                 continue
             if conditioned is not None and (fact.condition is not None) != conditioned:
+                continue
+            if enforcement is not None and fact.enforcement is not enforcement:
                 continue
             out.append(fact)
         return out
