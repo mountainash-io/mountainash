@@ -558,8 +558,8 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     def to_timezone(
         self,
         x: PolarsExpr,
-        timezone: str,
         /,
+        timezone: str,
     ) -> PolarsExpr:
         """Convert to specified timezone.
 

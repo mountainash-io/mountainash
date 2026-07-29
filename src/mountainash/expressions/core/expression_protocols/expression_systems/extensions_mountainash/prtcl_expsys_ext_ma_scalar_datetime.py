@@ -452,8 +452,8 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def to_timezone(
         self,
         x: ExpressionT,
-        timezone: str,
         /,
+        timezone: str,
     ) -> ExpressionT:
         """Convert to specified timezone."""
         ...

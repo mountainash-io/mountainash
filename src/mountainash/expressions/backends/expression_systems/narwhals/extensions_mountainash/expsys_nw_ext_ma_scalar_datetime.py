@@ -574,8 +574,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def to_timezone(
         self,
         x: NarwhalsExpr,
-        timezone: str,
         /,
+        timezone: str,
     ) -> NarwhalsExpr:
         """Convert to specified timezone.
 

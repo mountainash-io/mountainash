@@ -580,8 +580,8 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
     def to_timezone(
         self,
         x: IbisTemporalExpr,
-        timezone: str,
         /,
+        timezone: str,
     ) -> IbisValueExpr:
         """Convert to specified timezone.
 
