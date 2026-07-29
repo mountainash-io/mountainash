@@ -6,6 +6,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -458,9 +459,34 @@ _NARWHALS_FACTS = tuple(
 )
 
 
+_OP_LEVEL_FKEYS = {**_CHAR_SET_KEYS, "center": FK_STR.CENTER}
+_OP_LEVEL_UNSUPPORTED = (
+    "This string operation has no correct native implementation on this backend at the "
+    "pinned floor; it is gated to fail loudly rather than return wrong data"
+)
+
+
+def _op_level_facts(backend: CONST_BACKEND) -> tuple[CapabilityFact, ...]:
+    return tuple(
+        CapabilityFact(
+            operation_key=_OP_LEVEL_FKEYS[op], param=WILDCARD_PARAM,
+            level=CapabilityLevel.UNSUPPORTED, backend=backend, dialect=None,
+            message=_OP_LEVEL_UNSUPPORTED, since=_SINCE,
+            probe_exempt=(
+                "whole-op gate; verified by the dedicated op-level probe suite "
+                "(test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param"
+            ),
+        )
+        for op in sorted(_BROKEN_STRING_OPS_BY_BACKEND.get(backend, frozenset()))
+    )
+
+
 CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, _POLARS_FACTS)
 CapabilityRegistry.register_backend(
     CONST_BACKEND.IBIS,
-    _IBIS_FAMILY_DEFAULTS + _IBIS_DUCKDB_FACTS,
+    _IBIS_FAMILY_DEFAULTS + _IBIS_DUCKDB_FACTS + _op_level_facts(CONST_BACKEND.IBIS),
 )
-CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, _NARWHALS_FACTS)
+CapabilityRegistry.register_backend(
+    CONST_BACKEND.NARWHALS,
+    _NARWHALS_FACTS + _op_level_facts(CONST_BACKEND.NARWHALS),
+)
