@@ -395,6 +395,15 @@ class UnifiedRelationVisitor:
             if isinstance(value, dict):
                 import polars as pl
                 return pl.DataFrame(value).lazy()
+            # Arrow before pandas: a pandas round-trip widens temporal types
+            # (ibis `date` -> datetime64[s]); Arrow preserves them.
+            to_arrow = getattr(value, "to_pyarrow", None)
+            if callable(to_arrow):
+                try:
+                    import polars as pl
+                    return pl.from_arrow(to_arrow()).lazy()
+                except Exception:
+                    pass
             # Fallback via narwhals
             try:
                 import narwhals as nw
