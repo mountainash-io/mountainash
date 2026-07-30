@@ -59,15 +59,29 @@ def test_to_date_honors_format(backend_name, fmt, expected, backend_factory, col
 
 @pytest.mark.parametrize("backend_name", TO_DATETIME_HONORING_BACKENDS)
 @pytest.mark.parametrize(
-    ("fmt", "expected_month"),
-    [("%Y-%m-%d %H:%M:%S", [1, 2, 3]), ("%Y-%d-%m %H:%M:%S", [5, 3, 11])],
+    ("fmt", "expected"),
+    [
+        ("%Y-%m-%d %H:%M:%S", [_dt.datetime(2024, 1, 5, 6, 7, 8), _dt.datetime(2024, 2, 3, 9, 10, 11), _dt.datetime(2024, 3, 11, 12, 13, 14)]),
+        ("%Y-%d-%m %H:%M:%S", [_dt.datetime(2024, 5, 1, 6, 7, 8), _dt.datetime(2024, 3, 2, 9, 10, 11), _dt.datetime(2024, 11, 3, 12, 13, 14)]),
+    ],
 )
 def test_to_datetime_honors_format(
-    backend_name, fmt, expected_month, backend_factory, collect_expr
+    backend_name, fmt, expected, backend_factory, collect_expr
 ) -> None:
     df = backend_factory.create(_DT_DATA, backend_name)
-    got = collect_expr(df, ma.col("s").str.to_datetime(fmt).dt.month())
-    assert got == expected_month
+    got = collect_expr(df, ma.col("s").str.to_datetime(fmt))
+    assert got == expected
+
+
+_SLASH_DATA = {"s": ["15/03/2024", "20/06/2024", "01/12/2024"]}
+_SLASH_DATES = [_dt.date(2024, 3, 15), _dt.date(2024, 6, 20), _dt.date(2024, 12, 1)]
+
+
+@pytest.mark.parametrize("backend_name", TO_DATE_HONORING_BACKENDS)
+def test_to_date_honors_slash_format(backend_name, backend_factory, collect_expr) -> None:
+    df = backend_factory.create(_SLASH_DATA, backend_name)
+    got = collect_expr(df, ma.col("s").str.to_date("%d/%m/%Y"))
+    assert got == _SLASH_DATES
 
 
 def test_to_date_is_gated_on_narwhals_pandas(backend_factory) -> None:
