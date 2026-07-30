@@ -35,6 +35,14 @@ from mountainash.core.dtypes.errors import (
 from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.validation import SchemaValidationError
 from mountainash.pipelines.errors import StepEmptyError
+from mountainash.expressions.membership.errors import (
+    BareExpressionCollectionError,
+    EmptyMembershipError,
+    MembershipArgumentError,
+    NativeExprMemberError,
+    NestedCollectionError,
+    UnsupportedCollectionError,
+)
 from mountainash.validation.errors import (
     CheckDeclarationError,
     IdentityInvalidError,
@@ -46,10 +54,15 @@ from mountainash.validation.errors import (
 __all__ = [
     "MountainashError",
     "InvalidOptionValueError",
+    "BareExpressionCollectionError",
     "ConformError",
+    "EmptyMembershipError",
     "MissingFieldsError",
     "ExtraFieldsError",
     "ExactFieldCountError",
+    "MembershipArgumentError",
+    "NativeExprMemberError",
+    "NestedCollectionError",
     "NoMatchingFieldsError",
     "ConformTransformError",
     "SchemaDriftError",
@@ -63,6 +76,7 @@ __all__ = [
     "BackendCapabilityError",
     "SchemaValidationError",
     "StepEmptyError",
+    "UnsupportedCollectionError",
     "ValidationError",
     "CheckDeclarationError",
     "IdentityRequiredError",
