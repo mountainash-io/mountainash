@@ -667,6 +667,17 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("MountainAshScalarTernaryExpressionSystemProtocol", "t_lt", "right_unknown"),
         ("MountainAshScalarTernaryExpressionSystemProtocol", "t_ne", "left_unknown"),
         ("MountainAshScalarTernaryExpressionSystemProtocol", "t_ne", "right_unknown"),
+        # Membership sentinel-unknown options (item 60): value-sensitive, covered
+        # by the membership semantics suite rather than the argument matrix — the
+        # same arg-matrix gap as the comparison ops' *_unknown options above.
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "unknown_values"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_in", "member_unknown_values"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "unknown_values"),
+        ("MountainAshScalarSetExpressionSystemProtocol", "is_not_in", "member_unknown_values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_is_in", "unknown_values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_is_in", "member_unknown_values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_is_not_in", "unknown_values"),
+        ("MountainAshScalarTernaryExpressionSystemProtocol", "t_is_not_in", "member_unknown_values"),
         ("MountainashWindowExpressionSystemProtocol", "backward_fill", "limit"),
         ("MountainashWindowExpressionSystemProtocol", "cum_count", "reverse"),
         ("MountainashWindowExpressionSystemProtocol", "cum_max", "reverse"),

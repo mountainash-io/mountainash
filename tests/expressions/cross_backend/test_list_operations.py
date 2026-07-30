@@ -53,12 +53,12 @@ class TestListAggregates:
         assert result == [3, 2, 1]
 
 
+# NW-LIST-01 (item 60): a *literal* item to list.contains now executes on
+# narwhals-polars; only a dynamic Expr item is rejected, and that at build time
+# via the capability GATE (see tests/expressions/membership/test_list_t_contains.py).
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
-        strict=True,
-        reason="Narwhals list.contains() rejects compiled Expr arguments (known-divergences.md #9)",
-    )),
+    "narwhals-polars",
     "ibis-duckdb",
 ])
 class TestListContains:

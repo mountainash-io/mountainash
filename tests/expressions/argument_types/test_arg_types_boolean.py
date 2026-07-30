@@ -22,7 +22,6 @@ from expressions.argument_types._test_template import (
     run_argument_matrix,
     xfail_if_limited,
 )
-from expressions.argument_types.option_disposition import param_taxonomy
 
 TESTED_PARAMS: list[tuple] = [
     ("and_", "args"),
@@ -66,35 +65,6 @@ TESTED_PARAMS: list[tuple] = [
     (FK_BOOL.XOR, "b"),
     (FK_MA_BOOL.XOR_PARITY, "a"),
     (FK_MA_BOOL.XOR_PARITY, "b"),
-]
-
-_TERN_PROTOCOL = "MountainAshScalarTernaryExpressionSystemProtocol"
-
-TESTED_OPTION_PARAMS: list[tuple] = [
-    (
-        _TERN_PROTOCOL,
-        "t_is_in",
-        "unknown_values",
-        param_taxonomy(_TERN_PROTOCOL, "t_is_in", "unknown_values"),
-    ),
-    (
-        _TERN_PROTOCOL,
-        "t_is_in",
-        "member_unknown_values",
-        param_taxonomy(_TERN_PROTOCOL, "t_is_in", "member_unknown_values"),
-    ),
-    (
-        _TERN_PROTOCOL,
-        "t_is_not_in",
-        "unknown_values",
-        param_taxonomy(_TERN_PROTOCOL, "t_is_not_in", "unknown_values"),
-    ),
-    (
-        _TERN_PROTOCOL,
-        "t_is_not_in",
-        "member_unknown_values",
-        param_taxonomy(_TERN_PROTOCOL, "t_is_not_in", "member_unknown_values"),
-    ),
 ]
 
 OP_SPECS: list[OpSpec] = []

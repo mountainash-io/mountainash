@@ -28,6 +28,7 @@ class TestIsBackendNativeExpression:
     def test_narwhals_series_is_native(self) -> None:
         """nw.Series is recognised as backend-native."""
         pytest.importorskip("narwhals")
+        pytest.importorskip("polars")
         import polars as pl
         import narwhals as nw
 

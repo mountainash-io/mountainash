@@ -24,7 +24,6 @@ from expressions.argument_types._test_template import (
     run_argument_matrix,
     xfail_if_limited,
 )
-from expressions.argument_types.option_disposition import param_taxonomy
 
 TESTED_PARAMS: list[tuple] = [
     ("buffer", "buffer_radius"),
@@ -60,35 +59,6 @@ TESTED_PARAMS: list[tuple] = [
     ("remove_repeated_points", "geom"),
     ("x_coordinate", "point"),
     ("y_coordinate", "point"),
-]
-
-_SET_PROTOCOL = "MountainAshScalarSetExpressionSystemProtocol"
-
-TESTED_OPTION_PARAMS: list[tuple] = [
-    (
-        _SET_PROTOCOL,
-        "is_in",
-        "unknown_values",
-        param_taxonomy(_SET_PROTOCOL, "is_in", "unknown_values"),
-    ),
-    (
-        _SET_PROTOCOL,
-        "is_in",
-        "member_unknown_values",
-        param_taxonomy(_SET_PROTOCOL, "is_in", "member_unknown_values"),
-    ),
-    (
-        _SET_PROTOCOL,
-        "is_not_in",
-        "unknown_values",
-        param_taxonomy(_SET_PROTOCOL, "is_not_in", "unknown_values"),
-    ),
-    (
-        _SET_PROTOCOL,
-        "is_not_in",
-        "member_unknown_values",
-        param_taxonomy(_SET_PROTOCOL, "is_not_in", "member_unknown_values"),
-    ),
 ]
 
 OP_SPECS: list[OpSpec] = []
