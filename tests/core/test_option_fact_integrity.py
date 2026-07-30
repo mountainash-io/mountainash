@@ -30,6 +30,17 @@ from expressions.argument_types.option_disposition import (
     resolve_cell_fact,
     validate_option_registries,
 )
+# The mutual-backing guards below compare the fact registry against
+# OPTION_DISPOSITIONS, which these three modules populate as an import side
+# effect.  Without them a collection that excludes
+# tests/expressions/argument_types/ sees an EMPTY cell list and every guard
+# fails against the full registry -- so these imports are load-bearing, not
+# unused.  Do not remove them.
+from expressions.argument_types import (  # noqa: F401
+    test_arg_types_arithmetic,
+    test_arg_types_datetime,
+    test_arg_types_string,
+)
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
