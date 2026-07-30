@@ -337,13 +337,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
 
         Returns:
             Parsed date expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
         """
-        raise NotImplementedError(
-            "strptime_date() is not supported by the Narwhals backend."
-        )
+        return x.str.to_date(format=format)
 
     def strptime_timestamp(
         self,
@@ -361,13 +356,10 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
 
         Returns:
             Parsed timestamp expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
         """
-        raise NotImplementedError(
-            "strptime_timestamp() is not supported by the Narwhals backend."
-        )
+        # `timezone` is not in the def's options tuple, so it never arrives;
+        # see spec 2026-07-28 section 3.2 (retained park).
+        return x.str.to_datetime(format=format)
 
     # =========================================================================
     # Formatting Methods
