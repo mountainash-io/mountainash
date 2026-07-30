@@ -777,6 +777,15 @@ class Relation(RelationBase):
         import polars as pl
         if is_pandas_dataframe(result):
             return pl.from_pandas(result)
+        # Arrow preserves types a pandas round-trip widens -- ibis `date`
+        # becomes datetime64[s] via to_pandas(), and polars then reads it as
+        # Datetime(ms). to_pyarrow() keeps date32[day] -> polars Date.
+        to_arrow = getattr(result, "to_pyarrow", None)
+        if callable(to_arrow):
+            try:
+                return pl.from_arrow(to_arrow())
+            except Exception:
+                pass
         return pl.from_pandas(result.to_pandas())
 
     def to_pandas(self) -> Any:
