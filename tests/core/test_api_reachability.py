@@ -24,7 +24,7 @@ _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
     sys.path.insert(0, _TESTS_DIR)
 
-from core._smoke_helpers import build_args_for_fkey, is_non_expression_fkey
+from core._smoke_helpers import build_args_for_fkey
 from core.test_compile_smoke import _resolve_api_callable
 
 
