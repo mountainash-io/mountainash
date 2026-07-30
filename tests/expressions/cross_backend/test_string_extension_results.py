@@ -6,6 +6,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from mountainash.core.types import BackendCapabilityError
 
 # -- Known divergences --
 # Ibis backends: custom chars argument is silently ignored by strip_chars,
@@ -134,44 +135,63 @@ class TestStrZfill:
         assert actual == ["12345", "123456"]
 
 
-# -- Known divergences --
-# Narwhals backends: strptime_date() and strptime_timestamp() are not supported.
-# Ibis backends: to_date returns datetime (with time=00:00) instead of date.
+# -- Strptime (format-honoring) post-PR-B truth --
+# Every dialect except the two declared gaps honors the format string for
+# both `str.to_date` and `str.to_datetime`.  The two residual gaps are
+# *declared* capability facts in `strptime_format_capabilities`, not
+# upstream surprises:
+#   - `ibis-sqlite` — ibis has no compilation rule for
+#     `StringToDate`/`StringToTimestamp`, so the gate raises a typed
+#     `BackendCapabilityError` for both ops.
+#   - `narwhals-pandas` and the raw `pandas` fixture (which
+#     `identify_backend_identity` resolves to the `narwhals-pandas`
+#     dialect) — upstream returns an object-dtype Series for
+#     `str.to_date`, so the gate raises for `to_date` only;
+#     `to_datetime` is unaffected and stays supported.
+# The two `TestStrTo*` classes below parametrize over the honoring
+# subsets; the excluded dialects are covered by the two gate tests at the
+# bottom of this file.
 
-NARWHALS_ALL_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+STRPTIME_BACKENDS = [
+    "polars",
+    "polars-lazy",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "narwhals-lazy",
+    "pandas",
+    "ibis-duckdb",
+    "ibis-polars",
+    "ibis-sqlite",
+]
+
+# narwhals-pandas and the raw pandas fixture (which the backend-detection
+# layer resolves to the `narwhals-pandas` dialect) cannot do str.to_date —
+# upstream returns an object-dtype Series.  ibis-sqlite has no compilation
+# rule for StringToDate/StringToTimestamp.  All three are covered by the
+# dedicated gate tests at the bottom of this file.
+TO_DATE_HONORING_BACKENDS = [
+    b for b in STRPTIME_BACKENDS
+    if b not in ("ibis-sqlite", "narwhals-pandas", "pandas")
+]
+# ibis-sqlite is the only dialect declared UNSUPPORTED for str.to_datetime.
+TO_DATETIME_HONORING_BACKENDS = [
+    b for b in STRPTIME_BACKENDS if b != "ibis-sqlite"
+]
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", TO_DATE_HONORING_BACKENDS)
 class TestStrToDate:
     def test_to_date_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_ALL_BACKENDS:
-            pytest.xfail(
-                "Narwhals backend does not support strptime_date()."
-            )
         import datetime
 
         data = {"s": ["2024-03-15", "2024-06-20"]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").str.to_date("%Y-%m-%d"))
         expected_dates = [datetime.date(2024, 3, 15), datetime.date(2024, 6, 20)]
-
-        # Ibis backends return datetime instead of date; compare date part only
-        if backend_name in IBIS_BACKENDS:
-            assert [v.date() if isinstance(v, datetime.datetime) else v for v in actual] == expected_dates
-        else:
-            assert actual == expected_dates
+        assert actual == expected_dates
 
     def test_to_date_different_format(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_ALL_BACKENDS:
-            pytest.xfail(
-                "Narwhals backend does not support strptime_date()."
-            )
-        if backend_name in IBIS_BACKENDS:
-            pytest.xfail(
-                "Ibis backends ignore custom format strings in to_date; "
-                "only ISO-8601 (YYYY-MM-DD) parsing is supported."
-            )
         import datetime
 
         data = {"s": ["15/03/2024", "20/06/2024"]}
@@ -182,13 +202,9 @@ class TestStrToDate:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", TO_DATETIME_HONORING_BACKENDS)
 class TestStrToDatetime:
     def test_to_datetime_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_ALL_BACKENDS:
-            pytest.xfail(
-                "Narwhals backend does not support strptime_timestamp()."
-            )
         import datetime
 
         data = {"s": ["2024-03-15 10:30:00", "2024-06-20 14:00:00"]}
@@ -201,10 +217,6 @@ class TestStrToDatetime:
         assert actual == expected
 
     def test_to_datetime_with_seconds(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_ALL_BACKENDS:
-            pytest.xfail(
-                "Narwhals backend does not support strptime_timestamp()."
-            )
         import datetime
 
         data = {"s": ["2024-01-01 00:00:00", "2024-12-31 23:59:59"]}
@@ -215,3 +227,18 @@ class TestStrToDatetime:
             datetime.datetime(2024, 12, 31, 23, 59, 59),
         ]
         assert actual == expected
+
+
+def test_to_date_is_gated_on_narwhals_pandas(backend_factory) -> None:
+    data = {"s": ["2024-03-15"]}
+    df = backend_factory.create(data, "narwhals-pandas")
+    with pytest.raises(BackendCapabilityError, match="to_date"):
+        ma.col("s").str.to_date("%Y-%m-%d").compile(df)
+
+
+@pytest.mark.parametrize("op", ["to_date", "to_datetime"])
+def test_strptime_is_gated_on_ibis_sqlite(op, backend_factory) -> None:
+    data = {"s": ["2024-03-15"]}
+    df = backend_factory.create(data, "ibis-sqlite")
+    with pytest.raises(BackendCapabilityError):
+        getattr(ma.col("s").str, op)("%Y-%m-%d").compile(df)
