@@ -15,12 +15,13 @@ from mountainash.core.capabilities import (
     CapabilityLevel,
     CapabilityRegistry,
     Enforcement,
+    WILDCARD_PARAM,
 )
 from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
-    FKEY_MOUNTAINASH_SCALAR_TERNARY as FK_MA_TERN,
 )
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
@@ -32,37 +33,6 @@ _NW_STRING_MSG = (
     "EXPR_CAPABLE refinements below)."
 )
 _NW_DT_MSG = "Narwhals datetime offset operations require literal integer values"
-_NW_LIST_MSG = (
-    "Narwhals (as of 2.19.0) does not accept expression arguments for "
-    "list.contains on any native backend — its `item` parameter is typed "
-    "`NonNestedLiteral` and rejects Expr."
-)
-# Native errors the list.contains(Expr) path can raise — preserved verbatim
-# from the pre-spine _NW_LIST_CONTAINS_LIMITED. Enrichment coverage (verified
-# empirically 2026-07-20, narwhals 2.23.0 / polars 1.42.1):
-#   * narwhals-pandas (eager): list.contains(Expr) raises TypeError at the
-#     is_in/is_not_in call site, caught by the _call_with_expr_support wrapper.
-#   * narwhals-polars (lazy): list.contains(Expr) builds successfully and the
-#     TypeError fires at materialize, AFTER the dispatch wrapper has returned.
-#     When the expression is embedded in a Relation, that TypeError is caught
-#     and enriched to BackendCapabilityError by the relation-collect boundary
-#     (core.limitations.enrich_materialization) — this residue fact participates
-#     there via boundary=MATERIALIZE. So both the eager and the relation-embedded
-#     lazy paths are covered; a *standalone* compiled expression (col.compile(df),
-#     user-collected) has no mountainash-controlled materialize boundary and is
-#     the only un-enriched case — but that path also mis-compiles is_in-over-a-
-#     column entirely (scalar equality, not list.contains); see backlog item 60.
-_NW_LIST_NATIVE_ERRORS = (TypeError, AttributeError, ValueError)
-_NW_LIST_PROBE_EXEMPT = (
-    "MATERIALIZE-boundary, structure-conditioned: the `collection` param takes "
-    "a list-typed argument, which the scalar-argument OP_SPECS probe matrix "
-    "cannot model. The dynamic list-column path is non-uniform across the "
-    "narwhals matrix (narwhals-polars raises TypeError lazily at materialize; "
-    "narwhals-pandas raises TypeError eagerly), so no single strict-xfail probe "
-    "is well-defined. The errors are enriched via native_errors (integrity "
-    "guard #4) at the dispatch wrapper (eager) or the relation-collect boundary "
-    "(lazy, when embedded in a Relation); the limitation is not BUILD-gateable."
-)
 
 
 class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
@@ -165,41 +135,62 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 workaround="Use a literal single-character string", since="2026-07-05",
                 upstream_ref="NW-STR-06",
             ),
+            # NW-LIST-01: Narwhals list namespace requires a literal item argument (GATE/BUILD on item)
+            # and requires PyArrow-backed list columns on pandas (MATERIALIZE_RESIDUE on narwhals-pandas).
+            CapabilityFact(
+                operation_key=FK_LIST.CONTAINS, param="item",
+                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
+                message="Narwhals list.contains() requires a literal item argument, not a column expression",
+                workaround="Use a literal value for item or use the Polars/Ibis backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.GATE,
+                boundary=Boundary.BUILD,
+            ),
+            CapabilityFact(
+                operation_key=FK_LIST.CONTAINS, param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
+                dialect="narwhals-pandas",
+                message="Narwhals list operations on pandas require PyArrow-backed list columns.",
+                workaround="Convert column to PyArrow list or use the Polars backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE,
+                native_errors=(TypeError,),
+                probe_exempt="whole-op materialize-time storage residue (narwhals-pandas "
+                "PyArrow-list requirement); enriched after the visitor, not an arg-type gate",
+            ),
+            CapabilityFact(
+                operation_key=FK_LIST.T_CONTAINS, param="item",
+                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
+                message="Narwhals list.t_contains() requires a literal item argument, not a column expression",
+                workaround="Use a literal value for item or use the Polars/Ibis backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.GATE,
+                boundary=Boundary.BUILD,
+            ),
+            CapabilityFact(
+                operation_key=FK_LIST.T_CONTAINS, param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
+                dialect="narwhals-pandas",
+                message="Narwhals list operations on pandas require PyArrow-backed list columns.",
+                workaround="Convert column to PyArrow list or use the Polars backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE,
+                native_errors=(TypeError,),
+                probe_exempt="whole-op materialize-time storage residue (narwhals-pandas "
+                "PyArrow-list requirement); enriched after the visitor, not an arg-type gate",
+            ),
             # NOTE: the legacy dict's defensive (REGEX_CONTAINS, "pattern")
             # entry is intentionally NOT migrated: pattern is annotated `str`
             # in the protocol (literal-typed, kw-only), so registration
             # validation rightly rejects LITERAL_ONLY on it — the API builder
             # is the enforcement point (rejects non-str patterns at build
             # time), and a fact the gate can never consult is dead metadata.
-            CapabilityFact(
-                operation_key=FK_MA_TERN.T_IS_IN, param="collection",
-                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
-                message=_NW_LIST_MSG,
-                workaround="Use a literal collection, the polars backend, or an ibis backend",
-                since="2026-07-05",
-                # Conditioned: the literal path arrives as a COLLECT_VALUES
-                # ExpressionNode, so this must never gate structurally —
-                # see the DECIDED note below this block.
-                condition="collection compiles to an expression (per-row list-column path); literal collections always work",
-                enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                boundary=Boundary.MATERIALIZE,
-                native_errors=_NW_LIST_NATIVE_ERRORS,
-                probe_exempt=_NW_LIST_PROBE_EXEMPT,
-                upstream_ref="NW-LIST-01",
-            ),
-            CapabilityFact(
-                operation_key=FK_MA_TERN.T_IS_NOT_IN, param="collection",
-                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
-                message=_NW_LIST_MSG,
-                workaround="Use a literal collection, the polars backend, or an ibis backend",
-                since="2026-07-05",
-                condition="collection compiles to an expression (per-row list-column path); literal collections always work",
-                enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                boundary=Boundary.MATERIALIZE,
-                native_errors=_NW_LIST_NATIVE_ERRORS,
-                probe_exempt=_NW_LIST_PROBE_EXEMPT,
-                upstream_ref="NW-LIST-01",
-            ),
         )
         + tuple(
             CapabilityFact(

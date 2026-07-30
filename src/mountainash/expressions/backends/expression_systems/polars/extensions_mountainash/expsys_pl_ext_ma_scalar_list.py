@@ -1,10 +1,18 @@
 """Polars backend for mountainash list operations."""
 from __future__ import annotations
 
+from typing import Any, FrozenSet, Optional
+
 import polars as pl
 
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
+from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
+
+
+_T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
+_T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
+_T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 
 class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[pl.Expr]):
@@ -27,6 +35,42 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
 
     def list_contains(self, x, /, item):
         return x.list.contains(item)
+
+    def list_t_contains(
+        self,
+        x,
+        /,
+        item,
+        *,
+        item_unknown_values: Optional[FrozenSet[Any]] = None,
+    ):
+        """Ternary list-membership: UNKNOWN for null list / null or sentinel needle.
+
+        A null needle is ALWAYS an UNKNOWN trigger (independent of the declared
+        ``item_unknown_values`` sentinel set — the set only adds the equality
+        terms for declared sentinels). Each sentinel comparison is wrapped with
+        ``.fill_null(False)`` so a null item row never leaks SQL-null into the
+        ``is_unknown`` accumulator (mirrors the same null-normalisation
+        discipline the Task 5 membership kernel enforces).
+        """
+        # Unconditional UNKNOWN triggers: null list row OR null needle row.
+        is_unknown = x.is_null() | item.is_null()
+        if item_unknown_values:
+            for val in item_unknown_values:
+                # Skip None — already covered by item.is_null() above. Each
+                # non-None sentinel becomes a null-safe equality term.
+                if val is None:
+                    continue
+                is_unknown = is_unknown | (item == pl.lit(val)).fill_null(False)
+        return (
+            pl.when(is_unknown)
+            .then(pl.lit(_T_UNKNOWN))
+            .otherwise(
+                pl.when(x.list.contains(item).fill_null(False))
+                .then(pl.lit(_T_TRUE))
+                .otherwise(pl.lit(_T_FALSE))
+            )
+        )
 
     def list_sort(self, x, /, *, descending: bool = False):
         return x.list.sort(descending=descending)

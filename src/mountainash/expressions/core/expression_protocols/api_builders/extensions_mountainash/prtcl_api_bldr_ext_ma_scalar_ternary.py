@@ -76,16 +76,25 @@ class MountainAshScalarTernaryAPIBuilderProtocol(Protocol):
 
     def t_is_in(
         self,
-        values: Union[BaseExpressionAPI, ExpressionNode, Any],
+        *values: Union[BaseExpressionAPI, ExpressionNode, Any],
     ) -> BaseExpressionAPI:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        Variadic: accepts ``t_is_in([1,2,3])`` or ``t_is_in(1,2,3)``.
+
+        A bare expression as the sole argument raises at build time
+        (use ``.list.t_contains()`` for list-column membership).
+        """
         ...
 
     def t_is_not_in(
         self,
-        values: Union[BaseExpressionAPI, ExpressionNode, Any],
+        *values: Union[BaseExpressionAPI, ExpressionNode, Any],
     ) -> BaseExpressionAPI:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        Variadic mirror of ``t_is_in``.
+        """
         ...
 
     # ========================================

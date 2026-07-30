@@ -65,22 +65,23 @@ def test_backend_capability_error_preserves_limitation_message():
     """When triggered, BackendCapabilityError carries the fact's message and workaround.
 
     Exercises the enrichment path directly on ``_call_with_expr_support`` using a
-    MATERIALIZE-boundary fact (Narwhals ``t_is_in`` on the per-row list-column
-    path, which narwhals rejects with ``TypeError``). Sourcing the fact from the
+    MATERIALIZE-boundary fact (Narwhals ``list.t_contains`` storage-residue fact on
+    narwhals-pandas, which narwhals rejects with ``TypeError``). Sourcing the fact from the
     registry — rather than a class dict — is the whole point of the migration;
     BUILD-gated string ops like ``starts_with`` no longer reach this path.
     """
+    from mountainash.core.capabilities import WILDCARD_PARAM
     from mountainash.expressions.core.expression_system.function_keys.enums import (
-        FKEY_MOUNTAINASH_SCALAR_TERNARY,
+        FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     )
 
-    sys = NarwhalsBaseExpressionSystem()
-    fkey = FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN
+    sys = NarwhalsBaseExpressionSystem(dialect="narwhals-pandas")
+    fkey = FK_LIST.T_CONTAINS
     fact = CapabilityRegistry.capability_for(
-        fkey, "collection", CONST_BACKEND.NARWHALS, sys.dialect
+        fkey, WILDCARD_PARAM, CONST_BACKEND.NARWHALS, sys.dialect
     )
     assert fact is not None and fact.native_errors, (
-        "expected a MATERIALIZE-enriched t_is_in fact with native_errors"
+        "expected a MATERIALIZE-enriched list.t_contains fact with native_errors"
     )
     exc_cls = fact.native_errors[0]
 
@@ -91,7 +92,7 @@ def test_backend_capability_error_preserves_limitation_message():
         sys._call_with_expr_support(
             simulated_native_failure,
             function_key=fkey,
-            collection="not_a_literal",
+            item="not_a_literal",
         )
     err = exc_info.value
     assert err.limitation is not None

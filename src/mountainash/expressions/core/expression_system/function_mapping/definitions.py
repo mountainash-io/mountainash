@@ -2253,6 +2253,12 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_contains,
         ),
         ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
+            substrait_uri=MountainashExtension.LIST, substrait_name="list_t_contains", is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_t_contains,
+            options=("item_unknown_values",),
+        ),
+        ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SORT,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_sort", is_extension=True,
             options=("descending",),

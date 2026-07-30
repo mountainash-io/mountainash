@@ -1,6 +1,6 @@
 """Narwhals backend for mountainash list operations."""
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, FrozenSet, Optional
 
 import narwhals as nw
 
@@ -34,6 +34,42 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
 
     def list_contains(self, x: NarwhalsExpr, /, item: Any):
         return x.list.contains(item)
+
+    def list_t_contains(
+        self,
+        x: NarwhalsExpr,
+        /,
+        item: Any,
+        *,
+        item_unknown_values: Optional[FrozenSet[Any]] = None,
+    ):
+        T_TRUE = 1
+        T_UNKNOWN = 0
+        T_FALSE = -1
+
+        is_unknown = x.is_null()
+        if isinstance(item, nw.Expr):
+            is_unknown = is_unknown | item.is_null()
+            if item_unknown_values:
+                for val in item_unknown_values:
+                    if val is None:
+                        continue
+                    is_unknown = is_unknown | (item == nw.lit(val)).fill_null(False)
+        else:
+            if item is None:
+                is_unknown = nw.lit(True)
+            elif item_unknown_values and item in item_unknown_values:
+                is_unknown = nw.lit(True)
+
+        return (
+            nw.when(is_unknown)
+            .then(nw.lit(T_UNKNOWN))
+            .otherwise(
+                nw.when(x.list.contains(item).fill_null(False))
+                .then(nw.lit(T_TRUE))
+                .otherwise(nw.lit(T_FALSE))
+            )
+        )
 
     def list_sort(self, x: NarwhalsExpr, /, *, descending: bool = False):
         return x.list.sort(descending=descending)

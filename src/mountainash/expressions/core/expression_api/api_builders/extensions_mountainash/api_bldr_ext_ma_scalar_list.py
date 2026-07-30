@@ -68,6 +68,29 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
         )
         return self._build(node)
 
+    def t_contains(self, item: Union[BaseExpressionAPI, Any]) -> BaseExpressionAPI:
+        """Ternary list-membership check. Returns -1/0/1.
+
+        UNKNOWN (0) when the list row is null OR the needle is null /
+        matches a declared ``item_unknown_values`` sentinel; otherwise
+        TRUE (1) / FALSE (-1) of the boolean ``list.contains(item)`` check.
+
+        Args:
+            item: Value or expression to search for. A ``t_col(needle, unknown=...)``
+                needle propagates its sentinels via the ``item_unknown_values`` option.
+        """
+        item_node = self._to_substrait_node(item)
+        opts: dict[str, Any] = {}
+        item_unknown = getattr(item_node, "unknown_values", None)
+        if item_unknown:
+            opts["item_unknown_values"] = frozenset(item_unknown)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
+            arguments=[self._node, item_node],
+            options=opts,
+        )
+        return self._build(node)
+
     def sort(self, *, descending: bool = False) -> BaseExpressionAPI:
         """Sort elements in each list.
 

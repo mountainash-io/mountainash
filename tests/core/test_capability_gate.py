@@ -109,10 +109,13 @@ class TestGateBypass:
 class TestPolymorphicPreserved:
     def test_is_in_literal_list_and_expression_paths_still_work(self):
         # Regression: _raw_value_functions semantics now come from core facts.
-        df = pl.DataFrame({"v": [1, 2], "allowed": [[1], [3]]})
+        df = pl.DataFrame({"v": [1, 2], "other": [1, 3]})
         lit_path = ma.t_col("v").t_is_in([1, 5]).compile(df)
         assert lit_path is not None
-        expr_path = ma.t_col("v").t_is_in(ma.col("allowed")).compile(df)
+        # Expression MEMBERS (OR-chain path) still work. A *bare* column
+        # collection now raises BareExpressionCollectionError — use
+        # .list.t_contains for per-row list membership.
+        expr_path = ma.t_col("v").t_is_in([ma.col("other")]).compile(df)
         assert expr_path is not None
 
 
