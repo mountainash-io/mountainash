@@ -80,3 +80,21 @@ class UnsupportedCollectionError(MembershipArgumentError):
             msg=f"Unsupported collection type: {type(value).__name__!r}. "
             "Provide a list, tuple, set, or frozenset of values.",
         )
+
+
+class InternalMembershipError(MembershipArgumentError):
+    """Internal alignment guard — raised when member_unknown_values length
+    does not match members length in a backend kernel wrapper.
+
+    This is a defensive internal error; callers must ensure alignment.
+    Never silently zip-truncate.
+    """
+
+    def __init__(self, *, members_len: int, muv_len: int) -> None:
+        super().__init__(
+            msg=(
+                f"Internal error: member_unknown_values length ({muv_len}) "
+                f"does not match members length ({members_len}). "
+                "This is a defensive internal error; callers must ensure alignment."
+            ),
+        )

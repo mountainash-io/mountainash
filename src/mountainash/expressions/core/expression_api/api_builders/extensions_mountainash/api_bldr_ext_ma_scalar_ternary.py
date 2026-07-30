@@ -11,8 +11,10 @@ from typing import TYPE_CHECKING, Any, Union
 from ..api_builder_base import BaseExpressionAPIBuilder
 
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode, LiteralNode
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarTernaryAPIBuilderProtocol
+from mountainash.expressions.membership.classify import classify_members
+from mountainash.expressions.membership.encode import encode_membership
 
 
 if TYPE_CHECKING:
@@ -190,62 +192,42 @@ class MountainAshScalarTernaryAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
 
     def t_is_in(
         self,
-        values: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *values: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
         """Ternary membership check. Returns -1/0/1.
 
-        `values` may be a Python list/tuple/set (literal collection, baked in
-        at build time) or a single expression. When the expression resolves to
-        a list-typed column at compile time, each backend compiles the operation
-        as per-row `list.contains(element)`; scalar expressions keep today's
-        `element == value` semantics.
+        Variadic: accepts ``t_is_in([1,2,3])`` or ``t_is_in(1,2,3)``.
+        A bare expression as the sole argument raises at build time
+        (use ``.list.t_contains()`` for list-column membership).
         """
-        left_unknown = getattr(self._node, "unknown_values", None)
-        options = {"unknown_values": frozenset(left_unknown)} if left_unknown else {}
-
-        if isinstance(values, (list, tuple, set)):
-            # Literal path — wrap in LIST node; visitor will extract raw values.
-            literal_nodes: list["ExpressionNode"] = [LiteralNode(value=v) for v in values]
-            collection_arg: "ExpressionNode" = ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
-                arguments=literal_nodes,
-            )
-        else:
-            # Expression path — pass through raw. Visitor compiles normally;
-            # the backend distinguishes list-literal vs compiled-Expr arguments
-            # via `isinstance` at its own boundary.
-            collection_arg = self._to_substrait_node(values)
-
+        members = classify_members(values)
+        arguments, options = encode_membership(self._node, members)
+        needle_unknown = getattr(self._node, "unknown_values", None)
+        if needle_unknown:
+            options["unknown_values"] = frozenset(needle_unknown)
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
-            arguments=[self._node, collection_arg],
+            arguments=arguments,
             options=options,
         )
         return self._build(node)
 
     def t_is_not_in(
         self,
-        values: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        *values: Union[BaseExpressionAPI, "ExpressionNode", Any],
     ) -> BaseExpressionAPI:
         """Ternary non-membership check. Returns -1/0/1.
 
-        Mirror of `t_is_in`. See its docstring for `values` semantics.
+        Variadic mirror of ``t_is_in``.
         """
-        left_unknown = getattr(self._node, "unknown_values", None)
-        options = {"unknown_values": frozenset(left_unknown)} if left_unknown else {}
-
-        if isinstance(values, (list, tuple, set)):
-            literal_nodes: list["ExpressionNode"] = [LiteralNode(value=v) for v in values]
-            collection_arg: "ExpressionNode" = ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
-                arguments=literal_nodes,
-            )
-        else:
-            collection_arg = self._to_substrait_node(values)
-
+        members = classify_members(values)
+        arguments, options = encode_membership(self._node, members)
+        needle_unknown = getattr(self._node, "unknown_values", None)
+        if needle_unknown:
+            options["unknown_values"] = frozenset(needle_unknown)
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
-            arguments=[self._node, collection_arg],
+            arguments=arguments,
             options=options,
         )
         return self._build(node)

@@ -20,7 +20,8 @@ class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def is_in(
         self,
-        needle: ExpressionT, /, *haystack: ExpressionT
+        needle: ExpressionT, /, *haystack: ExpressionT,
+        unknown_values=None, member_unknown_values=None,
     ) -> ExpressionT:
         """Check if value is in the given set of values.
 
@@ -30,7 +31,8 @@ class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def is_not_in(
         self,
-        needle: ExpressionT, /, *haystack: ExpressionT
+        needle: ExpressionT, /, *haystack: ExpressionT,
+        unknown_values=None, member_unknown_values=None,
     ) -> ExpressionT:
         """Check if value is not in the given set of values.
 

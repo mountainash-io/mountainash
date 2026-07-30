@@ -13,7 +13,7 @@ where comparisons involving NULL return UNKNOWN instead of FALSE.
 """
 
 from __future__ import annotations
-from typing import Any, Collection, FrozenSet, List, Optional, Protocol
+from typing import Any, FrozenSet, List, Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -92,27 +92,25 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def t_is_in(
         self,
-        element: ExpressionT,
-        collection: Collection[Any] | ExpressionT,
-        unknown_values: Optional[FrozenSet[Any]] = None,
+        element: ExpressionT, /, *members: ExpressionT,
+        unknown_values=None, member_unknown_values=None,
     ) -> ExpressionT:
         """Ternary membership test - returns -1/0/1.
 
-        `collection` is either a Python collection of literal values (the
-        historical literal-list path) or a backend expression (new: per-row
-        list-column membership). Backends dispatch on the Python type.
+        ``*members`` is the variadic collection of values to test membership
+        against. Both literal-Python-values (via COLLECT_VALUES) and compiled
+        expressions are accepted.
         """
         ...
 
     def t_is_not_in(
         self,
-        element: ExpressionT,
-        collection: Collection[Any] | ExpressionT,
-        unknown_values: Optional[FrozenSet[Any]] = None,
+        element: ExpressionT, /, *members: ExpressionT,
+        unknown_values=None, member_unknown_values=None,
     ) -> ExpressionT:
         """Ternary non-membership test - returns -1/0/1.
 
-        See `t_is_in` for `collection` semantics.
+        Mirror of ``t_is_in``.
         """
         ...
 

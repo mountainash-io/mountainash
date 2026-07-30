@@ -5,73 +5,114 @@ Implements set membership operations for the Narwhals backend.
 
 from __future__ import annotations
 
+import math
+from datetime import date, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
-
+from mountainash.expressions.membership.errors import InternalMembershipError
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarSetExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
+def _all_portable_nonnull_literals(members: list) -> bool:
+    for v in members:
+        if type(v) not in (bool, int, float, str, bytes, date, datetime, Decimal):  # noqa: E721
+            return False
+        if v is None:
+            return False
+        if type(v) is float and math.isnan(v):  # noqa: E721
+            return False
+    return True
+
+
+def _nw_membership_kernel(needle, members, needle_unknown_fs, member_unknown_fs):
+    """Shared Narwhals membership kernel — single source for boolean + ternary.
+
+    Returns ``(any_match, is_unknown)`` as normalised Narwhals boolean expressions.
+    """
+    needle_unknown = needle.is_null().fill_null(True)
+    if needle_unknown_fs:
+        needle_unknown = needle_unknown | needle.is_in(list(needle_unknown_fs)).fill_null(False)
+
+    if _all_portable_nonnull_literals(members):
+        any_match = needle.is_in(members).fill_null(False)
+        any_unknown_candidate = nw.lit(False)
+    else:
+        any_match = nw.lit(False)
+        any_unknown_candidate = nw.lit(False)
+        for m, ufs in zip(members, member_unknown_fs or [None] * len(members)):
+            if m is None:
+                eq = nw.lit(False)
+            else:
+                eq = (needle == m).fill_null(False)
+            any_match = any_match | eq
+            mu = m.is_null().fill_null(True) if hasattr(m, "is_null") else nw.lit(m is None)
+            if ufs:
+                mu = mu | (
+                    m.is_in(list(ufs)).fill_null(False)
+                    if hasattr(m, "is_in")
+                    else nw.lit(m in ufs)
+                )
+            any_unknown_candidate = any_unknown_candidate | mu
+
+    is_unknown = needle_unknown | (~any_match & any_unknown_candidate)
+    return any_match, is_unknown
+
 
 class SubstraitNarwhalsScalarSetExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol[nw.Expr]):
-    """Narwhals implementation of ScalarSetExpressionProtocol.
+    """Narwhals implementation of ScalarSetExpressionProtocol."""
 
-    Implements set membership operations:
-    - index_in: Return 0-indexed position in list, or -1 if not found
-    - is_in: Check if value is in set (boolean)
-    - is_not_in: Check if value is not in set (boolean)
-    """
+    # ------------------------------------------------------------------
+    # normalisation
+    # ------------------------------------------------------------------
 
+    def _normalize_members(self, haystack_tuple, member_unknown_values):
+        members = (
+            haystack_tuple[0]
+            if (len(haystack_tuple) == 1 and isinstance(haystack_tuple[0], list))
+            else list(haystack_tuple)
+        )
+        if member_unknown_values is not None and len(member_unknown_values) != len(members):
+            raise InternalMembershipError(
+                members_len=len(members), muv_len=len(member_unknown_values)
+            )
+        return members
+
+    # ------------------------------------------------------------------
+    # public ops
+    # ------------------------------------------------------------------
 
     def is_in(
         self,
         needle: NarwhalsExpr,
         /,
         *haystack: NarwhalsExpr,
+        unknown_values=None,
+        member_unknown_values=None,
     ) -> NarwhalsExpr:
-        """Check if needle is in haystack.
-
-        Args:
-            needle: Value to search for.
-            *haystack: Values to search in.
-
-        Returns:
-            Boolean expression.
-        """
-        if not haystack:
-            # nw.lit(False) is a scalar that doesn't broadcast correctly with pandas
-            # Use (needle != needle) to get a column-length False expression
-            # This also handles NULL correctly (NULL != NULL is NULL/False)
-            return needle != needle
-
-        # For simple literal values, use is_in
-        if all(isinstance(v, (int, float, str, bool, type(None))) for v in haystack):
-            return needle.is_in(list(haystack))
-
-        # For expression haystack, use OR chain
-        result = needle != needle  # Start with column-length False
-        for value in haystack:
-            result = result | (needle == value)
-        return result
+        members = self._normalize_members(haystack, member_unknown_values)
+        any_match, is_unknown = _nw_membership_kernel(
+            needle, members, unknown_values, member_unknown_values
+        )
+        return nw.when(is_unknown).then(nw.lit(False)).otherwise(any_match)
 
     def is_not_in(
         self,
         needle: NarwhalsExpr,
         /,
         *haystack: NarwhalsExpr,
+        unknown_values=None,
+        member_unknown_values=None,
     ) -> NarwhalsExpr:
-        """Check if needle is not in haystack.
-
-        Args:
-            needle: Value to search for.
-            *haystack: Values to search in.
-
-        Returns:
-            Boolean expression.
-        """
-        return ~self.is_in(needle, *haystack)
+        members = self._normalize_members(haystack, member_unknown_values)
+        any_match, is_unknown = _nw_membership_kernel(
+            needle, members, unknown_values, member_unknown_values
+        )
+        am = ~any_match
+        return nw.when(is_unknown).then(nw.lit(False)).otherwise(am)
