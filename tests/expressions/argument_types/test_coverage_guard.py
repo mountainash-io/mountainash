@@ -773,8 +773,12 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
 }
 
 # Datetime option params — retagged with precise, backlog-linked reasons (PR-C).
-# 18 missing-op params: the operation is not exposed by the API builder, so the option
-# cannot be wired until the op exists.
+# Missing-op params: the operation is not exposed by the API builder, so the option
+# cannot be wired until the op exists. Ops in scope: extract, round_calendar,
+# round_temporal, strptime_time. (strptime_date and strptime_timestamp are
+# drained by the disposition matrix in test_arg_types_datetime.py; their
+# respective parks are removed below and their timezone park is re-keyed with
+# its real reason rather than the shared "operation not implemented" lie.)
 _KNOWN_UNTESTED_OPTION_PARAMS.update(
     {
         key: KnownGap(
@@ -800,10 +804,7 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "origin"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "format"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time", "format"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "format"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "timezone"),
         }
     }
 )
@@ -818,6 +819,18 @@ _KNOWN_UNTESTED_OPTION_PARAMS[
         "timezone option non-functional — see backlog: is-dst-placeholder-implementation"
     ),
     since="2026-07-25",
+)
+_KNOWN_UNTESTED_OPTION_PARAMS[
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "timezone")
+] = KnownGap(
+    gap_kind=GapKind.UNTESTED_OPTION,
+    reason=(
+        "the op IS API-reachable via str.to_datetime, but its ExpressionFunctionDef "
+        "declares only options=('format',), so the timezone argument never reaches "
+        "the backend; deferred with `precision` as parameters of the same upstream "
+        "overload family — see backlog: substrait-datetime-missing-ops section 4.4"
+    ),
+    since="2026-07-30",
 )
 
 
@@ -1000,9 +1013,7 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "multiply"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "subtract"),
             ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln"),
             ("SubstraitScalarLogarithmicExpressionSystemProtocol", "log1p"),
@@ -1015,6 +1026,18 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
         }
     },
 }
+for _wired_strptime_op in ("strptime_date", "strptime_timestamp"):
+    _KNOWN_UNWIRED_TESTED_OPS[
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", _wired_strptime_op)
+    ] = KnownGap(
+        gap_kind=GapKind.OTHER,
+        reason=(
+            "protocol_method IS registered and the op IS API-reachable via "
+            "str.to_date/str.to_datetime; the entry is retained only because the "
+            "TESTED_PARAMS keys are plain strings, which forces registry_wired=False"
+        ),
+        since="2026-07-30",
+    )
 
 
 _KNOWN_UNRESOLVED_TESTED_PARAMS: dict[tuple[str, str], KnownGap] = {

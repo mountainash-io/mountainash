@@ -207,12 +207,17 @@ def test_no_op_level_fact_is_left_unbacked() -> None:
 
 
 def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
-    # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts
+    # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts.
+    # Op-level cells are backed by WILDCARD_PARAM facts (Task 4 / PR-B), not
+    # value-scoped ones, so they are excluded from this arm. The orphan guard
+    # test_op_level_backed_cells_resolve_to_wildcard_facts above walks the
+    # op-level side of the contract.
     fact_keys = _option_fact_keys()
     exact_declared_keys = {
         cell_fact_key(cell)
         for cell in OPTION_DISPOSITIONS
-        if cell.disposition == "declared_unsupported" and cell.backing_mode != "class"
+        if cell.disposition == "declared_unsupported"
+        and cell.backing_mode not in ("class", "op-level")
     }
     assert fact_keys == exact_declared_keys, (
         f"exact fact/cell mismatch: facts-only={fact_keys - exact_declared_keys}; "
@@ -495,6 +500,9 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
             }
             else ("datetime",)
             if key[1] in {"unit", "timezone", "offset", "format"}
+            and key[0] not in {"strptime_date", "strptime_timestamp"}
+            else ("str",)
+            if key[0] in {"strptime_date", "strptime_timestamp"}
             else ("float64",)
         )
         for key in owners

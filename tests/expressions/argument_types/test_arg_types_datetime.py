@@ -1327,6 +1327,148 @@ def test_local_timestamp_invalid_option_rejected_at_build_time(
         rejection.build_expr()
 
 
+# 6. strptime_date / strptime_timestamp
+# The format string is an open-domain, unvalidated string. strptime_date is
+# declared_unsupported on narwhals-pandas (str.to_date() raises
+# NotImplementedError on the default pandas backend); honored elsewhere.
+# strptime_timestamp is honored on all four matrix fixtures.
+_STRPTIME_DATE_DOMAIN = ("%Y-%m-%d", "%Y-%d-%m")
+_STRPTIME_TS_DOMAIN = ("%Y-%m-%d %H:%M:%S", "%Y-%d-%m %H:%M:%S")
+_STRPTIME_DATE_DATA = {"s": ["2024-01-05", "2024-02-03", "2024-03-11"]}
+_STRPTIME_TS_DATA = {"s": ["2024-01-05 06:07:08", "2024-02-03 09:10:11", "2024-03-11 12:13:14"]}
+
+
+def _strptime_date_expr(fmt: str):
+    return ma.col("s").str.to_date(fmt)
+
+
+def _strptime_date_ref_expr(fmt: str):
+    ref = "%Y-%m-%d" if fmt != "%Y-%m-%d" else "%Y-%d-%m"
+    return _strptime_date_expr(ref)
+
+
+def _strptime_date_disposition(backend: str) -> str:
+    return "declared_unsupported" if backend == "narwhals-pandas" else "honored"
+
+
+def _strptime_date_backing_mode(backend: str) -> str:
+    return "op-level" if backend == "narwhals-pandas" else "absence"
+
+
+def _strptime_date_reason(backend: str) -> str:
+    if backend == "narwhals-pandas":
+        return (
+            "narwhals raises NotImplementedError for str.to_date() on the default "
+            "pandas backend; the whole op is gated op-level rather than per-value"
+        )
+    return "native backend honors strptime_date format"
+
+
+def _strptime_date_probe(fmt: str, backend: str) -> OptionSpec:
+    if _strptime_date_disposition(backend) == "honored":
+        return OptionSpec(
+            FK_DT.STRPTIME_DATE,
+            "format",
+            fmt,
+            "str",
+            lambda f=fmt: _strptime_date_expr(f),
+            lambda f=fmt: _strptime_date_ref_expr(f),
+            _STRPTIME_DATE_DATA,
+            expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.STRPTIME_DATE,
+        "format",
+        fmt,
+        "str",
+        lambda f=fmt: _strptime_date_expr(f),
+        lambda f=fmt: _strptime_date_expr(f),
+        _STRPTIME_DATE_DATA,
+        expected_discriminates=True,
+    )
+
+
+def _strptime_ts_expr(fmt: str):
+    return ma.col("s").str.to_datetime(fmt)
+
+
+def _strptime_ts_ref_expr(fmt: str):
+    ref = "%Y-%m-%d %H:%M:%S" if fmt != "%Y-%m-%d %H:%M:%S" else "%Y-%d-%m %H:%M:%S"
+    return _strptime_ts_expr(ref)
+
+
+def _strptime_ts_probe(fmt: str, backend: str) -> OptionSpec:
+    return OptionSpec(
+        FK_DT.STRPTIME_TIMESTAMP,
+        "format",
+        fmt,
+        "str",
+        lambda f=fmt: _strptime_ts_expr(f),
+        lambda f=fmt: _strptime_ts_ref_expr(f),
+        _STRPTIME_TS_DATA,
+        expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.STRPTIME_DATE,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_date",
+        "format",
+        backend,
+        fmt,
+        "str",
+        _strptime_date_disposition(backend),
+        _strptime_date_reason(backend),
+        _strptime_date_backing_mode(backend),
+    )
+    for backend in ALL_BACKENDS
+    for fmt in _STRPTIME_DATE_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _strptime_date_probe(fmt, backend),
+        backend,
+        _strptime_date_disposition(backend),
+        NotImplementedError
+        if _strptime_date_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for fmt in _STRPTIME_DATE_DOMAIN
+)
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.STRPTIME_TIMESTAMP,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_timestamp",
+        "format",
+        backend,
+        fmt,
+        "str",
+        "honored",
+        "native backend honors strptime_timestamp format",
+        "absence",
+    )
+    for backend in ALL_BACKENDS
+    for fmt in _STRPTIME_TS_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _strptime_ts_probe(fmt, backend),
+        backend,
+        "honored",
+        None,
+    )
+    for backend in ALL_BACKENDS
+    for fmt in _STRPTIME_TS_DOMAIN
+)
+
+
 TESTED_OPTION_PARAMS: list[tuple] = []
 TESTED_OPTION_PARAMS.extend(
     (
@@ -1367,6 +1509,18 @@ TESTED_OPTION_PARAMS.extend([
         "local_timestamp",
         "timezone",
         param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "local_timestamp", "timezone"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_date",
+        "format",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "strptime_date", "format"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_timestamp",
+        "format",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "strptime_timestamp", "format"),
     ),
 ])
 

@@ -282,6 +282,10 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("local_timestamp", "timezone"): ("datetime",),
     ("offset_by", "offset"): ("datetime",),
     ("strftime", "format"): ("datetime",),
+    # Strptime format string — open-domain, no INVALID cell.
+    # OPTION_DTYPES carries the input column dtype (str), not the option's own type.
+    ("strptime_date", "format"): ("str",),
+    ("strptime_timestamp", "format"): ("str",),
 }
 
 # Representative legal values for open-integer options that have NO finite
@@ -317,6 +321,12 @@ _MA_OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
     ("round_dt", "unit"): ("2d", "3h"),
     ("ceil_dt", "unit"): ("2d", "3h"),
     ("floor_dt", "unit"): ("2d", "3h"),
+    # Strptime format representatives — two that both parse the same input cleanly
+    # and disagree on the result, so the probe discriminates without depending on
+    # a parse error. %Y-%m-%d orders the date canonically; %Y-%d-%m swaps day/month
+    # so the result differs when input has day > 12.
+    ("strptime_date", "format"): ("%Y-%m-%d", "%Y-%d-%m"),
+    ("strptime_timestamp", "format"): ("%Y-%m-%d %H:%M:%S", "%Y-%d-%m %H:%M:%S"),
 }
 
 
@@ -338,6 +348,26 @@ _OPEN_DOMAIN_OPTIONS: dict[tuple[str, str, str], OpenDomainOptionSpec] = {
         since="2026-07-27",
         rationale=(
             "strftime format string is unvalidated open-domain string; "
+            "no invalid cell or build rejection expected"
+        ),
+    ),
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "format"): OpenDomainOptionSpec(
+        protocol="SubstraitScalarDatetimeExpressionSystemProtocol",
+        op="strptime_date",
+        param="format",
+        since="2026-07-30",
+        rationale=(
+            "strptime format string is an unvalidated open-domain string; "
+            "no invalid cell or build rejection expected"
+        ),
+    ),
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "format"): OpenDomainOptionSpec(
+        protocol="SubstraitScalarDatetimeExpressionSystemProtocol",
+        op="strptime_timestamp",
+        param="format",
+        since="2026-07-30",
+        rationale=(
+            "strptime format string is an unvalidated open-domain string; "
             "no invalid cell or build rejection expected"
         ),
     ),
