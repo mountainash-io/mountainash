@@ -1,6 +1,6 @@
 """Narwhals backend for mountainash list operations."""
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, FrozenSet, Optional
 
 import narwhals as nw
 
@@ -34,6 +34,22 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
 
     def list_contains(self, x: NarwhalsExpr, /, item: Any):
         return x.list.contains(item)
+
+    def list_t_contains(
+        self,
+        x: NarwhalsExpr,
+        /,
+        item: Any,
+        *,
+        item_unknown_values: Optional[FrozenSet[Any]] = None,
+    ):
+        raise BackendCapabilityError(
+            "Narwhals list namespace does not support expression arguments to "
+            "list.contains(), so the null-aware ternary .list.t_contains cannot be "
+            "compiled on narwhals. Use Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
+        )
 
     def list_sort(self, x: NarwhalsExpr, /, *, descending: bool = False):
         return x.list.sort(descending=descending)

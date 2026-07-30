@@ -51,6 +51,18 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
         """Check if each list contains the given item."""
         ...
 
+    def t_contains(
+        self,
+        item: Union[BaseExpressionAPI, ExpressionNode, Any],
+    ) -> BaseExpressionAPI:
+        """Ternary list-membership check. Returns -1/0/1.
+
+        UNKNOWN (0) when the list row is null OR the needle is null /
+        matches a declared ``item_unknown_values`` sentinel; otherwise
+        TRUE (1) / FALSE (-1) of the boolean ``list.contains(item)`` check.
+        """
+        ...
+
     def sort(self, *, descending: bool = False) -> BaseExpressionAPI:
         """Sort elements in each list."""
         ...

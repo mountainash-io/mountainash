@@ -27,6 +27,7 @@ TESTED_PARAMS: list[tuple] = [
     ("list_sort", "x"),
     ("list_sum", "x"),
     ("list_unique", "x"),
+    (FK_LIST.T_CONTAINS, "item"),
 ]
 
 OP_SPECS: list[OpSpec] = [

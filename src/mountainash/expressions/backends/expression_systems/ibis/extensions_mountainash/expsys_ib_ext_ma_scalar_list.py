@@ -1,10 +1,22 @@
 """Ibis backend for mountainash list operations."""
 from __future__ import annotations
 
+from typing import Any, FrozenSet, Optional
+
+import ibis
+
+from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+
+from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
+
+
+_T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
+_T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
+_T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 
 class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol["IbisValueExpr"]):
@@ -27,6 +39,39 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
 
     def list_contains(self, x, /, item):
         return x.contains(item)
+
+    def list_t_contains(
+        self,
+        x,
+        /,
+        item,
+        *,
+        item_unknown_values: Optional[FrozenSet[Any]] = None,
+    ):
+        """Ternary list-membership: UNKNOWN for null list / null or sentinel needle.
+
+        A null needle is ALWAYS an UNKNOWN trigger (independent of the declared
+        ``item_unknown_values`` sentinel set — the set only adds the equality
+        terms for declared sentinels). Each sentinel comparison is null-coalesced
+        to False via ``_ibis_fill_null_false`` so a null item row never leaks
+        SQL-null into the ``is_unknown`` accumulator (mirrors the same
+        null-normalisation discipline the Task 5 membership kernel enforces).
+        """
+        # Unconditional UNKNOWN triggers: null list row OR null needle row.
+        is_unknown = x.isnull() | item.isnull()
+        if item_unknown_values:
+            for val in item_unknown_values:
+                # Skip None — already covered by item.isnull() above. Each
+                # non-None sentinel becomes a null-safe equality term.
+                if val is None:
+                    continue
+                is_unknown = is_unknown | _ibis_fill_null_false(item == ibis.literal(val))
+        any_match = x.contains(item).fill_null(False)
+        return ibis.ifelse(
+            is_unknown,
+            ibis.literal(_T_UNKNOWN),
+            ibis.ifelse(any_match, ibis.literal(_T_TRUE), ibis.literal(_T_FALSE)),
+        )
 
     def list_sort(self, x, /, *, descending: bool = False):
         if descending:

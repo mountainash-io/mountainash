@@ -13,9 +13,12 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Enforcement,
+    WILDCARD_PARAM,
 )
 from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
@@ -130,6 +133,23 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 message="Narwhals str.rpad() requires a single literal fill character, not a column expression",
                 workaround="Use a literal single-character string", since="2026-07-05",
                 upstream_ref="NW-STR-06",
+            ),
+            # NW-LIST-01: Narwhals list namespace does not accept expression
+            # arguments to list.contains(), so the null-aware ternary
+            # .list.t_contains (FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS) cannot
+            # be compiled on narwhals. Whole-op gate; visitors raise
+            # BackendCapabilityError before dispatch.
+            CapabilityFact(
+                operation_key=FK_LIST.T_CONTAINS, param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
+                message="Narwhals list namespace does not support expression arguments to "
+                        "list.contains(), so the null-aware ternary .list.t_contains cannot "
+                        "be compiled on narwhals.",
+                workaround="Use the Polars or Ibis backend for .list.t_contains.",
+                since="2026-07-30",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.GATE,
+                probe_exempt="whole-op gate; the narwhals backend raises BackendCapabilityError",
             ),
             # NOTE: the legacy dict's defensive (REGEX_CONTAINS, "pattern")
             # entry is intentionally NOT migrated: pattern is annotated `str`
