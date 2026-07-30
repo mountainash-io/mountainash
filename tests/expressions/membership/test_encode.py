@@ -284,15 +284,15 @@ class TestEncodeAllScalarLiteral:
         assert _is_collect_values(arguments[1])
         assert options["member_unknown_values"] == (None,)
 
-    def test_empty_collection_is_defensive_error(self) -> None:
-        """encode_membership is called AFTER classify_members, which rejects
-        empty collections. The encoder is defensive: empty members → a
-        descriptive runtime error.
-        """
+    def test_empty_collection_encodes_to_empty_collect_values(self) -> None:
+        """An empty members list encodes to an empty COLLECT_VALUES node."""
         needle = ma.col("x")._node
-        with pytest.raises(ValueError) as exc_info:
-            encode_membership(needle, [])
-        assert "empty" in str(exc_info.value).lower() or "no members" in str(exc_info.value).lower()
+        arguments, options = encode_membership(needle, [])
+        assert len(arguments) == 2
+        assert arguments[0] is needle
+        assert _is_collect_values(arguments[1])
+        assert len(arguments[1].arguments) == 0
+        assert options["member_unknown_values"] == ()
 
 
 class TestEncodeExpressionMember:

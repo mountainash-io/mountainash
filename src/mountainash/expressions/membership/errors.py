@@ -18,17 +18,6 @@ class MembershipArgumentError(MountainashError):
         super().__init__(msg or f"Invalid membership argument: {value!r}.")
 
 
-class EmptyMembershipError(MembershipArgumentError):
-    """Raised when the collection argument is empty."""
-
-    def __init__(self, value: Any = None) -> None:
-        super().__init__(
-            value,
-            msg="Membership test collection is empty. "
-            "A membership test requires at least one value to check against.",
-        )
-
-
 class NestedCollectionError(MembershipArgumentError):
     """Raised when the collection contains nested collections."""
 

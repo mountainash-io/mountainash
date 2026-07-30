@@ -6,7 +6,6 @@ import pytest
 from mountainash.core.errors import MountainashError
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
-    EmptyMembershipError,
     MembershipArgumentError,
     NativeExprMemberError,
     NestedCollectionError,
@@ -16,7 +15,6 @@ from mountainash.expressions.membership.errors import (
 
 ALL_ERRORS = [
     MembershipArgumentError,
-    EmptyMembershipError,
     NestedCollectionError,
     BareExpressionCollectionError,
     NativeExprMemberError,

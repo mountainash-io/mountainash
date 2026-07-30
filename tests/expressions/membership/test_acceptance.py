@@ -20,7 +20,6 @@ from mountainash import col as ma_col, lit as ma_lit, t_col as ma_t_col
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
-    EmptyMembershipError,
     NativeExprMemberError,
     NestedCollectionError,
     UnsupportedCollectionError,
@@ -71,13 +70,6 @@ class TestNeverSilentBuildRaise:
         with pytest.raises(BareExpressionCollectionError):
             ma_t_col("x").t_is_not_in(ma_col("y"))
 
-    def test_is_in_empty_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError):
-            ma_col("x").is_in([])
-
-    def test_t_is_in_empty_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError):
-            ma_t_col("x").t_is_in([])
 
     def test_is_in_nested_collection_raises(self) -> None:
         with pytest.raises(NestedCollectionError):
@@ -93,6 +85,36 @@ class TestNeverSilentBuildRaise:
     def test_is_in_native_expr_member_raises(self) -> None:
         with pytest.raises(NativeExprMemberError):
             ma_col("x").is_in([pl.col("y")])
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestEmptyMembershipVacuous:
+    """Vacuously-false membership for empty collection cross-backend."""
+
+    def test_empty_collection_vacuous_cross_backend(
+        self, backend_name, backend_factory, select_and_extract, collect_expr
+    ):
+        data = {"val": ["a", "b", None]}
+        df = backend_factory.create(data, backend_name)
+
+        is_in_res = collect_expr(df, ma_col("val").is_in([]))
+        assert is_in_res == [False, False, False], f"[{backend_name}] is_in([]): {is_in_res}"
+
+        is_not_in_res = collect_expr(df, ma_col("val").is_not_in([]))
+        assert is_not_in_res == [True, True, True], f"[{backend_name}] is_not_in([]): {is_not_in_res}"
+
+        expr_t_in = ma_col("val").t_is_in([])
+        t_in_res = select_and_extract(
+            df, expr_t_in.compile(df, booleanizer=None), "res", backend_name
+        )
+        assert t_in_res == [T_FALSE, T_FALSE, T_FALSE], f"[{backend_name}] t_is_in([]): {t_in_res}"
+
+        expr_t_not_in = ma_col("val").t_is_not_in([])
+        t_not_in_res = select_and_extract(
+            df, expr_t_not_in.compile(df, booleanizer=None), "res", backend_name
+        )
+        assert t_not_in_res == [T_TRUE, T_TRUE, T_TRUE], f"[{backend_name}] t_is_not_in([]): {t_not_in_res}"
 
 
 # ============================================================================

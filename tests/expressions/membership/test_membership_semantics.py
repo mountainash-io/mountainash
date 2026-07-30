@@ -48,19 +48,14 @@ class TestMembershipBuildErrors:
         with pytest.raises(BareExpressionCollectionError):
             ma_t_col("x").t_is_in(ma.lit([1, 2]))
 
-    def test_is_in_empty_raises(self) -> None:
-        from mountainash.expressions.membership.errors import EmptyMembershipError
-        with pytest.raises(EmptyMembershipError):
-            ma_col("x").is_in()
-
-    def test_t_is_in_empty_raises(self) -> None:
-        from mountainash.expressions.membership.errors import EmptyMembershipError
-        with pytest.raises(EmptyMembershipError):
-            ma_t_col("x").t_is_in()
-
-
 class TestMembershipBuildOk:
     """Build-time happy-path: valid invocations produce expression objects."""
+
+    def test_is_in_empty_builds(self) -> None:
+        assert ma_col("x").is_in() is not None
+
+    def test_t_is_in_empty_builds(self) -> None:
+        assert ma_t_col("x").t_is_in() is not None
 
     def test_is_in_list_builds(self) -> None:
         import mountainash as ma

@@ -143,19 +143,10 @@ def encode_membership(
           if the member has no sentinel semantics). A raw scalar
           always contributes ``None``.
 
-    Raises:
-        ValueError: if ``members`` is empty (defensive — Task 3's
-            :func:`classify_members` already rejects empty collections,
-            but a malformed-length argument should still surface a
-            descriptive error at the encoder boundary rather than
-            silently producing a degenerate ``ScalarFunctionNode``).
+    An empty ``members`` list is valid: it encodes to an empty
+    ``COLLECT_VALUES`` collection (``member_unknown_values == ()``), which the
+    per-backend kernels short-circuit to a vacuously-false membership result.
     """
-    if not members:
-        raise ValueError(
-            "encode_membership requires at least one member; "
-            "callers must run classify_members first (it rejects empty collections)."
-        )
-
     options = {
         "member_unknown_values": tuple(_member_unknown(m) for m in members),
     }

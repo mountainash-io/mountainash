@@ -27,7 +27,6 @@ from mountainash.expressions.membership.classify import (
 )
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
-    EmptyMembershipError,
     MembershipArgumentError,
     NativeExprMemberError,
     NestedCollectionError,
@@ -41,29 +40,22 @@ from mountainash.expressions.membership.errors import (
 
 
 class TestEmpty:
-    """No collection at all (or an empty container) → EmptyMembershipError."""
+    """No collection at all (or an empty container) → [] (vacuously-false membership)."""
 
-    def test_no_args_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError) as exc_info:
-            classify_members(())
-        assert exc_info.value.value is None
+    def test_no_args_returns_empty(self) -> None:
+        assert classify_members(()) == []
 
-    def test_empty_list_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError) as exc_info:
-            classify_members(([],))
-        assert exc_info.value.value == []
+    def test_empty_list_returns_empty(self) -> None:
+        assert classify_members(([],)) == []
 
-    def test_empty_tuple_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError):
-            classify_members(((),))
+    def test_empty_tuple_returns_empty(self) -> None:
+        assert classify_members(((),)) == []
 
-    def test_empty_set_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError):
-            classify_members((set(),))
+    def test_empty_set_returns_empty(self) -> None:
+        assert classify_members((set(),)) == []
 
-    def test_empty_frozenset_raises(self) -> None:
-        with pytest.raises(EmptyMembershipError):
-            classify_members((frozenset(),))
+    def test_empty_frozenset_returns_empty(self) -> None:
+        assert classify_members((frozenset(),)) == []
 
 
 class TestSingleBareExpression:
@@ -749,7 +741,6 @@ class TestIsUnsupportedIterable:
 
 
 BRANCH_RETURNED = "returned"
-BRANCH_EMPTY = "empty"
 BRANCH_BARE_EXPR = "bare_expression"
 BRANCH_UNSUPPORTED = "unsupported"
 BRANCH_NESTED = "nested"
@@ -758,7 +749,6 @@ BRANCH_NATIVE_MEMBER = "native_member"
 ALL_KNOWN_BRANCHES = frozenset(
     {
         BRANCH_RETURNED,
-        BRANCH_EMPTY,
         BRANCH_BARE_EXPR,
         BRANCH_UNSUPPORTED,
         BRANCH_NESTED,
@@ -776,8 +766,6 @@ def _resolve_branch(args: tuple) -> str:
     """
     try:
         result = classify_members(args)
-    except EmptyMembershipError:
-        return BRANCH_EMPTY
     except BareExpressionCollectionError:
         return BRANCH_BARE_EXPR
     except NestedCollectionError:

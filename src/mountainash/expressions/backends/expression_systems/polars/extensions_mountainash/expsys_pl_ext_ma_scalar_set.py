@@ -36,6 +36,12 @@ def _pl_membership_kernel(needle, members, needle_unknown_fs, member_unknown_fs)
 
     Returns ``(any_match, is_unknown)`` as normalised Polars boolean expressions.
     """
+    if not members:
+        # Empty collection is vacuously false and DEFINITE (never UNKNOWN, even
+        # for a null needle): SQL `x IN ()` is FALSE, `x NOT IN ()` is TRUE.
+        # Anchor to the needle so the False broadcasts to the frame height.
+        empty_false = needle.is_null() & pl.lit(False)
+        return empty_false, empty_false
     needle_unknown = needle.is_null().fill_null(True)
     if needle_unknown_fs:
         needle_unknown = needle_unknown | needle.is_in(list(needle_unknown_fs)).fill_null(False)

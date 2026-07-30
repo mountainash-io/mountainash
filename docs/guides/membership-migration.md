@@ -23,11 +23,10 @@ backend.
 
 ## What now raises at build
 
-A bare expression as the whole collection, a scalar column, `ma.lit([...])`, an
-empty collection, a nested collection, or a raw backend-native expression as a
-member each raises a typed error from
-`mountainash.expressions.membership.errors` **when you build the expression** —
-never at compile/collect, and never a wrong value.
+A bare expression as the whole collection, a scalar column, `ma.lit([...])`, a
+nested collection, or a raw backend-native expression as a member each raises a
+typed error from `mountainash.expressions.membership.errors` **when you build
+the expression** — never at compile/collect, and never a wrong value.
 
 | Old (now a build error) | Error | Do this instead |
 |---|---|---|
@@ -36,8 +35,9 @@ never at compile/collect, and never a wrong value.
 | `col("x").is_in(scalar_col)` — "equals this column" | `BareExpressionCollectionError` | `col("x") == scalar_col` |
 | `col("x").is_in(ma.lit([1, 2, 3]))` | `BareExpressionCollectionError` | pass the collection directly: `col("x").is_in([1, 2, 3])` |
 | `col("x").is_in([pl.col("a"), pl.col("b")])` — native members | `NativeExprMemberError` | wrap each member: `col("x").is_in([ma.col("a"), ma.col("b")])` |
-| `col("x").is_in([])` | `EmptyMembershipError` | provide at least one value |
 | `col("x").is_in([[1, 2], [3, 4]])` | `NestedCollectionError` | flatten, or use a list-column op |
+
+`is_in([])` (empty collection) is not an error — it is vacuously false (`is_not_in([])` is vacuously true).
 
 ## Migration by intent
 

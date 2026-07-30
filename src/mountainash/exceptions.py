@@ -37,7 +37,6 @@ from mountainash.typespec.validation import SchemaValidationError
 from mountainash.pipelines.errors import StepEmptyError
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
-    EmptyMembershipError,
     MembershipArgumentError,
     NativeExprMemberError,
     NestedCollectionError,
@@ -56,7 +55,6 @@ __all__ = [
     "InvalidOptionValueError",
     "BareExpressionCollectionError",
     "ConformError",
-    "EmptyMembershipError",
     "MissingFieldsError",
     "ExtraFieldsError",
     "ExactFieldCountError",

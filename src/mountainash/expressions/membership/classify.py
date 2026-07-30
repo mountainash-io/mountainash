@@ -9,7 +9,7 @@ of member objects (preserving source order for list/tuple, sorting by
 any ambiguous, nested, empty, or unsupported shape.
 
 Decision tree (per spec §4.1):
-    * ``len(args) == 0`` → :class:`EmptyMembershipError`
+    * ``len(args) == 0`` or an empty container → ``[]`` (vacuously-false membership)
     * 1 arg, MA or backend-native expression → :class:`BareExpressionCollectionError`
     * 1 arg, container (exact ``list``/``tuple``/``set``/``frozenset``) → flatten to items
     * 1 arg, unsupported iterable (``ndarray``/``Mapping``/duck-typed) → :class:`UnsupportedCollectionError`
@@ -40,7 +40,6 @@ from mountainash.expressions.core.expression_nodes.substrait.exn_base import Exp
 
 from .errors import (
     BareExpressionCollectionError,
-    EmptyMembershipError,
     NativeExprMemberError,
     NestedCollectionError,
     UnsupportedCollectionError,
@@ -177,9 +176,10 @@ def classify_members(args: tuple) -> list:
             * source order for ``list``/``tuple`` containers and multi-arg
             * sorted by ``(table_rank, value)`` for ``set``/``frozenset``
 
+    Returns ``[]`` for an empty collection (no args, or an empty container) —
+    a vacuously-false membership test, not an error.
+
     Raises:
-        EmptyMembershipError: no collection arguments at all, or the resolved
-            collection is empty.
         BareExpressionCollectionError: a single MA or backend-native
             expression was passed as the *entire* collection. Use
             ``.list.contains()`` / ``.list.t_contains()`` instead.
@@ -195,7 +195,9 @@ def classify_members(args: tuple) -> list:
             expression (use ``ma.col()`` / ``ma.lit()`` to wrap).
     """
     if not args:
-        raise EmptyMembershipError()
+        # Empty collection is a valid, vacuously-false membership test
+        # (SQL `x IN ()` is FALSE); the backend kernels short-circuit it.
+        return []
 
     if len(args) == 1:
         arg = args[0]
@@ -211,7 +213,8 @@ def classify_members(args: tuple) -> list:
         members = list(args)
 
     if not members:
-        raise EmptyMembershipError(arg if len(args) == 1 else args)
+        # Empty container (e.g. is_in([]) / is_in(set())) → vacuously false.
+        return []
 
     _validate_members(members)
 
