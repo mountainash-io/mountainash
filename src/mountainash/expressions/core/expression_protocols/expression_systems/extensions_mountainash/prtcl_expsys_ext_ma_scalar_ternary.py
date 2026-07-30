@@ -13,7 +13,7 @@ where comparisons involving NULL return UNKNOWN instead of FALSE.
 """
 
 from __future__ import annotations
-from typing import Any, FrozenSet, List, Optional, Protocol
+from typing import Any, FrozenSet, List, Optional, Protocol, Tuple
 
 from mountainash.core.types import ExpressionT
 
@@ -93,7 +93,8 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     def t_is_in(
         self,
         element: ExpressionT, /, *members: ExpressionT,
-        unknown_values=None, member_unknown_values=None,
+        unknown_values: Optional[FrozenSet[Any]] = None,
+        member_unknown_values: Optional[Tuple[Optional[FrozenSet[Any]], ...]] = None,
     ) -> ExpressionT:
         """Ternary membership test - returns -1/0/1.
 
@@ -106,7 +107,8 @@ class MountainAshScalarTernaryExpressionSystemProtocol(Protocol[ExpressionT]):
     def t_is_not_in(
         self,
         element: ExpressionT, /, *members: ExpressionT,
-        unknown_values=None, member_unknown_values=None,
+        unknown_values: Optional[FrozenSet[Any]] = None,
+        member_unknown_values: Optional[Tuple[Optional[FrozenSet[Any]], ...]] = None,
     ) -> ExpressionT:
         """Ternary non-membership test - returns -1/0/1.
 

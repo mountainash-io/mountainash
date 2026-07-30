@@ -7,10 +7,10 @@ Adjust type hints and signatures as needed for your implementation.
 """
 
 from __future__ import annotations
-
-from typing import Protocol
+from typing import Any, FrozenSet, Optional, Protocol, Tuple
 
 from mountainash.core.types import ExpressionT
+
 
 class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for set operations.
@@ -21,7 +21,8 @@ class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
     def is_in(
         self,
         needle: ExpressionT, /, *haystack: ExpressionT,
-        unknown_values=None, member_unknown_values=None,
+        unknown_values: Optional[FrozenSet[Any]] = None,
+        member_unknown_values: Optional[Tuple[Optional[FrozenSet[Any]], ...]] = None,
     ) -> ExpressionT:
         """Check if value is in the given set of values.
 
@@ -32,7 +33,8 @@ class SubstraitScalarSetExpressionSystemProtocol(Protocol[ExpressionT]):
     def is_not_in(
         self,
         needle: ExpressionT, /, *haystack: ExpressionT,
-        unknown_values=None, member_unknown_values=None,
+        unknown_values: Optional[FrozenSet[Any]] = None,
+        member_unknown_values: Optional[Tuple[Optional[FrozenSet[Any]], ...]] = None,
     ) -> ExpressionT:
         """Check if value is not in the given set of values.
 
