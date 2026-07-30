@@ -91,6 +91,19 @@ def xfail_if_limited(backend: str, function_key: Any, param_name: str, input_typ
     the old _NW_POLARS_FIXED allowlist unnecessary: _registry_lookup returns
     None for narwhals-polars where upstream fixed the gap, so no xfail is
     applied and a regression surfaces as an ordinary failure."""
+    from mountainash.core.capabilities import CapabilityRegistry, WILDCARD_PARAM
+    from mountainash.core.constants import CONST_BACKEND
+
+    family_name, dialect = _FIXTURE_IDENTITY[backend]
+    residue = CapabilityRegistry.residue_for(CONST_BACKEND(family_name), dialect)
+    wildcard_residue = residue.get((function_key, WILDCARD_PARAM))
+    if wildcard_residue is not None:
+        return pytest.mark.xfail(
+            strict=True,
+            raises=BackendCapabilityError,
+            reason=wildcard_residue.message,
+        )
+
     if input_type in ("raw", "lit"):
         return None
 
@@ -125,6 +138,8 @@ def _materialize_result(df, compiled, backend: str) -> None:
 def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     """Execute one cell of the (operation × backend × input_type) matrix."""
     from expressions.argument_types.conftest import make_df
+    from mountainash.core.capabilities import CapabilityRegistry, WILDCARD_PARAM
+    from mountainash.core.constants import CONST_BACKEND
 
     df = make_df(op.data, backend)
     arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name, op.complex_builder)
@@ -133,6 +148,9 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
         expr = expr.over("__group__")
 
     limitation = _registry_lookup(backend, op.function_key, op.param_name)
+    family_name, dialect = _FIXTURE_IDENTITY[backend]
+    residue = CapabilityRegistry.residue_for(CONST_BACKEND(family_name), dialect)
+    wildcard_residue = residue.get((op.function_key, WILDCARD_PARAM))
 
     try:
         compiled = expr.compile(df)
@@ -141,11 +159,12 @@ def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
     except BackendCapabilityError:
         raise
     except Exception as e:
-        if limitation is not None and isinstance(e, limitation.native_errors):
-            raise BackendCapabilityError(
-                str(limitation.message),
-                backend=backend,
-                function_key=op.function_key,
-                limitation=limitation,
-            ) from e
+        for fact in (limitation, wildcard_residue):
+            if fact is not None and fact.native_errors and isinstance(e, fact.native_errors):
+                raise BackendCapabilityError(
+                    str(fact.message),
+                    backend=backend,
+                    function_key=op.function_key,
+                    limitation=fact,
+                ) from e
         raise

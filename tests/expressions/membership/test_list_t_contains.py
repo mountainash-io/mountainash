@@ -292,28 +292,38 @@ class TestListTContainsCrossBackend:
 
 
 # ============================================================================
-# Narwhals — declared NW-LIST-01 outcome (whole-op BackendCapabilityError)
+# Narwhals — NW-LIST-01 item gate & execution
 # ============================================================================
 
 
 @pytest.mark.parametrize("backend_name", ["narwhals-polars"])
 class TestListTContainsNarwhalsGate:
-    """``list.t_contains`` is unsupported on narwhals (NW-LIST-01)."""
+    """``list.t_contains`` item expression argument is gated on narwhals (NW-LIST-01)."""
 
-    def test_t_contains_raises_backend_capability_error(
+    def test_t_contains_dynamic_item_raises_backend_capability_error(
         self, backend_name, backend_factory
     ):
-        """Narwhals raises ``BackendCapabilityError`` (NW-LIST-01)."""
-        data = {"tags": [[1, 2, 3], [4, 5, 6]]}
+        """Narwhals raises ``BackendCapabilityError`` for dynamic item expressions (NW-LIST-01)."""
+        data = {"tags": [[1, 2, 3], [4, 5, 6]], "item": [2, 5]}
         df = backend_factory.create(data, backend_name)
         with pytest.raises(BackendCapabilityError) as excinfo:
-            ma.col("tags").list.t_contains(2).compile(df)
-        # Wildcard UNSUPPORTED fact for FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS
-        # on narwhals gates the op at dispatch; BackendCapabilityError must
-        # carry a message identifying either the upstream-ref or the op.
+            ma.col("tags").list.t_contains(ma.col("item")).compile(df)
         msg = str(excinfo.value)
         assert (
             "NW-LIST-01" in msg
+            or "literal item" in msg.lower()
             or "list.contains" in msg.lower()
             or "list_t_contains" in msg
         ), f"[{backend_name}] unexpected message: {msg}"
+
+    def test_t_contains_literal_item_executes_on_narwhals_polars(
+        self, backend_name, backend_factory
+    ):
+        """Narwhals-polars permits literal item arguments for list.t_contains."""
+        data = {"tags": [[1, 2, 3], [4, 5, 6]]}
+        df = backend_factory.create(data, backend_name)
+        compiled = ma.col("tags").list.t_contains(2).alias("result").compile(df, booleanizer=None)
+        res = df.select(compiled).to_native()
+        import polars as pl
+        actual = res["result"].to_list() if isinstance(res, pl.DataFrame) else list(res["result"])
+        assert actual == [T_TRUE, T_FALSE]

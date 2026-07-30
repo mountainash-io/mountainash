@@ -20,7 +20,7 @@ from mountainash.core.capabilities import (
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
-    FKEY_MOUNTAINASH_SCALAR_TERNARY as FK_MA_TERN,
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 
@@ -42,7 +42,9 @@ _REPRESENTATIVE_FACTS = [
     (CONST_BACKEND.POLARS, FK_STR.REPLACE, "substring"),
     (CONST_BACKEND.IBIS, FK_STR.TRIM, "characters"),
     (CONST_BACKEND.IBIS, FK_DT.ADD_DAYS, "days"),
-    (CONST_BACKEND.NARWHALS, FK_MA_TERN.T_IS_IN, "collection"),
+    # NW-LIST-01 relocated off the dissolved membership `collection` param onto
+    # the list ops (item-gate) by the item-60 membership unification.
+    (CONST_BACKEND.NARWHALS, FK_LIST.T_CONTAINS, "item"),
     (CONST_BACKEND.NARWHALS, FK_DT.ADD_DAYS, "days"),
 ]
 

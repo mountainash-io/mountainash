@@ -10,6 +10,7 @@ from typing import Any
 import narwhals as nw
 
 from mountainash.core.capabilities import (
+    Boundary,
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
@@ -134,22 +135,55 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 workaround="Use a literal single-character string", since="2026-07-05",
                 upstream_ref="NW-STR-06",
             ),
-            # NW-LIST-01: Narwhals list namespace does not accept expression
-            # arguments to list.contains(), so the null-aware ternary
-            # .list.t_contains (FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS) cannot
-            # be compiled on narwhals. Whole-op gate; visitors raise
-            # BackendCapabilityError before dispatch.
+            # NW-LIST-01: Narwhals list namespace requires a literal item argument (GATE/BUILD on item)
+            # and requires PyArrow-backed list columns on pandas (MATERIALIZE_RESIDUE on narwhals-pandas).
+            CapabilityFact(
+                operation_key=FK_LIST.CONTAINS, param="item",
+                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
+                message="Narwhals list.contains() requires a literal item argument, not a column expression",
+                workaround="Use a literal value for item or use the Polars/Ibis backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.GATE,
+                boundary=Boundary.BUILD,
+            ),
+            CapabilityFact(
+                operation_key=FK_LIST.CONTAINS, param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
+                dialect="narwhals-pandas",
+                message="Narwhals list operations on pandas require PyArrow-backed list columns.",
+                workaround="Convert column to PyArrow list or use the Polars backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE,
+                native_errors=(TypeError,),
+                probe_exempt="whole-op materialize-time storage residue (narwhals-pandas "
+                "PyArrow-list requirement); enriched after the visitor, not an arg-type gate",
+            ),
+            CapabilityFact(
+                operation_key=FK_LIST.T_CONTAINS, param="item",
+                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.NARWHALS,
+                message="Narwhals list.t_contains() requires a literal item argument, not a column expression",
+                workaround="Use a literal value for item or use the Polars/Ibis backend.",
+                since="2026-07-05",
+                upstream_ref="NW-LIST-01",
+                enforcement=Enforcement.GATE,
+                boundary=Boundary.BUILD,
+            ),
             CapabilityFact(
                 operation_key=FK_LIST.T_CONTAINS, param=WILDCARD_PARAM,
                 level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
-                message="Narwhals list namespace does not support expression arguments to "
-                        "list.contains(), so the null-aware ternary .list.t_contains cannot "
-                        "be compiled on narwhals.",
-                workaround="Use the Polars or Ibis backend for .list.t_contains.",
-                since="2026-07-30",
+                dialect="narwhals-pandas",
+                message="Narwhals list operations on pandas require PyArrow-backed list columns.",
+                workaround="Convert column to PyArrow list or use the Polars backend.",
+                since="2026-07-05",
                 upstream_ref="NW-LIST-01",
-                enforcement=Enforcement.GATE,
-                probe_exempt="whole-op gate; the narwhals backend raises BackendCapabilityError",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE,
+                native_errors=(TypeError,),
+                probe_exempt="whole-op materialize-time storage residue (narwhals-pandas "
+                "PyArrow-list requirement); enriched after the visitor, not an arg-type gate",
             ),
             # NOTE: the legacy dict's defensive (REGEX_CONTAINS, "pattern")
             # entry is intentionally NOT migrated: pattern is annotated `str`

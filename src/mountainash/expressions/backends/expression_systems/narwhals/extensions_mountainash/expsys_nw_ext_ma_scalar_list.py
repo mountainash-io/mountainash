@@ -43,12 +43,32 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         *,
         item_unknown_values: Optional[FrozenSet[Any]] = None,
     ):
-        raise BackendCapabilityError(
-            "Narwhals list namespace does not support expression arguments to "
-            "list.contains(), so the null-aware ternary .list.t_contains cannot be "
-            "compiled on narwhals. Use Polars or Ibis backend.",
-            backend=self.BACKEND_NAME,
-            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
+        T_TRUE = 1
+        T_UNKNOWN = 0
+        T_FALSE = -1
+
+        is_unknown = x.is_null()
+        if isinstance(item, nw.Expr):
+            is_unknown = is_unknown | item.is_null()
+            if item_unknown_values:
+                for val in item_unknown_values:
+                    if val is None:
+                        continue
+                    is_unknown = is_unknown | (item == nw.lit(val)).fill_null(False)
+        else:
+            if item is None:
+                is_unknown = nw.lit(True)
+            elif item_unknown_values and item in item_unknown_values:
+                is_unknown = nw.lit(True)
+
+        return (
+            nw.when(is_unknown)
+            .then(nw.lit(T_UNKNOWN))
+            .otherwise(
+                nw.when(x.list.contains(item).fill_null(False))
+                .then(nw.lit(T_TRUE))
+                .otherwise(nw.lit(T_FALSE))
+            )
         )
 
     def list_sort(self, x: NarwhalsExpr, /, *, descending: bool = False):

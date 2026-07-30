@@ -524,7 +524,6 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_min', 'x'),
         ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_sort', 'x'),
         ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_sum', 'x'),
-        ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_t_contains', 'item'),
         ('test_arg_types_list', 'MountainAshScalarListExpressionSystemProtocol', 'list_unique', 'x'),
         ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'ln', 'x'),
         ('test_arg_types_logarithmic', 'SubstraitScalarLogarithmicExpressionSystemProtocol', 'log10', 'x'),

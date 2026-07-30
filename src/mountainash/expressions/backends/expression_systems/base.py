@@ -55,11 +55,15 @@ class BaseExpressionSystem(ABC):
         Registry-sourced: only MATERIALIZE_RESIDUE facts participate;
         GATE facts gate at the visitor and never reach here.
         """
-        from mountainash.core.capabilities import CapabilityRegistry, Enforcement
+        from mountainash.core.capabilities import (
+            CapabilityRegistry,
+            Enforcement,
+            WILDCARD_PARAM,
+        )
         from mountainash.core.limitations import call_with_limitation_enrichment
 
         limitations: dict[tuple[Any, str], Any] = {}
-        for param in named_args:
+        for param in (*named_args, WILDCARD_PARAM):
             fact = CapabilityRegistry.capability_for(
                 function_key, param, self.backend_type, self.dialect
             )
