@@ -343,12 +343,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
         Returns:
             Parsed date expression.
-
-        Note:
-            Ibis may not have strptime_date. Falls back to cast.
         """
-        # Ibis doesn't have strptime for date - fallback
-        return x.cast("date")
+        # ibis >= 10 honors the strptime format directly; the previous
+        # `x.cast("date")` silently discarded it (spec 2026-07-28 section 3).
+        return x.as_date(format)
 
     def strptime_timestamp(
         self,
@@ -366,12 +364,11 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
 
         Returns:
             Parsed timestamp expression.
-
-        Note:
-            Ibis may not have strptime. Falls back to cast.
         """
-        # Ibis doesn't have strptime - fallback to cast
-        return x.cast("timestamp")
+        # `.as_timestamp()` returns timestamp('UTC'); the recast restores the
+        # naive wall-clock dtype the previous `cast("timestamp")` produced, so
+        # the fix changes the parse and nothing else.
+        return x.as_timestamp(format).cast("timestamp")
 
     # =========================================================================
     # Formatting Methods

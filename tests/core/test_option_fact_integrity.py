@@ -30,15 +30,30 @@ from expressions.argument_types.option_disposition import (
     resolve_cell_fact,
     validate_option_registries,
 )
+# The mutual-backing guards below compare the fact registry against
+# OPTION_DISPOSITIONS, which these three modules populate as an import side
+# effect.  Without them a collection that excludes
+# tests/expressions/argument_types/ sees an EMPTY cell list and every guard
+# fails against the full registry -- so these imports are load-bearing, not
+# unused.  Do not remove them.
+from expressions.argument_types import (  # noqa: F401
+    test_arg_types_arithmetic,
+    test_arg_types_datetime,
+    test_arg_types_string,
+)
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    WILDCARD_PARAM,
     load_all_capability_declarations,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+)
+from mountainash.expressions.core.expression_system.function_mapping.registry import (
+    ExpressionFunctionRegistry,
 )
 
 
@@ -89,13 +104,131 @@ def test_dispositions_cover_exactly_the_expected_cells() -> None:
     disposition.validate_option_matrix_coverage()
 
 
+def test_op_level_backed_cells_resolve_to_wildcard_facts() -> None:
+    """Op-level arm: cells backed by a whole-op fact <-> WILDCARD_PARAM facts."""
+    op_level_cells = [
+        cell
+        for cell in OPTION_DISPOSITIONS
+        if cell.disposition == "declared_unsupported" and cell.backing_mode == "op-level"
+    ]
+    for cell in op_level_cells:
+        fact = disposition.resolve_cell_op_level_fact(cell)
+        assert fact is not None, (
+            f"op-level-backed declared cell {cell} did not resolve to a "
+            f"WILDCARD_PARAM fact"
+        )
+        assert fact.param == WILDCARD_PARAM, (
+            f"resolved fact for op-level cell {cell} is param-scoped: {fact}"
+        )
+        assert fact.value_class is None and fact.option_value is None, (
+            f"resolved fact for op-level cell {cell} is not value-agnostic: {fact}"
+        )
+        assert fact.level in _GATING, (
+            f"resolved op-level fact for cell {cell} has level {fact.level!r}"
+        )
+
+
+def _is_option_bearing_fkey(fkey: object) -> bool:
+    """An FKEY whose def has at least one option, excluding parked untested params.
+
+    Kept local to the test module: option_disposition.py is imported by the
+    matrix itself and would create a circular import if it depended on the
+    registry the test module walks.
+    """
+    if fkey not in ExpressionFunctionRegistry._functions:
+        return False
+    definition = ExpressionFunctionRegistry.get(fkey)
+    if not definition.options:
+        return False
+    known_untested = disposition._known_untested_option_params()
+    op_name = canonical_operation_name_local(fkey)
+    return all(
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", op_name, param_name)
+        not in known_untested
+        and ("MountainAshScalarDatetimeExpressionSystemProtocol", op_name, param_name)
+        not in known_untested
+        and (
+            not (proto := _protocol_for_fkey(fkey))
+            or (proto, op_name, param_name) not in known_untested
+        )
+        for param_name in definition.options
+    )
+
+
+def _protocol_for_fkey(fkey: object) -> str | None:
+    definition = ExpressionFunctionRegistry.get(fkey)
+    method = definition.protocol_method
+    if method is None:
+        return None
+    return method.__qualname__.rsplit(".", 1)[0]
+
+
+def canonical_operation_name_local(fkey: object) -> str:
+    """Local copy of canonical_operation_name; avoids importing from disposition."""
+    from expressions.argument_types.option_disposition import canonical_operation_name
+
+    return canonical_operation_name(fkey)
+
+
+def _governed_fixtures(fact) -> set[str]:
+    """The matrix fixtures a fact actually gates.
+
+    A dialect-scoped fact governs the one fixture whose dialect it names; a
+    family-default fact (dialect=None) governs every fixture in that family.
+    A fact naming a dialect the four-fixture matrix cannot instantiate
+    (ibis-sqlite, narwhals-lazy) governs NOTHING here — the matrix is
+    structurally unable to hold a cell for it.
+    """
+    return {
+        fixture
+        for fixture, (family, dialect) in disposition._FIXTURE_IDENTITY.items()
+        if fact.backend == family
+        and (fact.dialect is None or fact.dialect == dialect)
+    }
+
+
+def test_no_op_level_fact_is_left_unbacked() -> None:
+    """Closed-by-default: every matrix fixture a WILDCARD_PARAM fact governs
+    must carry an op-level cell, or the matrix is silently blind to the gate.
+
+    Scoped to what the matrix CAN represent. A fact on a non-fixture dialect is
+    exempt here and verified instead by its dedicated cross-backend gate test
+    plus its mandatory `probe_exempt` reason — not silently ignored. Widening
+    this to every registered WILDCARD fact would flag ibis-sqlite facts the
+    four-fixture surface can never cover.
+    """
+    covered = {
+        (cell.fkey, cell.fixture)
+        for cell in OPTION_DISPOSITIONS
+        if cell.backing_mode == "op-level"
+    }
+    orphans = []
+    for fact in CapabilityRegistry.facts():
+        if fact.param != WILDCARD_PARAM or fact.level not in _GATING:
+            continue
+        if not _is_option_bearing_fkey(fact.operation_key):
+            continue
+        for fixture in _governed_fixtures(fact):
+            if (fact.operation_key, fixture) not in covered:
+                orphans.append((str(fact.operation_key), fixture, fact.dialect))
+    assert not orphans, (
+        f"WILDCARD_PARAM gating facts governing a matrix fixture with no "
+        f"op-level cell: {sorted(orphans)}"
+    )
+
+
 def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
-    # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts
+    # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts.
+    # Op-level cells are backed by WILDCARD_PARAM facts (Task 4 / PR-B), not
+    # value-scoped ones, so they are excluded from this arm. The orphan guard
+    # test_op_level_backed_cells_resolve_to_wildcard_facts above walks the
+    # op-level side of the contract.
     fact_keys = _option_fact_keys()
     exact_declared_keys = {
         cell_fact_key(cell)
         for cell in OPTION_DISPOSITIONS
-        if cell.disposition == "declared_unsupported" and cell.backing_mode != "class"
+        if cell.disposition == "declared_unsupported"
+        and cell.backing_mode not in ("class", "op-level")
     }
     assert fact_keys == exact_declared_keys, (
         f"exact fact/cell mismatch: facts-only={fact_keys - exact_declared_keys}; "
@@ -378,6 +511,9 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
             }
             else ("datetime",)
             if key[1] in {"unit", "timezone", "offset", "format"}
+            and key[0] not in {"strptime_date", "strptime_timestamp"}
+            else ("str",)
+            if key[0] in {"strptime_date", "strptime_timestamp"}
             else ("float64",)
         )
         for key in owners

@@ -340,14 +340,7 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-polars"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-duckdb"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE", "ibis-sqlite"): "TypeError: helper passes variadic columns to ma.quantile(x, q); needs arg-override. Since 2026-05-20.",
-    # ── Smoke expr builder: newly-exposed backend limitations (12 entries) ──
-    # TO_DATE / TO_DATETIME — Narwhals backend does not implement strptime
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "narwhals-polars"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE", "narwhals-pandas"): "NotImplementedError: strptime_date() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "narwhals-polars"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP", "narwhals-pandas"): "NotImplementedError: strptime_timestamp() is not supported by the Narwhals backend. Since 2026-05-20.",
+    # ── Smoke expr builder: newly-exposed backend limitations ──
     # PERCENT_RANK — Narwhals backend does not implement percent_rank()
     ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "pandas"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK", "narwhals-polars"): "NotImplementedError: percent_rank() is not supported by the Narwhals backend. Since 2026-05-20.",

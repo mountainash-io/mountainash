@@ -604,20 +604,27 @@ issues:
   category: cast-semantics
   summary: Casting a date string to DATE materialises as datetime.datetime (midnight),
     not datetime.date
-  root_cause: by_design
+  root_cause: mountainash_internal
   affected_backends:
   - ibis-duckdb
   - ibis-polars
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: by_design
-  our_workaround: accepted_divergence
-  notes: pandas (Ibis's interchange dtype) has no native date-only type, so a logical
-    Date round-trips through datetime64[ns] and surfaces as datetime.datetime. Conform
-    expression is correct; only the Python-level output type differs. 9 xfails (3
-    ibis backends x 3 TestDefaultFormatFallback methods). Permanent divergence.
-  last_verified: '2026-06-25'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: RESOLVED 2026-07-30 (PR 245). Not an ibis limitation after all - it was ours.
+    Relation.to_polars() converted an ibis result via pl.from_pandas(result.to_pandas()),
+    and ibis's pandas conversion widens date to datetime64[s]; polars then read that as
+    Datetime(ms). Routing the ibis Table through to_pyarrow() preserves date32[day],
+    which polars reads as Date, so a DATE cast now materialises as datetime.date on
+    every ibis dialect. The 'pandas has no native date-only type' reasoning was correct
+    about pandas and wrong to conclude the divergence was permanent - Arrow was always
+    available as the interchange format. The conform temporal xfails this entry
+    justified are drained; tests/conform/cross_backend/test_temporal_format.py and
+    tests/relations/cross_backend/test_rel_egress_dtype_fidelity.py now assert the
+    date-typed output directly.
+  last_verified: '2026-07-30'
 - id: IB-LIST-01
   project: ibis
   category: list-ops

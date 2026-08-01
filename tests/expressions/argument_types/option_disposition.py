@@ -94,7 +94,7 @@ from typing import Any, NamedTuple
 from expressions.argument_types._introspection import introspect_protocols
 from expressions.argument_types._option_helpers import OptionSpec
 from expressions.argument_types.conftest import ALL_BACKENDS
-from mountainash.core.capabilities import CapabilityFact, CapabilityRegistry
+from mountainash.core.capabilities import CapabilityFact, CapabilityRegistry, WILDCARD_PARAM
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import (
     MA_OPTION_DOMAINS,
@@ -282,6 +282,10 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("local_timestamp", "timezone"): ("datetime",),
     ("offset_by", "offset"): ("datetime",),
     ("strftime", "format"): ("datetime",),
+    # Strptime format string — open-domain, no INVALID cell.
+    # OPTION_DTYPES carries the input column dtype (str), not the option's own type.
+    ("strptime_date", "format"): ("str",),
+    ("strptime_timestamp", "format"): ("str",),
 }
 
 # Representative legal values for open-integer options that have NO finite
@@ -317,6 +321,12 @@ _MA_OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
     ("round_dt", "unit"): ("2d", "3h"),
     ("ceil_dt", "unit"): ("2d", "3h"),
     ("floor_dt", "unit"): ("2d", "3h"),
+    # Strptime format representatives — two that both parse the same input cleanly
+    # and disagree on the result, so the probe discriminates without depending on
+    # a parse error. %Y-%m-%d orders the date canonically; %Y-%d-%m swaps day/month
+    # so the result differs when input has day > 12.
+    ("strptime_date", "format"): ("%Y-%m-%d", "%Y-%d-%m"),
+    ("strptime_timestamp", "format"): ("%Y-%m-%d %H:%M:%S", "%Y-%d-%m %H:%M:%S"),
 }
 
 
@@ -338,6 +348,26 @@ _OPEN_DOMAIN_OPTIONS: dict[tuple[str, str, str], OpenDomainOptionSpec] = {
         since="2026-07-27",
         rationale=(
             "strftime format string is unvalidated open-domain string; "
+            "no invalid cell or build rejection expected"
+        ),
+    ),
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "format"): OpenDomainOptionSpec(
+        protocol="SubstraitScalarDatetimeExpressionSystemProtocol",
+        op="strptime_date",
+        param="format",
+        since="2026-07-30",
+        rationale=(
+            "strptime format string is an unvalidated open-domain string; "
+            "no invalid cell or build rejection expected"
+        ),
+    ),
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "format"): OpenDomainOptionSpec(
+        protocol="SubstraitScalarDatetimeExpressionSystemProtocol",
+        op="strptime_timestamp",
+        param="format",
+        since="2026-07-30",
+        rationale=(
+            "strptime format string is an unvalidated open-domain string; "
             "no invalid cell or build rejection expected"
         ),
     ),
@@ -619,7 +649,7 @@ def validate_option_registries() -> None:
                 f"cells-only={cells_for_role - probes_for_role}"
             )
 
-    _ALLOWED_BACKING_MODES = {"class", "exact-fallback", "absence"}
+    _ALLOWED_BACKING_MODES = {"class", "exact-fallback", "absence", "op-level"}
     invalid_backing_modes = [
         cell for cell in OPTION_DISPOSITIONS if cell.backing_mode not in _ALLOWED_BACKING_MODES
     ]
@@ -698,6 +728,30 @@ def resolve_cell_class_fact(cell: OptionCell) -> CapabilityFact | None:
     if fact is not None and fact.value_class is not None:
         return fact
     return None
+
+
+def resolve_cell_op_level_fact(cell: OptionCell) -> CapabilityFact | None:
+    """Resolve a cell to the whole-op WILDCARD_PARAM fact that gates it.
+
+    Open-domain options (an unvalidated format string) admit no ValueClass and
+    no exhaustive exact-value enumeration, so the only sound declaration for a
+    backend that cannot run the op at all is a value-agnostic whole-op fact.
+
+    Delegates to the registry rather than scanning facts(): capability_for
+    already walks dialect-scoped before family-default
+    (registry.py:295-299), so a family default can never shadow a dialect
+    refinement.  A hand-rolled scan resolves in registration order, which is
+    the wrong answer the moment PR-C registers both scopes for one op.
+    """
+    family, dialect = _FIXTURE_IDENTITY[cell.fixture]
+    fact = CapabilityRegistry.capability_for(
+        cell.fkey, WILDCARD_PARAM, family, dialect
+    )
+    if fact is None or fact.param != WILDCARD_PARAM:
+        return None
+    if fact.value_class is not None or fact.option_value is not None:
+        return None
+    return fact
 
 
 def param_taxonomy(protocol: str, op: str, param: str) -> str:

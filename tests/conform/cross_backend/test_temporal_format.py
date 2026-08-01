@@ -6,13 +6,12 @@ the existing canonical default cast handles ISO parsing; when a custom pattern i
 provided, the conform pipeline should use ``str.to_date``/``str.to_datetime``/
 ``str.to_time`` for explicit parsing.
 
-Backend support:
-- Polars: full support for str.to_date, str.to_datetime, str.to_time
-- Narwhals: strptime not supported (raises NotImplementedError)
-- Ibis: strptime not supported (falls back to cast)
-
-Custom format tests are therefore Polars-only.  Default/None format tests run
-on all backends since they use canonical default cast.
+Backend support (post strptime-format-honoring fix):
+- to_date: honored on polars, polars-lazy, narwhals-polars, narwhals-lazy,
+  ibis-duckdb, ibis-polars; gated (BackendCapabilityError) on ibis-sqlite,
+  narwhals-pandas, pandas
+- to_datetime: honored on all except ibis-sqlite; gated on ibis-sqlite
+- to_time: polars / polars-lazy only (not yet wired for other backends)
 """
 from __future__ import annotations
 
@@ -21,63 +20,16 @@ from datetime import date, datetime, time
 import pytest
 import polars as pl
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
 
-# ALL_BACKENDS = [
-#     "polars",
-#     "pandas",
-#     "narwhals",
-#     "ibis-polars",
-#     "ibis-duckdb",
-#     "ibis-sqlite",
-# ]
 
-# Custom strptime format parsing only works on Polars (Narwhals/Ibis lack
-# str.to_date/to_datetime/to_time support).
-POLARS_ONLY = ["polars"]
-_POLARS_BACKENDS = frozenset({"polars", "polars-lazy"})
-_IBIS_BACKENDS = frozenset({"ibis-polars", "ibis-duckdb", "ibis-sqlite"})
-
-
-def _xfail_polars_only_temporal(backend_name: str, also_ok: tuple[str, ...] = ()) -> None:
-    """xfail custom temporal-format parsing on backends that lack it.
-
-    Only Polars implements ``str.to_date``/``str.to_datetime``/``str.to_time``
-    with an explicit strptime ``format``. narwhals raises
-    ``NotImplementedError`` (strptime_date/strptime_timestamp) /
-    ``BackendCapabilityError`` (str.to_time); ibis cannot parse non-ISO format
-    strings. These are genuine upstream-library limits. ``also_ok`` lists
-    non-Polars backends that incidentally succeed (e.g. ibis-polars executes on
-    the Polars engine), so they keep running rather than XPASS-ing.
-    """
-    if backend_name in _POLARS_BACKENDS or backend_name in also_ok:
-        return
-    pytest.xfail(
-        f"{backend_name}: custom temporal strptime format is Polars-only — "
-        "narwhals lacks strptime_date/strptime_timestamp/str.to_time and ibis "
-        "cannot parse non-ISO format strings"
-    )
-
-
-def _xfail_ibis_date_interop(backend_name: str) -> None:
-    """xfail DATE-cast output-type assertions on Ibis backends.
-
-    Casting an ISO date string to ``UniversalType.DATE`` materialises as
-    ``datetime.datetime`` (midnight) on Ibis, not ``datetime.date``: pandas —
-    Ibis's interchange dtype — has no native date-only type, so a logical
-    ``Date`` round-trips through ``datetime64[ns]``. The conform expression is
-    correct; only the Python-level output type differs. Registry: IB-CAST-02
-    (upstream-issues.yaml). Since 2026-06-25.
-    """
-    if backend_name in _IBIS_BACKENDS:
-        pytest.xfail(
-            f"{backend_name}: Ibis DATE cast returns datetime.datetime (midnight) "
-            "not datetime.date — pandas has no native date-only dtype "
-            "(IB-CAST-02). Since 2026-06-25."
-        )
+_DATE_GATED = frozenset({"ibis-sqlite", "narwhals-pandas", "pandas"})
+_DATETIME_GATED = frozenset({"ibis-sqlite"})
+_TIME_HONORED = sorted({"polars", "polars-lazy"})
 
 
 # ---------------------------------------------------------------------------
@@ -169,10 +121,9 @@ class TestBuildConformExprsTemporalFormat:
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDateFormatParsing:
-    """Custom strptime format for date fields (Polars-only)."""
+    """Custom strptime format for date fields (honored broadly; gated on ibis-sqlite, narwhals-pandas, pandas)."""
 
     def test_strptime_date_dmy(self, backend_name, backend_factory):
-        _xfail_polars_only_temporal(backend_name)
         df = backend_factory.create(
             {"dt": ["26/01/2024", "15/06/2023"]}, backend_name
         )
@@ -181,11 +132,14 @@ class TestDateFormatParsing:
                 FieldSpec(name="dt", type=UniversalType.DATE, format="%d/%m/%Y"),
             ],
         )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
+        if backend_name in _DATE_GATED:
+            with pytest.raises(BackendCapabilityError):
+                ma.relation(df).conform(spec).to_polars()
+        else:
+            result = ma.relation(df).conform(spec).to_polars()
+            assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
 
     def test_strptime_date_mdy(self, backend_name, backend_factory):
-        _xfail_polars_only_temporal(backend_name)
         df = backend_factory.create(
             {"dt": ["01-26-2024", "06-15-2023"]}, backend_name
         )
@@ -194,8 +148,12 @@ class TestDateFormatParsing:
                 FieldSpec(name="dt", type=UniversalType.DATE, format="%m-%d-%Y"),
             ],
         )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
+        if backend_name in _DATE_GATED:
+            with pytest.raises(BackendCapabilityError):
+                ma.relation(df).conform(spec).to_polars()
+        else:
+            result = ma.relation(df).conform(spec).to_polars()
+            assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
 
 
 # ---------------------------------------------------------------------------
@@ -205,12 +163,9 @@ class TestDateFormatParsing:
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDatetimeFormatParsing:
-    """Custom strptime format for datetime fields (Polars-only)."""
+    """Custom strptime format for datetime fields (honored on all except ibis-sqlite)."""
 
     def test_strptime_datetime_format(self, backend_name, backend_factory):
-        # ibis-polars executes on the Polars engine, so it parses the custom
-        # datetime format too — keep it running rather than xfail it.
-        _xfail_polars_only_temporal(backend_name, also_ok=("ibis-polars",))
         df = backend_factory.create(
             {"ts": ["26/01/2024 09:15:00"]}, backend_name
         )
@@ -223,14 +178,18 @@ class TestDatetimeFormatParsing:
                 ),
             ],
         )
-        result = ma.relation(df).conform(spec).to_polars()
-        vals = result["ts"].to_list()
-        assert vals[0].year == 2024
-        assert vals[0].month == 1
-        assert vals[0].day == 26
-        assert vals[0].hour == 9
-        assert vals[0].minute == 15
-        assert vals[0].second == 0
+        if backend_name in _DATETIME_GATED:
+            with pytest.raises(BackendCapabilityError):
+                ma.relation(df).conform(spec).to_polars()
+        else:
+            result = ma.relation(df).conform(spec).to_polars()
+            vals = result["ts"].to_list()
+            assert vals[0].year == 2024
+            assert vals[0].month == 1
+            assert vals[0].day == 26
+            assert vals[0].hour == 9
+            assert vals[0].minute == 15
+            assert vals[0].second == 0
 
 
 # ---------------------------------------------------------------------------
@@ -238,12 +197,11 @@ class TestDatetimeFormatParsing:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _TIME_HONORED)
 class TestTimeFormatParsing:
     """Custom strptime format for time fields (Polars-only)."""
 
     def test_strptime_time_format(self, backend_name, backend_factory):
-        _xfail_polars_only_temporal(backend_name)
         df = backend_factory.create(
             {"t": ["09-15-30", "14-30-00"]}, backend_name
         )
@@ -266,7 +224,6 @@ class TestDefaultFormatFallback:
     """Default and None formats use canonical default cast (ISO parsing)."""
 
     def test_default_format_uses_cast(self, backend_name, backend_factory):
-        _xfail_ibis_date_interop(backend_name)
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
@@ -279,7 +236,6 @@ class TestDefaultFormatFallback:
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
 
     def test_none_format_uses_cast(self, backend_name, backend_factory):
-        _xfail_ibis_date_interop(backend_name)
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
@@ -293,7 +249,6 @@ class TestDefaultFormatFallback:
 
     def test_any_format_uses_cast(self, backend_name, backend_factory):
         """'any' format falls through to canonical default cast."""
-        _xfail_ibis_date_interop(backend_name)
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
