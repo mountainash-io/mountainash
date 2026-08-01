@@ -217,19 +217,16 @@ class TestListGet:
         assert result == [10, 40]
 
 
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
-        strict=True,
-        reason="Narwhals list.get() does not support negative indices",
-    )),
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb"])
 class TestListGetNegative:
     def test_get_last(self, backend_name, backend_factory, collect_expr):
         data = {"vals": [[10, 20, 30], [40, 50]]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("vals").list.get(-1)
+        if backend_name == "narwhals-polars":
+            with pytest.raises(BackendCapabilityError, match="negative indices"):
+                collect_expr(df, expr)
+            return
         result = collect_expr(df, expr)
         assert result == [30, 50]
 
@@ -237,6 +234,10 @@ class TestListGetNegative:
         data = {"vals": [[10, 20, 30], [40, 50]]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("vals").list.last()
+        if backend_name == "narwhals-polars":
+            with pytest.raises(BackendCapabilityError, match="negative indices"):
+                collect_expr(df, expr)
+            return
         result = collect_expr(df, expr)
         assert result == [30, 50]
 

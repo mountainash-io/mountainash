@@ -16,6 +16,19 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 
 IBIS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
     CapabilityFact(
+        operation_key=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
+        param="*",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message="with_row_index lowers to a window function (row_number); the ibis Polars "
+                "backend has no WindowFunction translation rule.",
+        workaround="Use ibis-duckdb/ibis-sqlite, or polars/narwhals backends.",
+        upstream_ref="IB-REL-01",
+        since="2026-08-01",
+        probe_exempt="relation op-level gap; covered by relation with_row_index cross-backend tests",
+    ),
+    CapabilityFact(
         operation_key=RKEY_MOUNTAINASH_REL.READ_RESOURCE, param="resource",
         level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.IBIS,
         message="CSV dialect field 'escape_char' is not native-safe on this backend's "

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 
 LIST_BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
@@ -19,10 +20,12 @@ class TestListGet:
         assert actual == [10, 40, 60]
 
     def test_get_last_negative(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("Narwhals list.get() rejects negative index (-1) [NW-LIST-04]")
         data = {"arr": [[10, 20, 30], [40, 50], [60]]}
         df = backend_factory.create(data, backend_name)
+        if backend_name == "narwhals-polars":
+            with pytest.raises(BackendCapabilityError, match="negative indices"):
+                collect_expr(df, ma.col("arr").list.get(-1))
+            return
         actual = collect_expr(df, ma.col("arr").list.get(-1))
         assert actual == [30, 50, 60]
 

@@ -185,6 +185,23 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
                 probe_exempt="whole-op materialize-time storage residue (narwhals-pandas "
                 "PyArrow-list requirement); enriched after the visitor, not an arg-type gate",
             ),
+            CapabilityFact(
+                operation_key=FK_LIST.GET,
+                param="index",
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.NARWHALS,
+                dialect="narwhals-polars",
+                boundary=Boundary.MATERIALIZE,
+                native_errors=(ValueError,),
+                condition="index < 0",
+                message="narwhals list.get() (and list.last(), which calls get(-1)) rejects negative "
+                        "indices on the polars backend.",
+                workaround="Use a non-negative index, or the polars/ibis backends.",
+                upstream_ref="NW-LIST-04",
+                since="2026-08-01",
+                probe_exempt="value-conditioned (negative index) — not a structural param gate",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            ),
             # NOTE: the legacy dict's defensive (REGEX_CONTAINS, "pattern")
             # entry is intentionally NOT migrated: pattern is annotated `str`
             # in the protocol (literal-typed, kw-only), so registration

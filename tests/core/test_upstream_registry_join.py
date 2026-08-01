@@ -24,14 +24,7 @@ _ZERO_REF_OK = {
 
 _PENDING_DIVERGENCE_FACTS: dict[str, str] = {}
 
-_PENDING_CAPABILITY_FACTS: dict[str, str] = {
-    # id -> reason. Capability gaps become CapabilityFacts in Phase 3.
-    "IB-AGG-02": "capability gap — no mode aggregate → CapabilityFact in Phase 3. Since 2026-07-20.",
-    "IB-REL-01": "capability gap — window functions unsupported on ibis-polars → CapabilityFact in Phase 3. Since 2026-07-20.",
-    "NW-MATH-03": "capability gap — is_finite/is_infinite gaps → CapabilityFact in Phase 3. Since 2026-07-20.",
-    "NW-LIST-04": "capability gap — list.get() rejects negative indices → CapabilityFact in Phase 3. Since 2026-07-20.",
-    "NW-LIST-06": "capability gap — list.last() fails through get(-1) → CapabilityFact in Phase 3. Since 2026-07-20.",
-}
+_PENDING_CAPABILITY_FACTS: dict[str, str] = {}
 
 _PENDING_INTERNAL_GAPS: dict[str, str] = {
     # id -> reason. Internal-wiring gaps may never become facts.
