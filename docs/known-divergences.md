@@ -23,7 +23,7 @@ Total divergences tracked: **94**
 | IB-STR-07 | str.repeat() raises BackendCapabilityError on Ibis backends | ibis-duckdb, ibis-polars | upstream_feature_gap | Strict xfail | Investigating |
 | IB-STR-08 | Ibis lacks re_extract_all, re_count, and re_find/re_strpos methods | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_feature_gap | Strict xfail | Needs Filing |
 | NW-STR-01 | str.starts_with / str.ends_with / str.contains / str.like require literal values on pandas — expression arguments rejected | narwhals-pandas | parameter_width | Enhanced error message | Closed |
-| NW-STR-02 | str.contains with expression arguments — previously broken | narwhals-pandas | upstream_bug | Enhanced error message | Closed |
+| NW-STR-02 | str.contains with expression arguments (pandas) | narwhals-pandas | parameter_width | Enhanced error message | Investigating (GH #3459 closed, but 2.24.0 pandas still rejects expr pattern; verified 2026-08-01) |
 | NW-STR-03 | str.replace requires literal values for substring and replacement on pandas | narwhals-pandas | parameter_width | Enhanced error message | Investigating |
 | NW-STR-04 | str.like requires literal match pattern on pandas | narwhals-pandas | parameter_width | Enhanced error message | Investigating |
 | NW-STR-05 | str.regexp_replace requires literal pattern and replacement on pandas | narwhals-pandas | parameter_width | Enhanced error message | Investigating |
@@ -106,8 +106,8 @@ Total divergences tracked: **94**
 | IB-AGG-01 | No product aggregate function — no SQL standard equivalent | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_feature_gap | Strict xfail | Needs Filing |
 | IB-AGG-02 | No mode aggregate function (general) | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_feature_gap | Strict xfail | Open |
 | IB-AGG-03 | All-NULL columns cause NullColumn attribute errors or DuckDB table creation failure | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_bug | Strict xfail | Investigating |
-| NW-AGG-01 | variance() fails — implementation uses x.std().pow() but nw.Expr had no .pow() | narwhals-pandas, narwhals-polars | upstream_bug | Strict xfail | Closed |
-| NW-AGG-02 | mode() not implemented | narwhals-pandas, narwhals-polars | upstream_feature_gap | Strict xfail | Closed |
+| NW-AGG-01 | variance() — narwhals now provides Expr.var(); mountainash lowers to x.var() | narwhals-pandas, narwhals-polars | upstream_bug | None (resolved) | Resolved (narwhals 2.24.0, verified 2026-08-01) |
+| NW-AGG-02 | mode() — narwhals now implements mode(); mountainash lowers to x.mode().first() | narwhals-pandas, narwhals-polars | upstream_feature_gap | None (resolved) | Resolved (narwhals 2.24.0, verified 2026-08-01; narwhals-lazy still xfails, separate reason) |
 
 ### Window Operations
 
@@ -126,7 +126,7 @@ Total divergences tracked: **94**
 | IB-LIST-01 | Ibis array namespace missing 26 of 32 new list operations | ibis-duckdb, ibis-polars, ibis-sqlite | upstream_feature_gap | Strict xfail | Investigating |
 | IB-LIST-02 | ibis-duckdb: list.reverse(), list.slice(), list.head(), list.tail() not supported | ibis-duckdb | upstream_feature_gap | Strict xfail | Investigating |
 | NW-LIST-01 | list.contains() does not accept expression arguments — literal values only (parameter-width) | narwhals-pandas, narwhals-polars | parameter_width | Enhanced error message | Open |
-| NW-LIST-02 | list.explode() missing | narwhals-pandas, narwhals-polars | upstream_feature_gap | Strict xfail | Closed |
+| NW-LIST-02 | list.explode() missing | narwhals-pandas, narwhals-polars | upstream_feature_gap | Strict xfail | Investigating (GH #1632 closed, but 2.24.0 has no Expr.explode(); verified 2026-08-01) |
 | NW-LIST-03 | list.join() missing | narwhals-pandas, narwhals-polars | upstream_feature_gap | Strict xfail | Needs Filing |
 | NW-LIST-04 | list.get() does not support negative indices | narwhals-polars | upstream_bug | Strict xfail | Open |
 | NW-LIST-05 | Narwhals list namespace missing 31 operations — only 10 methods available | narwhals-polars, narwhals-pandas | upstream_feature_gap | Strict xfail | Investigating |
