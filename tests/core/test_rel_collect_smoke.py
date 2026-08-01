@@ -15,6 +15,57 @@ import pytest
 
 import mountainash as ma
 
+from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
+from mountainash.core.capabilities.identity import KNOWN_DIALECTS
+from mountainash.core.capabilities.registry import CapabilityRegistry
+from mountainash.core.capabilities.schema import (
+    Boundary,
+    CapabilityLevel,
+    WILDCARD_PARAM,
+)
+from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
+
+load_all_capability_declarations()
+
+# Inverted from the spine's canonical dialect vocabulary — the single source of
+# truth, not a re-hardcoded table.
+_DIALECT_TO_FAMILY = {
+    dialect: family
+    for family, dialects in KNOWN_DIALECTS.items()
+    for dialect in dialects
+}
+
+
+def _capability_gate(op_name: str, backend_name: str):
+    """The UNSUPPORTED/BUILD CapabilityFact gating (op_name, backend_name), or None.
+
+    Sourced from the capability spine, NOT a hand-maintained skip-list: any
+    relation op declared UNSUPPORTED at the build boundary for this backend/
+    dialect is asserted to raise ``BackendCapabilityError`` here automatically.
+    If the fact is removed (e.g. upstream gains support), the ``pytest.raises``
+    below fails and surfaces the change — self-healing, single-source.
+    """
+    try:
+        op_key = RKEY_MOUNTAINASH_REL[op_name.upper()]
+    except KeyError:
+        return None  # op_name has no 1:1 RKEY (e.g. join_inner) — no relation fact
+    family = _DIALECT_TO_FAMILY.get(backend_name)
+    if family is None:
+        return None
+    fact = CapabilityRegistry.capability_for(
+        op_key, WILDCARD_PARAM, family, backend_name
+    )
+    if (
+        fact is not None
+        and fact.level is CapabilityLevel.UNSUPPORTED
+        and fact.boundary is Boundary.BUILD
+    ):
+        return fact
+    return None
+
 
 ALL_BACKENDS = [
     "polars",
@@ -298,12 +349,6 @@ _KNOWN_REL_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("source", "ibis-polars"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
     ("source", "ibis-duckdb"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
     ("source", "ibis-sqlite"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
-    # with_row_index: gated UNSUPPORTED on ibis-polars (IB-REL-01) — lowers to a
-    # window function (row_number) the ibis Polars backend cannot translate.
-    ("with_row_index", "ibis-polars"): (
-        "BackendCapabilityError: with_row_index lowers to a window function; the ibis "
-        "Polars backend has no WindowFunction translation rule (IB-REL-01). Since 2026-08-01."
-    ),
 }
 
 
@@ -356,6 +401,14 @@ class TestRelCollectSmoke:
             df_right = backend_factory.create(right_data, backend_name)
 
         builder = _OPERATIONS[op_name]
+
+        gate = _capability_gate(op_name, backend_name)
+        if gate is not None:
+            # Spine-declared UNSUPPORTED op: assert the gate fires (self-healing).
+            with pytest.raises(BackendCapabilityError):
+                builder(df, df_right)
+            return
+
         try:
             builder(df, df_right)
         except Exception as e:
