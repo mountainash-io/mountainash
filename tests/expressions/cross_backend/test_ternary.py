@@ -301,23 +301,64 @@ class TestTernaryToBooleanConversions:
 class TestBooleanToTernaryConversions:
     """Test converting boolean expressions to ternary for combination."""
 
-    def test_to_ternary_from_boolean_column(self, backend_name, backend_factory, select_and_extract):
-        """Test to_ternary: converts boolean True/False to ternary 1/-1."""
-        data = {
-            "is_active": [True, False, True, False],
-        }
+    def test_to_ternary_null_raw(self, backend_name, backend_factory, select_and_extract):
+        """Test to_ternary maps boolean NULL to UNKNOWN."""
+        data = {"flag": [True, False, None]}
         df = backend_factory.create(data, backend_name)
 
-        # Use booleanizer=None to get raw sentinel values for testing internal logic
-        expr = ma.col("is_active").to_ternary()
+        expr = ma.col("flag").to_ternary()
         backend_expr = expr.compile(df, booleanizer=None)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
 
-        assert values[0] == T_TRUE, f"[{backend_name}] to_ternary(True) should be 1"
-        assert values[1] == T_FALSE, f"[{backend_name}] to_ternary(False) should be -1"
-        assert values[2] == T_TRUE
-        assert values[3] == T_FALSE
+        assert values == [T_TRUE, T_FALSE, T_UNKNOWN]
+
+    @pytest.mark.parametrize(
+        ("booleanizer", "expected_null"),
+        [
+            ("t_is_true", False),
+            ("t_maybe_false", True),
+            ("t_maybe_true", True),
+            ("t_is_false", False),
+            ("t_is_unknown", True),
+            ("t_is_known", False),
+        ],
+    )
+    def test_to_ternary_null_through_booleanizers(
+        self,
+        backend_name,
+        backend_factory,
+        select_and_extract,
+        booleanizer,
+        expected_null,
+    ):
+        """Test booleanizers preserve the ternary NULL-to-UNKNOWN contract."""
+        data = {"flag": [True, False, None]}
+        df = backend_factory.create(data, backend_name)
+
+        expr = ma.col("flag").to_ternary()
+        backend_expr = expr.compile(df, booleanizer=booleanizer)
+
+        values = select_and_extract(df, backend_expr, "result", backend_name)
+
+        assert values[2] is expected_null
+        if booleanizer == "t_is_true":
+            assert values[0] is True
+            assert values[1] is False
+
+    def test_to_ternary_null_via_auto_coercion(
+        self, backend_name, backend_factory, select_and_extract
+    ):
+        """Test boolean operands auto-coerce NULL to UNKNOWN for t_and."""
+        data = {"flag": [True, False, None]}
+        df = backend_factory.create(data, backend_name)
+
+        expr = ma.col("flag").eq(True).t_and(ma.always_true())
+        backend_expr = expr.compile(df, booleanizer=None)
+
+        values = select_and_extract(df, backend_expr, "result", backend_name)
+
+        assert values == [T_TRUE, T_FALSE, T_UNKNOWN]
 
 
 # =============================================================================
