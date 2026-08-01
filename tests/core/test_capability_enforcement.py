@@ -84,6 +84,7 @@ class TestCompatibilityTable:
 
 
 EXPECTED_ROLES = {
+    ("GET", "index", CONST_BACKEND.NARWHALS): Enforcement.MATERIALIZE_RESIDUE,
     ("JOIN_ASOF", "tolerance", CONST_BACKEND.NARWHALS): Enforcement.GATE,
     ("READ_RESOURCE", "resource", CONST_BACKEND.POLARS): Enforcement.ROUTER_METADATA,
     ("READ_RESOURCE", "resource", CONST_BACKEND.IBIS): Enforcement.ROUTER_METADATA,

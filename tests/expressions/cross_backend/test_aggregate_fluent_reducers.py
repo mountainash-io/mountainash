@@ -62,8 +62,6 @@ class TestFluentReducers:
         assert result["v"][1] == pytest.approx(2.0), f"[{backend_name}]"
 
     def test_mode(self, backend_name, backend_factory):
-        if backend_name.startswith("ibis-"):
-            pytest.xfail("Ibis backends have no standard SQL mode aggregate")
         if backend_name == "narwhals-lazy":
             pytest.xfail("narwhals-lazy: mode()/any_value() are order-dependent/length-changing, rejected on a LazyFrame")
         df = backend_factory.create(

@@ -174,10 +174,10 @@ issues:
   - ibis-sqlite
   upstream_issue: https://github.com/ibis-project/ibis/issues/11254
   upstream_issue_filed_by: other
-  status: open
-  our_workaround: xfail_strict
-  notes: Upstream issue is PySpark-specific. Broader feature request needed.
-  last_verified: '2026-05-11'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: ibis mode() verified working on ibis-duckdb/sqlite/polars 2026-08-01; stale imperative xfail removed.
+  last_verified: '2026-08-01'
 - id: IB-AGG-03
   project: ibis
   category: aggregate-ops
@@ -419,9 +419,9 @@ issues:
   upstream_issue: https://github.com/ibis-project/ibis/issues/10513
   upstream_issue_filed_by: other
   status: open
-  our_workaround: xfail_strict
-  notes: ''
-  last_verified: '2026-05-11'
+  our_workaround: error_enrichment
+  notes: CapabilityFact gates ibis-polars with_row_index before its raw WindowFunction translation error.
+  last_verified: '2026-08-01'
 - id: IB-REL-02
   project: ibis
   category: relation-ops
@@ -892,10 +892,10 @@ issues:
   - narwhals-polars
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3028
   upstream_issue_filed_by: other
-  status: open
-  our_workaround: xfail_strict
-  notes: Partially resolved. Verify is_finite/is_infinite on current version.
-  last_verified: '2026-05-11'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: is_finite/is_infinite verified working on narwhals-polars/narwhals-pandas 2026-08-01.
+  last_verified: '2026-08-01'
 - id: NW-MATH-04
   project: narwhals
   category: math-ops
@@ -1106,9 +1106,9 @@ issues:
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/2905
   upstream_issue_filed_by: other
   status: open
-  our_workaround: xfail_strict
-  notes: Low priority.
-  last_verified: '2026-05-11'
+  our_workaround: error_enrichment
+  notes: CapabilityFact enriches narwhals-polars negative-index failures at materialization.
+  last_verified: '2026-08-01'
 - id: NW-LIST-05
   project: narwhals
   category: list-ops
@@ -1134,11 +1134,10 @@ issues:
   - narwhals-polars
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/2905
   upstream_issue_filed_by: other
-  status: open
-  our_workaround: xfail_strict
-  notes: Related to NW-LIST-04. list.last() internally calls list.get(-1) which rejects
-    negative index.
-  last_verified: '2026-05-17'
+  status: resolved_in_mountainash
+  our_workaround: error_enrichment
+  notes: Same gap as NW-LIST-04; list.last aliases list.get(-1) and is covered by the NW-LIST-04 MATERIALIZE fact, so no separate registry-keyed fact is possible.
+  last_verified: '2026-08-01'
 - id: NW-LIST-07
   project: narwhals
   category: list-ops

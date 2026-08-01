@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 
 from fixtures.backend_registry import ALL_BACKENDS
 
@@ -95,11 +96,6 @@ class TestDropNans:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithRowIndex:
     def test_with_row_index_default_name(self, backend_name, backend_factory):
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "ibis-polars backend does not support WindowFunction (row_number); "
-                "use ibis-duckdb or ibis-sqlite instead"
-            )
         df = backend_factory.create(
             {"a": [10, 20, 30]}, backend_name
         )
@@ -108,7 +104,12 @@ class TestWithRowIndex:
                 "narwhals-lazy: LazyFrame.with_row_index() requires order_by; a "
                 "row index over an unordered lazy frame is ill-defined"
             )
-        result = ma.relation(df).with_row_index().to_dicts()
+        relation = ma.relation(df).with_row_index()
+        if backend_name == "ibis-polars":
+            with pytest.raises(BackendCapabilityError, match="with_row_index"):
+                relation.to_dicts()
+            return
+        result = relation.to_dicts()
         assert result == [
             {"index": 0, "a": 10},
             {"index": 1, "a": 20},
@@ -116,11 +117,6 @@ class TestWithRowIndex:
         ]
 
     def test_with_row_index_custom_name(self, backend_name, backend_factory):
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "ibis-polars backend does not support WindowFunction (row_number); "
-                "use ibis-duckdb or ibis-sqlite instead"
-            )
         df = backend_factory.create(
             {"a": [10, 20, 30]}, backend_name
         )
@@ -129,7 +125,12 @@ class TestWithRowIndex:
                 "narwhals-lazy: LazyFrame.with_row_index() requires order_by; a "
                 "row index over an unordered lazy frame is ill-defined"
             )
-        result = ma.relation(df).with_row_index(name="row_num").to_dicts()
+        relation = ma.relation(df).with_row_index(name="row_num")
+        if backend_name == "ibis-polars":
+            with pytest.raises(BackendCapabilityError, match="with_row_index"):
+                relation.to_dicts()
+            return
+        result = relation.to_dicts()
         assert result == [
             {"row_num": 0, "a": 10},
             {"row_num": 1, "a": 20},

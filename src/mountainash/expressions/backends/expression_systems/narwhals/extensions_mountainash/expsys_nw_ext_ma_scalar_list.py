@@ -94,7 +94,11 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         )
 
     def list_get(self, x: NarwhalsExpr, /, *, index: int = 0):
-        return x.list.get(index)
+        return self._call_with_expr_support(
+            lambda: x.list.get(index),
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GET,
+            index=index,
+        )
 
     def list_median(self, x: NarwhalsExpr, /):
         return x.list.median()

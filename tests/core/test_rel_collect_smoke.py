@@ -298,6 +298,12 @@ _KNOWN_REL_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("source", "ibis-polars"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
     ("source", "ibis-duckdb"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
     ("source", "ibis-sqlite"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
+    # with_row_index: gated UNSUPPORTED on ibis-polars (IB-REL-01) — lowers to a
+    # window function (row_number) the ibis Polars backend cannot translate.
+    ("with_row_index", "ibis-polars"): (
+        "BackendCapabilityError: with_row_index lowers to a window function; the ibis "
+        "Polars backend has no WindowFunction translation rule (IB-REL-01). Since 2026-08-01."
+    ),
 }
 
 
