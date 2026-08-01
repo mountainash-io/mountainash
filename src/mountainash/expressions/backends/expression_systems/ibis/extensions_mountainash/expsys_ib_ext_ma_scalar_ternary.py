@@ -251,7 +251,10 @@ class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, Mou
     # ========================================
 
     def to_ternary(self, operand: IbisValueExpr) -> IbisValueExpr:
-        return ibis.ifelse(operand, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE)))
+        return operand.isnull().ifelse(
+            ibis.literal(int(T_UNKNOWN)),
+            ibis.ifelse(operand, ibis.literal(int(T_TRUE)), ibis.literal(int(T_FALSE))),
+        )
 
     # ========================================
     # Utility Functions

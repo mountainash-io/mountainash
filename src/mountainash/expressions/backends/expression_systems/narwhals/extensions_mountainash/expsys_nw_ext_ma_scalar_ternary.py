@@ -265,7 +265,11 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     # ========================================
 
     def to_ternary(self, operand: NarwhalsExpr) -> NarwhalsExpr:
-        return nw.when(operand).then(nw.lit(T_TRUE)).otherwise(nw.lit(T_FALSE))
+        return (
+            nw.when(operand.is_null()).then(nw.lit(T_UNKNOWN))
+            .when(operand).then(nw.lit(T_TRUE))
+            .otherwise(nw.lit(T_FALSE))
+        )
 
     # ========================================
     # Utility Functions

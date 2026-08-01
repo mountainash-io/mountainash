@@ -262,7 +262,11 @@ class MountainAshPolarsScalarTernaryExpressionSystem(PolarsBaseExpressionSystem,
     # ========================================
 
     def to_ternary(self, operand: PolarsExpr) -> PolarsExpr:
-        return pl.when(operand).then(pl.lit(T_TRUE)).otherwise(pl.lit(T_FALSE))
+        return (
+            pl.when(operand.is_null()).then(pl.lit(T_UNKNOWN))
+            .when(operand).then(pl.lit(T_TRUE))
+            .otherwise(pl.lit(T_FALSE))
+        )
 
     # ========================================
     # Utility Functions
