@@ -676,15 +676,18 @@ issues:
   project: narwhals
   category: string-ops
   summary: str.contains with expression arguments — previously broken
-  root_cause: upstream_bug
+  root_cause: parameter_width
   affected_backends:
   - narwhals-pandas
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3459
   upstream_issue_filed_by: other
-  status: closed
+  status: needs_investigation
   our_workaround: error_enrichment
-  notes: CLOSED upstream. Verify fix and remove xfail.
-  last_verified: '2026-05-11'
+  notes: 'GH #3459 closed upstream, but narwhals 2.24.0 still rejects an expression
+    pattern on the pandas backend (TypeError: `.str.contains` only supports str pattern
+    values for pandas backend) — parameter-width class. Verified 2026-08-01; xfail/error-enrichment
+    retained. Re-check whether this is fixed in a later narwhals or is by-design parameter-width.'
+  last_verified: '2026-08-01'
 - id: NW-STR-03
   project: narwhals
   category: string-ops
@@ -995,10 +998,12 @@ issues:
   - narwhals-polars
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3153
   upstream_issue_filed_by: other
-  status: closed
-  our_workaround: xfail_strict
-  notes: 'CLOSED upstream. Expr.pow() was added in #3153. Verify fix and remove xfail.'
-  last_verified: '2026-05-11'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'RESOLVED. narwhals added Expr.var() (#3153); mountainash variance() now lowers
+    to x.var() (not std().pow()). Verified passing on narwhals-polars/narwhals-pandas/narwhals-lazy
+    at narwhals 2.24.0 (2026-08-01); strict xfail already removed from test_aggregate_fluent_reducers.'
+  last_verified: '2026-08-01'
 - id: NW-AGG-02
   project: narwhals
   category: aggregate-ops
@@ -1009,11 +1014,13 @@ issues:
   - narwhals-polars
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/981
   upstream_issue_filed_by: other
-  status: closed
-  our_workaround: xfail_strict
-  notes: 'CLOSED upstream. mode() was implemented in #981 including grouped context.
-    Verify fix and remove xfail.'
-  last_verified: '2026-05-11'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'RESOLVED. narwhals implemented mode() (#981); mountainash mode() lowers to
+    x.mode().first(). Verified passing on narwhals-polars/narwhals-pandas at narwhals 2.24.0
+    (2026-08-01); strict xfail already removed. narwhals-lazy still xfails for a separate
+    reason (mode() is length-changing/order-dependent, rejected on a LazyFrame).'
+  last_verified: '2026-08-01'
 - id: NW-WIN-01
   project: narwhals
   category: window-ops
@@ -1069,10 +1076,12 @@ issues:
   - narwhals-polars
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/1632
   upstream_issue_filed_by: other
-  status: closed
+  status: needs_investigation
   our_workaround: xfail_strict
-  notes: CLOSED upstream. Verify fix and remove xfail.
-  last_verified: '2026-05-11'
+  notes: 'GH #1632 closed upstream, but narwhals 2.24.0 has no Expr.explode() (AttributeError).
+    Verified 2026-08-01; strict xfail retained (test_list_operations.py TestListExplode).
+    Re-check the narwhals list/explode API surface and target version.'
+  last_verified: '2026-08-01'
 - id: NW-LIST-03
   project: narwhals
   category: list-ops
