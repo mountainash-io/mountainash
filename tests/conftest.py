@@ -525,6 +525,15 @@ def reset_between_tests():
 # Pytest Collection Hooks
 # =============================================================================
 
+def pytest_configure(config):
+    # Load all capability declarations at import time — before collection — so
+    # collection-time xfail/skip markers derived from the spine see a fully
+    # populated registry. A session-autouse fixture runs too late (post-import).
+    from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
+
+    load_all_capability_declarations()
+
+
 def pytest_collection_modifyitems(config, items):
     """Scope-deselect the backend matrix, then assign exactly one tier marker per test.
 
