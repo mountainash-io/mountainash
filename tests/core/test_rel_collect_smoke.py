@@ -16,55 +16,17 @@ import pytest
 import mountainash as ma
 
 from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
-from mountainash.core.capabilities.identity import KNOWN_DIALECTS
-from mountainash.core.capabilities.registry import CapabilityRegistry
-from mountainash.core.capabilities.schema import (
-    Boundary,
-    CapabilityLevel,
-    WILDCARD_PARAM,
-)
-from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
 
+from tests.fixtures.capability_gating import (
+    assert_capability_gated,
+    gate_dialect,
+    gate_family,
+)
+
 load_all_capability_declarations()
-
-# Inverted from the spine's canonical dialect vocabulary — the single source of
-# truth, not a re-hardcoded table.
-_DIALECT_TO_FAMILY = {
-    dialect: family
-    for family, dialects in KNOWN_DIALECTS.items()
-    for dialect in dialects
-}
-
-
-def _capability_gate(op_name: str, backend_name: str):
-    """The UNSUPPORTED/BUILD CapabilityFact gating (op_name, backend_name), or None.
-
-    Sourced from the capability spine, NOT a hand-maintained skip-list: any
-    relation op declared UNSUPPORTED at the build boundary for this backend/
-    dialect is asserted to raise ``BackendCapabilityError`` here automatically.
-    If the fact is removed (e.g. upstream gains support), the ``pytest.raises``
-    below fails and surfaces the change — self-healing, single-source.
-    """
-    try:
-        op_key = RKEY_MOUNTAINASH_REL[op_name.upper()]
-    except KeyError:
-        return None  # op_name has no 1:1 RKEY (e.g. join_inner) — no relation fact
-    family = _DIALECT_TO_FAMILY.get(backend_name)
-    if family is None:
-        return None
-    fact = CapabilityRegistry.capability_for(
-        op_key, WILDCARD_PARAM, family, backend_name
-    )
-    if (
-        fact is not None
-        and fact.level is CapabilityLevel.UNSUPPORTED
-        and fact.boundary is Boundary.BUILD
-    ):
-        return fact
-    return None
 
 
 ALL_BACKENDS = [
@@ -116,124 +78,118 @@ _SMOKE_FIXTURE_OVERRIDES: dict[str, dict[str, Any]] = {
     },
 }
 
-# ── Operation builders ───────────────────────────────────────────────────
+# ── Operation builders (return the uncollected relation plan) ─────────────
 
 
 def _build_read(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).collect()
+    return ma.relation(df)
 
 
 def _build_filter(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).filter(ma.col("a").gt(1)).collect()
+    return ma.relation(df).filter(ma.col("a").gt(1))
 
 
 def _build_select(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).select("a", "b").collect()
+    return ma.relation(df).select("a", "b")
 
 
 def _build_with_columns(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).with_columns(
-        ma.col("a").add(1).name.alias("x")
-    ).collect()
+    return ma.relation(df).with_columns(ma.col("a").add(1).name.alias("x"))
 
 
 def _build_drop(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).drop("c").collect()
+    return ma.relation(df).drop("c")
 
 
 def _build_rename(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).rename({"a": "x"}).collect()
+    return ma.relation(df).rename({"a": "x"})
 
 
 def _build_sort(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).sort("a").collect()
+    return ma.relation(df).sort("a")
 
 
 def _build_head(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).head(2).collect()
+    return ma.relation(df).head(2)
 
 
 def _build_tail(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).tail(2).collect()
+    return ma.relation(df).tail(2)
 
 
 def _build_slice(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).slice(0, 2).collect()
+    return ma.relation(df).slice(0, 2)
 
 
 def _build_join_inner(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).join(ma.relation(df_right), on="a").collect()
+    return ma.relation(df).join(ma.relation(df_right), on="a")
 
 
 def _build_join_left(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).join(
-        ma.relation(df_right), on="a", how="left"
-    ).collect()
+    return ma.relation(df).join(ma.relation(df_right), on="a", how="left")
 
 
 def _build_join_asof(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).join_asof(ma.relation(df_right), on="a").collect()
+    return ma.relation(df).join_asof(ma.relation(df_right), on="a")
 
 
 def _build_fetch_from_end(df: Any, df_right: Any, **kw: Any) -> Any:
     # .tail() produces FetchRelNode(from_end=True) → RKEY_MOUNTAINASH_REL.FETCH_FROM_END.
-    return ma.relation(df).tail(2).collect()
+    return ma.relation(df).tail(2)
 
 
 def _build_aggregate(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).group_by("c").agg(
-        ma.col("a").sum()
-    ).collect()
+    return ma.relation(df).group_by("c").agg(ma.col("a").sum())
 
 
 def _build_unique(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).unique("c").collect()
+    return ma.relation(df).unique("c")
 
 
 def _build_concat(df: Any, df_right: Any, **kw: Any) -> Any:
     r1 = ma.relation(df).select("a")
     r2 = ma.relation(df).select("a")
-    return ma.concat([r1, r2]).collect()
+    return ma.concat([r1, r2])
 
 
 def _build_drop_nulls(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).drop_nulls().collect()
+    return ma.relation(df).drop_nulls()
 
 
 def _build_drop_nans(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).drop_nans().collect()
+    return ma.relation(df).drop_nans()
 
 
 def _build_with_row_index(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).with_row_index(name="idx").collect()
+    return ma.relation(df).with_row_index(name="idx")
 
 
 def _build_explode(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).explode("list_col").collect()
+    return ma.relation(df).explode("list_col")
 
 
 def _build_sample(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).sample(n=2).collect()
+    return ma.relation(df).sample(n=2)
 
 
 def _build_unpivot(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).unpivot(on=["b", "c_num"]).collect()
+    return ma.relation(df).unpivot(on=["b", "c_num"])
 
 
 def _build_pivot(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).pivot(on="c", index="a", values="b").collect()
+    return ma.relation(df).pivot(on="c", index="a", values="b")
 
 
 def _build_top_k(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).top_k(2, by="a").collect()
+    return ma.relation(df).top_k(2, by="a")
 
 
 def _build_unnest(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation(df).unnest("struct_col", separator="_").collect()
+    return ma.relation(df).unnest("struct_col", separator="_")
 
 
 def _build_source(df: Any, df_right: Any, **kw: Any) -> Any:
-    return ma.relation([{"a": 1, "b": 2}, {"a": 3, "b": 4}]).collect()
+    return ma.relation([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
 
 
 # ── Operation registry ───────────────────────────────────────────────────
@@ -402,20 +358,42 @@ class TestRelCollectSmoke:
 
         builder = _OPERATIONS[op_name]
 
-        gate = _capability_gate(op_name, backend_name)
-        if gate is not None:
-            # Spine-declared UNSUPPORTED op: assert the gate fires (self-healing).
-            with pytest.raises(BackendCapabilityError):
-                builder(df, df_right)
+        def _build() -> Any:
+            return builder(df, df_right)
+
+        def _collect(plan: Any) -> Any:
+            return plan.collect()
+
+        def _build_and_collect() -> Any:
+            return _collect(_build())
+
+        # Dogfood the shared spine gate. When the op maps 1:1 to a relation
+        # key, assert_capability_gated owns the raise/success decision: a gated
+        # op must raise BackendCapabilityError carrying the gate fact as
+        # ``.limitation``; an ungated op must build + collect cleanly. The
+        # relation gate facts are declared at the BUILD boundary, but the lazy
+        # backends enforce them at collect time (e.g. ibis compiles the plan
+        # during ``.collect()``), so build+collect is the single callback whose
+        # success/raise the gate owns — identical to the pre-migration wrap.
+        # Ops with no 1:1 key (read/filter/join_inner/…) can carry no relation
+        # fact and must simply succeed.
+        op_key = RKEY_MOUNTAINASH_REL.__members__.get(op_name.upper())
+        if op_key is None:
+            try:
+                _build_and_collect()
+            except Exception as e:
+                pytest.fail(
+                    f"{op_name} on {backend_name}: collect() raised "
+                    f"{type(e).__name__}: {e}"
+                )
             return
 
-        try:
-            builder(df, df_right)
-        except Exception as e:
-            pytest.fail(
-                f"{op_name} on {backend_name}: collect() raised "
-                f"{type(e).__name__}: {e}"
-            )
+        assert_capability_gated(
+            op_key,
+            gate_family(backend_name),
+            dialect=gate_dialect(backend_name),
+            build=_build_and_collect,
+        )
 
 
 # ── Meta-tests ───────────────────────────────────────────────────────────
