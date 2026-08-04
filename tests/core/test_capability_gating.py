@@ -8,7 +8,12 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST,
 )
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
-from tests.fixtures.capability_gating import assert_capability_gated, capability_gate, identity_for
+from tests.fixtures.capability_gating import (
+    assert_capability_gated,
+    capability_gate,
+    identity_for,
+    xfail_divergence,
+)
 
 
 class TestIdentityFor:
@@ -98,3 +103,27 @@ class TestAssertCapabilityGated:
             )
             is s
         )
+
+
+class TestDivergence:
+    def test_applies_mark_for_listed_dialect_backend(self):
+        m = xfail_divergence("IB-TYPE-02", backend="ibis-duckdb")
+        assert m.name == "xfail"
+        assert m.kwargs.get("strict") is True
+        assert "IB-TYPE-02" in m.kwargs.get("reason")
+
+    def test_applies_mark_for_family_scoped_backend(self):
+        # MA-MATH-01 lists bare family strings ("polars", "narwhals", "ibis");
+        # a dialect backend must match via fam = gate_family(backend).value.
+        m = xfail_divergence("MA-MATH-01", backend="ibis-duckdb")
+        assert m.name == "xfail"
+        assert m.kwargs.get("strict") is True
+
+    def test_strict_false_is_forwarded(self):
+        m = xfail_divergence("IB-TYPE-02", backend="ibis-duckdb", strict=False)
+        assert m.name == "xfail"
+        assert m.kwargs.get("strict") is False
+
+    def test_noop_for_unlisted_backend(self):
+        m = xfail_divergence("IB-TYPE-02", backend="polars")
+        assert m.name == "usefixtures"  # no-op mark

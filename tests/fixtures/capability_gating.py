@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.core.capabilities.divergences import divergence_by_id
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS, BackendIdentity
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
@@ -122,3 +123,21 @@ def assert_capability_gated(operation_key, family, *, dialect=None, build,
         f"enriched error should chain the declared native cause {fact.native_errors}, "
         f"got {type(err.__cause__)!r}")
     return None
+
+
+def xfail_divergence(divergence_id, *, backend, strict=True) -> pytest.MarkDecorator:
+    """Mark a test xfail when a known DivergenceFact applies to ``backend``.
+
+    Divergences are id-keyed. ``DivergenceFact.backends`` may hold dialect-scoped
+    names (e.g. "ibis-duckdb") or bare family names (e.g. "ibis"); a backend matches
+    canonically on either its literal name or its resolved family. When the divergence
+    does not apply, a no-op ``usefixtures()`` mark is returned so the test runs normally.
+    """
+    d = divergence_by_id(divergence_id)
+    fam = gate_family(backend).value  # lowercase family, e.g. "ibis" — matches DivergenceFact.backends
+    if backend not in d.backends and fam not in d.backends:
+        return pytest.mark.usefixtures()  # divergence does not apply here — no-op mark
+    return pytest.mark.xfail(
+        strict=strict,
+        reason=f"[{divergence_id}] {d.summary} — workaround: {d.workaround}",
+    )
