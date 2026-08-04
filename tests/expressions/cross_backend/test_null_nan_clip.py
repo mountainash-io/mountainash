@@ -8,7 +8,7 @@ they are not pure expression transforms.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.divergence_helpers import xfail_divergence
+from fixtures.capability_gating import xfail_divergence
 
 FLOAT_BACKENDS = [
     "polars",
