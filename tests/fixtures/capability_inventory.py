@@ -23,10 +23,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
 from tests.fixtures.capability_census import UNRESOLVED, CensusEntry, build_census
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 _TESTS_DIR = Path(__file__).resolve().parent.parent
 _INVENTORY_PATH = _TESTS_DIR / "_spine_expectation_inventory.yaml"
@@ -226,15 +230,65 @@ def inventory_has(
     return _identity_key(node_id, operation_key, backend, param, option_value) in inv
 
 
-def regenerate_inventory(path: Path | None = None) -> Path:
-    """(Re)write the committed inventory YAML from the census ``inventoried``
-    bucket, in the census's deterministic ``(path, line, node_id)`` order."""
+def runtime_observable_entry(
+    *,
+    node_id: str,
+    operation_key: str,
+    backend: str,
+    param: str,
+    option_value: str | None,
+    current_reason: str,
+    display_site: str,
+) -> InventoryEntry:
+    """Build a fully-resolved, runtime-observable inventory row.
+
+    Task 7's compile_smoke harness observes live ``BackendCapabilityError``
+    raises whose identity it resolves at runtime (unlike the static census,
+    which leaves the catch-all site ``UNRESOLVED``). Each such raise that
+    carries no UNSUPPORTED gate fact is catalogued here as a
+    ``conditional-raise`` / ``catch-all`` allowlist row pending SP2's broader
+    classification. Raises :class:`InventoryError` if the identity is not
+    fully resolved (a runtime-observable row must never be ``UNRESOLVED``)."""
+    if not _fully_resolved(operation_key, backend, param, option_value):
+        raise InventoryError(
+            f"runtime-observable row for {node_id} has an UNRESOLVED slot"
+        )
+    return InventoryEntry(
+        key=_identity_key(node_id, operation_key, backend, param, option_value),
+        node_id=node_id,
+        operation_key=operation_key,
+        backend=backend,
+        param=param,
+        option_value=option_value,
+        current_reason=current_reason,
+        classification="conditional-raise",
+        found_via="catch-all",
+        runtime_observable=True,
+        since=_INVENTORY_SINCE,
+        display_site=display_site,
+    )
+
+
+def regenerate_inventory(
+    path: Path | None = None,
+    runtime_rows: "Iterable[InventoryEntry] | None" = None,
+) -> Path:
+    """(Re)write the committed inventory YAML.
+
+    The static portion is generated from the census ``inventoried`` bucket, in
+    the census's deterministic ``(path, line, node_id)`` order. ``runtime_rows``
+    (produced by the compile_smoke harness's own regeneration entry point) are
+    appended after the static rows so the single committed catalogue carries
+    both the static census expectations and the runtime-observed compile_smoke
+    allowlist. Duplicate identities across either source are rejected."""
     path = path or _INVENTORY_PATH
     entries = [
         _entry_from_census(ce)
         for ce in build_census()
         if ce.bucket == "inventoried"
     ]
+    if runtime_rows is not None:
+        entries = [*entries, *runtime_rows]
     seen: set[str] = set()
     rows: list[dict[str, object]] = []
     for entry in entries:
