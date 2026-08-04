@@ -20,6 +20,7 @@ import pytest
 import mountainash as ma
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
+    Boundary,
     CapabilityLevel,
     Enforcement,
     WILDCARD_PARAM,
@@ -725,12 +726,20 @@ class TestCompileSmoke:
             fkey, idn.family, dialect=idn.dialect,
             param=case.param, option_value=case.option_value,  # precise selector
         )
+        # compile() observes ONLY the BUILD boundary; a MATERIALIZE_RESIDUE fact
+        # raises at materialize, not here, so it must never drive the
+        # compile()-raises expectation (nor the no-raise pytest.fail below).
+        if fact is not None and fact.boundary is not Boundary.BUILD:
+            fact = None
         inv = _smoke_inventory()
         try:
             case.compile()
         except BackendCapabilityError as exc:
             if fact is not None:
-                assert exc.limitation is fact
+                assert exc.limitation is fact, (
+                    f"{fkey_str} on {backend_name}: expected .limitation to be "
+                    f"the BUILD gate fact {fact!r}, got {exc.limitation!r}"
+                )
                 return
             if inventory_has(
                 case.node_id, fkey_str, backend_name,
