@@ -6,9 +6,14 @@ import pytest
 from expressions.argument_types._op_level_helpers import op_level_result
 from expressions.argument_types.conftest import make_df
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.string_option_capabilities import (
     _BROKEN_STRING_OPS_BY_BACKEND,
+    _OP_LEVEL_FKEYS,
+)
+from tests.fixtures.capability_gating import (
+    assert_capability_gated,
+    gate_dialect,
+    gate_family,
 )
 
 # op -> (build, single-row input, ASCII oracle = polars/Python semantics)
@@ -47,5 +52,9 @@ def test_gated_op_is_still_broken(op, fixture):
 def test_gated_op_raises_on_public_path(op, fixture):
     build, data, _ = _OP_CASES[op]
     df = make_df(data, fixture)
-    with pytest.raises(BackendCapabilityError):
-        ma.relation(df).select(build().name.alias("r")).to_dict()
+    assert_capability_gated(
+        _OP_LEVEL_FKEYS[op],
+        gate_family(fixture),
+        dialect=gate_dialect(fixture),
+        build=lambda: ma.relation(df).select(build().name.alias("r")).to_dict(),
+    )
