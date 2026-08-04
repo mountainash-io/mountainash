@@ -4,6 +4,8 @@ Nothing here is hand-maintained; see spec 2026-08-01-spine-derived-test-expectat
 """
 from __future__ import annotations
 
+import pytest
+
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS, BackendIdentity
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
@@ -14,6 +16,7 @@ from mountainash.core.capabilities.schema import (
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.types import BackendCapabilityError
 
 _DIALECT_TO_FAMILY: dict[str, CONST_BACKEND] = {}
 for _family, _dialects in KNOWN_DIALECTS.items():
@@ -77,3 +80,45 @@ def capability_gate(operation_key, family, *, dialect=None,
     if (fact.enforcement, fact.boundary) not in _GATING:
         return None
     return fact
+
+
+def assert_capability_gated(operation_key, family, *, dialect=None, build,
+                            materialize=None, param=WILDCARD_PARAM, option_value=None):
+    """Assert the spine's gate fact is enforced at the right site.
+
+    Consults :func:`capability_gate`; then, depending on the fact's boundary:
+    - no fact  -> ``build()`` (and ``materialize`` if given) must simply run;
+    - BUILD    -> ``build()`` must raise ``BackendCapabilityError`` carrying the
+      gate fact as ``.limitation``;
+    - MATERIALIZE -> ``build()`` must succeed and ``materialize(built)`` must
+      raise the enriched ``BackendCapabilityError`` (``.limitation`` is the
+      residue fact, ``.__cause__`` an instance of its declared ``native_errors``).
+    """
+    fact = capability_gate(operation_key, family, dialect=dialect, param=param, option_value=option_value)
+    if fact is None:
+        built = build()
+        return materialize(built) if materialize is not None else built
+
+    if fact.boundary is Boundary.BUILD:
+        with pytest.raises(BackendCapabilityError) as ei:
+            build()
+        assert ei.value.limitation is fact, (
+            f"expected error.limitation to be the gate fact for {operation_key} "
+            f"on {dialect or family}, got {ei.value.limitation!r}")
+        assert ei.value.function_key == operation_key
+        return None
+
+    # MATERIALIZE_RESIDUE: build MUST succeed, materialize MUST raise the enriched error.
+    assert materialize is not None, "materialize callback required for a MATERIALIZE fact"
+    built = build()
+    with pytest.raises(BackendCapabilityError) as ei:
+        materialize(built)
+    err = ei.value
+    assert err.limitation is fact, (
+        f"expected enriched error.limitation to be the residue fact for {operation_key} "
+        f"on {dialect or family}, got {err.limitation!r}")
+    assert err.function_key == operation_key
+    assert isinstance(err.__cause__, fact.native_errors), (
+        f"enriched error should chain the declared native cause {fact.native_errors}, "
+        f"got {type(err.__cause__)!r}")
+    return None
