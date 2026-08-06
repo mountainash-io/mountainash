@@ -614,6 +614,28 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-06",
         ),
+        DivergenceFact(
+            id="MA-MATH-02",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(),  # cbrt is composed (pow-based), no dedicated function key
+            backends=("polars", "narwhals", "ibis", "pandas"),
+            summary="cbrt() of a negative value returns NaN on every backend (the pow(x, 1/3) implementation is undefined for negatives), instead of the real cube root",
+            impact="ma.col(x).cbrt() on negative inputs yields NaN across all backends; a mathematically-correct negative cube root is not available",
+            workaround="Compute sign(x) * abs(x) ** (1/3) manually for negative inputs",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="NW-MATH-01",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # cot is composed (1/tan), no dedicated function key
+            backends=("pandas", "narwhals"),
+            summary="pandas and narwhals lack tan(), so cot() (computed as 1/tan) raises NotImplementedError",
+            impact="ma.col(x).cot() raises on pandas and all narwhals backends; polars and ibis compute it",
+            workaround="Use a polars or ibis backend for cot()",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
     )
 
 

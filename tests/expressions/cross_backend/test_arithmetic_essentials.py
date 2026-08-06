@@ -39,8 +39,6 @@ class TestAbs:
 class TestSqrt:
     def test_sqrt(self, backend_name, backend_factory, collect_expr):
         """sqrt() on positive values."""
-        if backend_name in ("narwhals", "pandas"):
-            pytest.xfail(f"{backend_name}: sqrt() not supported by Narwhals backend.")
         data = {"val": [1.0, 4.0, 9.0, 16.0]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").sqrt()
@@ -54,8 +52,6 @@ class TestSqrt:
 class TestSign:
     def test_sign(self, backend_name, backend_factory, collect_expr):
         """sign() returns -1, 0, or 1."""
-        if backend_name in ("narwhals", "pandas"):
-            pytest.xfail(f"{backend_name}: sign() not supported by Narwhals backend.")
         data = {"val": [-10, 0, 5]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").sign()
@@ -68,8 +64,6 @@ class TestSign:
 class TestExp:
     def test_exp(self, backend_name, backend_factory, collect_expr):
         """exp() computes e^x."""
-        if backend_name in ("narwhals", "pandas"):
-            pytest.xfail(f"{backend_name}: exp() not supported by Narwhals backend.")
         data = {"val": [0.0, 1.0, 2.0]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").exp()
