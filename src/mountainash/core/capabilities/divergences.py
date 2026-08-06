@@ -768,6 +768,28 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-06",
         ),
+        DivergenceFact(
+            id="MA-VAL-01",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(),  # validation outcome model, null->unknown
+            backends=("pandas", "narwhals-pandas"),
+            summary="pandas/narwhals-pandas have no nullable boolean dtype for comparison results, so a null rule result collapses to False instead of the 'unknown' outcome (mountainash targets plain float64/bool on pandas)",
+            impact="validation outcome-model tests expecting an 'unknown' verdict from a null comparison diverge on pandas/narwhals-pandas",
+            workaround="Use a polars, narwhals-polars, or ibis backend for three-way null outcome semantics",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="MA-VAL-02",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(),  # scalar-null aggregate verdict
+            backends=("ibis-polars", "ibis-sqlite"),
+            summary="ibis-polars/ibis-sqlite infer an untyped NullColumn for an all-null input, so a scalar-aggregate verdict over it diverges from the polars/narwhals result",
+            impact="a ScalarRule verdict over an all-null column diverges on ibis-polars/ibis-sqlite; polars/narwhals compute the 'unknown' verdict (ibis-duckdb rejects the all-null table outright — IB-REL-06)",
+            workaround="Use a polars or narwhals backend for scalar verdicts over all-null columns",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
     )
 
 

@@ -14,14 +14,14 @@ from datetime import datetime
 
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
-def _xfail_sqlite_time_shift(backend_name: str) -> None:
-    """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
-    if backend_name == "ibis-sqlite" and sqlite3.sqlite_version_info < (3, 46):
-        pytest.xfail(
-            f"SQLite {sqlite3.sqlite_version} < 3.46: no time shift modifier support"
-        )
+_SHIFT = (
+    [xfail_divergence("IB-DT-14", backend="ibis-sqlite")]
+    if sqlite3.sqlite_version_info < (3, 46)
+    else []
+)
 
 
 POLARS_IBIS = [
@@ -43,6 +43,10 @@ TEMPORAL_BACKENDS = [
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
+]
+
+_TEMPORAL_XF = [
+    pytest.param(b, marks=_SHIFT) if b == "ibis-sqlite" else b for b in TEMPORAL_BACKENDS
 ]
 
 
@@ -337,13 +341,12 @@ class TestSubstringParameterSensitivity:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", TEMPORAL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _TEMPORAL_XF)
 class TestDatetimeParameterSensitivity:
     """add_days/add_hours duration must reach the backend."""
 
     def test_add_days_sensitivity(self, backend_name, backend_factory, assert_parameter_sensitivity):
         """add_days(1) and add_days(5) must produce different results."""
-        _xfail_sqlite_time_shift(backend_name)
         data = {"ts": [datetime(2024, 1, 15, 10, 0, 0)]}
         df = backend_factory.create(data, backend_name)
 
