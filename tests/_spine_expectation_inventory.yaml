@@ -204,20 +204,20 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/conform/cross_backend/test_relation_conform.py:342
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L715[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L715[UNRESOLVED]
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L697[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L697[UNRESOLVED]
   operation_key: UNRESOLVED
   backend: UNRESOLVED
   param: UNRESOLVED
   option_value: null
   current_reason: UNRESOLVED
-  classification: conditional-raise
-  found_via: catch-all
+  classification: possibly-stale
+  found_via: imperative-xfail
   runtime_observable: false
   since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:715
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L748[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L748[UNRESOLVED]
+  display_site: tests/core/test_compile_smoke.py:697
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L735[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L735[UNRESOLVED]
   operation_key: UNRESOLVED
   backend: UNRESOLVED
   param: UNRESOLVED
@@ -227,7 +227,7 @@
   found_via: imperative-xfail
   runtime_observable: false
   since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:748
+  display_site: tests/core/test_compile_smoke.py:735
 - key: tests/core/test_rel_collect_smoke.py::TestRelCollectSmoke::test_collect_succeeds::L341[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
   node_id: tests/core/test_rel_collect_smoke.py::TestRelCollectSmoke::test_collect_succeeds::L341[UNRESOLVED]
   operation_key: UNRESOLVED
@@ -882,48 +882,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_aggregate_results.py:535
-- key: tests/expressions/cross_backend/test_arithmetic.py::TestArithmeticEdgeCases::test_modulo_with_negatives::L430[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_arithmetic.py::TestArithmeticEdgeCases::test_modulo_with_negatives::L430[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...} modulo semantics differ from Python. {...} returns remainder
-    (sign of dividend), Python returns modulus (sign of divisor). This needs normalization
-    or documentation.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_arithmetic.py:430
-- key: tests/expressions/cross_backend/test_arithmetic.py::TestArithmeticEdgeCases::test_modulo_with_negatives::L430[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_arithmetic.py::TestArithmeticEdgeCases::test_modulo_with_negatives::L430[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...} modulo semantics differ from Python. {...} returns remainder
-    (sign of dividend), Python returns modulus (sign of divisor). This needs normalization
-    or documentation.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_arithmetic.py:430
-- key: tests/expressions/cross_backend/test_arithmetic.py::TestArithmeticEdgeCases::test_complex_chained_operations::L520[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_arithmetic.py::TestArithmeticEdgeCases::test_complex_chained_operations::L520[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: SQLite performs integer division (20/3 = 6) instead of float division
-    (20/3 = 6.666...). This creates cross-backend inconsistency. Needs normalization
-    or documentation.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_arithmetic.py:520
 - key: tests/expressions/cross_backend/test_arithmetic_essentials.py::TestSqrt::test_sqrt::L43[narwhals]|UNRESOLVED|narwhals|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_arithmetic_essentials.py::TestSqrt::test_sqrt::L43[narwhals]
   operation_key: UNRESOLVED
@@ -1044,233 +1002,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_case_insensitive_string.py:60
-- key: tests/expressions/cross_backend/test_cast.py::TestCastToInteger::test_cast_float_to_int::L23[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastToInteger::test_cast_float_to_int::L23[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB uses banker's rounding for float-to-int cast, not truncation.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:23
-- key: tests/expressions/cross_backend/test_cast.py::TestCastWithNulls::test_cast_with_null_float_to_string::L150[pandas]|UNRESOLVED|pandas|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastWithNulls::test_cast_with_null_float_to_string::L150[pandas]
-  operation_key: UNRESOLVED
-  backend: pandas
-  param: UNRESOLVED
-  option_value: null
-  current_reason: Pandas converts null float to 'nan' instead of preserving None.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:150
-- key: tests/expressions/cross_backend/test_cast.py::TestCastEdgeCases::test_cast_negative_float_to_int::L218[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastEdgeCases::test_cast_negative_float_to_int::L218[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB uses banker's rounding for float-to-int cast, not truncation.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:218
-- key: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_null::L262[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_null::L262[UNRESOLVED]
-  operation_key: UNRESOLVED
-  backend: UNRESOLVED
-  param: UNRESOLVED
-  option_value: null
-  current_reason: Narwhals Expr.cast(dtype) has no strict/failure-behavior parameter
-    (observed narwhals 2.23.0) -- cast always raises on invalid conversion (InvalidOperationError
-    on polars-backed, ValueError on pandas-backed). mountainash raises BackendCapabilityError
-    for failure_behavior='null' on this backend. Plain 'pandas' DataFrames compile
-    via the Narwhals backend and share this limitation. See known-divergences.md.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:262
-- key: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_null::L271[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_null::L271[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'Ibis compiles failure_behavior=''null'' to ibis.TryCast, which
-    ibis-sqlite (observed ibis 12.0.0) has no SQL compilation rule for: ''OperationNotDefinedError:
-    Compilation rule for ''TryCast'' operation is not defined''. Works on ibis-duckdb
-    and ibis-polars. See known-divergences.md.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:271
-- key: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_throw_default::L291[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_throw_default::L291[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: SQLite's CAST is inherently lenient -- 'SELECT CAST(\'1x\' AS INTEGER)'
-    returns 1 (parses the leading numeric prefix) rather than raising, at the SQLite
-    engine level, independent of mountainash or ibis. Pre-existing behaviour, unrelated
-    to the failure_behavior wiring in this change. See known-divergences.md.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:291
-- key: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_throw_explicit::L307[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_cast.py::TestCastFailureBehavior::test_cast_failure_behavior_throw_explicit::L307[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: SQLite's CAST is inherently lenient -- see test_cast_failure_behavior_throw_default.
-    Pre-existing behaviour, unrelated to the failure_behavior wiring in this change.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_cast.py:307
-- key: tests/expressions/cross_backend/test_compose_cast.py::TestComposeCast::test_cast_then_compare::L41[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_cast.py::TestComposeCast::test_cast_then_compare::L41[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB uses banker's rounding for float-to-int cast, not truncation.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_cast.py:41
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_nan::L108[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_nan::L108[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: NaN handling differs from Python semantics.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:108
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_nan::L108[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_nan::L108[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: NaN handling differs from Python semantics.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:108
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_finite::L120[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_finite::L120[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: is_finite not supported or Inf handling differs.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:120
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_finite::L120[pandas]|UNRESOLVED|pandas|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_finite::L120[pandas]
-  operation_key: UNRESOLVED
-  backend: pandas
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: is_finite not supported or Inf handling differs.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:120
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_infinite::L132[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_infinite::L132[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: is_infinite not supported or Inf handling differs.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:132
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_infinite::L132[pandas]|UNRESOLVED|pandas|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNumeric::test_is_infinite::L132[pandas]
-  operation_key: UNRESOLVED
-  backend: pandas
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: is_infinite not supported or Inf handling differs.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:132
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: nullif method form not fully supported.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:150
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: nullif method form not fully supported.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:150
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: nullif method form not fully supported.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:150
-- key: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[pandas]|UNRESOLVED|pandas|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_compose_comparison_extended.py::TestComposeComparisonNull::test_nullif::L150[pandas]
-  operation_key: UNRESOLVED
-  backend: pandas
-  param: UNRESOLVED
-  option_value: null
-  current_reason: '{...}: nullif method form not fully supported.'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_compose_comparison_extended.py:150
 - key: tests/expressions/cross_backend/test_compose_datetime.py::TestComposeDatetime::test_add_days_then_extract_month::L35[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_compose_datetime.py::TestComposeDatetime::test_add_days_then_extract_month::L35[ibis-sqlite]
   operation_key: UNRESOLVED
@@ -1645,19 +1376,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_compose_ternary.py:33
-- key: tests/expressions/cross_backend/test_conditional.py::TestConditionalEdgeCases::test_all_nulls_coalesce::L333[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_conditional.py::TestConditionalEdgeCases::test_all_nulls_coalesce::L333[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB does not support creating tables with all NULL columns. This
-    is a genuine backend limitation, not a bug.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_conditional.py:333
 - key: tests/expressions/cross_backend/test_datetime_component_results.py::TestDtDate::test_date_extraction::L175[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_datetime_component_results.py::TestDtDate::test_date_extraction::L175[ibis-duckdb]
   operation_key: UNRESOLVED
@@ -1858,57 +1576,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_datetime_extension_results.py:314
-- key: tests/expressions/cross_backend/test_datetime_snapshot.py::TestTodaySnapshot::test_today_returns_current_date::L24[ibis]|UNRESOLVED|ibis|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_datetime_snapshot.py::TestTodaySnapshot::test_today_returns_current_date::L24[ibis]
-  operation_key: UNRESOLVED
-  backend: ibis
-  param: UNRESOLVED
-  option_value: null
-  current_reason: Ibis today() returns datetime(date, 0:00) not date — ibis.literal(date.today())
-    upcasts to timestamp
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_datetime_snapshot.py:24
-- key: tests/expressions/cross_backend/test_datetime_snapshot.py::TestNowSnapshot::test_now_returns_recent_datetime::L49[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_datetime_snapshot.py::TestNowSnapshot::test_now_returns_recent_datetime::L49[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: Ibis now() uses CURRENT_TIMESTAMP (UTC) on SQL backends — diverges
-    from Python datetime.now() (local time)
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_datetime_snapshot.py:49
-- key: tests/expressions/cross_backend/test_datetime_snapshot.py::TestNowSnapshot::test_now_returns_recent_datetime::L49[ibis-sqlite]|UNRESOLVED|ibis-sqlite|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_datetime_snapshot.py::TestNowSnapshot::test_now_returns_recent_datetime::L49[ibis-sqlite]
-  operation_key: UNRESOLVED
-  backend: ibis-sqlite
-  param: UNRESOLVED
-  option_value: null
-  current_reason: Ibis now() uses CURRENT_TIMESTAMP (UTC) on SQL backends — diverges
-    from Python datetime.now() (local time)
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_datetime_snapshot.py:49
-- key: tests/expressions/cross_backend/test_edge_cases_null.py::TestNullCoalesce::test_coalesce_all_null::L115[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_edge_cases_null.py::TestNullCoalesce::test_coalesce_all_null::L115[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB cannot create tables with all-NULL typed columns
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_edge_cases_null.py:115
 - key: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_basic::L40[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_basic::L40[ibis-polars]
   operation_key: UNRESOLVED
@@ -3129,30 +2796,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_relation_with_row_index.py:31
-- key: tests/expressions/cross_backend/test_remaining_ops_results.py::TestNullCount::test_null_count_all_nulls::L164[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_remaining_ops_results.py::TestNullCount::test_null_count_all_nulls::L164[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB cannot create tables with all-NULL columns (no type inference)
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_remaining_ops_results.py:164
-- key: tests/expressions/cross_backend/test_remaining_ops_results.py::TestHasNulls::test_has_nulls_all_nulls::L195[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_remaining_ops_results.py::TestHasNulls::test_has_nulls_all_nulls::L195[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB cannot create tables with all-NULL columns (no type inference)
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_remaining_ops_results.py:195
 - key: tests/expressions/cross_backend/test_string_aspirational.py::<module>::L39[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_string_aspirational.py::<module>::L39[UNRESOLVED]
   operation_key: UNRESOLVED
@@ -3405,42 +3048,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_temporal_natural.py:278
-- key: tests/expressions/cross_backend/test_ternary_auto_booleanize.py::TestTernaryToBooleanCoercionExtended::test_ternary_xor_parity_boolean_coercion::L450[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_ternary_auto_booleanize.py::TestTernaryToBooleanCoercionExtended::test_ternary_xor_parity_boolean_coercion::L450[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB XOR semantics differ for chained boolean parity
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_ternary_auto_booleanize.py:450
-- key: tests/expressions/cross_backend/test_type_resolution.py::TestPythonBuiltinTypes::test_cast_with_python_int::L222[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_type_resolution.py::TestPythonBuiltinTypes::test_cast_with_python_int::L222[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB uses banker's rounding for float-to-int cast.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_type_resolution.py:222
-- key: tests/expressions/cross_backend/test_type_resolution.py::TestMountainashDtypeEnum::test_cast_with_enum_i64::L258[ibis-duckdb]|UNRESOLVED|ibis-duckdb|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_type_resolution.py::TestMountainashDtypeEnum::test_cast_with_enum_i64::L258[ibis-duckdb]
-  operation_key: UNRESOLVED
-  backend: ibis-duckdb
-  param: UNRESOLVED
-  option_value: null
-  current_reason: DuckDB uses banker's rounding for float-to-int cast.
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_type_resolution.py:258
 - key: tests/expressions/cross_backend/test_window_cumulative.py::_xfail_known_cumulative_divergences::L23[narwhals-lazy]|UNRESOLVED|narwhals-lazy|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_window_cumulative.py::_xfail_known_cumulative_divergences::L23[narwhals-lazy]
   operation_key: UNRESOLVED
@@ -5573,6 +5180,19 @@
   runtime_observable: true
   since: '2026-08-01'
   display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.LPAD|polars|characters|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.LPAD
+  backend: polars
+  param: characters
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
 - key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.LPAD|pandas|length|None
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.LPAD
@@ -5612,6 +5232,19 @@
   runtime_observable: true
   since: '2026-08-01'
   display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.RPAD|polars|characters|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.RPAD
+  backend: polars
+  param: characters
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
 - key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.RPAD|pandas|length|None
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.RPAD
@@ -5642,6 +5275,19 @@
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.RPAD
   backend: narwhals-pandas
+  param: length
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.CENTER|polars|length|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.CENTER
+  backend: polars
   param: length
   option_value: null
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
@@ -5768,6 +5414,19 @@
   runtime_observable: true
   since: '2026-08-01'
   display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE|polars|start|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE
+  backend: polars
+  param: start
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
 - key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE|ibis-polars|start|None
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE
@@ -5799,6 +5458,19 @@
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE
   backend: ibis-sqlite
   param: start
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT|polars|count|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT
+  backend: polars
+  param: count
   option_value: null
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
     fact; catalogued for SP2 classification
@@ -6500,6 +6172,45 @@
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL
   backend: ibis-sqlite
+  param: '*'
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK|pandas|*|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK
+  backend: pandas
+  param: '*'
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK|narwhals-polars|*|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK
+  backend: narwhals-polars
+  param: '*'
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK|narwhals-pandas|*|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK
+  backend: narwhals-pandas
   param: '*'
   option_value: null
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate

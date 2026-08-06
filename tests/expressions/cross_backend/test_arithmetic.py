@@ -16,6 +16,7 @@ import pytest
 import mountainash.expressions as ma
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 # =============================================================================
 # Cross-Backend Tests - Basic Arithmetic
@@ -278,6 +279,28 @@ class TestComplexArithmetic:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+    def test_complex_chained_operations(self, backend_name, backend_factory, collect_expr):
+        """Test complex chained arithmetic operations (float division)."""
+        data = {
+            "a": [10, 20, 30],
+            "b": [2, 3, 4],
+            "c": [5, 10, 15]
+        }
+        df = backend_factory.create(data, backend_name)
+
+        # (a + b) * c - a / b
+        expr = (ma.col("a") + ma.col("b")) * ma.col("c") - ma.col("a") / ma.col("b")
+
+        actual = collect_expr(df, expr)
+
+        import math
+
+        expected = [55.0, 230.0 - (20.0/3.0), 502.5]
+
+        for i, (a, e) in enumerate(zip(actual, expected)):
+            assert math.isclose(a, e, rel_tol=1e-9), \
+                f"[{backend_name}] At index {i}: expected {e}, got {a}"
+
 
 # =============================================================================
 # Edge Case Tests
@@ -411,47 +434,6 @@ class TestArithmeticEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_modulo_with_negatives(self, backend_name, backend_factory, collect_expr):
-        """Test modulo operation with negative numbers.
-
-        KNOWN ISSUE: SQLite and DuckDB use different modulo semantics than Python.
-        - Python: result has same sign as divisor (modulus)
-        - SQLite/DuckDB: result has same sign of dividend (remainder)
-
-        This test SHOULD fail for ibis-sqlite and ibis-duckdb until we either:
-        1. Normalize the behavior in our library (recommended)
-        2. Document this as a known limitation and warn users
-        3. File an issue with Ibis to provide normalized modulo
-
-        See: https://en.wikipedia.org/wiki/Modulo_operation
-        """
-        # Mark SQLite and DuckDB as expected failure due to backend inconsistency
-        if backend_name in ("ibis-sqlite", "ibis-duckdb"):
-            pytest.xfail(
-                f"{backend_name.split('-')[1].title()} modulo semantics differ from Python. "
-                f"{backend_name.split('-')[1].title()} returns remainder (sign of dividend), "
-                "Python returns modulus (sign of divisor). "
-                "This needs normalization or documentation."
-            )
-
-        data = {
-            "a": [-10, 10, -10],
-            "b": [3, -3, -3]
-        }
-        df = backend_factory.create(data, backend_name)
-
-        expr = ma.col("a") % ma.col("b")
-
-        actual = collect_expr(df, expr)
-
-        # Python modulo: result has same sign as divisor
-        # This is the EXPECTED behavior for consistency
-        expected = [2, -2, -1]
-
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
-
     def test_multiply_by_zero(self, backend_name, backend_factory, collect_expr):
         """Test multiplication by zero."""
         data = {
@@ -500,55 +482,6 @@ class TestArithmeticEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
-    def test_complex_chained_operations(self, backend_name, backend_factory, collect_expr):
-        """Test complex chained arithmetic operations.
-
-        KNOWN ISSUE: SQLite performs integer division instead of float division.
-        - Python/Polars/Pandas: 20/3 = 6.666...
-        - SQLite: 20/3 = 6 (truncates to integer)
-
-        This test SHOULD fail for ibis-sqlite until we either:
-        1. Normalize division to always return float (recommended)
-        2. Add explicit int/float division operators
-        3. Document this as a known limitation and warn users
-        4. File an issue with Ibis about SQLite division behavior
-
-        See: https://www.sqlite.org/lang_expr.html#operators
-        """
-        # Mark SQLite as expected failure due to integer division behavior
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite performs integer division (20/3 = 6) instead of "
-                "float division (20/3 = 6.666...). "
-                "This creates cross-backend inconsistency. "
-                "Needs normalization or documentation."
-            )
-
-        data = {
-            "a": [10, 20, 30],
-            "b": [2, 3, 4],
-            "c": [5, 10, 15]
-        }
-        df = backend_factory.create(data, backend_name)
-
-        # (a + b) * c - a / b
-        expr = (ma.col("a") + ma.col("b")) * ma.col("c") - ma.col("a") / ma.col("b")
-
-        actual = collect_expr(df, expr)
-
-        # (10+2)*5 - 10/2 = 60 - 5.0 = 55.0
-        # (20+3)*10 - 20/3 = 230 - 6.666... = 223.333...
-        # (30+4)*15 - 30/4 = 510 - 7.5 = 502.5
-        import math
-
-        # This is the EXPECTED behavior for consistency (float division)
-        expected = [55.0, 230.0 - (20.0/3.0), 502.5]
-
-        # Use approximate comparison for floating point
-        for i, (a, e) in enumerate(zip(actual, expected)):
-            assert math.isclose(a, e, rel_tol=1e-9), \
-                f"[{backend_name}] At index {i}: expected {e}, got {a}"
-
     def test_mixed_integer_float(self, backend_name, backend_factory, collect_expr):
         """Test operations with mixed integer and float types."""
         data = {
@@ -562,6 +495,39 @@ class TestArithmeticEdgeCases:
         actual = collect_expr(df, expr)
 
         expected = [25.0, 70.0, 135.0]
+        assert actual == expected, (
+            f"[{backend_name}] Expected {expected}, got {actual}"
+        )
+
+
+_MODULO_NEG_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-MATH-05", backend=b))
+    if b in ("ibis-sqlite", "ibis-duckdb")
+    else b
+    for b in ALL_BACKENDS
+]
+
+
+@pytest.mark.arithmetic
+@pytest.mark.parametrize("backend_name", _MODULO_NEG_BACKENDS)
+class TestModuloWithNegatives:
+    """Negative-operand modulo. ibis-sqlite/ibis-duckdb route through IB-MATH-05
+    (SQL modulo takes the sign of the dividend rather than the divisor)."""
+
+    def test_modulo_with_negatives(self, backend_name, backend_factory, collect_expr):
+        data = {
+            "a": [-10, 10, -10],
+            "b": [3, -3, -3]
+        }
+        df = backend_factory.create(data, backend_name)
+
+        expr = ma.col("a") % ma.col("b")
+
+        actual = collect_expr(df, expr)
+
+        # Python modulo: result has same sign as the divisor
+        expected = [2, -2, -1]
+
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )

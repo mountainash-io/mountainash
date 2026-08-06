@@ -7,11 +7,13 @@
 """
 from __future__ import annotations
 
+import ast
 import importlib
 import inspect
 import sys
 import types
 import typing
+from pathlib import Path
 from typing import get_type_hints
 
 import pytest
@@ -23,11 +25,15 @@ from expressions.argument_types._coverage_guard_helpers import (
     canonicalize_tested_param,
     collect_tested_params,
     protocol_params_by_category,
+    registry_protocol_ref,
 )
 from expressions.argument_types._introspection import (
     introspect_protocols,
     _iter_protocol_classes,
     _CATEGORY_MAP,
+)
+from mountainash.expressions.core.expression_system.function_mapping.registry import (
+    ExpressionFunctionRegistry,
 )
 
 _CATEGORY_MODULES = [
@@ -50,6 +56,42 @@ _CATEGORY_MODULES = [
 
 def _collect_tested_param_refs() -> set[TestedParamRef]:
     return collect_tested_params(_CATEGORY_MODULES)
+
+
+def _api_builder_method_names() -> set[str]:
+    """Every method name defined anywhere in the fluent API-builder source tree.
+    Oracle for the 'operation not implemented in API builder' park reason: an op
+    whose name appears here IS exposed to users and the reason has gone stale."""
+    import mountainash.expressions.core.expression_api.api_builders as _ab_pkg
+
+    root = Path(_ab_pkg.__file__).resolve().parent
+    names: set[str] = set()
+    for py in root.rglob("*.py"):
+        tree = ast.parse(py.read_text(), filename=str(py))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                names.add(node.name)
+    return names
+
+
+def _is_dst_returns_constant_false() -> bool:
+    """is_dst is documented as a placeholder returning constant False on all
+    backends. Build a column spanning a DST boundary and confirm every result is
+    False on Polars (the reference backend). Returns False once the op is made
+    real (a DST-observing timestamp yields True)."""
+    from datetime import datetime
+
+    import polars as pl
+
+    import mountainash as ma
+
+    df = pl.DataFrame({"ts": [datetime(2024, 1, 15, 12), datetime(2024, 7, 15, 12)]})
+    out = (
+        ma.relation(df)
+        .with_columns(ma.col("ts").dt.is_dst("America/New_York").name.alias("d"))
+        .to_polars()
+    )
+    return all(v is False for v in out["d"].to_list())
 
 
 def _collect_tested_params() -> set[tuple[str, str]]:
@@ -991,7 +1033,6 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
             ("MountainAshScalarStringExpressionSystemProtocol", "extract_groups"),
             ("MountainAshScalarStringExpressionSystemProtocol", "json_decode"),
             ("MountainAshScalarStringExpressionSystemProtocol", "json_path_match"),
-            ("MountainAshScalarStringExpressionSystemProtocol", "strip_suffix"),
             ("MountainAshScalarStringExpressionSystemProtocol", "to_integer"),
             ("MountainAshScalarStringExpressionSystemProtocol", "to_time"),
             ("MountainAshScalarStructExpressionSystemProtocol", "struct_field"),
@@ -1008,7 +1049,6 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
             ("MountainashWindowExpressionSystemProtocol", "forward_fill"),
             ("SubstraitAggregateArithmeticExpressionSystemProtocol", "sum0"),
             ("SubstraitScalarArithmeticExpressionSystemProtocol", "factorial"),
-            ("SubstraitScalarArithmeticExpressionSystemProtocol", "modulus"),
             ("SubstraitScalarBooleanExpressionSystemProtocol", "and_"),
             ("SubstraitScalarBooleanExpressionSystemProtocol", "not_"),
             ("SubstraitScalarBooleanExpressionSystemProtocol", "or_"),
@@ -1533,6 +1573,10 @@ def test_tested_params_have_registry_wiring_or_named_gap():
         if key not in tested_operation_keys
         and key not in _KNOWN_SPECIAL_NODE_UNWIRED_OPS
     }
+    wired_operation_keys = {ref.operation_key for ref in tested if ref.registry_wired}
+    reason_false_wired = {
+        key for key in _KNOWN_UNWIRED_TESTED_OPS if key in wired_operation_keys
+    }
     stale_special_nodes = {
         key for key in _KNOWN_SPECIAL_NODE_UNWIRED_OPS
         if not any((p.protocol_name, p.op_name) == key for p in introspect_protocols())
@@ -1545,6 +1589,11 @@ def test_tested_params_have_registry_wiring_or_named_gap():
     assert not stale_known, (
         "Entries in _KNOWN_UNWIRED_TESTED_OPS no longer referenced by TESTED_PARAMS "
         f"(remove them): {sorted(stale_known)}"
+    )
+    assert not reason_false_wired, (
+        "Entries in _KNOWN_UNWIRED_TESTED_OPS whose operation IS registry-wired "
+        "(reason 'registry protocol_method wiring is not in place yet' is no longer "
+        f"true — remove them): {sorted(reason_false_wired)}"
     )
     assert not stale_unresolved_known, (
         "Entries in _KNOWN_UNRESOLVED_TESTED_PARAMS no longer referenced by TESTED_PARAMS "
@@ -1682,4 +1731,63 @@ def test_option_params_not_widened_by_backends():
     assert not mismatches, (
         "Option-typed protocol params widened by backends (should be arguments):\n"
         + "\n".join(f"  - {m}" for m in mismatches)
+    )
+
+
+def test_untested_option_param_custom_reasons_still_hold():
+    """Per-reason-class machine-verification for the CUSTOM-reason rows of
+    ``_KNOWN_UNTESTED_OPTION_PARAMS``.
+
+    ``test_every_option_param_is_tested_or_registered``'s ``overlap`` check only
+    catches a DEFAULT-reason row becoming tested. A custom reason can go stale
+    without the option ever being tested — the op gets exposed in the API builder,
+    an FKEY is registered, the option starts reaching the backend, or the
+    placeholder stub is made real — and no existing check notices. These per-class
+    assertions close that gap; the trailing ``unclassified`` guard is
+    closed-by-default so a NEW custom reason class cannot escape verification.
+    """
+    ExpressionFunctionRegistry._init_registry()
+
+    registry_ops: set[tuple[str, str]] = set()
+    options_by_op: dict[tuple[str, str], tuple[str, ...]] = {}
+    for fk in ExpressionFunctionRegistry._functions:
+        ref = registry_protocol_ref(fk)
+        if ref is None:
+            continue
+        key = (ref.protocol_name, ref.op_name)
+        registry_ops.add(key)
+        options_by_op[key] = options_by_op.get(key, ()) + ExpressionFunctionRegistry.get(fk).options
+    api_builder_methods = _api_builder_method_names()
+
+    _DEFAULT_REASON = "Option behavior coverage is not implemented yet"
+    reason_false: list[tuple[tuple[str, str, str], str]] = []
+    unclassified: list[tuple[tuple[str, str, str], str]] = []
+    for (proto, op, param), gap in _KNOWN_UNTESTED_OPTION_PARAMS.items():
+        r = gap.reason
+        if _DEFAULT_REASON in r:
+            continue  # default-reason rows are covered by the `overlap` check
+        if "not implemented in API builder" in r:
+            if op in api_builder_methods:
+                reason_false.append(((proto, op, param), "op IS exposed by the API builder"))
+        elif "operation not implemented (no FKEY)" in r:
+            if (proto, op) in registry_ops:
+                reason_false.append(((proto, op, param), "op HAS a registered FKEY"))
+        elif "declares only options=('format',)" in r:
+            if param in options_by_op.get((proto, op), ()):
+                reason_false.append(((proto, op, param), f"{param!r} now reaches the backend (in FKEY options)"))
+        elif "placeholder stub" in r:
+            if not _is_dst_returns_constant_false():
+                reason_false.append(((proto, op, param), "is_dst no longer returns constant False"))
+        else:
+            unclassified.append(((proto, op, param), r))
+
+    assert not unclassified, (
+        "Custom-reason _KNOWN_UNTESTED_OPTION_PARAMS entries with no machine-check "
+        "(add a per-reason-class assertion — closed-by-default): "
+        f"{unclassified}"
+    )
+    assert not reason_false, (
+        "Custom-reason _KNOWN_UNTESTED_OPTION_PARAMS entries whose stated reason is "
+        "no longer true (add a behavior test and drain the row, or fix the reason): "
+        f"{reason_false}"
     )

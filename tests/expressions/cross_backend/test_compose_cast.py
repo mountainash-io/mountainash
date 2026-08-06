@@ -35,10 +35,20 @@ class TestComposeCast:
         # "15" has 5, "25" has 5, "30" no, "50" has 5, "55" has 5
         assert count == 4, f"[{backend_name}] Expected 4, got {count}"
 
+    def test_fill_null_cast_multiply(self, backend_name, backend_factory, collect_expr):
+        """Chain: fill_null -> cast -> multiply."""
+        data = {"price": [10, None, 30], "rate": [1.1, 1.2, 1.3]}
+        df = backend_factory.create(data, backend_name)
+
+        expr = ma.col("price").fill_null(0).cast(float).multiply(ma.col("rate"))
+        actual = collect_expr(df, expr)
+
+        assert math.isclose(actual[0], 11.0, rel_tol=1e-9), f"[{backend_name}] Row 0: {actual[0]}"
+        assert math.isclose(actual[1], 0.0, abs_tol=1e-9), f"[{backend_name}] Row 1: {actual[1]}"
+        assert math.isclose(actual[2], 39.0, rel_tol=1e-9), f"[{backend_name}] Row 2: {actual[2]}"
+
     def test_cast_then_compare(self, backend_name, backend_factory, get_result_count):
         """Cast float to int then compare: .cast(int).gt(70)."""
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB uses banker's rounding for float-to-int cast, not truncation.")
         data = {"score": [70.5, 69.9, 71.0, 50.3]}
         df = backend_factory.create(data, backend_name)
 
@@ -51,15 +61,3 @@ class TestComposeCast:
         # 71.0 -> 71, > 70 yes
         # 50.3 -> 50, no
         assert count == 1, f"[{backend_name}] Expected 1 (71), got {count}"
-
-    def test_fill_null_cast_multiply(self, backend_name, backend_factory, collect_expr):
-        """Chain: fill_null -> cast -> multiply."""
-        data = {"price": [10, None, 30], "rate": [1.1, 1.2, 1.3]}
-        df = backend_factory.create(data, backend_name)
-
-        expr = ma.col("price").fill_null(0).cast(float).multiply(ma.col("rate"))
-        actual = collect_expr(df, expr)
-
-        assert math.isclose(actual[0], 11.0, rel_tol=1e-9), f"[{backend_name}] Row 0: {actual[0]}"
-        assert math.isclose(actual[1], 0.0, abs_tol=1e-9), f"[{backend_name}] Row 1: {actual[1]}"
-        assert math.isclose(actual[2], 39.0, rel_tol=1e-9), f"[{backend_name}] Row 2: {actual[2]}"

@@ -16,6 +16,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 
 import pytest
 import mountainash.expressions as ma
+from fixtures.capability_gating import xfail_divergence
 
 
 # =============================================================================
@@ -326,31 +327,6 @@ class TestConditionalsWithStringOperations:
 class TestConditionalEdgeCases:
     """Test edge cases for conditional operations."""
 
-    def test_all_nulls_coalesce(self, backend_name, backend_factory, collect_expr):
-        """Test coalesce when all values are null."""
-        # DuckDB doesn't support creating tables with all NULL columns
-        if backend_name == "ibis-duckdb":
-            pytest.xfail(
-                "DuckDB does not support creating tables with all NULL columns. "
-                "This is a genuine backend limitation, not a bug."
-            )
-
-        data = {
-            "a": [None, None, None],
-            "b": [None, None, None],
-            "c": [None, None, None]
-        }
-        df = backend_factory.create(data, backend_name)
-
-        # Coalesce with all nulls should return null
-        expr = ma.coalesce(ma.col("a"), ma.col("b"), ma.col("c"))
-        actual = collect_expr(df, expr)
-
-        expected = [None, None, None]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
-
     def test_when_all_false(self, backend_name, backend_factory, collect_expr):
         """Test when condition that's always false."""
         data = {
@@ -379,6 +355,38 @@ class TestConditionalEdgeCases:
         actual = collect_expr(df, expr)
 
         expected = ["positive", "positive", "positive", "positive", "positive"]
+        assert actual == expected, (
+            f"[{backend_name}] Expected {expected}, got {actual}"
+        )
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    "pandas",
+    "narwhals",
+    "ibis-polars",
+    pytest.param("ibis-duckdb", marks=xfail_divergence("IB-REL-06", backend="ibis-duckdb")),
+    "ibis-sqlite",
+])
+class TestAllNullsCoalesce:
+    """All-NULL coalesce. ibis-duckdb routes through IB-REL-06 (DuckDB refuses
+    untyped all-NULL table creation)."""
+
+    def test_all_nulls_coalesce(self, backend_name, backend_factory, collect_expr):
+        """Test coalesce when all values are null."""
+        data = {
+            "a": [None, None, None],
+            "b": [None, None, None],
+            "c": [None, None, None]
+        }
+        df = backend_factory.create(data, backend_name)
+
+        # Coalesce with all nulls should return null
+        expr = ma.coalesce(ma.col("a"), ma.col("b"), ma.col("c"))
+        actual = collect_expr(df, expr)
+
+        expected = [None, None, None]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )

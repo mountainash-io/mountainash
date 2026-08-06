@@ -143,9 +143,6 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS", "ibis-duckdb"): "NotImplementedError: Ibis IntervalValue has no total_seconds() method. Use dt.diff_seconds() for integer-based extrac... Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS", "ibis-polars"): "NotImplementedError: Ibis IntervalValue has no total_seconds() method. Use dt.diff_seconds() for integer-based extrac... Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS", "ibis-sqlite"): "NotImplementedError: Ibis IntervalValue has no total_seconds() method. Use dt.diff_seconds() for integer-based extrac... Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE", "narwhals-pandas"): "NotImplementedError: mode() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE", "narwhals-polars"): "NotImplementedError: mode() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE", "pandas"): "NotImplementedError: mode() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS", "narwhals-pandas"): "NotImplementedError: acos() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS", "narwhals-polars"): "NotImplementedError: acos() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS", "pandas"): "NotImplementedError: acos() is not supported by the Narwhals backend. Since 2026-05-18.",
@@ -188,15 +185,9 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES", "narwhals-pandas"): "NotImplementedError: degrees() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES", "narwhals-polars"): "NotImplementedError: degrees() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES", "pandas"): "NotImplementedError: degrees() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP", "narwhals-pandas"): "NotImplementedError: exp() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP", "narwhals-polars"): "NotImplementedError: exp() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP", "pandas"): "NotImplementedError: exp() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS", "narwhals-pandas"): "NotImplementedError: radians() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS", "narwhals-polars"): "NotImplementedError: radians() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS", "pandas"): "NotImplementedError: radians() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN", "narwhals-pandas"): "NotImplementedError: sign() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN", "narwhals-polars"): "NotImplementedError: sign() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN", "pandas"): "NotImplementedError: sign() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN", "narwhals-pandas"): "NotImplementedError: sin() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN", "narwhals-polars"): "NotImplementedError: sin() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN", "pandas"): "NotImplementedError: sin() is not supported by the Narwhals backend. Since 2026-05-18.",
@@ -206,9 +197,6 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "narwhals-pandas"): "NotImplementedError: sinh() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "narwhals-polars"): "NotImplementedError: sinh() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "pandas"): "NotImplementedError: sinh() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT", "narwhals-pandas"): "NotImplementedError: sqrt() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT", "narwhals-polars"): "NotImplementedError: sqrt() is not supported by the Narwhals backend. Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT", "pandas"): "NotImplementedError: sqrt() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN", "narwhals-pandas"): "NotImplementedError: tan() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN", "narwhals-polars"): "NotImplementedError: tan() is not supported by the Narwhals backend. Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN", "pandas"): "NotImplementedError: tan() is not supported by the Narwhals backend. Since 2026-05-18.",
@@ -298,9 +286,6 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN", "narwhals-polars"): "API: TypeError: MountainAshScalarListAPIBuilder.median() takes 1 positional argument but 2 were given Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN", "pandas"): "API: TypeError: MountainAshScalarListAPIBuilder.median() takes 1 positional argument but 2 were given Since 2026-05-18.",
     ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN", "polars"): "API: TypeError: MountainAshScalarListAPIBuilder.median() takes 1 positional argument but 2 were given Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.CENTER", "polars"): "TypeError: int() argument must be a string, a bytes-like object or a real number, not 'Expr' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT", "polars"): "TypeError: int() argument must be a string, a bytes-like object or a real number, not 'Expr' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE", "polars"): "TypeError: int() argument must be a string, a bytes-like object or a real number, not 'Expr' Since 2026-05-18.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTILE", "ibis-duckdb"): "API: TypeError: SubstraitWindowArithmeticAPIBuilder.ntile() missing 1 required positional argument: 'n' Since 2026-05-18.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTILE", "ibis-polars"): "API: TypeError: SubstraitWindowArithmeticAPIBuilder.ntile() missing 1 required positional argument: 'n' Since 2026-05-18.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTILE", "ibis-sqlite"): "API: TypeError: SubstraitWindowArithmeticAPIBuilder.ntile() missing 1 required positional argument: 'n' Since 2026-05-18.",
@@ -309,35 +294,13 @@ _KNOWN_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTILE", "pandas"): "API: TypeError: SubstraitWindowArithmeticAPIBuilder.ntile() missing 1 required positional argument: 'n' Since 2026-05-18.",
     ("SUBSTRAIT_ARITHMETIC_WINDOW.NTILE", "polars"): "API: TypeError: SubstraitWindowArithmeticAPIBuilder.ntile() missing 1 required positional argument: 'n' Since 2026-05-18.",
     # ── AttributeError (missing method) (12 entries) ──
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK", "narwhals-pandas"): "AttributeError: 'ExprDateTimeNamespace' object has no attribute 'week' Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK", "narwhals-polars"): "AttributeError: 'ExprDateTimeNamespace' object has no attribute 'week' Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK", "pandas"): "AttributeError: 'ExprDateTimeNamespace' object has no attribute 'week' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.VARIANCE", "narwhals-pandas"): "AttributeError: 'Expr' object has no attribute 'pow' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.VARIANCE", "narwhals-polars"): "AttributeError: 'Expr' object has no attribute 'pow' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_AGGREGATE.VARIANCE", "pandas"): "AttributeError: 'Expr' object has no attribute 'pow' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FINITE", "narwhals-pandas"): "AttributeError: 'Expr' object has no attribute 'is_infinite' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FINITE", "narwhals-polars"): "AttributeError: 'Expr' object has no attribute 'is_infinite' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FINITE", "pandas"): "AttributeError: 'Expr' object has no attribute 'is_infinite' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_INFINITE", "narwhals-pandas"): "AttributeError: 'Expr' object has no attribute 'is_infinite' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_INFINITE", "narwhals-polars"): "AttributeError: 'Expr' object has no attribute 'is_infinite' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_INFINITE", "pandas"): "AttributeError: 'Expr' object has no attribute 'is_infinite' Since 2026-05-18.",
     # ── ValueError (4 entries) ──
     ("FKEY_MOUNTAINASH_SCALAR_STRING.DECODE", "polars"): "ValueError: `encoding` must be one of {'hex', 'base64'}, got 'x' Since 2026-05-18.",
     ("FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE", "polars"): "ValueError: `encoding` must be one of {'hex', 'base64'}, got 'x' Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.LPAD", "polars"): "ValueError: expected a string of length 1 Since 2026-05-18.",
-    ("FKEY_SUBSTRAIT_SCALAR_STRING.RPAD", "polars"): "ValueError: expected a string of length 1 Since 2026-05-18.",
-    # ── Other (2 entries) ──
-    ("FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE", "polars"): "ComputeError: unable to parse time zone: 'x'. Please check the Time Zone Database for a list of available time zones. Since 2026-05-18.",
+    # ── Other (1 entry) ──
     ("FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT", "polars"): "InvalidOperationError: `Expr.list.to_struct` requires either `fields` to be a sequence or `upper_bound` to be set. Since 2026-05-18.",
 
     # ── Pydantic ValidationError (7 entries) ──
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "polars"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "pandas"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "narwhals-polars"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "narwhals-pandas"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "ibis-polars"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "ibis-duckdb"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST", "ibis-sqlite"): "API builder passes options=None to ScalarFunctionNode (Pydantic rejects). Since 2026-05-18.",
 
     # ── Newly surfaced after the free-function dispatch fallback was added
     # to the smoke runner (2026-05-20). These were previously hidden behind
@@ -712,7 +675,31 @@ class TestCompileSmoke:
     ) -> None:
         key = (fkey_str, backend_name)
         if key in _KNOWN_SMOKE_FAILURES:
-            pytest.xfail(_KNOWN_SMOKE_FAILURES[key])
+            # Machine-verify the parked reason instead of an unconditional early
+            # xfail: run the real compile path and require it to still fail with a
+            # NON-capability native error. A now-succeeding compile (op wired) or a
+            # BackendCapabilityError (capability gap) reddens so the stale/misfiled
+            # entry is surfaced rather than silently absorbed.
+            expected_reason = _KNOWN_SMOKE_FAILURES[key]
+            frame = backend_factory.create(_SMOKE_DATA, backend_name)
+            try:
+                _prepare_smoke_case(fkey_str, frame).compile()
+            except BackendCapabilityError:
+                pytest.fail(
+                    f"{fkey_str} on {backend_name}: _KNOWN_SMOKE_FAILURES entry raised "
+                    "BackendCapabilityError — capability gaps belong in the spine, not "
+                    "this non-capability park"
+                )
+            except Exception:
+                # Any non-capability failure (native compile error OR a
+                # _SmokeNotApplicable construction-time signal) means the parked
+                # reason still holds — xfail. Only a clean compile below is stale.
+                pytest.xfail(expected_reason)
+            else:
+                pytest.fail(
+                    f"{fkey_str} on {backend_name}: _KNOWN_SMOKE_FAILURES says "
+                    f"{expected_reason!r} but compile() succeeded — remove the stale entry"
+                )
 
         frame = backend_factory.create(_SMOKE_DATA, backend_name)
         try:

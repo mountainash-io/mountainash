@@ -9,6 +9,7 @@ import pytest
 import mountainash.expressions as ma
 from mountainash.core.dtypes import MountainashDtype
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
 INT_CASTABLE_TYPES = [
@@ -217,15 +218,6 @@ class TestInvalidTypeStrings:
 class TestPythonBuiltinTypes:
     """Python built-in types (int, float, str, bool) work in cast()."""
 
-    def test_cast_with_python_int(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB uses banker's rounding for float-to-int cast.")
-        data = {"value": [1.5, 2.5, 3.5]}
-        df = backend_factory.create(data, backend_name)
-        expr = ma.col("value").cast(int)
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3]
-
     def test_cast_with_python_float(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
@@ -253,15 +245,6 @@ class TestPythonBuiltinTypes:
 class TestMountainashDtypeEnum:
     """MountainashDtype enum members work directly in cast()."""
 
-    def test_cast_with_enum_i64(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB uses banker's rounding for float-to-int cast.")
-        data = {"value": [1.0, 2.0, 3.0]}
-        df = backend_factory.create(data, backend_name)
-        expr = ma.col("value").cast(MountainashDtype.I64)
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3]
-
     def test_cast_with_enum_string(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
@@ -282,3 +265,32 @@ class TestMountainashDtypeEnum:
         expr = ma.col("value").cast(MountainashDtype.BOOL)
         values = collect_expr(df, expr)
         assert values == [False, True, False]
+
+    def test_cast_with_enum_i64(self, backend_name, backend_factory, collect_expr):
+        data = {"value": [1.0, 2.0, 3.0]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast(MountainashDtype.I64)
+        values = collect_expr(df, expr)
+        assert values == [1, 2, 3]
+
+
+_BANKERS_ROUNDING_TYPE_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-CAST-01", backend=b))
+    if b == "ibis-duckdb"
+    else b
+    for b in ALL_BACKENDS
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _BANKERS_ROUNDING_TYPE_BACKENDS)
+class TestCastToIntBankersRounding:
+    """Float-to-int cast via a Python ``int`` target. ibis-duckdb routes through
+    IB-CAST-01 (DuckDB banker's rounding on fractional inputs, not truncation)."""
+
+    def test_cast_with_python_int(self, backend_name, backend_factory, collect_expr):
+        data = {"value": [1.5, 2.5, 3.5]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast(int)
+        values = collect_expr(df, expr)
+        assert values == [1, 2, 3]
