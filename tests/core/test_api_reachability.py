@@ -39,12 +39,10 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
     )
 
     c = ma.col("a")
-    s = ma.col("c")
-    b = ma.col("e")
     return {
-        # Shared FKEY->public-call base (the 19 byte-identical entries shared
-        # with `_smoke_helpers._init_smoke_expr_builders`). The shared lambdas
-        # close over c/s/b from this frame.
+        # Shared FKEY->public-call base; those lambdas close over their own
+        # c/s/b defined inside `_init_shared_fkey_builders`. The local `c`
+        # below feeds only the unique-to-A overrides.
         **_init_shared_fkey_builders(),
         # Options with no auto-constructible default (unique to A).
         MD.OFFSET_BY: lambda: c.dt.offset_by("1d"),

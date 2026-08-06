@@ -448,7 +448,7 @@ _none_
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| tests/core/test_api_reachability.py:147 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
+| tests/core/test_api_reachability.py:122 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
 | tests/core/test_rel_signature_conformance.py:126 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:236 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:321 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |

@@ -230,7 +230,6 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
     )
 
     c = ma.col("a")
-    s = ma.col("c")
     b = ma.col("e")
 
     return {
