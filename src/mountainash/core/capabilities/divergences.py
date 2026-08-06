@@ -636,6 +636,94 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-06",
         ),
+        DivergenceFact(
+            id="NW-REL-01",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op with_row_index; RKEY not imported here
+            backends=("narwhals-lazy",),
+            summary="narwhals-lazy with_row_index() requires an explicit order_by= (row order over a LazyFrame is undefined); calling it without one raises TypeError",
+            impact="Relation.with_row_index() raises on narwhals-lazy; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
+            workaround="Use an eager backend, or pass an explicit order before the lazy row index",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="NW-REL-02",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op unnest
+            backends=("narwhals",),
+            summary="Narwhals does not support unnest of a struct column",
+            impact="Relation.unnest() raises on narwhals backends; polars and ibis compute it",
+            workaround="Use a polars or ibis backend for unnest",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="NW-REL-03",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op sample
+            backends=("narwhals-lazy",),
+            summary="narwhals-lazy has no sample() on a LazyFrame (AttributeError)",
+            impact="Relation.sample() raises on narwhals-lazy; eager backends sample rows",
+            workaround="Use an eager backend for sample()",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="IB-REL-07",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation ops drop_nans / unpivot / melt
+            backends=("ibis-sqlite",),
+            summary="ibis-sqlite lacks array/pivot relational translations: drop_nans, unpivot/melt raise OperationNotDefinedError",
+            impact="Relation.drop_nans()/unpivot()/melt() raise on ibis-sqlite; other backends compute them",
+            workaround="Use ibis-duckdb or a polars/narwhals backend for these relational ops",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="MA-REL-01",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op pivot (long -> wide)
+            backends=("ibis", "narwhals-lazy"),
+            summary="pivot (long-to-wide) is unsupported on ibis (TypeError) and narwhals-lazy (AttributeError)",
+            impact="Relation.pivot() raises on all ibis backends and narwhals-lazy; polars and eager narwhals compute it",
+            workaround="Use a polars or eager narwhals backend for pivot",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="IB-REL-08",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(),  # relation op join_asof
+            backends=("ibis-duckdb", "ibis-sqlite"),
+            summary="asof join is unreliable on ibis SQL backends: ibis-duckdb returns a wrong (diverging) result and ibis-sqlite raises UnsupportedOperationError",
+            impact="Relation.join_asof() diverges on ibis-duckdb and raises on ibis-sqlite; polars/narwhals compute it correctly",
+            workaround="Use a polars or narwhals backend for asof joins",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="IB-REL-09",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op cross_join
+            backends=("ibis-duckdb", "ibis-sqlite"),
+            summary="cross_join with suffix disambiguation fails on ibis SQL backends (ibis-duckdb BinderException, ibis-sqlite OperationalError) — suffixes kwarg incompatibility",
+            impact="Relation.cross_join() raises on ibis-duckdb/ibis-sqlite; polars/narwhals and ibis-polars compute it",
+            workaround="Use a polars/narwhals backend or ibis-polars for cross joins",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="MA-REL-02",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(),  # horizontal greatest/least
+            backends=("pandas", "narwhals-pandas"),
+            summary="horizontal greatest()/least() produce diverging values on pandas and narwhals-pandas (pandas element-wise max/min semantics differ from polars/ibis)",
+            impact="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
+            workaround="Use a polars or ibis backend for horizontal greatest/least",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
     )
 
 

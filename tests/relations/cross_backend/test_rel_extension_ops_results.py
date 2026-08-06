@@ -9,7 +9,15 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
+from fixtures.capability_gating import (
+    assert_capability_gated,
+    gate_dialect,
+    gate_family,
+    xfail_divergence,
+)
 
 from fixtures.backend_registry import ALL_BACKENDS
 
@@ -26,6 +34,12 @@ from fixtures.backend_registry import ALL_BACKENDS
 LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
 STRUCT_BACKENDS = ["polars", "narwhals-polars", "ibis-polars", "ibis-duckdb"]
+
+_IBSQL = [pytest.param(b, marks=xfail_divergence("IB-REL-07", backend=b)) for b in ALL_BACKENDS]
+_WRI = [pytest.param(b, marks=xfail_divergence("NW-REL-01", backend=b)) for b in ALL_BACKENDS]
+_UNNEST = [pytest.param(b, marks=xfail_divergence("NW-REL-02", backend=b)) for b in STRUCT_BACKENDS]
+_PIVOT = [pytest.param(b, marks=xfail_divergence("MA-REL-01", backend=b)) for b in ALL_BACKENDS]
+_SAMPLE = [pytest.param(b, marks=xfail_divergence("NW-REL-03", backend=b)) for b in ALL_BACKENDS]
 
 
 def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
@@ -68,20 +82,14 @@ class TestDropNulls:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _IBSQL)
 class TestDropNans:
     def test_drop_nans_basic(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"a": [1.0, float("nan"), 3.0], "b": [10.0, 20.0, 30.0]},
             backend_name,
         )
-        # drop_nans may not be supported on all backends — xfail if needed
-        try:
-            result = ma.relation(df).drop_nans().to_dicts()
-        except (NotImplementedError, Exception) as e:
-            if "nan" in str(e).lower() or "not supported" in str(e).lower() or "not implemented" in str(e).lower():
-                pytest.xfail(f"drop_nans not supported on {backend_name}: {e}")
-            raise
+        result = ma.relation(df).drop_nans().to_dicts()
         assert len(result) == 2
         assert result[0]["a"] == 1.0
         assert result[1]["a"] == 3.0
@@ -93,23 +101,20 @@ class TestDropNans:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _WRI)
 class TestWithRowIndex:
     def test_with_row_index_default_name(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"a": [10, 20, 30]}, backend_name
         )
-        if backend_name == "narwhals-lazy":
-            pytest.xfail(
-                "narwhals-lazy: LazyFrame.with_row_index() requires order_by; a "
-                "row index over an unordered lazy frame is ill-defined"
-            )
-        relation = ma.relation(df).with_row_index()
+        result = assert_capability_gated(
+            RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
+            gate_family(backend_name),
+            dialect=gate_dialect(backend_name),
+            build=lambda: ma.relation(df).with_row_index().to_dicts(),
+        )
         if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError, match="with_row_index"):
-                relation.to_dicts()
             return
-        result = relation.to_dicts()
         assert result == [
             {"index": 0, "a": 10},
             {"index": 1, "a": 20},
@@ -120,17 +125,14 @@ class TestWithRowIndex:
         df = backend_factory.create(
             {"a": [10, 20, 30]}, backend_name
         )
-        if backend_name == "narwhals-lazy":
-            pytest.xfail(
-                "narwhals-lazy: LazyFrame.with_row_index() requires order_by; a "
-                "row index over an unordered lazy frame is ill-defined"
-            )
-        relation = ma.relation(df).with_row_index(name="row_num")
+        result = assert_capability_gated(
+            RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
+            gate_family(backend_name),
+            dialect=gate_dialect(backend_name),
+            build=lambda: ma.relation(df).with_row_index(name="row_num").to_dicts(),
+        )
         if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError, match="with_row_index"):
-                relation.to_dicts()
             return
-        result = relation.to_dicts()
         assert result == [
             {"row_num": 0, "a": 10},
             {"row_num": 1, "a": 20},
@@ -185,7 +187,7 @@ class TestExplode:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", STRUCT_BACKENDS)
+@pytest.mark.parametrize("backend_name", _UNNEST)
 class TestUnnest:
     def test_unnest_struct_column(self, backend_name, backend_factory):
         """Unnest a struct column into separate columns.
@@ -195,8 +197,6 @@ class TestUnnest:
         """
         import polars as pl
 
-        if backend_name in ("narwhals-polars", "narwhals-pandas"):
-            pytest.xfail("Narwhals does not support unnest")
 
         if backend_name == "polars":
             df = pl.DataFrame({
@@ -242,11 +242,9 @@ class TestUnnest:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _IBSQL)
 class TestUnpivot:
     def test_unpivot_wide_to_long(self, backend_name, backend_factory):
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite does not support pivot_longer (Array operation)")
         df = backend_factory.create(
             {"id": [1, 2], "x": [10, 20], "y": [30, 40]},
             backend_name,
@@ -269,7 +267,7 @@ class TestUnpivot:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _PIVOT)
 class TestPivot:
     def test_pivot_long_to_wide(self, backend_name, backend_factory):
         df = backend_factory.create(
@@ -280,14 +278,9 @@ class TestPivot:
             },
             backend_name,
         )
-        try:
-            result = ma.relation(df).pivot(
-                on="category", index="id", values="value"
-            ).to_dicts()
-        except (NotImplementedError, Exception) as e:
-            if "not supported" in str(e).lower() or "not implemented" in str(e).lower() or "pivot" in str(e).lower():
-                pytest.xfail(f"pivot not supported on {backend_name}: {e}")
-            raise
+        result = ma.relation(df).pivot(
+            on="category", index="id", values="value"
+        ).to_dicts()
         result_sorted = sorted_dicts(result, "id")
         # Sort column keys too for deterministic comparison
         for row in result_sorted:
@@ -326,18 +319,13 @@ class TestTopK:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _SAMPLE)
 class TestSample:
     def test_sample_n(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"a": list(range(20))}, backend_name
         )
-        try:
-            result = ma.relation(df).sample(n=5).to_dicts()
-        except (NotImplementedError, Exception) as e:
-            if "not supported" in str(e).lower() or "not implemented" in str(e).lower() or "sample" in str(e).lower():
-                pytest.xfail(f"sample not supported on {backend_name}: {e}")
-            raise
+        result = ma.relation(df).sample(n=5).to_dicts()
         if backend_name.startswith("ibis-"):
             # Ibis converts n to fraction (n/total) which is non-deterministic
             assert 1 <= len(result) <= 20

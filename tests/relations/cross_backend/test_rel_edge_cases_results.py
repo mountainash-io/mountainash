@@ -35,6 +35,11 @@ def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
 # Empty DataFrame through operations
 # ---------------------------------------------------------------------------
 
+from fixtures.capability_gating import xfail_divergence
+
+_NULLCOL = [
+    pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b)) for b in ALL_BACKENDS
+]
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -85,15 +90,9 @@ class TestEmptyDataFrame:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _NULLCOL)
 class TestAllNullColumns:
     def test_null_column_through_filter(self, backend_name, backend_factory):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail(
-                "DuckDB rejects tables with NULL-typed columns at creation time; "
-                "a typed null column (e.g. Int64) would work, but pure Python "
-                "[None, None, None] infers NULL type. Known DuckDB limitation."
-            )
         df = backend_factory.create(
             {"a": [1, 2, 3], "b": [None, None, None]}, backend_name
         )
@@ -104,12 +103,6 @@ class TestAllNullColumns:
         ]
 
     def test_null_column_through_sort(self, backend_name, backend_factory):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail(
-                "DuckDB rejects tables with NULL-typed columns at creation time; "
-                "a typed null column (e.g. Int64) would work, but pure Python "
-                "[None, None, None] infers NULL type. Known DuckDB limitation."
-            )
         df = backend_factory.create(
             {"a": [3, 1, 2], "b": [None, None, None]}, backend_name
         )
