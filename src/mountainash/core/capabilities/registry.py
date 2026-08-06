@@ -19,7 +19,6 @@ from mountainash.core.capabilities.schema import (
     CapabilityLevel,
     Enforcement,
     TargetKind,
-    ValueClass,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -28,7 +27,7 @@ from mountainash.core.constants import CONST_BACKEND
 # serialization workstream's register_target (spec 2026-07-06); register_backend
 # rejects them via the family-identity check in _validate_fact.
 _Key = Tuple[Any, str, "CONST_BACKEND | str", Optional[str], Optional[str]]
-_ValueClassKey = Tuple[Any, str, "CONST_BACKEND | str", Optional[str], ValueClass]
+_ValueClassBucketKey = Tuple[Any, str, "CONST_BACKEND | str", Optional[str]]
 
 
 @dataclass(frozen=True)
@@ -65,6 +64,17 @@ def _definition_for(operation_key: Any):
             f"CapabilityFact operation_key {operation_key!r} resolves in neither "
             "the expression nor the relation registry"
         )
+
+
+def _enum_key(fact: CapabilityFact):
+    return (
+        str(getattr(fact.operation_key, "name", fact.operation_key)),
+        fact.param,
+        str(fact.backend.value if hasattr(fact.backend, "value") else fact.backend),
+        fact.dialect or "",
+        fact.option_value or "",
+        fact.value_class.value if fact.value_class is not None else "",
+    )
 
 
 def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
@@ -184,7 +194,7 @@ class CapabilityRegistry:
 
     _facts: Dict[_Key, CapabilityFact] = {}
     _kinds: Dict[str, TargetKind] = {}  # family name -> kind (spec 2026-07-06)
-    _value_class_facts: Dict[_ValueClassKey, CapabilityFact] = {}
+    _value_class_facts: Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]] = {}
 
     @classmethod
     def _register_identity(cls, name: str, kind: TargetKind) -> None:
@@ -215,16 +225,18 @@ class CapabilityRegistry:
         for fact in facts:
             _validate_fact(family, fact)
             if fact.value_class is not None:
-                vkey: _ValueClassKey = (
+                bkey: _ValueClassBucketKey = (
                     fact.operation_key,
                     fact.param,
                     fact.backend,
                     fact.dialect,
-                    fact.value_class,
                 )
-                if vkey in cls._value_class_facts:
-                    raise ValueError(f"duplicate value-class CapabilityFact key: {vkey}")
-                cls._value_class_facts[vkey] = fact
+                bucket = cls._value_class_facts.get(bkey, ())
+                if any(f.value_class is fact.value_class for f in bucket):
+                    raise ValueError(
+                        f"duplicate value-class CapabilityFact key: {bkey + (fact.value_class,)}"
+                    )
+                cls._value_class_facts[bkey] = bucket + (fact,)
                 continue
             key: _Key = (
                 fact.operation_key,
@@ -249,18 +261,17 @@ class CapabilityRegistry:
         from mountainash.core.capabilities.value_classes import matches
 
         for scope in (dialect, None):  # dialect slice before family slice
+            bucket = cls._value_class_facts.get(
+                (operation_key, param, backend, scope), ()
+            )
             hits = [
-                fact
-                for (op, p, be, dl, vc), fact in cls._value_class_facts.items()
-                if op == operation_key
-                and p == param
-                and be == backend
-                and dl == scope
-                and matches(vc, value)
+                f
+                for f in bucket
+                if f.value_class is not None and matches(f.value_class, value)
             ]
             if len(hits) > 1:
                 classes = sorted(
-                    {f.value_class.value for f in hits if f.value_class is not None}
+                    f.value_class.value for f in hits if f.value_class is not None
                 )
                 raise ValueError(
                     f"two distinct value classes match {value!r} at "
@@ -314,7 +325,10 @@ class CapabilityRegistry:
         enforcement: Enforcement | None = None,
     ) -> List[CapabilityFact]:
         out = []
-        for fact in (*cls._facts.values(), *cls._value_class_facts.values()):
+        for fact in (
+            *cls._facts.values(),
+            *(f for bucket in cls._value_class_facts.values() for f in bucket),
+        ):
             if level is not None and fact.level is not level:
                 continue
             if backend is not None and fact.backend is not backend:
@@ -326,7 +340,7 @@ class CapabilityRegistry:
             if enforcement is not None and fact.enforcement is not enforcement:
                 continue
             out.append(fact)
-        return out
+        return sorted(out, key=_enum_key)
 
     @classmethod
     def residue_for(
@@ -338,7 +352,16 @@ class CapabilityRegistry:
             backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
         ):
             if fact.dialect is None or fact.dialect == dialect:
-                out[(fact.operation_key, fact.param)] = fact
+                key = (fact.operation_key, fact.param)
+                existing = out.get(key)
+                if existing is not None:
+                    if (existing.dialect is None) == (fact.dialect is None):
+                        raise ValueError(
+                            f"ambiguous MATERIALIZE_RESIDUE facts for {key}"
+                        )
+                    if existing.dialect is not None:
+                        continue
+                out[key] = fact
         return out
 
     @classmethod
@@ -360,12 +383,17 @@ class CapabilityRegistry:
         fact with no registered probe, so a declaration cannot go unexercised.
         """
         return tuple(
-            fact
-            for fact in cls.facts(
-                backend=backend, enforcement=Enforcement.ROUTER_METADATA
+            sorted(
+                (
+                    fact
+                    for fact in cls.facts(
+                        backend=backend, enforcement=Enforcement.ROUTER_METADATA
+                    )
+                    if fact.operation_key == operation_key
+                    and (fact.dialect is None or fact.dialect == dialect)
+                ),
+                key=_enum_key,
             )
-            if fact.operation_key == operation_key
-            and (fact.dialect is None or fact.dialect == dialect)
         )
 
     @classmethod
@@ -396,7 +424,7 @@ class CapabilityRegistry:
     ) -> Tuple[
         Dict[_Key, CapabilityFact],
         Dict[str, TargetKind],
-        Dict[_ValueClassKey, CapabilityFact],
+        Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]],
     ]:
         """Opaque round-trip token for test isolation — captures BOTH _facts
         and _kinds so restore() is symmetric with reset(). Callers must treat
@@ -409,7 +437,7 @@ class CapabilityRegistry:
         snapshot: Tuple[
             Dict[_Key, CapabilityFact],
             Dict[str, TargetKind],
-            Dict[_ValueClassKey, CapabilityFact],
+            Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]],
         ],
     ) -> None:
         facts, kinds, vclass = snapshot
