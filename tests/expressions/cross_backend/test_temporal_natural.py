@@ -24,6 +24,12 @@ from mountainash.expressions.core.utils.temporal import (
     between_last,
 )
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_ALL_XF_SQLITE_DT13 = [
+    pytest.param(b, marks=xfail_divergence("IB-DT-13", backend=b)) if b == "ibis-sqlite" else b
+    for b in ALL_BACKENDS
+]
 
 # =============================================================================
 # Unit Tests - Parsing and Conversion (Backend-Independent)
@@ -77,7 +83,7 @@ class TestTimeExpressionParsing:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _ALL_XF_SQLITE_DT13)
 class TestWithinLastFilter:
     """Test 'within last X time' filtering across all backends."""
 
@@ -89,12 +95,6 @@ class TestWithinLastFilter:
     ):
         """Test filtering for 'last X minutes' like journalctl --since."""
 
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite has no native datetime type. Sub-day datetime comparisons "
-                "via Ibis produce incorrect results because values are compared as "
-                "strings rather than timestamps. All 4 rows pass the gt() filter."
-            )
 
         now = datetime.now()
         data = {
@@ -163,7 +163,7 @@ class TestOlderThanFilter:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _ALL_XF_SQLITE_DT13)
 class TestBetweenLastFilter:
     """Test 'between X and Y ago' filtering across all backends."""
 
@@ -173,12 +173,6 @@ class TestBetweenLastFilter:
         backend_factory,
     ):
 
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite has no native datetime type. Sub-day datetime comparisons "
-                "via Ibis produce incorrect results (string vs timestamp comparison). "
-                "The between range filter returns 0 rows instead of 2."
-            )
 
         """Test filtering for 'between X and Y ago'."""
         now = datetime.now()
@@ -214,7 +208,7 @@ class TestBetweenLastFilter:
 
 @pytest.mark.integration
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _ALL_XF_SQLITE_DT13)
 class TestRealWorldLogFiltering:
     """Test realistic log filtering scenarios."""
 
@@ -223,12 +217,6 @@ class TestRealWorldLogFiltering:
         backend_name,
         backend_factory,
     ):
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite has no native datetime type. Sub-day datetime comparisons "
-                "via Ibis produce incorrect results (string vs timestamp comparison). "
-                "The within_last filter passes too many rows (3 instead of 2)."
-            )
 
 
         """Test filtering errors from last X minutes (like journalctl)."""
@@ -274,12 +262,6 @@ class TestRealWorldLogFiltering:
         backend_name,
         backend_factory,
     ):
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite has no native datetime type. Sub-day datetime comparisons "
-                "via Ibis produce incorrect results (string vs timestamp comparison). "
-                "The older_than filter returns 0 rows instead of 1."
-            )
 
         """Test identifying old logs for cleanup (older than 1 hour)."""
         now = datetime.now()
