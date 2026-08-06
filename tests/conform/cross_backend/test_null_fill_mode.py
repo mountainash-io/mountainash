@@ -26,6 +26,7 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 # Ibis backends: the compiled Ibis schema and SQL are correctly typed
 # (verified: `CAST(NULL AS BIGINT)`, `.schema()` reports `int64`), but
@@ -48,6 +49,28 @@ _PANDAS_NULLABLE_CAST_BACKENDS = {"pandas", "narwhals-pandas"}
 _PANDAS_NULLABLE_CAST_TYPES = {"integer", "boolean"}
 
 
+def _typed_null_cases():
+    """(backend, type) product; the all-null typed-cast divergence is
+    2D-conditional — MA-TYPE-02 marks pandas/narwhals-pandas int/bool casts."""
+    _types = [
+        ("integer", UniversalType.INTEGER, pl.Int64),
+        ("number", UniversalType.NUMBER, pl.Float64),
+        ("string", UniversalType.STRING, pl.String),
+        ("boolean", UniversalType.BOOLEAN, pl.Boolean),
+    ]
+    cases = []
+    for be in ALL_BACKENDS:
+        for type_id, ut, dt in _types:
+            marks = []
+            if be in _PANDAS_NULLABLE_CAST_BACKENDS and type_id in _PANDAS_NULLABLE_CAST_TYPES:
+                marks = [xfail_divergence("MA-TYPE-02", backend=be)]
+            # MA-TYPE-01 (ibis all-null dtype loss) no longer manifests on this
+            # env — the to_polars() bridge now preserves the dtype — so it is
+            # RETIRED here (the fact remains for other consumers).
+            cases.append(pytest.param(be, type_id, ut, dt, marks=marks, id=f"{be}-{type_id}"))
+    return cases
+
+
 # ---------------------------------------------------------------------------
 # Typed null emission -- a handful of representative declared types, each
 # cast to the concrete Polars dtype conform declares for it (registry-backed,
@@ -55,33 +78,14 @@ _PANDAS_NULLABLE_CAST_TYPES = {"integer", "boolean"}
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestTypedNullEmission:
     @pytest.mark.parametrize(
-        "type_id,universal_type,expected_polars_dtype",
-        [
-            ("integer", UniversalType.INTEGER, pl.Int64),
-            ("number", UniversalType.NUMBER, pl.Float64),
-            ("string", UniversalType.STRING, pl.String),
-            ("boolean", UniversalType.BOOLEAN, pl.Boolean),
-        ],
-        ids=["integer", "number", "string", "boolean"],
+        "backend_name,type_id,universal_type,expected_polars_dtype",
+        _typed_null_cases(),
     )
     def test_missing_field_emits_typed_all_null_column(
         self, backend_name, backend_factory, type_id, universal_type, expected_polars_dtype,
     ):
-        if (
-            backend_name in _PANDAS_NULLABLE_CAST_BACKENDS
-            and type_id in _PANDAS_NULLABLE_CAST_TYPES
-        ):
-            pytest.xfail(
-                f"[{backend_name}] casting an all-null column to "
-                f"{universal_type.value} maps to a non-nullable numpy dtype "
-                f"(int64 raises 'cannot convert float NaN to integer'; bool "
-                f"silently coerces None -> False) -- observed on pandas / "
-                f"narwhals-pandas (both route through Narwhals' pandas-like "
-                f"Series.cast). See known-divergences.md #22."
-            )
 
         df = backend_factory.create({"a": [1, 2, 3]}, backend_name)
         spec = TypeSpec(
@@ -106,20 +110,12 @@ class TestTypedNullEmission:
         # The present field is untouched.
         assert result["a"].to_list() == [1, 2, 3]
 
-        if backend_name in _IBIS_DTYPE_LOSS_BACKENDS and type_id in _IBIS_DTYPE_LOSS_TYPES:
-            pytest.xfail(
-                f"[{backend_name}] Ibis compiles and schemas the null "
-                f"literal correctly (CAST(NULL AS ...), schema reports "
-                f"{universal_type.value}), but Relation.to_polars()'s "
-                f"to_pandas() bridge loses the dtype for this all-NULL, "
-                f"non-float-representable column -- values stay null, only "
-                f"the reported dtype is wrong. See known-divergences.md #21."
-            )
         assert result["b"].dtype == expected_polars_dtype, (
             f"[{backend_name}] expected typed null column 'b' with dtype "
             f"{expected_polars_dtype}, got {result['b'].dtype}"
         )
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_present_field_is_never_null_filled(self, backend_name, backend_factory):
         """null_fill only fires for ABSENT source roots -- a present field's
         real values pass through the ordinary transform pipeline unchanged,

@@ -8,6 +8,11 @@ from mountainash.typespec.spec import TypeSpec, FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_IBIS_CONF = [
+    pytest.param(b, marks=xfail_divergence("MA-CONF-03", backend=b)) for b in ALL_BACKENDS
+]
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -123,8 +128,8 @@ class TestConformOnlyMappedFields:
         assert "drop" not in result.columns
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestConformMultiTransform:
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cast_and_rename(self, backend_name, backend_factory):
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
         spec = TypeSpec(
@@ -133,9 +138,8 @@ class TestConformMultiTransform:
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2, 3]
 
+    @pytest.mark.parametrize("backend_name", _IBIS_CONF)
     def test_full_pipeline(self, backend_name, backend_factory):
-        if backend_name.startswith("ibis"):
-            pytest.xfail("Ibis coalesce cannot mix string column with numeric literal fill")
         df = backend_factory.create({
             "raw_score": ["1.5", None, "3.5"],
             "raw_label": ["foo", "bar", None],

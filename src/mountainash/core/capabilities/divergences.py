@@ -724,6 +724,50 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-06",
         ),
+        DivergenceFact(
+            id="MA-CONF-01",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # conform struct dotted-source extraction
+            backends=("pandas", "narwhals-pandas", "ibis-sqlite"),
+            summary="conform struct dotted-source extraction is unsupported on pandas/narwhals-pandas (TypeError) and ibis-sqlite (UnsupportedBackendType) — no native struct column type",
+            impact="conform() with a dotted struct source path raises on pandas/narwhals-pandas/ibis-sqlite; polars and ibis-duckdb/ibis-polars extract it",
+            workaround="Use a polars backend or ibis-duckdb/ibis-polars for struct dotted-source conform",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="MA-CONF-02",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # conform discard-value / discard-row drift policies
+            backends=("pandas", "narwhals", "ibis-sqlite"),
+            summary="conform discard-value/discard-row drift policies are unsupported on pandas/narwhals (unenriched BackendCapabilityError) and ibis-sqlite (OperationNotDefinedError)",
+            impact="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them",
+            workaround="Use a polars backend or ibis-duckdb/ibis-polars for discard drift policies",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="MA-CONF-03",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # conform multi-transform full pipeline
+            backends=("ibis",),
+            summary="conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform)",
+            impact="a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it",
+            workaround="Use a polars or narwhals backend for full conform transform pipelines",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="MA-TERN-01",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # ternary with a null-safe operand, booleanizer=None
+            backends=("polars", "pandas", "narwhals-pandas"),
+            summary="a ternary comparison with a fill_null operand and booleanizer=None raises on polars/polars-lazy (SchemaError: expected Boolean got i64) and pandas/narwhals-pandas (TypeError: Boolean array expected)",
+            impact="t_gt(col.fill_null(0)) with booleanizer=None raises on polars/polars-lazy and pandas/narwhals-pandas; narwhals-polars/narwhals-lazy and ibis compute it",
+            workaround="Pass an explicit booleanizer, or use narwhals-polars/ibis backends",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
     )
 
 

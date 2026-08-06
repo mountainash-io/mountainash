@@ -28,6 +28,11 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_DRIFT = [
+    pytest.param(b, marks=xfail_divergence("MA-CONF-02", backend=b)) for b in ALL_BACKENDS
+]
 
 # Backends that compile conform's cast expressions through the Narwhals
 # ExpressionSystem (plain "pandas" DataFrames share this route — see
@@ -110,25 +115,9 @@ class TestEvolvePolicy:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _DRIFT)
 class TestDiscardValuePolicy:
     def test_discard_value_nulls_unparseable(self, backend_name, backend_factory):
-        if backend_name in _NARWHALS_ROUTED_BACKENDS:
-            pytest.xfail(
-                "Narwhals Expr.cast(dtype) has no strict/failure-behavior parameter "
-                "(observed narwhals 2.23.0) -- cast always raises on invalid conversion. "
-                "mountainash raises BackendCapabilityError for failure_behavior='null' "
-                "on this backend. Plain 'pandas' DataFrames compile via the Narwhals "
-                "backend and share this limitation. See known-divergences.md."
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "Ibis compiles failure_behavior='null' to ibis.TryCast, which "
-                "ibis-sqlite (observed ibis 12.0.0) has no SQL compilation rule for: "
-                "'OperationNotDefinedError: Compilation rule for TryCast operation "
-                "is not defined'. Works on ibis-duckdb and ibis-polars. "
-                "See known-divergences.md."
-            )
         df = backend_factory.create({"n": ["1", "bad", "3"]}, backend_name)
         spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
 
@@ -148,23 +137,9 @@ class TestDiscardValuePolicy:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _DRIFT)
 class TestDiscardRowPolicy:
     def test_discard_row_drops_failed_keeps_legit_null(self, backend_name, backend_factory):
-        if backend_name in _NARWHALS_ROUTED_BACKENDS:
-            pytest.xfail(
-                "Narwhals Expr.cast(dtype) has no strict/failure-behavior parameter "
-                "(observed narwhals 2.23.0) -- the discard_row row-filter predicate "
-                "compiles the same cast(dtype, failure_behavior=NULL) as discard_value "
-                "and hits the identical capability gap. See known-divergences.md."
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "Ibis compiles failure_behavior='null' to ibis.TryCast, which "
-                "ibis-sqlite (observed ibis 12.0.0) has no SQL compilation rule for "
-                "TryCast -- the discard_row row-filter predicate hits the same gap "
-                "as discard_value. See known-divergences.md."
-            )
         # id=1 -> "1" (parses); id=2 -> "bad" (non-null, cast fails -> DROP);
         # id=3 -> None (legitimately null -> KEPT, n stays null);
         # id=4 -> "3" (parses).
