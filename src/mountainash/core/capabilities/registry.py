@@ -371,7 +371,7 @@ class CapabilityRegistry:
         backend: CONST_BACKEND,
         dialect: str | None = None,
     ) -> Tuple[CapabilityFact, ...]:
-        """ROUTER_METADATA facts for an op on a backend, in registration order.
+        """ROUTER_METADATA facts for an op on a backend, in deterministic sorted order.
 
         These never gate. They document WHY a backend takes a non-native
         path; the routing decision itself stays in the router, and no
