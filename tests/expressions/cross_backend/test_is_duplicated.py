@@ -13,6 +13,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
 def _collect_ordered(df, expr):
@@ -32,12 +33,15 @@ def _collect_ordered(df, expr):
     return result["result"]
 
 
+_IS_DUP_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-WIN-01", backend=b)) for b in ALL_BACKENDS
+]
+
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _IS_DUP_BACKENDS)
 class TestIsDuplicated:
     def test_is_duplicated_basic(self, backend_name, backend_factory):
-        if backend_name == "ibis-polars":
-            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
         data = {"idx": [0, 1, 2, 3, 4], "val": [1, 2, 2, 3, 1]}
         df = backend_factory.create(data, backend_name)
 
@@ -46,8 +50,6 @@ class TestIsDuplicated:
         assert actual == [True, True, True, False, True], f"[{backend_name}] got {actual}"
 
     def test_is_duplicated_all_unique(self, backend_name, backend_factory):
-        if backend_name == "ibis-polars":
-            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
         data = {"idx": [0, 1, 2], "val": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
 
@@ -56,8 +58,6 @@ class TestIsDuplicated:
         assert actual == [False, False, False], f"[{backend_name}] got {actual}"
 
     def test_is_duplicated_strings(self, backend_name, backend_factory):
-        if backend_name == "ibis-polars":
-            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
         data = {"idx": [0, 1, 2, 3], "name": ["a", "b", "a", "c"]}
         df = backend_factory.create(data, backend_name)
 
@@ -67,8 +67,6 @@ class TestIsDuplicated:
 
     def test_is_duplicated_not_for_unique_rule(self, backend_name, backend_factory):
         """The `unique` constraint shape: is_duplicated().not_() is True for unique rows."""
-        if backend_name == "ibis-polars":
-            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
         data = {"idx": [0, 1, 2, 3], "val": [1, 2, 2, 3]}
         df = backend_factory.create(data, backend_name)
 
@@ -78,8 +76,6 @@ class TestIsDuplicated:
 
     def test_is_duplicated_nulls_are_duplicates(self, backend_name, backend_factory):
         """Repeated NULLs are duplicates on ALL backends (consistency-guarantees)."""
-        if backend_name == "ibis-polars":
-            pytest.xfail("ibis-polars: no translation rule for WindowFunction")
         data = {"idx": [0, 1, 2], "name": ["a", None, None]}
         df = backend_factory.create(data, backend_name)
 

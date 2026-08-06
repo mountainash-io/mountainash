@@ -1552,66 +1552,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_datetime_extension_results.py:314
-- key: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_basic::L40[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_basic::L40[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_is_duplicated.py:40
-- key: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_all_unique::L50[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_all_unique::L50[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_is_duplicated.py:50
-- key: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_strings::L60[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_strings::L60[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_is_duplicated.py:60
-- key: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_not_for_unique_rule::L71[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_not_for_unique_rule::L71[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_is_duplicated.py:71
-- key: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_nulls_are_duplicates::L82[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_is_duplicated.py::TestIsDuplicated::test_is_duplicated_nulls_are_duplicates::L82[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_is_duplicated.py:82
 - key: tests/expressions/cross_backend/test_math_extension_results.py::TestSign::test_sign_mixed::L97[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_math_extension_results.py::TestSign::test_sign_mixed::L97[UNRESOLVED]
   operation_key: UNRESOLVED
@@ -2078,31 +2018,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_temporal_natural.py:278
-- key: tests/expressions/cross_backend/test_window_cumulative.py::_xfail_known_cumulative_divergences::L23[narwhals-lazy]|UNRESOLVED|narwhals-lazy|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_window_cumulative.py::_xfail_known_cumulative_divergences::L23[narwhals-lazy]
-  operation_key: UNRESOLVED
-  backend: narwhals-lazy
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'narwhals-lazy: cumulative ops are order-dependent, rejected on
-    a LazyFrame'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_window_cumulative.py:23
-- key: tests/expressions/cross_backend/test_window_cumulative.py::_xfail_known_cumulative_divergences::L27[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_window_cumulative.py::_xfail_known_cumulative_divergences::L27[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for cumulative WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_window_cumulative.py:27
 - key: tests/expressions/cross_backend/test_window_results.py::_xfail_lazy_order_dependent::L45[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_window_results.py::_xfail_lazy_order_dependent::L45[UNRESOLVED]
   operation_key: UNRESOLVED
