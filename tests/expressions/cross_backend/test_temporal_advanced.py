@@ -17,13 +17,33 @@ import pytest
 from datetime import datetime, timedelta
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
-def _xfail_sqlite_time_shift(backend_name: str) -> None:
-    """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
-    if backend_name == "ibis-sqlite" and sqlite3.sqlite_version_info < (3, 46):
-        pytest.xfail(
-            f"SQLite {sqlite3.sqlite_version} < 3.46: no time shift modifier support"
-        )
+_SHIFT_MARKS = (
+    [xfail_divergence("IB-DT-14", backend="ibis-sqlite")]
+    if sqlite3.sqlite_version_info < (3, 46)
+    else []
+)
+_SQLITE_SHIFT_BACKENDS = [
+    pytest.param(b, marks=_SHIFT_MARKS) if b == "ibis-sqlite" else b for b in ALL_BACKENDS
+]
+_DIFF_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-DT-11", backend=b)) for b in ALL_BACKENDS
+]
+_TRUNC_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-DT-12", backend=b)) for b in ALL_BACKENDS
+]
+_OFFSET_SUB_BACKENDS = [
+    pytest.param(
+        b,
+        marks=[xfail_divergence("IB-DT-10", backend=b), xfail_divergence("IB-DT-13", backend=b)],
+    )
+    for b in ALL_BACKENDS
+]
+_NEG_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-DT-13", backend=b)) for b in ALL_BACKENDS
+]
+
 
 
 # =============================================================================
@@ -109,20 +129,12 @@ class TestAddTimeComponents:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _DIFF_BACKENDS)
 class TestTimeDifferences:
     """Test calculating time differences in various units."""
 
     def test_diff_hours(self, backend_name, backend_factory, collect_expr):
         """Test calculating difference in hours between datetimes."""
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "Ibis Polars backend doesn't support TimestampDelta operation."
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite limitation: TimestampDelta operation not supported."
-            )
 
         data = {
             "start": [
@@ -148,14 +160,6 @@ class TestTimeDifferences:
 
     def test_diff_minutes(self, backend_name, backend_factory, collect_expr):
         """Test calculating difference in minutes between datetimes."""
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "Ibis Polars backend doesn't support TimestampDelta operation."
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite limitation: TimestampDelta operation not supported."
-            )
 
         data = {
             "start": [
@@ -186,10 +190,10 @@ class TestTimeDifferences:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDateTimeTruncation:
     """Test truncating datetimes to different units."""
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_truncate_to_day(self, backend_name, backend_factory, collect_expr):
         """Test truncating datetime to day (midnight)."""
         data = {
@@ -212,10 +216,9 @@ class TestDateTimeTruncation:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+    @pytest.mark.parametrize("backend_name", _TRUNC_BACKENDS)
     def test_truncate_to_hour(self, backend_name, backend_factory, collect_expr):
         """Test truncating datetime to hour."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite limitation: Hour-level truncation not supported")
 
         data = {
             "timestamp": [
@@ -244,13 +247,12 @@ class TestDateTimeTruncation:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestFlexibleOffsetBy:
     """Test flexible duration offsets using string format."""
 
+    @pytest.mark.parametrize("backend_name", _SQLITE_SHIFT_BACKENDS)
     def test_offset_add_days_and_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding combined duration (1 day 2 hours)."""
-        _xfail_sqlite_time_shift(backend_name)
         data = {
             "timestamp": [
                 datetime(2024, 1, 1, 10, 0, 0),
@@ -271,16 +273,9 @@ class TestFlexibleOffsetBy:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+    @pytest.mark.parametrize("backend_name", _OFFSET_SUB_BACKENDS)
     def test_offset_subtract_months(self, backend_name, backend_factory, collect_expr):
         """Test subtracting months."""
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "Ibis Polars backend doesn't support calendar-based intervals (months/years). "
-                "Only duration-based intervals (days/hours/minutes/seconds) are supported."
-            )
-
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite limitation: Interval subtraction not supported")
 
         data = {
             "timestamp": [
@@ -309,14 +304,12 @@ class TestFlexibleOffsetBy:
 
 @pytest.mark.integration
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestChainingTimeOperations:
     """Test chaining multiple temporal operations."""
 
+    @pytest.mark.parametrize("backend_name", _TRUNC_BACKENDS)
     def test_chain_add_and_truncate(self, backend_name, backend_factory, collect_expr):
         """Test chaining: add hours, add minutes, then truncate."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite limitation: Hour-level truncation not supported")
 
         data = {
             "timestamp": [datetime(2024, 1, 1, 10, 0, 0)]
@@ -338,9 +331,9 @@ class TestChainingTimeOperations:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+    @pytest.mark.parametrize("backend_name", _SQLITE_SHIFT_BACKENDS)
     def test_chain_multiple_additions(self, backend_name, backend_factory, collect_expr):
         """Test chaining multiple time additions."""
-        _xfail_sqlite_time_shift(backend_name)
         data = {
             "timestamp": [datetime(2024, 1, 1, 10, 0, 0)]
         }
@@ -368,10 +361,10 @@ class TestChainingTimeOperations:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestTemporalEdgeCases:
     """Test edge cases for temporal operations."""
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_add_zero_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding zero hours (should return same timestamp)."""
         data = {
@@ -387,10 +380,9 @@ class TestTemporalEdgeCases:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+    @pytest.mark.parametrize("backend_name", _NEG_BACKENDS)
     def test_add_negative_hours(self, backend_name, backend_factory, collect_expr):
         """Test adding negative hours (subtraction)."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite limitation: Negative time addition produces NaT")
 
         data = {
             "timestamp": [datetime(2024, 1, 1, 10, 30, 45)]

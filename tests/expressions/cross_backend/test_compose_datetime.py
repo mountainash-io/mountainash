@@ -31,8 +31,6 @@ class TestComposeDatetime:
 
     def test_add_days_then_extract_month(self, backend_name, backend_factory, collect_expr):
         """Arithmetic then extract: .dt.add_days(20).dt.month()."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite has no native datetime type. Interval addition not supported.")
         data = {
             "ts": [
                 datetime(2024, 1, 20),  # +20 days = Feb 9
@@ -70,8 +68,6 @@ class TestComposeDatetime:
 
     def test_business_hours_filter(self, backend_name, backend_factory, get_result_count):
         """Dual extract + boolean: hour >= 9 AND hour < 17."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite has no native datetime type. Sub-day extraction unreliable.")
         data = {
             "ts": [
                 datetime(2024, 1, 15, 8, 0),   # 8am - before

@@ -23,11 +23,16 @@ ALL_BACKENDS = [
     "ibis-sqlite",
 ]
 
+from fixtures.capability_gating import xfail_divergence
+
+_COL = [
+    pytest.param(b, marks=xfail_divergence("MA-STR-01", backend=b)) for b in ALL_BACKENDS
+]
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestRegexContainsRefactor:
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_regex_contains_literal_pattern(self, backend_name, backend_factory, collect_expr):
         """regex_contains with a literal regex string must match via regex, not literal."""
         data = {
@@ -52,6 +57,7 @@ class TestRegexContainsRefactor:
                 f"[{backend_name}] Expected None at idx 4, got {actual[4]!r}"
             )
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_regex_contains_column_pattern_rejected(self, backend_name, backend_factory, collect_expr):
         """regex_contains rejects column-reference patterns at build time.
 
@@ -64,22 +70,9 @@ class TestRegexContainsRefactor:
         with pytest.raises(TypeError, match="literal str"):
             ma.col("s").str.regex_contains(ma.col("pat"))
 
+    @pytest.mark.parametrize("backend_name", _COL)
     def test_contains_column_pattern(self, backend_name, backend_factory, collect_expr):
         """Literal contains with a per-row pattern column (Bug 2)."""
-        if backend_name == "pandas":
-            pytest.xfail(
-                "pre-existing: narwhals-pandas str.contains rejects columnar pattern; out of scope"
-            )
-        if backend_name == "ibis-polars":
-            pytest.xfail(
-                "pre-existing: ibis-polars backend does not support columnar literal needle; out of scope"
-            )
-        if backend_name == "narwhals-polars":
-            pytest.xfail(
-                "narwhals-polars: nw.lit() cannot wrap a Polars Expr as a literal, "
-                "so columnar substring patterns fail at visit time. Same class of "
-                "limitation as the pandas/ibis-polars cases above."
-            )
         data = {
             "s": ["apple pie", "banana split", "cherry", "date"],
             "needle": ["pie", "split", "XX", "dat"],

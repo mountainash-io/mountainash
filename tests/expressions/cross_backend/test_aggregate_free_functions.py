@@ -11,13 +11,16 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_CORR_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("MA-AGG-01", backend=b)) for b in ALL_BACKENDS
+]
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _CORR_BACKENDS)
 class TestCorr:
     def test_corr_perfect_positive(self, backend_name, backend_factory):
-        if backend_name != "ibis-polars":
-            pytest.xfail("corr() Substrait signature not wired to this backend")
         data = {
             "g": ["a", "a", "a", "a"],
             "x": [1.0, 2.0, 3.0, 4.0],

@@ -36,6 +36,11 @@ def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
 # Inner Join
 # ---------------------------------------------------------------------------
 
+from fixtures.capability_gating import xfail_divergence
+
+_ASOF = [
+    pytest.param(b, marks=xfail_divergence("IB-REL-08", backend=b)) for b in ALL_BACKENDS
+]
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -223,11 +228,6 @@ class TestJoinCross:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestJoinSuffix:
     def test_suffix_disambiguation(self, backend_name, backend_factory):
-        if backend_name in ("ibis-polars", "ibis-duckdb", "ibis-sqlite"):
-            pytest.xfail(
-                "Ibis backend uses suffix as standalone column name (e.g. '_r') "
-                "rather than appending it to the original name (e.g. 'val_r')"
-            )
         left, right = backend_factory.create_pair(
             {"id": [1, 2], "val": [10, 20]},
             {"id": [1, 2], "val": [100, 200]},
@@ -273,7 +273,7 @@ class TestJoinMultiKey:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _ASOF)
 class TestJoinAsof:
     def test_asof_backward_strategy(self, backend_name, backend_factory):
         """Test asof join with backward strategy.
@@ -285,12 +285,6 @@ class TestJoinAsof:
         (JoinRelNode has no `by` field, visitor hardcodes by=None).
         This is a known mountainash bug — we test without `by` here.
         """
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("ASOF joins are not supported by SQLite via Ibis")
-        if backend_name == "ibis-duckdb":
-            pytest.xfail(
-                "ibis-duckdb asof join does not preserve left-side row order"
-            )
         left, right = backend_factory.create_pair(
             {"t": [1, 3, 5, 7], "val": ["a", "b", "c", "d"]},
             {"t": [2, 4, 6], "score": [20, 40, 60]},

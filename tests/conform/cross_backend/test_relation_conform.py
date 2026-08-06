@@ -7,6 +7,11 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_STRUCT = [
+    pytest.param(b, marks=xfail_divergence("MA-CONF-01", backend=b)) for b in ALL_BACKENDS
+]
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -30,8 +35,6 @@ class TestRelationConformBasic:
         assert list(result.columns) == ["user_id"]
 
     def test_null_fill_and_cast(self, backend_name, backend_factory):
-        if backend_name.startswith("ibis"):
-            pytest.xfail("Ibis coalesce cannot mix column type with different literal type")
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
@@ -100,20 +103,12 @@ class TestRelationConformStructAccess:
         assert "score" in result.columns
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _STRUCT)
 class TestRelationConformStructStrictModes:
     """Item 46 (b): dotted sources under strict fields_match modes validate on
     the struct ROOT and actually extract the nested field at runtime."""
 
     def test_equal_dotted_source_extracts(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-pandas"):
-            pytest.xfail(
-                "narwhals pandas struct namespace requires a PyArrow-backed "
-                "Struct dtype; plain object-dtype dict columns raise "
-                "'Series must be of PyArrow Struct type to support struct namespace'"
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite has no struct type; struct sources unsupported")
         df = backend_factory.create(
             {"payload": [{"id": 1}, {"id": 2}]}, backend_name
         )
@@ -125,14 +120,6 @@ class TestRelationConformStructStrictModes:
         assert result["pid"].to_list() == [1, 2]
 
     def test_subset_dotted_source_extracts_with_extra_column(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-pandas"):
-            pytest.xfail(
-                "narwhals pandas struct namespace requires a PyArrow-backed "
-                "Struct dtype; plain object-dtype dict columns raise "
-                "'Series must be of PyArrow Struct type to support struct namespace'"
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("SQLite has no struct type; struct sources unsupported")
         df = backend_factory.create(
             {"payload": [{"id": 1}, {"id": 2}], "other": ["x", "y"]}, backend_name
         )
@@ -338,8 +325,6 @@ class TestRelationConformFieldsMatchOpen:
         assert result["other"].to_list() == ["a", "b"]
 
     def test_null_fill_with_open(self, backend_name, backend_factory):
-        if backend_name.startswith("ibis"):
-            pytest.xfail("Ibis coalesce cannot mix column type with different literal type")
         df = backend_factory.create(
             {"val": [1, None, 3], "tag": ["a", "b", "c"]}, backend_name,
         )

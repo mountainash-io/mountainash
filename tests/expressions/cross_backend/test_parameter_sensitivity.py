@@ -14,22 +14,22 @@ from datetime import datetime
 
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
-def _xfail_sqlite_time_shift(backend_name: str) -> None:
-    """xfail ibis-sqlite when SQLite < 3.46 (no time shift modifiers)."""
-    if backend_name == "ibis-sqlite" and sqlite3.sqlite_version_info < (3, 46):
-        pytest.xfail(
-            f"SQLite {sqlite3.sqlite_version} < 3.46: no time shift modifier support"
-        )
+_SHIFT = (
+    [xfail_divergence("IB-DT-14", backend="ibis-sqlite")]
+    if sqlite3.sqlite_version_info < (3, 46)
+    else []
+)
 
 
 POLARS_IBIS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals limited")),
-    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals limited")),
+    pytest.param("pandas", marks=xfail_divergence("NW-STR-17", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-STR-17", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-STR-17", backend="narwhals-pandas")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -43,6 +43,10 @@ TEMPORAL_BACKENDS = [
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
+]
+
+_TEMPORAL_XF = [
+    pytest.param(b, marks=_SHIFT) if b == "ibis-sqlite" else b for b in TEMPORAL_BACKENDS
 ]
 
 
@@ -337,13 +341,12 @@ class TestSubstringParameterSensitivity:
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name", TEMPORAL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _TEMPORAL_XF)
 class TestDatetimeParameterSensitivity:
     """add_days/add_hours duration must reach the backend."""
 
     def test_add_days_sensitivity(self, backend_name, backend_factory, assert_parameter_sensitivity):
         """add_days(1) and add_days(5) must produce different results."""
-        _xfail_sqlite_time_shift(backend_name)
         data = {"ts": [datetime(2024, 1, 15, 10, 0, 0)]}
         df = backend_factory.create(data, backend_name)
 
@@ -375,14 +378,9 @@ class TestDatetimeParameterSensitivity:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
-    pytest.param(
-        "ibis-polars",
-        marks=pytest.mark.xfail(
-            reason="ibis-polars does not support columnar length argument in str.lpad/rpad"
-        ),
-    ),
+    pytest.param("pandas", marks=xfail_divergence("MA-STR-02", backend="pandas")),
+    pytest.param("narwhals", marks=xfail_divergence("MA-STR-02", backend="narwhals")),
+    pytest.param("ibis-polars", marks=xfail_divergence("MA-STR-02", backend="ibis-polars")),
     "ibis-duckdb",
     "ibis-sqlite",
 ])
@@ -422,8 +420,8 @@ class TestCenterParameterSensitivity:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
+    pytest.param("pandas", marks=xfail_divergence("NW-STR-18", backend="pandas")),
+    pytest.param("narwhals", marks=xfail_divergence("NW-STR-18", backend="narwhals")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",

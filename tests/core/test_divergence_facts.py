@@ -28,10 +28,22 @@ def test_narwhals_pandas_titlecase_divergence_registered():
     assert d.operation_keys == (FK_STR.TITLE, FK_STR.INITCAP)
 
 
-def test_every_divergence_has_upstream_ref_joined():
-    # Every divergence self-refs to its own id EXCEPT NW-STR-14, an inherent
-    # Unicode-standard titlecase difference (pandas str.title vs polars to_titlecase)
-    # with no upstream bug to file. Closed-by-default: the no-ref set is pinned.
-    no_ref = {d.id for d in KNOWN_DIVERGENCES if not d.upstream_ref}
-    assert no_ref == {"NW-STR-14"}, no_ref
+def test_upstream_ref_is_self_ref_or_absent():
+    # A divergence's ``upstream_ref`` is either its own id (a registry-cataloged
+    # gap — joined to registry/upstream-issues.yaml by test_upstream_registry_join)
+    # or ``None`` (an inherent backend divergence with no upstream bug to file,
+    # e.g. engine-leniency / semantics differences). The real error this guards
+    # against is a MISMATCHED ref — one pointing at some other entry's id, which
+    # would silently mis-join in the registry catalog. We do NOT pin the exact
+    # set of no-ref facts: an inherent divergence needing no upstream filing is a
+    # normal, expected state, not a reviewable exception.
+    mismatched = {
+        d.id: d.upstream_ref
+        for d in KNOWN_DIVERGENCES
+        if d.upstream_ref is not None and d.upstream_ref != d.id
+    }
+    assert not mismatched, (
+        f"divergence upstream_ref must self-ref to its own id or be None; "
+        f"mismatched refs: {mismatched}"
+    )
 

@@ -36,6 +36,11 @@ SAMPLE_DATA = {
 # 1. Filter with mountainash expressions
 # ===========================================================================
 
+from fixtures.capability_gating import xfail_divergence
+
+_HORIZ = [
+    pytest.param(b, marks=xfail_divergence("MA-REL-02", backend=b)) for b in ALL_BACKENDS
+]
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -275,18 +280,12 @@ class TestWhenThenOtherwise:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestHorizontalFunctions:
     def _df(self, backend_name, backend_factory):
         return backend_factory.create(SAMPLE_DATA, backend_name)
 
+    @pytest.mark.parametrize("backend_name", _HORIZ)
     def test_greatest(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-pandas"):
-            pytest.xfail(
-                f"[{backend_name}] greatest() with a literal scalar does not clamp "
-                "correctly on pandas/narwhals-pandas — nw.max_horizontal returns "
-                "original column values unchanged when mixed with a scalar literal"
-            )
         df = self._df(backend_name, backend_factory)
         result = (
             relation(df)
@@ -298,13 +297,8 @@ class TestHorizontalFunctions:
         )
         assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
 
+    @pytest.mark.parametrize("backend_name", _HORIZ)
     def test_least(self, backend_name, backend_factory):
-        if backend_name in ("pandas", "narwhals-pandas"):
-            pytest.xfail(
-                f"[{backend_name}] least() with a literal scalar does not clamp "
-                "correctly on pandas/narwhals-pandas — nw.min_horizontal returns "
-                "original column values unchanged when mixed with a scalar literal"
-            )
         df = self._df(backend_name, backend_factory)
         result = (
             relation(df)
@@ -316,6 +310,7 @@ class TestHorizontalFunctions:
         )
         assert result["capped_at_90"] == [85, 90, 78, 90, 88], f"[{backend_name}]"
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_coalesce_with_nulls(self, backend_name, backend_factory):
         data = {
             "id": [1, 2, 3, 4, 5],

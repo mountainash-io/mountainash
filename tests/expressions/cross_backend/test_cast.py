@@ -217,21 +217,9 @@ class TestCastEdgeCases:
 
 
 _FAILURE_NULL_BACKENDS = [
-    pytest.param(
-        b,
-        marks=pytest.mark.xfail(
-            reason="narwhals cast has no failure-behavior parameter; cast always "
-            "raises on invalid conversion (no covering spine fact yet)"
-        ),
-    )
+    pytest.param(b, marks=xfail_divergence("NW-CAST-01", backend=b))
     if b in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy")
-    else pytest.param(
-        b,
-        marks=pytest.mark.xfail(
-            reason="ibis-sqlite has no SQL compilation rule for TryCast "
-            "(failure_behavior='null'); no covering spine fact yet"
-        ),
-    )
+    else pytest.param(b, marks=xfail_divergence("IB-CAST-04", backend=b))
     if b == "ibis-sqlite"
     else b
     for b in ALL_BACKENDS
@@ -245,9 +233,9 @@ class TestCastFailureBehavior:
 
     Previously silently dropped by the visitor -- every backend compiled a
     strict cast regardless of the `failure_behavior` requested via the
-    fluent `.cast(dtype, failure_behavior=...)` API. The narwhals-routed and
-    ibis-sqlite gaps have no covering DivergenceFact/CapabilityFact yet
-    (SP2-B-contingent), so they stay as reason-only xfail markers.
+    fluent `.cast(dtype, failure_behavior=...)` API. The narwhals/pandas gap is
+    covered by DivergenceFact NW-CAST-01 and the ibis-sqlite gap by IB-CAST-04,
+    routed through xfail_divergence in _FAILURE_NULL_BACKENDS.
     """
 
     def test_cast_failure_behavior_null(self, backend_name, backend_factory, collect_expr):

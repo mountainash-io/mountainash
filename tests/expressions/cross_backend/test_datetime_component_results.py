@@ -21,6 +21,18 @@ TEMPORAL_BACKENDS = [
     "ibis-polars",
     "ibis-sqlite",
 ]
+from fixtures.capability_gating import xfail_divergence
+
+_DATE_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("NW-DT-02", backend=b)) for b in TEMPORAL_BACKENDS
+]
+_TIME_BACKENDS = [
+    pytest.param(
+        b,
+        marks=[xfail_divergence("NW-DT-03", backend=b), xfail_divergence("IB-DT-17", backend=b)],
+    )
+    for b in TEMPORAL_BACKENDS
+]
 
 
 @pytest.mark.cross_backend
@@ -166,15 +178,11 @@ class TestDtIsLeapYear:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TEMPORAL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _DATE_BACKENDS)
 class TestDtDate:
     def test_date_extraction(self, backend_name, backend_factory, collect_expr):
         from datetime import date
 
-        if backend_name in ("narwhals-pandas", "ibis-duckdb", "ibis-polars", "ibis-sqlite"):
-            pytest.xfail(
-                f"{backend_name}: dt.date() returns datetime with zeroed time instead of date"
-            )
 
         data = {"ts": [datetime(2024, 3, 15, 10, 30, 45), datetime(2024, 12, 25, 23, 59, 0)]}
         df = backend_factory.create(data, backend_name)
@@ -184,15 +192,10 @@ class TestDtDate:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TEMPORAL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _TIME_BACKENDS)
 class TestDtTime:
     def test_time_extraction(self, backend_name, backend_factory, collect_expr):
         from datetime import time
-
-        if backend_name in ("narwhals-polars", "narwhals-pandas"):
-            pytest.xfail(f"{backend_name}: Narwhals does not support dt.time()")
-        if backend_name == "ibis-sqlite":
-            pytest.xfail("ibis-sqlite: dt.time() returns timedelta instead of time")
 
         data = {"ts": [datetime(2024, 3, 15, 10, 30, 45), datetime(2024, 12, 25, 23, 59, 0)]}
         df = backend_factory.create(data, backend_name)

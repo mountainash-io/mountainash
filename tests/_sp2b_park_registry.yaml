@@ -1,0 +1,27 @@
+# SP2-B PARK registry (plan Task 0.5, spec 2.1 PARK-AS-MARKER).
+#
+# One entry per SANCTIONED last-resort park: a real capability gap that does not
+# warrant a declared fact yet, sitting in a file migrated for other reasons. A
+# park MUST be tracked here AND appear as a well-formed marker in its target file
+# (guard: tests/core/test_sp2b_park_registry.py). If this registry + guard do not
+# exist, PARK is PROHIBITED — prefer DECLARE-DIVERGENCE / DECLARE-CAPABILITY /
+# RETIRE (declaring a fact is a cheap catalogue append).
+#
+# Each entry (all fields required):
+#   target:  "<tests-relpath>"                  file that carries the parked marker
+#   qualname: "<Class::test>"                   the parked test node (documentation)
+#   backend: "<backend-name>"
+#   kind:    gate | divergence                  gate parks carry raises=BackendCapabilityError
+#   reason:  "<exact marker reason string>"     bound 1:1 to the live marker's reason=
+#   since:   "YYYY-MM-DD"                        KnownGap.since (staleness anchor)
+#   owner:   "<who re-probes>"
+#   reprobe: "<when / trigger>"
+#
+# A legal gate park marker (spec 2.1):
+#   pytest.mark.xfail(reason=<reason>, raises=BackendCapabilityError, strict=True)
+# A divergence gap is NOT parkable bare (a marker cannot carry the value oracle) —
+# declare the DivergenceFact instead. strict=True is mandatory: a strict=False park
+# swallows unrelated failures and XPASSes silently when the gap closes.
+#
+# EMPTY on baseline. Populated only when Phase 2 hits an un-fact-able gap.
+[]

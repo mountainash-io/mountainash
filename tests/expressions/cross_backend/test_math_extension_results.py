@@ -8,6 +8,14 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_CBRT = [
+    pytest.param(b, marks=xfail_divergence("MA-MATH-02", backend=b)) for b in ALL_BACKENDS
+]
+_COT = [
+    pytest.param(b, marks=xfail_divergence("NW-MATH-01", backend=b)) for b in ALL_BACKENDS
+]
 
 NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
 IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
@@ -93,8 +101,6 @@ class TestAbs:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestSign:
     def test_sign_mixed(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_BACKENDS:
-            pytest.xfail("sign() not supported by Narwhals backend")
         data = {"a": [-5.0, 0.0, 3.0]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").sign())
@@ -105,16 +111,12 @@ class TestSign:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestSqrt:
     def test_sqrt_perfect_squares(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_BACKENDS:
-            pytest.xfail("sqrt() not supported by Narwhals backend")
         data = {"a": [4.0, 9.0, 16.0, 25.0]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").sqrt())
         assert actual == pytest.approx([2.0, 3.0, 4.0, 5.0])
 
     def test_sqrt_zero(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_BACKENDS:
-            pytest.xfail("sqrt() not supported by Narwhals backend")
         data = {"a": [0.0, 1.0]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").sqrt())
@@ -122,16 +124,16 @@ class TestSqrt:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCbrt:
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cbrt_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [8.0, 27.0, 64.0]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").cbrt())
         assert actual == pytest.approx([2.0, 3.0, 4.0], rel=1e-6)
 
+    @pytest.mark.parametrize("backend_name", _CBRT)
     def test_cbrt_negative(self, backend_name, backend_factory, collect_expr):
-        pytest.xfail("cbrt of negative values returns NaN on all backends")
         data = {"a": [-8.0, -27.0]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").cbrt())
@@ -142,8 +144,6 @@ class TestCbrt:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestExp:
     def test_exp_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_BACKENDS:
-            pytest.xfail("exp() not supported by Narwhals backend")
         data = {"a": [0.0, 1.0, 2.0]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").exp())
@@ -191,16 +191,9 @@ class TestClip:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _COT)
 class TestCot:
     def test_cot_basic(self, backend_name, backend_factory, collect_expr):
-        # narwhals-lazy guarded explicitly (not via NARWHALS_BACKENDS): the other
-        # tests sharing that constant pass on narwhals-lazy, but cot needs tan(),
-        # which narwhals lacks on every variant including lazy.
-        if backend_name in NARWHALS_BACKENDS or backend_name == "narwhals-lazy":
-            pytest.xfail("tan() not supported by Narwhals backend (cot = 1/tan)")
-        if backend_name in IBIS_BACKENDS:
-            pytest.xfail("Ibis deferred type inference error in cot (1/tan) division")
         data = {"a": [math.pi / 4, math.pi / 2]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("a").cot())

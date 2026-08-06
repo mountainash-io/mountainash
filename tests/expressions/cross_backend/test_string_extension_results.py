@@ -6,6 +6,11 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_NW_TRIM = [
+    pytest.param(b, marks=xfail_divergence("NW-STR-15", backend=b)) for b in ALL_BACKENDS
+]
 
 # -- Known divergences --
 # Ibis backends: custom chars argument is silently ignored by strip_chars,
@@ -27,11 +32,6 @@ class TestStrStripChars:
         assert actual == ["hello", "world", "foo"]
 
     def test_strip_custom_chars(self, backend_name, backend_factory, collect_expr):
-        if backend_name in IBIS_BACKENDS:
-            pytest.xfail(
-                "Ibis backends ignore custom chars argument in strip_chars; "
-                "only whitespace stripping is supported."
-            )
         data = {"s": ["xxhelloxx", "xworldx", "foo"]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").str.strip_chars("x"))
@@ -45,24 +45,16 @@ class TestStrStripChars:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStrStripCharsStart:
+    @pytest.mark.parametrize("backend_name", _NW_TRIM)
     def test_strip_start_whitespace(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_PANDAS_BACKENDS:
-            pytest.xfail(
-                "Narwhals/pandas strip_chars_start() strips both sides "
-                "instead of only the leading side."
-            )
         data = {"s": ["  hello  ", " world"]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").str.strip_chars_start())
         assert actual == ["hello  ", "world"]
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_strip_start_custom(self, backend_name, backend_factory, collect_expr):
-        if backend_name in IBIS_BACKENDS:
-            pytest.xfail(
-                "Ibis backends ignore custom chars argument in strip_chars_start."
-            )
         data = {"s": ["xxhello", "xworld"]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").str.strip_chars_start("x"))
@@ -70,24 +62,16 @@ class TestStrStripCharsStart:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestStrStripCharsEnd:
+    @pytest.mark.parametrize("backend_name", _NW_TRIM)
     def test_strip_end_whitespace(self, backend_name, backend_factory, collect_expr):
-        if backend_name in NARWHALS_PANDAS_BACKENDS:
-            pytest.xfail(
-                "Narwhals/pandas strip_chars_end() strips both sides "
-                "instead of only the trailing side."
-            )
         data = {"s": ["  hello  ", "world "]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").str.strip_chars_end())
         assert actual == ["  hello", "world"]
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_strip_end_custom(self, backend_name, backend_factory, collect_expr):
-        if backend_name in IBIS_BACKENDS:
-            pytest.xfail(
-                "Ibis backends ignore custom chars argument in strip_chars_end."
-            )
         data = {"s": ["helloxx", "worldx"]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").str.strip_chars_end("x"))

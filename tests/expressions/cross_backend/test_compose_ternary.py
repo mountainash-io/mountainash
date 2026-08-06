@@ -3,6 +3,11 @@
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_TERN = [
+    pytest.param(b, marks=xfail_divergence("MA-TERN-01", backend=b)) for b in ALL_BACKENDS
+]
 
 T_TRUE = 1
 T_UNKNOWN = 0
@@ -10,30 +15,12 @@ T_FALSE = -1
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComposeTernary:
     """Test ternary expressions with composed operands."""
 
+    @pytest.mark.parametrize("backend_name", _TERN)
     def test_ternary_with_null_safe_operand(self, backend_name, backend_factory, select_and_extract):
         """t_gt with fill_null operand: score.t_gt(threshold.fill_null(0))."""
-        if backend_name == "polars":
-            pytest.xfail(
-                "Polars type mismatch: fill_null on nullable i64 column produces i64, "
-                "but ternary comparison intermediate expects Boolean schema."
-            )
-        if backend_name == "polars-lazy":
-            pytest.xfail(
-                "polars-lazy: optimizer enforces Boolean when()-condition dtype; "
-                "eager Polars coerces i64. .collect() raises "
-                "polars.exceptions.SchemaError: invalid series dtype: expected "
-                "Boolean, got i64 for series with name 'threshold'. Test passes "
-                "booleanizer=None so the operand is not booleanized."
-            )
-        if backend_name in ("pandas", "narwhals-pandas"):
-            pytest.xfail(
-                f"{backend_name}: pandas requires bool condition for where(), "
-                "but booleanizer=None passes raw sentinel ints (-1/0/1)"
-            )
         data = {
             "score": [80, None, 60],
             "threshold": [70, 50, None],
@@ -50,6 +37,7 @@ class TestComposeTernary:
         assert actual[1] == T_UNKNOWN, f"[{backend_name}] Row 1: {actual[1]}"
         assert actual[2] == T_TRUE, f"[{backend_name}] Row 2: {actual[2]}"
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_ternary_logical_chain(self, backend_name, backend_factory, select_and_extract):
         """Ternary chain: t_eq AND t_gt."""
         data = {"a": [1, 1, 0, None], "b": [5, -1, 5, 5]}
@@ -67,6 +55,7 @@ class TestComposeTernary:
         assert actual[2] == T_FALSE, f"[{backend_name}] Row 2"
         assert actual[3] == T_UNKNOWN, f"[{backend_name}] Row 3"
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_t_col_with_composition(self, backend_name, backend_factory, get_result_count):
         """t_col with custom unknown then filter with is_true booleanizer."""
         data = {"value": [100, -999, 50, -999, 80], "active": [True, True, False, True, True]}
@@ -85,6 +74,7 @@ class TestComposeTernary:
         # Row 4: 80 > 60 = T AND active=T -> T (pass)
         assert count == 2, f"[{backend_name}] Expected 2 with is_true, got {count}"
 
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_booleanizer_maybe_true(self, backend_name, backend_factory, get_result_count):
         """Same expression with maybe_true gives more rows."""
         data = {"value": [100, -999, 50, -999, 80], "active": [True, True, False, True, True]}

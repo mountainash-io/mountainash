@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
-import mountainash as ma
 from mountainash.core.capabilities import load_all_capability_declarations
-from mountainash.core.types import BackendCapabilityError
+from fixtures.capability_gating import xfail_divergence
+import mountainash as ma
 
 # Load capability declarations at import (house convention: mirror
 # test_datetime_value_class_dispatch / test_option_fact_integrity). The
@@ -241,6 +241,13 @@ TIMESTAMP_BACKENDS = [
     "ibis-sqlite",
 ]
 
+_MICRO_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-DT-15", backend=b)) for b in TIMESTAMP_BACKENDS
+]
+_NANO_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-DT-16", backend=b)) for b in TIMESTAMP_BACKENDS
+]
+
 
 # =============================================================================
 # microsecond
@@ -248,14 +255,9 @@ TIMESTAMP_BACKENDS = [
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TIMESTAMP_BACKENDS)
+@pytest.mark.parametrize("backend_name", _MICRO_BACKENDS)
 class TestDtMicrosecond:
     def test_microsecond_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "ibis-sqlite returns seconds instead of microseconds for "
-                "microsecond extraction"
-            )
         data = {
             "ts": [
                 datetime(2024, 3, 15, 10, 30, 45, 123456),
@@ -268,11 +270,6 @@ class TestDtMicrosecond:
         assert actual == [123456, 500000, 0]
 
     def test_microsecond_zero(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "ibis-sqlite returns seconds instead of microseconds for "
-                "microsecond extraction"
-            )
         data = {
             "ts": [
                 datetime(2024, 1, 1, 0, 0, 0, 0),
@@ -290,14 +287,9 @@ class TestDtMicrosecond:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TIMESTAMP_BACKENDS)
+@pytest.mark.parametrize("backend_name", _NANO_BACKENDS)
 class TestDtNanosecond:
     def test_nanosecond_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"):
-            pytest.xfail(
-                f"{backend_name} returns 0 for nanosecond — no sub-microsecond "
-                "precision from Python datetime inputs"
-            )
         data = {
             "ts": [
                 datetime(2024, 3, 15, 10, 30, 45, 123456),
@@ -310,11 +302,6 @@ class TestDtNanosecond:
         assert actual == [123456000, 0]
 
     def test_nanosecond_zero(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"):
-            pytest.xfail(
-                f"{backend_name} returns 0 for nanosecond — no sub-microsecond "
-                "precision from Python datetime inputs"
-            )
         data = {
             "ts": [
                 datetime(2024, 1, 1, 0, 0, 0, 0),
@@ -325,65 +312,3 @@ class TestDtNanosecond:
         actual = collect_expr(df, ma.col("ts").dt.nanosecond())
         assert actual == [0, 500000000]
 
-
-# =============================================================================
-# assume_timezone
-# =============================================================================
-
-
-# assume_timezone is HONORED only on the polars family; ibis and narwhals
-# silently drop the timezone (return a naive timestamp — verified natively by
-# the controller probe, backlog items 63/64), so the capability gate declares
-# them UNSUPPORTED and raises BackendCapabilityError on the real user path
-# rather than returning silently-wrong data (honor-or-declare).
-_ASSUME_TZ_HONORED = {"polars", "polars-lazy"}
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", TIMESTAMP_BACKENDS)
-class TestDtAssumeTimezone:
-    def test_assume_timezone_preserves_hour(
-        self, backend_name, backend_factory, collect_expr
-    ):
-        """Polars: assume UTC then extract hour — same hour as the naive input.
-
-        ibis/narwhals: the gate raises (they silently drop the tz), so the
-        expression cannot be compiled at all.
-        """
-        data = {
-            "ts": [
-                datetime(2024, 3, 15, 10, 30, 0),
-                datetime(2024, 6, 20, 14, 0, 0),
-            ]
-        }
-        df = backend_factory.create(data, backend_name)
-        expr = ma.col("ts").dt.assume_timezone("UTC").dt.hour()
-        if backend_name in _ASSUME_TZ_HONORED:
-            actual = collect_expr(df, expr)
-            assert actual == [10, 14]
-        else:
-            with pytest.raises(BackendCapabilityError, match="assume_timezone"):
-                collect_expr(df, expr)
-
-    def test_assume_timezone_runs_without_error(
-        self, backend_name, backend_factory
-    ):
-        """Polars runs cleanly; ibis/narwhals raise BackendCapabilityError."""
-        data = {
-            "ts": [
-                datetime(2024, 3, 15, 10, 30, 0),
-                datetime(2024, 6, 20, 14, 0, 0),
-            ]
-        }
-        df = backend_factory.create(data, backend_name)
-        build = (
-            ma.relation(df)
-            .select(ma.col("ts").dt.assume_timezone("UTC").name.alias("tz_ts"))
-            .to_dict
-        )
-        if backend_name in _ASSUME_TZ_HONORED:
-            result = build()
-            assert len(result["tz_ts"]) == 2
-        else:
-            with pytest.raises(BackendCapabilityError, match="assume_timezone"):
-                build()
