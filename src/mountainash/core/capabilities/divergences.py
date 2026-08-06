@@ -790,6 +790,28 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-06",
         ),
+        DivergenceFact(
+            id="IB-AGG-06",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # all-null aggregate (sum/mean/std/var/n_unique/any_value)
+            backends=("ibis-polars", "ibis-sqlite"),
+            summary="ibis-polars/ibis-sqlite infer an untyped NullColumn for an all-null input, which has no aggregate method (AttributeError: NullColumn has no 'sum'/'mean'/'std'/'var'/'nunique')",
+            impact="sum/mean/std_dev/variance/n_unique/any_value over an all-null column raise AttributeError on ibis-polars/ibis-sqlite; ibis-duckdb rejects the table outright (IB-REL-06), polars/narwhals compute None",
+            workaround="Cast the all-null column to an explicit type first, or use a polars/narwhals backend",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
+        DivergenceFact(
+            id="IB-AGG-07",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(FK_AGG.PRODUCT,),
+            backends=("ibis-duckdb", "ibis-sqlite"),
+            summary="product() with a zero factor breaks the log-based product implementation on ibis SQL: ibis-duckdb raises OutOfRangeException, ibis-sqlite returns a wrong value",
+            impact="product() over data containing 0 fails on ibis-duckdb (OutOfRangeException) and diverges on ibis-sqlite; polars/narwhals compute 0 (ibis-polars returns None — IB-AGG-05)",
+            workaround="Use a polars or narwhals backend for product() over data that may contain zero",
+            upstream_ref=None,
+            since="2026-08-06",
+        ),
     )
 
 

@@ -45,6 +45,7 @@ from tests.fixtures.capability_census import (
 )
 from tests.fixtures.capability_inventory import (
     InventoryEntry,
+    _identity_key,
     inventory_has,
     load_inventory,
 )
@@ -194,24 +195,30 @@ def test_non_capability_imperative_is_not_an_offender():
 
 def test_inventory_listed_capability_entry_is_not_an_offender():
     """(d) A capability-encoding imperative site whose identity IS in the
-    inventory allowlist is a sanctioned grandfather (SP2-B drains it) —
-    regardless of UNRESOLVED slots. The real-world case is an UNRESOLVED-
-    slotted inventoried row (census ``_imperative_site`` always emits
-    ``operation_key=UNRESOLVED`` / ``param=UNRESOLVED``); we use a realistic
-    such row, not a synthetic fully-resolved one, because that is the case
-    the guard must allowlist in practice."""
-    real_entry = next(
-        e for e in load_inventory().values() if e.found_via == "imperative-xfail"
+    inventory allowlist is a sanctioned grandfather — regardless of UNRESOLVED
+    slots. Built from a SYNTHETIC inventoried row (census ``_imperative_site``
+    always emits ``operation_key=UNRESOLVED`` / ``param=UNRESOLVED``), not a
+    live one: SP2-B's terminal state drains the inventory to zero, so no live
+    imperative-xfail row remains to source."""
+    node_id = (
+        "tests/expressions/cross_backend/test_synthetic.py::TestX::"
+        "test_y::L10[ibis-sqlite]"
     )
-    display_path, _, display_line = real_entry.display_site.rpartition(":")
+    key = _identity_key(node_id, UNRESOLVED, "ibis-sqlite", UNRESOLVED, None)
+    real_entry = InventoryEntry(
+        key=key, node_id=node_id, operation_key=UNRESOLVED, backend="ibis-sqlite",
+        param=UNRESOLVED, option_value=None, current_reason="synthetic",
+        classification="possibly-stale", found_via="imperative-xfail",
+        runtime_observable=False, since="2026-08-01",
+        display_site="tests/expressions/cross_backend/test_synthetic.py:10",
+    )
     synthetic = _entry(
-        path=display_path, line=int(display_line), bucket="inventoried",
-        operation_key=real_entry.operation_key, backend=real_entry.backend,
-        param=real_entry.param, option_value=real_entry.option_value,
-        node_id=real_entry.node_id,
+        path="tests/expressions/cross_backend/test_synthetic.py", line=10,
+        bucket="inventoried", operation_key=UNRESOLVED, backend="ibis-sqlite",
+        param=UNRESOLVED, option_value=None, node_id=node_id,
     )
     offenders = _capability_imperative_offenders(
         census=[synthetic],
-        inventory={real_entry.key: real_entry},
+        inventory={key: real_entry},
     )
     assert offenders == []
