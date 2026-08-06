@@ -611,6 +611,18 @@ def _iter_runtime_inventory_rows() -> list:
             continue
         try:
             frame = BackendDataFrameFactory.create(_SMOKE_DATA, backend_name)
+        except Exception as e:
+            # A backend that cannot construct its smoke frame (missing/broken
+            # library) would silently drop EVERY runtime-observable row for that
+            # backend while still writing the YAML — corrupting the drain-safe
+            # regeneration (spec 2.2, plan Task 0.3). Refuse loudly instead.
+            raise RuntimeError(
+                f"regenerate_smoke_inventory: backend {backend_name!r} failed to "
+                f"construct a smoke frame ({type(e).__name__}: {e}). A full-backend "
+                f"environment (all 7 backends importable) is required to regenerate "
+                f"the inventory; refusing to emit a YAML with silently-dropped rows."
+            ) from e
+        try:
             case = _prepare_smoke_case(fkey_str, frame)
         except _SmokeNotApplicable:
             continue
@@ -650,13 +662,19 @@ def _iter_runtime_inventory_rows() -> list:
     return rows
 
 
-def regenerate_smoke_inventory():
-    """Rewrite the committed inventory YAML with BOTH the static census rows and
-    this harness's runtime-observed compile_smoke allowlist. Run this after a
-    change that alters which invocations raise an undeclared
-    BackendCapabilityError (the closed rule fails such a raise until it is
-    catalogued)."""
-    return regenerate_inventory(runtime_rows=_iter_runtime_inventory_rows())
+def regenerate_smoke_inventory(path=None):
+    """Rewrite the inventory YAML with BOTH the static census rows and this
+    harness's runtime-observed compile_smoke allowlist. Run this after a change
+    that alters which invocations raise an undeclared BackendCapabilityError (the
+    closed rule fails such a raise until it is catalogued).
+
+    The canonical drain-safe regeneration entry point (spec 2.2): it re-observes
+    the runtime rows AND re-keys every static row from the live post-edit census
+    in one pass. MUST run in a full-backend env — a missing backend now raises
+    (see :func:`_iter_runtime_inventory_rows`) rather than dropping rows silently.
+    ``path`` (default: the committed inventory) lets a preflight regenerate into a
+    temp file and compare, guarding every integration without clobbering the tree."""
+    return regenerate_inventory(path=path, runtime_rows=_iter_runtime_inventory_rows())
 
 
 # ── Test class ────────────────────────────────────────────────────────────
