@@ -204,8 +204,8 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/conform/cross_backend/test_relation_conform.py:342
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L709[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L709[UNRESOLVED]
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L715[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L715[UNRESOLVED]
   operation_key: UNRESOLVED
   backend: UNRESOLVED
   param: UNRESOLVED
@@ -215,9 +215,9 @@
   found_via: catch-all
   runtime_observable: false
   since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:709
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L734[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L734[UNRESOLVED]
+  display_site: tests/core/test_compile_smoke.py:715
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L748[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds::L748[UNRESOLVED]
   operation_key: UNRESOLVED
   backend: UNRESOLVED
   param: UNRESOLVED
@@ -227,7 +227,7 @@
   found_via: imperative-xfail
   runtime_observable: false
   since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:734
+  display_site: tests/core/test_compile_smoke.py:748
 - key: tests/core/test_rel_collect_smoke.py::TestRelCollectSmoke::test_collect_succeeds::L341[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
   node_id: tests/core/test_rel_collect_smoke.py::TestRelCollectSmoke::test_collect_succeeds::L341[UNRESOLVED]
   operation_key: UNRESOLVED

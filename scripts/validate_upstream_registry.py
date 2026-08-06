@@ -71,6 +71,49 @@ VALID_WORKAROUNDS = {
 
 VALID_FILED_BY = {"us", "other"}
 
+# ---------------------------------------------------------------------------
+# Cross-field compatibility (closed-by-default allow-set)
+# ---------------------------------------------------------------------------
+# This is a WHITELIST, not a blacklist. Every (status, root_cause) pair that
+# the validator must admit is enumerated below; every other per-field-legal
+# pair is REJECTED. To permit a new combination, add it here explicitly —
+# silence is rejection. The set is derived from real field semantics:
+# - "by_design" status only pairs with "by_design" root_cause (we accept
+#   upstream's design rather than fight it).
+# - "resolved_in_mountainash" pairs only with root_causes that describe
+#   what we worked around — never with "by_design" (we don't "resolve"
+#   something we accept as deliberate).
+# - "needs_filing" / "needs_investigation" only pair with upstream-side
+#   root_causes (the filing is about upstream).
+# - "open" admits any root_cause we currently track a live issue for.
+# - "closed" currently pairs only with "parameter_width" — the
+#   materialisation in the live registry.
+COMPATIBLE_STATUS_ROOT_CAUSE: frozenset[tuple[str, str]] = frozenset({
+    # status=by_design — only pairs with root_cause=by_design.
+    ("by_design", "by_design"),
+    # status=closed — currently only the parameter_width materialisation.
+    ("closed", "parameter_width"),
+    # status=needs_filing — we know what it is, we just haven't filed yet.
+    ("needs_filing", "upstream_bug"),
+    ("needs_filing", "upstream_feature_gap"),
+    # status=needs_investigation — every per-field-legal root_cause in the
+    # live registry while we determine the actual cause.
+    ("needs_investigation", "mountainash_internal"),
+    ("needs_investigation", "parameter_width"),
+    ("needs_investigation", "upstream_bug"),
+    ("needs_investigation", "upstream_feature_gap"),
+    # status=open — all four upstream-side root_causes plus mountainash_internal
+    # (we track our own internal issues under the same "open" status).
+    ("open", "mountainash_internal"),
+    ("open", "parameter_width"),
+    ("open", "upstream_bug"),
+    ("open", "upstream_feature_gap"),
+    # status=resolved_in_mountainash — we worked around it; never with by_design.
+    ("resolved_in_mountainash", "mountainash_internal"),
+    ("resolved_in_mountainash", "upstream_bug"),
+    ("resolved_in_mountainash", "upstream_feature_gap"),
+})
+
 REQUIRED_FIELDS = {
     "id",
     "project",
@@ -190,6 +233,20 @@ def validate(data: object) -> list[str]:
             errors.append(
                 f"{prefix}: 'status' is '{status}'; must be one of {sorted(VALID_STATUSES)}."
             )
+
+        # Rule 6b: cross-field (status, root_cause) compatibility.
+        # Closed-by-default whitelist — only pairs enumerated in
+        # COMPATIBLE_STATUS_ROOT_CAUSE are admitted. Both fields must be
+        # present (Rule 2 already covers the "missing required field" case);
+        # we only emit when both have been supplied so the per-field
+        # "missing" / "invalid" messages remain authoritative for those.
+        if status is not None and root_cause is not None:
+            if (status, root_cause) not in COMPATIBLE_STATUS_ROOT_CAUSE:
+                errors.append(
+                    f"{prefix}: (status='{status}', root_cause='{root_cause}') "
+                    f"is not a compatible (status, root_cause) combination; "
+                    f"see COMPATIBLE_STATUS_ROOT_CAUSE for the closed-by-default allow-set."
+                )
 
         # Rule 7: our_workaround
         workaround = entry.get("our_workaround")

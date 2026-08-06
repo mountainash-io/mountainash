@@ -68,8 +68,8 @@ _none_
 | tests/conform/cross_backend/test_relation_conform.py:129 | imperative-xfail | UNRESOLVED | pandas | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
 | tests/conform/cross_backend/test_relation_conform.py:135 | imperative-xfail | UNRESOLVED | ibis-sqlite | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
 | tests/conform/cross_backend/test_relation_conform.py:342 | imperative-xfail | UNRESOLVED | ibis | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
-| tests/core/test_compile_smoke.py:714 | catch-all | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | runtime capability-spine catch-all / short-circuit absorber — closed at the harness in Task 7; catalogued as inventoried |
-| tests/core/test_compile_smoke.py:739 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
+| tests/core/test_compile_smoke.py:715 | catch-all | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | runtime capability-spine catch-all / short-circuit absorber — closed at the harness in Task 7; catalogued as inventoried |
+| tests/core/test_compile_smoke.py:748 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
 | tests/core/test_rel_collect_smoke.py:341 | catch-all | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | runtime capability-spine catch-all / short-circuit absorber — closed at the harness in Task 7; catalogued as inventoried |
 | tests/expressions/cross_backend/test_aggregate_fluent_reducers.py:49 | imperative-xfail | UNRESOLVED | ibis | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
 | tests/expressions/cross_backend/test_aggregate_fluent_reducers.py:66 | imperative-xfail | UNRESOLVED | narwhals-lazy | UNRESOLVED | None | raw imperative xfail encoding a per-backend capability limitation with no matching spine fact — catalogued for SP2 migration assessment |
@@ -448,7 +448,7 @@ _none_
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| tests/core/test_api_reachability.py:147 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
+| tests/core/test_api_reachability.py:122 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
 | tests/core/test_rel_signature_conformance.py:126 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:236 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:321 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |

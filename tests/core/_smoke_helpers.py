@@ -9,7 +9,7 @@ from __future__ import annotations
 import inspect
 import typing
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 import mountainash as ma
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
@@ -168,18 +168,21 @@ _SENTINEL_MISSING = object()
 _SMOKE_EXPR_BUILDERS: dict[Enum, Any] | None = None
 
 
-def _init_smoke_expr_builders() -> dict[Enum, Any]:
-    """FKEY -> expression factory for FKEYs where protocol method name
-    doesn't match the public API accessor.
+def _init_shared_fkey_builders() -> dict[Enum, Callable[[], Any]]:
+    # retirement-verdict: front-4.3 — shared source for the byte-identical FKEY->public-call entries formerly duplicated in test_api_reachability + _smoke_helpers.
+    """FKEY -> public-call entries that are byte-identical between
+    `tests/core/test_api_reachability._builders()` and
+    `_smoke_helpers._init_smoke_expr_builders()`. Each consumer merges this
+    base with its own local overrides (divergent RANK + consumer-specific
+    arg-construction or composite patterns).
 
-    Returns a dict mapping FKEY -> zero-arg callable returning an Expression,
-    or None for FKEYs not reachable via the public API.
+    Intentionally excludes `SUBSTRAIT_ARITHMETIC_WINDOW.RANK` — that entry
+    is divergent: the reachability guard forces the canonical Substrait
+    `method="min"` form while the smoke harness uses the default form.
     """
     from mountainash.expressions.core.expression_system.function_keys.enums import (
-        FKEY_MOUNTAINASH_SCALAR_STRING,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
         FKEY_MOUNTAINASH_WINDOW,
-        FKEY_SUBSTRAIT_CONDITIONAL,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
@@ -191,7 +194,6 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
     b = ma.col("e")
 
     return {
-        # Category A: name mismatch
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE: lambda: ma.always_true(),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE: lambda: ma.always_false(),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE: lambda: c.t_is_true(),
@@ -205,18 +207,39 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
-        # Category B: composite API pattern
-        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
-        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),
-        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.is_leap_year(),
-        # Category D: window functions needing .over()
         SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER: lambda: c.row_number().over("b"),
-        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank().over("b"),
         SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK: lambda: c.dense_rank().over("b"),
         SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK: lambda: c.percent_rank().over("b"),
         SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST: lambda: c.cume_dist().over("b"),
         FKEY_MOUNTAINASH_WINDOW.RANK_MAX: lambda: c.rank(method="max").over("b"),
         FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE: lambda: c.rank(method="average").over("b"),
+    }
+
+
+def _init_smoke_expr_builders() -> dict[Enum, Any]:
+    """FKEY -> expression factory for FKEYs where protocol method name
+    doesn't match the public API accessor.
+
+    Returns a dict mapping FKEY -> zero-arg callable returning an Expression,
+    or None for FKEYs not reachable via the public API.
+    """
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_CONDITIONAL,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        SUBSTRAIT_ARITHMETIC_WINDOW,
+    )
+
+    c = ma.col("a")
+    b = ma.col("e")
+
+    return {
+        **_init_shared_fkey_builders(),
+        # Composite API pattern: reachable from a multi-step public call.
+        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.is_leap_year(),
+        # Divergent RANK: smoke harness uses the default form (no method=).
+        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank().over("b"),
     }
 
 
