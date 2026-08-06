@@ -1,3 +1,4 @@
+# retirement-verdict: front-4.1-W1 — relocated from tests/core/ (matrix-owned by argument_types); sole structural guard of the option-disposition matrix.
 """Closed-by-default integrity for literal option disposition cells.
 
 The populated matrix, executable probes, concrete facts, and family defaults
