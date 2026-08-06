@@ -3049,30 +3049,6 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/expressions/cross_backend/test_window_cumulative.py:27
-- key: tests/expressions/cross_backend/test_window_diff.py::TestDiff::test_diff_basic::L24[narwhals-lazy]|UNRESOLVED|narwhals-lazy|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_window_diff.py::TestDiff::test_diff_basic::L24[narwhals-lazy]
-  operation_key: UNRESOLVED
-  backend: narwhals-lazy
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'narwhals-lazy: diff() is order-dependent, rejected on a LazyFrame'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_window_diff.py:24
-- key: tests/expressions/cross_backend/test_window_diff.py::TestDiff::test_diff_basic::L26[ibis-polars]|UNRESOLVED|ibis-polars|UNRESOLVED|None
-  node_id: tests/expressions/cross_backend/test_window_diff.py::TestDiff::test_diff_basic::L26[ibis-polars]
-  operation_key: UNRESOLVED
-  backend: ibis-polars
-  param: UNRESOLVED
-  option_value: null
-  current_reason: 'ibis-polars: no translation rule for the cumulative/diff WindowFunction'
-  classification: possibly-stale
-  found_via: imperative-xfail
-  runtime_observable: false
-  since: '2026-08-01'
-  display_site: tests/expressions/cross_backend/test_window_diff.py:26
 - key: tests/expressions/cross_backend/test_window_results.py::_xfail_lazy_order_dependent::L45[UNRESOLVED]|UNRESOLVED|UNRESOLVED|UNRESOLVED|None
   node_id: tests/expressions/cross_backend/test_window_results.py::_xfail_lazy_order_dependent::L45[UNRESOLVED]
   operation_key: UNRESOLVED
