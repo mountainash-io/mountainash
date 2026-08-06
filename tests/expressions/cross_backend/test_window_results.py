@@ -583,11 +583,13 @@ class TestWindowRankMethodMax:
         assert result["rnk"] == [1, 2, 4, 4]
 
 
-# TestWindowRankMethodGuard retired (SP2-B): its two pytest.raises(BackendCapabilityError)
-# assertions duplicated the IB-WIN-03 divergence, which the xfail'd
-# TestWindowRankMethodAverage/Max[ibis] cases now document and the IB-WIN-03 mutation
-# probe verifies as load-bearing. The bare BCE is unenriched (.limitation is None), so it
-# is a DivergenceFact, not an assert_capability_gated gate.
+# retirement-verdict: SP2-B (crosswalk Part F ground-truth, rank method=average/max) —
+# TestWindowRankMethodGuard retired: its two pytest.raises(BackendCapabilityError)
+# assertions duplicated the IB-WIN-03 divergence. Sole surviving catcher of the
+# rank(method=average|max) ibis gap is the xfail'd TestWindowRankMethodAverage/Max[ibis]
+# cases (routed via xfail_divergence("IB-WIN-03")), whose mutation probe verifies it as
+# load-bearing. The bare BCE was unenriched (.limitation is None), so it is a
+# DivergenceFact, not an assert_capability_gated gate.
 
 
 # ─── Percent Rank & Cume Dist ─────────────────────────────────────────────────

@@ -99,13 +99,7 @@ class TestBetween:
 
 
 _FINITE_INFINITE_BACKENDS = [
-    pytest.param(
-        b,
-        marks=pytest.mark.xfail(
-            reason="ibis-sqlite: is_finite/is_infinite Inf handling differs "
-            "(no covering spine fact yet)"
-        ),
-    )
+    pytest.param(b, marks=xfail_divergence("IB-CMP-01", backend=b))
     if b == "ibis-sqlite"
     else b
     for b in ALL_BACKENDS
@@ -116,8 +110,8 @@ _FINITE_INFINITE_BACKENDS = [
 @pytest.mark.parametrize("backend_name", _FINITE_INFINITE_BACKENDS)
 class TestComposeComparisonNumeric:
     """Numeric checks is_finite / is_infinite. (is_nan lives in TestComposeIsNan,
-    routed through IB-TYPE-02.) Only ibis-sqlite's Inf handling diverges; it has
-    no covering spine fact yet (SP2-B-contingent), so it stays a reason-only mark."""
+    routed through IB-TYPE-02.) ibis-sqlite lacks is_finite/is_infinite (raises
+    OperationNotDefinedError), routed through DivergenceFact IB-CMP-01."""
 
     def test_is_finite(self, backend_name, backend_factory, get_result_count):
         """Test is_finite on float column."""

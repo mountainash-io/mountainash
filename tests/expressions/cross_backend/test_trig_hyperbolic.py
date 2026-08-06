@@ -6,27 +6,29 @@ import pytest
 import mountainash.expressions as ma
 from fixtures.capability_gating import xfail_divergence
 
-# Polars + Ibis have native trig support (including SQLite via ibis)
+# Polars + Ibis have native trig support (including SQLite via ibis); pandas and
+# narwhals lack trig/angular functions (NW-MATH-02).
 TRIG_BACKENDS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals lacks trig methods")),
-    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals lacks trig methods")),
+    pytest.param("pandas", marks=xfail_divergence("NW-MATH-02", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-02", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-02", backend="narwhals-pandas")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
 
-# Only Polars has native hyperbolic support
+# Only Polars has native hyperbolic support: pandas/narwhals lack it (NW-MATH-02),
+# ibis-polars/ibis-duckdb lack it (IB-MATH-06), ibis-sqlite lacks it (IB-MATH-02).
 HYPERBOLIC_BACKENDS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals lacks hyperbolic methods")),
-    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals lacks hyperbolic methods")),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis lacks hyperbolic methods")),
-    pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis lacks hyperbolic methods")),
+    pytest.param("pandas", marks=xfail_divergence("NW-MATH-02", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-02", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-02", backend="narwhals-pandas")),
+    pytest.param("ibis-polars", marks=xfail_divergence("IB-MATH-06", backend="ibis-polars")),
+    pytest.param("ibis-duckdb", marks=xfail_divergence("IB-MATH-06", backend="ibis-duckdb")),
     pytest.param("ibis-sqlite", marks=xfail_divergence("IB-MATH-02", backend="ibis-sqlite")),
 ]
 
