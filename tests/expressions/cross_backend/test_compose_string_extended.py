@@ -10,17 +10,20 @@ enums that don't exist yet — these are aspirational and excluded from coverage
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
+
+_NW_TRIM = [
+    pytest.param(b, marks=xfail_divergence("NW-STR-15", backend=b)) for b in ALL_BACKENDS
+]
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _NW_TRIM)
 class TestComposeStringTrimExtended:
     """Test ltrim and rtrim (trim already covered in test_compose_string.py)."""
 
     def test_ltrim(self, backend_name, backend_factory, collect_expr):
         """Test ltrim removes leading spaces."""
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"):
-            pytest.xfail(f"{backend_name}: Narwhals only has strip_chars() (both sides), no directional strip")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)
 
@@ -30,8 +33,6 @@ class TestComposeStringTrimExtended:
 
     def test_rtrim(self, backend_name, backend_factory, collect_expr):
         """Test rtrim removes trailing spaces."""
-        if backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"):
-            pytest.xfail(f"{backend_name}: Narwhals only has strip_chars() (both sides), no directional strip")
         data = {"text": ["  hello  ", "  world  "]}
         df = backend_factory.create(data, backend_name)
 

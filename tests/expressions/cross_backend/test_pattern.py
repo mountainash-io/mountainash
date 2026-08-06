@@ -17,6 +17,13 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
+from fixtures.capability_gating import xfail_divergence
+
+_LIKE_LIST = ["polars", "pandas", "narwhals-polars", "ibis-polars", "ibis-duckdb", "ibis-sqlite"]
+_LIKE_MARKED = [
+    pytest.param(b, marks=xfail_divergence("IB-STR-01", backend=b)) if b == "ibis-polars" else b
+    for b in _LIKE_LIST
+]
 
 
 # =============================================================================
@@ -24,23 +31,13 @@ import mountainash as ma_top
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "ibis-polars",  # Not implemented yet
-    "ibis-duckdb",  # External dependency issue
-    "ibis-sqlite",  # Limited temporal support
-
-])
+@pytest.mark.parametrize("backend_name", _LIKE_MARKED)
 class TestSQLLikePatterns:
     """Test SQL LIKE pattern matching."""
 
     def test_like_starts_with(self, backend_name, backend_factory):
         """Test LIKE pattern: starts with."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
-        if backend_name == "ibis-polars":
-            pytest.xfail("LIKE pattern not supported by Ibis Polars backend")
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson", "Alice"]
@@ -58,8 +55,6 @@ class TestSQLLikePatterns:
     def test_like_ends_with(self, backend_name, backend_factory):
         """Test LIKE pattern: ends with."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
-        if backend_name == "ibis-polars":
-            pytest.xfail("LIKE pattern not supported by Ibis Polars backend")
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson", "Alice"]
@@ -77,8 +72,6 @@ class TestSQLLikePatterns:
     def test_like_contains(self, backend_name, backend_factory):
         """Test LIKE pattern: contains."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
-        if backend_name == "ibis-polars":
-            pytest.xfail("LIKE pattern not supported by Ibis Polars backend")
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson", "Alice"]
@@ -245,23 +238,13 @@ class TestRegexReplace:
 # =============================================================================
 
 @pytest.mark.integration
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-
-])
 class TestPatternWithBooleanLogic:
     """Test combining pattern operations with boolean filters."""
 
+    @pytest.mark.parametrize("backend_name", _LIKE_MARKED)
     def test_pattern_and_numeric_filter(self, backend_name, backend_factory):
         """Test pattern AND numeric comparison."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
-        if backend_name == "ibis-polars":
-            pytest.xfail("LIKE pattern not supported by Ibis Polars backend")
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson"],
@@ -278,6 +261,7 @@ class TestPatternWithBooleanLogic:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+    @pytest.mark.parametrize("backend_name", _LIKE_LIST)
     def test_regex_and_numeric_filter(self, backend_name, backend_factory):
         """Test regex AND numeric comparison."""
         data = {
@@ -451,20 +435,10 @@ class TestComplexRegexPatterns:
 class TestPatternEdgeCases:
     """Test edge cases for pattern operations."""
 
-    @pytest.mark.parametrize("backend_name", [
-        "polars",
-        "pandas",
-        "narwhals-polars",
-        "ibis-polars",
-        "ibis-duckdb",
-        "ibis-sqlite",
-
-    ])
+    @pytest.mark.parametrize("backend_name", _LIKE_MARKED)
     def test_like_empty_string(self, backend_name, backend_factory, get_result_count):
         """Test LIKE with empty string."""
         # LIKE is not supported by Ibis Polars backend - upstream limitation
-        if backend_name == "ibis-polars":
-            pytest.xfail("LIKE pattern not supported by Ibis Polars backend")
 
         data = {
             "text": ["", "a", "", "test", ""]
