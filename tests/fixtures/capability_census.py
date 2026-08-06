@@ -362,7 +362,7 @@ def _imperative_site(
     refs = _ref_names(reason_expr) if reason_expr is not None else frozenset()
     current = reason_text if reason_text is not None else UNRESOLVED
 
-    nc = _non_capability_predicate(rel, reason_text)
+    nc = _non_capability_predicate(rel, reason_text, reason_expr)
     targets = backends or [UNRESOLVED]
     out: list[CensusEntry] = []
     for backend in targets:
@@ -409,7 +409,9 @@ def _imperative_site(
 # ---------------------------------------------------------------------------
 # Curated non-capability predicate list (explicit per-family reasons).
 # ---------------------------------------------------------------------------
-def _non_capability_predicate(rel: str, reason_text: str | None) -> str | None:
+def _non_capability_predicate(
+    rel: str, reason_text: str | None, reason_expr: ast.AST | None = None
+) -> str | None:
     if rel.endswith("core/test_api_reachability.py"):
         return (
             "non-capability: API reachability gap (fkey not emitted by any public "
@@ -426,15 +428,30 @@ def _non_capability_predicate(rel: str, reason_text: str | None) -> str | None:
             "non-capability: relation protocol conformance divergence "
             "(signature/dispatch/unhandled-node) — not a backend capability gate"
         )
-    if (
-        rel.endswith("core/test_compile_smoke.py")
-        and reason_text is not None
-        and "AST-internal" in reason_text
-    ):
-        return (
-            "non-capability: AST-internal node, not a compilable expression — a "
-            "registry/AST classification, not a backend capability gate"
-        )
+    if rel.endswith("core/test_compile_smoke.py"):
+        if reason_text is not None and "AST-internal" in reason_text:
+            return (
+                "non-capability: AST-internal node, not a compilable expression — a "
+                "registry/AST classification, not a backend capability gate"
+            )
+        # The two compile_smoke harness primitives (SP2-B Task 0.4 / B2): NOT
+        # imperative-drain targets. `pytest.xfail(expected_reason)` inside the
+        # `if key in _KNOWN_SMOKE_FAILURES` block is a native (non-capability)
+        # compile-failure park; `pytest.xfail("undeclared gap (inventoried,
+        # pending SP2): …")` is the dynamic catch-all absorber whose ABSORBED
+        # runtime gaps are the found_via=catch-all rows, not this static site.
+        if isinstance(reason_expr, ast.Name) and reason_expr.id == "expected_reason":
+            return (
+                "non-capability: _KNOWN_SMOKE_FAILURES park — the harness expects a "
+                "NATIVE (non-BackendCapabilityError) compile failure here; not a "
+                "spine-gated backend capability"
+            )
+        if reason_text is not None and "inventoried, pending SP2" in reason_text:
+            return (
+                "non-capability: the dynamic compile-smoke catch-all absorber "
+                "(inventory_has lookup); the absorbed gaps are the runtime "
+                "found_via=catch-all rows, not an imperative-drain target"
+            )
     return None
 
 
