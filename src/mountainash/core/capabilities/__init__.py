@@ -11,6 +11,7 @@ from mountainash.core.capabilities.declarations import (
 )
 from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALECTS
 from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
+from mountainash.core.capabilities.retired import RETIRED_FACTS, RetiredFact
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
@@ -45,6 +46,8 @@ __all__ = [
     "KNOWN_DIALECTS",
     "KnownGap",
     "ProbeEvidence",
+    "RETIRED_FACTS",
+    "RetiredFact",
     "TargetKind",
     "ValueClass",
     "WILDCARD_PARAM",
