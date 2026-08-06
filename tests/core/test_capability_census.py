@@ -33,19 +33,35 @@ def _imperative_xfail_lines(tree: ast.AST) -> list[int]:
     ]
 
 
+def _raises_exc_names(node: ast.Call) -> frozenset[str]:
+    """Every exception type named in a ``pytest.raises(...)`` positional arg —
+    a single type, an attribute (``mod.BackendCapabilityError``), or a
+    tuple/list of types (``pytest.raises((BackendCapabilityError, X))``).
+    Mirrors the census's own ``_raises_names`` so the all-or-nothing scan sees
+    the tuple form the single-``ast.Name`` check used to miss (spec §4.1 M6)."""
+    names: set[str] = set()
+    for arg in node.args:
+        elts = arg.elts if isinstance(arg, (ast.Tuple, ast.List)) else [arg]
+        for elt in elts:
+            if isinstance(elt, ast.Name):
+                names.add(elt.id)
+            elif isinstance(elt, ast.Attribute):
+                names.add(elt.attr)
+    return frozenset(names)
+
+
 def _handcoded_gate_raises_lines(tree: ast.AST) -> list[int]:
     """Lines of hand-coded ``pytest.raises(BackendCapabilityError)`` gate
-    reconstructions — the expectation ``assert_capability_gated`` now owns."""
+    reconstructions — the expectation ``assert_capability_gated`` now owns.
+    Tuple/list forms are flattened (M6) so a ``pytest.raises((BackendCapabilityError,
+    Other))`` cannot slip the all-or-nothing scan."""
     return [
         node.lineno
         for node in ast.walk(tree)
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "raises"
-        and any(
-            isinstance(a, ast.Name) and a.id == "BackendCapabilityError"
-            for a in node.args
-        )
+        and "BackendCapabilityError" in _raises_exc_names(node)
     ]
 
 
@@ -69,3 +85,30 @@ def test_no_migrated_site_carries_a_raw_capability_form():
         offenders += [f"{rel}:{ln} hand-coded pytest.raises(BackendCapabilityError) at a migrated site"
                       for ln in _handcoded_gate_raises_lines(tree)]
     assert not offenders, "raw capability forms remain at migrated sites:\n" + "\n".join(offenders)
+
+
+def test_handcoded_gate_raises_scanner_catches_tuple_form():
+    """M6 teeth: the all-or-nothing raise scanner must flag both the single-type
+    and the tuple/list ``pytest.raises((BackendCapabilityError, ...))`` forms, and
+    must NOT flag a ``pytest.raises`` for an unrelated exception."""
+    src = (
+        "import pytest\n"
+        "def t_single():\n"
+        "    with pytest.raises(BackendCapabilityError):\n"
+        "        build()\n"
+        "def t_tuple():\n"
+        "    with pytest.raises((BackendCapabilityError, ValueError)):\n"
+        "        build()\n"
+        "def t_attr():\n"
+        "    with pytest.raises((TypeError, errs.BackendCapabilityError)):\n"
+        "        build()\n"
+        "def t_unrelated():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        build()\n"
+    )
+    tree = ast.parse(src)
+    flagged = _handcoded_gate_raises_lines(tree)
+    assert flagged == [3, 6, 9], (
+        f"expected single(3), tuple(6), attr-in-tuple(9) flagged, not the "
+        f"ValueError-only site; got {flagged}"
+    )
