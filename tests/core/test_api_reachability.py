@@ -24,7 +24,7 @@ _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
     sys.path.insert(0, _TESTS_DIR)
 
-from core._smoke_helpers import build_args_for_fkey
+from core._smoke_helpers import _init_shared_fkey_builders, build_args_for_fkey
 from core.test_compile_smoke import _resolve_api_callable
 
 
@@ -34,11 +34,7 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         FKEY_MOUNTAINASH_SCALAR_DATETIME as MD,
         FKEY_MOUNTAINASH_SCALAR_LIST as ML,
         FKEY_MOUNTAINASH_SCALAR_STRUCT as MS,
-        FKEY_MOUNTAINASH_SCALAR_TERNARY as MT,
-        FKEY_MOUNTAINASH_WINDOW as MW,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE as SA,
-        FKEY_SUBSTRAIT_SCALAR_DATETIME as SD,
-        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC as SL,
         SUBSTRAIT_ARITHMETIC_WINDOW as SW,
     )
 
@@ -46,7 +42,11 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
     s = ma.col("c")
     b = ma.col("e")
     return {
-        # Options with no auto-constructible default.
+        # Shared FKEY->public-call base (the 19 byte-identical entries shared
+        # with `_smoke_helpers._init_smoke_expr_builders`). The shared lambdas
+        # close over c/s/b from this frame.
+        **_init_shared_fkey_builders(),
+        # Options with no auto-constructible default (unique to A).
         MD.OFFSET_BY: lambda: c.dt.offset_by("1d"),
         MD.TRUNCATE: lambda: c.dt.truncate("day"),
         MD.CEIL: lambda: c.dt.ceil("day"),
@@ -60,31 +60,6 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         SA.MEDIAN: lambda: ma.median(0, c),
         # Default method= emits the MA alias key, not the Substrait canonical.
         SW.RANK: lambda: c.rank(method="min").over("b"),
-        # Ternary ops: protocol method name differs from public API name.
-        MT.ALWAYS_TRUE: lambda: ma.always_true(),
-        MT.ALWAYS_FALSE: lambda: ma.always_false(),
-        MT.IS_TRUE: lambda: c.t_is_true(),
-        MT.IS_FALSE: lambda: c.t_is_false(),
-        MT.IS_UNKNOWN: lambda: c.t_is_unknown(),
-        MT.IS_KNOWN: lambda: c.t_is_known(),
-        MT.MAYBE_TRUE: lambda: c.t_maybe_true(),
-        MT.MAYBE_FALSE: lambda: c.t_maybe_false(),
-        # Aggregate: protocol method name differs from public API name.
-        SA.BOOL_AND: lambda: b.all(),
-        SA.BOOL_OR: lambda: b.any(),
-        # Datetime: requires .str namespace traversal.
-        SD.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
-        SD.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
-        # Logarithmic: protocol method name differs.
-        SL.LOGB: lambda: c.log(base=10),
-        # Window functions needing .over() context.
-        SW.ROW_NUMBER: lambda: c.row_number().over("b"),
-        SW.DENSE_RANK: lambda: c.dense_rank().over("b"),
-        SW.PERCENT_RANK: lambda: c.percent_rank().over("b"),
-        SW.CUME_DIST: lambda: c.cume_dist().over("b"),
-        # Rank variants: method= param disambiguates.
-        MW.RANK_MAX: lambda: c.rank(method="max").over("b"),
-        MW.RANK_AVERAGE: lambda: c.rank(method="average").over("b"),
     }
 
 
