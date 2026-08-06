@@ -12,8 +12,11 @@ from fixtures.capability_gating import xfail_divergence
 
 # now() compiles to query-time UTC SQL on ibis-duckdb/ibis-sqlite (IB-DT-09);
 # ibis-polars evaluates now() like Polars/Narwhals, so it is NOT gated here.
+# The mark is non-strict: the UTC-vs-local divergence only manifests off UTC, so
+# a UTC runner (e.g. CI) legitimately passes — tolerate the xpass rather than
+# flake on it.
 _NOW_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-DT-09", backend=b))
+    pytest.param(b, marks=xfail_divergence("IB-DT-09", backend=b, strict=False))
     if b in ("ibis-duckdb", "ibis-sqlite")
     else b
     for b in ALL_BACKENDS
