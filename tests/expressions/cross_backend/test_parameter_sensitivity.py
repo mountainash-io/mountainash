@@ -27,9 +27,9 @@ _SHIFT = (
 POLARS_IBIS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals limited")),
-    pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals limited")),
+    pytest.param("pandas", marks=xfail_divergence("NW-STR-17", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-STR-17", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-STR-17", backend="narwhals-pandas")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -378,14 +378,9 @@ class TestDatetimeParameterSensitivity:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
-    pytest.param(
-        "ibis-polars",
-        marks=pytest.mark.xfail(
-            reason="ibis-polars does not support columnar length argument in str.lpad/rpad"
-        ),
-    ),
+    pytest.param("pandas", marks=xfail_divergence("MA-STR-02", backend="pandas")),
+    pytest.param("narwhals", marks=xfail_divergence("MA-STR-02", backend="narwhals")),
+    pytest.param("ibis-polars", marks=xfail_divergence("MA-STR-02", backend="ibis-polars")),
     "ibis-duckdb",
     "ibis-sqlite",
 ])
@@ -425,8 +420,8 @@ class TestCenterParameterSensitivity:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", [
     "polars",
-    pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
-    pytest.param("narwhals", marks=pytest.mark.xfail(reason="narwhals limited")),
+    pytest.param("pandas", marks=xfail_divergence("NW-STR-18", backend="pandas")),
+    pytest.param("narwhals", marks=xfail_divergence("NW-STR-18", backend="narwhals")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
