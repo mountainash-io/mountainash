@@ -10,10 +10,25 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from mountainash.core.types import BackendCapabilityError
+from fixtures.capability_gating import assert_capability_gated, gate_family, xfail_divergence
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
+)
 
 
 LIST_BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
+
+# Divergence-marked backend params. xfail_divergence returns a no-op mark when the
+# divergence does not apply to a backend, so every applicable mark is attached to
+# each param and self-selects the affected backend(s).
+_LIST_NW = [pytest.param(b, marks=xfail_divergence("NW-LIST-05", backend=b)) for b in LIST_BACKENDS]
+_LIST_NW_IB = [
+    pytest.param(
+        b,
+        marks=[xfail_divergence("NW-LIST-05", backend=b), xfail_divergence("IB-LIST-01", backend=b)],
+    )
+    for b in LIST_BACKENDS
+]
 
 
 @pytest.mark.cross_backend
@@ -150,22 +165,32 @@ class TestListLast:
     def test_last_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[10, 20, 30], [40, 50], [60]]}
         df = backend_factory.create(data, backend_name)
-        if backend_name == "narwhals-polars":
-            with pytest.raises(BackendCapabilityError, match="negative indices"):
-                collect_expr(df, ma.col("arr").list.last())
-            return
-        actual = collect_expr(df, ma.col("arr").list.last())
-        assert actual == [30, 50, 60]
+        expr = ma.col("arr").list.last()
+        result = assert_capability_gated(
+            FK_LIST.GET,
+            gate_family(backend_name),
+            dialect=backend_name,
+            param="index",
+            build=lambda: ma.relation(df).select(expr.name.alias("result")),
+            materialize=lambda rel: rel.to_dict()["result"],
+        )
+        if result is not None:
+            assert result == [30, 50, 60]
 
     def test_last_with_null_last(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[10, 20, None], [None, 50]]}
         df = backend_factory.create(data, backend_name)
-        if backend_name == "narwhals-polars":
-            with pytest.raises(BackendCapabilityError, match="negative indices"):
-                collect_expr(df, ma.col("arr").list.last())
-            return
-        actual = collect_expr(df, ma.col("arr").list.last())
-        assert actual == [None, 50]
+        expr = ma.col("arr").list.last()
+        result = assert_capability_gated(
+            FK_LIST.GET,
+            gate_family(backend_name),
+            dialect=backend_name,
+            param="index",
+            build=lambda: ma.relation(df).select(expr.name.alias("result")),
+            materialize=lambda rel: rel.to_dict()["result"],
+        )
+        if result is not None:
+            assert result == [None, 50]
 
 
 @pytest.mark.cross_backend
@@ -185,19 +210,15 @@ class TestListSort:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
 class TestListReverse:
     def test_reverse_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.reverse() not supported on {backend_name}")
         data = {"arr": [[1, 2, 3], [4, 5], [6]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.reverse())
         assert actual == [[3, 2, 1], [5, 4], [6]]
 
     def test_reverse_empty(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.reverse() not supported on {backend_name}")
         data = {"arr": [[], [1], [1, 2]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.reverse())
@@ -227,24 +248,18 @@ class TestListUnique:
 @pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListContains:
     def test_contains_present(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("Narwhals list.contains() fails with expression literal TypeError")
         data = {"arr": [[1, 2, 3], [4, 5, 6], [7, 8, 9]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.contains(2))
         assert actual == [True, False, False]
 
     def test_contains_absent(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("Narwhals list.contains() fails with expression literal TypeError")
         data = {"arr": [[1, 2, 3], [4, 5, 6]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.contains(99))
         assert actual == [False, False]
 
     def test_contains_in_all(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("Narwhals list.contains() fails with expression literal TypeError")
         data = {"arr": [[1, 2, 3], [2, 4, 6], [2, 8, 10]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.contains(2))
@@ -252,27 +267,21 @@ class TestListContains:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+@pytest.mark.parametrize("backend_name", _LIST_NW)
 class TestListJoin:
     def test_join_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("list.join() not supported on narwhals")
         data = {"arr": [["a", "b", "c"], ["x", "y"], ["hello"]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.join("-"))
         assert actual == ["a-b-c", "x-y", "hello"]
 
     def test_join_empty_separator(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("list.join() not supported on narwhals")
         data = {"arr": [["a", "b", "c"], ["x", "y"]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.join(""))
         assert actual == ["abc", "xy"]
 
     def test_join_single_element(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "narwhals-polars":
-            pytest.xfail("list.join() not supported on narwhals")
         data = {"arr": [["only"], ["one"]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.join(","))
@@ -280,19 +289,15 @@ class TestListJoin:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
 class TestListSlice:
     def test_slice_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.slice() not supported on {backend_name}")
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30, 40]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.slice(1, length=3))
         assert actual == [[2, 3, 4], [20, 30, 40]]
 
     def test_slice_from_start(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.slice() not supported on {backend_name}")
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.slice(0, length=2))
@@ -300,19 +305,15 @@ class TestListSlice:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
 class TestListHead:
     def test_head_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.head() not supported on {backend_name}")
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.head(3))
         assert actual == [[1, 2, 3], [10, 20, 30]]
 
     def test_head_n_larger_than_list(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.head() not supported on {backend_name}")
         data = {"arr": [[1, 2], [10]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.head(5))
@@ -320,19 +321,15 @@ class TestListHead:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
+@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
 class TestListTail:
     def test_tail_basic(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.tail() not supported on {backend_name}")
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.tail(2))
         assert actual == [[4, 5], [20, 30]]
 
     def test_tail_n_larger_than_list(self, backend_name, backend_factory, collect_expr):
-        if backend_name in ("narwhals-polars", "ibis-duckdb"):
-            pytest.xfail(f"list.tail() not supported on {backend_name}")
         data = {"arr": [[1, 2], [10]]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("arr").list.tail(5))
