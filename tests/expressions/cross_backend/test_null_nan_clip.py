@@ -10,16 +10,6 @@ import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.capability_gating import xfail_divergence
 
-FLOAT_BACKENDS = [
-    "polars",
-    "polars-lazy",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-polars",
-    "ibis-duckdb",
-]
-
 
 # =============================================================================
 # clip()

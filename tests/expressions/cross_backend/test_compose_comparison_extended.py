@@ -10,6 +10,7 @@ import math
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
 @pytest.mark.cross_backend
@@ -97,27 +98,29 @@ class TestBetween:
         assert result == [False, False, True, False, False], f"[{backend_name}] got {result}"
 
 
+_FINITE_INFINITE_BACKENDS = [
+    pytest.param(
+        b,
+        marks=pytest.mark.xfail(
+            reason="ibis-sqlite: is_finite/is_infinite Inf handling differs "
+            "(no covering spine fact yet)"
+        ),
+    )
+    if b == "ibis-sqlite"
+    else b
+    for b in ALL_BACKENDS
+]
+
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _FINITE_INFINITE_BACKENDS)
 class TestComposeComparisonNumeric:
-    """Test numeric checks: is_nan, is_finite, is_infinite."""
-
-    def test_is_nan(self, backend_name, backend_factory, get_result_count):
-        """Test is_nan on float column."""
-        if backend_name in ("ibis-duckdb", "ibis-sqlite"):
-            pytest.xfail(f"{backend_name}: NaN handling differs from Python semantics.")
-        data = {"val": [1.0, float("nan"), 3.0, float("nan")]}
-        df = backend_factory.create(data, backend_name)
-
-        expr = ma.col("val").is_nan()
-        result = df.filter(expr.compile(df))
-        count = get_result_count(result, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 NaN values, got {count}"
+    """Numeric checks is_finite / is_infinite. (is_nan lives in TestComposeIsNan,
+    routed through IB-TYPE-02.) Only ibis-sqlite's Inf handling diverges; it has
+    no covering spine fact yet (SP2-B-contingent), so it stays a reason-only mark."""
 
     def test_is_finite(self, backend_name, backend_factory, get_result_count):
         """Test is_finite on float column."""
-        if backend_name in ("pandas", "ibis-sqlite"): #, "narwhals" originally xfailked
-            pytest.xfail(f"{backend_name}: is_finite not supported or Inf handling differs.")
         data = {"val": [1.0, float("inf"), 3.0, float("-inf"), 5.0]}
         df = backend_factory.create(data, backend_name)
 
@@ -128,8 +131,6 @@ class TestComposeComparisonNumeric:
 
     def test_is_infinite(self, backend_name, backend_factory, get_result_count):
         """Test is_infinite on float column."""
-        if backend_name in ("pandas", "ibis-sqlite"): #, "narwhals" originally xfailked
-            pytest.xfail(f"{backend_name}: is_infinite not supported or Inf handling differs.")
         data = {"val": [1.0, float("inf"), 3.0, float("-inf"), 5.0]}
         df = backend_factory.create(data, backend_name)
 
@@ -146,8 +147,6 @@ class TestComposeComparisonNull:
 
     def test_nullif(self, backend_name, backend_factory, collect_expr):
         """Test nullif: return null if value equals sentinel."""
-        if backend_name in ("pandas", "ibis-polars", "ibis-duckdb", "ibis-sqlite"):
-            pytest.xfail(f"{backend_name}: nullif method form not fully supported.")
         data = {"val": [10, 0, 30, 0, 50]}
         df = backend_factory.create(data, backend_name)
 
@@ -231,3 +230,28 @@ class TestComposeLogarithmic:
         actual = collect_expr(df, expr)
         for i, (a, e) in enumerate(zip(actual, [0.0, 1.0, 2.0])):
             assert math.isclose(a, e, abs_tol=1e-6), f"[{backend_name}] Row {i}: {a} != {e}"
+
+
+_IS_NAN_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-TYPE-02", backend=b))
+    if b in ("ibis-duckdb", "ibis-sqlite")
+    else b
+    for b in ALL_BACKENDS
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _IS_NAN_BACKENDS)
+class TestComposeIsNan:
+    """is_nan filter. ibis-duckdb/ibis-sqlite route through IB-TYPE-02 (SQL engines
+    treat NaN as NULL; NaN == NaN yields NULL, not True)."""
+
+    def test_is_nan(self, backend_name, backend_factory, get_result_count):
+        """Test is_nan on float column."""
+        data = {"val": [1.0, float("nan"), 3.0, float("nan")]}
+        df = backend_factory.create(data, backend_name)
+
+        expr = ma.col("val").is_nan()
+        result = df.filter(expr.compile(df))
+        count = get_result_count(result, backend_name)
+        assert count == 2, f"[{backend_name}] Expected 2 NaN values, got {count}"

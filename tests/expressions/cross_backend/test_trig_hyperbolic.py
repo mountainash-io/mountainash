@@ -4,6 +4,7 @@ import math
 
 import pytest
 import mountainash.expressions as ma
+from fixtures.capability_gating import xfail_divergence
 
 # Polars + Ibis have native trig support (including SQLite via ibis)
 TRIG_BACKENDS = [
@@ -26,7 +27,7 @@ HYPERBOLIC_BACKENDS = [
     pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals lacks hyperbolic methods")),
     pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis lacks hyperbolic methods")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis lacks hyperbolic methods")),
-    pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="sqlite lacks hyperbolic functions")),
+    pytest.param("ibis-sqlite", marks=xfail_divergence("IB-MATH-02", backend="ibis-sqlite")),
 ]
 
 

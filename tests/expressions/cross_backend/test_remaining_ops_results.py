@@ -19,6 +19,7 @@ from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
 TEMPORAL_BACKENDS = [
@@ -159,14 +160,6 @@ class TestNullCount:
         actual = _collect_agg(df, ma.col("a").null_count())
         assert actual == 0
 
-    def test_null_count_all_nulls(self, backend_name, backend_factory):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB cannot create tables with all-NULL columns (no type inference)")
-        data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").null_count())
-        assert actual == 3
-
 
 # =============================================================================
 # has_nulls (aggregate)
@@ -190,9 +183,28 @@ class TestHasNulls:
         actual = _collect_agg(df, ma.col("a").has_nulls())
         assert actual is False
 
+
+_REMAINING_ALL_NULLS_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b))
+    if b == "ibis-duckdb"
+    else b
+    for b in ALL_BACKENDS
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _REMAINING_ALL_NULLS_BACKENDS)
+class TestRemainingAllNulls:
+    """All-NULL aggregate results. ibis-duckdb routes through IB-REL-06 (DuckDB
+    refuses untyped all-NULL table creation); other backends run to body."""
+
+    def test_null_count_all_nulls(self, backend_name, backend_factory):
+        data = {"a": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = _collect_agg(df, ma.col("a").null_count())
+        assert actual == 3
+
     def test_has_nulls_all_nulls(self, backend_name, backend_factory):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB cannot create tables with all-NULL columns (no type inference)")
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").has_nulls())

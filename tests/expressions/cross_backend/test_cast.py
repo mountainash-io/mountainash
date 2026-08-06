@@ -11,23 +11,13 @@ import pytest
 import math
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCastToInteger:
     """Test casting to integer types."""
-
-    def test_cast_float_to_int(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail(
-                "DuckDB uses banker's rounding for float-to-int cast, not truncation."
-            )
-        data = {"value": [1.1, 2.9, 3.5, -1.7, -2.3]}
-        df = backend_factory.create(data, backend_name)
-        expr = ma.col("value").cast("i64")
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3, -1, -2], f"[{backend_name}] Expected [1, 2, 3, -1, -2], got {values}"
 
     def test_cast_string_to_int(self, backend_name, backend_factory, collect_expr):
         data = {"value": ["10", "20", "30", "40", "50"]}
@@ -146,10 +136,6 @@ class TestCastWithNulls:
             f"[{backend_name}] Fourth value should be null: {values[3]}"
 
     def test_cast_with_null_float_to_string(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "pandas":
-            pytest.xfail(
-                "Pandas converts null float to 'nan' instead of preserving None."
-            )
         data = {"value": [1.5, None, 3.5]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("string")
@@ -213,17 +199,6 @@ class TestCastEdgeCases:
         values = collect_expr(df, expr)
         assert values == [1, 2, 3], f"[{backend_name}] Expected [1, 2, 3], got {values}"
 
-    def test_cast_negative_float_to_int(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail(
-                "DuckDB uses banker's rounding for float-to-int cast, not truncation."
-            )
-        data = {"value": [-1.9, -2.1, -3.5]}
-        df = backend_factory.create(data, backend_name)
-        expr = ma.col("value").cast("i64")
-        values = collect_expr(df, expr)
-        assert values == [-1, -2, -3], f"[{backend_name}] Expected [-1, -2, -3], got {values}"
-
     def test_cast_zero_values(self, backend_name, backend_factory, collect_expr):
         data = {"value": [0, 0, 0]}
         df = backend_factory.create(data, backend_name)
@@ -241,40 +216,41 @@ class TestCastEdgeCases:
         assert values == [1000000.0, 2000000.0, 3000000.0], f"[{backend_name}] Expected floats, got {values}"
 
 
+_FAILURE_NULL_BACKENDS = [
+    pytest.param(
+        b,
+        marks=pytest.mark.xfail(
+            reason="narwhals cast has no failure-behavior parameter; cast always "
+            "raises on invalid conversion (no covering spine fact yet)"
+        ),
+    )
+    if b in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy")
+    else pytest.param(
+        b,
+        marks=pytest.mark.xfail(
+            reason="ibis-sqlite has no SQL compilation rule for TryCast "
+            "(failure_behavior='null'); no covering spine fact yet"
+        ),
+    )
+    if b == "ibis-sqlite"
+    else b
+    for b in ALL_BACKENDS
+]
+
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", _FAILURE_NULL_BACKENDS)
 class TestCastFailureBehavior:
     """Test CastNode.failure_behavior wiring: default THROW vs NULL-on-failure.
 
     Previously silently dropped by the visitor -- every backend compiled a
     strict cast regardless of the `failure_behavior` requested via the
-    fluent `.cast(dtype, failure_behavior=...)` API.
+    fluent `.cast(dtype, failure_behavior=...)` API. The narwhals-routed and
+    ibis-sqlite gaps have no covering DivergenceFact/CapabilityFact yet
+    (SP2-B-contingent), so they stay as reason-only xfail markers.
     """
 
-    # "pandas" has no dedicated ExpressionSystem -- plain pandas DataFrames
-    # compile expressions via the Narwhals backend (see expsys_base.py
-    # CONST_BACKEND.PANDAS routing), so it shares narwhals' cast
-    # limitation.
-    _NARWHALS_ROUTED_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
-
     def test_cast_failure_behavior_null(self, backend_name, backend_factory, collect_expr):
-        if backend_name in self._NARWHALS_ROUTED_BACKENDS:
-            pytest.xfail(
-                "Narwhals Expr.cast(dtype) has no strict/failure-behavior parameter "
-                "(observed narwhals 2.23.0) -- cast always raises on invalid conversion "
-                "(InvalidOperationError on polars-backed, ValueError on pandas-backed). "
-                "mountainash raises BackendCapabilityError for failure_behavior='null' "
-                "on this backend. Plain 'pandas' DataFrames compile via the Narwhals "
-                "backend and share this limitation. See known-divergences.md."
-            )
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "Ibis compiles failure_behavior='null' to ibis.TryCast, which "
-                "ibis-sqlite (observed ibis 12.0.0) has no SQL compilation rule for: "
-                "'OperationNotDefinedError: Compilation rule for 'TryCast' operation "
-                "is not defined'. Works on ibis-duckdb and ibis-polars. "
-                "See known-divergences.md."
-            )
         from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
             CaseFailureBehaviour,
         )
@@ -285,16 +261,51 @@ class TestCastFailureBehavior:
         values = collect_expr(df, expr)
         assert values == [1, None, 3], f"[{backend_name}] Expected [1, None, 3], got {values}"
 
+
+_IBIS_DUCKDB_CAST_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-CAST-01", backend=b))
+    if b == "ibis-duckdb"
+    else b
+    for b in ALL_BACKENDS
+]
+
+_SQLITE_LENIENT_CAST_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-CAST-03", backend=b))
+    if b == "ibis-sqlite"
+    else b
+    for b in ALL_BACKENDS
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _IBIS_DUCKDB_CAST_BACKENDS)
+class TestCastBankersRounding:
+    """Float-to-int cast truncation. ibis-duckdb routes through IB-CAST-01
+    (DuckDB uses IEEE-754 banker's rounding, not truncation)."""
+
+    def test_cast_float_to_int(self, backend_name, backend_factory, collect_expr):
+        data = {"value": [1.1, 2.9, 3.5, -1.7, -2.3]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast("i64")
+        values = collect_expr(df, expr)
+        assert values == [1, 2, 3, -1, -2], f"[{backend_name}] Expected [1, 2, 3, -1, -2], got {values}"
+
+    def test_cast_negative_float_to_int(self, backend_name, backend_factory, collect_expr):
+        data = {"value": [-1.9, -2.1, -3.5]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("value").cast("i64")
+        values = collect_expr(df, expr)
+        assert values == [-1, -2, -3], f"[{backend_name}] Expected [-1, -2, -3], got {values}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _SQLITE_LENIENT_CAST_BACKENDS)
+class TestCastThrowSqliteLenient:
+    """THROW-on-invalid cast. ibis-sqlite routes through IB-CAST-03 (SQLite CAST
+    is inherently lenient — parses the leading numeric prefix instead of raising)."""
+
     def test_cast_failure_behavior_throw_default(self, backend_name, backend_factory, collect_expr):
         """Default (THROW) behaviour must remain byte-identical: raises on invalid input."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite's CAST is inherently lenient -- 'SELECT CAST(\\'1x\\' AS "
-                "INTEGER)' returns 1 (parses the leading numeric prefix) rather than "
-                "raising, at the SQLite engine level, independent of mountainash or "
-                "ibis. Pre-existing behaviour, unrelated to the failure_behavior "
-                "wiring in this change. See known-divergences.md."
-            )
         data = {"value": ["1", "1x", "3"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64")
@@ -303,12 +314,6 @@ class TestCastFailureBehavior:
 
     def test_cast_failure_behavior_throw_explicit(self, backend_name, backend_factory, collect_expr):
         """Explicit failure_behavior=THROW behaves identically to the default."""
-        if backend_name == "ibis-sqlite":
-            pytest.xfail(
-                "SQLite's CAST is inherently lenient -- see "
-                "test_cast_failure_behavior_throw_default. Pre-existing behaviour, "
-                "unrelated to the failure_behavior wiring in this change."
-            )
         from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
             CaseFailureBehaviour,
         )

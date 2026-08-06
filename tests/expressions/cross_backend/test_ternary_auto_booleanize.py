@@ -17,6 +17,7 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 
 import pytest
 import mountainash.expressions as ma
+from fixtures.capability_gating import xfail_divergence
 
 
 # Ternary constant values for raw sentinel assertions
@@ -443,33 +444,6 @@ class TestTernaryToBooleanCoercionExtended:
         assert values[1] is True, f"[{backend_name}] False XOR True"
         assert values[2] is False, f"[{backend_name}] False XOR False"
         assert values[3] is True, f"[{backend_name}] True XOR False"
-
-    def test_ternary_xor_parity_boolean_coercion(self, backend_name, backend_factory, select_and_extract):
-        """Test ternary_expr.xor_parity() auto-coerces ternary."""
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB XOR semantics differ for chained boolean parity")
-        data = {
-            "a": [80, None, 60],
-            "b": [True, True, True],
-            "c": [True, False, True],
-        }
-        df = backend_factory.create(data, backend_name)
-
-        # xor_parity: True if odd number of operands are True
-        expr = ma.col("a").t_gt(70).xor_parity(
-            ma.col("b").eq(True),
-            ma.col("c").eq(True)
-        )
-        backend_expr = expr.compile(df)
-
-        values = select_and_extract(df, backend_expr, "result", backend_name)
-
-        # Row 0: is_true(TRUE)=True, True, True -> 3 Trues (odd) -> True
-        # Row 1: is_true(UNKNOWN)=False, True, False -> 1 True (odd) -> True
-        # Row 2: is_true(FALSE)=False, True, True -> 2 Trues (even) -> False
-        assert values[0] is True, f"[{backend_name}] 3 Trues (odd)"
-        assert values[1] is True, f"[{backend_name}] 1 True (odd)"
-        assert values[2] is False, f"[{backend_name}] 2 Trues (even)"
 
 
 # =============================================================================
@@ -978,3 +952,43 @@ class TestDeepNestingAndComplexChains:
         assert values[1] is False
         assert values[2] is False
         assert values[3] is False
+
+
+_XOR_PARITY_BACKENDS = [
+    "polars",
+    "narwhals-polars",
+    "ibis-polars",
+    pytest.param("ibis-duckdb", marks=xfail_divergence("IB-DT-06", backend="ibis-duckdb")),
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _XOR_PARITY_BACKENDS)
+class TestTernaryXorParityCoercion:
+    """xor_parity coercion. ibis-duckdb routes through IB-DT-06 (DuckDB ^ is
+    bitwise on integers, not logical XOR on booleans)."""
+
+    def test_ternary_xor_parity_boolean_coercion(self, backend_name, backend_factory, select_and_extract):
+        """Test ternary_expr.xor_parity() auto-coerces ternary."""
+        data = {
+            "a": [80, None, 60],
+            "b": [True, True, True],
+            "c": [True, False, True],
+        }
+        df = backend_factory.create(data, backend_name)
+
+        # xor_parity: True if odd number of operands are True
+        expr = ma.col("a").t_gt(70).xor_parity(
+            ma.col("b").eq(True),
+            ma.col("c").eq(True)
+        )
+        backend_expr = expr.compile(df)
+
+        values = select_and_extract(df, backend_expr, "result", backend_name)
+
+        # Row 0: is_true(TRUE)=True, True, True -> 3 Trues (odd) -> True
+        # Row 1: is_true(UNKNOWN)=False, True, False -> 1 True (odd) -> True
+        # Row 2: is_true(FALSE)=False, True, True -> 2 Trues (even) -> False
+        assert values[0] is True, f"[{backend_name}] 3 Trues (odd)"
+        assert values[1] is True, f"[{backend_name}] 1 True (odd)"
+        assert values[2] is False, f"[{backend_name}] 2 Trues (even)"

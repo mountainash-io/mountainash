@@ -11,6 +11,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 
 @pytest.mark.cross_backend
@@ -110,16 +111,29 @@ class TestNullCoalesce:
         actual = collect_expr(df, ma.coalesce(ma.col("a"), ma.col("b")))
         assert actual == [10, 2, 30]
 
-    def test_coalesce_all_null(self, backend_name, backend_factory, collect_expr):
-        if backend_name == "ibis-duckdb":
-            pytest.xfail("DuckDB cannot create tables with all-NULL typed columns")
-        data = {"a": [None, None, None], "b": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.coalesce(ma.col("a"), ma.col("b")))
-        assert actual == [None, None, None]
-
     def test_coalesce_with_literal_default(self, backend_name, backend_factory, collect_expr):
         data = {"a": [1, None, 3]}
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.coalesce(ma.col("a"), ma.lit(99)))
         assert actual == [1, 99, 3]
+
+
+_COALESCE_ALL_NULL_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b))
+    if b == "ibis-duckdb"
+    else b
+    for b in ALL_BACKENDS
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _COALESCE_ALL_NULL_BACKENDS)
+class TestCoalesceAllNull:
+    """All-NULL coalesce. ibis-duckdb routes through IB-REL-06 (DuckDB refuses
+    untyped all-NULL table creation)."""
+
+    def test_coalesce_all_null(self, backend_name, backend_factory, collect_expr):
+        data = {"a": [None, None, None], "b": [None, None, None]}
+        df = backend_factory.create(data, backend_name)
+        actual = collect_expr(df, ma.coalesce(ma.col("a"), ma.col("b")))
+        assert actual == [None, None, None]
