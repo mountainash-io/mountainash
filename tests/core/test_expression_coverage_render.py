@@ -1,24 +1,31 @@
 """Renderer tests over synthetic reports — determinism, cells, collapse."""
 from __future__ import annotations
 
+import builtins
 import enum as _enum
+import json
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
+    CoverageReport,
     ImplState,
     ImplementationRecord,
     OpRecord,
     build_coverage_report,
+    fact_sort_key,
 )
 from mountainash.core.capabilities.declarations import (
     CapabilityDeclaration, Domain, FactSource, ProbeEvidence,
 )
 from mountainash.core.capabilities.render_markdown import (
     _collapse_groups,
+    _fact_detail_row,
     _resolve_concrete_owner,
     gather_coverage_inputs,
     gather_implementation_records,
+    render_json,
     render_markdown,
+    render_scoped,
 )
 from mountainash.core.capabilities.retired import RetiredFact
 from mountainash.core.capabilities.schema import (
@@ -97,26 +104,37 @@ def _report(facts=(), decls=None, impls=None, **kw):
 
 
 def test_render_is_deterministic_under_input_shuffle():
+    """Spec §4.4: input order does not affect output bytes (review M-6: every
+    dict populated by iterating already-sorted sequences; no set iteration).
+    Plan-review M-1: all THREE renderers (markdown, scoped, JSON) are
+    pinned under input shuffle — the multi-artifact split is the load-bearing
+    property, and a determinism regression in render_scoped / render_json
+    would otherwise be invisible (the model-level shuffle test covers the
+    model, this one covers the renderers end-to-end)."""
     fs = [
         _fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED)
         for v in ("x", "y", "z")
     ] + [_fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)]
     decl = _decl(facts=tuple(fs))
     impls = _impls()
-    out1 = render_markdown(build_coverage_report(
-        _universe(), tuple(fs), (decl,), (), (), (), impls))
-    out2 = render_markdown(build_coverage_report(
-        _universe(), tuple(reversed(fs)), (decl,), (), (), (), impls))
-    # Defense-in-depth: also shuffle the implementations tuple (Task-1 model-level
-    # shuffle already guards this; this is the renderer's contract per spec §4.4).
     impls_rev = tuple(reversed(impls))
-    out3 = render_markdown(build_coverage_report(
-        _universe(), tuple(fs), (decl,), (), (), (), impls_rev))
-    out4 = render_markdown(build_coverage_report(
-        _universe(), tuple(reversed(fs)), (decl,), (), (), (), impls_rev))
-    assert out1 == out2
-    assert out1 == out3
-    assert out1 == out4
+    # Build the three baselines (facts in given order, impls in given order).
+    base = build_coverage_report(_universe(), tuple(fs), (decl,), (), (), (), impls)
+    # Three shuffled builds covering both axes: fact order and impl order.
+    fs_rev = tuple(reversed(fs))
+    build_facts_rev = lambda: build_coverage_report(  # noqa: E731
+        _universe(), fs_rev, (decl,), (), (), (), impls)
+    build_impls_rev = lambda: build_coverage_report(  # noqa: E731
+        _universe(), tuple(fs), (decl,), (), (), (), impls_rev)
+    build_both_rev = lambda: build_coverage_report(  # noqa: E731
+        _universe(), fs_rev, (decl,), (), (), (), impls_rev)
+    # All three renderers under all four input orderings.
+    for renderer in (render_markdown, render_scoped, render_json):
+        baseline = renderer(base)
+        for builder in (build_facts_rev, build_impls_rev, build_both_rev):
+            assert renderer(builder()) == baseline, (
+                f"{renderer.__name__} output drift under input shuffle"
+            )
 
 
 def test_cell_texts():
@@ -380,11 +398,19 @@ def test_nonempty_gaps_divergences_retirements_render():
 
 
 def test_detail_section_written_for_every_cell_with_facts():
+    # Rev 6 partition: a routed fact with a non-wildcard param is scoped
+    # (param != WILDCARD_PARAM, so `is_whole_op` is False), so its detail
+    # row lives in `render_scoped`, not the main doc. The spec's "every
+    # cell with facts gets a detail row" rule is preserved across the
+    # two artifacts (the partition-exactness invariant, §4.5 M-3).
     routed = _fact(param="v", enforcement=Enforcement.ROUTER_METADATA,
                    level=CapabilityLevel.UNSUPPORTED)
-    out = render_markdown(_report([routed]))
-    assert "### `OP_A` × polars" in out  # routed-only cell still gets a detail row
-    assert "router_metadata" in out
+    main = render_markdown(_report([routed]))
+    scoped = render_scoped(_report([routed]))
+    main_detail = main.split("## Per-op detail", 1)[1]
+    assert "### `OP_A` × polars" not in main_detail
+    assert "### `OP_A` × polars" in scoped
+    assert "router_metadata" in scoped
 
 
 # ---------------------------------------------------------------------------
@@ -471,3 +497,549 @@ class TestDerivation:
             pass
 
         assert _resolve_concrete_owner(_Empty, "no_such_method") is None
+
+
+# ---------------------------------------------------------------------------
+# Task 2 — JSON renderer (spec §4.6).
+# Pure-function tests over synthetic universes: shape lock, round-trip,
+# no-collapse, null-vs-empty. No registry calls; the model is the source of
+# truth and `render_json` is the only function under test here.
+# ---------------------------------------------------------------------------
+
+
+_TOP_LEVEL_KEYS = [
+    "stamp", "stats", "families", "declarations",
+    "divergences", "gaps", "retired",
+]
+
+_CELL_KEYS = {
+    "impl", "impl_method", "impl_protocol", "audited", "whole_op",
+    "constrained", "contradiction", "selector_counts",
+    "constraints", "residue", "routed", "refinements",
+}
+
+
+def _json_fact_semantic_identity(f_dict: dict) -> tuple:
+    """Build the same identity tuple as `fact_sort_key` from a JSON fact dict.
+
+    The JSON's `<fact>` object omits the operation_key (it's implicit on the
+    cell / declaration entry), so this is the §4.4 fact identity minus
+    operation_key and backend — enough to verify order equality with the
+    model's canonicalized `.facts` (review I-3) since every fact in a single
+    declaration shares the same operation_key."""
+    return (
+        f_dict["dialect"] or "",
+        f_dict["param"],
+        f_dict["option_value"] or "",
+        f_dict["value_class"] or "",
+        f_dict["level"],
+        f_dict["enforcement"],
+        f_dict["boundary"],
+        f_dict["condition"] or "",
+        f_dict["since"],
+        f_dict["message"],
+        f_dict["workaround"] or "",
+        f_dict["upstream_ref"] or "",
+        tuple(f_dict["native_errors"]),
+        f_dict["probe_exempt"] or "",
+    )
+
+
+def _json_fact_multiset(obj: dict, universe: tuple[OpRecord, ...]) -> list:
+    """Every fact across every cell, as (op_identity, backend, fact_sort_key) tuples."""
+    key_to_member = {(r.family, r.operation_key.name): r for r in universe}
+    out: list[tuple] = []
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            op_id = (op_entry["op"]["family"], op_entry["op"]["op"])
+            assert op_id in key_to_member, f"unknown op identity in JSON: {op_id}"
+            for backend_name, cell in op_entry["cells"].items():
+                for bucket in ("constraints", "residue", "routed", "refinements"):
+                    for f_dict in cell[bucket]:
+                        out.append((op_id, backend_name,
+                                    _json_fact_semantic_identity(f_dict)))
+    return sorted(out)
+
+
+def _model_fact_multiset(report: CoverageReport) -> list:
+    out: list[tuple] = []
+    for fam in report.families:
+        for oc in fam.ops:
+            for bucket in (oc.constraints, oc.residue, oc.routed, oc.refinements):
+                for f in bucket:
+                    out.append((
+                        (type(f.operation_key).__name__, f.operation_key.name),
+                        f.backend.value,
+                        fact_sort_key(f),
+                    ))
+    return sorted(out)
+
+
+def test_json_shape_lock():
+    """Spec §4.6: 7 top-level keys in spec order; cell keys exact;
+    stats.backends.<backend>.by_impl nested per-backend and ImplState-.value-keyed
+    (plan-review C3 — the model's tuple-keyed Mapping has no legal JSON key
+    form); enum .value everywhere; ISO date strings; declarations carry a
+    facts array; null vs [] distinction for option_value vs native_errors."""
+    # Build a non-trivial report so the structure exercises every shape.
+    fs = [
+        _fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED)
+        for v in ("x", "y", "z")
+    ] + [_fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)]
+    decl = _decl(facts=tuple(fs))
+    impls = _impls()
+    out = render_json(build_coverage_report(
+        _universe(), tuple(fs), (decl,), (), (), (), impls))
+    obj = json.loads(out)
+
+    # Top-level keys in spec order.
+    assert list(obj.keys()) == _TOP_LEVEL_KEYS
+
+    # Stamp counts (no timestamps per spec §4.4).
+    assert set(obj["stamp"].keys()) == {
+        "declarations", "facts", "operations", "implementation_records",
+    }
+    assert all(isinstance(obj["stamp"][k], int) for k in obj["stamp"])
+
+    # Stats structure: per-backend nested with by_impl keyed by ImplState .value.
+    stats = obj["stats"]
+    assert set(stats["backends"].keys()) == {b.value for b in RENDERED_BACKENDS}
+    impl_state_values = {s.value for s in ImplState}
+    for b_name, b_stats in stats["backends"].items():
+        assert set(b_stats["by_impl"].keys()) == impl_state_values, (
+            f"by_impl for {b_name} must be keyed by ImplState .value: "
+            f"{set(b_stats['by_impl'].keys())} != {impl_state_values}"
+        )
+        for k, v in b_stats["by_impl"].items():
+            assert isinstance(k, str) and isinstance(v, int)
+        for field in ("default_capable", "audited_clean",
+                      "constrained", "audited_unknown"):
+            assert field in b_stats and isinstance(b_stats[field], int)
+    # Top-level stats fields.
+    for field in ("contradictions", "ops_total", "facts_total"):
+        assert field in stats and isinstance(stats[field], int)
+    # facts_by_* are .value-keyed (string keys, int values).
+    for k, v in stats["facts_by_level"].items():
+        assert isinstance(k, str) and isinstance(v, int)
+    for k, v in stats["facts_by_enforcement"].items():
+        assert isinstance(k, str) and isinstance(v, int)
+    for k, v in stats["facts_by_backend"].items():
+        assert isinstance(k, str) and isinstance(v, int)
+
+    # Cell keys (taken from the synthetic fact-decorated cell).
+    target_cell = None
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            for cell in op_entry["cells"].values():
+                if cell["constraints"]:
+                    target_cell = cell
+                    break
+            if target_cell:
+                break
+        if target_cell:
+            break
+    assert target_cell is not None, "expected at least one constraint cell"
+    assert set(target_cell.keys()) == _CELL_KEYS
+    # impl is .value; whole_op is .value or null.
+    assert target_cell["impl"] in impl_state_values
+    assert (target_cell["whole_op"] is None
+            or target_cell["whole_op"] in {lv.value for lv in CapabilityLevel})
+    # selector_counts shape.
+    assert set(target_cell["selector_counts"].keys()) == {
+        "params", "option_selectors", "value_classes", "dialects",
+    }
+    for v in target_cell["selector_counts"].values():
+        assert isinstance(v, int)
+
+    # Op keys: two-part {family, op} with string values.
+    op_entry = obj["families"][0]["ops"][0]
+    assert set(op_entry["op"].keys()) == {"family", "op"}
+    assert isinstance(op_entry["op"]["family"], str)
+    assert isinstance(op_entry["op"]["op"], str)
+
+    # Family shape.
+    fam = obj["families"][0]
+    assert set(fam.keys()) == {"family", "source", "domain", "ops"}
+    # source/domain are .value or null (unmapped families are None in the model).
+    assert fam["source"] is None or isinstance(fam["source"], str)
+    assert fam["domain"] is None or isinstance(fam["domain"], str)
+
+    # ISO date strings: every fact's `since` matches the ISO grammar.
+    iso_re = __import__("re").compile(r"^\d{4}-\d{2}-\d{2}$")
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            for cell in op_entry["cells"].values():
+                for bucket in ("constraints", "residue", "routed", "refinements"):
+                    for f in cell[bucket]:
+                        assert iso_re.match(f["since"]), (
+                            f"non-ISO since in JSON: {f['since']!r}")
+
+    # Declarations carry a `facts` array (plan-review C2 — this is what makes
+    # declarations JSON-recoverable per §4.4 I-3).
+    for d in obj["declarations"]:
+        assert "facts" in d and isinstance(d["facts"], list)
+        for f in d["facts"]:
+            assert isinstance(f, dict)
+        # evidence is dict-or-null (preserves the absence-of-evidence signal).
+        assert d["evidence"] is None or isinstance(d["evidence"], dict)
+        if d["evidence"] is not None:
+            assert set(d["evidence"].keys()) == {
+                "probe_date", "library_versions", "fixtures",
+            }
+            assert iso_re.match(d["evidence"]["probe_date"])
+
+
+def test_json_round_trip():
+    """Spec §4.6: json.loads(render_json(report)) recovers exact fact multiset
+    (identity tuples), op universe, declaration/divergence/gap/retirement
+    counts, per-backend stats equal to the model's (by_impl re-keyed to
+    tuples), canonicalized declaration .facts order, and builtins-resolved
+    native_errors (review I-4)."""
+    fs = [
+        _fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED)
+        for v in ("x", "y", "z")
+    ] + [
+        _fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY),
+        _fact(param="c", enforcement=Enforcement.MATERIALIZE_RESIDUE,
+              boundary=Boundary.MATERIALIZE,
+              level=CapabilityLevel.UNSUPPORTED, native_errors=(ValueError,)),
+    ]
+    # Mix the declaration's fact order with a non-canonical input to prove the
+    # canonicalization at ingest (review I-3) is what shows up in JSON.
+    decl_facts = tuple(reversed(fs))
+    decl = _decl(facts=decl_facts)
+    impls = _impls()
+    # Add a divergence, gap, and retirement to exercise the count assertions.
+    dv = DivergenceFact(
+        id="SY-TEST-01", kind=DivergenceKind.SEMANTICS,
+        operation_keys=(FKEY_SUBSTRAIT_SYNTH_SET.OP_A,),
+        backends=("ibis-duckdb",), summary="s", impact="i",
+        workaround="w", since="2026-08-01",
+    )
+    gap = KnownGap(gap_kind=GapKind.UNTESTED_OPTION,
+                   reason="synthetic", since="2026-08-01")
+    ret = RetiredFact(
+        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_A, param="values",
+        backend=CONST_BACKEND.POLARS, dialect=None, option_value=None,
+        value_class=None, level=CapabilityLevel.UNSUPPORTED,
+        since="2026-07-01", retired_on="2026-08-01",
+        fixed_in_versions=(("polars", "1.36.0"),), upstream_ref=None,
+        note="synthetic",
+    )
+    universe = _universe()
+    report = build_coverage_report(
+        universe, tuple(fs), (decl,), (dv,), (gap,), (ret,), impls)
+
+    text = render_json(report)
+    obj = json.loads(text)
+
+    # 1. Op universe (by family+op name).
+    expected_ops = {(r.family, r.operation_key.name) for r in universe}
+    actual_ops = set()
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            actual_ops.add((op_entry["op"]["family"], op_entry["op"]["op"]))
+    assert actual_ops == expected_ops
+
+    # 2. Counts.
+    assert len(obj["declarations"]) == len(report.declarations)
+    assert len(obj["divergences"]) == len(report.divergences)
+    assert len(obj["gaps"]) == len(report.gaps)
+    assert len(obj["retired"]) == len(report.retired)
+    # Retired emitted newest-first.
+    retired_dates = [r["retired_on"] for r in obj["retired"]]
+    assert retired_dates == sorted(retired_dates, reverse=True)
+
+    # 3. Per-backend stats — by_impl re-keyed to tuples must equal the model.
+    for b in RENDERED_BACKENDS:
+        b_stats = obj["stats"]["backends"][b.value]
+        for s in ImplState:
+            assert b_stats["by_impl"][s.value] == report.stats.by_impl[(b, s)], (
+                f"by_impl[{b.value},{s.value}] round-trip mismatch"
+            )
+        assert b_stats["default_capable"] == report.stats.default_capable[b]
+        assert b_stats["audited_clean"] == report.stats.audited_clean[b]
+        assert b_stats["constrained"] == report.stats.constrained[b]
+        assert b_stats["audited_unknown"] == report.stats.audited_unknown[b]
+    assert obj["stats"]["ops_total"] == report.stats.ops_total
+    assert obj["stats"]["facts_total"] == report.stats.facts_total
+    assert obj["stats"]["contradictions"] == report.stats.contradictions
+
+    # 4. Fact multiset — equal to the model after sorting.
+    assert _json_fact_multiset(obj, universe) == _model_fact_multiset(report)
+
+    # 5. Canonicalized declaration .facts order (review I-3). The input was
+    # reversed; the JSON must reflect the canonicalized order.
+    assert len(obj["declarations"]) == 1
+    json_facts = [_json_fact_semantic_identity(f) for f in obj["declarations"][0]["facts"]]
+    model_facts = [fact_sort_key(f) for f in report.declarations[0].facts]
+    assert json_facts == model_facts, (
+        "declaration .facts order in JSON must match the canonicalized model "
+        "order from fact_sort_key (review I-3)")
+
+    # 6. native_errors round-trip via getattr(builtins, name) (review I-4).
+    # Every native_errors entry in the JSON must resolve to a builtin exception
+    # class — the model's ingest validator guarantees this; the JSON is the
+    # wire form a consumer would use to do the same.
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            for cell in op_entry["cells"].values():
+                for bucket in ("constraints", "residue", "routed", "refinements"):
+                    for f in cell[bucket]:
+                        for name in f["native_errors"]:
+                            resolved = getattr(builtins, name)
+                            assert isinstance(resolved, type)
+                            assert issubclass(resolved, BaseException)
+    # The MODEL facts in fact_multiset have at least one native_errors tuple,
+    # so the JSON is non-trivially exercising this code path.
+    assert any(f.native_errors for fam in report.families
+               for oc in fam.ops
+               for bucket in (oc.constraints, oc.residue, oc.routed, oc.refinements)
+               for f in bucket), "test setup must include a fact with native_errors"
+
+
+def test_json_no_collapse():
+    """A ≥3-option group that the markdown collapses (one row with sorted
+    option_value list) appears as ≥3 distinct fact objects in JSON — the
+    extract carries every fact row uncollapsed (spec §4.6 note: 'No
+    option-collapse in JSON — that is a markdown readability device')."""
+    same = [_fact(param="fmt", option_value=v, level=CapabilityLevel.UNSUPPORTED)
+            for v in ("a", "b", "c")]
+    out = render_json(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
+    obj = json.loads(out)
+    # Sanity: the scoped doc (rev 6) collapses these into one row. The
+    # main doc has no detail section for them — they are scoped (param
+    # is not WILDCARD_PARAM), and the partition sends scoped facts to
+    # render_scoped (§4.3).
+    scoped = render_scoped(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
+    assert "a, b, c" in scoped  # the collapsed option list appears in the scoped doc
+    # The JSON has all three as distinct fact objects with distinct option_value.
+    fmt_facts: list[dict] = []
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            for cell in op_entry["cells"].values():
+                fmt_facts.extend(f for f in cell["constraints"] if f["param"] == "fmt")
+    assert len(fmt_facts) == 3
+    assert sorted(f["option_value"] for f in fmt_facts) == ["a", "b", "c"]
+    # And the identity is distinct per row (the model never collapsed).
+    identities = {_json_fact_semantic_identity(f) for f in fmt_facts}
+    assert len(identities) == 3
+
+
+def test_json_null_vs_empty():
+    """Spec §4.6 serialization conventions: absent optional -> JSON null;
+    empty collection -> JSON []. A fact with option_value=None must NOT
+    serialize as []; a fact with native_errors=() must NOT serialize as null.
+    This is the documented distinction; mixing them up would corrupt
+    downstream consumers (e.g. parquet flattening, jq pipelines)."""
+    fact = _fact()  # defaults: option_value=None, native_errors=()
+    out = render_json(_report([fact]))
+    obj = json.loads(out)
+    found = False
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            for cell in op_entry["cells"].values():
+                for f in cell["constraints"]:
+                    found = True
+                    assert f["option_value"] is None, (
+                        f"option_value=None must serialize as JSON null, "
+                        f"got {f['option_value']!r}")
+                    assert f["native_errors"] == [], (
+                        f"native_errors=() must serialize as JSON [], "
+                        f"got {f['native_errors']!r}")
+    assert found, "test setup must produce a constraint cell"
+
+    # Spot-check the parallel convention: empty evidence in a non-default
+    # declaration is still serialized as a dict (not null), absent evidence
+    # is null. We exercise the latter with a probe_exempt-only declaration.
+    exempt = _fact(probe_exempt="synthetic exemption")
+    out2 = render_json(_report(
+        [exempt],
+        decls=(CapabilityDeclaration(
+            backend=CONST_BACKEND.POLARS, domain=Domain.SET,
+            source=FactSource.SUBSTRAIT, facts=(exempt,),
+            evidence=None),),))
+    obj2 = json.loads(out2)
+    assert obj2["declarations"][0]["evidence"] is None
+
+
+def test_json_is_deterministic_under_input_shuffle():
+    """Spec §4.4: input order does not affect output bytes (review M-6: every
+    dict populated by iterating already-sorted sequences; no set iteration).
+    The drift gate is a two-process PYTHONHASHSEED byte-identity check on the
+    JSON artifact; this single-process test catches the input-shuffle axis."""
+    fs = [
+        _fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED)
+        for v in ("x", "y", "z")
+    ] + [_fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)]
+    decl = _decl(facts=tuple(fs))
+    impls = _impls()
+    base = build_coverage_report(_universe(), tuple(fs), (decl,), (), (), (), impls)
+    out1 = render_json(base)
+    out2 = render_json(build_coverage_report(
+        _universe(), tuple(reversed(fs)), (decl,), (), (), (), tuple(reversed(impls))))
+    assert out1 == out2
+    # Also shuffle the declaration's facts (reversed input) — the canonical
+    # sort at ingest (review I-3) must keep the output identical.
+    decl_rev = _decl(facts=tuple(reversed(fs)))
+    out3 = render_json(build_coverage_report(
+        _universe(), tuple(fs), (decl_rev,), (), (), (), impls))
+    assert out1 == out3
+
+
+# ---------------------------------------------------------------------------
+# Task 3 — Markdown split (spec §4.3 rev 6): render_scoped + main-doc
+# partition + I-2b cell naming. The §4.5 M-3 partition-exactness invariant
+# is the load-bearing test below; the other tests pin the surface.
+# ---------------------------------------------------------------------------
+
+
+def _cell_section(text: str, op_name: str, backend_value: str) -> str:
+    """Slice a markdown artifact at the (op, backend) section header. The
+    cell section runs to the next `\n### ` (the next op section) or
+    end-of-text — `#### ` subheadings inside the same cell section are
+    INCLUDED (e.g. the scoped doc's `Dialect-scoped whole-op` subheading
+    lives within the (op, backend) cell)."""
+    head = f"### `{op_name}` × {backend_value}"
+    if head not in text:
+        return ""
+    after = text.split(head, 1)[1]
+    idx = after.find("\n### ")
+    return after[:idx] if idx >= 0 else after
+
+
+def test_partition_exactness_over_mixed_cell():
+    """§4.5 M-3: every input fact's identity appears in exactly one markdown
+    artifact's detail body. Synthetic mixed cell: whole-op GATE +
+    param UNSUPPORTED + dialect-scoped gate. Function-level goes to main;
+    the other two go to scoped. None of the three facts can be collapsed
+    (each has option_value=None, so the option-collapse rule doesn't
+    apply — but the identity-based assertion would still hold if it did:
+    a collapsed row counts each `option_value` fact once). Asserted on
+    fact identities (via the rendered row), not row counts."""
+    whole_op = _fact(
+        param=WILDCARD_PARAM, level=CapabilityLevel.UNSUPPORTED,
+    )
+    param_fact = _fact(
+        param="values", level=CapabilityLevel.UNSUPPORTED,
+    )
+    dialect_fact = _fact(
+        param=WILDCARD_PARAM, dialect="ibis-duckdb",
+        level=CapabilityLevel.UNSUPPORTED,
+    )
+    report = _report([whole_op, param_fact, dialect_fact])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    main_section = _cell_section(main, "OP_A", "polars")
+    scoped_section = _cell_section(scoped, "OP_A", "polars")
+    assert main_section, "main doc missing OP_A x polars section"
+    assert scoped_section, "scoped doc missing OP_A x polars section"
+
+    # Build the expected row for each fact (option_value=None -> []).
+    main_whole_row = _fact_detail_row(whole_op, [])
+    scoped_param_row = _fact_detail_row(param_fact, [])
+    scoped_dialect_row = _fact_detail_row(dialect_fact, [])
+
+    # Function-level (whole-op) lives in main; scoped lives in scoped; no
+    # fact appears in both — the partition is exact.
+    assert main_whole_row in main_section
+    assert main_whole_row not in scoped_section
+    assert scoped_param_row in scoped_section
+    assert scoped_param_row not in main_section
+    assert scoped_dialect_row in scoped_section
+    assert scoped_dialect_row not in main_section
+
+
+def test_scoped_only_cell_no_main_doc_section():
+    """A cell with ONLY scoped facts (no whole-op) renders no main-doc
+    detail section; the `◐` matrix cell is preserved; the scoped doc
+    carries the detail row."""
+    param_fact = _fact(param="values", level=CapabilityLevel.UNSUPPORTED)
+    report = _report([param_fact])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc has no detail section for the cell.
+    main_detail = main.split("## Per-op detail", 1)[1]
+    assert "### `OP_A` × polars" not in main_detail
+    # But the matrix cell is still there with the partial annotation.
+    matrix = main.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    assert "◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects)" in matrix
+    # Scoped doc has the detail.
+    scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
+    assert "### `OP_A` × polars" in scoped_detail
+    scoped_row = _fact_detail_row(param_fact, [])
+    assert scoped_row in scoped_detail
+
+
+def test_dialect_scoped_whole_op_subheading_and_i2b():
+    """A dialect-scoped whole-op gate renders under the scoped doc's
+    `Dialect-scoped whole-op` subheading AND its level+dialect appears
+    in the main-doc matrix cell (I-2b, spec §4.3 example:
+    `◐ partial (…) · unsupported on ibis-duckdb`)."""
+    dialect_whole = _fact(
+        param=WILDCARD_PARAM, dialect="ibis-duckdb",
+        level=CapabilityLevel.UNSUPPORTED,
+    )
+    report = _report([dialect_whole])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc matrix cell: I-2b suffix present (level + sorted dialect).
+    matrix = main.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    assert "· unsupported on ibis-duckdb" in matrix
+
+    # Scoped doc: under "Dialect-scoped whole-op" subheading.
+    scoped_cell = _cell_section(scoped, "OP_A", "polars")
+    assert "#### Dialect-scoped whole-op" in scoped_cell
+    dialect_row = _fact_detail_row(dialect_whole, [])
+    assert dialect_row in scoped_cell
+
+
+def test_refinements_never_in_main_doc_detail():
+    """Refinements are scoped by construction (schema requires dialect on
+    EXPR_CAPABLE, so `is_whole_op` is False for every refinement).
+    The main doc's per-op detail never carries a refinement row (§4.3
+    structural) — it lives in the scoped doc; the matrix cell still
+    carries the `✓ dialect-verified: …` annotation."""
+    refinement = _fact(
+        param="v", dialect="duckdb", level=CapabilityLevel.EXPR_CAPABLE,
+    )
+    report = _report([refinement])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc has no detail section for the cell (refinement is scoped).
+    main_detail = main.split("## Per-op detail", 1)[1]
+    assert "### `OP_A` × polars" not in main_detail
+    # But the matrix cell still carries the `✓ dialect-verified: duckdb` annotation.
+    matrix = main.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    assert "dialect-verified: duckdb" in matrix
+    # Scoped doc has the detail row.
+    scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
+    assert "### `OP_A` × polars" in scoped_detail
+    ref_row = _fact_detail_row(refinement, [])
+    assert ref_row in scoped_detail
+
+
+def test_cross_references_in_both_headers():
+    """Both artifacts cross-reference each other in their headers — the
+    spec's "Both docs cross-reference each other in their headers"
+    requirement (§4.3)."""
+    report = _report([])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc header (above ## Summary) points to the scoped doc.
+    main_header = main.split("## Summary", 1)[0]
+    assert "expression-coverage-scoped.md" in main_header
+    # Scoped doc header (above ## Per-op detail (scoped)) points to the main doc.
+    scoped_header = scoped.split("## Per-op detail (scoped)", 1)[0]
+    assert "expression-coverage.md" in scoped_header
+    # And the main doc's parquet consumer recipe (§4.6) is in the header block.
+    assert "Parquet recipe" in main_header
+    assert "expression-coverage.json" in main_header

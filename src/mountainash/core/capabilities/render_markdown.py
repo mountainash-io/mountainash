@@ -1,12 +1,14 @@
-"""Deterministic markdown renderer for the expression coverage report.
+"""Deterministic markdown + JSON renderers for the expression coverage report.
 
 Pure over CoverageReport; input gathering + main() live at the bottom
-(Task 5). No wall-clock reads anywhere (spec §4.4).
+(Task 5). No wall-clock reads anywhere (spec §4.4). The JSON renderer is
+spec §4.6 — the machine-readable extract, the third committed artifact.
 """
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
@@ -16,6 +18,8 @@ from mountainash.core.capabilities.coverage import (
     OpCoverage,
     OpRecord,
     fact_sort_key,  # canonical order
+    is_dialect_scoped_whole_op,  # I-2b cell predicate + scoped-doc subheading
+    is_whole_op,  # partition predicate (rev 6)
 )
 from mountainash.core.capabilities.schema import (
     CapabilityFact,
@@ -26,7 +30,6 @@ from mountainash.core.capabilities.schema import (
 if TYPE_CHECKING:
     from mountainash.core.constants import CONST_BACKEND
 
-_ARTIFACT_PATH = "docs/reference/expression-coverage.md"
 _REGEN_CMD = "hatch -e test run python -m mountainash.core.capabilities.render_markdown"
 
 _LEGEND = """\
@@ -139,10 +142,28 @@ def _cell_text(oc: OpCoverage) -> str:
             status.append("poly")
         sc = oc.selector_counts
         if any((sc.params, sc.option_selectors, sc.value_classes, sc.dialects)):
-            status.append(
+            partial = (
                 f"◐ partial ({sc.params} params, {sc.option_selectors} option-selectors, "
                 f"{sc.value_classes} value-classes, {sc.dialects} dialects)"
             )
+            # I-2b (spec §4.3 rev 6): a dialect-scoped whole-op gate names its
+            # level+dialect in the matrix cell, so a whole-op-for-a-dialect
+            # severity is visible in the matrix, not hidden behind a
+            # '1 dialects' count in another file. Suffix attaches to the
+            # partial annotation, mirroring the spec example
+            # `◐ partial (…) · unsupported on ibis-duckdb`. Group by level
+            # so multiple distinct levels render as separate suffixes.
+            dsw = [f for f in oc.constraints if is_dialect_scoped_whole_op(f)]
+            if dsw:
+                by_level: dict[str, set[str]] = {}
+                for f in dsw:
+                    by_level.setdefault(f.level.value, set()).add(f.dialect or "")
+                parts = [
+                    f"{lv} on {','.join(sorted(dialects))}"
+                    for lv, dialects in sorted(by_level.items())
+                ]
+                partial = f"{partial} · {' · '.join(parts)}"
+            status.append(partial)
         text = " + ".join(status)  # spec §3.5: `poly + ◐ partial (…)`
     else:
         # 5. implemented* + clean -> base mark (`✓` or `✓ᴴ` for handler),
@@ -173,6 +194,13 @@ def _header(report: CoverageReport) -> list[str]:
         f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
         f"· Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
+        "",
+        "Scoped deviations (dialect/param/option/value-class) live in "
+        "[`expression-coverage-scoped.md`](expression-coverage-scoped.md).",
+        "",
+        "Parquet recipe: flatten `families[].ops[].cells` from "
+        "[`expression-coverage.json`](expression-coverage.json) into rows, "
+        "then `pl.DataFrame(rows).write_parquet(...)`.",
         "",
         _LEGEND,
     ]
@@ -325,11 +353,26 @@ _DETAIL_RULE = "| " + " | ".join(["---"] * 14) + " |"
 
 
 def _detail_sections(report: CoverageReport) -> list[str]:
+    """Per-op detail holds ONLY function-level (whole-op) facts (spec §4.3
+    rev 6). A pointer line under the section header names the scoped doc;
+    cells whose facts are all scoped get no main-doc section at all.
+    Partition is exact against the scoped doc — every input fact's detail
+    body lives in exactly one of the two artifacts (§4.5 M-3)."""
     lines = ["## Per-op detail", ""]
+    lines.append(
+        "Cells whose facts are all scoped (dialect / parameter / option / "
+        "value-class) have no section here — see "
+        "[`expression-coverage-scoped.md`](expression-coverage-scoped.md) "
+        "for the scoped detail. `refinements` (EXPR_CAPABLE + dialect) are "
+        "scoped by construction; `dialect-scoped whole-op` facts appear "
+        "under that doc's `Dialect-scoped whole-op` subheading."
+    )
+    lines.append("")
     wrote_any = False
     for fam in report.families:
         for oc in fam.ops:
-            if not oc.all_facts:
+            function_level = tuple(f for f in oc.all_facts if is_whole_op(f))
+            if not function_level:
                 continue
             wrote_any = True
             lines.append(
@@ -339,11 +382,11 @@ def _detail_sections(report: CoverageReport) -> list[str]:
             lines.append("")
             lines.append(_DETAIL_HEADER)
             lines.append(_DETAIL_RULE)
-            for f, values in _collapse_groups(oc.all_facts):
+            for f, values in _collapse_groups(function_level):
                 lines.append(_fact_detail_row(f, values))
             lines.append("")
     if not wrote_any:
-        lines.append("No facts registered.")
+        lines.append("No function-level facts registered.")
         lines.append("")
     return lines
 
@@ -413,6 +456,359 @@ def render_markdown(report: CoverageReport) -> str:
     lines += _gaps_section(report)
     lines += _retirements_section(report)
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Scoped-deviations doc — spec §4.3 rev 6 (multi-artifact rendering).
+# The companion to render_markdown: every input fact's detail body appears
+# in exactly one of the two markdown artifacts. Function-level (whole-op)
+# coverage and the matrices live in the main doc; everything else lives
+# here, with dialect-scoped whole-op facts FIRST under a dedicated
+# subheading and the option-collapse rule on the remainder.
+# ---------------------------------------------------------------------------
+
+_SCOPED_LEGEND = """\
+Legend — scoped deviations:
+
+- The main doc (`expression-coverage.md`) carries matrices, function-level
+  coverage, and the by-exception render map. This doc carries the per-op
+  detail for every fact with a dialect, parameter, option, or value-class
+  selector. The two are byte-disjoint on detail bodies — every input fact
+  appears in exactly one artifact's detail body (§4.5 M-3).
+- **Dialect-scoped whole-op facts** (wildcard param + a dialect, no
+  option_value or value_class) render FIRST under a `Dialect-scoped
+  whole-op` subheading within each (op, backend) section. The main doc's
+  matrix cell surfaces the level + dialect via the I-2b suffix
+  (e.g. `◐ partial (…) · unsupported on ibis-duckdb`).
+- All other scoped facts render with the §4.3 option-collapse rule:
+  groups of ≥3 facts sharing every semantic field except `option_value`
+  collapse to a single row with the sorted `option_value` list; smaller
+  groups render per-fact.
+- Annotations seen in the main doc's matrix (`↻ routed`, `⚠ runtime`,
+  `✓ dialect-verified: …`) describe the same cells; this doc carries
+  the underlying fact rows, not the annotations.
+- `fidelity` is None on all EXECUTE facts by registration validation and
+  is omitted from detail rows.
+"""
+
+
+def _scoped_header(report: CoverageReport) -> list[str]:
+    impl_total = sum(report.stats.by_impl.values())
+    return [
+        "# Expression Coverage — Scoped Deviations",
+        "",
+        "<!-- GENERATED FILE — do not edit by hand. -->",
+        f"<!-- Regenerate: {_REGEN_CMD} -->",
+        "",
+        "Scoped deviations — dialect, parameter, option, value-class; "
+        "function-level coverage and matrices live in "
+        "[`expression-coverage.md`](expression-coverage.md).",
+        "",
+        f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
+        f"· Registered operations: {report.stats.ops_total} "
+        f"· Implementation records: {impl_total}",
+        "",
+        _SCOPED_LEGEND,
+    ]
+
+
+def _scoped_detail_sections(report: CoverageReport) -> list[str]:
+    """Per-op detail for every (op, backend) cell holding ≥1 scoped
+    (non-whole-op) fact. Dialect-scoped whole-op facts render FIRST under
+    a `Dialect-scoped whole-op` subheading; the remainder gets the
+    option-collapse rule."""
+    lines = ["## Per-op detail (scoped)", ""]
+    wrote_any = False
+    for fam in report.families:
+        for oc in fam.ops:
+            scoped = tuple(f for f in oc.all_facts if not is_whole_op(f))
+            if not scoped:
+                continue
+            wrote_any = True
+            lines.append(
+                f"### `{oc.op.operation_key.name}` × {oc.backend.value} "
+                f"({oc.op.family})"
+            )
+            lines.append("")
+            dsw = tuple(f for f in scoped if is_dialect_scoped_whole_op(f))
+            remaining = tuple(
+                f for f in scoped if not is_dialect_scoped_whole_op(f)
+            )
+            if dsw:
+                lines.append("#### Dialect-scoped whole-op")
+                lines.append("")
+                lines.append(_DETAIL_HEADER)
+                lines.append(_DETAIL_RULE)
+                # No option-collapse on the dialect-scoped subheading: every
+                # fact here has option_value=None, value_class=None,
+                # param=WILDCARD_PARAM — only `dialect` varies, so each
+                # fact is a distinct row already.
+                for f in sorted(dsw, key=fact_sort_key):
+                    lines.append(_fact_detail_row(f, []))
+                lines.append("")
+            if remaining:
+                lines.append(_DETAIL_HEADER)
+                lines.append(_DETAIL_RULE)
+                for f, values in _collapse_groups(remaining):
+                    lines.append(_fact_detail_row(f, values))
+                lines.append("")
+    if not wrote_any:
+        lines.append("No scoped facts registered.")
+        lines.append("")
+    return lines
+
+
+def render_scoped(report: CoverageReport) -> str:
+    """Spec §4.3 rev 6 — the scoped-deviations markdown. Companion to
+    `render_markdown`; together they satisfy the §4.5 M-3 partition-
+    exactness invariant. Pure; no registry calls, no wall clock, no
+    environment strings."""
+    lines: list[str] = []
+    lines += _scoped_header(report)
+    lines += _scoped_detail_sections(report)
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# JSON renderer — spec §4.6 (rev 6).
+# The machine-readable extract: the FULL model, not a summary. No option
+# collapse, no markdown glyphs, no per-field prose; every fact row uncollapsed
+# and every value serializable as a plain JSON value. Determinism rests on
+# insertion order (spec §4.4 M-6): every dict is populated by iterating
+# already-sorted sequences; no `set` iteration.
+# ---------------------------------------------------------------------------
+
+
+def _op_key(operation_key: Any) -> dict[str, str]:
+    """Two-part op key (spec §4.6): the enum class name + member name.
+    Accepts either an enum member OR an OpRecord (which carries the enum
+    member as `.operation_key`). This is the same identity the markdown
+    uses; never `str(enum)`."""
+    if isinstance(operation_key, OpRecord):
+        operation_key = operation_key.operation_key
+    return {"family": type(operation_key).__name__, "op": operation_key.name}
+
+
+def _fact_dict(f: CapabilityFact) -> dict[str, Any]:
+    """Serialize one CapabilityFact as a dict (spec §4.6 <fact> shape).
+
+    `option_value` is None -> JSON `null`; `native_errors=()` -> JSON `[]`.
+    `value_class` is None -> JSON `null`; the level/enforcement/boundary
+    are serialized by .value. `condition`/`message` are always strings (the
+    model's default is "" so absent-prose is "" not null here)."""
+    return {
+        "dialect": f.dialect,
+        "param": f.param,
+        "option_value": f.option_value,
+        "value_class": f.value_class.value if f.value_class is not None else None,
+        "level": f.level.value,
+        "enforcement": f.enforcement.value,
+        "boundary": f.boundary.value,
+        "condition": f.condition,
+        "message": f.message,
+        "workaround": f.workaround,
+        "upstream_ref": f.upstream_ref,
+        "since": f.since,
+        "native_errors": [e.__name__ for e in f.native_errors],
+        "probe_exempt": f.probe_exempt,
+    }
+
+
+def _cell_dict(oc: OpCoverage) -> dict[str, Any]:
+    """One (op, backend) cell — the cell composition §4.6 pins.
+
+    `impl_method` and `impl_protocol` are None iff impl is UNKNOWN. `whole_op`
+    is None for non-whole-op cells (no wildcard gate present). `constrained`
+    and `contradiction` are derived but INCLUDED so consumers need no §3.4
+    precedence knowledge (spec §4.6 <fact>/cell note)."""
+    return {
+        "impl": oc.impl.value,
+        "impl_method": oc.impl_method,
+        "impl_protocol": oc.impl_protocol,
+        "audited": oc.audited,
+        "whole_op": oc.whole_op.value if oc.whole_op is not None else None,
+        "constrained": oc.constrained,
+        "contradiction": oc.contradiction,
+        "selector_counts": {
+            "params": oc.selector_counts.params,
+            "option_selectors": oc.selector_counts.option_selectors,
+            "value_classes": oc.selector_counts.value_classes,
+            "dialects": oc.selector_counts.dialects,
+        },
+        "constraints": [_fact_dict(f) for f in oc.constraints],
+        "residue": [_fact_dict(f) for f in oc.residue],
+        "routed": [_fact_dict(f) for f in oc.routed],
+        "refinements": [_fact_dict(f) for f in oc.refinements],
+    }
+
+
+def _family_dict(fam: Any) -> dict[str, Any]:
+    """One FamilyCoverage: op-name-major, backend display order. `source` and
+    `domain` are None for unmapped families (no enum-class-suffix match) —
+    these fields are JSON `null`, never omitted."""
+    if fam.audit_domain is None:
+        source: str | None = None
+        domain: str | None = None
+    else:
+        source, domain = fam.audit_domain[0].value, fam.audit_domain[1].value
+    # Group OpCoverages by op identity; the model already emits op-name-major
+    # with backend display order, so the existing sort is preserved.
+    by_op: dict[Any, list[OpCoverage]] = {}
+    for oc in fam.ops:
+        by_op.setdefault(oc.op.operation_key, []).append(oc)
+    ops_out: list[dict[str, Any]] = []
+    for op_key in sorted(by_op, key=lambda k: k.name):
+        ocs = by_op[op_key]
+        # The three backends in display order; RENDERED_BACKENDS iteration is
+        # the same order the model built fam.ops in.
+        cells = {oc.backend.value: _cell_dict(oc) for oc in ocs}
+        ops_out.append({"op": _op_key(ocs[0].op), "cells": cells})
+    return {
+        "family": fam.family,
+        "source": source,
+        "domain": domain,
+        "ops": ops_out,
+    }
+
+
+def _evidence_dict(evidence: Any) -> dict[str, Any] | None:
+    """ProbeEvidence -> dict; null preserves the absence-of-evidence signal
+    (vs. a `{}` empty record, which would mean 'evidence exists but is empty')."""
+    if evidence is None:
+        return None
+    return {
+        "probe_date": evidence.probe_date,
+        "library_versions": [list(pair) for pair in evidence.library_versions],
+        "fixtures": list(evidence.fixtures),
+    }
+
+
+def _declaration_dict(d: Any) -> dict[str, Any]:
+    """One CapabilityDeclaration — carries its facts in the canonicalized order
+    the model canonicalized at ingest (spec §4.4 I-3); this is what makes
+    declarations JSON-recoverable per §4.6 / plan-review C2."""
+    return {
+        "backend": d.backend.value,
+        "source": d.source.value,
+        "domain": d.domain.value,
+        "evidence": _evidence_dict(d.evidence),
+        "facts": [_fact_dict(f) for f in d.facts],
+    }
+
+
+def _divergence_dict(dv: Any) -> dict[str, Any]:
+    """DivergenceFact — backends are verbatim dialect/family-name strings
+    (spec §4.6 M-5); the .value rule does NOT apply. operation_keys use the
+    {family, op} convention."""
+    return {
+        "id": dv.id,
+        "kind": dv.kind.value,
+        "operation_keys": [_op_key(k) for k in dv.operation_keys],
+        "backends": list(dv.backends),
+        "summary": dv.summary,
+        "impact": dv.impact,
+        "workaround": dv.workaround,
+        "upstream_ref": dv.upstream_ref,
+        "since": dv.since,
+    }
+
+
+def _gap_dict(g: Any) -> dict[str, Any]:
+    """KnownGap + review_due = since + 183 days (spec §4.3 rule 7)."""
+    return {
+        "gap_kind": g.gap_kind.value,
+        "reason": g.reason,
+        "since": g.since,
+        "review_due": (date.fromisoformat(g.since) + timedelta(days=183)).isoformat(),
+    }
+
+
+def _retired_dict(r: Any) -> dict[str, Any]:
+    """RetiredFact — emitted newest-first (spec §4.3 rule 8); the model sorts
+    ascending, the renderer reverses, mirroring the markdown retirements section."""
+    return {
+        "operation_key": _op_key(r.operation_key),
+        "param": r.param,
+        "backend": r.backend.value,
+        "dialect": r.dialect,
+        "option_value": r.option_value,
+        "value_class": r.value_class.value if r.value_class is not None else None,
+        "level": r.level.value,
+        "since": r.since,
+        "retired_on": r.retired_on,
+        "fixed_in_versions": [list(pair) for pair in r.fixed_in_versions],
+        "upstream_ref": r.upstream_ref,
+        "note": r.note,
+    }
+
+
+def _stamp(report: CoverageReport) -> dict[str, int]:
+    """Counts only — the model has no timestamps, so this is the regen-time
+    visible-only summary, not a wall-clock stamp."""
+    return {
+        "declarations": len(report.declarations),
+        "facts": report.stats.facts_total,
+        "operations": report.stats.ops_total,
+        "implementation_records": sum(report.stats.by_impl.values()),
+    }
+
+
+def _stats_dict(report: CoverageReport) -> dict[str, Any]:
+    """Per-backend NESTED under the backend key (plan-review C3 — the model's
+    tuple-keyed by_impl Mapping has no legal JSON key form). facts_by_*
+    stats are keyed by .value, present-only (matches the model's Mapping,
+    not the universe of all enum values — empty is empty, not zero-padded)."""
+    backends: dict[str, dict[str, Any]] = {}
+    for b in RENDERED_BACKENDS:
+        by_impl_nested = {
+            s.value: report.stats.by_impl.get((b, s), 0) for s in ImplState
+        }
+        backends[b.value] = {
+            "by_impl": by_impl_nested,
+            "default_capable": report.stats.default_capable[b],
+            "audited_clean": report.stats.audited_clean[b],
+            "constrained": report.stats.constrained[b],
+            "audited_unknown": report.stats.audited_unknown[b],
+        }
+    return {
+        "backends": backends,
+        "contradictions": report.stats.contradictions,
+        "ops_total": report.stats.ops_total,
+        "facts_by_level": {
+            lv.value: report.stats.facts_by_level.get(lv, 0)
+            for lv in CapabilityLevel if lv in report.stats.facts_by_level
+        },
+        "facts_by_enforcement": {
+            e.value: report.stats.facts_by_enforcement.get(e, 0)
+            for e in Enforcement if e in report.stats.facts_by_enforcement
+        },
+        "facts_by_backend": {
+            b.value: report.stats.facts_by_backend.get(b, 0)
+            for b in RENDERED_BACKENDS if b in report.stats.facts_by_backend
+        },
+        "facts_total": report.stats.facts_total,
+    }
+
+
+def render_json(report: CoverageReport) -> str:
+    """Spec §4.6 — the canonical JSON export of the FULL model.
+
+    Determinism: every dict is built by iterating already-sorted sequences;
+    `sort_keys=False` (insertion order is the contract — review M-6). Every
+    value is serializable as plain JSON: enum members by `.value`, dates as
+    ISO strings, absent optionals as `null`, empty collections as `[]`. No
+    option-collapse — the extract carries every fact row uncollapsed (the
+    markdown's collapse is a readability device, not a model property)."""
+    obj = {
+        "stamp": _stamp(report),
+        "stats": _stats_dict(report),
+        "families": [_family_dict(f) for f in report.families],
+        "declarations": [_declaration_dict(d) for d in report.declarations],
+        "divergences": [_divergence_dict(dv) for dv in report.divergences],
+        "gaps": [_gap_dict(g) for g in report.gaps],
+        "retired": [_retired_dict(r) for r in reversed(report.retired)],
+    }
+    return json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
 
 
 def gather_coverage_inputs() -> dict:
@@ -568,15 +964,28 @@ def gather_implementation_records(
     return tuple(records)
 
 
+# Pinned (path, renderer) pairing — the single source of truth for both
+# `main()` and the parametrized drift gate, so the gate's failure message
+# names the drifted artifact from this same constant (spec §4.6 / review M-4).
+# Defined after the three renderer functions so the callables resolve.
+_ARTIFACT_RENDERERS: tuple[tuple[str, Callable[[CoverageReport], str]], ...] = (
+    ("docs/reference/expression-coverage.md", render_markdown),
+    ("docs/reference/expression-coverage-scoped.md", render_scoped),
+    ("docs/reference/expression-coverage.json", render_json),
+)
+
+
 def main() -> None:
     from pathlib import Path
 
     from mountainash.core.capabilities.coverage import build_coverage_report
 
     report = build_coverage_report(**gather_coverage_inputs())
-    out = Path(__file__).resolve().parents[4] / _ARTIFACT_PATH
-    out.write_text(render_markdown(report), encoding="utf-8")
-    print(f"wrote {out}")
+    base = Path(__file__).resolve().parents[4]
+    for rel_path, renderer in _ARTIFACT_RENDERERS:
+        out = base / rel_path
+        out.write_text(renderer(report), encoding="utf-8")
+        print(f"wrote {out}")
 
 
 if __name__ == "__main__":

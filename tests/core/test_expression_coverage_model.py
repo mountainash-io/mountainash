@@ -9,16 +9,20 @@ import pytest
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     _UNREGISTERED_OPS,
+    fact_sort_key,
     ImplementationRecord,
     ImplState,
     build_coverage_report,
     OpRecord,
     audit_domain_for,
     classify_fact,
+    is_dialect_scoped_whole_op,
+    is_whole_op,
     _validate_backends,
     _validate_dates,
     _validate_declarations,
     _validate_divergences,
+    _validate_native_errors_builtins,
 )
 from mountainash.core.capabilities.declarations import (
     CapabilityDeclaration,
@@ -539,3 +543,134 @@ def test_determinism_under_shuffled_implementations():
     assert out1.stats.by_impl == out2.stats.by_impl
     assert out1.stats.audited_clean == out2.stats.audited_clean
     assert out1.stats.default_capable == out2.stats.default_capable
+
+
+# --- Task 1 new tests (rev 6 model hardening) ---
+
+
+def test_whole_op_helpers_classify_facts():
+    # whole-op: wildcard param, no option_value, no value_class, no dialect.
+    whole = _fact(level=CapabilityLevel.UNSUPPORTED)
+    assert is_whole_op(whole) is True
+    assert is_dialect_scoped_whole_op(whole) is False
+    # dialect-scoped whole-op: wildcard param, no option_value, no value_class,
+    # BUT a dialect is set.
+    scoped_whole = _fact(level=CapabilityLevel.UNSUPPORTED, dialect="duckdb")
+    assert is_whole_op(scoped_whole) is False
+    assert is_dialect_scoped_whole_op(scoped_whole) is True
+    # param fact: neither whole nor dialect-scoped whole.
+    param_fact = _fact(param="values", level=CapabilityLevel.UNSUPPORTED)
+    assert is_whole_op(param_fact) is False
+    assert is_dialect_scoped_whole_op(param_fact) is False
+
+
+def test_impl_protocol_carried_for_known_states_and_none_for_unknown():
+    # IMPLEMENTED: protocol_name from record, method_name from record.
+    impl_report = build_coverage_report(
+        _universe(), (), (), (), (), (), _impls(state=ImplState.IMPLEMENTED)
+    )
+    a_pol = _cell(impl_report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS)
+    assert a_pol.impl is ImplState.IMPLEMENTED
+    assert a_pol.impl_protocol == "SyntheticProtocol"
+    assert a_pol.impl_method == "synthetic"
+
+    # IMPLEMENTED_VIA_HANDLER: protocol_name is the literal "handler".
+    via_handler_impls = [
+        ImplementationRecord(
+            r.operation_key, b, ImplState.IMPLEMENTED_VIA_HANDLER,
+            "handler_qualname", "handler",
+        )
+        for r in _universe()
+        for b in RENDERED_BACKENDS
+    ]
+    via_handler_report = build_coverage_report(
+        _universe(), (), (), (), (), (), tuple(via_handler_impls)
+    )
+    a_pol_h = _cell(via_handler_report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
+                    CONST_BACKEND.POLARS)
+    assert a_pol_h.impl is ImplState.IMPLEMENTED_VIA_HANDLER
+    assert a_pol_h.impl_protocol == "handler"
+    assert a_pol_h.impl_method == "handler_qualname"
+
+    # NOT_IMPLEMENTED: still carries provenance (per spec §3.6, method_name
+    # is the protocol-method name; protocol_name is the protocol class).
+    ni_overrides = {
+        (FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED
+    }
+    ni_impls = _impls(overrides=ni_overrides)
+    ni_report = build_coverage_report(
+        _universe(), (), (), (), (), (), ni_impls
+    )
+    a_pol_ni = _cell(ni_report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS)
+    assert a_pol_ni.impl is ImplState.NOT_IMPLEMENTED
+    assert a_pol_ni.impl_protocol == "SyntheticProtocol"
+    assert a_pol_ni.impl_method == "synthetic"
+
+    # UNKNOWN: both provenance fields None.
+    unknown_report = build_coverage_report(
+        _universe(), (), (), (), (), (), _impls(state=ImplState.UNKNOWN)
+    )
+    a_pol_u = _cell(unknown_report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
+                    CONST_BACKEND.POLARS)
+    assert a_pol_u.impl is ImplState.UNKNOWN
+    assert a_pol_u.impl_protocol is None
+    assert a_pol_u.impl_method is None
+
+
+def test_declaration_facts_canonicalized_at_ingest():
+    # Build a declaration whose .facts are deliberately mis-ordered; the input
+    # declaration object must NOT be mutated, but the report's copy carries the
+    # facts sorted by fact_sort_key.
+    f_zzz = _fact(param="zzz", option_value="z", level=CapabilityLevel.UNSUPPORTED)
+    f_aaa = _fact(param="aaa", level=CapabilityLevel.UNSUPPORTED)
+    f_mid = _fact(param="mmm", level=CapabilityLevel.UNSUPPORTED,
+                  option_value="x", dialect="duckdb")
+
+    input_decl = _decl(facts=(f_zzz, f_aaa, f_mid))
+    # Sanity: input order is non-canonical.
+    assert input_decl.facts == (f_zzz, f_aaa, f_mid)
+
+    report = build_coverage_report(
+        _universe(), (), (input_decl,), (), (), (), _impls()
+    )
+    # Report's declaration is a replace-copy with canonical order.
+    (out_decl,) = report.declarations
+    canonical = list(input_decl.facts)
+    canonical.sort(key=fact_sort_key)
+    assert out_decl.facts == tuple(canonical)
+    # Input declaration object unchanged.
+    assert input_decl.facts == (f_zzz, f_aaa, f_mid)
+    # Output declaration is a distinct object (dataclasses.replace semantics).
+    assert out_decl is not input_decl
+
+
+def test_ingest_rejects_non_builtin_native_errors_on_top_level_facts():
+    class _LocalError(Exception):
+        pass
+
+    bad = _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
+                native_errors=(_LocalError,))
+    with pytest.raises(ValueError, match="_LocalError"):
+        _validate_native_errors_builtins((bad,), ())
+
+
+def test_ingest_rejects_non_builtin_native_errors_on_nested_facts():
+    class _OtherError(Exception):
+        pass
+
+    bad = _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
+                native_errors=(_OtherError,))
+    decl = _decl(facts=(bad,))
+    with pytest.raises(ValueError, match="declaration .*_OtherError"):
+        _validate_native_errors_builtins((), (decl,))
+
+
+def test_ingest_accepts_builtin_native_errors():
+    builtin = _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                    boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
+                    native_errors=(ValueError, TypeError))
+    _validate_native_errors_builtins((builtin,), ())  # no raise
+    # Empty native_errors tuple is also fine (BUILD-boundary facts).
+    _validate_native_errors_builtins((_fact(),), ())
