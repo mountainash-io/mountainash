@@ -110,6 +110,41 @@ def test_strptime_module_equivalence():
     _multiset_equal(new_facts, legacy)
 
 
+def test_ibis_module_equivalence():
+    from mountainash.expressions.backends.capabilities import ibis as new
+    from mountainash.expressions.backends.expression_systems import (
+        ibis_capabilities as old,
+    )
+
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, old.IBIS_EXPR_CAPABILITIES)
+    assert new.IBIS_EXPR_CAPABILITIES == old.IBIS_EXPR_CAPABILITIES
+
+
+def test_polars_module_equivalence():
+    from mountainash.expressions.backends.capabilities import polars as new
+    from mountainash.expressions.backends.expression_systems.polars.base import (
+        PolarsBaseExpressionSystem,
+    )
+
+    legacy = PolarsBaseExpressionSystem.CAPABILITIES
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+    assert new.POLARS_EXPR_CAPABILITIES == legacy
+
+
+def test_narwhals_module_equivalence():
+    from mountainash.expressions.backends.capabilities import narwhals as new
+    from mountainash.expressions.backends.expression_systems.narwhals.base import (
+        NarwhalsBaseExpressionSystem,
+    )
+
+    legacy = NarwhalsBaseExpressionSystem.CAPABILITIES
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+    assert new.NARWHALS_EXPR_CAPABILITIES == legacy
+
+
 def test_polymorphic_module_equivalence(monkeypatch):
     from mountainash.expressions.backends.capabilities import polymorphic as new
     from mountainash.core import capabilities as core_facts
