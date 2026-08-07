@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
@@ -30,9 +30,6 @@ from mountainash.core.capabilities.schema import (
 if TYPE_CHECKING:
     from mountainash.core.constants import CONST_BACKEND
 
-_ARTIFACT_PATH = "docs/reference/expression-coverage.md"
-_SCOPED_ARTIFACT_PATH = "docs/reference/expression-coverage-scoped.md"
-_JSON_ARTIFACT_PATH = "docs/reference/expression-coverage.json"
 _REGEN_CMD = "hatch -e test run python -m mountainash.core.capabilities.render_markdown"
 
 _LEGEND = """\
@@ -967,15 +964,28 @@ def gather_implementation_records(
     return tuple(records)
 
 
+# Pinned (path, renderer) pairing — the single source of truth for both
+# `main()` and the parametrized drift gate, so the gate's failure message
+# names the drifted artifact from this same constant (spec §4.6 / review M-4).
+# Defined after the three renderer functions so the callables resolve.
+_ARTIFACT_RENDERERS: tuple[tuple[str, Callable[[CoverageReport], str]], ...] = (
+    ("docs/reference/expression-coverage.md", render_markdown),
+    ("docs/reference/expression-coverage-scoped.md", render_scoped),
+    ("docs/reference/expression-coverage.json", render_json),
+)
+
+
 def main() -> None:
     from pathlib import Path
 
     from mountainash.core.capabilities.coverage import build_coverage_report
 
     report = build_coverage_report(**gather_coverage_inputs())
-    out = Path(__file__).resolve().parents[4] / _ARTIFACT_PATH
-    out.write_text(render_markdown(report), encoding="utf-8")
-    print(f"wrote {out}")
+    base = Path(__file__).resolve().parents[4]
+    for rel_path, renderer in _ARTIFACT_RENDERERS:
+        out = base / rel_path
+        out.write_text(renderer(report), encoding="utf-8")
+        print(f"wrote {out}")
 
 
 if __name__ == "__main__":

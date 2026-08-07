@@ -1,24 +1,33 @@
-"""Drift gate + identity invariants for docs/reference/expression-coverage.md.
+"""Drift gate + identity invariants for the three committed coverage artifacts
+(spec §4.5, §4.6 — main md + scoped md + JSON).
 
 The committed artifact must equal the regenerated output byte-for-byte
 (spec §4.5). On failure: hatch -e test run python -m mountainash.core.capabilities.render_markdown
 """
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
+    CoverageReport,
     ImplState,
+    OpRecord,
     build_coverage_report,
+    fact_sort_key,
 )
 from mountainash.core.capabilities.render_markdown import (
-    _ARTIFACT_PATH,
+    _ARTIFACT_RENDERERS,
     _REGEN_CMD,
     _cell_text,
     gather_coverage_inputs,
+    render_json,
     render_markdown,
 )
 
@@ -42,11 +51,142 @@ def _matrix_body(doc: str) -> str:
     return doc.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
 
 
-def test_coverage_doc_is_current(report):
-    committed = (_REPO_ROOT / _ARTIFACT_PATH).read_text(encoding="utf-8")
-    assert committed == render_markdown(report), (
-        f"docs/reference/expression-coverage.md is stale; regenerate with: {_REGEN_CMD}"
+# The artifact id is the relative path (the parametrize id for the renderer
+# would otherwise be its repr — opaque and noisy). parametrize(..., ids=...)
+# receives the parameter VALUES as a tuple, so the lambda returns the path
+# for the (path, renderer) pair.
+@pytest.mark.parametrize(
+    ("rel_path", "renderer"),
+    _ARTIFACT_RENDERERS,
+    ids=lambda v: v if isinstance(v, str) else v.__name__,
+)
+def test_coverage_doc_is_current(report, rel_path, renderer):
+    committed = (_REPO_ROOT / rel_path).read_text(encoding="utf-8")
+    assert committed == renderer(report), (
+        f"{rel_path} is stale; regenerate with: {_REGEN_CMD}"
     )
+
+
+# ---------------------------------------------------------------------------
+# JSON-completeness invariant (spec §4.5 / §4.6): parsing the committed
+# `expression-coverage.json` recovers the fact multiset, op universe,
+# declaration/divergence/gap/retirement counts, and per-backend stats equal
+# to the live-registry model. Identity-based, not string-match.
+# ---------------------------------------------------------------------------
+
+
+def _json_fact_identity(f_dict: dict) -> tuple:
+    """The §4.4 fact identity (minus operation_key / backend, which the JSON
+    carries on the cell) rebuilt from a JSON fact dict. Mirrors `fact_sort_key`'s
+    field order so the multiset comparison is total over the same lexicographic
+    key. Strings are kept (not enum-typed) because the JSON form is wire-only."""
+    return (
+        f_dict["dialect"] or "",
+        f_dict["param"],
+        f_dict["option_value"] or "",
+        f_dict["value_class"] or "",
+        f_dict["level"],
+        f_dict["enforcement"],
+        f_dict["boundary"],
+        f_dict["condition"] or "",
+        f_dict["since"],
+        f_dict["message"],
+        f_dict["workaround"] or "",
+        f_dict["upstream_ref"] or "",
+        tuple(f_dict["native_errors"]),
+        f_dict["probe_exempt"] or "",
+    )
+
+
+def _json_fact_multiset(
+    obj: dict, universe: tuple[OpRecord, ...]
+) -> list:
+    """Every fact across every cell, as (op_identity, backend, identity_tuple)
+    tuples — sorted, ready for multiset equality."""
+    key_to_member = {(r.family, r.operation_key.name): r for r in universe}
+    out: list[tuple] = []
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            op_id = (op_entry["op"]["family"], op_entry["op"]["op"])
+            assert op_id in key_to_member, f"unknown op identity in JSON: {op_id}"
+            for backend_name, cell in op_entry["cells"].items():
+                for bucket in ("constraints", "residue", "routed", "refinements"):
+                    for f_dict in cell[bucket]:
+                        out.append((op_id, backend_name, _json_fact_identity(f_dict)))
+    return sorted(out)
+
+
+def _model_fact_multiset(report: CoverageReport) -> list:
+    """Mirror of _json_fact_multiset over the live CoverageReport."""
+    out: list[tuple] = []
+    for fam in report.families:
+        for oc in fam.ops:
+            for bucket in (oc.constraints, oc.residue, oc.routed, oc.refinements):
+                for f in bucket:
+                    out.append((
+                        (type(f.operation_key).__name__, f.operation_key.name),
+                        f.backend.value,
+                        fact_sort_key(f),
+                    ))
+    return sorted(out)
+
+
+def test_json_completeness(report, inputs):
+    """Spec §4.5 / §4.6: parsing the committed `expression-coverage.json`
+    recovers the full model — fact multiset (identity-based), op universe,
+    declaration/divergence/gap/retirement counts, and per-backend stats equal
+    to the live-registry model. A committed JSON that is byte-equal to the
+    regen but missing a fact here would mean the renderer silently dropped
+    a row — this invariant closes that gap."""
+    committed = (_REPO_ROOT / "docs/reference/expression-coverage.json").read_text(
+        encoding="utf-8"
+    )
+    obj = json.loads(committed)
+
+    # 1. Op universe: every (family, op) in the JSON == universe in the model.
+    universe = inputs["universe"]
+    expected_ops = {(r.family, r.operation_key.name) for r in universe}
+    actual_ops: set[tuple[str, str]] = set()
+    for fam in obj["families"]:
+        for op_entry in fam["ops"]:
+            actual_ops.add((op_entry["op"]["family"], op_entry["op"]["op"]))
+    assert actual_ops == expected_ops, (
+        f"op universe drift between committed JSON and live registry: "
+        f"missing={sorted(expected_ops - actual_ops)} "
+        f"extra={sorted(actual_ops - expected_ops)}"
+    )
+
+    # 2. Counts.
+    assert len(obj["declarations"]) == len(report.declarations)
+    assert len(obj["divergences"]) == len(report.divergences)
+    assert len(obj["gaps"]) == len(report.gaps)
+    assert len(obj["retired"]) == len(report.retired)
+
+    # 3. Per-backend stats — by_impl re-keyed to tuples must equal the model.
+    for b in RENDERED_BACKENDS:
+        b_stats = obj["stats"]["backends"][b.value]
+        for s in ImplState:
+            assert b_stats["by_impl"][s.value] == report.stats.by_impl[(b, s)], (
+                f"by_impl[{b.value},{s.value}] JSON vs model mismatch: "
+                f"json={b_stats['by_impl'][s.value]} model={report.stats.by_impl[(b, s)]}"
+            )
+        assert b_stats["default_capable"] == report.stats.default_capable[b]
+        assert b_stats["audited_clean"] == report.stats.audited_clean[b]
+        assert b_stats["constrained"] == report.stats.constrained[b]
+        assert b_stats["audited_unknown"] == report.stats.audited_unknown[b]
+    assert obj["stats"]["ops_total"] == report.stats.ops_total
+    assert obj["stats"]["facts_total"] == report.stats.facts_total
+    assert obj["stats"]["contradictions"] == report.stats.contradictions
+
+    # 4. Fact multiset — equal to the model after sorting.
+    assert _json_fact_multiset(obj, universe) == _model_fact_multiset(report), (
+        "fact multiset drift between committed JSON and live registry model"
+    )
+
+    # 5. JSON's `render_json` of the live model is byte-equal to the
+    # committed file (defense-in-depth — the parametrize drift gate asserts
+    # the same property, but pinning it here keeps the invariant self-contained).
+    assert committed == render_json(report)
 
 
 def test_universe_partition_exact(inputs, report):
@@ -254,4 +394,49 @@ def test_implementation_via_handler_live_baseline_pin(inputs):
         f"live registry has {n_not_impl} NOT_IMPLEMENTED implementation record(s); "
         f"a registered op's protocol-method override is missing on a backend "
         f"leaf class. DATA PIN — update the pin if this drift is intentional."
+    )
+
+
+# ---------------------------------------------------------------------------
+# PYTHONHASHSEED byte-identity test (spec §4.4 M-6 / M-7 / plan-review I2):
+# determinism rests on insertion order — every dict populated by iterating
+# already-sorted sequences, no set iteration. PYTHONHASHSEED controls
+# CPython's set/dict iteration order, so two seeds byte-equal means the
+# build is order-stable across hash randomization. The test spawns two
+# subprocesses (one per seed) that each render the JSON to stdout; the
+# captured bytes must be equal. `main()` keeps its fixed artifact paths
+# (no --out-dir flag) — the committed artifacts are never touched.
+# ---------------------------------------------------------------------------
+
+
+def test_json_byte_identity_under_hash_seed():
+    """Plan-review I2: two-process PYTHONHASHSEED byte-identity check on
+    the JSON output. Each subprocess runs the full
+    gather_coverage_inputs → build_coverage_report → render_json pipeline
+    to stdout; the test asserts the two stdout captures are byte-equal."""
+    driver = (
+        "import sys; "
+        "from mountainash.core.capabilities.render_markdown import "
+        "gather_coverage_inputs, render_json; "
+        "from mountainash.core.capabilities.coverage import build_coverage_report; "
+        "sys.stdout.write(render_json(build_coverage_report(**gather_coverage_inputs())))"
+    )
+    captured: list[bytes] = []
+    for seed in ("0", "1"):
+        result = subprocess.run(
+            [sys.executable, "-c", driver],
+            env={**os.environ, "PYTHONHASHSEED": seed},
+            capture_output=True,
+            check=True,
+            timeout=300,
+        )
+        assert not result.stderr, (
+            f"PYTHONHASHSEED={seed} subprocess emitted stderr: "
+            f"{result.stderr.decode('utf-8', errors='replace')}"
+        )
+        captured.append(result.stdout)
+    assert captured[0] == captured[1], (
+        f"JSON output differs between PYTHONHASHSEED=0 and PYTHONHASHSEED=1 "
+        f"({len(captured[0])} vs {len(captured[1])} bytes); set-iteration "
+        f"nondeterminism leaked into the build (spec §4.4 M-6)"
     )

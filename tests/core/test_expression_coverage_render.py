@@ -104,26 +104,37 @@ def _report(facts=(), decls=None, impls=None, **kw):
 
 
 def test_render_is_deterministic_under_input_shuffle():
+    """Spec §4.4: input order does not affect output bytes (review M-6: every
+    dict populated by iterating already-sorted sequences; no set iteration).
+    Plan-review M-1: all THREE renderers (markdown, scoped, JSON) are
+    pinned under input shuffle — the multi-artifact split is the load-bearing
+    property, and a determinism regression in render_scoped / render_json
+    would otherwise be invisible (the model-level shuffle test covers the
+    model, this one covers the renderers end-to-end)."""
     fs = [
         _fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED)
         for v in ("x", "y", "z")
     ] + [_fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)]
     decl = _decl(facts=tuple(fs))
     impls = _impls()
-    out1 = render_markdown(build_coverage_report(
-        _universe(), tuple(fs), (decl,), (), (), (), impls))
-    out2 = render_markdown(build_coverage_report(
-        _universe(), tuple(reversed(fs)), (decl,), (), (), (), impls))
-    # Defense-in-depth: also shuffle the implementations tuple (Task-1 model-level
-    # shuffle already guards this; this is the renderer's contract per spec §4.4).
     impls_rev = tuple(reversed(impls))
-    out3 = render_markdown(build_coverage_report(
-        _universe(), tuple(fs), (decl,), (), (), (), impls_rev))
-    out4 = render_markdown(build_coverage_report(
-        _universe(), tuple(reversed(fs)), (decl,), (), (), (), impls_rev))
-    assert out1 == out2
-    assert out1 == out3
-    assert out1 == out4
+    # Build the three baselines (facts in given order, impls in given order).
+    base = build_coverage_report(_universe(), tuple(fs), (decl,), (), (), (), impls)
+    # Three shuffled builds covering both axes: fact order and impl order.
+    fs_rev = tuple(reversed(fs))
+    build_facts_rev = lambda: build_coverage_report(  # noqa: E731
+        _universe(), fs_rev, (decl,), (), (), (), impls)
+    build_impls_rev = lambda: build_coverage_report(  # noqa: E731
+        _universe(), tuple(fs), (decl,), (), (), (), impls_rev)
+    build_both_rev = lambda: build_coverage_report(  # noqa: E731
+        _universe(), fs_rev, (decl,), (), (), (), impls_rev)
+    # All three renderers under all four input orderings.
+    for renderer in (render_markdown, render_scoped, render_json):
+        baseline = renderer(base)
+        for builder in (build_facts_rev, build_impls_rev, build_both_rev):
+            assert renderer(builder()) == baseline, (
+                f"{renderer.__name__} output drift under input shuffle"
+            )
 
 
 def test_cell_texts():
