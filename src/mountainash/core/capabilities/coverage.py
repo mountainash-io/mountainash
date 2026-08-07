@@ -6,14 +6,28 @@ Input gathering lives in render_markdown.gather_coverage_inputs().
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from datetime import date
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Mapping
 
 from mountainash.core.capabilities.declarations import (
+    CapabilityDeclaration,
     Domain,
     FactSource,
     classify_domain,
     classify_source,
 )
+from mountainash.core.capabilities.schema import (
+    CapabilityFact,
+    CapabilityLevel,
+    DivergenceFact,
+    Enforcement,
+    KnownGap,
+)
+from mountainash.core.constants import CONST_BACKEND
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.retired import RetiredFact
 
 
 @dataclass(frozen=True)
@@ -141,3 +155,159 @@ def audit_domain_for(operation_key: Any) -> tuple[FactSource, Domain] | None:
         return (classify_source(operation_key), classify_domain(operation_key))
     except ValueError:
         return None
+
+
+RENDERED_BACKENDS: tuple[CONST_BACKEND, ...] = (
+    CONST_BACKEND.POLARS,
+    CONST_BACKEND.NARWHALS,
+    CONST_BACKEND.IBIS,
+)
+
+
+class CoverageState(Enum):
+    DECLARED_CLEAN = "declared_clean"
+    CONSTRAINED = "constrained"
+    UNDECLARED = "undeclared"
+
+
+@dataclass(frozen=True)
+class SelectorCounts:
+    params: int
+    option_selectors: int
+    value_classes: int
+    dialects: int
+
+
+@dataclass(frozen=True)
+class OpCoverage:
+    op: OpRecord
+    audit_domain: tuple[FactSource, Domain] | None
+    backend: CONST_BACKEND
+    state: CoverageState
+    whole_op: CapabilityLevel | None
+    constraints: tuple[CapabilityFact, ...]
+    residue: tuple[CapabilityFact, ...]
+    routed: tuple[CapabilityFact, ...]
+    refinements: tuple[CapabilityFact, ...]
+    selector_counts: SelectorCounts
+    declarations: tuple[CapabilityDeclaration, ...]
+
+    @property
+    def all_facts(self) -> tuple[CapabilityFact, ...]:
+        return self.constraints + self.residue + self.routed + self.refinements
+
+
+@dataclass(frozen=True)
+class FamilyCoverage:
+    family: str
+    audit_domain: tuple[FactSource, Domain] | None
+    ops: tuple[OpCoverage, ...]
+
+
+@dataclass(frozen=True)
+class CoverageStats:
+    ops_total: int
+    by_state: Mapping[tuple[CONST_BACKEND, CoverageState], int]
+    facts_by_level: Mapping[CapabilityLevel, int]
+    facts_by_enforcement: Mapping[Enforcement, int]
+    facts_by_backend: Mapping[CONST_BACKEND, int]
+    facts_total: int
+
+
+@dataclass(frozen=True)
+class CoverageReport:
+    families: tuple[FamilyCoverage, ...]
+    declarations: tuple[CapabilityDeclaration, ...]
+    divergences: tuple[DivergenceFact, ...]
+    gaps: tuple[KnownGap, ...]
+    retired: tuple[RetiredFact, ...]
+    stats: CoverageStats
+
+
+def classify_fact(fact: CapabilityFact) -> str:
+    """Partition by enforcement precedence (spec §3.4). Total over legal facts."""
+    if fact.enforcement is Enforcement.ROUTER_METADATA:
+        return "routed"
+    if fact.enforcement is Enforcement.MATERIALIZE_RESIDUE:
+        return "residue"
+    if fact.level is CapabilityLevel.EXPR_CAPABLE:
+        return "refinements"
+    return "constraints"
+
+
+def _check_date(value: str, owner: str) -> None:
+    if value == "":
+        return
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"invalid calendar date {value!r} on {owner}") from None
+
+
+def _validate_dates(
+    facts: tuple[CapabilityFact, ...],
+    declarations: tuple[CapabilityDeclaration, ...],
+    divergences: tuple[DivergenceFact, ...],
+    gaps: tuple[KnownGap, ...],
+    retired: tuple[RetiredFact, ...],
+) -> None:
+    """Reject regex-legal-but-impossible dates (e.g. 2026-99-99) at ingest (spec §4.1)."""
+    for f in facts:
+        _check_date(f.since, f"fact {f.operation_key!r}/{f.param}/{f.backend}")
+    for d in declarations:
+        owner = f"declaration {d.backend}/{d.domain.value}"
+        if d.evidence is not None:
+            _check_date(d.evidence.probe_date, owner)
+        for nf in d.facts:  # nested facts are independent input surface (spec §4.1)
+            _check_date(nf.since, f"{owner} fact {nf.operation_key!r}/{nf.param}")
+    for dv in divergences:
+        _check_date(dv.since, f"divergence {dv.id}")
+    for g in gaps:
+        _check_date(g.since, f"gap {g.gap_kind.value}/{g.reason[:40]}")
+    for r in retired:
+        _check_date(r.since, f"retired {r.operation_key!r}")
+        _check_date(r.retired_on, f"retired {r.operation_key!r}")
+
+
+def _validate_backends(facts: tuple[CapabilityFact, ...]) -> None:
+    """EXECUTE-scope guard (spec §2): str backends are SERIALIZE-side and excluded
+    upstream; PANDAS/PYARROW facts mean the report's scope premise broke."""
+    for f in facts:
+        if isinstance(f.backend, str) and not isinstance(f.backend, CONST_BACKEND):
+            raise ValueError(f"SERIALIZE-target fact leaked into coverage inputs: {f!r}")
+        if f.backend not in RENDERED_BACKENDS:
+            raise ValueError(
+                f"fact declares non-rendered backend {f.backend!r} "
+                f"({f.operation_key!r}/{f.param}); revisit report scope (spec §2)"
+            )
+
+
+def _declaration_identity(d: CapabilityDeclaration) -> tuple:
+    """Full probe-wave identity AND canonical sort key. probe_date alone is NOT
+    unique — at ee8f5058 two narwhals/substrait/string waves share 2026-07-05
+    (_EVIDENCE_STRING and _EVIDENCE_POLARS_FIXED in
+    expressions/backends/capabilities/narwhals.py) — so the evidence's
+    library_versions and fixtures are part of the identity."""
+    if d.evidence is None:
+        return (str(d.backend), d.source.value, d.domain.value, "", (), ())
+    return (
+        str(d.backend), d.source.value, d.domain.value,
+        d.evidence.probe_date, d.evidence.library_versions, d.evidence.fixtures,
+    )
+
+
+def _validate_declarations(declarations: tuple[CapabilityDeclaration, ...]) -> None:
+    seen: set[tuple] = set()
+    for d in declarations:
+        ident = _declaration_identity(d)
+        if ident in seen:
+            raise ValueError(f"duplicate declaration identity {ident}")
+        seen.add(ident)
+
+
+def _validate_divergences(divergences: tuple[DivergenceFact, ...]) -> None:
+    ids: set[str] = set()
+    for dv in divergences:
+        if dv.id in ids:
+            raise ValueError(f"duplicate divergence id {dv.id!r}")
+        ids.add(dv.id)
