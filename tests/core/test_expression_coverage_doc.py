@@ -21,7 +21,6 @@ from mountainash.core.capabilities.render_markdown import (
     gather_coverage_inputs,
     render_markdown,
 )
-from mountainash.core.constants import CONST_BACKEND
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
