@@ -159,7 +159,7 @@ def test_gate_wildcard_unsupported_ok():
 
 
 def test_gate_wildcard_polymorphic_ok():
-    # Whole-op POLYMORPHIC declaration (the established COLLECT_VALUES / core_facts.py
+    # Whole-op POLYMORPHIC declaration (the established COLLECT_VALUES / capabilities/polymorphic.py
     # pattern): every argument is literal-or-expression. Legal, and probe-exempt by design.
     CapabilityFact(
         operation_key=FK_STR.SWAPCASE, param=WILDCARD_PARAM,

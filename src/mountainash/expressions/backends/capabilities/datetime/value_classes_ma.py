@@ -30,7 +30,7 @@ Probe matrix — DURATION_MULTIPLIER and IANA_TIMEZONE, all-fixtures:
 A value-class gates soundly here because the api-builder validates parameters to
 their respective value-class domains (spec Section 3.2).
 
-Family / dialect discipline (mirrors PR-C `datetime_option_capabilities`):
+Family / dialect discipline (mirrors PR-C `capabilities/datetime/options.py`):
   - ibis: family-default (dialect=None) fact AND ibis-duckdb fact — the
     dialect=None default protects every other ibis dialect from silently
     re-accepting an operation/multiplier the family cannot honor.

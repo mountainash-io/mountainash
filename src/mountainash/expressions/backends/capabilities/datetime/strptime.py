@@ -4,7 +4,7 @@
 ValueClass's docstring: "strftime is open (unvalidated) so it has NO
 value-class -- it gates value-agnostically."  Gate-domain == production-domain
 cannot hold for a format grammar, so these are whole-op WILDCARD_PARAM facts
-(precedent: string_option_capabilities._op_level_facts), not value-scoped ones.
+(precedent: mountainash.expressions.backends.capabilities.string._op_level_facts), not value-scoped ones.
 
 Probe matrix -- `format` on strptime_date / strptime_timestamp (2026-07-30,
 ibis 12.0.0, narwhals 2.23.0):
