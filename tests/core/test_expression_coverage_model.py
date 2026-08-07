@@ -195,3 +195,134 @@ def test_ingest_rejects_duplicate_divergence_id():
                         summary="s", impact="i", since="2026-08-01")
     with pytest.raises(ValueError, match="XX-DUP-01"):
         _validate_divergences((dv, dv))
+
+
+from mountainash.core.capabilities.coverage import build_coverage_report, OpRecord as _OR
+from mountainash.core.capabilities.declarations import Domain, FactSource
+
+
+def _decl(backend=CONST_BACKEND.POLARS, facts=()):
+    return CapabilityDeclaration(
+        backend=backend, domain=Domain.SET, source=FactSource.SUBSTRAIT,
+        facts=tuple(facts),
+        evidence=ProbeEvidence(probe_date="2026-08-01",
+                               library_versions=(("polars", "1.35.1"),),
+                               fixtures=("synthetic",)),
+    )
+
+
+def _universe():
+    return tuple(
+        _OR(m, type(m).__name__) for m in FKEY_SUBSTRAIT_SYNTH_SET
+    )
+
+
+def _cell(report, member, backend):
+    (fam,) = report.families
+    return next(o for o in fam.ops
+                if o.op.operation_key is member and o.backend is backend)
+
+
+def test_undeclared_when_no_declaration():
+    report = build_coverage_report(_universe(), (), (), (), (), ())
+    for fam in report.families:
+        for oc in fam.ops:
+            assert oc.state is CoverageState.UNDECLARED
+
+
+def test_declared_clean_requires_declaration_and_no_constraint():
+    report = build_coverage_report(_universe(), (), (_decl(),), (), (), ())
+    a_pol = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS)
+    assert a_pol.state is CoverageState.DECLARED_CLEAN
+    a_ibis = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.IBIS)
+    assert a_ibis.state is CoverageState.UNDECLARED  # declaration is per-backend
+
+
+def test_dialect_scoped_gate_constraint_constrains():
+    f = _fact(param="values", dialect="duckdb", level=CapabilityLevel.UNSUPPORTED)
+    report = build_coverage_report(_universe(), (f,), (_decl(facts=(f,)),), (), (), ())
+    oc = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS)
+    assert oc.state is CoverageState.CONSTRAINED
+    assert oc.selector_counts.dialects == 1 and oc.selector_counts.params == 1
+
+
+def test_residue_constrains_routed_and_refinement_do_not():
+    residue = _fact(param="values", enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                    boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
+                    native_errors=(ValueError,))
+    report = build_coverage_report(
+        _universe(), (residue,), (_decl(facts=(residue,)),), (), (), ())
+    assert _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
+                 CONST_BACKEND.POLARS).state is CoverageState.CONSTRAINED
+
+    routed = _fact(param="values", enforcement=Enforcement.ROUTER_METADATA,
+                   level=CapabilityLevel.UNSUPPORTED)
+    refinement = _fact(operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_B, param="values",
+                       dialect="duckdb", level=CapabilityLevel.EXPR_CAPABLE)
+    report2 = build_coverage_report(
+        _universe(), (routed, refinement),
+        (_decl(facts=(routed, refinement)),), (), (), ())
+    assert _cell(report2, FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
+                 CONST_BACKEND.POLARS).state is CoverageState.DECLARED_CLEAN
+    assert _cell(report2, FKEY_SUBSTRAIT_SYNTH_SET.OP_B,
+                 CONST_BACKEND.POLARS).state is CoverageState.DECLARED_CLEAN
+
+
+def test_whole_op_and_scoped_compose():
+    whole = _fact(level=CapabilityLevel.POLYMORPHIC)  # wildcard, value-agnostic
+    scoped = _fact(param="values", level=CapabilityLevel.UNSUPPORTED,
+                   option_value="strict")
+    report = build_coverage_report(
+        _universe(), (whole, scoped), (_decl(facts=(whole, scoped)),), (), (), ())
+    oc = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS)
+    assert oc.whole_op is CapabilityLevel.POLYMORPHIC
+    assert oc.selector_counts.option_selectors == 1
+
+
+def test_selector_counts_are_distinct_key_sets():
+    fs = (
+        _fact(param="a", option_value="x", level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="b", option_value="x", level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="a", option_value="y", level=CapabilityLevel.UNSUPPORTED),
+    )
+    report = build_coverage_report(_universe(), fs, (_decl(facts=fs),), (), (), ())
+    sc = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS).selector_counts
+    assert sc.params == 2                 # {a, b}
+    assert sc.option_selectors == 3       # {(a,x),(b,x),(a,y)} — (param, value) pairs
+
+
+def test_selector_counts_value_classes_and_dialects():
+    from mountainash.core.capabilities.schema import ValueClass
+
+    vc_member = next(iter(ValueClass))
+    fs = (
+        # value-class facts need non-wildcard param, no option_value, BUILD boundary.
+        _fact(param="values", value_class=vc_member,
+              level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="values", value_class=vc_member, dialect="duckdb",
+              level=CapabilityLevel.UNSUPPORTED),  # same class again -> counts once
+        _fact(param="values", dialect="sqlite", level=CapabilityLevel.UNSUPPORTED),
+    )
+    report = build_coverage_report(_universe(), fs, (_decl(facts=fs),), (), (), ())
+    sc = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
+               CONST_BACKEND.POLARS).selector_counts
+    assert sc.value_classes == 1          # deduplicated ValueClass set
+    assert sc.dialects == 2               # {duckdb, sqlite}
+
+
+def test_constraining_fact_without_declaration_raises():
+    f = _fact()
+    with pytest.raises(ValueError, match="without applicable declaration"):
+        build_coverage_report(_universe(), (f,), (), (), (), ())
+
+
+def test_fact_partition_exactly_once():
+    fs = (
+        _fact(level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="values", enforcement=Enforcement.ROUTER_METADATA,
+              level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="values", dialect="duckdb", level=CapabilityLevel.EXPR_CAPABLE),
+    )
+    report = build_coverage_report(_universe(), fs, (_decl(facts=fs),), (), (), ())
+    scattered = [f for fam in report.families for oc in fam.ops for f in oc.all_facts]
+    assert sorted(map(id, scattered)) == sorted(map(id, fs))

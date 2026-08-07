@@ -23,6 +23,7 @@ from mountainash.core.capabilities.schema import (
     DivergenceFact,
     Enforcement,
     KnownGap,
+    WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
 
@@ -311,3 +312,184 @@ def _validate_divergences(divergences: tuple[DivergenceFact, ...]) -> None:
         if dv.id in ids:
             raise ValueError(f"duplicate divergence id {dv.id!r}")
         ids.add(dv.id)
+
+
+def fact_sort_key(f: CapabilityFact) -> tuple:
+    """Canonical FULL-identity sort key (spec §4.4): every semantic field
+    participates, so distinct facts can never tie and bucket order is
+    independent of input order. Used for model bucket order AND every renderer
+    fact sequence (Task 4 imports it)."""
+    return (
+        f.dialect or "",
+        f.param,
+        f.option_value or "",
+        f.value_class.value if f.value_class else "",
+        f.level.value,
+        f.enforcement.value,
+        f.boundary.value,
+        f.condition or "",
+        f.since,
+        f.message,
+        f.workaround or "",
+        f.upstream_ref or "",
+        tuple(e.__name__ for e in f.native_errors),
+        f.probe_exempt or "",
+    )
+
+
+def _is_whole_op(fact: CapabilityFact) -> bool:
+    return (
+        fact.param == WILDCARD_PARAM
+        and fact.option_value is None
+        and fact.value_class is None
+        and fact.dialect is None
+    )
+
+
+def _selector_counts(scoped: tuple[CapabilityFact, ...]) -> SelectorCounts:
+    """Exact distinct-key sets (spec §3.5)."""
+    params = {f.param for f in scoped if f.param != WILDCARD_PARAM}
+    option_selectors = {
+        (f.param, f.option_value) for f in scoped if f.option_value is not None
+    }
+    value_classes = {f.value_class for f in scoped if f.value_class is not None}
+    dialects = {f.dialect for f in scoped if f.dialect is not None}
+    return SelectorCounts(
+        params=len(params),
+        option_selectors=len(option_selectors),
+        value_classes=len(value_classes),
+        dialects=len(dialects),
+    )
+
+
+def build_coverage_report(
+    universe: tuple[OpRecord, ...],
+    facts: tuple[CapabilityFact, ...],
+    declarations: tuple[CapabilityDeclaration, ...],
+    divergences: tuple[DivergenceFact, ...],
+    gaps: tuple[KnownGap, ...],
+    retired: tuple[RetiredFact, ...],
+) -> CoverageReport:
+    _validate_backends(facts)
+    _validate_dates(facts, declarations, divergences, gaps, retired)
+    _validate_declarations(declarations)
+    _validate_divergences(divergences)
+
+    # Index facts by (op member, backend); every input fact must attach to a
+    # universe op — a fact for an unregistered op is an inconsistency.
+    facts_by_cell: dict[tuple[Any, CONST_BACKEND], list[CapabilityFact]] = {}
+    universe_keys = {r.operation_key for r in universe}
+    for f in facts:
+        if f.operation_key not in universe_keys:
+            raise ValueError(
+                f"fact references op outside the registered universe: "
+                f"{f.operation_key!r} ({f.param}/{f.backend})"
+            )
+        facts_by_cell.setdefault(
+            (f.operation_key, CONST_BACKEND(f.backend)), []
+        ).append(f)
+
+    decls_by_coord: dict[
+        tuple[CONST_BACKEND, FactSource, Domain], list[CapabilityDeclaration]
+    ] = {}
+    for d in declarations:
+        decls_by_coord.setdefault((d.backend, d.source, d.domain), []).append(d)
+
+    families: dict[str, list[OpRecord]] = {}
+    for rec in universe:
+        families.setdefault(rec.family, []).append(rec)
+
+    family_coverages: list[FamilyCoverage] = []
+    for family_name in sorted(families):
+        ops_out: list[OpCoverage] = []
+        coord = audit_domain_for(families[family_name][0].operation_key)
+        for rec in sorted(families[family_name], key=lambda r: r.operation_key.name):
+            for backend in RENDERED_BACKENDS:
+                cell = facts_by_cell.get((rec.operation_key, backend), [])
+                buckets: dict[str, list[CapabilityFact]] = {
+                    "routed": [], "residue": [], "refinements": [], "constraints": []
+                }
+                for f in cell:
+                    buckets[classify_fact(f)].append(f)
+                applicable = (
+                    tuple(decls_by_coord.get((backend, coord[0], coord[1]), ()))
+                    if coord is not None
+                    else ()
+                )
+                constraining = buckets["constraints"] + buckets["residue"]
+                if constraining and not applicable:
+                    raise ValueError(
+                        f"constraining fact without applicable declaration: "
+                        f"{rec.operation_key!r} on {backend} (spec §5)"
+                    )
+                if not applicable:
+                    state = CoverageState.UNDECLARED
+                elif constraining:
+                    state = CoverageState.CONSTRAINED
+                else:
+                    state = CoverageState.DECLARED_CLEAN
+                whole = next(
+                    (f.level for f in buckets["constraints"] if _is_whole_op(f)), None
+                )
+                scoped = tuple(
+                    f for f in constraining if not _is_whole_op(f)
+                )
+                ops_out.append(
+                    OpCoverage(
+                        op=rec,
+                        audit_domain=coord,
+                        backend=backend,
+                        state=state,
+                        whole_op=whole,
+                        constraints=tuple(
+                            sorted(buckets["constraints"], key=fact_sort_key)),
+                        residue=tuple(sorted(buckets["residue"], key=fact_sort_key)),
+                        routed=tuple(sorted(buckets["routed"], key=fact_sort_key)),
+                        refinements=tuple(
+                            sorted(buckets["refinements"], key=fact_sort_key)),
+                        selector_counts=_selector_counts(scoped),
+                        declarations=applicable,
+                    )
+                )
+        family_coverages.append(
+            FamilyCoverage(family=family_name, audit_domain=coord, ops=tuple(ops_out))
+        )
+
+    by_state: dict[tuple[CONST_BACKEND, CoverageState], int] = {}
+    by_level: dict[CapabilityLevel, int] = {}
+    by_enforcement: dict[Enforcement, int] = {}
+    by_backend: dict[CONST_BACKEND, int] = {}
+    for fc in family_coverages:
+        for oc in fc.ops:
+            key = (oc.backend, oc.state)
+            by_state[key] = by_state.get(key, 0) + 1
+    for f in facts:
+        by_level[f.level] = by_level.get(f.level, 0) + 1
+        by_enforcement[f.enforcement] = by_enforcement.get(f.enforcement, 0) + 1
+        backend = CONST_BACKEND(f.backend)
+        by_backend[backend] = by_backend.get(backend, 0) + 1
+
+    return CoverageReport(
+        families=tuple(family_coverages),
+        declarations=tuple(sorted(declarations, key=_declaration_identity)),
+        divergences=tuple(sorted(divergences, key=lambda dv: dv.id)),
+        gaps=tuple(sorted(gaps, key=lambda g: (g.since, g.gap_kind.value, g.reason))),
+        retired=tuple(
+            sorted(
+                retired,
+                key=lambda r: (
+                    r.retired_on, r.since, str(r.operation_key), r.param,
+                    str(r.backend), r.dialect or "", r.option_value or "",
+                    r.value_class.value if r.value_class else "", r.level.value,
+                ),
+            )
+        ),
+        stats=CoverageStats(
+            ops_total=len(universe),
+            by_state=by_state,
+            facts_by_level=by_level,
+            facts_by_enforcement=by_enforcement,
+            facts_by_backend=by_backend,
+            facts_total=len(facts),
+        ),
+    )
