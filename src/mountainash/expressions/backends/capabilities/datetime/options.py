@@ -39,13 +39,14 @@ Family / dialect separation (mirrors the string ``padding`` slice):
   - narwhals declared: per-dialect facts only (narwhals-polars AND
     narwhals-pandas) — design-review I-1; NEVER a single dialect=None
     narwhals family fact, which would conflate the two dialects.
+
+Migrated from mountainash.expressions.backends.expression_systems.datetime_option_capabilities (2026-08 capability-architecture PR).
 """
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -224,12 +225,32 @@ _NARWHALS_PANDAS_FACTS = _build_narwhals_dialect_facts("narwhals-pandas")
 # (1ns was dropped in Task 3a — the validator rejects it before the visitor.)
 
 
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.IBIS,
-    _IBIS_FAMILY_DEFAULTS + _IBIS_DUCKDB_FACTS,
-)
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.NARWHALS,
-    _NARWHALS_POLARS_FACTS + _NARWHALS_PANDAS_FACTS,
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
 )
 
+_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,          # 2026-07-24
+    library_versions=(),        # not recorded in the original docstring
+    fixtures=(
+        "polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas",
+    ),
+)
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
+        source=FactSource.MOUNTAINASH,
+        facts=_IBIS_FAMILY_DEFAULTS + _IBIS_DUCKDB_FACTS,
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.DATETIME,
+        source=FactSource.MOUNTAINASH,
+        facts=_NARWHALS_POLARS_FACTS + _NARWHALS_PANDAS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+)

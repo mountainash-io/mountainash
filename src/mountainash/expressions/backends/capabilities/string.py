@@ -1,11 +1,13 @@
-"""Import-safe string option capability declarations."""
+"""Import-safe string option capability declarations.
+
+Migrated from mountainash.expressions.backends.expression_systems.string_option_capabilities (2026-08 capability-architecture PR).
+"""
 
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -186,7 +188,7 @@ _CHAR_SET_KEYS = {
     "capitalize": FK_STR.CAPITALIZE, "title": FK_STR.TITLE, "initcap": FK_STR.INITCAP,
 }
 _CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
-_BROKEN_STRING_OPS_BY_BACKEND: dict[CONST_BACKEND, frozenset[str]] = {
+BROKEN_STRING_OPS_BY_BACKEND: dict[CONST_BACKEND, frozenset[str]] = {
     CONST_BACKEND.IBIS: frozenset({"swapcase", "title", "initcap"}),
     CONST_BACKEND.NARWHALS: frozenset({"capitalize", "swapcase", "center"}),
 }
@@ -245,7 +247,7 @@ _CHAR_SET_OP_BROKEN = (
 
 
 def _op_broken(backend: CONST_BACKEND, op: str) -> bool:
-    return op in _BROKEN_STRING_OPS_BY_BACKEND.get(backend, frozenset())
+    return op in BROKEN_STRING_OPS_BY_BACKEND.get(backend, frozenset())
 
 
 def _char_set_facts(
@@ -457,7 +459,7 @@ _NARWHALS_FACTS = tuple(
 )
 
 
-_OP_LEVEL_FKEYS = {**_CHAR_SET_KEYS, "center": FK_STR.CENTER}
+OP_LEVEL_FKEYS = {**_CHAR_SET_KEYS, "center": FK_STR.CENTER}
 _OP_LEVEL_UNSUPPORTED = (
     "This string operation has no correct native implementation on this backend at the "
     "pinned floor; it is gated to fail loudly rather than return wrong data"
@@ -467,7 +469,7 @@ _OP_LEVEL_UNSUPPORTED = (
 def _op_level_facts(backend: CONST_BACKEND) -> tuple[CapabilityFact, ...]:
     return tuple(
         CapabilityFact(
-            operation_key=_OP_LEVEL_FKEYS[op], param=WILDCARD_PARAM,
+            operation_key=OP_LEVEL_FKEYS[op], param=WILDCARD_PARAM,
             level=CapabilityLevel.UNSUPPORTED, backend=backend, dialect=None,
             message=_OP_LEVEL_UNSUPPORTED, since=_SINCE,
             probe_exempt=(
@@ -475,16 +477,42 @@ def _op_level_facts(backend: CONST_BACKEND) -> tuple[CapabilityFact, ...]:
                 "(test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param"
             ),
         )
-        for op in sorted(_BROKEN_STRING_OPS_BY_BACKEND.get(backend, frozenset()))
+        for op in sorted(BROKEN_STRING_OPS_BY_BACKEND.get(backend, frozenset()))
     )
 
 
-CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, _POLARS_FACTS)
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.IBIS,
-    _IBIS_FAMILY_DEFAULTS + _IBIS_DUCKDB_FACTS + _op_level_facts(CONST_BACKEND.IBIS),
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
 )
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.NARWHALS,
-    _NARWHALS_FACTS + _op_level_facts(CONST_BACKEND.NARWHALS),
+
+_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,          # 2026-07-23
+    library_versions=(),        # not recorded in the original docstring
+    fixtures=(
+        "polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas",
+    ),
+)
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.POLARS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT, facts=_POLARS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=tuple(_IBIS_FAMILY_DEFAULTS) + tuple(_IBIS_DUCKDB_FACTS)
+        + _op_level_facts(CONST_BACKEND.IBIS),
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=tuple(_NARWHALS_FACTS) + _op_level_facts(CONST_BACKEND.NARWHALS),
+        evidence=_EVIDENCE,
+    ),
 )

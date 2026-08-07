@@ -1,11 +1,13 @@
-"""Import-safe arithmetic option capability declarations."""
+"""Import-safe arithmetic option capability declarations.
+
+Migrated from mountainash.expressions.backends.expression_systems.arithmetic_option_capabilities (2026-08 capability-architecture PR).
+"""
 
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -357,26 +359,53 @@ _ROUNDING_FACTS = {
 _IBIS_ROUNDING_FAMILY_DEFAULTS = _rounding_facts(CONST_BACKEND.IBIS, None)
 
 
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.POLARS,
-    POLARS_ARITHMETIC_OPTION_CAPABILITIES
-    + _SEMANTIC_FACTS["polars"]
-    + _ROUNDING_FACTS["polars"],
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
 )
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.IBIS,
-    IBIS_ARITHMETIC_OPTION_CAPABILITIES
-    + IBIS_DUCKDB_OVERFLOW_REFINEMENTS
-    + _IBIS_SEMANTIC_FAMILY_DEFAULTS
-    + _SEMANTIC_FACTS["ibis"]
-    + _IBIS_ROUNDING_FAMILY_DEFAULTS
-    + _ROUNDING_FACTS["ibis"],
+
+_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,   # 2026-07-21
+    library_versions=(),
+    fixtures=("polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas"),
 )
-CapabilityRegistry.register_backend(
-    CONST_BACKEND.NARWHALS,
-    NARWHALS_ARITHMETIC_OPTION_CAPABILITIES
-    + _SEMANTIC_FACTS["narwhals-polars"]
-    + _SEMANTIC_FACTS["narwhals-pandas"]
-    + _ROUNDING_FACTS["narwhals-polars"]
-    + _ROUNDING_FACTS["narwhals-pandas"],
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.POLARS, domain=Domain.ARITHMETIC,
+        source=FactSource.SUBSTRAIT,
+        facts=(
+            POLARS_ARITHMETIC_OPTION_CAPABILITIES
+            + _SEMANTIC_FACTS["polars"]
+            + _ROUNDING_FACTS["polars"]
+        ),
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.ARITHMETIC,
+        source=FactSource.SUBSTRAIT,
+        facts=(
+            IBIS_ARITHMETIC_OPTION_CAPABILITIES
+            + IBIS_DUCKDB_OVERFLOW_REFINEMENTS
+            + _IBIS_SEMANTIC_FAMILY_DEFAULTS
+            + _SEMANTIC_FACTS["ibis"]
+            + _IBIS_ROUNDING_FAMILY_DEFAULTS
+            + _ROUNDING_FACTS["ibis"]
+        ),
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.ARITHMETIC,
+        source=FactSource.SUBSTRAIT,
+        facts=(
+            NARWHALS_ARITHMETIC_OPTION_CAPABILITIES
+            + _SEMANTIC_FACTS["narwhals-polars"]
+            + _SEMANTIC_FACTS["narwhals-pandas"]
+            + _ROUNDING_FACTS["narwhals-polars"]
+            + _ROUNDING_FACTS["narwhals-pandas"]
+        ),
+        evidence=_EVIDENCE,
+    ),
 )

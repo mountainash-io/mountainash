@@ -30,19 +30,20 @@ Probe matrix — DURATION_MULTIPLIER and IANA_TIMEZONE, all-fixtures:
 A value-class gates soundly here because the api-builder validates parameters to
 their respective value-class domains (spec Section 3.2).
 
-Family / dialect discipline (mirrors PR-C `datetime_option_capabilities`):
+Family / dialect discipline (mirrors PR-C `capabilities/datetime/options.py`):
   - ibis: family-default (dialect=None) fact AND ibis-duckdb fact — the
     dialect=None default protects every other ibis dialect from silently
     re-accepting an operation/multiplier the family cannot honor.
   - narwhals: per-dialect facts ONLY (narwhals-polars AND narwhals-pandas) —
     never a dialect=None narwhals family default.
+
+Migrated from mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_ma (2026-08 capability-architecture PR).
 """
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
     ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -121,6 +122,33 @@ _NARWHALS_FACTS = tuple(
     for dialect in ("narwhals-polars", "narwhals-pandas")  # per-dialect only
 )
 
-CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, _IBIS_FACTS)
-CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, _NARWHALS_FACTS)
 
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
+)
+
+_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,          # 2026-07-25
+    library_versions=(),        # not recorded in the original docstring
+    fixtures=(
+        "polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas",
+    ),
+)
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
+        source=FactSource.MOUNTAINASH,
+        facts=_IBIS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.DATETIME,
+        source=FactSource.MOUNTAINASH,
+        facts=_NARWHALS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+)

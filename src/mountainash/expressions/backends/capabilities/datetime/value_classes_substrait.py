@@ -31,13 +31,14 @@ correct grain. Gate-domain == production-domain: the api-builder validates
 
 Family / dialect discipline: ibis family-default (dialect=None) + ibis-duckdb;
 narwhals per-dialect only (narwhals-polars AND narwhals-pandas).
+
+Migrated from mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_substrait (2026-08 capability-architecture PR).
 """
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
     ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -106,6 +107,33 @@ _NARWHALS_FACTS = tuple(
     for dialect in ("narwhals-polars", "narwhals-pandas")
 )
 
-CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, _IBIS_FACTS)
-CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, _NARWHALS_FACTS)
 
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
+)
+
+_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,          # 2026-07-25
+    library_versions=(),        # not recorded in the original docstring
+    fixtures=(
+        "polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas",
+    ),
+)
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.DATETIME,
+        source=FactSource.SUBSTRAIT,
+        facts=_NARWHALS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+)

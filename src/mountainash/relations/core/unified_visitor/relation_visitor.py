@@ -51,9 +51,11 @@ class UnifiedRelationVisitor:
         if enforce_capabilities:
             # A gating consumer must ensure the capability declaration modules
             # are imported before querying the registry (bootstrap.py contract);
-            # idempotent (guarded by _loaded). Covers _gate_capabilities below.
-            from mountainash.core.capabilities import load_all_capability_declarations
-            load_all_capability_declarations()
+            # idempotent under the registry's load lock. Covers _gate_capabilities
+            # below. Query-path autoload — a no-op in LOADED and ISOLATED states,
+            # so test fixtures that reset() into ISOLATED do not break the visitor.
+            from mountainash.core.capabilities.registry import CapabilityRegistry
+            CapabilityRegistry._ensure_loaded()
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id

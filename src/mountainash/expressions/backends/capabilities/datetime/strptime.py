@@ -4,7 +4,7 @@
 ValueClass's docstring: "strftime is open (unvalidated) so it has NO
 value-class -- it gates value-agnostically."  Gate-domain == production-domain
 cannot hold for a format grammar, so these are whole-op WILDCARD_PARAM facts
-(precedent: string_option_capabilities._op_level_facts), not value-scoped ones.
+(precedent: mountainash.expressions.backends.capabilities.string._op_level_facts), not value-scoped ones.
 
 Probe matrix -- `format` on strptime_date / strptime_timestamp (2026-07-30,
 ibis 12.0.0, narwhals 2.23.0):
@@ -28,13 +28,14 @@ Boundary: BUILD, not MATERIALIZE.  The gate fires at visit time and the backend
 is never reached, so BUILD is what production does; MATERIALIZE would require
 `native_errors`, forcing a backend import into a module that must stay
 import-safe.  The native exception types are recorded test-side.
+
+Migrated from mountainash.expressions.backends.expression_systems.strptime_format_capabilities (2026-08 capability-architecture PR).
 """
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -89,5 +90,34 @@ _NARWHALS_FACTS = (
     ),
 )
 
-CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, _IBIS_SQLITE_FACTS)
-CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, _NARWHALS_FACTS)
+
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
+)
+
+_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,          # 2026-07-30
+    library_versions=(("ibis", "12.0.0"), ("narwhals", "2.23.0")),
+    fixtures=(
+        "polars", "ibis-duckdb", "ibis-polars", "ibis-sqlite",
+        "narwhals-polars", "narwhals-pandas",
+    ),
+)
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_SQLITE_FACTS,
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.DATETIME,
+        source=FactSource.SUBSTRAIT,
+        facts=_NARWHALS_FACTS,
+        evidence=_EVIDENCE,
+    ),
+)

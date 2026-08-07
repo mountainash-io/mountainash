@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 _TO_TIMEZONE_UNSUPPORTED = (
     "to_timezone is not supported on ibis — the target zone never reaches the "
-    "engine; see datetime_value_class_capabilities_ma.py"
+    "engine; see capabilities/datetime/value_classes_ma.py"
 )
 
 
@@ -595,7 +595,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         """Convert to specified timezone.
 
         Declared UNSUPPORTED on ibis (see
-        datetime_value_class_capabilities_ma.py) -- the capability gate raises
+        capabilities/datetime/value_classes_ma.py) -- the capability gate raises
         before this method is reached. The raise here is defence in depth.
         """
         raise BackendCapabilityError(

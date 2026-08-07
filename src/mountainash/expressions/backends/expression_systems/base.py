@@ -79,10 +79,3 @@ class BaseExpressionSystem(ABC):
             operation_key=function_key,
             named_args=tuple(named_args),
         )
-
-
-from mountainash.core.capabilities.core_facts import (  # noqa: E402
-    register_core_polymorphic_facts,
-)
-
-register_core_polymorphic_facts()  # noqa: E402

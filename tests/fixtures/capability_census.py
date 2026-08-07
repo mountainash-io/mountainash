@@ -11,7 +11,7 @@ bucket, with an explicit reason. The scope is three families:
       *capability-encoding* ``pytest.mark.xfail`` / ``xfail_divergence`` marker,
       discovered structurally via the :mod:`ast` module; and
   (c) each ``src``-defined production capability map **imported by name**
-      (``string_option_capabilities._BROKEN_STRING_OPS_BY_BACKEND``), which
+      (``capabilities.string.BROKEN_STRING_OPS_BY_BACKEND``), which
       drives registered op-level gate facts through ``_op_level_facts``.
 
 Classification is total over the discovered scope:
@@ -48,12 +48,12 @@ from mountainash.core.capabilities.schema import (
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.expressions.backends.expression_systems import (
-    string_option_capabilities as _string_caps,
+from mountainash.expressions.backends.capabilities import (
+    string as _string_caps,
 )
-from mountainash.expressions.backends.expression_systems.string_option_capabilities import (
-    _BROKEN_STRING_OPS_BY_BACKEND,
-    _OP_LEVEL_FKEYS,
+from mountainash.expressions.backends.capabilities.string import (
+    BROKEN_STRING_OPS_BY_BACKEND,
+    OP_LEVEL_FKEYS,
 )
 from tests.fixtures.capability_gating import capability_gate, identity_for
 
@@ -167,18 +167,18 @@ def _classify_selector(
 # ---------------------------------------------------------------------------
 def _scope_c_entries() -> list[CensusEntry]:
     src = Path(_string_caps.__file__).resolve()
-    line = _assign_lineno(src, "_BROKEN_STRING_OPS_BY_BACKEND")
+    line = _assign_lineno(src, "BROKEN_STRING_OPS_BY_BACKEND")
     rel = _relpath(src)
     entries: list[CensusEntry] = []
-    for family in _sorted_families(_BROKEN_STRING_OPS_BY_BACKEND):
-        for op in sorted(_BROKEN_STRING_OPS_BY_BACKEND[family]):
-            fkey = _OP_LEVEL_FKEYS[op]
+    for family in _sorted_families(BROKEN_STRING_OPS_BY_BACKEND):
+        for op in sorted(BROKEN_STRING_OPS_BY_BACKEND[family]):
+            fkey = OP_LEVEL_FKEYS[op]
             bucket, reason = _classify_selector(fkey, family)
             if reason is None:  # pragma: no cover - the map always registers a gate fact
                 reason = "op-level broken-ops map entry with no registered gate fact — inventoried"
             entries.append(
                 CensusEntry(
-                    node_id=f"_BROKEN_STRING_OPS_BY_BACKEND[{family.value}][{op}]",
+                    node_id=f"BROKEN_STRING_OPS_BY_BACKEND[{family.value}][{op}]",
                     path=rel,
                     line=line,
                     kind="manual-map",
@@ -206,9 +206,9 @@ def _scope_a_entries() -> list[CensusEntry]:
     funcs = _parametrized_op_backend_funcs(tree)
     entries: list[CensusEntry] = []
     for fname, lineno in funcs:
-        for family in _sorted_families(_BROKEN_STRING_OPS_BY_BACKEND):
-            for op in sorted(_BROKEN_STRING_OPS_BY_BACKEND[family]):
-                fkey = _OP_LEVEL_FKEYS[op]
+        for family in _sorted_families(BROKEN_STRING_OPS_BY_BACKEND):
+            for op in sorted(BROKEN_STRING_OPS_BY_BACKEND[family]):
+                fkey = OP_LEVEL_FKEYS[op]
                 for fixture in family_fixtures.get(family, ()):
                     idn = identity_for(fixture)
                     bucket, reason = _classify_selector(

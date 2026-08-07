@@ -1,15 +1,13 @@
-"""Import-safe Ibis capability declarations.
+"""Import-safe Ibis expression-backend capability declarations (LITERAL_ONLY).
 
-This module contains the dependency-free Ibis capability data so the
-capability-spine bootstrap can load all 19 Ibis facts even when the optional
-Ibis package is not installed.  The native Ibis implementation remains in
-``ibis.base``; this is Finding A's import-safe declaration boundary.
+Migrated from ``mountainash.expressions.backends.expression_systems.ibis_capabilities``
+(2026-08 capability-architecture PR). Extracted; the source file still
+self-registers until Task 11 rewires the class bodies.
 """
-
 from __future__ import annotations
 
-from mountainash.core.capabilities import CapabilityFact, CapabilityLevel, CapabilityRegistry
-from mountainash.expressions.core.constants import CONST_BACKEND
+from mountainash.core.capabilities import CapabilityFact, CapabilityLevel
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
@@ -23,7 +21,7 @@ _IB_STR_MSG = (
 )
 
 
-IBIS_EXPR_CAPABILITIES: tuple[CapabilityFact, ...] = tuple(
+_IBIS_DT_FACTS: tuple[CapabilityFact, ...] = tuple(
     CapabilityFact(
         operation_key=op, param=param, level=CapabilityLevel.LITERAL_ONLY,
         backend=CONST_BACKEND.IBIS, message=_IB_DT_MSG,
@@ -38,7 +36,10 @@ IBIS_EXPR_CAPABILITIES: tuple[CapabilityFact, ...] = tuple(
         (FK_DT.ADD_MILLISECONDS, "milliseconds"),
         (FK_DT.ADD_MICROSECONDS, "microseconds"),
     ]
-) + tuple(
+)
+
+
+_IBIS_STR_FACTS: tuple[CapabilityFact, ...] = tuple(
     CapabilityFact(
         operation_key=op, param=param, level=CapabilityLevel.LITERAL_ONLY,
         backend=CONST_BACKEND.IBIS, message=_IB_STR_MSG,
@@ -74,4 +75,33 @@ IBIS_EXPR_CAPABILITIES: tuple[CapabilityFact, ...] = tuple(
 )
 
 
-CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, IBIS_EXPR_CAPABILITIES)
+IBIS_EXPR_CAPABILITIES: tuple[CapabilityFact, ...] = _IBIS_DT_FACTS + _IBIS_STR_FACTS
+
+
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
+)
+
+
+_EVIDENCE = ProbeEvidence(
+    probe_date="2026-07-05",
+    library_versions=(),
+    fixtures=(),
+)
+
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
+        source=FactSource.MOUNTAINASH, facts=_IBIS_DT_FACTS,
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT, facts=_IBIS_STR_FACTS,
+        evidence=_EVIDENCE,
+    ),
+)

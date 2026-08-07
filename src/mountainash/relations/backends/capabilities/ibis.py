@@ -1,11 +1,14 @@
-"""Import-safe Ibis relation capability declarations."""
+"""Import-safe Ibis relation-backend capability declarations.
 
+Migrated from ``mountainash.relations.backends.relation_systems.ibis_relation_capabilities``
+(2026-08 capability-architecture PR). Extracted; the source module still
+self-registers until Task 11 rewires the base classes.
+"""
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
-    CapabilityRegistry,
     Enforcement,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -42,4 +45,25 @@ IBIS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
 )
 
 
-CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, IBIS_REL_CAPABILITIES)
+from mountainash.core.capabilities.declarations import (  # noqa: E402
+    CapabilityDeclaration,
+    Domain,
+    FactSource,
+    ProbeEvidence,
+)
+
+
+_EVIDENCE = ProbeEvidence(
+    probe_date="2026-07-05",  # earliest `since` in the tuple (2026-07-05 vs 2026-08-01)
+    library_versions=(),      # not recorded in the source declarations
+    fixtures=(),
+)
+
+
+DECLARATIONS = (
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.RELATION,
+        source=FactSource.MOUNTAINASH, facts=IBIS_REL_CAPABILITIES,
+        evidence=_EVIDENCE,
+    ),
+)

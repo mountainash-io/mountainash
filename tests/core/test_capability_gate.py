@@ -203,18 +203,31 @@ def test_enforced_visitor_construction_bootstraps_declarations():
     declaration modules before it can gate. Constructing an enforce_capabilities
     visitor triggers load_all_capability_declarations(), so gates fire even on a
     cold path where nothing else imported the declaration module. Runs in a fresh
-    interpreter because the module-level _loaded flag is already True in-process."""
+    interpreter because the registry's _load_state is already LOADED in-process.
+    Asserts CapabilityRegistry._load_state is _LoadState.UNINITIALIZED / LOADED
+    (spec §2 state machine) — not a derived boolean — so a regression where
+    _load_state gains a fifth state (e.g. PARTIAL) cannot silently collapse to
+    a True/False check."""
     import subprocess
     import sys
 
     code = (
         "import mountainash.core.capabilities.bootstrap as b\n"
         "from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor\n"
-        "assert b._loaded is False, 'importing the visitor must not bootstrap by itself'\n"
+        "from mountainash.core.capabilities.registry import (\n"
+        "    CapabilityRegistry, _LoadState,\n"
+        ")\n"
+        "assert CapabilityRegistry._load_state is _LoadState.UNINITIALIZED, (\n"
+        "    'importing the visitor must not bootstrap by itself'\n"
+        ")\n"
         "UnifiedExpressionVisitor(object(), enforce_capabilities=False)\n"
-        "assert b._loaded is False, 'a non-enforcing visitor must not bootstrap'\n"
+        "assert CapabilityRegistry._load_state is _LoadState.UNINITIALIZED, (\n"
+        "    'a non-enforcing visitor must not bootstrap'\n"
+        ")\n"
         "UnifiedExpressionVisitor(object(), enforce_capabilities=True)\n"
-        "assert b._loaded is True, 'enforced visitor construction did not bootstrap declarations'\n"
+        "assert CapabilityRegistry._load_state is _LoadState.LOADED, (\n"
+        "    'enforced visitor construction did not bootstrap declarations'\n"
+        ")\n"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
 

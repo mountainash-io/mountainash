@@ -1,45 +1,60 @@
-"""Load every capability declaration in the codebase.
+"""Load every capability declaration (spec rev 3, §2).
 
-Any consumer that enumerates CapabilityRegistry.facts() (probes, integrity
-guards, upstream-join tests, report generators, plan validation) calls this
-first. Declaration modules are import-safe pure data and are loaded
-unconditionally, so capability facts register even when an optional native
-backend (e.g. ibis) is not installed. The declaration modules import no
-backend library themselves; a backend's native library is imported only when
-that backend is actually available (its implementation package probes the
-dependency and skips cleanly when absent).
+Declaration modules are DISCOVERED under the two capability package roots —
+there is no manifest to forget. Exempt from the DECLARATIONS requirement:
+__init__.py and ``_``-prefixed helper modules.
 """
 from __future__ import annotations
 
 import importlib
+import pkgutil
 
-_DECLARATION_MODULES = (
-    "mountainash.expressions.backends.expression_systems.arithmetic_option_capabilities",
-    "mountainash.expressions.backends.expression_systems.string_option_capabilities",
-    "mountainash.expressions.backends.expression_systems.datetime_option_capabilities",
-    "mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_ma",
-    "mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_substrait",
-    "mountainash.expressions.backends.expression_systems.strptime_format_capabilities",
-    "mountainash.expressions.backends.expression_systems.polars.base",
-    "mountainash.expressions.backends.expression_systems.ibis_capabilities",
-    "mountainash.expressions.backends.expression_systems.narwhals.base",
-    "mountainash.relations.backends.relation_systems.narwhals.base",
-    "mountainash.relations.backends.relation_systems.polars.base",
-    "mountainash.relations.backends.relation_systems.ibis_relation_capabilities",
-    "mountainash.core.capabilities.core_facts",
+_ROOTS = (
+    "mountainash.expressions.backends.capabilities",
+    "mountainash.relations.backends.capabilities",
 )
 
-_loaded = False
+
+def discover_declaration_modules() -> tuple[str, ...]:
+    names: list[str] = []
+    for root in _ROOTS:
+        pkg = importlib.import_module(root)
+        for info in pkgutil.walk_packages(pkg.__path__, prefix=root + "."):
+            leaf = info.name.rsplit(".", 1)[1]
+            if leaf.startswith("_"):
+                continue
+            if not info.ispkg:
+                names.append(info.name)
+    return tuple(sorted(names))
+
+
+def _load_into_registry() -> None:
+    """Registry-internal hook; called ONLY under the registry load lock."""
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+
+    for name in discover_declaration_modules():
+        module = importlib.import_module(name)
+        declarations = getattr(module, "DECLARATIONS", None)
+        if declarations is None:
+            raise TypeError(
+                f"capability declaration module {name!r} exposes no "
+                "DECLARATIONS tuple (spec 2026-08-07 §1); helper modules "
+                "must be _-prefixed"
+            )
+        for declaration in declarations:
+            CapabilityRegistry.register_declaration(declaration)
 
 
 def load_all_capability_declarations() -> None:
-    """Import every declaration module unconditionally and idempotently."""
-    global _loaded
-    if _loaded:
-        return
-    for module in _DECLARATION_MODULES:
-        importlib.import_module(module)
-    from mountainash.core.capabilities.core_facts import register_core_polymorphic_facts
+    """Public entry: enumerating consumers call this; queries autoload it."""
+    from mountainash.core.capabilities.registry import CapabilityRegistry, _LoadState
 
-    register_core_polymorphic_facts()
-    _loaded = True
+    state = CapabilityRegistry._load_state
+    if state is _LoadState.LOADED:
+        return
+    if state is _LoadState.ISOLATED:
+        raise RuntimeError(
+            "registry is ISOLATED (reset() without restore()); refusing to "
+            "load production declarations into an isolated registry"
+        )
+    CapabilityRegistry._ensure_loaded()

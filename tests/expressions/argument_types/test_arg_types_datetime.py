@@ -422,7 +422,7 @@ if OP_SPECS:
 # Portable core = {1y, 1mo, 1d, 1h, 1m, 1s, 1ms, 1us}. 1ns was dropped in
 # Task 3a; the validator rejects it before the visitor. The visitor (with
 # enforce_capabilities=True) raises BackendCapabilityError from the value-scoped
-# UNSUPPORTED facts declared in datetime_option_capabilities.py. Backend
+# UNSUPPORTED facts declared in capabilities/datetime/options.py. Backend
 # round/ceil/floor impls are NOT edited — the capability facts are the only
 # honesty mechanism. Per the brief, family / dialect separation mirrors the
 # string `padding` slice: ibis declared values get BOTH a family-default
