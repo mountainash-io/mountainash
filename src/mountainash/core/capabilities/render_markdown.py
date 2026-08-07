@@ -6,12 +6,13 @@ Pure over CoverageReport; input gathering + main() live at the bottom
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     CoverageReport,
     ImplementationRecord,
+    ImplState,
     OpCoverage,
     OpRecord,
     fact_sort_key,  # canonical order
@@ -22,22 +23,42 @@ from mountainash.core.capabilities.schema import (
     Enforcement,  # summary stats
 )
 
+if TYPE_CHECKING:
+    from mountainash.core.constants import CONST_BACKEND
+
 _ARTIFACT_PATH = "docs/reference/expression-coverage.md"
 _REGEN_CMD = "hatch -e test run python -m mountainash.core.capabilities.render_markdown"
 
 _LEGEND = """\
-Legend — cell states:
+Legend — cell states (by exception):
 
-- `✅` **DECLARED_CLEAN** — at least one capability declaration covers this
-  op's (backend, source, domain) and no constraining fact exists for the op.
-  Scope of the claim: the probe wave declared the backend×domain surface and
-  recorded nothing against this op. Declarations carry no per-op probe
-  manifest, so this is domain-wave-level evidence, not proof the specific op was exercised.
+- `✓` **default-capable** — implemented and clean, no constraining fact. The
+  presumption; the majority; not a gap. Routed / dialect-verified annotations
+  still append (`✓ ↻ routed`, `✓ ✓ dialect-verified: …`).
+- `✓ audited` — same as above, strengthened by a probe wave covering this
+  op's (backend, source, domain). **Scope of the claim:** the probe wave
+  declared the backend×domain surface and recorded nothing against this op.
+  Declarations carry no per-op probe manifest, so this is
+  domain-wave-level evidence, not proof the specific op was exercised.
+- `✓ᴴ` **implemented via handler** — same as `✓` / `✓ audited`, but reached
+  through the visitor's `handler` dispatch path rather than a concrete
+  protocol-method override on the backend leaf class (spec §3.6). The `ᴴ`
+  superscript marks the dispatch shape, not a coverage grade.
 - `◐ partial (…)` / `✗ unsupported` / `poly` — **CONSTRAINED**: at least one
   GATE constraint or runtime residue fact applies (counts are distinct
   selector keys, never raw fact counts).
-- `—` **UNDECLARED** — no declaration covers the coordinates; absence of
-  facts means nothing here.
+- `—` **NOT_IMPLEMENTED** — the protocol-method override is absent (or only a
+  bare `…` stub on the `*Protocol` carrier) and the cell has no facts and
+  no declaration. The only true blank.
+- `⚠ contradiction` — `NOT_IMPLEMENTED` AND the cell carries facts, a routed
+  or refinement entry, or an applicable declaration. Catalog and registry
+  disagree; the suite-level `contradictions == 0` invariant guards this.
+- `?` **UNKNOWN** — the registry has no definition for the op, or the
+  definition carries neither `protocol_method` nor `handler`. The `audited`
+  flag is stored on these cells but is **not rendered on `?` cells** —
+  audited is stored but not rendered on `?` cells (the field is not dead
+  state; the badge is suppressed because the registry's view of the op is
+  too thin to anchor a claim).
 - Annotations: `↻ routed` (router metadata — handled via an alternate path),
   `⚠ runtime` (materialize-residue failure), `✓ dialect-verified`
   (dialect-scoped EXPR_CAPABLE refinement).
@@ -92,19 +113,44 @@ def _collapse_groups(
 
 
 def _cell_text(oc: OpCoverage) -> str:
-    raise NotImplementedError("rev-5 cutover - Task 3")
-    status: list[str] = []
-    if oc.whole_op is CapabilityLevel.UNSUPPORTED:
-        status.append("✗ unsupported")
-    elif oc.whole_op is CapabilityLevel.POLYMORPHIC:
-        status.append("poly")
-    sc = oc.selector_counts
-    if any((sc.params, sc.option_selectors, sc.value_classes, sc.dialects)):
-        status.append(
-            f"◐ partial ({sc.params} params, {sc.option_selectors} option-selectors, "
-            f"{sc.value_classes} value-classes, {sc.dialects} dialects)"
-        )
-    text = " + ".join(status) if status else "✅"  # spec §3.5: `poly + ◐ partial (…)`
+    """Spec §3.3 render map, if/elif chain in table order.
+
+    Order is load-bearing: `contradiction` is only reachable when
+    `impl is NOT_IMPLEMENTED`, so the contradiction check must come before
+    the bare NOT_IMPLEMENTED branch — reordering misrenders edge cells
+    (the matrix would silently downgrade contradictions to `—`).
+    """
+    # 1. UNKNOWN -> `?` (no glyph change, no annotations; the audited field
+    # is stored but never rendered on `?` cells per spec §3.3).
+    if oc.impl is ImplState.UNKNOWN:
+        return "?"
+    # 2. NOT_IMPLEMENTED + any facts / routed / refinement / audited -> ⚠ contradiction
+    if oc.contradiction:
+        return "⚠ contradiction"
+    # 3. NOT_IMPLEMENTED clean -> `—` (the only true blank).
+    if oc.impl is ImplState.NOT_IMPLEMENTED:
+        return "—"
+    # 4. implemented* + constrained -> existing composition (UNCHANGED across rev 5).
+    if oc.constrained:
+        status: list[str] = []
+        if oc.whole_op is CapabilityLevel.UNSUPPORTED:
+            status.append("✗ unsupported")
+        elif oc.whole_op is CapabilityLevel.POLYMORPHIC:
+            status.append("poly")
+        sc = oc.selector_counts
+        if any((sc.params, sc.option_selectors, sc.value_classes, sc.dialects)):
+            status.append(
+                f"◐ partial ({sc.params} params, {sc.option_selectors} option-selectors, "
+                f"{sc.value_classes} value-classes, {sc.dialects} dialects)"
+            )
+        text = " + ".join(status)  # spec §3.5: `poly + ◐ partial (…)`
+    else:
+        # 5. implemented* + clean -> base mark (`✓` or `✓ᴴ` for handler),
+        # then `audited` badge if applicable, then annotations.
+        text = "✓ᴴ" if oc.impl is ImplState.IMPLEMENTED_VIA_HANDLER else "✓"
+        if oc.audited:
+            text = f"{text} audited"
+    # Annotations: same composition as before (routed / runtime / dialect-verified).
     notes: list[str] = []
     if oc.routed:
         notes.append("↻ routed")
@@ -112,11 +158,12 @@ def _cell_text(oc: OpCoverage) -> str:
         notes.append("⚠ runtime")
     if oc.refinements:
         dialects = ", ".join(sorted({f.dialect for f in oc.refinements if f.dialect}))
-        notes.append(f"✓ dialect-verified: {dialects}")  # spec §3.4 footnote form
+        notes.append(f"✓ dialect-verified: {dialects}")
     return " ".join([text, *notes])
 
 
 def _header(report: CoverageReport) -> list[str]:
+    impl_total = sum(report.stats.by_impl.values())
     return [
         "# Expression Coverage",
         "",
@@ -124,7 +171,8 @@ def _header(report: CoverageReport) -> list[str]:
         f"<!-- Regenerate: {_REGEN_CMD} -->",
         "",
         f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
-        f"· Registered operations: {report.stats.ops_total}",
+        f"· Registered operations: {report.stats.ops_total} "
+        f"· Implementation records: {impl_total}",
         "",
         _LEGEND,
     ]
@@ -132,10 +180,27 @@ def _header(report: CoverageReport) -> list[str]:
 
 def _summary(report: CoverageReport) -> list[str]:
     lines = ["## Summary", ""]
-    lines.append("| Backend | ✅ declared-clean | ◐ constrained | — undeclared |")
-    lines.append("| --- | --- | --- | --- |")
+    lines.append("### Per-backend counts")
+    lines.append("")
+    lines.append(
+        "| Backend | default_capable | audited_clean | constrained "
+        "| NOT_IMPLEMENTED | UNKNOWN | ops_total |"
+    )
+    lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for b in RENDERED_BACKENDS:
-        raise NotImplementedError("rev-5 cutover - Task 3")
+        s = report.stats
+        lines.append(
+            f"| {b.value} | {s.default_capable[b]} | {s.audited_clean[b]} "
+            f"| {s.constrained[b]} | {s.by_impl[(b, ImplState.NOT_IMPLEMENTED)]} "
+            f"| {s.by_impl[(b, ImplState.UNKNOWN)]} | {s.ops_total} |"
+        )
+    # Both invariants visible even when 0 (symmetric with the per-backend
+    # sum law above): a count of 0 is the test-passing state, not a missing
+    # line. Spec §3.3 / §4.1.
+    lines.append("")
+    lines.append(f"contradictions: {report.stats.contradictions}")
+    lines.append(f"audited_unknown: "
+                 f"{sum(report.stats.audited_unknown.values())}")
     lines.append("")
     lines.append("### Fact statistics")
     lines.append("")
@@ -211,12 +276,28 @@ def _unmapped_families(report: CoverageReport) -> list[str]:
     if not unmapped:
         return []
     lines = ["## Unmapped families", "",
-             "No declaration domain exists for these enum classes yet; every cell "
-             "is UNDECLARED. Extending coverage here starts at "
-             "`classify_domain`/`_DOMAIN_SUFFIXES` (spec §3.2).", ""]
+             "No declaration domain exists for these enum classes yet; no audit "
+             "applies (every cell carries only the implementation axis). "
+             "Extending coverage here starts at `classify_domain`/"
+             "`_DOMAIN_SUFFIXES` (spec §3.2).", ""]
     for fam in unmapped:
         names = sorted({oc.op.operation_key.name for oc in fam.ops})
-        lines.append(f"- `{fam.family}` ({len(names)} ops): "
+        n_ops = len(names)
+        # §3.6 stamp (spec §4.3): the impl summary restricted to this family's
+        # ops. Per-backend cell counts of implemented* cells. Uniform means
+        # every backend has full coverage for all N ops; the split otherwise
+        # shows per-backend coverage out of N.
+        by_backend: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
+        for oc in fam.ops:
+            if oc.impl in {ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER}:
+                by_backend[oc.backend] += 1
+        if all(by_backend[b] == n_ops for b in RENDERED_BACKENDS):
+            stamp = (f"{n_ops} ops — all implemented on "
+                     f"{len(RENDERED_BACKENDS)}/{len(RENDERED_BACKENDS)} backends")
+        else:
+            stamp = (f"{n_ops} ops — " + " · ".join(
+                f"{by_backend[b]}/{n_ops} {b.value}" for b in RENDERED_BACKENDS))
+        lines.append(f"- `{fam.family}` ({stamp}): "
                      + ", ".join(f"`{n}`" for n in names))
     lines.append("")
     return lines
@@ -335,7 +416,12 @@ def render_markdown(report: CoverageReport) -> str:
 
 
 def gather_coverage_inputs() -> dict:
-    """Impure input gathering — the only registry-touching code (spec §4)."""
+    """Impure input gathering — the only registry-touching code (spec §4).
+
+    Universe is built first (spec §3.1 / §4.3) and the implementation records
+    are derived from it (`gather_implementation_records` is the spec §3.6
+    derivation; the model receives them as an explicit input and stays pure).
+    """
     from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
     from mountainash.core.capabilities.coverage import OpRecord
     from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
@@ -359,7 +445,7 @@ def gather_coverage_inputs() -> dict:
             key=lambda r: (r.family, r.operation_key.name),
         )
     )
-    return dict(
+    inputs = dict(
         universe=universe,
         facts=tuple(CapabilityRegistry.facts()),
         declarations=tuple(CapabilityRegistry.declarations()),
@@ -367,6 +453,8 @@ def gather_coverage_inputs() -> dict:
         gaps=KNOWN_GAPS,
         retired=RETIRED_FACTS,
     )
+    inputs["implementations"] = gather_implementation_records(universe)
+    return inputs
 
 
 def _resolve_concrete_owner(leaf: type, name: str) -> type | None:
