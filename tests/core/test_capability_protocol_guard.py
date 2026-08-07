@@ -10,24 +10,44 @@ import pytest
 
 from mountainash.core.capabilities import (
     CapabilityDeclaration,
+    CapabilityLevel,
     CapabilityRegistry,
     Domain,
     load_all_capability_declarations,
 )
 from mountainash.core.capabilities.bootstrap import discover_declaration_modules
-from mountainash.core.capabilities.declarations import (
-    classify_domain,
-    classify_source,
-)
+from mountainash.core.capabilities.declarations import classify_domain
 from mountainash.core.capabilities.retired import assert_no_active_retired_overlap
-from mountainash.core.capabilities.schema import WILDCARD_PARAM
+
+
+# Spec §3 placement decision table — closed leaf set. Every declaration module
+# the spec mandates lives in this tuple; the protocol guard (M-4 folded into
+# I-1) refuses to discover anything outside it, so a stray _-prefix rename
+# or a missing module flips the assertion to red instead of silently slipping
+# through the lax `>= 12` count.
+EXPECTED_DECLARATION_MODULES = (
+    # expressions/backends/capabilities/
+    "mountainash.expressions.backends.capabilities.arithmetic",
+    "mountainash.expressions.backends.capabilities.datetime.options",
+    "mountainash.expressions.backends.capabilities.datetime.strptime",
+    "mountainash.expressions.backends.capabilities.datetime.value_classes_ma",
+    "mountainash.expressions.backends.capabilities.datetime.value_classes_substrait",
+    "mountainash.expressions.backends.capabilities.ibis",
+    "mountainash.expressions.backends.capabilities.narwhals",
+    "mountainash.expressions.backends.capabilities.polars",
+    "mountainash.expressions.backends.capabilities.polymorphic",
+    "mountainash.expressions.backends.capabilities.string",
+    # relations/backends/capabilities/
+    "mountainash.relations.backends.capabilities.ibis",
+    "mountainash.relations.backends.capabilities.narwhals",
+    "mountainash.relations.backends.capabilities.polars",
+)
 
 
 def test_every_discovered_module_is_well_formed():
-    names = discover_declaration_modules()
-    assert len(names) >= 12  # string, arithmetic, 4x datetime, polymorphic,
-                             # 3x expr-backend, 3x relation-backend
-    for name in names:
+    discovered = discover_declaration_modules()
+    assert discovered == EXPECTED_DECLARATION_MODULES
+    for name in discovered:
         module = importlib.import_module(name)
         decls = module.DECLARATIONS
         assert isinstance(decls, tuple) and decls, name
@@ -49,40 +69,101 @@ def test_same_key_declarations_have_distinct_evidence():
 
 
 # Placement decision table (spec §3) — THE guard config, nothing else.
-# module-leaf -> predicate(fact) that every fact in the module must satisfy.
-def _is_domain_module_fact(module_leaf: str):
+# Each row: module-leaf -> predicate(fact) that every fact in the module must
+# satisfy. The predicate encodes BOTH the OWNER column (where the fact lives,
+# derived from `operation_key`'s enum membership or the backend match) AND
+# the GRAIN column (the discriminator that pins that owner — option_value set,
+# value_class set, param == WILDCARD_PARAM, or level+annotation). The table
+# is the single source — no separately maintained guard map (review I-1).
+#
+# | Fact grain (GRAIN column)                       | Owner (OWNER column)                          |
+# |--------------------------------------------------|-----------------------------------------------|
+# | option_value set                                 | domain module (string / arithmetic / datetime |
+# |                                                  |   /options/strptime)                          |
+# | param == WILDCARD_PARAM (GATE, op-level wildcard)| domain module                                 |
+# | value-agnostic positional-arg option fact        | domain module                                 |
+# | value_class set                                  | datetime/value_classes_ma|substrait.py        |
+# | level == LITERAL_ONLY / EXPR_CAPABLE refinement  | backend module (polars / narwhals / ibis, expr)|
+# | level == POLYMORPHIC                             | polymorphic.py                                |
+# | RKEY (any grain)                                 | relations/backends/capabilities/{backend}.py  |
+# | ROUTER_METADATA / MATERIALIZE_RESIDUE            | backend module (root per FKEY/RKEY as above)  |
+
+
+def _backend_predicate(leaf: str):
+    """expr- or relation-backend module. LITERAL_ONLY or EXPR_CAPABLE
+    refinement for arg-type gates; UNSUPPORTED is also legal — for whole-op
+    WILDCARD_PARAM GATE facts and the ROUTER_METADATA / MATERIALIZE_RESIDUE
+    row of the spec §3 table. NOT value_class; backend matches the module's
+    leaf name."""
+    return lambda f: (
+        f.backend.value == leaf
+        and f.value_class is None
+        and f.level in (
+            CapabilityLevel.LITERAL_ONLY,
+            CapabilityLevel.EXPR_CAPABLE,
+            CapabilityLevel.UNSUPPORTED,
+        )
+    )
+
+
+def _polymorphic_predicate():
+    """polymorphic module. level == POLYMORPHIC."""
+    return lambda f: f.level is CapabilityLevel.POLYMORPHIC
+
+
+def _value_class_predicate():
+    """value-class module. every fact has value_class is not None."""
+    return lambda f: f.value_class is not None
+
+
+def _domain_predicate(leaf: str):
+    """domain module. operation_key classifies to the module's domain; NOT
+    value_class (domain modules allow option-value / WILDCARD_PARAM / value-
+    agnostic / positional grains only); NOT POLYMORPHIC level (POLYMORPHIC
+    marker facts live in polymorphic.py per spec §3)."""
     domains = {
         "string": Domain.STRING, "arithmetic": Domain.ARITHMETIC,
-        "options": Domain.DATETIME, "value_classes_ma": Domain.DATETIME,
-        "value_classes_substrait": Domain.DATETIME, "strptime": Domain.DATETIME,
+        "options": Domain.DATETIME, "strptime": Domain.DATETIME,
     }
-    want = domains[module_leaf]
-    return lambda f: classify_domain(f.operation_key) is want
-
-
-_BACKEND_MODULES = {"polars", "narwhals", "ibis"}
+    want = domains[leaf]
+    return lambda f: (
+        classify_domain(f.operation_key) is want
+        and f.value_class is None
+        and f.level is not CapabilityLevel.POLYMORPHIC
+    )
 
 
 def test_placement_decision_table():
-    for name in discover_declaration_modules():
-        leaf = name.rsplit(".", 1)[1]
+    discovered = discover_declaration_modules()
+    assert discovered == EXPECTED_DECLARATION_MODULES, (
+        f"discovered modules differ from spec §3 leaf set:\n"
+        f"  extra:   {set(discovered) - set(EXPECTED_DECLARATION_MODULES)}\n"
+        f"  missing: {set(EXPECTED_DECLARATION_MODULES) - set(discovered)}"
+    )
+    for name in EXPECTED_DECLARATION_MODULES:
         module = importlib.import_module(name)
         facts = [f for d in module.DECLARATIONS for f in d.facts]
         if ".relations." in name:
+            # Relation facts (RKEY) live in the relations-backends module of
+            # their restricted backend; the spec grants "any grain" — the
+            # test pins only the OWNER column (Domain.RELATION) here. The
+            # backend and grain rows above also apply transitively, but this
+            # branch is the spec's own row for RKEY_ facts.
             assert all(
                 classify_domain(f.operation_key) is Domain.RELATION for f in facts
             ), name
-        elif leaf in _BACKEND_MODULES:
-            # backend modules: the backend is the module's namesake
-            assert all(f.backend.value == leaf for f in facts), name
-        elif leaf == "polymorphic":
-            assert all(
-                classify_domain(f.operation_key) in (Domain.SET, Domain.TERNARY)
-                for f in facts
-            ), name
+        elif name.endswith(".polymorphic"):
+            assert all(_polymorphic_predicate()(f) for f in facts), name
+        elif any(name.endswith(s) for s in (
+            ".value_classes_ma", ".value_classes_substrait"
+        )):
+            assert all(_value_class_predicate()(f) for f in facts), name
+        elif any(name.endswith(s) for s in (".ibis", ".narwhals", ".polars")):
+            leaf = name.rsplit(".", 1)[1]
+            assert all(_backend_predicate(leaf)(f) for f in facts), name
         else:
-            pred = _is_domain_module_fact(leaf)
-            assert all(pred(f) for f in facts), name
+            leaf = name.rsplit(".", 1)[1]
+            assert all(_domain_predicate(leaf)(f) for f in facts), name
 
 
 _SUBPROCESS_PRELUDE = """
@@ -129,6 +210,7 @@ def test_no_registration_side_effects_on_import():
             importlib.import_module(name)
         assert CapabilityRegistry._facts == {}, "import side-effect registration"
         assert CapabilityRegistry._value_class_facts == {}
+        assert CapabilityRegistry._kinds == {}
         print("OK")
     """)
     out = subprocess.run(

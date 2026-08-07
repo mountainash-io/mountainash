@@ -7,6 +7,7 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    ValueClass,
 )
 from mountainash.core.capabilities.retired import (
     RETIRED_FACTS,
@@ -57,6 +58,45 @@ def test_overlap_guard_detects_active_option_fact(monkeypatch):
         ])
         monkeypatch.setattr(
             "mountainash.core.capabilities.retired.RETIRED_FACTS", (_retired(),)
+        )
+        with pytest.raises(AssertionError, match="simultaneously active and retired"):
+            assert_no_active_retired_overlap(CapabilityRegistry)
+    finally:
+        CapabilityRegistry.restore(snap)
+
+
+def test_overlap_guard_detects_active_value_class_fact(monkeypatch):
+    """Spec §4 disjointness over BOTH active keyspaces (G1, round 2).
+
+    The option-value branch was already covered by
+    ``test_overlap_guard_detects_active_option_fact``. This test pins the
+    value-class branch: an active fact carrying a `value_class` (lands in
+    ``_value_class_facts``) collides with a RetiredFact that carries the same
+    `value_class` over the same key — the guard's `if r.value_class is not
+    None` branch must fire.
+    """
+    snap = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, [
+            CapabilityFact(
+                operation_key=FK_STR.CENTER, param="length",
+                level=CapabilityLevel.LITERAL_ONLY, backend=CONST_BACKEND.IBIS,
+                value_class=ValueClass.DURATION_MULTIPLIER,
+                message="t", since="2026-07-05", probe_exempt="test",
+            )
+        ])
+        # Construct a RetiredFact with the same value_class key. The guard's
+        # value-class branch (r.value_class is not None) must fire here, NOT
+        # the option-value branch — option_value is None and value_class is
+        # set, so the active fact is in _value_class_facts, not _facts.
+        monkeypatch.setattr(
+            "mountainash.core.capabilities.retired.RETIRED_FACTS",
+            (_retired(
+                option_value=None,
+                value_class=ValueClass.DURATION_MULTIPLIER,
+                level=CapabilityLevel.LITERAL_ONLY,
+            ),)
         )
         with pytest.raises(AssertionError, match="simultaneously active and retired"):
             assert_no_active_retired_overlap(CapabilityRegistry)

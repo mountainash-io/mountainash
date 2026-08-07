@@ -58,20 +58,3 @@ def load_all_capability_declarations() -> None:
             "load production declarations into an isolated registry"
         )
     CapabilityRegistry._ensure_loaded()
-
-
-def __getattr__(name: str):
-    """Backward-compat shim for the pre-Task-4 module-level `_loaded` flag.
-
-    The state machine replaced the one-shot `_loaded` guard; the cold-path
-    test in tests/core/test_capability_gate.py still inspects this name, so
-    expose it as a derived view of `_load_state`.
-    """
-    if name == "_loaded":
-        from mountainash.core.capabilities.registry import (
-            CapabilityRegistry,
-            _LoadState,
-        )
-
-        return CapabilityRegistry._load_state is _LoadState.LOADED
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
