@@ -9,8 +9,10 @@ wildcards.
 from __future__ import annotations
 
 import inspect
+import threading
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from enum import Enum as _Enum
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS
 from mountainash.core.capabilities.schema import (
@@ -23,11 +25,21 @@ from mountainash.core.capabilities.schema import (
 )
 from mountainash.core.constants import CONST_BACKEND
 
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.declarations import CapabilityDeclaration
+
 # backend slot is CONST_BACKEND | str: str families arrive only via the
 # serialization workstream's register_target (spec 2026-07-06); register_backend
 # rejects them via the family-identity check in _validate_fact.
 _Key = Tuple[Any, str, "CONST_BACKEND | str", Optional[str], Optional[str]]
 _ValueClassBucketKey = Tuple[Any, str, "CONST_BACKEND | str", Optional[str]]
+
+
+class _LoadState(_Enum):
+    UNINITIALIZED = "uninitialized"
+    LOADED = "loaded"
+    FAILED = "failed"
+    ISOLATED = "isolated"
 
 
 @dataclass(frozen=True)
@@ -195,6 +207,38 @@ class CapabilityRegistry:
     _facts: Dict[_Key, CapabilityFact] = {}
     _kinds: Dict[str, TargetKind] = {}  # family name -> kind (spec 2026-07-06)
     _value_class_facts: Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]] = {}
+    _declarations: Tuple["CapabilityDeclaration", ...] = ()
+    _load_state: _LoadState = _LoadState.UNINITIALIZED
+    _load_error: BaseException | None = None
+    _load_lock = threading.RLock()
+
+    @classmethod
+    def _ensure_loaded(cls) -> None:
+        if cls._load_state is _LoadState.LOADED or cls._load_state is _LoadState.ISOLATED:
+            return
+        with cls._load_lock:
+            if cls._load_state is _LoadState.FAILED:
+                raise cls._load_error
+            if cls._load_state is not _LoadState.UNINITIALIZED:
+                return
+            from mountainash.core.capabilities.bootstrap import _load_into_registry
+            try:
+                _load_into_registry()
+            except BaseException as exc:
+                cls._load_state = _LoadState.FAILED
+                cls._load_error = exc
+                raise
+            cls._load_state = _LoadState.LOADED
+
+    @classmethod
+    def register_declaration(cls, declaration) -> None:
+        cls.register_backend(declaration.backend, declaration.facts)
+        cls._declarations = cls._declarations + (declaration,)
+
+    @classmethod
+    def declarations(cls):
+        cls._ensure_loaded()
+        return cls._declarations
 
     @classmethod
     def _register_identity(cls, name: str, kind: TargetKind) -> None:
@@ -290,6 +334,7 @@ class CapabilityRegistry:
         dialect: str | None = None,
         option_value: str | None = None,
     ) -> CapabilityFact | None:
+        cls._ensure_loaded()
         for key in (
             (operation_key, param, backend, dialect, option_value),
             (operation_key, param, backend, None, option_value),
@@ -324,6 +369,7 @@ class CapabilityRegistry:
         conditioned: bool | None = None,
         enforcement: Enforcement | None = None,
     ) -> List[CapabilityFact]:
+        cls._ensure_loaded()
         out = []
         for fact in (
             *cls._facts.values(),
@@ -347,6 +393,7 @@ class CapabilityRegistry:
         cls, backend: CONST_BACKEND, dialect: str | None = None
     ) -> Dict[Tuple[Any, str], CapabilityFact]:
         """MATERIALIZE-boundary facts as an enrichment mapping (op, param) -> fact."""
+        cls._ensure_loaded()
         out: Dict[Tuple[Any, str], CapabilityFact] = {}
         for fact in cls.facts(
             backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
@@ -382,6 +429,7 @@ class CapabilityRegistry:
         tests/relations/backends/test_resource_files.py fails on any router
         fact with no registered probe, so a declaration cannot go unexercised.
         """
+        cls._ensure_loaded()
         return tuple(
             sorted(
                 (
@@ -404,6 +452,7 @@ class CapabilityRegistry:
         dialect: str | None = None,
     ) -> List[CapabilityViolation]:
         """Substrait-interop hook (spec Section 1): op-level violations only."""
+        cls._ensure_loaded()
         violations = []
         for op_key in operation_keys:
             fact = cls.capability_for(op_key, WILDCARD_PARAM, backend, dialect)
@@ -425,11 +474,17 @@ class CapabilityRegistry:
         Dict[_Key, CapabilityFact],
         Dict[str, TargetKind],
         Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]],
+        Tuple["CapabilityDeclaration", ...],
+        _LoadState,
+        Optional[BaseException],
     ]:
         """Opaque round-trip token for test isolation — captures BOTH _facts
         and _kinds so restore() is symmetric with reset(). Callers must treat
         the return value as opaque (feed it only to restore())."""
-        return dict(cls._facts), dict(cls._kinds), dict(cls._value_class_facts)
+        return (
+            dict(cls._facts), dict(cls._kinds), dict(cls._value_class_facts),
+            cls._declarations, cls._load_state, cls._load_error,
+        )
 
     @classmethod
     def restore(
@@ -438,15 +493,26 @@ class CapabilityRegistry:
             Dict[_Key, CapabilityFact],
             Dict[str, TargetKind],
             Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]],
+            Tuple["CapabilityDeclaration", ...],
+            _LoadState,
+            Optional[BaseException],
         ],
     ) -> None:
-        facts, kinds, vclass = snapshot
+        facts, kinds, vclass, decls, state, err = snapshot
         cls._facts = dict(facts)
         cls._kinds = dict(kinds)
         cls._value_class_facts = dict(vclass)
+        cls._declarations = decls
+        cls._load_state = state
+        cls._load_error = err
 
     @classmethod
     def reset(cls) -> None:
+        """Test-only. Enters ISOLATED (autoload disabled). Snapshot FIRST —
+        without a restore there is no way back to autoload in this process."""
         cls._facts = {}
         cls._kinds = {}
         cls._value_class_facts = {}
+        cls._declarations = ()
+        cls._load_state = _LoadState.ISOLATED
+        cls._load_error = None

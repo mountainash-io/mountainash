@@ -79,9 +79,11 @@ class UnifiedExpressionVisitor:
             # A gating consumer must ensure the capability declaration modules
             # are imported before querying the registry (bootstrap.py contract):
             # otherwise a gate silently no-ops on a cold path where nothing has
-            # imported the declaration module. Idempotent (guarded by _loaded).
-            from mountainash.core.capabilities import load_all_capability_declarations
-            load_all_capability_declarations()
+            # imported the declaration module. Query-path autoload — a no-op
+            # in LOADED and ISOLATED states, so test fixtures that reset()
+            # into ISOLATED do not break the visitor.
+            from mountainash.core.capabilities.registry import CapabilityRegistry
+            CapabilityRegistry._ensure_loaded()
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.

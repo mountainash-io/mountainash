@@ -29,17 +29,44 @@ _DECLARATION_MODULES = (
     "mountainash.core.capabilities.core_facts",
 )
 
-_loaded = False
 
-
-def load_all_capability_declarations() -> None:
-    """Import every declaration module unconditionally and idempotently."""
-    global _loaded
-    if _loaded:
-        return
+def _load_into_registry() -> None:
+    """Import every declaration module and register (registry-internal hook;
+    called ONLY by CapabilityRegistry under its load lock)."""
     for module in _DECLARATION_MODULES:
         importlib.import_module(module)
     from mountainash.core.capabilities.core_facts import register_core_polymorphic_facts
 
     register_core_polymorphic_facts()
-    _loaded = True
+
+
+def load_all_capability_declarations() -> None:
+    """Public entry: enumerating consumers call this; queries autoload it."""
+    from mountainash.core.capabilities.registry import CapabilityRegistry, _LoadState
+
+    state = CapabilityRegistry._load_state
+    if state is _LoadState.LOADED:
+        return
+    if state is _LoadState.ISOLATED:
+        raise RuntimeError(
+            "registry is ISOLATED (reset() without restore()); refusing to "
+            "load production declarations into an isolated registry"
+        )
+    CapabilityRegistry._ensure_loaded()
+
+
+def __getattr__(name: str):
+    """Backward-compat shim for the pre-Task-4 module-level `_loaded` flag.
+
+    The state machine replaced the one-shot `_loaded` guard; the cold-path
+    test in tests/core/test_capability_gate.py still inspects this name, so
+    expose it as a derived view of `_load_state`.
+    """
+    if name == "_loaded":
+        from mountainash.core.capabilities.registry import (
+            CapabilityRegistry,
+            _LoadState,
+        )
+
+        return CapabilityRegistry._load_state is _LoadState.LOADED
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
