@@ -18,6 +18,8 @@ from mountainash.core.capabilities.coverage import (
     OpCoverage,
     OpRecord,
     fact_sort_key,  # canonical order
+    is_dialect_scoped_whole_op,  # I-2b cell predicate + scoped-doc subheading
+    is_whole_op,  # partition predicate (rev 6)
 )
 from mountainash.core.capabilities.schema import (
     CapabilityFact,
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
     from mountainash.core.constants import CONST_BACKEND
 
 _ARTIFACT_PATH = "docs/reference/expression-coverage.md"
+_SCOPED_ARTIFACT_PATH = "docs/reference/expression-coverage-scoped.md"
+_JSON_ARTIFACT_PATH = "docs/reference/expression-coverage.json"
 _REGEN_CMD = "hatch -e test run python -m mountainash.core.capabilities.render_markdown"
 
 _LEGEND = """\
@@ -141,10 +145,28 @@ def _cell_text(oc: OpCoverage) -> str:
             status.append("poly")
         sc = oc.selector_counts
         if any((sc.params, sc.option_selectors, sc.value_classes, sc.dialects)):
-            status.append(
+            partial = (
                 f"◐ partial ({sc.params} params, {sc.option_selectors} option-selectors, "
                 f"{sc.value_classes} value-classes, {sc.dialects} dialects)"
             )
+            # I-2b (spec §4.3 rev 6): a dialect-scoped whole-op gate names its
+            # level+dialect in the matrix cell, so a whole-op-for-a-dialect
+            # severity is visible in the matrix, not hidden behind a
+            # '1 dialects' count in another file. Suffix attaches to the
+            # partial annotation, mirroring the spec example
+            # `◐ partial (…) · unsupported on ibis-duckdb`. Group by level
+            # so multiple distinct levels render as separate suffixes.
+            dsw = [f for f in oc.constraints if is_dialect_scoped_whole_op(f)]
+            if dsw:
+                by_level: dict[str, set[str]] = {}
+                for f in dsw:
+                    by_level.setdefault(f.level.value, set()).add(f.dialect or "")
+                parts = [
+                    f"{lv} on {','.join(sorted(dialects))}"
+                    for lv, dialects in sorted(by_level.items())
+                ]
+                partial = f"{partial} · {' · '.join(parts)}"
+            status.append(partial)
         text = " + ".join(status)  # spec §3.5: `poly + ◐ partial (…)`
     else:
         # 5. implemented* + clean -> base mark (`✓` or `✓ᴴ` for handler),
@@ -175,6 +197,13 @@ def _header(report: CoverageReport) -> list[str]:
         f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
         f"· Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
+        "",
+        "Scoped deviations (dialect/param/option/value-class) live in "
+        "[`expression-coverage-scoped.md`](expression-coverage-scoped.md).",
+        "",
+        "Parquet recipe: flatten `families[].ops[].cells` from "
+        "[`expression-coverage.json`](expression-coverage.json) into rows, "
+        "then `pl.DataFrame(rows).write_parquet(...)`.",
         "",
         _LEGEND,
     ]
@@ -327,11 +356,26 @@ _DETAIL_RULE = "| " + " | ".join(["---"] * 14) + " |"
 
 
 def _detail_sections(report: CoverageReport) -> list[str]:
+    """Per-op detail holds ONLY function-level (whole-op) facts (spec §4.3
+    rev 6). A pointer line under the section header names the scoped doc;
+    cells whose facts are all scoped get no main-doc section at all.
+    Partition is exact against the scoped doc — every input fact's detail
+    body lives in exactly one of the two artifacts (§4.5 M-3)."""
     lines = ["## Per-op detail", ""]
+    lines.append(
+        "Cells whose facts are all scoped (dialect / parameter / option / "
+        "value-class) have no section here — see "
+        "[`expression-coverage-scoped.md`](expression-coverage-scoped.md) "
+        "for the scoped detail. `refinements` (EXPR_CAPABLE + dialect) are "
+        "scoped by construction; `dialect-scoped whole-op` facts appear "
+        "under that doc's `Dialect-scoped whole-op` subheading."
+    )
+    lines.append("")
     wrote_any = False
     for fam in report.families:
         for oc in fam.ops:
-            if not oc.all_facts:
+            function_level = tuple(f for f in oc.all_facts if is_whole_op(f))
+            if not function_level:
                 continue
             wrote_any = True
             lines.append(
@@ -341,11 +385,11 @@ def _detail_sections(report: CoverageReport) -> list[str]:
             lines.append("")
             lines.append(_DETAIL_HEADER)
             lines.append(_DETAIL_RULE)
-            for f, values in _collapse_groups(oc.all_facts):
+            for f, values in _collapse_groups(function_level):
                 lines.append(_fact_detail_row(f, values))
             lines.append("")
     if not wrote_any:
-        lines.append("No facts registered.")
+        lines.append("No function-level facts registered.")
         lines.append("")
     return lines
 
@@ -414,6 +458,117 @@ def render_markdown(report: CoverageReport) -> str:
     lines += _divergences_section(report)
     lines += _gaps_section(report)
     lines += _retirements_section(report)
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Scoped-deviations doc — spec §4.3 rev 6 (multi-artifact rendering).
+# The companion to render_markdown: every input fact's detail body appears
+# in exactly one of the two markdown artifacts. Function-level (whole-op)
+# coverage and the matrices live in the main doc; everything else lives
+# here, with dialect-scoped whole-op facts FIRST under a dedicated
+# subheading and the option-collapse rule on the remainder.
+# ---------------------------------------------------------------------------
+
+_SCOPED_LEGEND = """\
+Legend — scoped deviations:
+
+- The main doc (`expression-coverage.md`) carries matrices, function-level
+  coverage, and the by-exception render map. This doc carries the per-op
+  detail for every fact with a dialect, parameter, option, or value-class
+  selector. The two are byte-disjoint on detail bodies — every input fact
+  appears in exactly one artifact's detail body (§4.5 M-3).
+- **Dialect-scoped whole-op facts** (wildcard param + a dialect, no
+  option_value or value_class) render FIRST under a `Dialect-scoped
+  whole-op` subheading within each (op, backend) section. The main doc's
+  matrix cell surfaces the level + dialect via the I-2b suffix
+  (e.g. `◐ partial (…) · unsupported on ibis-duckdb`).
+- All other scoped facts render with the §4.3 option-collapse rule:
+  groups of ≥3 facts sharing every semantic field except `option_value`
+  collapse to a single row with the sorted `option_value` list; smaller
+  groups render per-fact.
+- Annotations seen in the main doc's matrix (`↻ routed`, `⚠ runtime`,
+  `✓ dialect-verified: …`) describe the same cells; this doc carries
+  the underlying fact rows, not the annotations.
+- `fidelity` is None on all EXECUTE facts by registration validation and
+  is omitted from detail rows.
+"""
+
+
+def _scoped_header(report: CoverageReport) -> list[str]:
+    impl_total = sum(report.stats.by_impl.values())
+    return [
+        "# Expression Coverage — Scoped Deviations",
+        "",
+        "<!-- GENERATED FILE — do not edit by hand. -->",
+        f"<!-- Regenerate: {_REGEN_CMD} -->",
+        "",
+        "Scoped deviations — dialect, parameter, option, value-class; "
+        "function-level coverage and matrices live in "
+        "[`expression-coverage.md`](expression-coverage.md).",
+        "",
+        f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
+        f"· Registered operations: {report.stats.ops_total} "
+        f"· Implementation records: {impl_total}",
+        "",
+        _SCOPED_LEGEND,
+    ]
+
+
+def _scoped_detail_sections(report: CoverageReport) -> list[str]:
+    """Per-op detail for every (op, backend) cell holding ≥1 scoped
+    (non-whole-op) fact. Dialect-scoped whole-op facts render FIRST under
+    a `Dialect-scoped whole-op` subheading; the remainder gets the
+    option-collapse rule."""
+    lines = ["## Per-op detail (scoped)", ""]
+    wrote_any = False
+    for fam in report.families:
+        for oc in fam.ops:
+            scoped = tuple(f for f in oc.all_facts if not is_whole_op(f))
+            if not scoped:
+                continue
+            wrote_any = True
+            lines.append(
+                f"### `{oc.op.operation_key.name}` × {oc.backend.value} "
+                f"({oc.op.family})"
+            )
+            lines.append("")
+            dsw = tuple(f for f in scoped if is_dialect_scoped_whole_op(f))
+            remaining = tuple(
+                f for f in scoped if not is_dialect_scoped_whole_op(f)
+            )
+            if dsw:
+                lines.append("#### Dialect-scoped whole-op")
+                lines.append("")
+                lines.append(_DETAIL_HEADER)
+                lines.append(_DETAIL_RULE)
+                # No option-collapse on the dialect-scoped subheading: every
+                # fact here has option_value=None, value_class=None,
+                # param=WILDCARD_PARAM — only `dialect` varies, so each
+                # fact is a distinct row already.
+                for f in sorted(dsw, key=fact_sort_key):
+                    lines.append(_fact_detail_row(f, []))
+                lines.append("")
+            if remaining:
+                lines.append(_DETAIL_HEADER)
+                lines.append(_DETAIL_RULE)
+                for f, values in _collapse_groups(remaining):
+                    lines.append(_fact_detail_row(f, values))
+                lines.append("")
+    if not wrote_any:
+        lines.append("No scoped facts registered.")
+        lines.append("")
+    return lines
+
+
+def render_scoped(report: CoverageReport) -> str:
+    """Spec §4.3 rev 6 — the scoped-deviations markdown. Companion to
+    `render_markdown`; together they satisfy the §4.5 M-3 partition-
+    exactness invariant. Pure; no registry calls, no wall clock, no
+    environment strings."""
+    lines: list[str] = []
+    lines += _scoped_header(report)
+    lines += _scoped_detail_sections(report)
     return "\n".join(lines) + "\n"
 
 

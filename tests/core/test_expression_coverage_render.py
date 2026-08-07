@@ -19,11 +19,13 @@ from mountainash.core.capabilities.declarations import (
 )
 from mountainash.core.capabilities.render_markdown import (
     _collapse_groups,
+    _fact_detail_row,
     _resolve_concrete_owner,
     gather_coverage_inputs,
     gather_implementation_records,
     render_json,
     render_markdown,
+    render_scoped,
 )
 from mountainash.core.capabilities.retired import RetiredFact
 from mountainash.core.capabilities.schema import (
@@ -385,11 +387,19 @@ def test_nonempty_gaps_divergences_retirements_render():
 
 
 def test_detail_section_written_for_every_cell_with_facts():
+    # Rev 6 partition: a routed fact with a non-wildcard param is scoped
+    # (param != WILDCARD_PARAM, so `is_whole_op` is False), so its detail
+    # row lives in `render_scoped`, not the main doc. The spec's "every
+    # cell with facts gets a detail row" rule is preserved across the
+    # two artifacts (the partition-exactness invariant, §4.5 M-3).
     routed = _fact(param="v", enforcement=Enforcement.ROUTER_METADATA,
                    level=CapabilityLevel.UNSUPPORTED)
-    out = render_markdown(_report([routed]))
-    assert "### `OP_A` × polars" in out  # routed-only cell still gets a detail row
-    assert "router_metadata" in out
+    main = render_markdown(_report([routed]))
+    scoped = render_scoped(_report([routed]))
+    main_detail = main.split("## Per-op detail", 1)[1]
+    assert "### `OP_A` × polars" not in main_detail
+    assert "### `OP_A` × polars" in scoped
+    assert "router_metadata" in scoped
 
 
 # ---------------------------------------------------------------------------
@@ -786,9 +796,12 @@ def test_json_no_collapse():
             for v in ("a", "b", "c")]
     out = render_json(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
     obj = json.loads(out)
-    # Sanity: the markdown DOES collapse these into one row.
-    md = render_markdown(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
-    assert "a, b, c" in md  # the collapsed option list appears in the markdown
+    # Sanity: the scoped doc (rev 6) collapses these into one row. The
+    # main doc has no detail section for them — they are scoped (param
+    # is not WILDCARD_PARAM), and the partition sends scoped facts to
+    # render_scoped (§4.3).
+    scoped = render_scoped(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
+    assert "a, b, c" in scoped  # the collapsed option list appears in the scoped doc
     # The JSON has all three as distinct fact objects with distinct option_value.
     fmt_facts: list[dict] = []
     for fam in obj["families"]:
@@ -861,3 +874,161 @@ def test_json_is_deterministic_under_input_shuffle():
     out3 = render_json(build_coverage_report(
         _universe(), tuple(fs), (decl_rev,), (), (), (), impls))
     assert out1 == out3
+
+
+# ---------------------------------------------------------------------------
+# Task 3 — Markdown split (spec §4.3 rev 6): render_scoped + main-doc
+# partition + I-2b cell naming. The §4.5 M-3 partition-exactness invariant
+# is the load-bearing test below; the other tests pin the surface.
+# ---------------------------------------------------------------------------
+
+
+def _cell_section(text: str, op_name: str, backend_value: str) -> str:
+    """Slice a markdown artifact at the (op, backend) section header. The
+    cell section runs to the next `\n### ` (the next op section) or
+    end-of-text — `#### ` subheadings inside the same cell section are
+    INCLUDED (e.g. the scoped doc's `Dialect-scoped whole-op` subheading
+    lives within the (op, backend) cell)."""
+    head = f"### `{op_name}` × {backend_value}"
+    if head not in text:
+        return ""
+    after = text.split(head, 1)[1]
+    idx = after.find("\n### ")
+    return after[:idx] if idx >= 0 else after
+
+
+def test_partition_exactness_over_mixed_cell():
+    """§4.5 M-3: every input fact's identity appears in exactly one markdown
+    artifact's detail body. Synthetic mixed cell: whole-op GATE +
+    param UNSUPPORTED + dialect-scoped gate. Function-level goes to main;
+    the other two go to scoped. None of the three facts can be collapsed
+    (each has option_value=None, so the option-collapse rule doesn't
+    apply — but the identity-based assertion would still hold if it did:
+    a collapsed row counts each `option_value` fact once). Asserted on
+    fact identities (via the rendered row), not row counts."""
+    whole_op = _fact(
+        param=WILDCARD_PARAM, level=CapabilityLevel.UNSUPPORTED,
+    )
+    param_fact = _fact(
+        param="values", level=CapabilityLevel.UNSUPPORTED,
+    )
+    dialect_fact = _fact(
+        param=WILDCARD_PARAM, dialect="ibis-duckdb",
+        level=CapabilityLevel.UNSUPPORTED,
+    )
+    report = _report([whole_op, param_fact, dialect_fact])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    main_section = _cell_section(main, "OP_A", "polars")
+    scoped_section = _cell_section(scoped, "OP_A", "polars")
+    assert main_section, "main doc missing OP_A x polars section"
+    assert scoped_section, "scoped doc missing OP_A x polars section"
+
+    # Build the expected row for each fact (option_value=None -> []).
+    main_whole_row = _fact_detail_row(whole_op, [])
+    scoped_param_row = _fact_detail_row(param_fact, [])
+    scoped_dialect_row = _fact_detail_row(dialect_fact, [])
+
+    # Function-level (whole-op) lives in main; scoped lives in scoped; no
+    # fact appears in both — the partition is exact.
+    assert main_whole_row in main_section
+    assert main_whole_row not in scoped_section
+    assert scoped_param_row in scoped_section
+    assert scoped_param_row not in main_section
+    assert scoped_dialect_row in scoped_section
+    assert scoped_dialect_row not in main_section
+
+
+def test_scoped_only_cell_no_main_doc_section():
+    """A cell with ONLY scoped facts (no whole-op) renders no main-doc
+    detail section; the `◐` matrix cell is preserved; the scoped doc
+    carries the detail row."""
+    param_fact = _fact(param="values", level=CapabilityLevel.UNSUPPORTED)
+    report = _report([param_fact])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc has no detail section for the cell.
+    main_detail = main.split("## Per-op detail", 1)[1]
+    assert "### `OP_A` × polars" not in main_detail
+    # But the matrix cell is still there with the partial annotation.
+    matrix = main.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    assert "◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects)" in matrix
+    # Scoped doc has the detail.
+    scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
+    assert "### `OP_A` × polars" in scoped_detail
+    scoped_row = _fact_detail_row(param_fact, [])
+    assert scoped_row in scoped_detail
+
+
+def test_dialect_scoped_whole_op_subheading_and_i2b():
+    """A dialect-scoped whole-op gate renders under the scoped doc's
+    `Dialect-scoped whole-op` subheading AND its level+dialect appears
+    in the main-doc matrix cell (I-2b, spec §4.3 example:
+    `◐ partial (…) · unsupported on ibis-duckdb`)."""
+    dialect_whole = _fact(
+        param=WILDCARD_PARAM, dialect="ibis-duckdb",
+        level=CapabilityLevel.UNSUPPORTED,
+    )
+    report = _report([dialect_whole])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc matrix cell: I-2b suffix present (level + sorted dialect).
+    matrix = main.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    assert "· unsupported on ibis-duckdb" in matrix
+
+    # Scoped doc: under "Dialect-scoped whole-op" subheading.
+    scoped_cell = _cell_section(scoped, "OP_A", "polars")
+    assert "#### Dialect-scoped whole-op" in scoped_cell
+    dialect_row = _fact_detail_row(dialect_whole, [])
+    assert dialect_row in scoped_cell
+
+
+def test_refinements_never_in_main_doc_detail():
+    """Refinements are scoped by construction (schema requires dialect on
+    EXPR_CAPABLE, so `is_whole_op` is False for every refinement).
+    The main doc's per-op detail never carries a refinement row (§4.3
+    structural) — it lives in the scoped doc; the matrix cell still
+    carries the `✓ dialect-verified: …` annotation."""
+    refinement = _fact(
+        param="v", dialect="duckdb", level=CapabilityLevel.EXPR_CAPABLE,
+    )
+    report = _report([refinement])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc has no detail section for the cell (refinement is scoped).
+    main_detail = main.split("## Per-op detail", 1)[1]
+    assert "### `OP_A` × polars" not in main_detail
+    # But the matrix cell still carries the `✓ dialect-verified: duckdb` annotation.
+    matrix = main.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    assert "dialect-verified: duckdb" in matrix
+    # Scoped doc has the detail row.
+    scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
+    assert "### `OP_A` × polars" in scoped_detail
+    ref_row = _fact_detail_row(refinement, [])
+    assert ref_row in scoped_detail
+
+
+def test_cross_references_in_both_headers():
+    """Both artifacts cross-reference each other in their headers — the
+    spec's "Both docs cross-reference each other in their headers"
+    requirement (§4.3)."""
+    report = _report([])
+    main = render_markdown(report)
+    scoped = render_scoped(report)
+
+    # Main doc header (above ## Summary) points to the scoped doc.
+    main_header = main.split("## Summary", 1)[0]
+    assert "expression-coverage-scoped.md" in main_header
+    # Scoped doc header (above ## Per-op detail (scoped)) points to the main doc.
+    scoped_header = scoped.split("## Per-op detail (scoped)", 1)[0]
+    assert "expression-coverage.md" in scoped_header
+    # And the main doc's parquet consumer recipe (§4.6) is in the header block.
+    assert "Parquet recipe" in main_header
+    assert "expression-coverage.json" in main_header
