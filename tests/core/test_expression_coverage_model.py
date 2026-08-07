@@ -1,7 +1,6 @@
 """Model-level tests for the coverage module (synthetic + universe identity)."""
 from __future__ import annotations
 
-import builtins
 import enum as _enum
 import inspect
 
@@ -10,6 +9,7 @@ import pytest
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     _UNREGISTERED_OPS,
+    fact_sort_key,
     ImplementationRecord,
     ImplState,
     build_coverage_report,
@@ -636,9 +636,7 @@ def test_declaration_facts_canonicalized_at_ingest():
     # Report's declaration is a replace-copy with canonical order.
     (out_decl,) = report.declarations
     canonical = list(input_decl.facts)
-    canonical.sort(key=__import__(
-        "mountainash.core.capabilities.coverage", fromlist=["fact_sort_key"]
-    ).fact_sort_key)
+    canonical.sort(key=fact_sort_key)
     assert out_decl.facts == tuple(canonical)
     # Input declaration object unchanged.
     assert input_decl.facts == (f_zzz, f_aaa, f_mid)
