@@ -174,7 +174,7 @@ htmlcov/
 
 #testing artifacts
 junit.*
-coverage.*
+/coverage.*
 
 # hiivmind-pulse-gh
 .hiivmind/github/user.yaml
