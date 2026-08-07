@@ -428,8 +428,11 @@ def build_coverage_report(
                     state = CoverageState.CONSTRAINED
                 else:
                     state = CoverageState.DECLARED_CLEAN
+                sorted_constraints = tuple(
+                    sorted(buckets["constraints"], key=fact_sort_key)
+                )
                 whole = next(
-                    (f.level for f in buckets["constraints"] if _is_whole_op(f)), None
+                    (f.level for f in sorted_constraints if _is_whole_op(f)), None
                 )
                 scoped = tuple(
                     f for f in constraining if not _is_whole_op(f)
@@ -441,8 +444,7 @@ def build_coverage_report(
                         backend=backend,
                         state=state,
                         whole_op=whole,
-                        constraints=tuple(
-                            sorted(buckets["constraints"], key=fact_sort_key)),
+                        constraints=sorted_constraints,
                         residue=tuple(sorted(buckets["residue"], key=fact_sort_key)),
                         routed=tuple(sorted(buckets["routed"], key=fact_sort_key)),
                         refinements=tuple(

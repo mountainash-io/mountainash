@@ -324,3 +324,21 @@ def test_fact_partition_exactly_once():
     report = build_coverage_report(_universe(), fs, (_decl(facts=fs),), (), (), ())
     scattered = [f for fam in report.families for oc in fam.ops for f in oc.all_facts]
     assert sorted(map(id, scattered)) == sorted(map(id, fs))
+
+
+def test_whole_op_resolution_is_input_order_independent():
+    # Final-review I-1: two schema-legal whole-op GATE facts with different
+    # levels on one cell must resolve whole_op identically regardless of
+    # input order (fact_sort_key applies BEFORE the first-wins pick).
+    unsupp = _fact(level=CapabilityLevel.UNSUPPORTED)
+    poly = _fact(level=CapabilityLevel.POLYMORPHIC, message="poly wave")
+    reports = [
+        build_coverage_report(_universe(), fs, (_decl(facts=fs),), (), (), ())
+        for fs in ((unsupp, poly), (poly, unsupp))
+    ]
+    cells = [
+        _cell(r, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS)
+        for r in reports
+    ]
+    assert cells[0].whole_op is cells[1].whole_op
+    assert cells[0].constraints == cells[1].constraints
