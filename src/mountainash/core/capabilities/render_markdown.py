@@ -1,10 +1,12 @@
-"""Deterministic markdown renderer for the expression coverage report.
+"""Deterministic markdown + JSON renderers for the expression coverage report.
 
 Pure over CoverageReport; input gathering + main() live at the bottom
-(Task 5). No wall-clock reads anywhere (spec §4.4).
+(Task 5). No wall-clock reads anywhere (spec §4.4). The JSON renderer is
+spec §4.6 — the machine-readable extract, the third committed artifact.
 """
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -413,6 +415,248 @@ def render_markdown(report: CoverageReport) -> str:
     lines += _gaps_section(report)
     lines += _retirements_section(report)
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# JSON renderer — spec §4.6 (rev 6).
+# The machine-readable extract: the FULL model, not a summary. No option
+# collapse, no markdown glyphs, no per-field prose; every fact row uncollapsed
+# and every value serializable as a plain JSON value. Determinism rests on
+# insertion order (spec §4.4 M-6): every dict is populated by iterating
+# already-sorted sequences; no `set` iteration.
+# ---------------------------------------------------------------------------
+
+
+def _op_key(operation_key: Any) -> dict[str, str]:
+    """Two-part op key (spec §4.6): the enum class name + member name.
+    Accepts either an enum member OR an OpRecord (which carries the enum
+    member as `.operation_key`). This is the same identity the markdown
+    uses; never `str(enum)`."""
+    if isinstance(operation_key, OpRecord):
+        operation_key = operation_key.operation_key
+    return {"family": type(operation_key).__name__, "op": operation_key.name}
+
+
+def _fact_dict(f: CapabilityFact) -> dict[str, Any]:
+    """Serialize one CapabilityFact as a dict (spec §4.6 <fact> shape).
+
+    `option_value` is None -> JSON `null`; `native_errors=()` -> JSON `[]`.
+    `value_class` is None -> JSON `null`; the level/enforcement/boundary
+    are serialized by .value. `condition`/`message` are always strings (the
+    model's default is "" so absent-prose is "" not null here)."""
+    return {
+        "dialect": f.dialect,
+        "param": f.param,
+        "option_value": f.option_value,
+        "value_class": f.value_class.value if f.value_class is not None else None,
+        "level": f.level.value,
+        "enforcement": f.enforcement.value,
+        "boundary": f.boundary.value,
+        "condition": f.condition,
+        "message": f.message,
+        "workaround": f.workaround,
+        "upstream_ref": f.upstream_ref,
+        "since": f.since,
+        "native_errors": [e.__name__ for e in f.native_errors],
+        "probe_exempt": f.probe_exempt,
+    }
+
+
+def _cell_dict(oc: OpCoverage) -> dict[str, Any]:
+    """One (op, backend) cell — the cell composition §4.6 pins.
+
+    `impl_method` and `impl_protocol` are None iff impl is UNKNOWN. `whole_op`
+    is None for non-whole-op cells (no wildcard gate present). `constrained`
+    and `contradiction` are derived but INCLUDED so consumers need no §3.4
+    precedence knowledge (spec §4.6 <fact>/cell note)."""
+    return {
+        "impl": oc.impl.value,
+        "impl_method": oc.impl_method,
+        "impl_protocol": oc.impl_protocol,
+        "audited": oc.audited,
+        "whole_op": oc.whole_op.value if oc.whole_op is not None else None,
+        "constrained": oc.constrained,
+        "contradiction": oc.contradiction,
+        "selector_counts": {
+            "params": oc.selector_counts.params,
+            "option_selectors": oc.selector_counts.option_selectors,
+            "value_classes": oc.selector_counts.value_classes,
+            "dialects": oc.selector_counts.dialects,
+        },
+        "constraints": [_fact_dict(f) for f in oc.constraints],
+        "residue": [_fact_dict(f) for f in oc.residue],
+        "routed": [_fact_dict(f) for f in oc.routed],
+        "refinements": [_fact_dict(f) for f in oc.refinements],
+    }
+
+
+def _family_dict(fam: Any) -> dict[str, Any]:
+    """One FamilyCoverage: op-name-major, backend display order. `source` and
+    `domain` are None for unmapped families (no enum-class-suffix match) —
+    these fields are JSON `null`, never omitted."""
+    if fam.audit_domain is None:
+        source: str | None = None
+        domain: str | None = None
+    else:
+        source, domain = fam.audit_domain[0].value, fam.audit_domain[1].value
+    # Group OpCoverages by op identity; the model already emits op-name-major
+    # with backend display order, so the existing sort is preserved.
+    by_op: dict[Any, list[OpCoverage]] = {}
+    for oc in fam.ops:
+        by_op.setdefault(oc.op.operation_key, []).append(oc)
+    ops_out: list[dict[str, Any]] = []
+    for op_key in sorted(by_op, key=lambda k: k.name):
+        ocs = by_op[op_key]
+        # The three backends in display order; RENDERED_BACKENDS iteration is
+        # the same order the model built fam.ops in.
+        cells = {oc.backend.value: _cell_dict(oc) for oc in ocs}
+        ops_out.append({"op": _op_key(ocs[0].op), "cells": cells})
+    return {
+        "family": fam.family,
+        "source": source,
+        "domain": domain,
+        "ops": ops_out,
+    }
+
+
+def _evidence_dict(evidence: Any) -> dict[str, Any] | None:
+    """ProbeEvidence -> dict; null preserves the absence-of-evidence signal
+    (vs. a `{}` empty record, which would mean 'evidence exists but is empty')."""
+    if evidence is None:
+        return None
+    return {
+        "probe_date": evidence.probe_date,
+        "library_versions": [list(pair) for pair in evidence.library_versions],
+        "fixtures": list(evidence.fixtures),
+    }
+
+
+def _declaration_dict(d: Any) -> dict[str, Any]:
+    """One CapabilityDeclaration — carries its facts in the canonicalized order
+    the model canonicalized at ingest (spec §4.4 I-3); this is what makes
+    declarations JSON-recoverable per §4.6 / plan-review C2."""
+    return {
+        "backend": d.backend.value,
+        "source": d.source.value,
+        "domain": d.domain.value,
+        "evidence": _evidence_dict(d.evidence),
+        "facts": [_fact_dict(f) for f in d.facts],
+    }
+
+
+def _divergence_dict(dv: Any) -> dict[str, Any]:
+    """DivergenceFact — backends are verbatim dialect/family-name strings
+    (spec §4.6 M-5); the .value rule does NOT apply. operation_keys use the
+    {family, op} convention."""
+    return {
+        "id": dv.id,
+        "kind": dv.kind.value,
+        "operation_keys": [_op_key(k) for k in dv.operation_keys],
+        "backends": list(dv.backends),
+        "summary": dv.summary,
+        "impact": dv.impact,
+        "workaround": dv.workaround,
+        "upstream_ref": dv.upstream_ref,
+        "since": dv.since,
+    }
+
+
+def _gap_dict(g: Any) -> dict[str, Any]:
+    """KnownGap + review_due = since + 183 days (spec §4.3 rule 7)."""
+    return {
+        "gap_kind": g.gap_kind.value,
+        "reason": g.reason,
+        "since": g.since,
+        "review_due": (date.fromisoformat(g.since) + timedelta(days=183)).isoformat(),
+    }
+
+
+def _retired_dict(r: Any) -> dict[str, Any]:
+    """RetiredFact — emitted newest-first (spec §4.3 rule 8); the model sorts
+    ascending, the renderer reverses, mirroring the markdown retirements section."""
+    return {
+        "operation_key": _op_key(r.operation_key),
+        "param": r.param,
+        "backend": r.backend.value,
+        "dialect": r.dialect,
+        "option_value": r.option_value,
+        "value_class": r.value_class.value if r.value_class is not None else None,
+        "level": r.level.value,
+        "since": r.since,
+        "retired_on": r.retired_on,
+        "fixed_in_versions": [list(pair) for pair in r.fixed_in_versions],
+        "upstream_ref": r.upstream_ref,
+        "note": r.note,
+    }
+
+
+def _stamp(report: CoverageReport) -> dict[str, int]:
+    """Counts only — the model has no timestamps, so this is the regen-time
+    visible-only summary, not a wall-clock stamp."""
+    return {
+        "declarations": len(report.declarations),
+        "facts": report.stats.facts_total,
+        "operations": report.stats.ops_total,
+        "implementation_records": sum(report.stats.by_impl.values()),
+    }
+
+
+def _stats_dict(report: CoverageReport) -> dict[str, Any]:
+    """Per-backend NESTED under the backend key (plan-review C3 — the model's
+    tuple-keyed by_impl Mapping has no legal JSON key form). facts_by_*
+    stats are keyed by .value, present-only (matches the model's Mapping,
+    not the universe of all enum values — empty is empty, not zero-padded)."""
+    backends: dict[str, dict[str, Any]] = {}
+    for b in RENDERED_BACKENDS:
+        by_impl_nested = {
+            s.value: report.stats.by_impl.get((b, s), 0) for s in ImplState
+        }
+        backends[b.value] = {
+            "by_impl": by_impl_nested,
+            "default_capable": report.stats.default_capable[b],
+            "audited_clean": report.stats.audited_clean[b],
+            "constrained": report.stats.constrained[b],
+            "audited_unknown": report.stats.audited_unknown[b],
+        }
+    return {
+        "backends": backends,
+        "contradictions": report.stats.contradictions,
+        "ops_total": report.stats.ops_total,
+        "facts_by_level": {
+            lv.value: report.stats.facts_by_level.get(lv, 0)
+            for lv in CapabilityLevel if lv in report.stats.facts_by_level
+        },
+        "facts_by_enforcement": {
+            e.value: report.stats.facts_by_enforcement.get(e, 0)
+            for e in Enforcement if e in report.stats.facts_by_enforcement
+        },
+        "facts_by_backend": {
+            b.value: report.stats.facts_by_backend.get(b, 0)
+            for b in RENDERED_BACKENDS if b in report.stats.facts_by_backend
+        },
+        "facts_total": report.stats.facts_total,
+    }
+
+
+def render_json(report: CoverageReport) -> str:
+    """Spec §4.6 — the canonical JSON export of the FULL model.
+
+    Determinism: every dict is built by iterating already-sorted sequences;
+    `sort_keys=False` (insertion order is the contract — review M-6). Every
+    value is serializable as plain JSON: enum members by `.value`, dates as
+    ISO strings, absent optionals as `null`, empty collections as `[]`. No
+    option-collapse — the extract carries every fact row uncollapsed (the
+    markdown's collapse is a readability device, not a model property)."""
+    obj = {
+        "stamp": _stamp(report),
+        "stats": _stats_dict(report),
+        "families": [_family_dict(f) for f in report.families],
+        "declarations": [_declaration_dict(d) for d in report.declarations],
+        "divergences": [_divergence_dict(dv) for dv in report.divergences],
+        "gaps": [_gap_dict(g) for g in report.gaps],
+        "retired": [_retired_dict(r) for r in reversed(report.retired)],
+    }
+    return json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
 
 
 def gather_coverage_inputs() -> dict:
