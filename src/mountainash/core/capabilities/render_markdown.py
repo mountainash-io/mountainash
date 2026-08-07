@@ -5,6 +5,8 @@ Pure over CoverageReport; input gathering + main() live at the bottom
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     CoverageReport,
@@ -204,11 +206,179 @@ def _family_matrices(report: CoverageReport) -> list[str]:
     return lines
 
 
+def _unmapped_families(report: CoverageReport) -> list[str]:
+    unmapped = [f for f in report.families if f.audit_domain is None]
+    if not unmapped:
+        return []
+    lines = ["## Unmapped families", "",
+             "No declaration domain exists for these enum classes yet; every cell "
+             "is UNDECLARED. Extending coverage here starts at "
+             "`classify_domain`/`_DOMAIN_SUFFIXES` (spec §3.2).", ""]
+    for fam in unmapped:
+        names = sorted({oc.op.operation_key.name for oc in fam.ops})
+        lines.append(f"- `{fam.family}` ({len(names)} ops): "
+                     + ", ".join(f"`{n}`" for n in names))
+    lines.append("")
+    return lines
+
+
+def _fact_detail_row(f: CapabilityFact, values: list[str]) -> str:
+    option = _escape(", ".join(values)) if values else "—"  # values are escaped, no code spans
+    native = ", ".join(e.__name__ for e in f.native_errors) or "—"
+    return (
+        f"| {f.dialect or '*'} | {_escape(f.param)} | {option} "
+        f"| {f.value_class.value if f.value_class else '—'} "
+        f"| {f.level.value} | {f.enforcement.value} | {f.boundary.value} "
+        f"| {_escape(f.condition or '—')} | {_escape(f.message or '—')} "
+        f"| {_escape(f.workaround or '—')} | {f.upstream_ref or '—'} "
+        f"| {f.since or '—'} | {native} | {_escape(f.probe_exempt or '—')} |"
+    )
+
+
+_DETAIL_HEADER = (
+    "| Dialect | Param | Option values | Value class | Level | Enforcement "
+    "| Boundary | Condition | Message | Workaround | Upstream | Since "
+    "| Native errors | Probe-exempt |"
+)
+_DETAIL_RULE = "| " + " | ".join(["---"] * 14) + " |"
+
+
+def _detail_sections(report: CoverageReport) -> list[str]:
+    lines = ["## Per-op detail", ""]
+    wrote_any = False
+    for fam in report.families:
+        for oc in fam.ops:
+            if not oc.all_facts:
+                continue
+            wrote_any = True
+            lines.append(
+                f"### `{oc.op.operation_key.name}` × {oc.backend.value} "
+                f"({oc.op.family})"
+            )
+            lines.append("")
+            lines.append(_DETAIL_HEADER)
+            lines.append(_DETAIL_RULE)
+            for f, values in _collapse_groups(oc.all_facts):
+                lines.append(_fact_detail_row(f, values))
+            lines.append("")
+    if not wrote_any:
+        lines.append("No facts registered.")
+        lines.append("")
+    return lines
+
+
+def _divergences_section(report: CoverageReport) -> list[str]:
+    lines = ["## Divergence register", ""]
+    if not report.divergences:
+        return lines + ["None recorded.", ""]
+    lines.append("| Id | Kind | Backends | Operations | Summary | Impact "
+                 "| Workaround | Upstream | Since |")
+    lines.append("| " + " | ".join(["---"] * 9) + " |")
+    for dv in report.divergences:
+        ops = ", ".join(f"`{k.name}`" for k in dv.operation_keys) or "—"
+        lines.append(
+            f"| {dv.id} | {dv.kind.value} | {', '.join(dv.backends)} | {ops} "
+            f"| {_escape(dv.summary)} | {_escape(dv.impact)} "
+            f"| {_escape(dv.workaround or '—')} | {dv.upstream_ref or '—'} "
+            f"| {dv.since or '—'} |"
+        )
+    lines.append("")
+    return lines
+
+
+def _gaps_section(report: CoverageReport) -> list[str]:
+    lines = ["## Known gaps", ""]
+    if not report.gaps:
+        return lines + ["None recorded.", ""]
+    lines.append("| Kind | Reason | Since | Review due |")
+    lines.append("| --- | --- | --- | --- |")
+    for g in report.gaps:
+        due = (date.fromisoformat(g.since) + timedelta(days=183)).isoformat()
+        lines.append(
+            f"| {g.gap_kind.value} | {_escape(g.reason)} | {g.since} | {due} |"
+        )
+    lines.append("")
+    return lines
+
+
+def _retirements_section(report: CoverageReport) -> list[str]:
+    lines = ["## Retirement changelog", ""]
+    if not report.retired:
+        return lines + ["None recorded.", ""]
+    lines.append("| Retired on | Operation | Param | Backend | Dialect "
+                 "| Option value | Value class | Level | Since | Fixed in "
+                 "| Upstream | Note |")
+    lines.append("| " + " | ".join(["---"] * 12) + " |")
+    for r in reversed(report.retired):  # model sorts ascending; render newest-first
+        fixed = ", ".join(f"{n} {v}" for n, v in r.fixed_in_versions) or "—"
+        lines.append(
+            f"| {r.retired_on} | `{r.operation_key.name}` | {_escape(r.param)} "
+            f"| {str(r.backend)} | {r.dialect or '—'} | {r.option_value or '—'} "
+            f"| {r.value_class.value if r.value_class else '—'} | {r.level.value} "
+            f"| {r.since} | {fixed} | {r.upstream_ref or '—'} | {_escape(r.note)} |"
+        )
+    lines.append("")
+    return lines
+
+
 def render_markdown(report: CoverageReport) -> str:
     lines: list[str] = []
     lines += _header(report)
     lines += _summary(report)
     lines += _family_matrices(report)
-    # Task 5 appends: _unmapped_families, _detail_sections, _divergences,
-    # _gaps, _retirements.
+    lines += _unmapped_families(report)
+    lines += _detail_sections(report)
+    lines += _divergences_section(report)
+    lines += _gaps_section(report)
+    lines += _retirements_section(report)
     return "\n".join(lines) + "\n"
+
+
+def gather_coverage_inputs() -> dict:
+    """Impure input gathering — the only registry-touching code (spec §4)."""
+    from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
+    from mountainash.core.capabilities.coverage import OpRecord
+    from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
+    from mountainash.core.capabilities.gaps import KNOWN_GAPS
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.capabilities.retired import RETIRED_FACTS
+    from mountainash.expressions.core.expression_system.function_mapping.registry import (
+        ExpressionFunctionRegistry,
+    )
+    from mountainash.relations.core.relation_system.relation_mapping.registry import (
+        RelationOperationRegistry,
+    )
+
+    load_all_capability_declarations()
+    keys = list(ExpressionFunctionRegistry.list_all()) + list(
+        RelationOperationRegistry.list_all()
+    )
+    universe = tuple(
+        sorted(
+            (OpRecord(k, type(k).__name__) for k in keys),
+            key=lambda r: (r.family, r.operation_key.name),
+        )
+    )
+    return dict(
+        universe=universe,
+        facts=tuple(CapabilityRegistry.facts()),
+        declarations=tuple(CapabilityRegistry.declarations()),
+        divergences=KNOWN_DIVERGENCES,
+        gaps=KNOWN_GAPS,
+        retired=RETIRED_FACTS,
+    )
+
+
+def main() -> None:
+    from pathlib import Path
+
+    from mountainash.core.capabilities.coverage import build_coverage_report
+
+    report = build_coverage_report(**gather_coverage_inputs())
+    out = Path(__file__).resolve().parents[4] / _ARTIFACT_PATH
+    out.write_text(render_markdown(report), encoding="utf-8")
+    print(f"wrote {out}")
+
+
+if __name__ == "__main__":
+    main()

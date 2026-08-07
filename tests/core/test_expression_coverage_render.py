@@ -11,8 +11,10 @@ from mountainash.core.capabilities.render_markdown import (
     _collapse_groups,
     render_markdown,
 )
+from mountainash.core.capabilities.retired import RetiredFact
 from mountainash.core.capabilities.schema import (
-    Boundary, CapabilityFact, CapabilityLevel, Enforcement, WILDCARD_PARAM,
+    Boundary, CapabilityFact, CapabilityLevel, DivergenceFact, DivergenceKind,
+    Enforcement, GapKind, KnownGap, WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
 
@@ -138,3 +140,41 @@ def test_legend_carries_inference_limit():
     out = render_markdown(_report([]))
     assert "domain-wave-level evidence" in out
     assert "not proof the specific op was exercised" in out
+
+
+def test_nonempty_gaps_divergences_retirements_render():
+    dv = DivergenceFact(
+        id="SY-TEST-01", kind=DivergenceKind.SEMANTICS,
+        operation_keys=(FKEY_SUBSTRAIT_SYNTH_SET.OP_A,), backends=("polars",),
+        summary="synthetic summary", impact="synthetic impact",
+        workaround="synthetic workaround", since="2026-08-01",
+    )
+    keyless = DivergenceFact(
+        id="SY-TEST-02", kind=DivergenceKind.PRECISION,
+        operation_keys=(), backends=("ibis",),
+        summary="keyless divergence", impact="none", since="2026-08-01",
+    )
+    gap = KnownGap(gap_kind=GapKind.UNTESTED_OPTION,
+                   reason="synthetic gap reason", since="2026-08-01")
+    ret = RetiredFact(
+        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_B, param="values",
+        backend=CONST_BACKEND.POLARS, dialect=None, option_value=None,
+        value_class=None, level=CapabilityLevel.UNSUPPORTED,
+        since="2026-07-01", retired_on="2026-08-01",
+        fixed_in_versions=(("polars", "1.36.0"),), upstream_ref=None,
+        note="synthetic retirement",
+    )
+    out = render_markdown(_report(
+        [], decls=(_decl(),), divergences=(dv, keyless), gaps=(gap,), retired=(ret,)))
+    assert out.count("SY-TEST-01") == 1 and out.count("SY-TEST-02") == 1
+    assert out.count("synthetic gap reason") == 1
+    assert "2027-01-31" in out          # 2026-08-01 + 183 days: review_due from data
+    assert out.count("synthetic retirement") == 1 and "polars 1.36.0" in out
+
+
+def test_detail_section_written_for_every_cell_with_facts():
+    routed = _fact(param="v", enforcement=Enforcement.ROUTER_METADATA,
+                   level=CapabilityLevel.UNSUPPORTED)
+    out = render_markdown(_report([routed]))
+    assert "### `OP_A` × polars" in out  # routed-only cell still gets a detail row
+    assert "router_metadata" in out
