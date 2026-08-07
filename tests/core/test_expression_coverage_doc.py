@@ -138,9 +138,8 @@ def test_json_completeness(report, inputs):
     to the live-registry model. A committed JSON that is byte-equal to the
     regen but missing a fact here would mean the renderer silently dropped
     a row — this invariant closes that gap."""
-    committed = (_REPO_ROOT / "docs/reference/expression-coverage.json").read_text(
-        encoding="utf-8"
-    )
+    json_path = next(p for p, r in _ARTIFACT_RENDERERS if r is render_json)
+    committed = (_REPO_ROOT / json_path).read_text(encoding="utf-8")
     obj = json.loads(committed)
 
     # 1. Op universe: every (family, op) in the JSON == universe in the model.
