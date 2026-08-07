@@ -76,9 +76,20 @@ def test_every_fact_bucketed_exactly_once(inputs, report):
 
 
 def test_declarations_rendered_exactly_once(inputs, report):
-    assert sorted(map(id, report.declarations)) == sorted(
-        map(id, inputs["declarations"])
+    from mountainash.core.capabilities.coverage import _declaration_identity
+
+    # plan-review C1: build_coverage_report canonicalizes each declaration's
+    # .facts via dataclasses.replace, so report.declarations is a multiset of
+    # NEW objects — id() comparison no longer holds by design. Compare by
+    # the canonical _declaration_identity tuple (spec §4.4 evidence-keyed
+    # identity: backend, source, domain, probe_date, library_versions, fixtures).
+    report_keys = sorted(
+        _declaration_identity(d) for d in report.declarations
     )
+    input_keys = sorted(
+        _declaration_identity(d) for d in inputs["declarations"]
+    )
+    assert report_keys == input_keys
     doc = render_markdown(report)
     pairs_body = doc.split("### Audited pairs", 1)[1].split("\n## ", 1)[0]
     rows = [

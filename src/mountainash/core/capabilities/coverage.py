@@ -1,12 +1,13 @@
-"""Coverage model for the expression coverage report (spec 2026-08-07 rev 5).
+"""Coverage model for the expression coverage report (spec 2026-08-07 rev 6).
 
 PURE over explicit inputs: no registry imports, no autoload, no wall clock.
 Input gathering lives in render_markdown.gather_coverage_inputs().
 """
 from __future__ import annotations
 
+import builtins
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Mapping
@@ -205,6 +206,7 @@ class OpCoverage:
     backend: CONST_BACKEND
     impl: ImplState
     impl_method: str | None
+    impl_protocol: str | None
     audited: bool
     whole_op: CapabilityLevel | None
     constraints: tuple[CapabilityFact, ...]
@@ -322,6 +324,35 @@ def _validate_backends(facts: tuple[CapabilityFact, ...]) -> None:
             )
 
 
+def _validate_native_errors_builtins(
+    facts: tuple[CapabilityFact, ...],
+    declarations: tuple[CapabilityDeclaration, ...],
+) -> None:
+    """native_errors entries must be builtins (review I-4). The fact-sort key and
+    the renderer both stringify via `e.__name__`, which collides silently for
+    locally-defined exception classes — the report must fail loudly at ingest
+    instead. Mirrors `_validate_dates` scope: top-level facts AND nested
+    `d.facts` for every declaration (the nested path is an independent input
+    surface, per spec §4.1)."""
+    def _owner(f: CapabilityFact) -> str:
+        return f"fact {f.operation_key!r}/{f.param}/{f.backend}"
+
+    def _check(f: CapabilityFact, label: str) -> None:
+        for e in f.native_errors:
+            if getattr(builtins, e.__name__, None) is not e:
+                raise ValueError(
+                    f"native_errors entry {e.__name__!r} on {label} is not a "
+                    f"builtin exception class ({e!r})"
+                )
+
+    for f in facts:
+        _check(f, _owner(f))
+    for d in declarations:
+        owner = f"declaration {d.backend}/{d.domain.value}"
+        for nf in d.facts:
+            _check(nf, f"{owner} fact {nf.operation_key!r}/{nf.param}/{nf.backend}")
+
+
 def _declaration_identity(d: CapabilityDeclaration) -> tuple:
     """Full probe-wave identity AND canonical sort key. probe_date alone is NOT
     unique — at ee8f5058 two narwhals/substrait/string waves share 2026-07-05
@@ -432,12 +463,26 @@ def fact_sort_key(f: CapabilityFact) -> tuple:
     )
 
 
-def _is_whole_op(fact: CapabilityFact) -> bool:
+def is_whole_op(fact: CapabilityFact) -> bool:
+    """True for whole-op GATE facts (spec §3.5): wildcard param, value-agnostic,
+    no dialect. Drives the main-doc vs scoped-doc split in renderers."""
     return (
         fact.param == WILDCARD_PARAM
         and fact.option_value is None
         and fact.value_class is None
         and fact.dialect is None
+    )
+
+
+def is_dialect_scoped_whole_op(fact: CapabilityFact) -> bool:
+    """True for wildcard-param, value-agnostic, NO value_class, but with a
+    dialect set — the dialect-scoped whole-op shape (plan-review M2). The single
+    helper the scoped-doc subheading and the I-2b cell predicate share."""
+    return (
+        fact.param == WILDCARD_PARAM
+        and fact.option_value is None
+        and fact.value_class is None
+        and fact.dialect is not None
     )
 
 
@@ -470,7 +515,17 @@ def build_coverage_report(
     _validate_dates(facts, declarations, divergences, gaps, retired)
     _validate_declarations(declarations)
     _validate_divergences(divergences)
+    _validate_native_errors_builtins(facts, declarations)
     _validate_implementations(universe, implementations)
+
+    # Canonicalize each declaration's .facts tuple by fact_sort_key at ingest
+    # (review I-3). Input declarations are NEVER mutated — dataclasses.replace
+    # yields fresh objects, so report.declarations and per-cell `applicable`
+    # reference the canonicalized copies, not the caller's originals.
+    declarations_canonical: tuple[CapabilityDeclaration, ...] = tuple(
+        replace(d, facts=tuple(sorted(d.facts, key=fact_sort_key)))
+        for d in declarations
+    )
 
     # Index facts by (op member, backend); every input fact must attach to a
     # universe op — a fact for an unregistered op is an inconsistency.
@@ -489,7 +544,7 @@ def build_coverage_report(
     decls_by_coord: dict[
         tuple[CONST_BACKEND, FactSource, Domain], list[CapabilityDeclaration]
     ] = {}
-    for d in declarations:
+    for d in declarations_canonical:
         decls_by_coord.setdefault((d.backend, d.source, d.domain), []).append(d)
 
     # Implementation records joined by (operation_key, backend). Multiset
@@ -529,10 +584,10 @@ def build_coverage_report(
                     sorted(buckets["constraints"], key=fact_sort_key)
                 )
                 whole = next(
-                    (f.level for f in sorted_constraints if _is_whole_op(f)), None
+                    (f.level for f in sorted_constraints if is_whole_op(f)), None
                 )
                 scoped = tuple(
-                    f for f in constraining if not _is_whole_op(f)
+                    f for f in constraining if not is_whole_op(f)
                 )
                 impl_record = impl_by_cell[(rec.operation_key, backend)]
                 ops_out.append(
@@ -542,6 +597,7 @@ def build_coverage_report(
                         backend=backend,
                         impl=impl_record.state,
                         impl_method=impl_record.method_name,
+                        impl_protocol=impl_record.protocol_name,
                         audited=bool(applicable),
                         whole_op=whole,
                         constraints=sorted_constraints,
@@ -593,7 +649,7 @@ def build_coverage_report(
 
     return CoverageReport(
         families=tuple(family_coverages),
-        declarations=tuple(sorted(declarations, key=_declaration_identity)),
+        declarations=tuple(sorted(declarations_canonical, key=_declaration_identity)),
         divergences=tuple(sorted(divergences, key=lambda dv: dv.id)),
         gaps=tuple(sorted(gaps, key=lambda g: (g.since, g.gap_kind.value, g.reason))),
         retired=tuple(
