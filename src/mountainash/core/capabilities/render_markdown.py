@@ -458,11 +458,15 @@ def gather_coverage_inputs() -> dict:
 
 
 def _resolve_concrete_owner(leaf: type, name: str) -> type | None:
-    """First MRO class defining `name` in vars(); Protocol-suffixed classes are
-    stub carriers, not implementations (spec §3.6 / review C-2)."""
+    """First non-Protocol MRO class defining `name` in vars(); Protocol-suffixed
+    classes are stub carriers, not implementations, and are SKIPPED rather than
+    terminating the walk - the conformance suite's `_resolve_backend_method`
+    convention (spec §3.6 / review C-2, final-review M-3)."""
     for klass in leaf.__mro__:
+        if klass.__name__.endswith("Protocol"):
+            continue
         if name in vars(klass):
-            return None if klass.__name__.endswith("Protocol") else klass
+            return klass
     return None
 
 

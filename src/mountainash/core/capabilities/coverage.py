@@ -373,18 +373,22 @@ def _validate_implementations(
     )
     if actual == expected:
         return
+    _cell_key = lambda cell: (cell[0].name, cell[1].value)  # noqa: E731 - enum members are not orderable
     missing = sorted(
-        (op, backend)
-        for (op, backend), n in (expected - actual).items()
-        if n > 0
+        ((op, backend)
+         for (op, backend), n in (expected - actual).items()
+         if n > 0),
+        key=_cell_key,
     )
     extras = sorted(
-        (op, backend)
-        for (op, backend), n in (actual - expected).items()
-        if n > 0
+        ((op, backend)
+         for (op, backend), n in (actual - expected).items()
+         if n > 0),
+        key=_cell_key,
     )
     duplicates = sorted(
-        (op, backend) for (op, backend), n in actual.items() if n > 1
+        ((op, backend) for (op, backend), n in actual.items() if n > 1),
+        key=_cell_key,
     )
     parts: list[str] = []
     if missing:

@@ -322,21 +322,23 @@ def test_legend_has_by_exception_rows_and_footnotes():
 def test_unmapped_families_stamp_impl_summary():
     # Use the live report which contains real unmapped families (those whose
     # audit_domain is None). Render and assert the §3.6 stamp line format.
+    inputs = gather_coverage_inputs()
     report = build_coverage_report(
-        gather_coverage_inputs()["universe"],
-        gather_coverage_inputs()["facts"],
-        gather_coverage_inputs()["declarations"],
-        gather_coverage_inputs()["divergences"],
-        gather_coverage_inputs()["gaps"],
-        gather_coverage_inputs()["retired"],
-        gather_implementation_records(gather_coverage_inputs()["universe"]),
+        inputs["universe"],
+        inputs["facts"],
+        inputs["declarations"],
+        inputs["divergences"],
+        inputs["gaps"],
+        inputs["retired"],
+        inputs["implementations"],
     )
     out = render_markdown(report)
     # The stamp format: "N ops — all implemented on 3/3 backends" or a
-    # per-backend split when not uniform (spec §4.3 / brief).
+    # per-backend split when not uniform: "M/N polars · M/N narwhals · M/N ibis"
+    # (render_markdown uses the ops count as denominator - final-review M-2).
     import re
     assert re.search(r"\d+ ops — (all implemented on 3/3 backends|"
-                     r"implemented on \d/3 polars · .*narwhals · .*ibis)", out), (
+                     r"\d+/\d+ polars · .*narwhals · .*ibis)", out), (
         f"unmapped stamp line missing or malformed: {out!r}")
 
 
