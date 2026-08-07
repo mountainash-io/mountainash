@@ -155,7 +155,7 @@ def test_handler_cell_uses_glyph():
     # these synthetic cells — the handler glyph is the only clean mark.
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     for line in matrix.splitlines():
-        if line.startswith("| `") and "OP_A" in line or "OP_B" in line:
+        if line.startswith("| `") and ("OP_A" in line or "OP_B" in line):
             assert "✓ᴴ" in line, f"expected handler glyph in row: {line!r}"
             assert " audited" not in line
 
