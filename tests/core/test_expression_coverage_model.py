@@ -10,6 +10,7 @@ from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     _UNREGISTERED_OPS,
     CoverageState,
+    build_coverage_report,
     OpRecord,
     audit_domain_for,
     classify_fact,
@@ -197,9 +198,6 @@ def test_ingest_rejects_duplicate_divergence_id():
         _validate_divergences((dv, dv))
 
 
-from mountainash.core.capabilities.coverage import build_coverage_report, OpRecord as _OR
-from mountainash.core.capabilities.declarations import Domain, FactSource
-
 
 def _decl(backend=CONST_BACKEND.POLARS, facts=()):
     return CapabilityDeclaration(
@@ -213,7 +211,7 @@ def _decl(backend=CONST_BACKEND.POLARS, facts=()):
 
 def _universe():
     return tuple(
-        _OR(m, type(m).__name__) for m in FKEY_SUBSTRAIT_SYNTH_SET
+        OpRecord(m, type(m).__name__) for m in FKEY_SUBSTRAIT_SYNTH_SET
     )
 
 
