@@ -80,11 +80,8 @@ def test_autoload_fires_from_uninitialized():
         CapabilityRegistry._declarations = ()
         CapabilityRegistry._load_state = _LoadState.UNINITIALIZED
         CapabilityRegistry._load_error = None
-        CapabilityRegistry.facts()
+        facts = CapabilityRegistry.facts()
         assert CapabilityRegistry._load_state is _LoadState.LOADED
-        # Fact repopulation is asserted again in Task 11 once discovery-based
-        # bootstrap makes re-registration from DECLARATIONS data real; legacy
-        # import-side-effect modules cannot repopulate a cleared registry
-        # in-process.
+        assert len(facts) > 0
     finally:
         CapabilityRegistry.restore(snap)

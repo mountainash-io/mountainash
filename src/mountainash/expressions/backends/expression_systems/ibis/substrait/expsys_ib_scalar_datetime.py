@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 _LOCAL_TIMESTAMP_UNSUPPORTED = (
     "local_timestamp is not supported on ibis — it yields the UTC wall clock, "
-    "not the target zone wall clock; see datetime_value_class_capabilities_substrait.py"
+    "not the target zone wall clock; see capabilities/datetime/value_classes_substrait.py"
 )
 
 
@@ -295,7 +295,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         """Convert UTC-relative timestamp_tz to local timestamp.
 
         Declared UNSUPPORTED on ibis (see
-        datetime_value_class_capabilities_substrait.py) -- the capability gate
+        capabilities/datetime/value_classes_substrait.py) -- the capability gate
         raises before this method is reached. The raise here is defence in depth.
         """
         raise BackendCapabilityError(

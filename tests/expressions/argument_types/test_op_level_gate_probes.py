@@ -6,9 +6,9 @@ import pytest
 from expressions.argument_types._op_level_helpers import op_level_result
 from expressions.argument_types.conftest import make_df
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.expressions.backends.expression_systems.string_option_capabilities import (
-    _BROKEN_STRING_OPS_BY_BACKEND,
-    _OP_LEVEL_FKEYS,
+from mountainash.expressions.backends.capabilities.string import (
+    BROKEN_STRING_OPS_BY_BACKEND,
+    OP_LEVEL_FKEYS,
 )
 from tests.fixtures.capability_gating import (
     assert_capability_gated,
@@ -32,12 +32,12 @@ _FAMILY_FIXTURES = {
 
 def _gated_params():
     out = []
-    for family, ops in _BROKEN_STRING_OPS_BY_BACKEND.items():
+    for family, ops in BROKEN_STRING_OPS_BY_BACKEND.items():
         for op in sorted(ops):
             for fixture in _FAMILY_FIXTURES[family]:
                 out.append(pytest.param(op, fixture, id=f"{op}-{fixture}"))
     # The broken map is never empty in this codebase; a structural guard, not a skip.
-    assert out, "no gated string ops found — _BROKEN_STRING_OPS_BY_BACKEND unexpectedly empty"
+    assert out, "no gated string ops found — BROKEN_STRING_OPS_BY_BACKEND unexpectedly empty"
     return out
 
 
@@ -53,7 +53,7 @@ def test_gated_op_raises_on_public_path(op, fixture):
     build, data, _ = _OP_CASES[op]
     df = make_df(data, fixture)
     assert_capability_gated(
-        _OP_LEVEL_FKEYS[op],
+        OP_LEVEL_FKEYS[op],
         gate_family(fixture),
         dialect=gate_dialect(fixture),
         build=lambda: ma.relation(df).select(build().name.alias("r")).to_dict(),

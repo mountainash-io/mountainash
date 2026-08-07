@@ -23,8 +23,8 @@ from expressions.argument_types.option_disposition import (
     param_taxonomy,
 )
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.expressions.backends.expression_systems.string_option_capabilities import (
-    _BROKEN_STRING_OPS_BY_BACKEND,
+from mountainash.expressions.backends.capabilities.string import (
+    BROKEN_STRING_OPS_BY_BACKEND,
 )
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
@@ -52,7 +52,7 @@ _BACKEND_STR_TO_CONST = {
 
 def _op_broken_on_backend(op: str, backend: str) -> bool:
     const = _BACKEND_STR_TO_CONST[backend]
-    return op in _BROKEN_STRING_OPS_BY_BACKEND.get(const, frozenset())
+    return op in BROKEN_STRING_OPS_BY_BACKEND.get(const, frozenset())
 
 
 _CASE_SENSITIVITY_FKEYS = {
@@ -328,7 +328,7 @@ _CHAR_SET_OPS = {
 _CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
 _CHAR_SET_DATA = {"t": ["ÄBC"]}
 # A broken op cannot honor ANY char_set option. Derived from the production
-# _BROKEN_STRING_OPS_BY_BACKEND (string_option_capabilities.py) — NOT a mirror.
+# BROKEN_STRING_OPS_BY_BACKEND (capabilities/string.py) — NOT a mirror.
 
 
 def _char_set_broken(op: str, backend: str) -> bool:
@@ -532,7 +532,7 @@ def test_center_padding_rejects_invalid_value():
 
 _PADDING_VALUES = ("RIGHT", "LEFT")
 # Per-backend broken center derived from the production
-# _BROKEN_STRING_OPS_BY_BACKEND (string_option_capabilities.py).
+# BROKEN_STRING_OPS_BY_BACKEND (capabilities/string.py).
 
 
 def _padding_disposition(value: str, backend: str) -> str:
