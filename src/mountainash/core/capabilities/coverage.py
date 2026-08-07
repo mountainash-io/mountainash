@@ -1,10 +1,11 @@
-"""Coverage model for the expression coverage report (spec 2026-08-07 rev 3).
+"""Coverage model for the expression coverage report (spec 2026-08-07 rev 5).
 
 PURE over explicit inputs: no registry imports, no autoload, no wall clock.
 Input gathering lives in render_markdown.gather_coverage_inputs().
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -165,10 +166,28 @@ RENDERED_BACKENDS: tuple[CONST_BACKEND, ...] = (
 )
 
 
-class CoverageState(Enum):
-    DECLARED_CLEAN = "declared_clean"
-    CONSTRAINED = "constrained"
-    UNDECLARED = "undeclared"
+class ImplState(Enum):
+    IMPLEMENTED = "implemented"
+    IMPLEMENTED_VIA_HANDLER = "implemented_via_handler"
+    NOT_IMPLEMENTED = "not_implemented"
+    UNKNOWN = "unknown"
+
+
+_IMPLEMENTED_STATES: frozenset[ImplState] = frozenset(
+    {ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER}
+)
+
+
+@dataclass(frozen=True)
+class ImplementationRecord:
+    """One cell of the implementation axis (§3.6). Provenance fields
+    (method_name, protocol_name) are None iff state is UNKNOWN."""
+
+    operation_key: Any
+    backend: CONST_BACKEND
+    state: ImplState
+    method_name: str | None
+    protocol_name: str | None
 
 
 @dataclass(frozen=True)
@@ -184,7 +203,9 @@ class OpCoverage:
     op: OpRecord
     audit_domain: tuple[FactSource, Domain] | None
     backend: CONST_BACKEND
-    state: CoverageState
+    impl: ImplState
+    impl_method: str | None
+    audited: bool
     whole_op: CapabilityLevel | None
     constraints: tuple[CapabilityFact, ...]
     residue: tuple[CapabilityFact, ...]
@@ -192,6 +213,19 @@ class OpCoverage:
     refinements: tuple[CapabilityFact, ...]
     selector_counts: SelectorCounts
     declarations: tuple[CapabilityDeclaration, ...]
+
+    @property
+    def constrained(self) -> bool:
+        return bool(self.constraints or self.residue)
+
+    @property
+    def contradiction(self) -> bool:
+        return self.impl is ImplState.NOT_IMPLEMENTED and (
+            self.constrained
+            or bool(self.routed)
+            or bool(self.refinements)
+            or self.audited
+        )
 
     @property
     def all_facts(self) -> tuple[CapabilityFact, ...]:
@@ -208,7 +242,12 @@ class FamilyCoverage:
 @dataclass(frozen=True)
 class CoverageStats:
     ops_total: int
-    by_state: Mapping[tuple[CONST_BACKEND, CoverageState], int]
+    by_impl: Mapping[tuple[CONST_BACKEND, ImplState], int]
+    default_capable: Mapping[CONST_BACKEND, int]
+    audited_clean: Mapping[CONST_BACKEND, int]
+    constrained: Mapping[CONST_BACKEND, int]
+    audited_unknown: Mapping[CONST_BACKEND, int]
+    contradictions: int
     facts_by_level: Mapping[CapabilityLevel, int]
     facts_by_enforcement: Mapping[Enforcement, int]
     facts_by_backend: Mapping[CONST_BACKEND, int]
@@ -314,6 +353,62 @@ def _validate_divergences(divergences: tuple[DivergenceFact, ...]) -> None:
         ids.add(dv.id)
 
 
+def _cell_label(op: Any, backend: CONST_BACKEND) -> str:
+    return f"{type(op).__name__}.{op.name} × {backend.value}"
+
+
+def _validate_implementations(
+    universe: tuple[OpRecord, ...],
+    implementations: tuple[ImplementationRecord, ...],
+) -> None:
+    """Multiset guard (spec §4.1): exactly one record per universe op ×
+    rendered backend. Counter-based, NOT set-based, so a missing record and a
+    duplicate cannot cancel silently. Reports every missing/extra/duplicate
+    cell deterministically (sorted) in a single ValueError."""
+    expected: Counter[tuple[Any, CONST_BACKEND]] = Counter(
+        (r.operation_key, b) for r in universe for b in RENDERED_BACKENDS
+    )
+    actual: Counter[tuple[Any, CONST_BACKEND]] = Counter(
+        (r.operation_key, r.backend) for r in implementations
+    )
+    if actual == expected:
+        return
+    _cell_key = lambda cell: (cell[0].name, cell[1].value)  # noqa: E731 - enum members are not orderable
+    missing = sorted(
+        ((op, backend)
+         for (op, backend), n in (expected - actual).items()
+         if n > 0),
+        key=_cell_key,
+    )
+    extras = sorted(
+        ((op, backend)
+         for (op, backend), n in (actual - expected).items()
+         if n > 0),
+        key=_cell_key,
+    )
+    duplicates = sorted(
+        ((op, backend) for (op, backend), n in actual.items() if n > 1),
+        key=_cell_key,
+    )
+    parts: list[str] = []
+    if missing:
+        parts.append(
+            "missing implementation record for "
+            + ", ".join(_cell_label(op, backend) for op, backend in missing)
+        )
+    if extras:
+        parts.append(
+            "unexpected implementation record for "
+            + ", ".join(_cell_label(op, backend) for op, backend in extras)
+        )
+    if duplicates:
+        parts.append(
+            "duplicate implementation record for "
+            + ", ".join(_cell_label(op, backend) for op, backend in duplicates)
+        )
+    raise ValueError("; ".join(parts))
+
+
 def fact_sort_key(f: CapabilityFact) -> tuple:
     """Canonical FULL-identity sort key (spec §4.4): every semantic field
     participates, so distinct facts can never tie and bucket order is
@@ -369,11 +464,13 @@ def build_coverage_report(
     divergences: tuple[DivergenceFact, ...],
     gaps: tuple[KnownGap, ...],
     retired: tuple[RetiredFact, ...],
+    implementations: tuple[ImplementationRecord, ...],
 ) -> CoverageReport:
     _validate_backends(facts)
     _validate_dates(facts, declarations, divergences, gaps, retired)
     _validate_declarations(declarations)
     _validate_divergences(divergences)
+    _validate_implementations(universe, implementations)
 
     # Index facts by (op member, backend); every input fact must attach to a
     # universe op — a fact for an unregistered op is an inconsistency.
@@ -394,6 +491,12 @@ def build_coverage_report(
     ] = {}
     for d in declarations:
         decls_by_coord.setdefault((d.backend, d.source, d.domain), []).append(d)
+
+    # Implementation records joined by (operation_key, backend). Multiset
+    # ingest guard has already verified exactly one record per cell.
+    impl_by_cell: dict[tuple[Any, CONST_BACKEND], ImplementationRecord] = {
+        (r.operation_key, r.backend): r for r in implementations
+    }
 
     families: dict[str, list[OpRecord]] = {}
     for rec in universe:
@@ -422,12 +525,6 @@ def build_coverage_report(
                         f"constraining fact without applicable declaration: "
                         f"{rec.operation_key!r} on {backend} (spec §5)"
                     )
-                if not applicable:
-                    state = CoverageState.UNDECLARED
-                elif constraining:
-                    state = CoverageState.CONSTRAINED
-                else:
-                    state = CoverageState.DECLARED_CLEAN
                 sorted_constraints = tuple(
                     sorted(buckets["constraints"], key=fact_sort_key)
                 )
@@ -437,12 +534,15 @@ def build_coverage_report(
                 scoped = tuple(
                     f for f in constraining if not _is_whole_op(f)
                 )
+                impl_record = impl_by_cell[(rec.operation_key, backend)]
                 ops_out.append(
                     OpCoverage(
                         op=rec,
                         audit_domain=coord,
                         backend=backend,
-                        state=state,
+                        impl=impl_record.state,
+                        impl_method=impl_record.method_name,
+                        audited=bool(applicable),
                         whole_op=whole,
                         constraints=sorted_constraints,
                         residue=tuple(sorted(buckets["residue"], key=fact_sort_key)),
@@ -457,14 +557,34 @@ def build_coverage_report(
             FamilyCoverage(family=family_name, audit_domain=coord, ops=tuple(ops_out))
         )
 
-    by_state: dict[tuple[CONST_BACKEND, CoverageState], int] = {}
+    by_impl: dict[tuple[CONST_BACKEND, ImplState], int] = {
+        (b, s): 0 for b in RENDERED_BACKENDS for s in ImplState
+    }
+    default_capable: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
+    audited_clean: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
+    constrained: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
+    audited_unknown: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
+    contradictions = 0
+    for fc in family_coverages:
+        for oc in fc.ops:
+            by_impl[(oc.backend, oc.impl)] = by_impl.get((oc.backend, oc.impl), 0) + 1
+            if oc.impl is ImplState.UNKNOWN:
+                if oc.audited:
+                    audited_unknown[oc.backend] = audited_unknown.get(oc.backend, 0) + 1
+            elif oc.impl in _IMPLEMENTED_STATES:
+                if oc.constrained:
+                    constrained[oc.backend] = constrained.get(oc.backend, 0) + 1
+                elif oc.audited:
+                    audited_clean[oc.backend] = audited_clean.get(oc.backend, 0) + 1
+                else:
+                    default_capable[oc.backend] = default_capable.get(oc.backend, 0) + 1
+            elif oc.impl is ImplState.NOT_IMPLEMENTED:
+                if oc.contradiction:
+                    contradictions += 1
+
     by_level: dict[CapabilityLevel, int] = {}
     by_enforcement: dict[Enforcement, int] = {}
     by_backend: dict[CONST_BACKEND, int] = {}
-    for fc in family_coverages:
-        for oc in fc.ops:
-            key = (oc.backend, oc.state)
-            by_state[key] = by_state.get(key, 0) + 1
     for f in facts:
         by_level[f.level] = by_level.get(f.level, 0) + 1
         by_enforcement[f.enforcement] = by_enforcement.get(f.enforcement, 0) + 1
@@ -488,7 +608,12 @@ def build_coverage_report(
         ),
         stats=CoverageStats(
             ops_total=len(universe),
-            by_state=by_state,
+            by_impl=by_impl,
+            default_capable=default_capable,
+            audited_clean=audited_clean,
+            constrained=constrained,
+            audited_unknown=audited_unknown,
+            contradictions=contradictions,
             facts_by_level=by_level,
             facts_by_enforcement=by_enforcement,
             facts_by_backend=by_backend,

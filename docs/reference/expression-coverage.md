@@ -3,20 +3,37 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 30 · Facts: 1440 · Registered operations: 324
+Declarations: 30 · Facts: 1440 · Registered operations: 324 · Implementation records: 972
 
-Legend — cell states:
+Legend — cell states (by exception):
 
-- `✅` **DECLARED_CLEAN** — at least one capability declaration covers this
-  op's (backend, source, domain) and no constraining fact exists for the op.
-  Scope of the claim: the probe wave declared the backend×domain surface and
-  recorded nothing against this op. Declarations carry no per-op probe
-  manifest, so this is domain-wave-level evidence, not proof the specific op was exercised.
+- `✓` **default-capable** — implemented and clean, no constraining fact. The
+  presumption; the majority; not a gap. Routed / dialect-verified annotations
+  still append (`✓ ↻ routed`, `✓ ✓ dialect-verified: …`).
+- `✓ audited` — same as above, strengthened by a probe wave covering this
+  op's (backend, source, domain). **Scope of the claim:** the probe wave
+  declared the backend×domain surface and recorded nothing against this op.
+  Declarations carry no per-op probe manifest, so this is
+  domain-wave-level evidence, not proof the specific op was exercised.
+- `✓ᴴ` **implemented via handler** — same as `✓` / `✓ audited`, but reached
+  through the visitor's `handler` dispatch path rather than a concrete
+  protocol-method override on the backend leaf class (spec §3.6). The `ᴴ`
+  superscript marks the dispatch shape, not a coverage grade.
 - `◐ partial (…)` / `✗ unsupported` / `poly` — **CONSTRAINED**: at least one
   GATE constraint or runtime residue fact applies (counts are distinct
   selector keys, never raw fact counts).
-- `—` **UNDECLARED** — no declaration covers the coordinates; absence of
-  facts means nothing here.
+- `—` **NOT_IMPLEMENTED** — the protocol-method override is absent (or only a
+  bare `…` stub on the `*Protocol` carrier) and the cell has no facts and
+  no declaration. The only true blank.
+- `⚠ contradiction` — `NOT_IMPLEMENTED` AND the cell carries facts, a routed
+  or refinement entry, or an applicable declaration. Catalog and registry
+  disagree; the suite-level `contradictions == 0` invariant guards this.
+- `?` **UNKNOWN** — the registry has no definition for the op, or the
+  definition carries neither `protocol_method` nor `handler`. The `audited`
+  flag is stored on these cells but is **not rendered on `?` cells** —
+  audited is stored but not rendered on `?` cells (the field is not dead
+  state; the badge is suppressed because the registry's view of the op is
+  too thin to anchor a claim).
 - Annotations: `↻ routed` (router metadata — handled via an alternate path),
   `⚠ runtime` (materialize-residue failure), `✓ dialect-verified`
   (dialect-scoped EXPR_CAPABLE refinement).
@@ -25,11 +42,16 @@ Legend — cell states:
 
 ## Summary
 
-| Backend | ✅ declared-clean | ◐ constrained | — undeclared |
-| --- | --- | --- | --- |
-| polars | 75 | 50 | 199 |
-| narwhals | 152 | 75 | 97 |
-| ibis | 118 | 68 | 138 |
+### Per-backend counts
+
+| Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |
+| --- | --- | --- | --- | --- | --- | --- |
+| polars | 199 | 75 | 50 | 0 | 0 | 324 |
+| narwhals | 97 | 152 | 75 | 0 | 0 | 324 |
+| ibis | 138 | 118 | 68 | 0 | 0 | 324 |
+
+contradictions: 0
+audited_unknown: 0
 
 ### Fact statistics
 
@@ -82,111 +104,111 @@ Legend — cell states:
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `FLOOR_DIVIDE` | — | — | — |
+| `FLOOR_DIVIDE` | ✓ | ✓ | ✓ |
 
 ### `FKEY_MOUNTAINASH_SCALAR_DATETIME` (mountainash / datetime)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `ADD_DAYS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_HOURS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MICROSECONDS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MILLISECONDS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MINUTES` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MONTHS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_SECONDS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_YEARS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `CEIL` | — | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 1 dialects) |
-| `DATE` | — | ✅ | ✅ |
-| `DAYS_IN_MONTH` | — | ✅ | ✅ |
-| `DIFF_DAYS` | — | ✅ | ✅ |
-| `DIFF_HOURS` | — | ✅ | ✅ |
-| `DIFF_MILLISECONDS` | — | ✅ | ✅ |
-| `DIFF_MINUTES` | — | ✅ | ✅ |
-| `DIFF_MONTHS` | — | ✅ | ✅ |
-| `DIFF_SECONDS` | — | ✅ | ✅ |
-| `DIFF_YEARS` | — | ✅ | ✅ |
-| `EXTRACT_DAY` | — | ✅ | ✅ |
-| `EXTRACT_DAY_OF_YEAR` | — | ✅ | ✅ |
-| `EXTRACT_HOUR` | — | ✅ | ✅ |
-| `EXTRACT_ISO_YEAR` | — | ✅ | ✅ |
-| `EXTRACT_MICROSECOND` | — | ✅ | ✅ |
-| `EXTRACT_MILLISECOND` | — | ✅ | ✅ |
-| `EXTRACT_MINUTE` | — | ✅ | ✅ |
-| `EXTRACT_MONTH` | — | ✅ | ✅ |
-| `EXTRACT_NANOSECOND` | — | ✅ | ✅ |
-| `EXTRACT_QUARTER` | — | ✅ | ✅ |
-| `EXTRACT_SECOND` | — | ✅ | ✅ |
-| `EXTRACT_TIMEZONE_OFFSET` | — | ✅ | ✅ |
-| `EXTRACT_UNIX_TIME` | — | ✅ | ✅ |
-| `EXTRACT_WEEK` | — | ✅ | ✅ |
-| `EXTRACT_WEEKDAY` | — | ✅ | ✅ |
-| `EXTRACT_YEAR` | — | ✅ | ✅ |
-| `FLOOR` | — | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
-| `IS_DST` | — | ✅ | ✅ |
-| `IS_LEAP_YEAR` | — | ✅ | ✅ |
-| `MONTH_END` | — | ✅ | ✅ |
-| `MONTH_START` | — | ✅ | ✅ |
-| `NOW` | — | ✅ | ✅ |
-| `OFFSET_BY` | — | ✅ | ✅ |
-| `ROUND` | — | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 1 dialects) |
-| `TIME` | — | ✅ | ✅ |
-| `TODAY` | — | ✅ | ✅ |
-| `TOTAL_DAYS` | — | ✅ | ✅ |
-| `TOTAL_HOURS` | — | ✅ | ✅ |
-| `TOTAL_MICROSECONDS` | — | ✅ | ✅ |
-| `TOTAL_MILLISECONDS` | — | ✅ | ✅ |
-| `TOTAL_MINUTES` | — | ✅ | ✅ |
-| `TOTAL_NANOSECONDS` | — | ✅ | ✅ |
-| `TOTAL_SECONDS` | — | ✅ | ✅ |
-| `TO_TIMEZONE` | — | ✅ | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `TRUNCATE` | — | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
+| `ADD_DAYS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_HOURS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MICROSECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MILLISECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MINUTES` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MONTHS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_SECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `ADD_YEARS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `CEIL` | ✓ | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 1 dialects) |
+| `DATE` | ✓ | ✓ audited | ✓ audited |
+| `DAYS_IN_MONTH` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_DAYS` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_HOURS` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_MILLISECONDS` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_MINUTES` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_MONTHS` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_SECONDS` | ✓ | ✓ audited | ✓ audited |
+| `DIFF_YEARS` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_DAY` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_DAY_OF_YEAR` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_HOUR` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_ISO_YEAR` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_MICROSECOND` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_MILLISECOND` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_MINUTE` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_MONTH` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_NANOSECOND` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_QUARTER` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_SECOND` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_TIMEZONE_OFFSET` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_UNIX_TIME` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_WEEK` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_WEEKDAY` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_YEAR` | ✓ | ✓ audited | ✓ audited |
+| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
+| `IS_DST` | ✓ | ✓ audited | ✓ audited |
+| `IS_LEAP_YEAR` | ✓ | ✓ audited | ✓ audited |
+| `MONTH_END` | ✓ | ✓ audited | ✓ audited |
+| `MONTH_START` | ✓ | ✓ audited | ✓ audited |
+| `NOW` | ✓ | ✓ audited | ✓ audited |
+| `OFFSET_BY` | ✓ | ✓ audited | ✓ audited |
+| `ROUND` | ✓ | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 1 dialects) |
+| `TIME` | ✓ | ✓ audited | ✓ audited |
+| `TODAY` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_DAYS` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_HOURS` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_MICROSECONDS` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_MILLISECONDS` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_MINUTES` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_NANOSECONDS` | ✓ | ✓ audited | ✓ audited |
+| `TOTAL_SECONDS` | ✓ | ✓ audited | ✓ audited |
+| `TO_TIMEZONE` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_LIST` (mountainash / list)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `AGG` | — | ✅ | — |
-| `ALL` | — | ✅ | — |
-| `ANY` | — | ✅ | — |
-| `ARG_MAX` | — | ✅ | — |
-| `ARG_MIN` | — | ✅ | — |
-| `CONCAT` | — | ✅ | — |
-| `CONTAINS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | — |
-| `COUNT_MATCHES` | — | ✅ | — |
-| `DIFF` | — | ✅ | — |
-| `DROP_NULLS` | — | ✅ | — |
-| `EXPLODE` | — | ✅ | — |
-| `FILTER` | — | ✅ | — |
-| `GATHER` | — | ✅ | — |
-| `GATHER_EVERY` | — | ✅ | — |
-| `GET` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | — |
-| `HEAD` | — | ✅ | — |
-| `ITEM` | — | ✅ | — |
-| `JOIN` | — | ✅ | — |
-| `LEN` | — | ✅ | — |
-| `MAX` | — | ✅ | — |
-| `MEAN` | — | ✅ | — |
-| `MEDIAN` | — | ✅ | — |
-| `MIN` | — | ✅ | — |
-| `N_UNIQUE` | — | ✅ | — |
-| `REVERSE` | — | ✅ | — |
-| `SAMPLE` | — | ✅ | — |
-| `SET_DIFFERENCE` | — | ✅ | — |
-| `SET_INTERSECTION` | — | ✅ | — |
-| `SET_SYMMETRIC_DIFFERENCE` | — | ✅ | — |
-| `SET_UNION` | — | ✅ | — |
-| `SHIFT` | — | ✅ | — |
-| `SLICE` | — | ✅ | — |
-| `SORT` | — | ✅ | — |
-| `STD` | — | ✅ | — |
-| `SUM` | — | ✅ | — |
-| `TAIL` | — | ✅ | — |
-| `TO_ARRAY` | — | ✅ | — |
-| `TO_STRUCT` | — | ✅ | — |
-| `T_CONTAINS` | — | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | — |
-| `UNIQUE` | — | ✅ | — |
-| `VAR` | — | ✅ | — |
+| `AGG` | ✓ | ✓ audited | ✓ |
+| `ALL` | ✓ | ✓ audited | ✓ |
+| `ANY` | ✓ | ✓ audited | ✓ |
+| `ARG_MAX` | ✓ | ✓ audited | ✓ |
+| `ARG_MIN` | ✓ | ✓ audited | ✓ |
+| `CONCAT` | ✓ | ✓ audited | ✓ |
+| `CONTAINS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ |
+| `COUNT_MATCHES` | ✓ | ✓ audited | ✓ |
+| `DIFF` | ✓ | ✓ audited | ✓ |
+| `DROP_NULLS` | ✓ | ✓ audited | ✓ |
+| `EXPLODE` | ✓ | ✓ audited | ✓ |
+| `FILTER` | ✓ | ✓ audited | ✓ |
+| `GATHER` | ✓ | ✓ audited | ✓ |
+| `GATHER_EVERY` | ✓ | ✓ audited | ✓ |
+| `GET` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ |
+| `HEAD` | ✓ | ✓ audited | ✓ |
+| `ITEM` | ✓ | ✓ audited | ✓ |
+| `JOIN` | ✓ | ✓ audited | ✓ |
+| `LEN` | ✓ | ✓ audited | ✓ |
+| `MAX` | ✓ | ✓ audited | ✓ |
+| `MEAN` | ✓ | ✓ audited | ✓ |
+| `MEDIAN` | ✓ | ✓ audited | ✓ |
+| `MIN` | ✓ | ✓ audited | ✓ |
+| `N_UNIQUE` | ✓ | ✓ audited | ✓ |
+| `REVERSE` | ✓ | ✓ audited | ✓ |
+| `SAMPLE` | ✓ | ✓ audited | ✓ |
+| `SET_DIFFERENCE` | ✓ | ✓ audited | ✓ |
+| `SET_INTERSECTION` | ✓ | ✓ audited | ✓ |
+| `SET_SYMMETRIC_DIFFERENCE` | ✓ | ✓ audited | ✓ |
+| `SET_UNION` | ✓ | ✓ audited | ✓ |
+| `SHIFT` | ✓ | ✓ audited | ✓ |
+| `SLICE` | ✓ | ✓ audited | ✓ |
+| `SORT` | ✓ | ✓ audited | ✓ |
+| `STD` | ✓ | ✓ audited | ✓ |
+| `SUM` | ✓ | ✓ audited | ✓ |
+| `TAIL` | ✓ | ✓ audited | ✓ |
+| `TO_ARRAY` | ✓ | ✓ audited | ✓ |
+| `TO_STRUCT` | ✓ | ✓ audited | ✓ |
+| `T_CONTAINS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ |
+| `UNIQUE` | ✓ | ✓ audited | ✓ |
+| `VAR` | ✓ | ✓ audited | ✓ |
 
 ### `FKEY_MOUNTAINASH_SCALAR_SET` (mountainash / set)
 
@@ -199,44 +221,44 @@ Legend — cell states:
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `DECODE` | — | — | — |
-| `ENCODE` | — | — | — |
-| `EXTRACT_GROUPS` | — | — | — |
-| `JSON_DECODE` | — | — | — |
-| `JSON_PATH_MATCH` | — | — | — |
-| `REGEX_CONTAINS` | — | — | — |
-| `STRIP_SUFFIX` | — | — | — |
-| `TO_INTEGER` | — | — | — |
-| `TO_TIME` | — | — | — |
+| `DECODE` | ✓ | ✓ | ✓ |
+| `ENCODE` | ✓ | ✓ | ✓ |
+| `EXTRACT_GROUPS` | ✓ | ✓ | ✓ |
+| `JSON_DECODE` | ✓ | ✓ | ✓ |
+| `JSON_PATH_MATCH` | ✓ | ✓ | ✓ |
+| `REGEX_CONTAINS` | ✓ | ✓ | ✓ |
+| `STRIP_SUFFIX` | ✓ | ✓ | ✓ |
+| `TO_INTEGER` | ✓ | ✓ | ✓ |
+| `TO_TIME` | ✓ | ✓ | ✓ |
 
 ### `FKEY_MOUNTAINASH_SCALAR_TERNARY` (mountainash / ternary)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `ALWAYS_FALSE` | ✅ | ✅ | ✅ |
-| `ALWAYS_TRUE` | ✅ | ✅ | ✅ |
-| `ALWAYS_UNKNOWN` | ✅ | ✅ | ✅ |
+| `ALWAYS_FALSE` | ✓ audited | ✓ audited | ✓ audited |
+| `ALWAYS_TRUE` | ✓ audited | ✓ audited | ✓ audited |
+| `ALWAYS_UNKNOWN` | ✓ audited | ✓ audited | ✓ audited |
 | `COLLECT_VALUES` | poly | poly | poly |
-| `IS_FALSE` | ✅ | ✅ | ✅ |
-| `IS_KNOWN` | ✅ | ✅ | ✅ |
-| `IS_TRUE` | ✅ | ✅ | ✅ |
-| `IS_UNKNOWN` | ✅ | ✅ | ✅ |
-| `MAYBE_FALSE` | ✅ | ✅ | ✅ |
-| `MAYBE_TRUE` | ✅ | ✅ | ✅ |
-| `TO_TERNARY` | ✅ | ✅ | ✅ |
-| `T_AND` | ✅ | ✅ | ✅ |
-| `T_EQ` | ✅ | ✅ | ✅ |
-| `T_GE` | ✅ | ✅ | ✅ |
-| `T_GT` | ✅ | ✅ | ✅ |
-| `T_IS_IN` | ✅ | ✅ | ✅ |
-| `T_IS_NOT_IN` | ✅ | ✅ | ✅ |
-| `T_LE` | ✅ | ✅ | ✅ |
-| `T_LT` | ✅ | ✅ | ✅ |
-| `T_NE` | ✅ | ✅ | ✅ |
-| `T_NOT` | ✅ | ✅ | ✅ |
-| `T_OR` | ✅ | ✅ | ✅ |
-| `T_XOR` | ✅ | ✅ | ✅ |
-| `T_XOR_PARITY` | ✅ | ✅ | ✅ |
+| `IS_FALSE` | ✓ audited | ✓ audited | ✓ audited |
+| `IS_KNOWN` | ✓ audited | ✓ audited | ✓ audited |
+| `IS_TRUE` | ✓ audited | ✓ audited | ✓ audited |
+| `IS_UNKNOWN` | ✓ audited | ✓ audited | ✓ audited |
+| `MAYBE_FALSE` | ✓ audited | ✓ audited | ✓ audited |
+| `MAYBE_TRUE` | ✓ audited | ✓ audited | ✓ audited |
+| `TO_TERNARY` | ✓ audited | ✓ audited | ✓ audited |
+| `T_AND` | ✓ audited | ✓ audited | ✓ audited |
+| `T_EQ` | ✓ audited | ✓ audited | ✓ audited |
+| `T_GE` | ✓ audited | ✓ audited | ✓ audited |
+| `T_GT` | ✓ audited | ✓ audited | ✓ audited |
+| `T_IS_IN` | ✓ audited | ✓ audited | ✓ audited |
+| `T_IS_NOT_IN` | ✓ audited | ✓ audited | ✓ audited |
+| `T_LE` | ✓ audited | ✓ audited | ✓ audited |
+| `T_LT` | ✓ audited | ✓ audited | ✓ audited |
+| `T_NE` | ✓ audited | ✓ audited | ✓ audited |
+| `T_NOT` | ✓ audited | ✓ audited | ✓ audited |
+| `T_OR` | ✓ audited | ✓ audited | ✓ audited |
+| `T_XOR` | ✓ audited | ✓ audited | ✓ audited |
+| `T_XOR_PARITY` | ✓ audited | ✓ audited | ✓ audited |
 
 ### `FKEY_SUBSTRAIT_SCALAR_ARITHMETIC` (substrait / arithmetic)
 
@@ -251,10 +273,10 @@ Legend — cell states:
 | `ATAN` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 | `ATAN2` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) |
 | `ATANH` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) |
-| `BITWISE_AND` | ✅ | ✅ | ✅ |
-| `BITWISE_NOT` | ✅ | ✅ | ✅ |
-| `BITWISE_OR` | ✅ | ✅ | ✅ |
-| `BITWISE_XOR` | ✅ | ✅ | ✅ |
+| `BITWISE_AND` | ✓ audited | ✓ audited | ✓ audited |
+| `BITWISE_NOT` | ✓ audited | ✓ audited | ✓ audited |
+| `BITWISE_OR` | ✓ audited | ✓ audited | ✓ audited |
+| `BITWISE_XOR` | ✓ audited | ✓ audited | ✓ audited |
 | `COS` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 | `COSH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 | `DEGREES` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
@@ -265,10 +287,10 @@ Legend — cell states:
 | `NEGATE` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `POWER` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 value-classes, 1 dialects) |
 | `RADIANS` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `SHIFT_LEFT` | ✅ | ✅ | ✅ |
-| `SHIFT_RIGHT` | ✅ | ✅ | ✅ |
-| `SHIFT_RIGHT_UNSIGNED` | ✅ | ✅ | ✅ |
-| `SIGN` | ✅ | ✅ | ✅ |
+| `SHIFT_LEFT` | ✓ audited | ✓ audited | ✓ audited |
+| `SHIFT_RIGHT` | ✓ audited | ✓ audited | ✓ audited |
+| `SHIFT_RIGHT_UNSIGNED` | ✓ audited | ✓ audited | ✓ audited |
+| `SIGN` | ✓ audited | ✓ audited | ✓ audited |
 | `SIN` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 | `SINH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 | `SQRT` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
@@ -280,121 +302,121 @@ Legend — cell states:
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `ADD_INTERVALS` | — | ✅ | ✅ |
-| `ASSUME_TIMEZONE` | — | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `EXTRACT` | — | ✅ | ✅ |
-| `EXTRACT_BOOLEAN` | — | ✅ | ✅ |
-| `LOCAL_TIMESTAMP` | — | ✅ | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `STRFTIME` | — | ✅ | ✅ |
-| `STRPTIME_DATE` | — | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) |
-| `STRPTIME_TIMESTAMP` | — | ✅ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `ADD_INTERVALS` | ✓ | ✓ audited | ✓ audited |
+| `ASSUME_TIMEZONE` | ✓ | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `EXTRACT` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_BOOLEAN` | ✓ | ✓ audited | ✓ audited |
+| `LOCAL_TIMESTAMP` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `STRFTIME` | ✓ | ✓ audited | ✓ audited |
+| `STRPTIME_DATE` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `STRPTIME_TIMESTAMP` | ✓ | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 
 ### `FKEY_SUBSTRAIT_SCALAR_SET` (substrait / set)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `INDEX_IN` | — | — | — |
+| `INDEX_IN` | ✓ | ✓ | ✓ |
 
 ### `FKEY_SUBSTRAIT_SCALAR_STRING` (substrait / string)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `BIT_LENGTH` | ✅ | ✅ | ✅ |
+| `BIT_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
 | `CAPITALIZE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `CENTER` | ◐ partial (3 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (3 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `CHAR_LENGTH` | ✅ | ✅ | ✅ |
-| `CONCAT` | ✅ | ✅ | ✅ |
-| `CONCAT_WS` | ✅ | ✅ | ✅ |
-| `CONTAINS` | ✅ ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✅ ✓ dialect-verified: ibis-duckdb |
+| `CHAR_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
+| `CONCAT` | ✓ audited | ✓ audited | ✓ audited |
+| `CONCAT_WS` | ✓ audited | ✓ audited | ✓ audited |
+| `CONTAINS` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✓ audited ✓ dialect-verified: ibis-duckdb |
 | `COUNT_SUBSTRING` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ENDS_WITH` | ✅ ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✅ ✓ dialect-verified: ibis-duckdb |
+| `ENDS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✓ audited ✓ dialect-verified: ibis-duckdb |
 | `INITCAP` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
-| `LEFT` | ✅ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ |
+| `LEFT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `LIKE` | ◐ partial (2 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `LOWER` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `LPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ |
-| `LTRIM` | ✅ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `OCTET_LENGTH` | ✅ | ✅ | ✅ |
+| `LPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `LTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `OCTET_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
 | `REGEXP_COUNT` | ◐ partial (4 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 7 option-selectors, 0 value-classes, 1 dialects) |
 | `REGEXP_MATCH` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_MATCH_ALL` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 1 dialects) |
 | `REGEXP_REPLACE` | ◐ partial (5 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 5 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_SPLIT` | ◐ partial (3 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 3 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_STRPOS` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 1 dialects) |
-| `REPEAT` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ | ✅ |
+| `REPEAT` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ✓ audited |
 | `REPLACE` | ◐ partial (2 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REPLACE_SLICE` | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `REVERSE` | ✅ | ✅ | ✅ |
-| `RIGHT` | ✅ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ |
-| `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ |
-| `RTRIM` | ✅ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `SPLIT` | ✅ | ✅ | ✅ |
-| `STARTS_WITH` | ✅ ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✅ ✓ dialect-verified: ibis-duckdb |
+| `REPLACE_SLICE` | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `REVERSE` | ✓ audited | ✓ audited | ✓ audited |
+| `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `SPLIT` | ✓ audited | ✓ audited | ✓ audited |
+| `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✓ audited ✓ dialect-verified: ibis-duckdb |
 | `STRPOS` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SWAPCASE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
 | `TITLE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
-| `TRIM` | ✅ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `TRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `UPPER` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 
 ### `RKEY_MOUNTAINASH_REL` (mountainash / relation)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `CONFORM` | ✅ | ✅ | ✅ |
-| `DROP_NANS` | ✅ | ✅ | ✅ |
-| `DROP_NULLS` | ✅ | ✅ | ✅ |
-| `EMPTY_FRAME` | ✅ | ✅ | ✅ |
-| `EXPLODE` | ✅ | ✅ | ✅ |
-| `FETCH_FROM_END` | ✅ | ✅ | ✅ |
-| `JOIN_ASOF` | ✅ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✅ |
-| `PIVOT` | ✅ | ✅ | ✅ |
-| `READ_RESOURCE` | ✅ ↻ routed | ✅ ↻ routed | ✅ ↻ routed |
-| `REF` | ✅ | ✅ | ✅ |
-| `SAMPLE` | ✅ | ✅ | ✅ |
-| `SOURCE` | ✅ | ✅ | ✅ |
-| `TOP_K` | ✅ | ✅ | ✅ |
-| `UNNEST` | ✅ | ✗ unsupported | ✅ |
-| `UNPIVOT` | ✅ | ✅ | ✅ |
-| `WITH_ROW_INDEX` | ✅ | ✅ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `CONFORM` | ✓ᴴ audited | ✓ᴴ audited | ✓ᴴ audited |
+| `DROP_NANS` | ✓ audited | ✓ audited | ✓ audited |
+| `DROP_NULLS` | ✓ audited | ✓ audited | ✓ audited |
+| `EMPTY_FRAME` | ✓ audited | ✓ audited | ✓ audited |
+| `EXPLODE` | ✓ audited | ✓ audited | ✓ audited |
+| `FETCH_FROM_END` | ✓ audited | ✓ audited | ✓ audited |
+| `JOIN_ASOF` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `PIVOT` | ✓ audited | ✓ audited | ✓ audited |
+| `READ_RESOURCE` | ✓ audited ↻ routed | ✓ audited ↻ routed | ✓ audited ↻ routed |
+| `REF` | ✓ᴴ audited | ✓ᴴ audited | ✓ᴴ audited |
+| `SAMPLE` | ✓ audited | ✓ audited | ✓ audited |
+| `SOURCE` | ✓ᴴ audited | ✓ᴴ audited | ✓ᴴ audited |
+| `TOP_K` | ✓ audited | ✓ audited | ✓ audited |
+| `UNNEST` | ✓ audited | ✗ unsupported | ✓ audited |
+| `UNPIVOT` | ✓ audited | ✓ audited | ✓ audited |
+| `WITH_ROW_INDEX` | ✓ audited | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 
 ### `RKEY_SUBSTRAIT_REL` (mountainash / relation)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `AGGREGATE` | ✅ | ✅ | ✅ |
-| `DISTINCT` | ✅ | ✅ | ✅ |
-| `FETCH` | ✅ | ✅ | ✅ |
-| `FILTER` | ✅ | ✅ | ✅ |
-| `JOIN` | ✅ | ✅ | ✅ |
-| `PROJECT_DROP` | ✅ | ✅ | ✅ |
-| `PROJECT_RENAME` | ✅ | ✅ | ✅ |
-| `PROJECT_SELECT` | ✅ | ✅ | ✅ |
-| `PROJECT_WITH_COLUMNS` | ✅ | ✅ | ✅ |
-| `READ` | ✅ | ✅ | ✅ |
-| `SORT` | ✅ | ✅ | ✅ |
-| `UNION_ALL` | ✅ | ✅ | ✅ |
-| `UNION_DISTINCT` | ✅ | ✅ | ✅ |
+| `AGGREGATE` | ✓ audited | ✓ audited | ✓ audited |
+| `DISTINCT` | ✓ audited | ✓ audited | ✓ audited |
+| `FETCH` | ✓ audited | ✓ audited | ✓ audited |
+| `FILTER` | ✓ audited | ✓ audited | ✓ audited |
+| `JOIN` | ✓ audited | ✓ audited | ✓ audited |
+| `PROJECT_DROP` | ✓ audited | ✓ audited | ✓ audited |
+| `PROJECT_RENAME` | ✓ audited | ✓ audited | ✓ audited |
+| `PROJECT_SELECT` | ✓ audited | ✓ audited | ✓ audited |
+| `PROJECT_WITH_COLUMNS` | ✓ audited | ✓ audited | ✓ audited |
+| `READ` | ✓ audited | ✓ audited | ✓ audited |
+| `SORT` | ✓ audited | ✓ audited | ✓ audited |
+| `UNION_ALL` | ✓ audited | ✓ audited | ✓ audited |
+| `UNION_DISTINCT` | ✓ audited | ✓ audited | ✓ audited |
 
 ## Unmapped families
 
-No declaration domain exists for these enum classes yet; every cell is UNDECLARED. Extending coverage here starts at `classify_domain`/`_DOMAIN_SUFFIXES` (spec §3.2).
+No declaration domain exists for these enum classes yet; no audit applies (every cell carries only the implementation axis). Extending coverage here starts at `classify_domain`/`_DOMAIN_SUFFIXES` (spec §3.2).
 
-- `FKEY_MOUNTAINASH_NAME` (5 ops): `ALIAS`, `NAME_TO_LOWER`, `NAME_TO_UPPER`, `PREFIX`, `SUFFIX`
-- `FKEY_MOUNTAINASH_NULL` (3 ops): `FILL_NAN`, `FILL_NULL`, `NULL_IF`
-- `FKEY_MOUNTAINASH_SCALAR_AGGREGATE` (1 ops): `COUNT_DISTINCT`
-- `FKEY_MOUNTAINASH_SCALAR_BOOLEAN` (1 ops): `XOR_PARITY`
-- `FKEY_MOUNTAINASH_SCALAR_COMPARISON` (1 ops): `IS_DUPLICATED`
-- `FKEY_MOUNTAINASH_SCALAR_STRUCT` (1 ops): `FIELD`
-- `FKEY_MOUNTAINASH_WINDOW` (10 ops): `BACKWARD_FILL`, `CUM_COUNT`, `CUM_MAX`, `CUM_MIN`, `CUM_PROD`, `CUM_SUM`, `DIFF`, `FORWARD_FILL`, `RANK_AVERAGE`, `RANK_MAX`
-- `FKEY_SUBSTRAIT_CAST` (1 ops): `CAST`
-- `FKEY_SUBSTRAIT_CONDITIONAL` (1 ops): `IF_THEN_ELSE`
-- `FKEY_SUBSTRAIT_SCALAR_AGGREGATE` (16 ops): `ANY_VALUE`, `AVG`, `BOOL_AND`, `BOOL_OR`, `CORR`, `COUNT`, `COUNT_RECORDS`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PRODUCT`, `QUANTILE`, `STD_DEV`, `SUM`, `VARIANCE`
-- `FKEY_SUBSTRAIT_SCALAR_BOOLEAN` (5 ops): `AND`, `AND_NOT`, `NOT`, `OR`, `XOR`
-- `FKEY_SUBSTRAIT_SCALAR_COMPARISON` (22 ops): `BETWEEN`, `COALESCE`, `EQUAL`, `GREATEST`, `GREATEST_SKIP_NULL`, `GT`, `GTE`, `IS_FALSE`, `IS_FINITE`, `IS_INFINITE`, `IS_NAN`, `IS_NOT_FALSE`, `IS_NOT_NULL`, `IS_NOT_TRUE`, `IS_NULL`, `IS_TRUE`, `LEAST`, `LEAST_SKIP_NULL`, `LT`, `LTE`, `NOT_EQUAL`, `NULL_IF`
-- `FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC` (5 ops): `LOG`, `LOG10`, `LOG1P`, `LOG2`, `LOGB`
-- `FKEY_SUBSTRAIT_SCALAR_ROUNDING` (3 ops): `CEIL`, `FLOOR`, `ROUND`
-- `SUBSTRAIT_ARITHMETIC_WINDOW` (11 ops): `CUME_DIST`, `DENSE_RANK`, `FIRST_VALUE`, `LAG`, `LAST_VALUE`, `LEAD`, `NTH_VALUE`, `NTILE`, `PERCENT_RANK`, `RANK`, `ROW_NUMBER`
+- `FKEY_MOUNTAINASH_NAME` (5 ops — all implemented on 3/3 backends): `ALIAS`, `NAME_TO_LOWER`, `NAME_TO_UPPER`, `PREFIX`, `SUFFIX`
+- `FKEY_MOUNTAINASH_NULL` (3 ops — all implemented on 3/3 backends): `FILL_NAN`, `FILL_NULL`, `NULL_IF`
+- `FKEY_MOUNTAINASH_SCALAR_AGGREGATE` (1 ops — all implemented on 3/3 backends): `COUNT_DISTINCT`
+- `FKEY_MOUNTAINASH_SCALAR_BOOLEAN` (1 ops — all implemented on 3/3 backends): `XOR_PARITY`
+- `FKEY_MOUNTAINASH_SCALAR_COMPARISON` (1 ops — all implemented on 3/3 backends): `IS_DUPLICATED`
+- `FKEY_MOUNTAINASH_SCALAR_STRUCT` (1 ops — all implemented on 3/3 backends): `FIELD`
+- `FKEY_MOUNTAINASH_WINDOW` (10 ops — all implemented on 3/3 backends): `BACKWARD_FILL`, `CUM_COUNT`, `CUM_MAX`, `CUM_MIN`, `CUM_PROD`, `CUM_SUM`, `DIFF`, `FORWARD_FILL`, `RANK_AVERAGE`, `RANK_MAX`
+- `FKEY_SUBSTRAIT_CAST` (1 ops — all implemented on 3/3 backends): `CAST`
+- `FKEY_SUBSTRAIT_CONDITIONAL` (1 ops — all implemented on 3/3 backends): `IF_THEN_ELSE`
+- `FKEY_SUBSTRAIT_SCALAR_AGGREGATE` (16 ops — all implemented on 3/3 backends): `ANY_VALUE`, `AVG`, `BOOL_AND`, `BOOL_OR`, `CORR`, `COUNT`, `COUNT_RECORDS`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PRODUCT`, `QUANTILE`, `STD_DEV`, `SUM`, `VARIANCE`
+- `FKEY_SUBSTRAIT_SCALAR_BOOLEAN` (5 ops — all implemented on 3/3 backends): `AND`, `AND_NOT`, `NOT`, `OR`, `XOR`
+- `FKEY_SUBSTRAIT_SCALAR_COMPARISON` (22 ops — all implemented on 3/3 backends): `BETWEEN`, `COALESCE`, `EQUAL`, `GREATEST`, `GREATEST_SKIP_NULL`, `GT`, `GTE`, `IS_FALSE`, `IS_FINITE`, `IS_INFINITE`, `IS_NAN`, `IS_NOT_FALSE`, `IS_NOT_NULL`, `IS_NOT_TRUE`, `IS_NULL`, `IS_TRUE`, `LEAST`, `LEAST_SKIP_NULL`, `LT`, `LTE`, `NOT_EQUAL`, `NULL_IF`
+- `FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC` (5 ops — all implemented on 3/3 backends): `LOG`, `LOG10`, `LOG1P`, `LOG2`, `LOGB`
+- `FKEY_SUBSTRAIT_SCALAR_ROUNDING` (3 ops — all implemented on 3/3 backends): `CEIL`, `FLOOR`, `ROUND`
+- `SUBSTRAIT_ARITHMETIC_WINDOW` (11 ops — all implemented on 3/3 backends): `CUME_DIST`, `DENSE_RANK`, `FIRST_VALUE`, `LAG`, `LAST_VALUE`, `LEAD`, `NTH_VALUE`, `NTILE`, `PERCENT_RANK`, `RANK`, `ROW_NUMBER`
 
 ## Per-op detail
 
