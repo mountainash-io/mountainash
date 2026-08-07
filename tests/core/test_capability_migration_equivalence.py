@@ -159,3 +159,38 @@ def test_polymorphic_module_equivalence(monkeypatch):
         _multiset_equal(new_facts, legacy)
     finally:
         core_facts.CapabilityRegistry.restore(snap)
+
+
+def test_relations_ibis_module_equivalence():
+    from mountainash.relations.backends.capabilities import ibis as new
+    from mountainash.relations.backends.relation_systems import (
+        ibis_relation_capabilities as old,
+    )
+
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, old.IBIS_REL_CAPABILITIES)
+    assert new.IBIS_REL_CAPABILITIES == old.IBIS_REL_CAPABILITIES
+
+
+def test_relations_polars_module_equivalence():
+    from mountainash.relations.backends.capabilities import polars as new
+    from mountainash.relations.backends.relation_systems.polars.base import (
+        PolarsBaseRelationSystem,
+    )
+
+    legacy = PolarsBaseRelationSystem.CAPABILITIES
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+    assert new.POLARS_REL_CAPABILITIES == legacy
+
+
+def test_relations_narwhals_module_equivalence():
+    from mountainash.relations.backends.capabilities import narwhals as new
+    from mountainash.relations.backends.relation_systems.narwhals.base import (
+        NarwhalsBaseRelationSystem,
+    )
+
+    legacy = NarwhalsBaseRelationSystem.CAPABILITIES
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+    assert new.NARWHALS_REL_CAPABILITIES == legacy
