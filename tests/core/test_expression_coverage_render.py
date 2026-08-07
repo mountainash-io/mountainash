@@ -3,12 +3,19 @@ from __future__ import annotations
 
 import enum as _enum
 
-from mountainash.core.capabilities.coverage import build_coverage_report, OpRecord
+from mountainash.core.capabilities.coverage import (
+    ImplState,
+    OpRecord,
+    build_coverage_report,
+)
 from mountainash.core.capabilities.declarations import (
     CapabilityDeclaration, Domain, FactSource, ProbeEvidence,
 )
 from mountainash.core.capabilities.render_markdown import (
     _collapse_groups,
+    _resolve_concrete_owner,
+    gather_coverage_inputs,
+    gather_implementation_records,
     render_markdown,
 )
 from mountainash.core.capabilities.retired import RetiredFact
@@ -178,3 +185,90 @@ def test_detail_section_written_for_every_cell_with_facts():
     out = render_markdown(_report([routed]))
     assert "### `OP_A` × polars" in out  # routed-only cell still gets a detail row
     assert "router_metadata" in out
+
+
+# ---------------------------------------------------------------------------
+# Task 2 — Derivation tests (spec §3.6).
+# The renderer itself is Task 3; the pre-existing tests above fail on the
+# Task-3 NotImplementedError stubs by design. Run only this section by node id.
+# ---------------------------------------------------------------------------
+
+class TestDerivation:
+    """gather_implementation_records() + _resolve_concrete_owner() — spec §3.6."""
+
+    def test_live_derivation_shape_and_counts(self):
+        """Cardinality + per-state tallies against the real registries (spec §3.6
+        empirical baseline + the rev-5 universe)."""
+        from mountainash.relations.core.relation_system.relation_keys.enums import (
+            RKEY_MOUNTAINASH_REL,
+        )
+
+        universe = gather_coverage_inputs()["universe"]
+        recs = gather_implementation_records(universe)
+        assert len(recs) == len(universe) * 3
+        assert sum(1 for r in recs if r.state is ImplState.UNKNOWN) == 0
+        assert sum(1 for r in recs if r.state is ImplState.NOT_IMPLEMENTED) == 0
+
+        handler_ops = {RKEY_MOUNTAINASH_REL.SOURCE, RKEY_MOUNTAINASH_REL.REF,
+                       RKEY_MOUNTAINASH_REL.CONFORM}
+        hv = [r for r in recs if r.state is ImplState.IMPLEMENTED_VIA_HANDLER]
+        assert len(hv) == 9
+        assert {r.operation_key for r in hv} == handler_ops
+        for r in hv:
+            assert r.backend in {CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS,
+                                 CONST_BACKEND.IBIS}
+
+    def test_rank_sharing_ops_all_implemented_with_method_rank(self):
+        """Three ops share `protocol_method = ...rank`; name-based dispatch
+        (review M-4) means they all IMPLEMENT with method_name == 'rank'."""
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_WINDOW,
+            SUBSTRAIT_ARITHMETIC_WINDOW,
+        )
+
+        recs = gather_implementation_records(gather_coverage_inputs()["universe"])
+        rank_ops = {SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+                    FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE,
+                    FKEY_MOUNTAINASH_WINDOW.RANK_MAX}
+        for op in rank_ops:
+            matches = [r for r in recs if r.operation_key is op]
+            assert len(matches) == 3
+            for r in matches:
+                assert r.state is ImplState.IMPLEMENTED
+                assert r.method_name == "rank"
+
+    def test_via_handler_provenance_locked_to_handler(self):
+        """Every IMPLEMENTED_VIA_HANDLER record has protocol_name == 'handler'
+        and method_name containing 'visit_' (the documented literal — Task 1
+        test would have caught any drift here)."""
+        recs = gather_implementation_records(gather_coverage_inputs()["universe"])
+        for r in recs:
+            if r.state is ImplState.IMPLEMENTED_VIA_HANDLER:
+                assert r.protocol_name == "handler"
+                assert "visit_" in (r.method_name or "")
+
+    def test_resolve_concrete_owner_skips_protocol_stubs(self):
+        """Spec §3.6 / review C-2: a bare Protocol subclass is a stub carrier,
+        not an implementation. _resolve_concrete_owner returns None for the
+        bare stub and the concrete class for a real override."""
+        from mountainash.expressions.core.expression_protocols.expression_systems.substrait.prtcl_expsys_scalar_arithmetic import (
+            SubstraitScalarArithmeticExpressionSystemProtocol,
+        )
+
+        class _StubOnly(SubstraitScalarArithmeticExpressionSystemProtocol):
+            pass
+
+        assert _resolve_concrete_owner(_StubOnly, "add") is None
+
+        class _Concrete(_StubOnly):
+            def add(self, left, right):  # type: ignore[override]
+                return left + right
+
+        assert _resolve_concrete_owner(_Concrete, "add") is _Concrete
+
+    def test_resolve_concrete_owner_returns_none_when_absent(self):
+        class _Empty:
+            pass
+
+        assert _resolve_concrete_owner(_Empty, "no_such_method") is None
+

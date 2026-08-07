@@ -6,12 +6,14 @@ Pure over CoverageReport; input gathering + main() live at the bottom
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Any
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     CoverageReport,
-    CoverageState,
+    ImplementationRecord,
     OpCoverage,
+    OpRecord,
     fact_sort_key,  # canonical order
 )
 from mountainash.core.capabilities.schema import (
@@ -90,8 +92,7 @@ def _collapse_groups(
 
 
 def _cell_text(oc: OpCoverage) -> str:
-    if oc.state is CoverageState.UNDECLARED:
-        return "—"
+    raise NotImplementedError("rev-5 cutover - Task 3")
     status: list[str] = []
     if oc.whole_op is CapabilityLevel.UNSUPPORTED:
         status.append("✗ unsupported")
@@ -134,8 +135,7 @@ def _summary(report: CoverageReport) -> list[str]:
     lines.append("| Backend | ✅ declared-clean | ◐ constrained | — undeclared |")
     lines.append("| --- | --- | --- | --- |")
     for b in RENDERED_BACKENDS:
-        row = [str(report.stats.by_state.get((b, s), 0)) for s in CoverageState]
-        lines.append(f"| {b.value} | {row[0]} | {row[1]} | {row[2]} |")
+        raise NotImplementedError("rev-5 cutover - Task 3")
     lines.append("")
     lines.append("### Fact statistics")
     lines.append("")
@@ -367,6 +367,113 @@ def gather_coverage_inputs() -> dict:
         gaps=KNOWN_GAPS,
         retired=RETIRED_FACTS,
     )
+
+
+def _resolve_concrete_owner(leaf: type, name: str) -> type | None:
+    """First MRO class defining `name` in vars(); Protocol-suffixed classes are
+    stub carriers, not implementations (spec §3.6 / review C-2)."""
+    for klass in leaf.__mro__:
+        if name in vars(klass):
+            return None if klass.__name__.endswith("Protocol") else klass
+    return None
+
+
+def gather_implementation_records(
+    universe: tuple[OpRecord, ...],
+) -> tuple[ImplementationRecord, ...]:
+    """Derive the implementation axis (spec §3.6): for every universe op, probe
+    `protocol_method` / `handler` against the three composed backend leaf
+    classes. Returns exactly len(universe) * 3 records (one per backend),
+    cardinalially required by the model's multiset ingest guard."""
+    from mountainash.core.capabilities.coverage import (
+        ImplState,
+        ImplementationRecord,
+    )
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.expressions.core.expression_system.function_mapping.registry import (
+        ExpressionFunctionRegistry,
+    )
+    from mountainash.expressions.backends.expression_systems.polars import (
+        PolarsExpressionSystem,
+    )
+    from mountainash.expressions.backends.expression_systems.narwhals import (
+        NarwhalsExpressionSystem,
+    )
+    from mountainash.expressions.backends.expression_systems.ibis import (
+        IbisExpressionSystem,
+    )
+    from mountainash.relations.core.relation_system.relation_mapping.registry import (
+        RelationOperationRegistry,
+    )
+    from mountainash.relations.backends.relation_systems.polars import (
+        PolarsRelationSystem,
+    )
+    from mountainash.relations.backends.relation_systems.narwhals import (
+        NarwhalsRelationSystem,
+    )
+    from mountainash.relations.backends.relation_systems.ibis import (
+        IbisRelationSystem,
+    )
+
+    expression_keys = frozenset(ExpressionFunctionRegistry.list_all())
+    expr_leaves = {
+        CONST_BACKEND.POLARS: PolarsExpressionSystem,
+        CONST_BACKEND.NARWHALS: NarwhalsExpressionSystem,
+        CONST_BACKEND.IBIS: IbisExpressionSystem,
+    }
+    rel_leaves = {
+        CONST_BACKEND.POLARS: PolarsRelationSystem,
+        CONST_BACKEND.NARWHALS: NarwhalsRelationSystem,
+        CONST_BACKEND.IBIS: IbisRelationSystem,
+    }
+
+    records: list[ImplementationRecord] = []
+    for op in universe:
+        if op.operation_key in expression_keys:
+            defn: Any = ExpressionFunctionRegistry.get(op.operation_key)
+            leaves: Any = expr_leaves
+        else:
+            defn = RelationOperationRegistry.get(op.operation_key)
+            leaves = rel_leaves
+        protocol_method = defn.protocol_method
+        handler = getattr(defn, "handler", None)
+        for backend, leaf in leaves.items():
+            if protocol_method is not None:
+                method_name = protocol_method.__name__
+                owner = _resolve_concrete_owner(leaf, method_name)
+                if owner is not None:
+                    records.append(ImplementationRecord(
+                        operation_key=op.operation_key,
+                        backend=backend,
+                        state=ImplState.IMPLEMENTED,
+                        method_name=method_name,
+                        protocol_name=owner.__qualname__,
+                    ))
+                else:
+                    records.append(ImplementationRecord(
+                        operation_key=op.operation_key,
+                        backend=backend,
+                        state=ImplState.NOT_IMPLEMENTED,
+                        method_name=method_name,
+                        protocol_name=protocol_method.__qualname__.rsplit(".", 1)[0],
+                    ))
+            elif handler is not None:
+                records.append(ImplementationRecord(
+                    operation_key=op.operation_key,
+                    backend=backend,
+                    state=ImplState.IMPLEMENTED_VIA_HANDLER,
+                    method_name=handler.__qualname__,
+                    protocol_name="handler",
+                ))
+            else:
+                records.append(ImplementationRecord(
+                    operation_key=op.operation_key,
+                    backend=backend,
+                    state=ImplState.UNKNOWN,
+                    method_name=None,
+                    protocol_name=None,
+                ))
+    return tuple(records)
 
 
 def main() -> None:
