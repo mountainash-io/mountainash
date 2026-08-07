@@ -108,3 +108,19 @@ def test_strptime_module_equivalence():
     legacy = list(old._IBIS_SQLITE_FACTS) + list(old._NARWHALS_FACTS)
     new_facts = [f for d in new.DECLARATIONS for f in d.facts]
     _multiset_equal(new_facts, legacy)
+
+
+def test_polymorphic_module_equivalence(monkeypatch):
+    from mountainash.expressions.backends.capabilities import polymorphic as new
+    from mountainash.core import capabilities as core_facts
+
+    snap = core_facts.CapabilityRegistry.snapshot()
+    try:
+        core_facts.CapabilityRegistry.reset()
+        monkeypatch.setattr(core_facts.core_facts, "_REGISTERED", False)
+        core_facts.core_facts.register_core_polymorphic_facts()
+        legacy = core_facts.CapabilityRegistry.facts()
+        new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+        _multiset_equal(new_facts, legacy)
+    finally:
+        core_facts.CapabilityRegistry.restore(snap)
