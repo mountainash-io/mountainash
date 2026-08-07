@@ -55,3 +55,56 @@ def test_arithmetic_module_equivalence():
     )
     new_facts = [f for d in new.DECLARATIONS for f in d.facts]
     _multiset_equal(new_facts, legacy)
+
+
+def test_datetime_options_module_equivalence():
+    from mountainash.expressions.backends.capabilities.datetime import options as new
+    from mountainash.expressions.backends.expression_systems import (
+        datetime_option_capabilities as old,
+    )
+
+    legacy = (
+        list(old._IBIS_FAMILY_DEFAULTS) + list(old._IBIS_DUCKDB_FACTS)
+        + list(old._NARWHALS_POLARS_FACTS) + list(old._NARWHALS_PANDAS_FACTS)
+    )
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+
+
+def test_datetime_value_classes_ma_module_equivalence():
+    from mountainash.expressions.backends.capabilities.datetime import (
+        value_classes_ma as new,
+    )
+    from mountainash.expressions.backends.expression_systems import (
+        datetime_value_class_capabilities_ma as old,
+    )
+
+    legacy = list(old._IBIS_FACTS) + list(old._NARWHALS_FACTS)
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+
+
+def test_datetime_value_classes_substrait_module_equivalence():
+    from mountainash.expressions.backends.capabilities.datetime import (
+        value_classes_substrait as new,
+    )
+    from mountainash.expressions.backends.expression_systems import (
+        datetime_value_class_capabilities_substrait as old,
+    )
+
+    legacy = list(old._IBIS_FACTS) + list(old._NARWHALS_FACTS)
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
+
+
+def test_strptime_module_equivalence():
+    from mountainash.expressions.backends.capabilities.datetime import (
+        strptime as new,
+    )
+    from mountainash.expressions.backends.expression_systems import (
+        strptime_format_capabilities as old,
+    )
+
+    legacy = list(old._IBIS_SQLITE_FACTS) + list(old._NARWHALS_FACTS)
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
