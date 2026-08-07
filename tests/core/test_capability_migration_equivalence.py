@@ -34,3 +34,24 @@ def test_string_module_equivalence():
     _multiset_equal(new_facts, legacy)
     assert new.BROKEN_STRING_OPS_BY_BACKEND == old._BROKEN_STRING_OPS_BY_BACKEND
     assert new.OP_LEVEL_FKEYS == old._OP_LEVEL_FKEYS
+
+
+def test_arithmetic_module_equivalence():
+    from mountainash.expressions.backends.capabilities import arithmetic as new
+    from mountainash.expressions.backends.expression_systems import (
+        arithmetic_option_capabilities as old,
+    )
+
+    legacy = (
+        list(old.POLARS_ARITHMETIC_OPTION_CAPABILITIES)
+        + list(old._SEMANTIC_FACTS["polars"]) + list(old._ROUNDING_FACTS["polars"])
+        + list(old.IBIS_ARITHMETIC_OPTION_CAPABILITIES)
+        + list(old.IBIS_DUCKDB_OVERFLOW_REFINEMENTS)
+        + list(old._IBIS_SEMANTIC_FAMILY_DEFAULTS) + list(old._IBIS_ROUNDING_FAMILY_DEFAULTS)
+        + list(old._SEMANTIC_FACTS["ibis"]) + list(old._ROUNDING_FACTS["ibis"])
+        + list(old.NARWHALS_ARITHMETIC_OPTION_CAPABILITIES)
+        + list(old._SEMANTIC_FACTS["narwhals-polars"]) + list(old._SEMANTIC_FACTS["narwhals-pandas"])
+        + list(old._ROUNDING_FACTS["narwhals-polars"]) + list(old._ROUNDING_FACTS["narwhals-pandas"])
+    )
+    new_facts = [f for d in new.DECLARATIONS for f in d.facts]
+    _multiset_equal(new_facts, legacy)
