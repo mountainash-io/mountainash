@@ -41,6 +41,12 @@ class RetiredFact:
         owner = f"RetiredFact({self.operation_key}, {self.param})"
         _validate_since(self.since, owner)
         _validate_since(self.retired_on, f"{owner}.retired_on")
+        if self.retired_on < self.since:
+            raise ValueError(
+                f"{owner}: retired_on ({self.retired_on}) precedes since "
+                f"({self.since}) — a fact cannot be retired before it was declared "
+                "(both are zero-padded YYYY-MM-DD, so the compare is chronological)"
+            )
         if self.option_value is not None and self.value_class is not None:
             raise ValueError(f"{owner}: option_value and value_class are exclusive")
 
@@ -62,12 +68,12 @@ def assert_no_active_retired_overlap(registry: Any) -> None:
     }
     for r in RETIRED_FACTS:
         if r.value_class is not None:
-            key = (r.operation_key, r.param, r.backend, r.dialect, r.value_class)
-            assert key not in active_vclass, (
-                f"{key} is simultaneously active and retired"
+            key_vclass = (r.operation_key, r.param, r.backend, r.dialect, r.value_class)
+            assert key_vclass not in active_vclass, (
+                f"{key_vclass} is simultaneously active and retired"
             )
         else:
-            key = (r.operation_key, r.param, r.backend, r.dialect, r.option_value)
-            assert key not in active_option, (
-                f"{key} is simultaneously active and retired"
+            key_option = (r.operation_key, r.param, r.backend, r.dialect, r.option_value)
+            assert key_option not in active_option, (
+                f"{key_option} is simultaneously active and retired"
             )

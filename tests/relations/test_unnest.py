@@ -140,6 +140,7 @@ class TestUnnestNarwhals:
     @pytest.mark.xfail(
         reason="Narwhals has no frame-level unnest — deferred to Phase 2",
         raises=BackendCapabilityError,
+        strict=True,  # self-healing: XPASS => narwhals gained frame-level unnest, flip the park
     )
     def test_unnest_not_supported(self):
         """Narwhals unnest is enriched to BackendCapabilityError (spec §3.8)."""

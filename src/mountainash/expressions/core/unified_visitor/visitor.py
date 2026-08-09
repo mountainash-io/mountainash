@@ -83,7 +83,7 @@ class UnifiedExpressionVisitor:
             # in LOADED and ISOLATED states, so test fixtures that reset()
             # into ISOLATED do not break the visitor.
             from mountainash.core.capabilities.registry import CapabilityRegistry
-            CapabilityRegistry._ensure_loaded()
+            CapabilityRegistry.ensure_loaded()
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.
