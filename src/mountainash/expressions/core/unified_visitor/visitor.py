@@ -228,17 +228,25 @@ class UnifiedExpressionVisitor:
         resolved = []
         for i, arg in enumerate(arguments):
             param_name = _param_name_for(i)
-            fact = None
-            if self.enforce_capabilities and param_name is not None:
-                fact = CapabilityRegistry.capability_for(
+            fact = (
+                CapabilityRegistry.capability_for(
                     function_key, param_name, backend_family, dialect
                 )
-                if fact is not None and fact.enforcement is not Enforcement.GATE:
+                if param_name is not None
+                else None
+            )
+            if self.enforce_capabilities and fact is not None:
+                if fact.enforcement is not Enforcement.GATE:
                     fact = None  # router metadata / materialize residue never gate here
+            elif not self.enforce_capabilities and param_name not in {
+                "padding",
+                "negative_start",
+            }:
+                fact = None
 
             level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
 
-            if level is CapabilityLevel.UNSUPPORTED:
+            if self.enforce_capabilities and level is CapabilityLevel.UNSUPPORTED:
                 raise BackendCapabilityError(
                     fact.message,
                     backend=self.backend.BACKEND_NAME,
@@ -249,12 +257,14 @@ class UnifiedExpressionVisitor:
                 if isinstance(arg, LiteralNode):
                     resolved.append(arg.value)
                 elif isinstance(arg, ExpressionNode):
-                    raise BackendCapabilityError(
-                        fact.message,
-                        backend=self.backend.BACKEND_NAME,
-                        function_key=function_key,
-                        limitation=fact,
-                    )
+                    if self.enforce_capabilities:
+                        raise BackendCapabilityError(
+                            fact.message,
+                            backend=self.backend.BACKEND_NAME,
+                            function_key=function_key,
+                            limitation=fact,
+                        )
+                    resolved.append(self.visit(arg))
                 else:
                     resolved.append(arg)  # already a raw value
             elif level is CapabilityLevel.POLYMORPHIC:
