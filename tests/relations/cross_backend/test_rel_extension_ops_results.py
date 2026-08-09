@@ -327,8 +327,9 @@ class TestSample:
         )
         result = ma.relation(df).sample(n=5).to_dicts()
         if backend_name.startswith("ibis-"):
-            # Ibis converts n to fraction (n/total) which is non-deterministic
-            assert 1 <= len(result) <= 20
+            # Ibis converts n to a fraction (Bernoulli per-row), so the sample size has no
+            # guaranteed floor — it can legitimately return anywhere from 0 to len(input) rows.
+            assert 0 <= len(result) <= 20
         else:
             assert len(result) == 5
         all_values = set(range(20))
