@@ -55,7 +55,7 @@ class UnifiedRelationVisitor:
             # below. Query-path autoload — a no-op in LOADED and ISOLATED states,
             # so test fixtures that reset() into ISOLATED do not break the visitor.
             from mountainash.core.capabilities.registry import CapabilityRegistry
-            CapabilityRegistry._ensure_loaded()
+            CapabilityRegistry.ensure_loaded()
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id

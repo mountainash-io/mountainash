@@ -171,10 +171,12 @@ import sys
 
 class _Block:
     def __init__(self, names): self.names = names
-    def find_module(self, fullname, path=None):
-        return self if fullname.split(".")[0] in self.names else None
-    def load_module(self, fullname):
-        raise ImportError(f"blocked optional backend: {fullname}")
+    def find_spec(self, fullname, path=None, target=None):
+        # Modern meta-path hook (find_module/load_module were removed in 3.12);
+        # raising here surfaces as the import's ModuleNotFoundError.
+        if fullname.split(".")[0] in self.names:
+            raise ModuleNotFoundError(f"blocked optional backend: {fullname}")
+        return None
 
 sys.meta_path.insert(0, _Block({"ibis", "narwhals"}))
 """

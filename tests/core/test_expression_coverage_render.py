@@ -183,6 +183,33 @@ def test_handler_cell_uses_glyph():
     assert "✓ᴴ audited" in out_audited
 
 
+def test_handler_cell_with_constraining_fact_renders_composition_not_glyph():
+    # Spec §3.3: the `if oc.constrained` branch precedes the handler-glyph
+    # branch in _cell_text, so a handler-dispatched cell that ALSO carries a
+    # constraining whole-op GATE fact renders the constrained composition, NOT
+    # the clean `✓ᴴ`. The live registry has no such cell (the three handler ops
+    # are fact-free), so only a synthetic universe exercises the path (M-5).
+    gates = [_fact(level=CapabilityLevel.UNSUPPORTED, backend=b)
+             for b in RENDERED_BACKENDS]
+    decls = tuple(_decl(backend=b, facts=(g,))
+                  for b, g in zip(RENDERED_BACKENDS, gates))
+    out = render_markdown(_report(
+        gates, decls=decls,
+        impls=_impls(state=ImplState.IMPLEMENTED_VIA_HANDLER)))
+    matrix = out.split("## Per-family coverage", 1)[1].split(
+        "## Unmapped families", 1)[0]
+    op_a_rows = [ln for ln in matrix.splitlines()
+                 if ln.startswith("| `") and "OP_A" in ln]
+    assert op_a_rows, matrix
+    row = op_a_rows[0]
+    assert "✗ unsupported" in row   # constrained composition rendered
+    assert "✓ᴴ" not in row           # NOT the clean handler glyph
+    # OP_B carries no fact, so its handler cells still render `✓ᴴ` (control).
+    op_b_rows = [ln for ln in matrix.splitlines()
+                 if ln.startswith("| `") and "OP_B" in ln]
+    assert op_b_rows and "✓ᴴ" in op_b_rows[0]
+
+
 def test_contradiction_cell_renders_loudly():
     # NOT_IMPLEMENTED + constraining fact + applicable declaration -> contradiction.
     f = _fact(param="values", dialect="duckdb", level=CapabilityLevel.UNSUPPORTED)
@@ -338,8 +365,12 @@ def test_legend_has_by_exception_rows_and_footnotes():
 
 
 def test_unmapped_families_stamp_impl_summary():
-    # Use the live report which contains real unmapped families (those whose
-    # audit_domain is None). Render and assert the §3.6 stamp line format.
+    # Uses the live report. While unmapped families (audit_domain is None) exist,
+    # assert the §3.6 stamp line format. When a future release maps every family,
+    # _unmapped_families() emits no section at all — then the correct expectation
+    # is the section's ABSENCE, not a stamp match. Branching here makes the
+    # "every family mapped" day a passing test rather than a misleading regex
+    # miss (T3 review: live-registry fragility, recorded as a dated expectation).
     inputs = gather_coverage_inputs()
     report = build_coverage_report(
         inputs["universe"],
@@ -351,6 +382,9 @@ def test_unmapped_families_stamp_impl_summary():
         inputs["implementations"],
     )
     out = render_markdown(report)
+    if not any(f.audit_domain is None for f in report.families):
+        assert "## Unmapped families" not in out
+        return
     # The stamp format: "N ops — all implemented on 3/3 backends" or a
     # per-backend split when not uniform: "M/N polars · M/N narwhals · M/N ibis"
     # (render_markdown uses the ops count as denominator - final-review M-2).

@@ -411,14 +411,18 @@ def _validate_implementations(
          if n > 0),
         key=_cell_key,
     )
+    duplicates = sorted(
+        ((op, backend) for (op, backend), n in actual.items() if n > 1),
+        key=_cell_key,
+    )
+    # A cell that is both over-expected and counted >1 is already named as a
+    # duplicate; excluding it from `extras` avoids the "unexpected … ; duplicate
+    # …" double-diagnostic for one cell (T1 review). Error-path only.
+    _dupe_cells = set(duplicates)
     extras = sorted(
         ((op, backend)
          for (op, backend), n in (actual - expected).items()
-         if n > 0),
-        key=_cell_key,
-    )
-    duplicates = sorted(
-        ((op, backend) for (op, backend), n in actual.items() if n > 1),
+         if n > 0 and (op, backend) not in _dupe_cells),
         key=_cell_key,
     )
     parts: list[str] = []

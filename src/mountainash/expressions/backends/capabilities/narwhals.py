@@ -112,7 +112,7 @@ _POLARS_FIXED_UPSTREAM_REF = {
 }
 
 
-# String family-LITERAL_ONLY wave: 16 facts from _STRING_LITERAL_ONLY.
+# String family-LITERAL_ONLY wave: 17 facts from _STRING_LITERAL_ONLY.
 _NW_STRING_ITER_FACTS: tuple[CapabilityFact, ...] = tuple(
     CapabilityFact(
         operation_key=op, param=param,
@@ -259,7 +259,7 @@ _NW_POLARS_FIXED_FACTS: tuple[CapabilityFact, ...] = tuple(
 
 
 # NARWHALS_EXPR_CAPABILITIES preserves the legacy tuple's element order:
-# 16 string iter + 2 string chars + 5 list + 8 dt iter + 10 polars-fixed = 41.
+# 17 string iter + 2 string chars + 5 list + 8 dt iter + 10 polars-fixed = 42.
 NARWHALS_EXPR_CAPABILITIES: tuple[CapabilityFact, ...] = (
     _NW_STRING_ITER_FACTS
     + _NW_STRING_CHAR_FACTS

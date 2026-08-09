@@ -46,7 +46,13 @@ def _load_into_registry() -> None:
 
 
 def load_all_capability_declarations() -> None:
-    """Public entry: enumerating consumers call this; queries autoload it."""
+    """Enumerating load entry: consumers that walk the *whole* declaration set
+    call this. Unlike the query-path CapabilityRegistry.ensure_loaded() — which
+    silently no-ops in ISOLATED so queries see an isolated registry's own facts
+    — this refuses to run in ISOLATED (raises RuntimeError), so an enumerator
+    never certifies a partial/isolated registry as complete. Queries autoload;
+    enumeration demands a production load. From LOADED it is a no-op; otherwise
+    it delegates to ensure_loaded()."""
     from mountainash.core.capabilities.registry import CapabilityRegistry, _LoadState
 
     state = CapabilityRegistry._load_state
@@ -57,4 +63,4 @@ def load_all_capability_declarations() -> None:
             "registry is ISOLATED (reset() without restore()); refusing to "
             "load production declarations into an isolated registry"
         )
-    CapabilityRegistry._ensure_loaded()
+    CapabilityRegistry.ensure_loaded()

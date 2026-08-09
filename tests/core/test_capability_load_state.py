@@ -56,6 +56,18 @@ def _reset_to_uninitialized():
     CapabilityRegistry._load_error = None
 
 
+@pytest.fixture
+def uninitialized():
+    """Drive the registry to a pristine UNINITIALIZED state and restore after
+    (final-review M-6): the class-attr mutation stays inside the single
+    _reset_to_uninitialized helper, so no test body pokes registry internals."""
+    snap = CapabilityRegistry.snapshot()
+    try:
+        _reset_to_uninitialized()
+        yield
+    finally:
+        CapabilityRegistry.restore(snap)
+
 def test_reset_enters_isolated_and_disables_autoload(isolated):
     assert CapabilityRegistry._load_state is _LoadState.ISOLATED
     # a query in ISOLATED must NOT repopulate production facts
@@ -85,15 +97,10 @@ def test_load_all_raises_in_isolated(isolated):
         load_all_capability_declarations()
 
 
-def test_autoload_fires_from_uninitialized():
-    snap = CapabilityRegistry.snapshot()
-    try:
-        _reset_to_uninitialized()
-        facts = CapabilityRegistry.facts()
-        assert CapabilityRegistry._load_state is _LoadState.LOADED
-        assert len(facts) > 0
-    finally:
-        CapabilityRegistry.restore(snap)
+def test_autoload_fires_from_uninitialized(uninitialized):
+    facts = CapabilityRegistry.facts()
+    assert CapabilityRegistry._load_state is _LoadState.LOADED
+    assert len(facts) > 0
 
 
 def test_failed_state_caches_and_re_raises_same_exception():

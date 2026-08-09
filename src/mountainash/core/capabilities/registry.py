@@ -213,12 +213,36 @@ class CapabilityRegistry:
     _load_lock = threading.RLock()
 
     @classmethod
-    def _ensure_loaded(cls) -> None:
+    def ensure_loaded(cls) -> None:
+        """Query-path load entry (spec rev 3, §2): idempotently autoload the
+        declaration modules on first access.
+
+        Semantics: autoload from UNINITIALIZED only; no-op in LOADED and
+        ISOLATED (a reset() registry keeps its isolated facts, never
+        repopulates production ones); re-raise the cached error in FAILED.
+        This is the sanctioned hook every cross-package query consumer (the
+        two unified visitors, any third-party backend integration) reaches
+        for — the underscore-free name, not a private one.
+
+        Contrast ``bootstrap.load_all_capability_declarations()``, the
+        *enumerating* entry: it refuses to run in ISOLATED (raises
+        RuntimeError) so a consumer that walks the full declaration set never
+        silently reads an isolated registry. Queries autoload; enumeration
+        demands a production load.
+        """
+        # Lock asymmetry (intentional): LOADED and ISOLATED short-circuit
+        # WITHOUT the lock — both are sticky states whose "no-op" answer cannot
+        # change under a concurrent load, and a single class-attr read is
+        # atomic. FAILED is re-raised INSIDE the lock below because its cached
+        # _load_error is written under the lock, so the (state, error) pair
+        # must be read together; it cannot ride the lockless fast path.
         if cls._load_state is _LoadState.LOADED or cls._load_state is _LoadState.ISOLATED:
             return
         with cls._load_lock:
             if cls._load_state is _LoadState.FAILED:
-                raise cls._load_error
+                error = cls._load_error
+                assert error is not None, "FAILED registry state must cache its load error"
+                raise error
             if cls._load_state is not _LoadState.UNINITIALIZED:
                 return
             from mountainash.core.capabilities.bootstrap import _load_into_registry
@@ -232,12 +256,16 @@ class CapabilityRegistry:
 
     @classmethod
     def register_declaration(cls, declaration) -> None:
-        cls.register_backend(declaration.backend, declaration.facts)
-        cls._declarations = cls._declarations + (declaration,)
+        # Lock so a concurrent ensure_loaded()/reset() sees an all-or-nothing
+        # mutation (spec §2 hardening). RLock is reentrant, so the load hook —
+        # which calls this under the lock via _load_into_registry — is fine.
+        with cls._load_lock:
+            cls.register_backend(declaration.backend, declaration.facts)
+            cls._declarations = cls._declarations + (declaration,)
 
     @classmethod
     def declarations(cls):
-        cls._ensure_loaded()
+        cls.ensure_loaded()
         return cls._declarations
 
     @classmethod
@@ -334,7 +362,7 @@ class CapabilityRegistry:
         dialect: str | None = None,
         option_value: str | None = None,
     ) -> CapabilityFact | None:
-        cls._ensure_loaded()
+        cls.ensure_loaded()
         for key in (
             (operation_key, param, backend, dialect, option_value),
             (operation_key, param, backend, None, option_value),
@@ -369,7 +397,7 @@ class CapabilityRegistry:
         conditioned: bool | None = None,
         enforcement: Enforcement | None = None,
     ) -> List[CapabilityFact]:
-        cls._ensure_loaded()
+        cls.ensure_loaded()
         out = []
         for fact in (
             *cls._facts.values(),
@@ -393,7 +421,7 @@ class CapabilityRegistry:
         cls, backend: CONST_BACKEND, dialect: str | None = None
     ) -> Dict[Tuple[Any, str], CapabilityFact]:
         """MATERIALIZE-boundary facts as an enrichment mapping (op, param) -> fact."""
-        cls._ensure_loaded()
+        cls.ensure_loaded()
         out: Dict[Tuple[Any, str], CapabilityFact] = {}
         for fact in cls.facts(
             backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
@@ -429,7 +457,7 @@ class CapabilityRegistry:
         tests/relations/backends/test_resource_files.py fails on any router
         fact with no registered probe, so a declaration cannot go unexercised.
         """
-        cls._ensure_loaded()
+        cls.ensure_loaded()
         return tuple(
             sorted(
                 (
@@ -452,7 +480,7 @@ class CapabilityRegistry:
         dialect: str | None = None,
     ) -> List[CapabilityViolation]:
         """Substrait-interop hook (spec Section 1): op-level violations only."""
-        cls._ensure_loaded()
+        cls.ensure_loaded()
         violations = []
         for op_key in operation_keys:
             fact = cls.capability_for(op_key, WILDCARD_PARAM, backend, dialect)
@@ -509,10 +537,13 @@ class CapabilityRegistry:
     @classmethod
     def reset(cls) -> None:
         """Test-only. Enters ISOLATED (autoload disabled). Snapshot FIRST —
-        without a restore there is no way back to autoload in this process."""
-        cls._facts = {}
-        cls._kinds = {}
-        cls._value_class_facts = {}
-        cls._declarations = ()
-        cls._load_state = _LoadState.ISOLATED
-        cls._load_error = None
+        without a restore there is no way back to autoload in this process.
+        Takes _load_lock so the reset is atomic w.r.t. a concurrent
+        ensure_loaded()/register_declaration() (spec §2 hardening)."""
+        with cls._load_lock:
+            cls._facts = {}
+            cls._kinds = {}
+            cls._value_class_facts = {}
+            cls._declarations = ()
+            cls._load_state = _LoadState.ISOLATED
+            cls._load_error = None
