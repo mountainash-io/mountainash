@@ -44,7 +44,6 @@ class TestDatetimeBooleanExtraction:
         assert node.function_key == FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_LEAP_YEAR
         assert len(node.arguments) == 1
 
-    @pytest.mark.xfail(reason="is_dst passes options=None to ScalarFunctionNode, pydantic rejects it")
     def test_is_dst(self):
         expr = ma.col("ts").dt.is_dst()
         node = expr._node
