@@ -15,6 +15,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
+from tests.fixtures.capability_gating import build_gate_fact, first_scalar_build_gate
 
 INPUT_TYPES = ["raw", "lit", "col", "complex"]
 
