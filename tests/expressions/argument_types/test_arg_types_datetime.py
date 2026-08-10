@@ -391,7 +391,7 @@ def _params():
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 marks = []
-                mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
+                mark = xfail_if_limited(bk, op, it)
                 if mark:
                     marks.append(mark)
                 cases.append(
