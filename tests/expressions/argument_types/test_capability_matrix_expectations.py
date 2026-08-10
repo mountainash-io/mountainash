@@ -220,3 +220,61 @@ def test_regexp_match_all_raw_ibis_is_marked_by_emitted_option_fact() -> None:
     fact = first_scalar_build_gate(cell.node, matrix_identity("ibis"))
     assert fact is not None
     assert fact.param in {"case_sensitivity", "multiline", "dotall"}
+
+
+def _datetime_op_spec(op_name: str):
+    import importlib
+
+    datetime_mod = importlib.import_module("expressions.argument_types.test_arg_types_datetime")
+    return next(spec for spec in datetime_mod.OP_SPECS if spec.op_name == op_name)
+
+
+@pytest.mark.parametrize("op_name", ["to_timezone", "local_timestamp"])
+@pytest.mark.parametrize("input_type", ["raw", "lit", "col", "complex"])
+def test_timezone_receiver_cells_xfail_on_ibis(op_name: str, input_type: str) -> None:
+    from expressions.argument_types._test_template import xfail_if_limited
+    from mountainash.core.types import BackendCapabilityError
+
+    op = _datetime_op_spec(op_name)
+    mark = xfail_if_limited("ibis", op, input_type)
+    assert mark is not None
+    assert mark.mark.kwargs["raises"] is BackendCapabilityError
+
+
+@pytest.mark.parametrize("op_name", ["to_timezone", "local_timestamp"])
+@pytest.mark.parametrize("backend", ["polars", "narwhals-polars", "narwhals-pandas"])
+def test_timezone_receiver_cells_are_unmarked_on_honoring_backends(
+    op_name: str, backend: str
+) -> None:
+    from expressions.argument_types._test_template import xfail_if_limited
+
+    op = _datetime_op_spec(op_name)
+    assert xfail_if_limited(backend, op, "col") is None
+
+
+def test_to_timezone_raw_form_produces_sydney_hour_on_polars() -> None:
+    """Proves the matrix cell executes and is behaviorally correct, not merely
+    unmarked: polars is the reference backend for to_timezone."""
+    from zoneinfo import ZoneInfo
+    from expressions.argument_types._test_template import build_matrix_cell
+
+    op = _datetime_op_spec("to_timezone")
+    cell = build_matrix_cell(op, "raw")
+    df = make_df(op.data, "polars")
+    hour_expr = cell.expression.dt.hour()
+    result = df.select(hour_expr.compile(df))
+    expected_hour = op.raw_arg.astimezone(ZoneInfo("Australia/Sydney")).hour
+    assert result.to_series().to_list() == [expected_hour]
+
+
+def test_local_timestamp_col_form_executes_on_narwhals() -> None:
+    """local_timestamp is honored (no fact) on both narwhals dialects — must
+    actually execute, not merely be absent from the xfail set."""
+    from expressions.argument_types._test_template import build_matrix_cell
+
+    op = _datetime_op_spec("local_timestamp")
+    for backend in ("narwhals-polars", "narwhals-pandas"):
+        cell = build_matrix_cell(op, "col")
+        df = make_df(op.data, backend)
+        result = df.select(cell.expression.compile(df)).to_native()
+        assert result is not None
