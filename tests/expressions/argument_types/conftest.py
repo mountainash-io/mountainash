@@ -5,7 +5,26 @@ from typing import Any
 
 import pytest
 
+from mountainash.core.capabilities.identity import BackendIdentity
+from mountainash.core.constants import CONST_BACKEND
+
 ALL_BACKENDS = ["polars", "ibis", "narwhals-polars", "narwhals-pandas"]
+
+MATRIX_IDENTITIES: dict[str, BackendIdentity] = {
+    "polars": BackendIdentity(CONST_BACKEND.POLARS, "polars"),
+    "ibis": BackendIdentity(CONST_BACKEND.IBIS, "ibis-duckdb"),
+    "narwhals-polars": BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-polars"),
+    "narwhals-pandas": BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-pandas"),
+}
+
+
+def matrix_identity(backend: str) -> BackendIdentity:
+    """The authoritative (family, dialect) for an argument-matrix fixture name.
+
+    Conformance-tested against real backend objects in
+    test_capability_matrix_expectations.py — keep in sync with make_df().
+    """
+    return MATRIX_IDENTITIES[backend]
 
 
 def pytest_collection_modifyitems(items):
