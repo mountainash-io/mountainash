@@ -318,12 +318,98 @@ from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function
 from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import (
     WindowFunctionNode,
 )
+from mountainash.expressions.core.expression_nodes.substrait.exn_cast import CastNode
+from mountainash.expressions.core.expression_nodes.substrait.exn_ifthen import IfThenNode
 
 from core._smoke_helpers import (
     build_args_for_fkey,
     count_protocol_arguments,
     is_variadic,
 )
+
+
+def _init_a2_local_builders() -> dict:
+    """A2-only expression factories, never shared with test_api_reachability.py
+    or test_compile_smoke.py. Keeping these local (not added to
+    _smoke_helpers.py's shared _init_smoke_expr_builders()) is deliberate:
+    several of these FKEYs (e.g. FIELD/GET/TO_ARRAY/TRUNCATE/OFFSET_BY/NTILE)
+    currently have _KNOWN_SMOKE_FAILURES park entries in test_compile_smoke.py
+    describing the exact "missing required arg" TypeError the generic
+    resolver hits — sharing a correctly-parameterized builder would silently
+    resolve those compile-smoke cases too, and for
+    FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY specifically that resolution
+    surfaces a genuine, undeclared backend capability gap (ibis/narwhals/
+    pandas lack array.to_array()) requiring a real CapabilityFact in the
+    production capability spine — out of scope for a test-harness-only
+    change. Keeping the overlay A2-local avoids all of that cross-suite
+    ripple. Since 2026-08-11."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        FKEY_MOUNTAINASH_SCALAR_LIST,
+        FKEY_MOUNTAINASH_SCALAR_STRUCT,
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
+        FKEY_MOUNTAINASH_WINDOW,
+        FKEY_SUBSTRAIT_CONDITIONAL,
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
+        SUBSTRAIT_ARITHMETIC_WINDOW,
+    )
+
+    c = ma.col("a")
+    s = ma.col("c")
+    b = ma.col("e")
+
+    return {
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_UNKNOWN: lambda: ma.always_unknown(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE: lambda: ma.always_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE: lambda: ma.always_false(),
+        # protocol_method name (is_true_ternary/is_unknown/maybe_true/...)
+        # doesn't match the real public accessor (t_is_true/t_is_unknown/
+        # t_maybe_true/...); not reachable via _resolve_api_callable.
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE: lambda: c.t_is_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE: lambda: c.t_is_false(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN: lambda: c.t_is_unknown(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN: lambda: c.t_is_known(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE: lambda: c.t_maybe_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE: lambda: c.t_maybe_false(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS: lambda: ma.count_records(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR: lambda: ma.corr(c, b),
+        # Namespace collision: the generic resolver finds list.median first.
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN: lambda: ma.median(0, c),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE: lambda: ma.quantile([0.5], 2, 1, "LINEAR"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.NTILE: lambda: c.ntile(4).over("b"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY: lambda: ma.today(),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW: lambda: ma.now(),
+        # Name collision: "round"/"ceil"/"floor" already resolve to the flat
+        # numeric-rounding builder (FKEY_SUBSTRAIT_SCALAR_ROUNDING); these are
+        # the datetime-namespaced ops, only reachable via .dt.<name>().
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND: lambda: c.dt.round(unit="1d"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL: lambda: c.dt.ceil(unit="1d"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR: lambda: c.dt.floor(unit="1d"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE: lambda: c.dt.truncate(unit="1d"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by(offset="1d"),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: c.struct.field("x"),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: c.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: c.list.to_array(width=3),
+        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(c.gt(1)).then(c).otherwise(b),
+        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK: lambda: c.percent_rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST: lambda: c.cume_dist().over("b"),
+        # Constructs successfully but always 0-ary (order_by_col unreachable
+        # via the public builder) — proves the _KNOWN_CALL_PATTERN_MISMATCHES
+        # entries above are genuine mismatches, not construction failures.
+        SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER: lambda: c.row_number().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK: lambda: c.dense_rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank(method="min").over("b"),
+        FKEY_MOUNTAINASH_WINDOW.RANK_MAX: lambda: c.rank(method="max").over("b"),
+        FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE: lambda: c.rank(method="average").over("b"),
+    }
+
+
+_A2_LOCAL_BUILDERS = _init_a2_local_builders()
 
 _NAMESPACE_PREFIXES = {"list_": "list", "struct_": "struct"}
 _DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct")
@@ -383,7 +469,144 @@ _KNOWN_CALL_PATTERN_MISMATCHES: dict[str, str] = {
     "SUBSTRAIT_ARITHMETIC_WINDOW.LAG":
         "Protocol lag(x) has 1 ExpressionT arg, but API builder adds LiteralNode offset (n=1) "
         "making 2 AST args. Since 2026-05-18.",
+    "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER":
+        "Protocol row_number(*, order_by_col=None) declares an optional ExpressionT kwarg, "
+        "but SubstraitWindowArithmeticAPIBuilder.row_number() never exposes it — the "
+        "constructed AST always has 0 arguments. Since 2026-08-11.",
+    "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK":
+        "Protocol dense_rank(*, order_by_col=None) declares an optional ExpressionT kwarg, "
+        "unreachable via the public builder — AST always has 0 arguments. Since 2026-08-11.",
+    "SUBSTRAIT_ARITHMETIC_WINDOW.RANK":
+        "Protocol rank(*, order_by_col=None) declares an optional ExpressionT kwarg, "
+        "unreachable via the public builder — AST always has 0 arguments. Since 2026-08-11.",
+    "FKEY_MOUNTAINASH_WINDOW.RANK_MAX":
+        "Protocol rank(*, order_by_col=None) declares an optional ExpressionT kwarg, "
+        "unreachable via the public builder — AST always has 0 arguments. Since 2026-08-11.",
+    "FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE":
+        "Protocol rank(*, order_by_col=None) declares an optional ExpressionT kwarg, "
+        "unreachable via the public builder — AST always has 0 arguments. Since 2026-08-11.",
 }
+
+# (fkey_str) → "reason. Since YYYY-MM-DD."
+# Escape hatch for A2 arg-count verification: an entry here means the FKEY's
+# expression truly cannot be constructed with the correct identity via any
+# current public API surface (not merely "the generic resolver doesn't find
+# it" — check the A2-local builder overlay above first). Expected to be
+# small; see f.development-practices/closed-by-default-verification.md.
+_KNOWN_UNVERIFIABLE_CALL_PATTERNS: dict[str, str] = {
+    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT":
+        "No public builder emits the canonical Substrait EXTRACT key — dt.year() and "
+        "friends emit their own MA-specific keys (e.g. EXTRACT_YEAR). Matches "
+        "test_api_reachability.py's own _UNREACHABLE_FKEYS finding. Since 2026-08-11.",
+    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN":
+        "No public builder emits the canonical Substrait EXTRACT_BOOLEAN key — "
+        "dt.is_leap_year() emits FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_LEAP_YEAR. Matches "
+        "test_api_reachability.py's own _UNREACHABLE_FKEYS finding. Since 2026-08-11.",
+}
+
+
+class _A2ConstructionError(Exception):
+    """Raised when an FKEY's expression cannot be constructed at all."""
+
+
+class _A2ValidationError(Exception):
+    """Raised when a constructed node fails identity or arity validation."""
+
+
+def _construct_a2_expr(fkey: object, fdef: object) -> object:
+    """Build a real expression for fkey: A2-local builder first, generic
+    namespace-scanning resolver as fallback. Raises _A2ConstructionError if
+    no path can construct anything at all."""
+    if fkey in _A2_LOCAL_BUILDERS:
+        return _A2_LOCAL_BUILDERS[fkey]()
+
+    try:
+        args, options = build_args_for_fkey(fkey, fdef)
+    except ValueError as e:
+        raise _A2ConstructionError(
+            f"Cannot auto-construct args for {fkey}: {e}. Add to "
+            f"_SMOKE_ARG_OVERRIDES in _smoke_helpers.py or to "
+            f"_A2_LOCAL_BUILDERS in this file, or add a dated entry to "
+            f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS."
+        ) from e
+
+    if not args:
+        raise _A2ConstructionError(
+            f"{fkey}: no args to build a receiver from and no "
+            f"_A2_LOCAL_BUILDERS entry. Add one, or add a dated entry to "
+            f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS."
+        )
+
+    method_name = fdef.protocol_method.__name__
+    callable_method = _resolve_api_callable(args[0], method_name)
+    if callable_method is None:
+        raise _A2ConstructionError(
+            f"{fkey}: {method_name} not accessible via any API namespace and "
+            f"no _A2_LOCAL_BUILDERS entry. Add one, or add a dated entry to "
+            f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS."
+        )
+
+    try:
+        return callable_method(*args[1:], **options)
+    except TypeError as e:
+        raise _A2ConstructionError(
+            f"{fkey}: {method_name} call failed: {e}. Add an "
+            f"_A2_LOCAL_BUILDERS entry, or a dated entry to "
+            f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS."
+        ) from e
+
+
+def _validate_a2_node(fkey: object, fkey_str: str, node: object, expected_arg_count: int) -> None:
+    """Check a constructed node's identity and arity against the protocol.
+    Raises _A2ValidationError on any mismatch or unhandled node shape."""
+    if isinstance(node, (ScalarFunctionNode, WindowFunctionNode)):
+        if node.function_key != fkey:
+            raise _A2ValidationError(
+                f"{fkey_str}: constructed node has function_key "
+                f"{node.function_key}, expected {fkey} — the resolved callable "
+                f"emits a different operation than the one under test "
+                f"(namespace/name collision)"
+            )
+        actual_arg_count = len(node.arguments)
+        if actual_arg_count != expected_arg_count:
+            raise _A2ValidationError(
+                f"{fkey_str}: AST node has {actual_arg_count} arguments, "
+                f"protocol expects {expected_arg_count}"
+            )
+        return
+    if isinstance(node, CastNode):
+        # CastNode carries a single `input` field, not an `.arguments` list —
+        # its arity is structurally always 1.
+        if expected_arg_count != 1:
+            raise _A2ValidationError(
+                f"{fkey_str}: CastNode is always 1-ary, protocol expects "
+                f"{expected_arg_count}"
+            )
+        return
+    if isinstance(node, IfThenNode):
+        # IfThenNode has no flat `.arguments`; its ExpressionT-equivalent slot
+        # count is 2 per (condition, result) pair plus the else clause.
+        actual_arg_count = 2 * len(node.conditions) + 1
+        if actual_arg_count != expected_arg_count:
+            raise _A2ValidationError(
+                f"{fkey_str}: IfThenNode has {actual_arg_count} "
+                f"condition/result/else slots, protocol expects "
+                f"{expected_arg_count}"
+            )
+        return
+    raise _A2ValidationError(
+        f"{fkey_str}: unhandled node type {type(node).__name__} — extend "
+        f"_validate_a2_node's dispatch to verify its arity, or add a dated "
+        f"entry to _KNOWN_UNVERIFIABLE_CALL_PATTERNS."
+    )
+
+
+def _resolve_fkey_by_str(fkey_str: str) -> object:
+    ExpressionFunctionRegistry._init_registry()
+    for k in ExpressionFunctionRegistry._functions:
+        if str(k) == fkey_str:
+            return k
+    raise AssertionError(f"FKEY {fkey_str} not found in registry")
 
 
 class TestProtocolVsVisitorCallPattern:
@@ -400,47 +623,23 @@ class TestProtocolVsVisitorCallPattern:
         if fkey_str in _KNOWN_CALL_PATTERN_MISMATCHES:
             pytest.xfail(_KNOWN_CALL_PATTERN_MISMATCHES[fkey_str])
 
-        ExpressionFunctionRegistry._init_registry()
-        fkey = None
-        for k in ExpressionFunctionRegistry._functions:
-            if str(k) == fkey_str:
-                fkey = k
-                break
-        assert fkey is not None, f"FKEY {fkey_str} not found in registry"
-
+        fkey = _resolve_fkey_by_str(fkey_str)
         fdef = ExpressionFunctionRegistry.get(fkey)
 
         try:
-            args, options = build_args_for_fkey(fkey, fdef)
-        except ValueError as e:
-            pytest.fail(
-                f"Cannot auto-construct args for {fkey_str}: {e}. "
-                f"Add to _SMOKE_ARG_OVERRIDES in _smoke_helpers.py."
-            )
-
-        if not args:
-            pytest.skip("No args to build expression from")
-
-        method_name = fdef.protocol_method.__name__
-        base = args[0]
-        remaining_args = args[1:]
-
-        callable_method = _resolve_api_callable(base, method_name)
-        if callable_method is None:
-            pytest.skip(f"{method_name} not accessible via any API namespace")
-
-        try:
-            expr = callable_method(*remaining_args, **options)
-        except (TypeError, Exception) as e:
-            pytest.skip(f"{method_name} call failed: {e}")
+            expr = _construct_a2_expr(fkey, fdef)
+        except _A2ConstructionError as e:
+            if fkey_str in _KNOWN_UNVERIFIABLE_CALL_PATTERNS:
+                pytest.xfail(_KNOWN_UNVERIFIABLE_CALL_PATTERNS[fkey_str])
+            pytest.fail(str(e))
 
         node = expr._node if hasattr(expr, "_node") else expr
-        if isinstance(node, (ScalarFunctionNode, WindowFunctionNode)):
-            actual_arg_count = len(node.arguments)
-            assert actual_arg_count == expected_arg_count, (
-                f"{fkey_str}: AST node has {actual_arg_count} arguments, "
-                f"protocol expects {expected_arg_count}"
-            )
+        try:
+            _validate_a2_node(fkey, fkey_str, node, expected_arg_count)
+        except _A2ValidationError as e:
+            if fkey_str in _KNOWN_UNVERIFIABLE_CALL_PATTERNS:
+                pytest.xfail(_KNOWN_UNVERIFIABLE_CALL_PATTERNS[fkey_str])
+            pytest.fail(str(e))
 
     def test_no_stale_call_pattern_entries(self) -> None:
         all_fkeys = {fk for fk, _ in _A2_CASES}
@@ -456,6 +655,75 @@ class TestProtocolVsVisitorCallPattern:
             )
             assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
                 f"_KNOWN_CALL_PATTERN_MISMATCHES[{key}] has no date: {reason!r}"
+            )
+
+    def test_call_pattern_mismatches_still_mismatch(self) -> None:
+        """Every _KNOWN_CALL_PATTERN_MISMATCHES entry must still actually
+        mismatch — if the AST now emits the protocol-expected arg count,
+        remove the exemption."""
+        for fkey_str, expected_arg_count in _A2_CASES:
+            if fkey_str not in _KNOWN_CALL_PATTERN_MISMATCHES:
+                continue
+            fkey = _resolve_fkey_by_str(fkey_str)
+            fdef = ExpressionFunctionRegistry.get(fkey)
+            try:
+                expr = _construct_a2_expr(fkey, fdef)
+            except _A2ConstructionError as e:
+                pytest.fail(
+                    f"{fkey_str}: _KNOWN_CALL_PATTERN_MISMATCHES entries must "
+                    f"still construct successfully (the mismatch is in arity, "
+                    f"not constructibility): {e}"
+                )
+            node = expr._node if hasattr(expr, "_node") else expr
+            try:
+                _validate_a2_node(fkey, fkey_str, node, expected_arg_count)
+            except _A2ValidationError:
+                continue  # still mismatches — exemption still valid
+            pytest.fail(
+                f"Stale mismatch entry: {fkey_str} — now constructs with the "
+                f"correct identity and arity. Remove from "
+                f"_KNOWN_CALL_PATTERN_MISMATCHES."
+            )
+
+    def test_no_stale_unverifiable_call_pattern_entries(self) -> None:
+        all_fkeys = {fk for fk, _ in _A2_CASES}
+        for key in _KNOWN_UNVERIFIABLE_CALL_PATTERNS:
+            assert key in all_fkeys, (
+                f"Stale _KNOWN_UNVERIFIABLE_CALL_PATTERNS entry: {key}"
+            )
+
+    def test_every_unverifiable_call_pattern_has_reason_and_date(self) -> None:
+        for key, reason in _KNOWN_UNVERIFIABLE_CALL_PATTERNS.items():
+            assert "since" in reason.lower(), (
+                f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS[{key}] missing "
+                f"'Since YYYY-MM-DD': {reason!r}"
+            )
+            assert re.search(r"\d{4}-\d{2}-\d{2}", reason), (
+                f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS[{key}] has no date: {reason!r}"
+            )
+
+    def test_unverifiable_call_patterns_still_unverifiable(self) -> None:
+        """Every exemption must still actually be unconstructible-or-invalid —
+        if the A2-local overlay or generic resolution now covers it with the
+        correct identity and arity, remove it."""
+        for fkey_str, expected_arg_count in _A2_CASES:
+            if fkey_str not in _KNOWN_UNVERIFIABLE_CALL_PATTERNS:
+                continue
+            fkey = _resolve_fkey_by_str(fkey_str)
+            fdef = ExpressionFunctionRegistry.get(fkey)
+            try:
+                expr = _construct_a2_expr(fkey, fdef)
+            except _A2ConstructionError:
+                continue  # still unconstructible — exemption still valid
+            node = expr._node if hasattr(expr, "_node") else expr
+            try:
+                _validate_a2_node(fkey, fkey_str, node, expected_arg_count)
+            except _A2ValidationError:
+                continue  # still invalid — exemption still valid
+            pytest.fail(
+                f"Stale exemption: {fkey_str} now constructs successfully "
+                f"with the correct identity and arity. Remove from "
+                f"_KNOWN_UNVERIFIABLE_CALL_PATTERNS."
             )
 
 
