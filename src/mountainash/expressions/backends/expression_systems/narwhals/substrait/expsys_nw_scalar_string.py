@@ -565,9 +565,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             *string_arguments: Strings to concatenate.
 
         Returns:
-            Concatenated string with separator.
+            Concatenated string with separator. A null separator
+            unconditionally propagates to a null result (matching DuckDB's
+            own native CONCAT_WS convention), regardless of operand count
+            or nullness.
         """
-        return _nw_concat_fold(separator, string_arguments)
+        return nw.when(separator.is_null()).then(nw.lit(None)).otherwise(
+            _nw_concat_fold(separator, string_arguments)
+        )
 
     def replace(
         self,

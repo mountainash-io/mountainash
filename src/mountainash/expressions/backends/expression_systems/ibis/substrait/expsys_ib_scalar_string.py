@@ -546,9 +546,15 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             *string_arguments: Strings to concatenate.
 
         Returns:
-            Concatenated string with separator.
+            Concatenated string with separator. A null separator
+            unconditionally propagates to a null result (matching DuckDB's
+            own native CONCAT_WS convention), regardless of operand count
+            or nullness.
         """
-        return self._ib_concat_fold(separator, string_arguments)
+        null_result = ibis.literal(None, type="string")
+        folded = self._ib_concat_fold(separator, string_arguments)
+        is_null = self._lift_deferred_receiver(separator.isnull(), null_result, folded)
+        return is_null.ifelse(null_result, folded)
 
     def replace(
         self,

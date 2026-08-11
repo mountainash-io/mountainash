@@ -665,3 +665,73 @@ class TestConcatMultiOperand:
         expr = ma.col("a").str.concat_ws("-", ma.col("b"))
         actual = collect_expr(df, expr)
         assert actual == ["", "x-y"], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatWsNullSeparator:
+    """A NULL separator must propagate to the whole result unconditionally
+    (matching DuckDB's own native CONCAT_WS convention), even in the 0/1
+    present-operand rows where the bare fold never actually touches `sep`."""
+
+    def test_null_separator_column_propagates_regardless_of_operand_count(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        # Row 1: sep null, 2 present operands (fold would touch sep if unguarded).
+        # Row 2: sep present, 2 present operands (control — must NOT be affected).
+        # Row 3: sep null, 1 present + 1 null operand (fold would never touch
+        #        sep without the guard -- this is the exact case round 3 found).
+        data = {
+            "sep": [None, "-", None],
+            "a": ["x", "x", "x"],
+            "b": ["y", "y", None],
+        }
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws(ma.col("sep"), ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == [None, "x-y", None], f"[{backend_name}] got {actual}"
+
+    def test_literal_none_separator_propagates_and_does_not_crash(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"a": ["x", "y"], "b": ["1", "2"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws(None, ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == [None, None], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatWsDynamicSeparator:
+    """The fold supports a genuinely dynamic (column-expression) separator
+    on every backend — no LITERAL_ONLY gate is needed anywhere."""
+
+    def test_column_expression_separator_varies_per_row(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"sep": ["-", "_", "."], "a": ["x", "y", "z"], "b": ["1", "2", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws(ma.col("sep"), ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == ["x-1", "y_2", "z.3"], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatOperandType:
+    """A non-string operand is a native caller error, not a mountainash
+    coercion/validation feature — Substrait types every concat/concat_ws
+    operand as string/varchar, with no implicit-cast contract."""
+
+    def test_concat_numeric_operand_raises_native_error(
+        self, backend_name, backend_factory
+    ):
+        data = {"a": ["x", "y"], "n": [1, 2]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(ma.col("n"))
+        with pytest.raises(Exception):  # native TypeError/InvalidOperationError/SignatureValidationError — backend-specific, not mountainash's
+            ma.relation(df).select(expr.name.alias("r")).to_dict()

@@ -554,9 +554,14 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             *string_arguments: Strings to concatenate.
 
         Returns:
-            Concatenated string with separator.
+            Concatenated string with separator. A null separator
+            unconditionally propagates to a null result (matching DuckDB's
+            own native CONCAT_WS convention), regardless of operand count
+            or nullness.
         """
-        return _pl_concat_fold(separator, string_arguments)
+        return pl.when(separator.is_null()).then(
+            pl.lit(None, dtype=pl.Utf8)
+        ).otherwise(_pl_concat_fold(separator, string_arguments))
 
     def replace(
         self,
