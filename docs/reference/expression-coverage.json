@@ -32783,7 +32783,7 @@
                   "upstream_ref": null,
                   "since": "2026-07-05",
                   "native_errors": [],
-                  "probe_exempt": null
+                  "probe_exempt": "dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"
                 },
                 {
                   "dialect": null,
@@ -39834,7 +39834,7 @@
                   "upstream_ref": null,
                   "since": "2026-07-05",
                   "native_errors": [],
-                  "probe_exempt": null
+                  "probe_exempt": "dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"
                 },
                 {
                   "dialect": null,
@@ -39921,7 +39921,7 @@
                   "upstream_ref": null,
                   "since": "2026-07-05",
                   "native_errors": [],
-                  "probe_exempt": null
+                  "probe_exempt": "dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"
                 },
                 {
                   "dialect": null,
@@ -51539,7 +51539,7 @@
           "upstream_ref": null,
           "since": "2026-07-05",
           "native_errors": [],
-          "probe_exempt": null
+          "probe_exempt": "dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"
         },
         {
           "dialect": null,
@@ -51635,7 +51635,7 @@
           "upstream_ref": null,
           "since": "2026-07-05",
           "native_errors": [],
-          "probe_exempt": null
+          "probe_exempt": "dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"
         },
         {
           "dialect": null,
@@ -66791,7 +66791,7 @@
           "upstream_ref": null,
           "since": "2026-07-05",
           "native_errors": [],
-          "probe_exempt": null
+          "probe_exempt": "dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"
         },
         {
           "dialect": null,

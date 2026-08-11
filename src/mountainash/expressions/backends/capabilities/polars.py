@@ -60,9 +60,6 @@ _POLARS_LITERAL_ONLY_FACTS: tuple[CapabilityFact, ...] = tuple(
         (FK_STR.REPLACE_SLICE, "length",
          "Polars str.replace_slice() requires a literal integer length, not a column expression",
          "Use a literal integer length value"),
-        (FK_STR.REPLACE_SLICE, "replacement",
-         "Polars str.replace_slice() requires a literal replacement string, not a column expression",
-         "Use a literal replacement string"),
         (FK_STR.LPAD, "characters",
          "Polars str.pad_start() requires a single literal fill character, not a column expression",
          "Use a literal single-character string"),
@@ -86,6 +83,19 @@ _POLARS_LITERAL_ONLY_FACTS: tuple[CapabilityFact, ...] = tuple(
             "dynamic arg silently miscompiles: the SQL-LIKE→regex conversion "
             "runs on str(Expr), producing a pattern that matches nothing rather "
             "than raising — cannot be confirmed by an exception-based probe"
+        ),
+    ),
+    CapabilityFact(
+        operation_key=FK_STR.REPLACE_SLICE, param="replacement",
+        level=CapabilityLevel.LITERAL_ONLY,
+        backend=CONST_BACKEND.POLARS,
+        message="Polars str.replace_slice() requires a literal replacement string, not a column expression",
+        workaround="Use a literal replacement string",
+        since=_SINCE,
+        probe_exempt=(
+            "dynamic arg silently miscompiles: str(Expr) bakes the unresolved "
+            "expression's Python repr into the output as a literal string "
+            "rather than raising — cannot be confirmed by an exception-based probe"
         ),
     ),
 )

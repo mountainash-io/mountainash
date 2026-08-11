@@ -1040,7 +1040,7 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | character | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | — |
+| * | character | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe |
 | * | length | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | — |
 | * | padding | LEFT | — | unsupported | gate | build | — | The native backend does not implement LEFT padding semantics for center | — | — | 2026-07-23 | — | — |
 | ibis-duckdb | padding | LEFT | — | unsupported | gate | build | — | The native backend does not implement LEFT padding semantics for center | — | — | 2026-07-23 | — | — |
@@ -1618,7 +1618,7 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | length | — | — | literal_only | gate | build | — | Polars str.replace_slice() requires a literal integer length, not a column expression | Use a literal integer length value | PL-STR-03 | 2026-07-05 | — | — |
-| * | replacement | — | — | literal_only | gate | build | — | Polars str.replace_slice() requires a literal replacement string, not a column expression | Use a literal replacement string | — | 2026-07-05 | — | — |
+| * | replacement | — | — | literal_only | gate | build | — | Polars str.replace_slice() requires a literal replacement string, not a column expression | Use a literal replacement string | — | 2026-07-05 | — | dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe |
 | * | start | — | — | literal_only | gate | build | — | Polars str.replace_slice() requires a literal integer start, not a column expression | Use a literal integer start value | PL-STR-03 | 2026-07-05 | — | — |
 
 ### `REPLACE_SLICE` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
@@ -1626,7 +1626,7 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | length | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | — |
-| * | replacement | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | — |
+| * | replacement | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe |
 | * | start | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | — |
 
 ### `RIGHT` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)

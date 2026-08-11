@@ -47,9 +47,30 @@ _IBIS_STR_FACTS: tuple[CapabilityFact, ...] = tuple(
         since="2026-07-05",
     )
     for op, param in [
-        (FK_STR.CENTER, "length"), (FK_STR.CENTER, "character"),
+        (FK_STR.CENTER, "length"),
         (FK_STR.REPLACE_SLICE, "start"), (FK_STR.REPLACE_SLICE, "length"),
-        (FK_STR.REPLACE_SLICE, "replacement"),
+    ]
+) + tuple(
+    # CENTER.character / REPLACE_SLICE.replacement are string-typed LITERAL_ONLY
+    # params, probe-exempt for the same reason as trim/ltrim/rtrim below: with a
+    # dynamic arg the native path does NOT raise — str(Expr) bakes the Python
+    # repr of the unresolved backend expression into the output as a literal
+    # (verified: 'a'.center(...) with a dynamic fill produced
+    # "_['fill']_['fill']_['fill']_['fill']a" rather than raising). An
+    # exception-based probe cannot detect this.
+    CapabilityFact(
+        operation_key=op, param=param, level=CapabilityLevel.LITERAL_ONLY,
+        backend=CONST_BACKEND.IBIS, message=_IB_STR_MSG,
+        workaround="Use a literal value, or the polars backend",
+        since="2026-07-05",
+        probe_exempt=(
+            "dynamic arg silently miscompiles: str(Expr) bakes the unresolved "
+            "expression's Python repr into the output as a literal string "
+            "rather than raising — cannot be confirmed by an exception-based probe"
+        ),
+    )
+    for op, param in [
+        (FK_STR.CENTER, "character"), (FK_STR.REPLACE_SLICE, "replacement"),
     ]
 ) + tuple(
     # trim/ltrim/rtrim are probe-exempt: with a dynamic `characters` arg the
