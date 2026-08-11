@@ -18,7 +18,7 @@ This is the authoritative classification of every
 | --- | --- | --- | --- | --- |
 | ``capitalize`` | ``CAPITALIZE`` | ``char_set`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
 | ``center`` | ``CENTER`` | ``padding`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
-| ``concat`` | ``CONCAT`` | ``null_handling`` | O-absent | Substrait option absent from builder signature and ``node.options``; wire (Task 4). |
+| ``concat`` | ``CONCAT`` | ``null_handling`` | O-live | Emitted in ``node.options``; behaviour-test (backlog item 61). |
 | ``contains`` | ``CONTAINS`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
 | ``count_substring`` | ``COUNT_SUBSTRING`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
 | ``ends_with`` | ``ENDS_WITH`` | ``case_sensitivity`` | O-live | Emitted in ``node.options``; behaviour-test (Task 3). |
@@ -201,6 +201,7 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("atanh", "rounding"): ("float64",),
     ("capitalize", "char_set"): ("str",),
     ("center", "padding"): ("str",),
+    ("concat", "null_handling"): ("str",),
     ("substring", "negative_start"): ("str",),
     ("initcap", "char_set"): ("str",),
     ("lower", "char_set"): ("str",),

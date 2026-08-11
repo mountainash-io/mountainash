@@ -225,7 +225,7 @@ The `case_sensitivity` option applies to the `substring` argument.
         """
         ...
 
-    def concat(self, input: ExpressionT, /, null_handling: Optional[str] = None) -> ExpressionT:
+    def concat(self, *input: ExpressionT, null_handling: Optional[str] = None) -> ExpressionT:
         """Concatenate strings.
 The `null_handling` option determines whether or not null values will be recognized by the function. If `null_handling` is set to `IGNORE_NULLS`, null value arguments will be ignored when strings are concatenated. If set to `ACCEPT_NULLS`, the result will be null if any argument passed to the concat function is null.
 
@@ -234,7 +234,7 @@ The `null_handling` option determines whether or not null values will be recogni
         """
         ...
 
-    def concat_ws(self, separator: ExpressionT, string_arguments: ExpressionT) -> ExpressionT:
+    def concat_ws(self, separator: ExpressionT, /, *string_arguments: ExpressionT) -> ExpressionT:
         """Concatenate strings together separated by a separator.
 
         Substrait: concat_ws

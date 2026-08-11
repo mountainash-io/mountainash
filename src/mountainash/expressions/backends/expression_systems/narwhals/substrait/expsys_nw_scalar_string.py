@@ -5,6 +5,7 @@ Implements string operations for the Narwhals backend.
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -20,6 +21,21 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
+
+def _nw_concat_fold(sep: "NarwhalsExpr", inputs: "tuple[NarwhalsExpr, ...]") -> "NarwhalsExpr":
+    """Portable IGNORE_NULLS fold — mirrors the Polars/Ibis shape. Never
+    routes through nw.concat_str(ignore_nulls=...) (the exact NW-STR-19
+    trailing-separator bug on narwhals-pandas)."""
+    text_acc = nw.lit("")
+    any_seen = nw.lit(False)
+    for x in inputs:
+        present = ~x.is_null()
+        piece = nw.when(present).then(
+            nw.when(any_seen).then(sep + x).otherwise(x)
+        ).otherwise(nw.lit(""))
+        text_acc = text_acc + piece
+        any_seen = any_seen | present
+    return text_acc
 
 
 class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[nw.Expr]):
@@ -519,45 +535,44 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
     def concat(
         self,
-        input: NarwhalsExpr,
-        /,
+        *input: NarwhalsExpr,
         null_handling: Any = None,
     ) -> NarwhalsExpr:
         """Concatenate strings.
 
-        Note: This is variadic in Substrait. For single input, returns input.
-
         Args:
-            input: String expression (or list of expressions).
-            null_handling: How to handle nulls (IGNORE_NULLS or ACCEPT_NULLS).
+            *input: String expressions to concatenate.
+            null_handling: How to handle nulls (IGNORE_NULLS or ACCEPT_NULLS;
+                default IGNORE_NULLS).
 
         Returns:
             Concatenated string.
         """
-        return input
+        if null_handling == "ACCEPT_NULLS":
+            return functools.reduce(lambda acc, x: acc + x, input[1:], input[0])
+        return _nw_concat_fold(nw.lit(""), input)
 
     def concat_ws(
         self,
         separator: NarwhalsExpr,
         /,
-        string_arguments: NarwhalsExpr,
+        *string_arguments: NarwhalsExpr,
     ) -> NarwhalsExpr:
         """Concatenate strings with separator.
 
         Args:
             separator: Separator string.
-            string_arguments: Strings to concatenate.
+            *string_arguments: Strings to concatenate.
 
         Returns:
-            Concatenated string with separator.
-
-        Note:
-            Narwhals may not have concat_str. Returns string_arguments as fallback.
+            Concatenated string with separator. A null separator
+            unconditionally propagates to a null result (matching DuckDB's
+            own native CONCAT_WS convention), regardless of operand count
+            or nullness.
         """
-        # Narwhals doesn't have concat_str with separator - fallback
-        if isinstance(string_arguments, (list, tuple)):
-            return nw.concat_str(*string_arguments)
-        return string_arguments
+        return nw.when(separator.is_null()).then(nw.lit(None)).otherwise(
+            _nw_concat_fold(separator, string_arguments)
+        )
 
     def replace(
         self,

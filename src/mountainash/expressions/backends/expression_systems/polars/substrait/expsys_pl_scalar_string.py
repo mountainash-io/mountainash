@@ -5,6 +5,7 @@ Implements string operations for the Polars backend.
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -15,6 +16,21 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
+
+
+def _pl_concat_fold(sep: "PolarsExpr", inputs: "tuple[PolarsExpr, ...]") -> "PolarsExpr":
+    """Portable IGNORE_NULLS fold: skip null operands, never emit a leading
+    or double separator. Shared by concat (sep="") and concat_ws (real sep)."""
+    text_acc = pl.lit("")
+    any_seen = pl.lit(False)
+    for x in inputs:
+        present = x.is_not_null()
+        piece = pl.when(present).then(
+            pl.when(any_seen).then(sep + x).otherwise(x)
+        ).otherwise(pl.lit(""))
+        text_acc = text_acc + piece
+        any_seen = any_seen | present
+    return text_acc
 
 
 class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[pl.Expr]):
@@ -508,44 +524,44 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
     def concat(
         self,
-        input: PolarsExpr,
-        /,
+        *input: PolarsExpr,
         null_handling: Any = None,
     ) -> PolarsExpr:
         """Concatenate strings.
 
-        Note: This is variadic in Substrait. For single input, returns input.
-        Use + operator for multi-string concat in Polars.
-
         Args:
-            input: String expression (or list of expressions).
-            null_handling: How to handle nulls (IGNORE_NULLS or ACCEPT_NULLS).
+            *input: String expressions to concatenate.
+            null_handling: How to handle nulls (IGNORE_NULLS or ACCEPT_NULLS;
+                default IGNORE_NULLS).
 
         Returns:
             Concatenated string.
         """
-        # Single input case - return as-is
-        return input
+        if null_handling == "ACCEPT_NULLS":
+            return functools.reduce(lambda acc, x: acc + x, input[1:], input[0])
+        return _pl_concat_fold(pl.lit(""), input)
 
     def concat_ws(
         self,
         separator: PolarsExpr,
         /,
-        string_arguments: PolarsExpr,
+        *string_arguments: PolarsExpr,
     ) -> PolarsExpr:
         """Concatenate strings with separator.
 
         Args:
             separator: Separator string.
-            string_arguments: Strings to concatenate.
+            *string_arguments: Strings to concatenate.
 
         Returns:
-            Concatenated string with separator.
+            Concatenated string with separator. A null separator
+            unconditionally propagates to a null result (matching DuckDB's
+            own native CONCAT_WS convention), regardless of operand count
+            or nullness.
         """
-        # Polars concat_str handles this
-        if isinstance(string_arguments, (list, tuple)):
-            return pl.concat_str(*string_arguments, separator=separator)
-        return string_arguments
+        return pl.when(separator.is_null()).then(
+            pl.lit(None, dtype=pl.Utf8)
+        ).otherwise(_pl_concat_fold(separator, string_arguments))
 
     def replace(
         self,

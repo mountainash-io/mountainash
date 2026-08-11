@@ -7,7 +7,6 @@ missing method, arity mismatch) but not type errors at execution time.
 """
 from __future__ import annotations
 
-import inspect
 import re
 import sys
 from dataclasses import dataclass
@@ -33,7 +32,10 @@ from mountainash.expressions.core.expression_nodes import (
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
-from mountainash.expressions.core.unified_visitor.visitor import _protocol_sig_params
+from mountainash.expressions.core.unified_visitor.visitor import (
+    _param_name_for,
+    _protocol_sig_params,
+)
 
 if TYPE_CHECKING:
     from enum import Enum
@@ -458,12 +460,7 @@ def _derive_smoke_selector(
     sig = _protocol_sig_params(protocol_method) if protocol_method is not None else ()
     arguments = getattr(node, "arguments", None) or []
     for i, arg in enumerate(arguments):
-        if i < len(sig):
-            param_name = sig[i].name
-        elif sig and sig[-1].kind is inspect.Parameter.VAR_POSITIONAL:
-            param_name = sig[-1].name
-        else:
-            param_name = None
+        param_name = _param_name_for(sig, i)
         if param_name is None:
             continue
         fact = CapabilityRegistry.capability_for(fkey, param_name, family, dialect)

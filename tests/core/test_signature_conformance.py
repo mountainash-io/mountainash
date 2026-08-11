@@ -772,8 +772,6 @@ _A3_CASES = _collect_a3_cases()
 
 # (fkey_str) → "reason. Since YYYY-MM-DD."
 _KNOWN_OPTIONS_DRIFT: dict[str, str] = {
-    "FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT":
-        "Registry has 'separator' but protocol has 'null_handling' — different option sets. Since 2026-05-18.",
     "FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING":
         "Registry has 'start','length' but protocol has 'negative_start' — options not aligned. Since 2026-05-18.",
     "FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP":

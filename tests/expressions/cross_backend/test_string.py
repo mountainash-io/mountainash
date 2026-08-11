@@ -584,3 +584,176 @@ class TestStringEdgeCases:
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatMultiOperand:
+    """concat/concat_ws with 2-3 operands and null-containing data — the
+    core multi-operand + null_handling fold, before the separator-null
+    guard (added in a later commit) and dynamic-separator/operand-type
+    coverage (also added later)."""
+
+    def test_concat_two_operands(self, backend_name, backend_factory, collect_expr):
+        data = {"a": ["x", "y", "z"], "b": ["1", "2", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == ["x1", "y2", "z3"], f"[{backend_name}] got {actual}"
+
+    def test_concat_three_operands(self, backend_name, backend_factory, collect_expr):
+        data = {"a": ["x", "y"], "b": ["1", "2"], "c": ["!", "?"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(ma.col("b"), ma.col("c"))
+        actual = collect_expr(df, expr)
+        assert actual == ["x1!", "y2?"], f"[{backend_name}] got {actual}"
+
+    def test_concat_single_operand_ignore_nulls_yields_empty_string(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        """The single-input case is not a `return input`/`return others[0]`
+        fast path — the old broken shortcut silently returned the nullable
+        operand unchanged instead of routing it through the fold, so a null
+        input never became "". Regression coverage for that exact bug."""
+        data = {"a": ["x", None]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat()
+        actual = collect_expr(df, expr)
+        assert actual == ["x", ""], f"[{backend_name}] got {actual}"
+
+    def test_concat_single_operand_accept_nulls_propagates_null(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"a": ["x", None]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(null_handling="ACCEPT_NULLS")
+        actual = collect_expr(df, expr)
+        assert actual == ["x", None], f"[{backend_name}] got {actual}"
+
+    def test_concat_ignore_nulls_default_skips_null_operand(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"a": ["x", None, "z"], "b": ["1", "2", None]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == ["x1", "2", "z"], f"[{backend_name}] got {actual}"
+
+    def test_concat_accept_nulls_propagates_null(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"a": ["x", None, "z"], "b": ["1", "2", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(ma.col("b"), null_handling="ACCEPT_NULLS")
+        actual = collect_expr(df, expr)
+        assert actual == ["x1", None, "z3"], f"[{backend_name}] got {actual}"
+
+    def test_concat_ws_three_operands(self, backend_name, backend_factory, collect_expr):
+        data = {"a": ["x", "y"], "b": ["1", "2"], "c": ["!", "?"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws("-", ma.col("b"), ma.col("c"))
+        actual = collect_expr(df, expr)
+        assert actual == ["x-1-!", "y-2-?"], f"[{backend_name}] got {actual}"
+
+    def test_concat_ws_skips_null_operand_no_double_separator(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        """The exact NW-STR-19 trigger scenario the fold eliminates: a
+        trailing null operand must not leave a trailing separator.
+
+        A second, fully-populated row anchors ``c``'s dtype as string —
+        an all-null column cannot be represented as a table at all on
+        ibis-duckdb (rejects NULL-typed columns at creation) and infers
+        an untyped ``null`` column on ibis-polars/sqlite that concat_ws
+        cannot accept as a string operand; this is a test-fixture
+        table-construction limitation, unrelated to the fold under test."""
+        data = {"a": ["p", "x"], "b": ["q", "y"], "c": [None, "z"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws("-", ma.col("b"), ma.col("c"))
+        actual = collect_expr(df, expr)
+        assert actual == ["p-q", "x-y-z"], f"[{backend_name}] got {actual}"
+
+    def test_concat_ws_all_null_row_yields_empty_string(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        """The exact IB-STR-09 trigger scenario the fold eliminates: an
+        all-null row must yield '', not NULL, on every dialect.
+
+        A second, fully-populated row anchors both columns' dtype as
+        string — see the note on the sibling test above for why an
+        all-null column cannot be used as-is on ibis."""
+        data = {"a": [None, "x"], "b": [None, "y"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws("-", ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == ["", "x-y"], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatWsNullSeparator:
+    """A NULL separator must propagate to the whole result unconditionally
+    (matching DuckDB's own native CONCAT_WS convention), even in the 0/1
+    present-operand rows where the bare fold never actually touches `sep`."""
+
+    def test_null_separator_column_propagates_regardless_of_operand_count(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        # Row 1: sep null, 2 present operands (fold would touch sep if unguarded).
+        # Row 2: sep present, 2 present operands (control — must NOT be affected).
+        # Row 3: sep null, 1 present + 1 null operand (fold would never touch
+        #        sep without the guard -- this is the exact case round 3 found).
+        data = {
+            "sep": [None, "-", None],
+            "a": ["x", "x", "x"],
+            "b": ["y", "y", None],
+        }
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws(ma.col("sep"), ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == [None, "x-y", None], f"[{backend_name}] got {actual}"
+
+    def test_literal_none_separator_propagates_and_does_not_crash(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"a": ["x", "y"], "b": ["1", "2"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws(None, ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == [None, None], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatWsDynamicSeparator:
+    """The fold supports a genuinely dynamic (column-expression) separator
+    on every backend — no LITERAL_ONLY gate is needed anywhere."""
+
+    def test_column_expression_separator_varies_per_row(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"sep": ["-", "_", "."], "a": ["x", "y", "z"], "b": ["1", "2", "3"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat_ws(ma.col("sep"), ma.col("b"))
+        actual = collect_expr(df, expr)
+        assert actual == ["x-1", "y_2", "z.3"], f"[{backend_name}] got {actual}"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConcatOperandType:
+    """A non-string operand is a native caller error, not a mountainash
+    coercion/validation feature — Substrait types every concat/concat_ws
+    operand as string/varchar, with no implicit-cast contract."""
+
+    def test_concat_numeric_operand_raises_native_error(
+        self, backend_name, backend_factory
+    ):
+        data = {"a": ["x", "y"], "n": [1, 2]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(ma.col("n"))
+        with pytest.raises(Exception):  # native TypeError/InvalidOperationError/SignatureValidationError — backend-specific, not mountainash's
+            ma.relation(df).select(expr.name.alias("r")).to_dict()

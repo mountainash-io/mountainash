@@ -4,7 +4,6 @@ Nothing here is hand-maintained; see spec 2026-08-01-spine-derived-test-expectat
 """
 from __future__ import annotations
 
-import inspect
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -195,7 +194,10 @@ def first_scalar_build_gate(
     from mountainash.expressions.core.expression_system.function_mapping.registry import (
         ExpressionFunctionRegistry,
     )
-    from mountainash.expressions.core.unified_visitor.visitor import _protocol_sig_params
+    from mountainash.expressions.core.unified_visitor.visitor import (
+        _param_name_for,
+        _protocol_sig_params,
+    )
 
     wildcard_fact = build_gate_fact(node.function_key, identity, param=WILDCARD_PARAM)
     if wildcard_fact is not None and wildcard_fact.level is CapabilityLevel.UNSUPPORTED:
@@ -205,15 +207,8 @@ def first_scalar_build_gate(
     protocol_method = func_def.protocol_method if func_def is not None else None
     sig_params = _protocol_sig_params(protocol_method) if protocol_method is not None else ()
 
-    def _param_name_for(index: int) -> str | None:
-        if index < len(sig_params):
-            return sig_params[index].name
-        if sig_params and sig_params[-1].kind is inspect.Parameter.VAR_POSITIONAL:
-            return sig_params[-1].name
-        return None
-
     for i, argument in enumerate(node.arguments):
-        param_name = _param_name_for(i)
+        param_name = _param_name_for(sig_params, i)
         if param_name is None:
             continue
         fact = build_gate_fact(node.function_key, identity, param=param_name)

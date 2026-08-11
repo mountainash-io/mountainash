@@ -530,7 +530,7 @@ def register_all_functions() -> None:
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="concat",
-            options=("separator",),
+            options=("null_handling",),
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.concat,
         ),
         ExpressionFunctionDef(

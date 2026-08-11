@@ -47,6 +47,28 @@ def _protocol_sig_params(protocol_method: Any) -> tuple:
         if p.name != "self"
     )
 
+def _param_name_for(sig_params: tuple, index: int) -> str | None:
+    """Map an emitted argument's position to its protocol parameter name.
+
+    Every index at or after the VAR_POSITIONAL parameter (if any) maps to
+    that parameter's name — not just an exact index match — so a variadic
+    parameter followed by trailing named parameters (``is_in``'s
+    ``(needle, /, *haystack, unknown_values=None, member_unknown_values=None)``,
+    ``concat``'s ``(*input, null_handling=None)``) correctly maps every
+    variadic member, however many there are, instead of silently drifting
+    into the trailing parameter names once the index exceeds
+    ``len(sig_params)``.
+    """
+    var_positional_idx = next(
+        (i for i, p in enumerate(sig_params) if p.kind is inspect.Parameter.VAR_POSITIONAL),
+        None,
+    )
+    if var_positional_idx is not None and index >= var_positional_idx:
+        return sig_params[var_positional_idx].name
+    if index < len(sig_params):
+        return sig_params[index].name
+    return None
+
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
 
@@ -214,20 +236,14 @@ class UnifiedExpressionVisitor:
 
         # Map node.arguments positions to protocol param names.
         # Signature shape: (self, input, /, a, b=None, *varargs) — skip self;
-        # a VAR_POSITIONAL param name applies to all remaining arguments.
-        # Cached per protocol_method (stable registry object).
+        # every index at/after a VAR_POSITIONAL param maps to its name (see
+        # module-level _param_name_for). Cached per protocol_method (stable
+        # registry object).
         sig_params = _protocol_sig_params(protocol_method)
-
-        def _param_name_for(index: int) -> str | None:
-            if index < len(sig_params):
-                return sig_params[index].name
-            if sig_params and sig_params[-1].kind is inspect.Parameter.VAR_POSITIONAL:
-                return sig_params[-1].name
-            return None
 
         resolved = []
         for i, arg in enumerate(arguments):
-            param_name = _param_name_for(i)
+            param_name = _param_name_for(sig_params, i)
             fact = (
                 CapabilityRegistry.capability_for(
                     function_key, param_name, backend_family, dialect
