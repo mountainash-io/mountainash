@@ -459,6 +459,113 @@ _NARWHALS_FACTS = tuple(
 )
 
 
+# ---------------------------------------------------------------------------
+# CASE_INSENSITIVE_ASCII (backlog item 75, 2026-08-12) — a distinct probe
+# wave from the 2026-07-23 baseline above, so its facts get their own
+# CapabilityDeclaration/ProbeEvidence per "one backend's facts, from one
+# source, one domain, one probe wave" (declarations.py). Semantics verified
+# directly against each engine (Kelvin Sign / Turkish I-with-dot
+# discriminator — see the design spec), not inferred from CASE_INSENSITIVE's
+# existing facts.
+# ---------------------------------------------------------------------------
+_SINCE_ASCII_FOLD = "2026-08-12"
+_CASE_INSENSITIVE_ASCII_UNSUPPORTED = (
+    "The native backend does not implement CASE_INSENSITIVE_ASCII semantics "
+    "for this Substrait string operation (same disposition as "
+    "CASE_INSENSITIVE — neither case-fold value is wired here)"
+)
+_CASE_INSENSITIVE_ASCII_WORKAROUND = (
+    "Fold the input and search operand to ASCII lowercase explicitly before "
+    "applying the case-sensitive operation"
+)
+_REGEXP_FLAG_ASCII_UNSUPPORTED = (
+    "The native backend does not implement this regexp flag's "
+    "CASE_INSENSITIVE_ASCII Substrait semantics"
+)
+
+
+def _case_insensitive_ascii_facts(
+    backend: CONST_BACKEND, dialect: str | None
+) -> tuple[CapabilityFact, ...]:
+    """CASE_INSENSITIVE_ASCII facts for the 10 always-unsupported ops (4
+    non-regex ops via _CASE_INSENSITIVE_UNSUPPORTED_KEYS + 6 regexp_* ops) —
+    mirrors _dialect_facts's case_insensitive/regexp_enabled shape exactly,
+    scoped to just the new value. contains/starts_with/ends_with need no
+    fact here (real/EXPR_CAPABLE by absence) except on ibis-polars, which
+    _IBIS_POLARS_FACTS below covers separately."""
+    non_regex = tuple(
+        CapabilityFact(
+            operation_key=operation_key,
+            param="case_sensitivity",
+            option_value="CASE_INSENSITIVE_ASCII",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=backend,
+            dialect=dialect,
+            message=_CASE_INSENSITIVE_ASCII_UNSUPPORTED,
+            workaround=_CASE_INSENSITIVE_ASCII_WORKAROUND,
+            since=_SINCE_ASCII_FOLD,
+        )
+        for operation_key in _CASE_INSENSITIVE_UNSUPPORTED_KEYS
+    )
+    regexp = tuple(
+        CapabilityFact(
+            operation_key=operation_key,
+            param="case_sensitivity",
+            option_value="CASE_INSENSITIVE_ASCII",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=backend,
+            dialect=dialect,
+            message=_REGEXP_FLAG_ASCII_UNSUPPORTED,
+            since=_SINCE_ASCII_FOLD,
+        )
+        for operation_key in _REGEXP_FLAG_KEYS["case_sensitivity"].values()
+    )
+    return non_regex + regexp
+
+
+_POLARS_ASCII_FOLD_FACTS = _case_insensitive_ascii_facts(CONST_BACKEND.POLARS, "polars")
+_IBIS_DUCKDB_ASCII_FOLD_FACTS = _case_insensitive_ascii_facts(CONST_BACKEND.IBIS, "ibis-duckdb")
+_IBIS_FAMILY_ASCII_FOLD_FACTS = _case_insensitive_ascii_facts(CONST_BACKEND.IBIS, None)
+_NARWHALS_ASCII_FOLD_FACTS = tuple(
+    fact
+    for dialect in ("narwhals-polars", "narwhals-pandas")
+    for fact in _case_insensitive_ascii_facts(CONST_BACKEND.NARWHALS, dialect)
+)
+
+# Empirical dialect spike (2026-08-12): ibis-polars has no compilation rule
+# for StringTranslate (OperationNotDefinedError raised at materialize time);
+# ibis-duckdb and ibis-sqlite both compile it via native SQL translate().
+# contains/starts_with/ends_with are therefore real everywhere in the Ibis
+# family EXCEPT ibis-polars, which needs its own dialect-scoped UNSUPPORTED
+# fact overriding the (absent-by-default) family disposition — mirrors the
+# ibis-sqlite/strptime precedent's "no family default, dialect-scoped
+# refinement only" shape (capabilities/datetime/strptime.py).
+_IBIS_POLARS_ASCII_FOLD_UNSUPPORTED = (
+    "ibis-polars has no compilation rule for StringTranslate "
+    "(OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII "
+    "needs for contains/starts_with/ends_with is unavailable on this "
+    "dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()"
+)
+_ASCII_FOLD_KEYS = {
+    op: fkey
+    for op, fkey in _CASE_SENSITIVITY_KEYS.items()
+    if fkey not in _CASE_INSENSITIVE_UNSUPPORTED_KEYS
+}
+_IBIS_POLARS_FACTS = tuple(
+    CapabilityFact(
+        operation_key=operation_key,
+        param="case_sensitivity",
+        option_value="CASE_INSENSITIVE_ASCII",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message=_IBIS_POLARS_ASCII_FOLD_UNSUPPORTED,
+        since=_SINCE_ASCII_FOLD,
+    )
+    for operation_key in _ASCII_FOLD_KEYS.values()
+)
+
+
 OP_LEVEL_FKEYS = {**_CHAR_SET_KEYS, "center": FK_STR.CENTER}
 _OP_LEVEL_UNSUPPORTED = (
     "This string operation has no correct native implementation on this backend at the "
@@ -496,6 +603,15 @@ _EVIDENCE = ProbeEvidence(
     ),
 )
 
+_EVIDENCE_ASCII_FOLD = ProbeEvidence(
+    probe_date=_SINCE_ASCII_FOLD,
+    library_versions=(("ibis", "12.0.0"), ("narwhals", "2.24.0")),
+    fixtures=(
+        "polars", "ibis-duckdb", "ibis-polars", "ibis-sqlite",
+        "narwhals-polars", "narwhals-pandas",
+    ),
+)
+
 DECLARATIONS = (
     CapabilityDeclaration(
         backend=CONST_BACKEND.POLARS, domain=Domain.STRING,
@@ -514,5 +630,22 @@ DECLARATIONS = (
         source=FactSource.SUBSTRAIT,
         facts=tuple(_NARWHALS_FACTS) + _op_level_facts(CONST_BACKEND.NARWHALS),
         evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.POLARS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT, facts=_POLARS_ASCII_FOLD_FACTS,
+        evidence=_EVIDENCE_ASCII_FOLD,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_FAMILY_ASCII_FOLD_FACTS + _IBIS_DUCKDB_ASCII_FOLD_FACTS
+        + _IBIS_POLARS_FACTS,
+        evidence=_EVIDENCE_ASCII_FOLD,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT, facts=_NARWHALS_ASCII_FOLD_FACTS,
+        evidence=_EVIDENCE_ASCII_FOLD,
     ),
 )

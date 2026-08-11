@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import functools
 import re
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, cast
 
 import narwhals as nw
 
@@ -36,6 +36,37 @@ def _nw_concat_fold(sep: "NarwhalsExpr", inputs: "tuple[NarwhalsExpr, ...]") -> 
         text_acc = text_acc + piece
         any_seen = any_seen | present
     return text_acc
+
+
+_ASCII_UPPER_STR = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_ASCII_LOWER_STR = "abcdefghijklmnopqrstuvwxyz"
+_ASCII_TRANSLATION = str.maketrans(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
+
+
+def _nw_fold(expr: "NarwhalsExpr | str", case_sensitivity: Any) -> "NarwhalsExpr | str":
+    """Apply the fold a case_sensitivity option value implies, to EITHER a
+    NarwhalsExpr or a literal Python str operand -- contains/starts_with/
+    ends_with's `substring` parameter is typed `NarwhalsExpr | str`, and a
+    literal string must fold via plain Python (no narwhals call), distinct
+    from the NarwhalsExpr branch's `.str` method chain (mirrors the existing
+    CASE_INSENSITIVE branch's isinstance split). CASE_SENSITIVE (and any
+    other/omitted value) leaves expr unchanged; CASE_INSENSITIVE applies
+    full Unicode lowercasing; CASE_INSENSITIVE_ASCII folds only A-Z/a-z via
+    26 chained single-character replaces (narwhals has no batch-translate
+    primitive), leaving every other code point (Kelvin Sign, Turkish
+    I-with-dot, ...) untouched -- see backlog item 75."""
+    if case_sensitivity == "CASE_INSENSITIVE":
+        if isinstance(expr, str):
+            return expr.lower()
+        return expr.str.to_lowercase()
+    if case_sensitivity == "CASE_INSENSITIVE_ASCII":
+        if isinstance(expr, str):
+            return expr.translate(_ASCII_TRANSLATION)
+        folded = expr
+        for upper, lower in zip(_ASCII_UPPER_STR, _ASCII_LOWER_STR):
+            folded = folded.str.replace_all(upper, lower, literal=True)
+        return folded
+    return expr
 
 
 class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[nw.Expr]):
@@ -385,13 +416,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            if isinstance(substring, str):
-                lowered = substring.lower()
-            else:
-                lowered = substring.str.to_lowercase()
-            return input.str.to_lowercase().str.contains(lowered)
-        return input.str.contains(substring)
+        # input is always NarwhalsExpr (never str), unlike substring -- cast
+        # narrows _nw_fold's Union return so mypy resolves `.str` here.
+        folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
+        folded_substring = _nw_fold(substring, case_sensitivity)
+        return folded_input.str.contains(folded_substring)
 
     def starts_with(
         self,
@@ -410,13 +439,9 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            if isinstance(substring, str):
-                lowered = substring.lower()
-            else:
-                lowered = substring.str.to_lowercase()
-            return input.str.to_lowercase().str.starts_with(lowered)
-        return input.str.starts_with(substring)
+        folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
+        folded_substring = _nw_fold(substring, case_sensitivity)
+        return folded_input.str.starts_with(folded_substring)
 
     def ends_with(
         self,
@@ -435,13 +460,9 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            if isinstance(substring, str):
-                lowered = substring.lower()
-            else:
-                lowered = substring.str.to_lowercase()
-            return input.str.to_lowercase().str.ends_with(lowered)
-        return input.str.ends_with(substring)
+        folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
+        folded_substring = _nw_fold(substring, case_sensitivity)
+        return folded_input.str.ends_with(folded_substring)
 
     def strpos(
         self,

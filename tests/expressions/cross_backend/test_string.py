@@ -12,6 +12,10 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
+from mountainash.core.capabilities import load_all_capability_declarations
+from mountainash.core.types import BackendCapabilityError
+
+load_all_capability_declarations()
 
 # =============================================================================
 # Cross-Backend Tests - Case Conversion
@@ -183,6 +187,216 @@ class TestStringStartsEndsWith:
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
 
+
+
+# =============================================================================
+# Cross-Backend Tests - CASE_INSENSITIVE_ASCII (backlog item 75)
+# =============================================================================
+#
+# contains/starts_with/ends_with are the only 3 (of 13) string ops with real
+# CASE_INSENSITIVE_ASCII behavior; the other 10 always-unsupported ops are
+# covered generically by the option-disposition coverage guard
+# (test_arg_types_string.py), not hand-written here.
+#
+# ibis-polars has no compilation rule for StringTranslate
+# (OperationNotDefinedError) — the ASCII-fold cell is UNSUPPORTED there
+# alone in the Ibis family (dialect spike finding, capabilities/string.py's
+# _IBIS_POLARS_FACTS); see TestCaseInsensitiveAsciiIbisPolarsGate below.
+_ASCII_FOLD_HONORING_BACKENDS = [b for b in ALL_BACKENDS if b != "ibis-polars"]
+
+# Discriminator sanity check only (proves CASE_INSENSITIVE_ASCII is
+# behaviorally distinct from CASE_INSENSITIVE, not a differently-named
+# alias) — excludes ibis-sqlite. SQLite's native LOWER()/UPPER() (no ICU
+# extension loaded) are themselves ASCII-only, so CASE_INSENSITIVE's
+# pre-existing, unmodified `.lower()` call does not perform full Unicode
+# case-folding on this dialect — a genuine, pre-existing, unrelated
+# divergence from CASE_INSENSITIVE's documented semantics, discovered while
+# building this discriminator. Out of item 75's scope (this item only adds
+# the ASCII-fold value; it does not touch the existing CASE_INSENSITIVE
+# `.lower()` call sites). Not fixed here; flagged for separate triage.
+_UNICODE_FOLD_KELVIN_HONORING_BACKENDS = [
+    b for b in _ASCII_FOLD_HONORING_BACKENDS if b != "ibis-sqlite"
+]
+
+# Dynamic (expression-valued) search-operand parity, scoped per
+# known-divergences.md's KNOWN_EXPR_LIMITATIONS: starts_with/ends_with
+# reject expression operands on narwhals entirely (both narwhals-polars and
+# narwhals-pandas); contains accepts one only on narwhals-polars (not
+# narwhals-pandas), since narwhals 2.19.0. ibis-polars is excluded from all
+# three (the ASCII-fold gate fires regardless of operand shape). Pre-existing,
+# unrelated limitation — not something this item fixes or asserts around.
+_DYNAMIC_OPERAND_HONORING = {
+    "contains": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite", "narwhals-polars"],
+    "starts_with": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite"],
+    "ends_with": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite"],
+}
+
+_KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _ASCII_FOLD_HONORING_BACKENDS)
+class TestCaseInsensitiveAsciiFold:
+    """CASE_INSENSITIVE_ASCII on contains/starts_with/ends_with: real,
+    ASCII-only case folding (backlog item 75)."""
+
+    def test_contains_ascii_positive(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["HELLO world", "foo bar"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("hello", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [True, False], f"[{backend_name}]"
+
+    def test_starts_with_ascii_positive(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["HELLO world", "foo bar"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.starts_with("hello", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [True, False], f"[{backend_name}]"
+
+    def test_ends_with_ascii_positive(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello WORLD", "foo bar"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.ends_with("world", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [True, False], f"[{backend_name}]"
+
+    def test_contains_ascii_empty_input(self, backend_name, backend_factory, collect_expr):
+        data = {"text": [""]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("x", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [False], f"[{backend_name}]"
+
+    def test_contains_ascii_empty_substring(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [True], f"[{backend_name}]"
+
+    def test_contains_ascii_all_non_ascii_input(self, backend_name, backend_factory, collect_expr):
+        """An input with no ASCII letters at all (only Turkish dotted capital
+        I, which must NOT ASCII-fold) never matches an ASCII-lowercase needle."""
+        data = {"text": ["\u0130\u0130\u0130"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("i", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [False], f"[{backend_name}]"
+
+    def test_contains_ascii_mixed_input(self, backend_name, backend_factory, collect_expr):
+        """Mixed ASCII + non-ASCII: the ASCII letters fold, the Turkish
+        dotted capital I in the middle does not."""
+        data = {"text": ["Test\u0130ng"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("test", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [True], f"[{backend_name}]"
+
+    def test_contains_ascii_null_input(self, backend_name, backend_factory, collect_expr):
+        # Anchored with a second real-valued row: an all-null-typed column
+        # cannot be constructed on every backend (DuckDB rejects it at table
+        # creation; item 61 precedent) — this is a test-fixture limitation,
+        # not a fold-logic concern.
+        data = {"text": [None, "anchor"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("x", case_sensitive="CASE_INSENSITIVE_ASCII")
+        # pandas-backed str.contains never propagates null (returns False for
+        # a null input row) regardless of case_sensitivity -- pre-existing,
+        # unrelated to item 75 (verified identical under the plain
+        # case-sensitive default), not something this item's fold touches.
+        expect_null = backend_name not in ("pandas", "narwhals-pandas")
+        expected = [None if expect_null else False, False]
+        assert collect_expr(df, expr) == expected, f"[{backend_name}]"
+
+    def test_contains_ascii_already_lowercase(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["already lowercase"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.contains("lower", case_sensitive="CASE_INSENSITIVE_ASCII")
+        assert collect_expr(df, expr) == [True], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _ASCII_FOLD_HONORING_BACKENDS)
+def test_case_insensitive_ascii_kelvin_sign_does_not_fold(backend_name, backend_factory, collect_expr):
+    """Discriminator (the actual point of this feature): the Kelvin Sign
+    (U+212A) folds to 'k' under full Unicode case-fold but must NOT fold
+    under CASE_INSENSITIVE_ASCII. Real cell on every backend except
+    ibis-polars (excluded from the parametrize list above)."""
+    df = backend_factory.create(_KELVIN_DATA, backend_name)
+    expr = ma.col("text").str.contains("kelvin", case_sensitive="CASE_INSENSITIVE_ASCII")
+    assert collect_expr(df, expr) == [False], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _UNICODE_FOLD_KELVIN_HONORING_BACKENDS)
+def test_case_insensitive_unicode_kelvin_sign_folds(backend_name, backend_factory, collect_expr):
+    """Companion discriminator sanity check: CASE_INSENSITIVE's full-Unicode
+    fold DOES match the Kelvin Sign — proving CASE_INSENSITIVE_ASCII is
+    behaviorally distinct, not just a differently-named alias for the same
+    fold. ibis-sqlite excluded — see _UNICODE_FOLD_KELVIN_HONORING_BACKENDS."""
+    df = backend_factory.create(_KELVIN_DATA, backend_name)
+    expr = ma.col("text").str.contains("kelvin", case_sensitive="CASE_INSENSITIVE")
+    assert collect_expr(df, expr) == [True], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize(
+    ("method", "backend_name"),
+    [
+        (method, backend_name)
+        for method, backends in _DYNAMIC_OPERAND_HONORING.items()
+        for backend_name in backends
+    ],
+)
+def test_case_insensitive_ascii_dynamic_search_operand(method, backend_name, backend_factory, collect_expr):
+    """CASE_INSENSITIVE_ASCII folds an expression-valued (column) search
+    operand the same way as a literal one, on every cell that already
+    supports expression operands for this op."""
+    data = {"text": ["HELLO world"], "needle": ["hello"]} if method != "ends_with" else {
+        "text": ["world HELLO"], "needle": ["hello"]
+    }
+    df = backend_factory.create(data, backend_name)
+    expr = getattr(ma.col("text").str, method)(
+        ma.col("needle"), case_sensitive="CASE_INSENSITIVE_ASCII"
+    )
+    assert collect_expr(df, expr) == [True], f"[{backend_name}.{method}]"
+
+
+class TestCaseInsensitiveAsciiIbisPolarsGate:
+    """ibis-polars has no compilation rule for StringTranslate — the ASCII
+    fold gate raises a clean BackendCapabilityError at BUILD time rather
+    than letting the raw OperationNotDefinedError leak through at
+    materialize time (dialect spike finding, backlog item 75)."""
+
+    @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
+    def test_ascii_fold_is_gated_on_ibis_polars(self, method, backend_factory):
+        df = backend_factory.create({"text": ["hello"]}, "ibis-polars")
+        with pytest.raises(BackendCapabilityError):
+            getattr(ma.col("text").str, method)(
+                "hello", case_sensitive="CASE_INSENSITIVE_ASCII"
+            ).compile(df)
+
+
+def test_case_insensitive_null_search_operand_is_a_pre_existing_cross_backend_crash(
+    backend_factory,
+):
+    """Not new scope: a null-typed LITERAL search operand under
+    case_sensitivity=CASE_INSENSITIVE already crashes with a raw native
+    exception (SchemaError/AttributeError/NarwhalsError, backend-specific)
+    on every backend for contains/starts_with/ends_with — pre-existing,
+    unrelated to item 75, and NOT fixed here (out of scope: item 75 only
+    adds CASE_INSENSITIVE_ASCII alongside the existing, unmodified
+    CASE_INSENSITIVE fold call sites). CASE_INSENSITIVE_ASCII mirrors the
+    identical crash shape — proof that this item introduces no NEW
+    divergence, not that the underlying gap is fixed. Flagged for separate
+    triage rather than silently worked around."""
+    df = backend_factory.create({"text": ["hello"]}, "polars")
+    with pytest.raises(Exception):  # native SchemaError — not mountainash's own type
+        ma_top.relation(df).select(
+            ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE").alias("r")
+        ).to_dict()
+    with pytest.raises(Exception):  # identical crash shape under the new value
+        ma_top.relation(df).select(
+            ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII").alias("r")
+        ).to_dict()
 
 # =============================================================================
 # Cross-Backend Tests - String Replace
