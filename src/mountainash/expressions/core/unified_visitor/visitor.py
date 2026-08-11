@@ -235,14 +235,8 @@ class UnifiedExpressionVisitor:
                 if param_name is not None
                 else None
             )
-            if self.enforce_capabilities and fact is not None:
-                if fact.enforcement is not Enforcement.GATE:
-                    fact = None  # router metadata / materialize residue never gate here
-            elif not self.enforce_capabilities and param_name not in {
-                "padding",
-                "negative_start",
-            }:
-                fact = None
+            if fact is not None and fact.enforcement is not Enforcement.GATE:
+                fact = None  # router metadata / materialize residue never gate here
 
             level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
 

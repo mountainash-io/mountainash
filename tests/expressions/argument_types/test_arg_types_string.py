@@ -114,37 +114,6 @@ def _case_sensitivity_probe(op: str, value: str) -> OptionSpec:
     )
 
 
-def _registered_case_sensitivity_probe(
-    op: str, value: str, backend: str
-) -> OptionSpec:
-    spec = _case_sensitivity_probe(op, value)
-    if (
-        value == "CASE_SENSITIVE"
-        and backend.startswith("narwhals")
-        and op in {"like", "replace"}
-    ):
-        # These two narwhals ops require their pattern/substring as a literal
-        # (gated LITERAL_ONLY on every narwhals dialect — the SQL-LIKE→regex
-        # conversion and literal replace happen Python-side). The native probe
-        # runs enforce_capabilities=False, which BYPASSES that gate, so the
-        # literal is visited into a narwhals Expr and the raw path raises
-        # ('Expr' has no attribute 'replace' for like; an Expr-literal TypeError
-        # for replace) — identically for BOTH the explicit-CASE_SENSITIVE and
-        # omission builds, independent of case_sensitivity. That identical raise
-        # is the probe-exempt equivalence in the raw path; the value-equivalence
-        # of CASE_SENSITIVE to omission is separately verified on the GATED path
-        # by test_case_sensitive_string_option_matches_omission. Controller-
-        # authorised refinement of the locked disposition (gate-requiring ops
-        # cannot be natively probed). Self-heals: if narwhals ever compiles these
-        # raw, the "did not raise" assertion fires.
-        return spec._replace(
-            expected_native_exception=(
-                AttributeError if op == "like" else TypeError
-            )
-        )
-    return spec
-
-
 @pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_HONORED_OPS))
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_case_insensitive_string_option_discriminates(op, backend):
@@ -187,13 +156,7 @@ def test_case_sensitive_string_option_matches_omission(op, backend):
 
 _CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE")
 _CASE_INSENSITIVE_NATIVE_FAILURES = {
-    (op, backend): (
-        AttributeError
-        if op == "like" and backend.startswith("narwhals")
-        else TypeError
-        if op == "replace" and backend.startswith("narwhals")
-        else OptionProbeDidNotDiscriminateError
-    )
+    (op, backend): OptionProbeDidNotDiscriminateError
     for op in _CASE_INSENSITIVE_DECLARED_OPS
     for backend in ALL_BACKENDS
 }
@@ -230,7 +193,7 @@ OPTION_DISPOSITIONS.extend(
 
 REGISTERED_OPTION_PROBES.extend(
     OptionProbeRegistration(
-        _registered_case_sensitivity_probe(op, value, backend),
+        _case_sensitivity_probe(op, value),
         backend,
         (
             "probe_exempt"
@@ -553,11 +516,6 @@ def _padding_probe(value: str, backend: str) -> OptionSpec:
         lambda: _padding_expr(),
         _PADDING_DATA,
         expected_discriminates=discriminate,
-        expected_native_exception=(
-            TypeError
-            if not broken and value == "RIGHT"
-            else None
-        ),
     )
 
 
@@ -566,7 +524,7 @@ def _padding_native_failure(value: str, backend: str) -> type[BaseException] | N
         return OptionProbeDidNotDiscriminateError
     if value == "RIGHT":
         return None
-    return TypeError
+    return OptionProbeDidNotDiscriminateError
 
 
 OPTION_DISPOSITIONS.extend(
@@ -709,19 +667,12 @@ def _negative_start_probe(value: str, backend: str) -> OptionSpec:
         lambda: _negative_start_expr(),
         _NEGATIVE_START_DATA,
         expected_discriminates=discriminate,
-        expected_native_exception=(
-            TypeError
-            if value == "WRAP_FROM_END" and backend.startswith("narwhals")
-            else None
-        ),
     )
 
 
 def _negative_start_native_failure(value: str, backend: str) -> type[BaseException] | None:
     if value == "WRAP_FROM_END":
         return None
-    if backend.startswith("narwhals"):
-        return TypeError
     return OptionProbeDidNotDiscriminateError
 
 
@@ -913,27 +864,7 @@ def _regexp_flag_probe(op: str, param: str, value: str) -> OptionSpec:
 def _regexp_flag_native_exception(op: str, backend: str):
     if _regexp_operation_unsupported(op, backend):
         return BackendCapabilityError
-    if op == "regexp_replace" and backend.startswith("narwhals"):
-        return TypeError
     return None
-
-
-def _registered_regexp_flag_probe(
-    op: str, param: str, value: str, backend: str
-) -> OptionSpec:
-    spec = _regexp_flag_probe(op, param, value)
-    native_exception = _regexp_flag_native_exception(op, backend)
-    if (
-        native_exception is not None
-        and value == _REGEXP_FLAG_DEFAULTS[param]
-        and not _regexp_operation_unsupported(op, backend)
-    ):
-        # Narwhals regexp_replace runs on the public gated path, but its raw,
-        # gate-bypassing literal path raises identically for explicit-default
-        # and omission. Keep that runnable operation probe-exempt; declared
-        # probes leave their raw exceptions to the strict xfail registration.
-        return spec._replace(expected_native_exception=native_exception)
-    return spec
 
 
 @pytest.mark.parametrize(
@@ -1089,7 +1020,7 @@ OPTION_DISPOSITIONS.extend(
 
 REGISTERED_OPTION_PROBES.extend(
     OptionProbeRegistration(
-        _registered_regexp_flag_probe(op, param, value, backend),
+        _regexp_flag_probe(op, param, value),
         backend,
         _regexp_flag_disposition(op, param, value, backend),
         (
@@ -1231,10 +1162,6 @@ def _positional_disposition(op: str, param: str, backend: str) -> str:
 def _positional_native_failure(op: str, backend: str):
     if _regexp_operation_unsupported(op, backend):
         return BackendCapabilityError
-    if op == "regexp_replace" and backend.startswith("narwhals"):
-        # regexp_replace is gate-requiring on narwhals (LITERAL_ONLY pattern);
-        # the raw, gate-bypassing path raises TypeError for any positional value.
-        return TypeError
     return OptionProbeDidNotDiscriminateError
 
 
