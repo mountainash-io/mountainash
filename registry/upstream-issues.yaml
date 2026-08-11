@@ -1298,10 +1298,13 @@ issues:
   - narwhals-polars
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: open
+  status: resolved_in_mountainash
   our_workaround: none
-  notes: Pass empty dict instead of None.
-  last_verified: '2026-05-11'
+  notes: 'Fixed: is_dst builder now passes options={} instead of None (see
+    api_bldr_ext_ma_scalar_datetime.py). Verified empirically 2026-08-11 —
+    ma.col("ts").dt.is_dst() constructs cleanly; no xfail remains on
+    tests/expressions/ast/test_ast_scalar_datetime.py::test_is_dst.'
+  last_verified: '2026-08-11'
 - id: MA-WIRE-05
   project: mountainash-internal
   category: wiring-gaps
