@@ -608,6 +608,28 @@ class TestConcatMultiOperand:
         actual = collect_expr(df, expr)
         assert actual == ["x1!", "y2?"], f"[{backend_name}] got {actual}"
 
+    def test_concat_single_operand_ignore_nulls_yields_empty_string(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        """The single-input case is not a `return input`/`return others[0]`
+        fast path — the old broken shortcut silently returned the nullable
+        operand unchanged instead of routing it through the fold, so a null
+        input never became "". Regression coverage for that exact bug."""
+        data = {"a": ["x", None]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat()
+        actual = collect_expr(df, expr)
+        assert actual == ["x", ""], f"[{backend_name}] got {actual}"
+
+    def test_concat_single_operand_accept_nulls_propagates_null(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        data = {"a": ["x", None]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").str.concat(null_handling="ACCEPT_NULLS")
+        actual = collect_expr(df, expr)
+        assert actual == ["x", None], f"[{backend_name}] got {actual}"
+
     def test_concat_ignore_nulls_default_skips_null_operand(
         self, backend_name, backend_factory, collect_expr
     ):
