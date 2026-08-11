@@ -477,48 +477,78 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     # =========================================================================
     # Transform Operations
     # =========================================================================
+    def _ib_concat_fold(
+        self, sep: "IbisValueExpr", inputs: "tuple[IbisValueExpr, ...]"
+    ) -> "IbisValueExpr":
+        """Portable IGNORE_NULLS fold — mirrors the Polars/Narwhals shape.
+        Never routes through ibis.array(...).join(...) (OperationNotDefinedError
+        on sqlite; dialect-divergent all-null-row result on ibis-polars) or
+        .concat() (AttributeError on an untyped ibis.literal(None)) — uses `+`
+        for real values, which ibis documents as equivalent to .concat().
+
+        Column operands compile to Deferred (``ibis._[name]``) in this
+        backend while literal operands (a bare separator string, the
+        fold's own empty-string/False seeds) stay concrete — mixing a
+        concrete left operand/receiver with a Deferred right
+        operand/argument crashes without ``_lift_deferred``/
+        ``_lift_deferred_receiver`` (item 226b/226c, upstream Ibis #11742).
+        """
+        empty = ibis.literal("", type="string")
+        text_acc = empty
+        any_seen = ibis.literal(False)
+        for x in inputs:
+            present = x.notnull()
+            sep_l, x_l = self._lift_deferred(sep, x)
+            joined = sep_l + x_l
+            any_seen_r = self._lift_deferred_receiver(any_seen, joined, x)
+            inner = any_seen_r.ifelse(joined, x)
+            present_r = self._lift_deferred_receiver(present, inner, empty)
+            piece = present_r.ifelse(inner, empty)
+            text_acc_l, piece_l = self._lift_deferred(text_acc, piece)
+            text_acc = text_acc_l + piece_l
+            any_seen_l, present_l = self._lift_deferred(any_seen, present)
+            any_seen = any_seen_l | present_l
+        return text_acc
 
     def concat(
         self,
-        input: IbisValueExpr,
-        /,
+        *input: IbisValueExpr,
         null_handling: Any = None,
     ) -> IbisValueExpr:
         """Concatenate strings.
 
-        Note: This is variadic in Substrait. For single input, returns input.
-
         Args:
-            input: String expression (or list of expressions).
-            null_handling: How to handle nulls (IGNORE_NULLS or ACCEPT_NULLS).
+            *input: String expressions to concatenate.
+            null_handling: How to handle nulls (IGNORE_NULLS or ACCEPT_NULLS;
+                default IGNORE_NULLS).
 
         Returns:
             Concatenated string.
         """
-        return input
+        if null_handling == "ACCEPT_NULLS":
+            result = input[0]
+            for x in input[1:]:
+                result_l, x_l = self._lift_deferred(result, x)
+                result = result_l + x_l
+            return result
+        return self._ib_concat_fold(ibis.literal("", type="string"), input)
 
     def concat_ws(
         self,
         separator: IbisValueExpr,
         /,
-        string_arguments: IbisValueExpr,
+        *string_arguments: IbisValueExpr,
     ) -> IbisValueExpr:
         """Concatenate strings with separator.
 
         Args:
             separator: Separator string.
-            string_arguments: Strings to concatenate.
+            *string_arguments: Strings to concatenate.
 
         Returns:
             Concatenated string with separator.
-
-        Note:
-            Ibis doesn't have concat_ws directly. Falls back.
         """
-        # Ibis doesn't have concat_ws - fallback
-        if isinstance(string_arguments, (list, tuple)) and len(string_arguments) > 0:
-            return string_arguments[0]
-        return string_arguments
+        return self._ib_concat_fold(separator, string_arguments)
 
     def replace(
         self,
