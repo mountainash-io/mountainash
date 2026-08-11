@@ -522,7 +522,6 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'round_dt', 'x'),
         ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'second', 'x'),
         ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'timezone_offset', 'x'),
-        ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'to_timezone', 'x'),
         ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_microseconds', 'x'),
         ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_milliseconds', 'x'),
         ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'total_minutes', 'x'),
@@ -541,7 +540,6 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gt', 'y'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gte', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'gte', 'y'),
-        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'local_timestamp', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lt', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lt', 'y'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lte', 'x'),
@@ -631,23 +629,6 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'row_number', 'order_by_col'),
     }
 }
-
-for key in {
-    ('test_arg_types_datetime', 'MountainAshScalarDatetimeExpressionSystemProtocol', 'to_timezone', 'x'),
-    ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'local_timestamp', 'x'),
-}:
-    _KNOWN_METADATA_ONLY_TESTED_PARAMS[key] = KnownGap(
-        gap_kind=GapKind.UNTESTED_ARGUMENT,
-        reason=(
-            "argument-matrix coverage blocked: the matrix's registry-driven xfail "
-            "(_test_template.xfail_if_limited) resolves capability_for() with no option "
-            "value, so it cannot see the IANA_TIMEZONE value-class fact that gates this "
-            "op on ibis — same blocker as assume_timezone/strftime. See backlog: "
-            "arg-matrix-xfail-blind-to-value-class-facts"
-        ),
-        since="2026-07-29",
-    )
-
 
 _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     key: KnownGap(

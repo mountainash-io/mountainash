@@ -4,7 +4,15 @@ Nothing here is hand-maintained; see spec 2026-08-01-spine-derived-test-expectat
 """
 from __future__ import annotations
 
+import inspect
+from typing import TYPE_CHECKING, Any
+
 import pytest
+
+if TYPE_CHECKING:
+    from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import (
+        ScalarFunctionNode,
+    )
 
 from mountainash.core.capabilities.divergences import divergence_by_id
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS, BackendIdentity
@@ -141,3 +149,88 @@ def xfail_divergence(divergence_id, *, backend, strict=True) -> pytest.MarkDecor
         strict=strict,
         reason=f"[{divergence_id}] {d.summary} — workaround: {d.workaround}",
     )
+
+
+def build_gate_fact(
+    operation_key: Any,
+    identity: BackendIdentity,
+    *,
+    param: str,
+    option_value: str | None = None,
+) -> CapabilityFact | None:
+    """A GATE/BUILD fact for ``(operation_key, param)`` on this identity, or None.
+
+    Does not filter by ``level`` — ``LITERAL_ONLY`` needs the caller's actual
+    node form (literal argument vs. dynamic expression) to decide whether it
+    blocks; see ``first_scalar_build_gate``.
+    """
+    fact = CapabilityRegistry.capability_for(
+        operation_key,
+        param,
+        identity.family,
+        dialect=identity.dialect,
+        option_value=option_value,
+    )
+    if fact is None:
+        return None
+    if fact.enforcement is not Enforcement.GATE or fact.boundary is not Boundary.BUILD:
+        return None
+    return fact
+
+
+def first_scalar_build_gate(
+    node: "ScalarFunctionNode", identity: BackendIdentity
+) -> CapabilityFact | None:
+    """The first actual ``GATE``/``BUILD`` blocker for a bound ``ScalarFunctionNode``,
+    in production visitor order: whole-op WILDCARD fact (UNSUPPORTED only, mirroring
+    ``visit_scalar_function``'s op-wide check), then arguments in protocol-signature
+    order (mirroring ``_gate_and_resolve_args``), then emitted options in insertion
+    order (mirroring the options loop). Returns ``None`` when no build gate applies —
+    the caller then falls back to ``CapabilityRegistry.residue_for()``.
+
+    Never invoke this for a ``WindowFunctionNode``; non-scalar nodes have no
+    equivalent option-gating semantics in production.
+    """
+    from mountainash.expressions.core.expression_nodes import LiteralNode
+    from mountainash.expressions.core.expression_system.function_mapping.registry import (
+        ExpressionFunctionRegistry,
+    )
+    from mountainash.expressions.core.unified_visitor.visitor import _protocol_sig_params
+
+    wildcard_fact = build_gate_fact(node.function_key, identity, param=WILDCARD_PARAM)
+    if wildcard_fact is not None and wildcard_fact.level is CapabilityLevel.UNSUPPORTED:
+        return wildcard_fact
+
+    func_def = ExpressionFunctionRegistry.get(node.function_key)
+    protocol_method = func_def.protocol_method if func_def is not None else None
+    sig_params = _protocol_sig_params(protocol_method) if protocol_method is not None else ()
+
+    def _param_name_for(index: int) -> str | None:
+        if index < len(sig_params):
+            return sig_params[index].name
+        if sig_params and sig_params[-1].kind is inspect.Parameter.VAR_POSITIONAL:
+            return sig_params[-1].name
+        return None
+
+    for i, argument in enumerate(node.arguments):
+        param_name = _param_name_for(i)
+        if param_name is None:
+            continue
+        fact = build_gate_fact(node.function_key, identity, param=param_name)
+        if fact is not None and (
+            fact.level is CapabilityLevel.UNSUPPORTED
+            or (
+                fact.level is CapabilityLevel.LITERAL_ONLY
+                and not isinstance(argument, LiteralNode)
+            )
+        ):
+            return fact
+
+    for option_name, option_value in (node.options or {}).items():
+        fact = build_gate_fact(
+            node.function_key, identity, param=option_name, option_value=str(option_value)
+        )
+        if fact is not None and fact.level is CapabilityLevel.UNSUPPORTED:
+            return fact
+
+    return None

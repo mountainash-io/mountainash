@@ -75,7 +75,7 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
+                mark = xfail_if_limited(bk, op, it)
                 marks = [mark] if mark else []
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")

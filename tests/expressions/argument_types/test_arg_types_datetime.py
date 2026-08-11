@@ -151,6 +151,13 @@ TESTED_PARAMS: list[tuple] = [
     (FK_MA_DT.TOTAL_MICROSECONDS, "x"),
 ]
 
+_TZ_MATRIX_DATA = {
+    "ts": [
+        datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc),
+    ],
+}
+
 OP_SPECS: list[OpSpec] = [
     OpSpec(
         function_key=FK_MA_DT.ADD_DAYS,
@@ -373,6 +380,36 @@ OP_SPECS: list[OpSpec] = [
         },
         complex_builder=lambda cn: ma.col(cn),
     ),
+    # to_timezone.x / local_timestamp.x: item 71 — the receiver itself (not an
+    # ignored placeholder) varies raw/lit/col/complex; timezone is a FIXED
+    # emitted option (Australia/Sydney), so first_scalar_build_gate() sees the
+    # real IANA_TIMEZONE class fact regardless of input_type. build() returns
+    # the to_timezone/local_timestamp call directly (not wrapped in .dt.hour())
+    # so cell.node IS the gated ScalarFunctionNode, not an outer composition —
+    # first_scalar_build_gate() only inspects the top-level node's own
+    # arguments/options, matching production's per-node visitor dispatch.
+    OpSpec(
+        function_key=FK_MA_DT.TO_TIMEZONE,
+        op_name="to_timezone",
+        build=lambda receiver, _arg: receiver.dt.to_timezone("Australia/Sydney"),
+        raw_arg=datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        arg_col_name="ts",
+        param_name="x",
+        data=_TZ_MATRIX_DATA,
+        matrix_arg_is_input=True,
+        complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
+    ),
+    OpSpec(
+        function_key=FK_DT.LOCAL_TIMESTAMP,
+        op_name="local_timestamp",
+        build=lambda receiver, _arg: receiver.dt.local_timestamp("Australia/Sydney"),
+        raw_arg=datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        arg_col_name="ts",
+        param_name="x",
+        data=_TZ_MATRIX_DATA,
+        matrix_arg_is_input=True,
+        complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
+    ),
 ]
 
 
@@ -391,7 +428,7 @@ def _params():
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 marks = []
-                mark = xfail_if_limited(bk, op.function_key, op.param_name, it)
+                mark = xfail_if_limited(bk, op, it)
                 if mark:
                     marks.append(mark)
                 cases.append(
