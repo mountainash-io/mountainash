@@ -1306,6 +1306,124 @@ TESTED_OPTION_PARAMS.extend(
     for op in operations
 )
 
+_CONCAT_NULL_HANDLING_DATA = {"a": ["x", None], "b": ["1", "2"]}
+
+
+def _concat_null_handling_expr(value: str | None = None):
+    kwargs = {} if value is None else {"null_handling": value}
+    return ma.col("a").str.concat(ma.col("b"), **kwargs)
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_STR.CONCAT,
+        _STRING_PROTOCOL,
+        "concat",
+        "null_handling",
+        backend,
+        value,
+        "str",
+        "honored",
+        "concat's null_handling is honored identically on every backend — "
+        "the portable fold (IGNORE_NULLS) / native + chain (ACCEPT_NULLS) "
+        "never routes through a backend-divergent native primitive",
+    )
+    for backend in ALL_BACKENDS
+    for value in ("IGNORE_NULLS", "ACCEPT_NULLS")
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        OptionSpec(
+            FK_STR.CONCAT,
+            "null_handling",
+            "IGNORE_NULLS",
+            "str",
+            lambda: _concat_null_handling_expr("IGNORE_NULLS"),
+            lambda: _concat_null_handling_expr(),
+            _CONCAT_NULL_HANDLING_DATA,
+            expected_discriminates=False,
+        ),
+        backend,
+        "honored",
+        None,
+    )
+    for backend in ALL_BACKENDS
+)
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        OptionSpec(
+            FK_STR.CONCAT,
+            "null_handling",
+            "ACCEPT_NULLS",
+            "str",
+            lambda: _concat_null_handling_expr("ACCEPT_NULLS"),
+            lambda: _concat_null_handling_expr(),
+            _CONCAT_NULL_HANDLING_DATA,
+            expected_discriminates=True,
+        ),
+        backend,
+        "honored",
+        None,
+    )
+    for backend in ALL_BACKENDS
+)
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "concat",
+        "null_handling",
+        param_taxonomy(_STRING_PROTOCOL, "concat", "null_handling"),
+    )
+)
+
+_CONCAT_NULL_HANDLING_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_STR.CONCAT,
+        _STRING_PROTOCOL,
+        "concat",
+        "null_handling",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _concat_null_handling_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_CONCAT_NULL_HANDLING_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _CONCAT_NULL_HANDLING_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_concat_null_handling_ignore_nulls_is_default(backend, request):
+    df = make_df(_CONCAT_NULL_HANDLING_DATA, backend)
+    explicit = option_result(df, _concat_null_handling_expr("IGNORE_NULLS"), backend)
+    omitted = option_result(df, _concat_null_handling_expr(), backend)
+    assert explicit == omitted == ["x1", "2"], (
+        f"[{backend}] explicit={explicit} omitted={omitted}"
+    )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_concat_null_handling_accept_nulls_propagates(backend, request):
+    df = make_df(_CONCAT_NULL_HANDLING_DATA, backend)
+    got = option_result(df, _concat_null_handling_expr("ACCEPT_NULLS"), backend)
+    assert got == ["x1", None], f"[{backend}] got {got}"
+
+
 
 # Full set of (function_key_or_op_name, param_name) pairs covered by this category.
 # String fallbacks are used for ops that lack a matching FKEY enum member yet.
@@ -1348,8 +1466,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.SUBSTRING, "length"),
     (FK_STR.SUBSTRING, "start"),
     (FK_STR.TRIM, "characters"),
-    # Newly-wired regex + split ops — OP_SPECS exist for all pattern params;
-    # concat_ws.string_arguments has TESTED_PARAMS entry but no OP_SPEC (variadic limitation).
+    # Newly-wired regex + split ops — OP_SPECS exist for all pattern params.
     # Note: FKEY enum name != protocol method name for these ops, so string keys are used.
     ("regexp_match_substring_all", "pattern"),
     ("regexp_count_substring", "pattern"),
@@ -1357,9 +1474,6 @@ TESTED_PARAMS: list[tuple] = [
     ("regexp_strpos", "pattern"),
     ("regexp_string_split", "pattern"),
     ("string_split", "separator"),
-    # concat_ws.string_arguments: variadic param — backend accepts a single col expression
-    # but the Polars implementation only supports positional concat (no variadic column arg).
-    # Tracked as a known limitation; no OP_SPEC is added.
     (FK_STR.CONCAT_WS, "string_arguments"),
 ]
 
@@ -1770,6 +1884,18 @@ OP_SPECS: list[OpSpec] = [
         data={
             "text": ["hello", "world", "test"],
             "sep": [",", ",", ","],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CONCAT_WS,
+        op_name="concat_ws_string_arguments",
+        build=lambda col, arg: col.str.concat_ws(",", arg),
+        raw_arg="c",
+        arg_col_name="extra",
+        param_name="string_arguments",
+        data={
+            "text": ["a", "b", "c"],
+            "extra": ["x", "y", "z"],
         },
     ),
     # regexp_replace position/occurrence were argument-type OpSpecs here, but the

@@ -495,6 +495,7 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
                 "dotall",
                 "padding",
                 "negative_start",
+                "null_handling",
                 # Regexp positional int options operate on string data columns.
                 "position",
                 "occurrence",

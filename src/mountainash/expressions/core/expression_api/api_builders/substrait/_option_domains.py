@@ -91,6 +91,7 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("tan", "rounding"): _ROUNDING,
     ("tanh", "rounding"): _ROUNDING,
     ("center", "padding"): _PADDING,
+    ("concat", "null_handling"): frozenset({"IGNORE_NULLS", "ACCEPT_NULLS"}),
     ("substring", "negative_start"): _NEGATIVE_START,
     ("capitalize", "char_set"): _CHAR_SET,
     ("initcap", "char_set"): _CHAR_SET,
