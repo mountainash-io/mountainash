@@ -31,7 +31,6 @@ _PENDING_INTERNAL_GAPS: dict[str, str] = {
     "MA-WIRE-01": "internal-wiring gap — bitwise operations are protocol stubs; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
     "MA-WIRE-02": "internal-wiring gap — shift operations are protocol stubs; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
     "MA-WIRE-03": "internal-wiring gap — conditional builder is not in _FLAT_NAMESPACES; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
-    "MA-WIRE-04": "internal-wiring gap — is_dst rejects options=None; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
     "MA-WIRE-06": "internal-wiring gap — aggregate signatures mismatch; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
     "MA-WIRE-08": "internal-wiring gap — aspirational protocol methods remain unwired; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",
     "MA-WIRE-09": "internal-wiring gap — string tier3 operations are Polars-only; tracked as wiring backlog — may not become a fact. Since 2026-07-20.",

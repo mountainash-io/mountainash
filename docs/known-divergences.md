@@ -160,7 +160,7 @@ Total divergences tracked: **94**
 | MA-WIRE-01 | Bitwise operations are protocol stubs — bitwise_not, bitwise_and, bitwise_or, bitwise_xor | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Open |
 | MA-WIRE-02 | Shift operations are protocol stubs — shift_left, shift_right, shift_right_unsigned | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Open |
 | MA-WIRE-03 | SubstraitConditionalAPIBuilder not in _FLAT_NAMESPACES — col('x').when(...) doesn't work | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Open |
-| MA-WIRE-04 | is_dst passes options=None to ScalarFunctionNode, pydantic rejects it | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Open |
+| MA-WIRE-04 | is_dst passes options=None to ScalarFunctionNode, pydantic rejects it | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Resolved (internal) |
 | MA-WIRE-05 | String enum mismatches — STRING_SPLIT/SPLIT, REGEXP_MATCH_SUBSTRING/REGEXP_MATCH, REGEXP_STRING_SPLIT/REGEXP_SPLIT | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Resolved (internal) |
 | MA-WIRE-06 | Aggregate signature mismatches — corr(x,y) struct context, median(precision,x) positional count, quantile(boundaries,precision,n,distribution) | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars | mountainash_internal | None | Open |
 | MA-WIRE-07 | nth_value may not work in Polars .over() context | polars | mountainash_internal | Strict xfail | Investigating |
@@ -1428,11 +1428,10 @@ Total divergences tracked: **94**
 | Category | Internal Wiring Gaps |
 | Root Cause | mountainash_internal |
 | Affected Backends | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-pandas, narwhals-polars |
-| Status | Open |
+| Status | Resolved (internal) |
 | Workaround | None |
-| Xfail Refs | tests/unit/api_builders/test_ast_scalar_datetime.py:44 |
-| Notes | Pass empty dict instead of None. |
-| Last Verified | 2026-05-11 |
+| Notes | Fixed: `is_dst` builder now passes `options={}` instead of `None` (see `api_bldr_ext_ma_scalar_datetime.py`). Verified empirically 2026-08-11 — `ma.col("ts").dt.is_dst()` constructs cleanly; no xfail remains on `tests/expressions/ast/test_ast_scalar_datetime.py::test_is_dst`. |
+| Last Verified | 2026-08-11 |
 
 ### MA-WIRE-05: String enum mismatches — STRING_SPLIT/SPLIT, REGEXP_MATCH_SUBSTRING/REGEXP_MATCH, REGEXP_STRING_SPLIT/REGEXP_SPLIT
 
