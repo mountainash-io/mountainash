@@ -260,7 +260,11 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def concat(self, *others: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    def concat(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+        null_handling: Optional[str] = None,
+    ) -> BaseExpressionAPI:
         """Concatenate strings.
 
         Substrait: concat

@@ -163,6 +163,16 @@ _KNOWN_SIGNATURE_DIVERGENCES: dict[tuple[str, str, str], str] = {
         "Protocol list_sample(input, n, with_replacement, seed) 4-arg vs Ibis list_sample(input) 1-arg. Since 2026-05-18.",
     ("MountainAshScalarListExpressionSystemProtocol", "list_sample", "narwhals"):
         "Protocol list_sample(input, n, with_replacement, seed) 4-arg vs Narwhals list_sample(input) 1-arg. Since 2026-05-18.",
+    # concat: protocol concat(*input, null_handling=None) variadic vs backends
+    # concat(input, /, null_handling=None) single-arg — Task 3 of backlog item
+    # 61 (2026-08-11) fixes the backend fold implementations; remove these
+    # three entries once that lands.
+    ("SubstraitScalarStringExpressionSystemProtocol", "concat", "polars"):
+        "Protocol concat(*input) variadic vs Polars concat(input) single-arg — backend fold pending (item 61 Task 3). Since 2026-08-11.",
+    ("SubstraitScalarStringExpressionSystemProtocol", "concat", "ibis"):
+        "Protocol concat(*input) variadic vs Ibis concat(input) single-arg — backend fold pending (item 61 Task 3). Since 2026-08-11.",
+    ("SubstraitScalarStringExpressionSystemProtocol", "concat", "narwhals"):
+        "Protocol concat(*input) variadic vs Narwhals concat(input) single-arg — backend fold pending (item 61 Task 3). Since 2026-08-11.",
 }
 
 
@@ -772,8 +782,6 @@ _A3_CASES = _collect_a3_cases()
 
 # (fkey_str) → "reason. Since YYYY-MM-DD."
 _KNOWN_OPTIONS_DRIFT: dict[str, str] = {
-    "FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT":
-        "Registry has 'separator' but protocol has 'null_handling' — different option sets. Since 2026-05-18.",
     "FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING":
         "Registry has 'start','length' but protocol has 'negative_start' — options not aligned. Since 2026-05-18.",
     "FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP":

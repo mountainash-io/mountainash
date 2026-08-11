@@ -23,6 +23,9 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash.prtcl_expsys_ext_ma_scalar_ternary import (
     MountainAshScalarTernaryExpressionSystemProtocol,
 )
+from mountainash.expressions.core.expression_protocols.expression_systems.substrait.prtcl_expsys_scalar_string import (
+    SubstraitScalarStringExpressionSystemProtocol,
+)
 from mountainash.expressions.core.unified_visitor.visitor import (
     _param_name_for,
     _protocol_sig_params,
@@ -68,6 +71,12 @@ _CASES = [
         {0: "element", 1: "members", 2: "members", 3: "members", 4: "members"},
         {0: "element", 1: "members", 2: "unknown_values", 3: "member_unknown_values", 4: None},
         id="t_is_not_in",
+    ),
+    pytest.param(
+        SubstraitScalarStringExpressionSystemProtocol.concat,
+        {0: "input", 1: "input", 2: "input", 3: "input", 4: "input"},
+        {0: "input", 1: "null_handling", 2: None, 3: None, 4: None},
+        id="concat",
     ),
 ]
 

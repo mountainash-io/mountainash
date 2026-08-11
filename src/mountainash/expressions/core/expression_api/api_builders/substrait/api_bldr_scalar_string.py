@@ -784,6 +784,7 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
     def concat(
         self,
         *others: Union[BaseExpressionAPI, "ExpressionNode", Any],
+        null_handling: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """
         Concatenate strings.
@@ -792,14 +793,19 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
         Args:
             *others: Strings to concatenate with this one.
+            null_handling: How nulls are handled ({IGNORE_NULLS, ACCEPT_NULLS};
+                default IGNORE_NULLS — nulls are skipped rather than
+                propagating the whole result to null).
 
         Returns:
             New ExpressionAPI with concat node.
         """
+        options = _validated_options("concat", null_handling=null_handling)
         operands = [self._node] + [self._to_substrait_node(o) for o in others]
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT,
             arguments=operands,
+            options=options,
         )
         return self._build(node)
 
