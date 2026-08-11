@@ -238,7 +238,33 @@ check = "griffe check --search src mountainash {args}"
 #================
 # Mypy Type checks
 [envs.mypy]
+python = "3.12"
 installer = "uv"
-dependencies = ["mypy==1.10.1"]
+dependencies = [
+    "mypy==1.10.1",
+    # Explicit stub package — mypy's own `--install-types` shells out to
+    # `<venv-python> -m pip install <pkg>`, but uv-provisioned venvs don't
+    # ship pip, so that call silently fails and every pandas import falls
+    # back to import-untyped. Declared here instead so uv installs it at
+    # env-sync time like every other dependency. See backlog item 76.
+    "pandas-stubs",
+    # Runtime import-resolution set — mirrors [envs.test] so mypy can
+    # resolve every third-party import actually used in src/ and tests/
+    # (mypy needs the real package installed, not just a stub, for
+    # inline-typed / py.typed libraries). Kept independent of [envs.test]
+    # rather than templated from it: mypy doesn't need the pytest-plugin
+    # or coverage tooling test actually runs with.
+    "pandas>=2.2.0",
+    "ibis-framework[duckdb,sqlite]>=9.0.0",
+    "pyarrow>=16",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "pytest==8.3.5",
+    "mountainash_files @       {root:uri}/../mountainash-files",
+    "mountainash_transport @   {root:uri}/../mountainash-transport",
+    "mountainash_settings @    {root:uri}/../mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
+    "mountainash_secrets @     {root:uri}/../mountainash-secrets",
+]
 [envs.mypy.scripts]
-check = "mypy --install-types --non-interactive {args:src/mountainash tests}"
+check = "mypy {args:src/mountainash tests}"
