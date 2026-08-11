@@ -60,6 +60,68 @@ def test_arithmetic_domains_match_pin_exactly() -> None:
     )
 
 
+# Pre-existing data-integrity gap, discovered by this drift guard, unrelated
+# to backlog item 61's concat/concat_ws scope — NOT silently corrected here
+# per closed-by-default-verification.md R2 (exception sets must be named,
+# reasoned, and dated). OPTION_DOMAINS is missing 'CASE_INSENSITIVE_ASCII'
+# for these 13 ops' 'case_sensitivity' domain (present in the pinned
+# Substrait spec); flagged for separate triage.
+_KNOWN_STRING_DOMAIN_DRIFT: dict[tuple[str, str], str] = {
+    (op, "case_sensitivity"): (
+        "OPTION_DOMAINS missing CASE_INSENSITIVE_ASCII (pin has 3 values, "
+        "packaged has 2) — pre-existing, unrelated to item 61. Since 2026-08-11."
+    )
+    for op in (
+        "contains",
+        "count_substring",
+        "ends_with",
+        "like",
+        "regexp_count_substring",
+        "regexp_match_substring",
+        "regexp_match_substring_all",
+        "regexp_replace",
+        "regexp_string_split",
+        "regexp_strpos",
+        "replace",
+        "starts_with",
+        "strpos",
+    )
+}
+
+
+def test_string_domains_match_pin_exactly() -> None:
+    from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
+        OPTION_DOMAINS,
+    )
+
+    fixture = _fixture_domains("functions_string.yaml", "string")
+    packaged = {key: values for key, values in OPTION_DOMAINS.items() if key in fixture}
+    checked_fixture = {
+        k: v for k, v in fixture.items() if k not in _KNOWN_STRING_DOMAIN_DRIFT
+    }
+    checked_packaged = {
+        k: v for k, v in packaged.items() if k not in _KNOWN_STRING_DOMAIN_DRIFT
+    }
+    assert checked_packaged == checked_fixture, (
+        "packaged string domains diverge from pin: "
+        f"{set(checked_packaged.items()) ^ set(checked_fixture.items())}"
+    )
+
+
+def test_no_stale_string_domain_drift_entries() -> None:
+    """Every _KNOWN_STRING_DOMAIN_DRIFT entry must still actually diverge."""
+    from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
+        OPTION_DOMAINS,
+    )
+
+    fixture = _fixture_domains("functions_string.yaml", "string")
+    for key in _KNOWN_STRING_DOMAIN_DRIFT:
+        assert OPTION_DOMAINS.get(key) != fixture.get(key), (
+            f"Stale _KNOWN_STRING_DOMAIN_DRIFT entry: {key} — domains now "
+            "match! Remove from _KNOWN_STRING_DOMAIN_DRIFT."
+        )
+
+
 def test_fixture_parser_accepts_historical_list_encoding() -> None:
     data = {
         "scalar_functions": [
