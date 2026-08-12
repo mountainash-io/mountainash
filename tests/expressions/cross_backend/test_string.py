@@ -495,10 +495,13 @@ _COUNT_SUBSTRING_DYNAMIC_HONORING = [
 @pytest.mark.string
 @pytest.mark.parametrize("backend_name", _COUNT_SUBSTRING_DYNAMIC_HONORING)
 def test_count_substring_dynamic_operand(backend_name, backend_factory, collect_expr):
-    data = {"text": ["banana", "aaaa"], "needle": ["a", "a"]}
+    """Needle varies per row (proving per-row evaluation, not a fixed value
+    baked in at build time) and includes an empty-substring row (proving the
+    dynamic empty-substring guard, not just the literal one)."""
+    data = {"text": ["banana", "aaaa", "hello"], "needle": ["a", "aa", ""]}
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.count_substring(ma.col("needle"))
-    assert collect_expr(df, expr) == [3, 4], f"[{backend_name}]"
+    assert collect_expr(df, expr) == [3, 2, 6], f"[{backend_name}]"
 
 
 
