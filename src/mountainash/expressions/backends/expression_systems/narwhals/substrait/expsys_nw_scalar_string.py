@@ -433,17 +433,25 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         folded_substring = _nw_fold(substring, case_sensitivity)
         # A null-typed search operand short-circuits to a null result before
         # the native call rather than crashing (backlog item 61 precedent,
-        # generalized here). A null INPUT row is a narrower, separate,
-        # documented limitation on narwhals-pandas/pandas specifically (see
-        # backlog item 80): plain-numpy-backed pandas boolean columns have
-        # no null representation, and wrapping the result in nw.when/then to
-        # force one produces an object-dtype column of Python bool objects,
+        # generalized here). Wrapped in nw.when(folded_input.is_null())
+        # .then(nw.lit(None)).otherwise(nw.lit(None)) rather than a bare
+        # nw.lit(None) -- narwhals-pandas does NOT broadcast a literal with
+        # no column reference to the input's row count under .select()
+        # (collapses to a single row regardless of input length -- backlog
+        # item 82); wrapping the null result in a `when` whose CONDITION
+        # references folded_input gives it a row-shape to broadcast
+        # against, independent of the condition's truth value. A null
+        # INPUT row is a narrower, separate, documented limitation on
+        # narwhals-pandas/pandas specifically (see backlog item 80):
+        # plain-numpy-backed pandas boolean columns have no null
+        # representation, and wrapping the result in nw.when/then to force
+        # one produces an object-dtype column of Python bool objects,
         # which silently breaks `~` elsewhere (Python bitwise-NOT on bool is
         # not logical negation: ~True == -2). Not fixable at this layer
         # without either regressing negation or forcing every narwhals-pandas
         # DataFrame onto a nullable dtype backend end-to-end.
         if folded_substring is None:
-            return nw.lit(None)
+            return nw.when(folded_input.is_null()).then(nw.lit(None)).otherwise(nw.lit(None))
         return folded_input.str.contains(folded_substring)
 
     def starts_with(
@@ -465,8 +473,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         """
         folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
         folded_substring = _nw_fold(substring, case_sensitivity)
+        # See contains() above for the row-count-broadcast rationale
+        # (backlog item 82) -- narwhals-pandas does not broadcast a bare
+        # nw.lit(None) to the input's row count under .select().
         if folded_substring is None:
-            return nw.lit(None)
+            return nw.when(folded_input.is_null()).then(nw.lit(None)).otherwise(nw.lit(None))
         return folded_input.str.starts_with(folded_substring)
 
     def ends_with(
@@ -488,8 +499,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         """
         folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
         folded_substring = _nw_fold(substring, case_sensitivity)
+        # See contains() above for the row-count-broadcast rationale
+        # (backlog item 82) -- narwhals-pandas does not broadcast a bare
+        # nw.lit(None) to the input's row count under .select().
         if folded_substring is None:
-            return nw.lit(None)
+            return nw.when(folded_input.is_null()).then(nw.lit(None)).otherwise(nw.lit(None))
         return folded_input.str.ends_with(folded_substring)
 
     def strpos(
