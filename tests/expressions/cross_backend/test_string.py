@@ -411,16 +411,48 @@ def test_case_insensitive_ascii_null_search_operand_propagates_null(
 ):
     """A null-typed literal search operand (e.g. ma.col("text").str.
     contains(None)) under case_sensitivity=CASE_INSENSITIVE_ASCII yields a
-    null boolean result rather than crashing: contains/starts_with/
-    ends_with short-circuit to a null result before calling the native
-    search method when the (folded) search operand is None -- real cell on
-    every one of these 8 backends, unconditionally (not gated on backend).
-    This is distinct from a null INPUT row with a real search operand,
-    which remains False (not null) on pandas/narwhals-pandas specifically
-    -- see DivergenceFact NW-STR-19 and test_contains_ascii_null_input."""
-    df = backend_factory.create({"text": ["hello"]}, backend_name)
+    null boolean result on every row rather than crashing or collapsing
+    the row count: contains/starts_with/ends_with short-circuit to a null
+    result before calling the native search method when the (folded)
+    search operand is None -- real cell on every one of these 8 backends,
+    unconditionally (not gated on backend). This is distinct from a null
+    INPUT row with a real search operand, which remains False (not null)
+    on pandas/narwhals-pandas specifically -- see DivergenceFact NW-STR-19
+    and test_contains_ascii_null_input. Uses a 3-row fixture (not 1) --
+    narwhals-pandas silently collapsed a bare-literal null result to a
+    single row regardless of input length (backlog item 82); a 1-row
+    fixture cannot distinguish "broadcast correctly" from "collapsed to 1
+    row" since both produce a length-1 list."""
+    data = {"text": ["hello", "world", "test123"]}
+    df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII")
-    assert collect_expr(df, expr) == [None], f"[{backend_name}]"
+    assert collect_expr(df, expr) == [None, None, None], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
+def test_null_search_operand_preserves_row_count(
+    method, backend_name, backend_factory, collect_expr,
+):
+    """contains/starts_with/ends_with's null-search-operand short-circuit
+    (backlog item 80) returned a bare `nw.lit(None)` on the Narwhals
+    backend, which has no reference to any column -- narwhals-pandas does
+    not broadcast it to the input's row count under `.select()`, silently
+    collapsing a 3-row input to a single-row result instead of raising or
+    propagating null on every row (backlog item 82, HIGH severity: silent
+    row-count corruption in already-shipped code, not a crash). Fixed by
+    mirroring `count_substring`'s own null-substring guard in the same
+    file: wrapping the null result in
+    `nw.when(<receiver>.is_null()).then(...).otherwise(...)` gives it a
+    row-shape to broadcast against, independent of the condition's truth
+    value."""
+    data = {"text": ["banana", "apple", "cherry"]}
+    df = backend_factory.create(data, backend_name)
+    expr = getattr(ma.col("text").str, method)(None)
+    assert collect_expr(df, expr) == [None, None, None], f"[{backend_name}.{method}]"
+
 
 # =============================================================================
 # Cross-Backend Tests - count_substring (backlog item 78)
