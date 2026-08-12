@@ -452,16 +452,41 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             substring: Substring to count.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Case sensitivity option (gated UNSUPPORTED for
+                any non-default value; count_substring was not one of the 3
+                string ops given a real ASCII-fold implementation in item 75).
 
         Returns:
             Count of occurrences.
 
         Note:
-            Ibis may not have count. Falls back to 0.
+            No single "count non-overlapping occurrences" primitive exists
+            across Ibis dialects, so this computes it via length
+            arithmetic: (len(input) - len(input with every substring
+            occurrence removed)) / len(substring) -- verified empirically
+            to match Polars' str.count_matches(literal=True) semantics
+            exactly, including its len(input) + 1 convention for an empty
+            substring. Reuses `replace`'s literal-escape + re_replace
+            technique (Ibis `.replace()` only replaces the FIRST
+            occurrence on a Deferred receiver -- see `replace` above). A
+            dynamic (column-valued) substring falls through to a raw
+            `re_replace(substring, "")` call, matching `replace`'s own
+            precedent for a non-literal pattern -- this crashes with a raw
+            (unenriched) native error on ibis-polars specifically (a
+            pre-existing dynamic-pattern limitation shared with `replace`,
+            not something this item fixes or asserts around; see backlog).
         """
-        # Ibis doesn't have count_substring directly - fallback
-        return ibis.literal(0)
+        input = self._lift_deferred_receiver(input, substring)
+        pattern = self._extract_literal_if_possible(substring)
+        if isinstance(pattern, str):
+            if pattern == "":
+                return input.length() + 1
+            removed = input.re_replace(re.escape(pattern), "")
+            return (input.length() - removed.length()) // len(pattern)
+        removed = input.re_replace(substring, "")
+        sub_len = substring.length()
+        diff = input.length() - removed.length()
+        return (sub_len == 0).ifelse(input.length() + 1, diff // sub_len)
 
     # =========================================================================
     # Length Operations

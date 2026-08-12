@@ -519,24 +519,36 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         input: NarwhalsExpr,
         /,
-        substring: NarwhalsExpr,
+        substring: NarwhalsExpr | str,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
         """Return the number of non-overlapping occurrences of substring.
 
         Args:
             input: String expression.
-            substring: Substring to count.
+            substring: Literal substring to count (LITERAL_ONLY-gated -- a
+                dynamic column-valued substring is rejected before reaching
+                this method; narwhals' str.replace_all() pattern argument
+                does not accept an expression on any dialect, matching
+                sibling `replace`'s substring param, NW-STR-03).
             case_sensitivity: Case sensitivity option.
 
         Returns:
             Count of occurrences.
 
         Note:
-            Narwhals may not have count_matches. Returns 0 as fallback.
+            No native count-non-overlapping-matches primitive exists in the
+            narwhals str namespace, so this computes it via length
+            arithmetic: (len(input) - len(input with every occurrence
+            removed)) / len(substring) -- matching Polars' own
+            str.count_matches(literal=True) semantics exactly (verified
+            empirically), including its len(input) + 1 convention for an
+            empty substring.
         """
-        # Narwhals doesn't have count_matches - fallback
-        return nw.lit(0)
+        if substring == "":
+            return input.str.len_chars() + 1
+        removed = input.str.replace_all(substring, "", literal=True)
+        return (input.str.len_chars() - removed.str.len_chars()) // len(substring)
 
     # =========================================================================
     # Length Operations
