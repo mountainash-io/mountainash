@@ -213,12 +213,15 @@ _ASCII_FOLD_HONORING_BACKENDS = [b for b in ALL_BACKENDS if b != "ibis-polars"]
 # behaviorally distinct from CASE_INSENSITIVE, not a differently-named
 # alias) — excludes ibis-sqlite. SQLite's native LOWER()/UPPER() (no ICU
 # extension loaded) are themselves ASCII-only, so CASE_INSENSITIVE's
-# pre-existing, unmodified `.lower()` call does not perform full Unicode
-# case-folding on this dialect — a genuine, pre-existing, unrelated
-# divergence from CASE_INSENSITIVE's documented semantics, discovered while
-# building this discriminator. Out of item 75's scope (this item only adds
-# the ASCII-fold value; it does not touch the existing CASE_INSENSITIVE
-# `.lower()` call sites). Not fixed here; flagged for separate triage.
+# Unicode-aware-lowercasing contract is unavailable on this dialect. Item 75
+# discovered this (flagged, not fixed, out of that item's scope) as backlog
+# item 79; item 79 closed it with a dialect-scoped CapabilityFact
+# (capabilities/string.py's _IBIS_SQLITE_CASE_INSENSITIVE_FACTS) rather than
+# leaving the silent wrong answer in place — ibis-sqlite now raises
+# BackendCapabilityError for CASE_INSENSITIVE instead of silently returning
+# an ASCII-only result, so it is excluded here (the "folds correctly"
+# positive assertion) and covered instead by
+# TestCaseInsensitiveIbisSqliteGate below.
 _UNICODE_FOLD_KELVIN_HONORING_BACKENDS = [
     b for b in _ASCII_FOLD_HONORING_BACKENDS if b != "ibis-sqlite"
 ]
@@ -400,6 +403,30 @@ class TestCaseInsensitiveAsciiIbisPolarsGate:
             option_value="CASE_INSENSITIVE_ASCII",
             build=lambda: getattr(ma.col("text").str, method)(
                 "hello", case_sensitive="CASE_INSENSITIVE_ASCII"
+            ).compile(df),
+        )
+
+
+class TestCaseInsensitiveIbisSqliteGate:
+    """ibis-sqlite's native LOWER()/UPPER() are ASCII-only — the
+    CASE_INSENSITIVE gate raises a clean BackendCapabilityError at BUILD
+    time rather than silently returning an ASCII-only result under a
+    Unicode-aware-lowercasing-claiming option value (backlog item 79).
+    Uses the Kelvin Sign fixture (not a plain ASCII string) so the test
+    documents *why* the gate exists, not just that registry routing works."""
+
+    @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
+    def test_case_insensitive_is_gated_on_ibis_sqlite(self, method, backend_factory):
+        df = backend_factory.create(_KELVIN_DATA, "ibis-sqlite")
+        operation_key = getattr(FK_STR, method.upper())
+        assert_capability_gated(
+            operation_key,
+            CONST_BACKEND.IBIS,
+            dialect="ibis-sqlite",
+            param="case_sensitivity",
+            option_value="CASE_INSENSITIVE",
+            build=lambda: getattr(ma.col("text").str, method)(
+                "kelvin", case_sensitive="CASE_INSENSITIVE"
             ).compile(df),
         )
 

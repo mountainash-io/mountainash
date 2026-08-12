@@ -14,8 +14,16 @@ _IBIS_POLARS_CI_XFAIL = (
     "Ibis wraps literal in Lowercase() expr but Polars backend requires scalar literal"
 )
 
+# ibis-sqlite excluded: case_sensitive=False routes to the CASE_INSENSITIVE
+# option value, which is now gated UNSUPPORTED on ibis-sqlite (backlog item
+# 79 — ibis-sqlite's native LOWER()/UPPER() are ASCII-only, so the option's
+# Unicode-aware-lowercasing contract cannot be honored there; the gate fires
+# unconditionally, even for this file's all-ASCII fixtures). Covered instead
+# by test_string.py's TestCaseInsensitiveIbisSqliteGate.
 _CI = [
-    pytest.param(b, marks=xfail_divergence("IB-STR-02", backend=b)) for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("IB-STR-02", backend=b))
+    for b in ALL_BACKENDS
+    if b != "ibis-sqlite"
 ]
 
 

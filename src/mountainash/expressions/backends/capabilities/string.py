@@ -625,6 +625,57 @@ _IBIS_POLARS_DYNAMIC_PATTERN_FACTS: tuple[CapabilityFact, ...] = tuple(
     )
     for operation_key, param in _IBIS_POLARS_DYNAMIC_PATTERN_UPSTREAM_REF
 )
+# ibis-sqlite / CASE_INSENSITIVE (backlog item 79, 2026-08-12) — ibis-sqlite's
+# native LOWER()/UPPER() are ASCII-only (no ICU extension loaded in
+# mountainash's Ibis SQLite connection); CASE_INSENSITIVE's Unicode-aware
+# lowercasing contract (Kelvin Sign U+212A -> 'k') is unavailable on this one
+# dialect; verified on polars/ibis-duckdb/narwhals-polars/narwhals-pandas —
+# ibis-polars is untested by the Kelvin Sign discriminator suite (excluded
+# there for its own, unrelated StringTranslate reason) and not claimed here.
+# CASE_INSENSITIVE was EXPR_CAPABLE-by-absence on ibis-sqlite for
+# contains/starts_with/ends_with (the same shape CASE_INSENSITIVE_ASCII had
+# on ibis-polars before item 75's _IBIS_POLARS_FACTS) — mirrors that exact
+# dialect-scoped-refinement shape, gated instead of silently returning an
+# ASCII-only result under a Unicode-aware-lowercasing-claiming option value.
+# CASE_INSENSITIVE_ASCII is UNAFFECTED: ibis-sqlite's .translate()-based
+# ASCII fold genuinely delivers that exact (narrower) contract.
+# ---------------------------------------------------------------------------
+_SINCE_IBIS_SQLITE_CASE_INSENSITIVE = "2026-08-12"
+_IBIS_SQLITE_CASE_INSENSITIVE_UNSUPPORTED = (
+    "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension "
+    "loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. "
+    "Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the "
+    "Ibis family — gated unconditionally for every ibis-sqlite connection "
+    "and every input (including purely-ASCII input, which SQLite's native "
+    "LOWER() handles correctly, and any caller-supplied connection with a "
+    "custom Unicode-aware LOWER()/UPPER() override loaded onto it) because "
+    "the capability fact is keyed on (backend, dialect), a static identity, "
+    "with no visibility into a specific connection's actual loaded "
+    "extensions or a specific call's runtime string content"
+)
+_IBIS_SQLITE_CASE_INSENSITIVE_WORKAROUND = (
+    "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is "
+    "sufficient (genuinely honored on ibis-sqlite via native translate()); "
+    "otherwise Unicode-normalize both operands in Python (e.g. str.lower()) "
+    "and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — "
+    "this dialect-scoped gate is unconditional and still rejects "
+    "CASE_INSENSITIVE even after preprocessing), or run this expression "
+    "against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite"
+)
+_IBIS_SQLITE_CASE_INSENSITIVE_FACTS = tuple(
+    CapabilityFact(
+        operation_key=operation_key,
+        param="case_sensitivity",
+        option_value="CASE_INSENSITIVE",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-sqlite",
+        message=_IBIS_SQLITE_CASE_INSENSITIVE_UNSUPPORTED,
+        workaround=_IBIS_SQLITE_CASE_INSENSITIVE_WORKAROUND,
+        since=_SINCE_IBIS_SQLITE_CASE_INSENSITIVE,
+    )
+    for operation_key in _ASCII_FOLD_KEYS.values()  # contains/starts_with/ends_with
+)
 
 
 OP_LEVEL_FKEYS = {**_CHAR_SET_KEYS, "center": FK_STR.CENTER}
@@ -678,6 +729,11 @@ _EVIDENCE_DYNAMIC_PATTERN = ProbeEvidence(
     library_versions=(("ibis", "12.0.0"), ("polars", "1.43.2")),
     fixtures=("ibis-polars",),
 )
+_EVIDENCE_IBIS_SQLITE_CASE_INSENSITIVE = ProbeEvidence(
+    probe_date=_SINCE_IBIS_SQLITE_CASE_INSENSITIVE,
+    library_versions=(("ibis", "12.0.0"),),
+    fixtures=("ibis-sqlite", "ibis-duckdb"),
+)
 
 DECLARATIONS = (
     CapabilityDeclaration(
@@ -720,5 +776,11 @@ DECLARATIONS = (
         source=FactSource.SUBSTRAIT,
         facts=_IBIS_POLARS_DYNAMIC_PATTERN_FACTS,
         evidence=_EVIDENCE_DYNAMIC_PATTERN,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_SQLITE_CASE_INSENSITIVE_FACTS,
+        evidence=_EVIDENCE_IBIS_SQLITE_CASE_INSENSITIVE,
     ),
 )

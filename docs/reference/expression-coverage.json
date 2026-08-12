@@ -1,7 +1,7 @@
 {
   "stamp": {
-    "declarations": 34,
-    "facts": 1497,
+    "declarations": 35,
+    "facts": 1500,
     "operations": 324,
     "implementation_records": 972
   },
@@ -50,19 +50,19 @@
       "expr_capable": 155,
       "literal_only": 60,
       "polymorphic": 9,
-      "unsupported": 1273
+      "unsupported": 1276
     },
     "facts_by_enforcement": {
-      "gate": 1491,
+      "gate": 1494,
       "router_metadata": 3,
       "materialize_residue": 3
     },
     "facts_by_backend": {
       "polars": 257,
       "narwhals": 639,
-      "ibis": 601
+      "ibis": 604
     },
-    "facts_total": 1497
+    "facts_total": 1500
   },
   "families": [
     {
@@ -33205,9 +33205,9 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -33221,6 +33221,22 @@
                   "condition": null,
                   "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
                   "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the Ibis family — gated unconditionally for every ibis-sqlite connection and every input (including purely-ASCII input, which SQLite's native LOWER() handles correctly, and any caller-supplied connection with a custom Unicode-aware LOWER()/UPPER() override loaded onto it) because the capability fact is keyed on (backend, dialect), a static identity, with no visibility into a specific connection's actual loaded extensions or a specific call's runtime string content",
+                  "workaround": "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is sufficient (genuinely honored on ibis-sqlite via native translate()); otherwise Unicode-normalize both operands in Python (e.g. str.lower()) and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — this dialect-scoped gate is unconditional and still rejects CASE_INSENSITIVE even after preprocessing), or run this expression against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite",
                   "upstream_ref": null,
                   "since": "2026-08-12",
                   "native_errors": [],
@@ -33730,9 +33746,9 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -33746,6 +33762,22 @@
                   "condition": null,
                   "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
                   "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the Ibis family — gated unconditionally for every ibis-sqlite connection and every input (including purely-ASCII input, which SQLite's native LOWER() handles correctly, and any caller-supplied connection with a custom Unicode-aware LOWER()/UPPER() override loaded onto it) because the capability fact is keyed on (backend, dialect), a static identity, with no visibility into a specific connection's actual loaded extensions or a specific call's runtime string content",
+                  "workaround": "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is sufficient (genuinely honored on ibis-sqlite via native translate()); otherwise Unicode-normalize both operands in Python (e.g. str.lower()) and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — this dialect-scoped gate is unconditional and still rejects CASE_INSENSITIVE even after preprocessing), or run this expression against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite",
                   "upstream_ref": null,
                   "since": "2026-08-12",
                   "native_errors": [],
@@ -41343,9 +41375,9 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -41359,6 +41391,22 @@
                   "condition": null,
                   "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
                   "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the Ibis family — gated unconditionally for every ibis-sqlite connection and every input (including purely-ASCII input, which SQLite's native LOWER() handles correctly, and any caller-supplied connection with a custom Unicode-aware LOWER()/UPPER() override loaded onto it) because the capability fact is keyed on (backend, dialect), a static identity, with no visibility into a specific connection's actual loaded extensions or a specific call's runtime string content",
+                  "workaround": "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is sufficient (genuinely honored on ibis-sqlite via native translate()); otherwise Unicode-normalize both operands in Python (e.g. str.lower()) and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — this dialect-scoped gate is unconditional and still rejects CASE_INSENSITIVE even after preprocessing), or run this expression against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite",
                   "upstream_ref": null,
                   "since": "2026-08-12",
                   "native_errors": [],
@@ -54918,6 +54966,74 @@
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
+    },
+    {
+      "backend": "ibis",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-12",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ]
+        ],
+        "fixtures": [
+          "ibis-sqlite",
+          "ibis-duckdb"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": "ibis-sqlite",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the Ibis family — gated unconditionally for every ibis-sqlite connection and every input (including purely-ASCII input, which SQLite's native LOWER() handles correctly, and any caller-supplied connection with a custom Unicode-aware LOWER()/UPPER() override loaded onto it) because the capability fact is keyed on (backend, dialect), a static identity, with no visibility into a specific connection's actual loaded extensions or a specific call's runtime string content",
+          "workaround": "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is sufficient (genuinely honored on ibis-sqlite via native translate()); otherwise Unicode-normalize both operands in Python (e.g. str.lower()) and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — this dialect-scoped gate is unconditional and still rejects CASE_INSENSITIVE even after preprocessing), or run this expression against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the Ibis family — gated unconditionally for every ibis-sqlite connection and every input (including purely-ASCII input, which SQLite's native LOWER() handles correctly, and any caller-supplied connection with a custom Unicode-aware LOWER()/UPPER() override loaded onto it) because the capability fact is keyed on (backend, dialect), a static identity, with no visibility into a specific connection's actual loaded extensions or a specific call's runtime string content",
+          "workaround": "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is sufficient (genuinely honored on ibis-sqlite via native translate()); otherwise Unicode-normalize both operands in Python (e.g. str.lower()) and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — this dialect-scoped gate is unconditional and still rejects CASE_INSENSITIVE even after preprocessing), or run this expression against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite's native LOWER()/UPPER() are ASCII-only (no ICU extension loaded); CASE_INSENSITIVE's Unicode-aware-lowercasing contract (e.g. Kelvin Sign U+212A -> 'k') is unavailable on this dialect alone in the Ibis family — gated unconditionally for every ibis-sqlite connection and every input (including purely-ASCII input, which SQLite's native LOWER() handles correctly, and any caller-supplied connection with a custom Unicode-aware LOWER()/UPPER() override loaded onto it) because the capability fact is keyed on (backend, dialect), a static identity, with no visibility into a specific connection's actual loaded extensions or a specific call's runtime string content",
+          "workaround": "Use CASE_INSENSITIVE_ASCII instead if ASCII-only folding is sufficient (genuinely honored on ibis-sqlite via native translate()); otherwise Unicode-normalize both operands in Python (e.g. str.lower()) and reissue the comparison as CASE_SENSITIVE (NOT CASE_INSENSITIVE — this dialect-scoped gate is unconditional and still rejects CASE_INSENSITIVE even after preprocessing), or run this expression against a different Ibis dialect (ibis-duckdb) instead of ibis-sqlite",
+          "upstream_ref": null,
+          "since": "2026-08-12",
           "native_errors": [],
           "probe_exempt": null
         }
