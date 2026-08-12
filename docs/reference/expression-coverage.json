@@ -53,9 +53,9 @@
       "unsupported": 1286
     },
     "facts_by_enforcement": {
-      "gate": 1503,
+      "gate": 1502,
       "router_metadata": 3,
-      "materialize_residue": 3
+      "materialize_residue": 4
     },
     "facts_by_backend": {
       "polars": 258,
@@ -41307,25 +41307,28 @@
                   "since": "2026-08-13",
                   "native_errors": [],
                   "probe_exempt": null
-                },
+                }
+              ],
+              "residue": [
                 {
                   "dialect": "narwhals-pandas",
                   "param": "*",
                   "option_value": null,
                   "value_class": null,
                   "level": "unsupported",
-                  "enforcement": "gate",
-                  "boundary": "build",
+                  "enforcement": "materialize_residue",
+                  "boundary": "materialize",
                   "condition": null,
-                  "message": "narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') -- the plain numpy-backed pandas DataFrame mountainash's narwhals-pandas backend is constructed from fails for any separator, literal or dynamic; narwhals-polars works correctly for a literal separator",
-                  "workaround": "Use a narwhals-polars, Polars, or Ibis backend for string_split",
+                  "message": "narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') against the plain numpy-backed storage most pandas DataFrames use; a pyarrow-backed pandas DataFrame (e.g. via .convert_dtypes(dtype_backend='pyarrow')) works correctly, as does narwhals-polars for any storage",
+                  "workaround": "Use a pyarrow-backed pandas DataFrame, narwhals-polars, Polars, or Ibis for string_split",
                   "upstream_ref": "NW-STR-22",
                   "since": "2026-08-13",
-                  "native_errors": [],
-                  "probe_exempt": "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; narwhals-pandas' own pyarrow-backend requirement is a structural constraint of the standard (non-pyarrow) pandas fixture mountainash constructs, not a per-argument literal-vs-dynamic distinction an OpSpec probe could discriminate"
+                  "native_errors": [
+                    "TypeError"
+                  ],
+                  "probe_exempt": "whole-op materialize-time storage residue (narwhals-pandas pyarrow-backed-series requirement) -- storage-dependent, not an intrinsic dialect-wide gap: a pyarrow-backed pandas DataFrame genuinely works, so this cannot be a build-time GATE (mirrors NW-LIST-01's identical pyarrow-storage-dependent CONTAINS/T_CONTAINS pattern)"
                 }
               ],
-              "residue": [],
               "routed": [],
               "refinements": []
             },
@@ -66306,15 +66309,17 @@
           "option_value": null,
           "value_class": null,
           "level": "unsupported",
-          "enforcement": "gate",
-          "boundary": "build",
+          "enforcement": "materialize_residue",
+          "boundary": "materialize",
           "condition": null,
-          "message": "narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') -- the plain numpy-backed pandas DataFrame mountainash's narwhals-pandas backend is constructed from fails for any separator, literal or dynamic; narwhals-polars works correctly for a literal separator",
-          "workaround": "Use a narwhals-polars, Polars, or Ibis backend for string_split",
+          "message": "narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') against the plain numpy-backed storage most pandas DataFrames use; a pyarrow-backed pandas DataFrame (e.g. via .convert_dtypes(dtype_backend='pyarrow')) works correctly, as does narwhals-polars for any storage",
+          "workaround": "Use a pyarrow-backed pandas DataFrame, narwhals-polars, Polars, or Ibis for string_split",
           "upstream_ref": "NW-STR-22",
           "since": "2026-08-13",
-          "native_errors": [],
-          "probe_exempt": "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; narwhals-pandas' own pyarrow-backend requirement is a structural constraint of the standard (non-pyarrow) pandas fixture mountainash constructs, not a per-argument literal-vs-dynamic distinction an OpSpec probe could discriminate"
+          "native_errors": [
+            "TypeError"
+          ],
+          "probe_exempt": "whole-op materialize-time storage residue (narwhals-pandas pyarrow-backed-series requirement) -- storage-dependent, not an intrinsic dialect-wide gap: a pyarrow-backed pandas DataFrame genuinely works, so this cannot be a build-time GATE (mirrors NW-LIST-01's identical pyarrow-storage-dependent CONTAINS/T_CONTAINS pattern)"
         }
       ]
     },

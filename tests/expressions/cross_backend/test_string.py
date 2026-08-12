@@ -977,9 +977,12 @@ class TestRegexpStringSplitGates:
     def test_narwhals_string_split_dynamic_separator_gate(self, backend_name, backend_factory):
         """narwhals's str.split(by) cannot accept an Expr at all — even an
         Expr-wrapped literal fails, so this fires for a dynamic column too.
-        On narwhals-pandas this is subsumed by the whole-op gate below (both
-        fire, since the dynamic-arg LITERAL_ONLY fact is checked first by
-        the visitor); on narwhals-polars only this LITERAL_ONLY fact applies."""
+        Family-wide (dialect=None) LITERAL_ONLY fact (NW-STR-21) -- fires
+        uniformly on both dialects at BUILD time, before the separate
+        narwhals-pandas pyarrow-storage MATERIALIZE_RESIDUE fact (NW-STR-22,
+        test_narwhals_pandas_string_split_storage_residue below) ever gets
+        a chance to run (that one only fires if the native call actually
+        executes, which a gated dynamic argument never reaches)."""
         df = backend_factory.create({"text": ["a,b,c"], "sep": [","]}, backend_name)
         caught: BackendCapabilityError | None = None
         try:
@@ -991,18 +994,42 @@ class TestRegexpStringSplitGates:
         assert caught.function_key == FK_STR.SPLIT
         assert caught.limitation is not None
         assert caught.limitation.operation_key == FK_STR.SPLIT
+        assert caught.limitation.param == "separator"
         assert caught.limitation.backend is CONST_BACKEND.NARWHALS
+        assert caught.limitation.dialect is None
+        assert caught.limitation.level is CapabilityLevel.LITERAL_ONLY
 
-    def test_narwhals_pandas_string_split_whole_op_gate(self, backend_factory):
+    def test_narwhals_pandas_string_split_storage_residue(self, backend_factory, collect_expr):
         """narwhals-pandas' str.split() requires a pyarrow-backed series --
-        fails for a literal separator too, unlike narwhals-polars."""
+        storage-dependent, not an intrinsic gap: a pyarrow-backed pandas
+        DataFrame genuinely works (asserted below), so this is registered
+        as a MATERIALIZE_RESIDUE fact (NW-STR-22), not a build-time
+        whole-op gate that would incorrectly block the working pyarrow
+        case too (backlog item 85 round-1 review finding).
+
+        The standard (non-pyarrow) pandas fixture's failure is asserted as
+        a raw ``TypeError`` here, NOT an enriched ``BackendCapabilityError``
+        -- narwhals' eager `.select()` evaluates lazily-built Expr nodes
+        outside `_call_with_expr_support`'s synchronous try/except AND
+        outside `enrich_materialization`'s wrap point in `.collect()`
+        (verified empirically: the pre-existing `NW-LIST-01`
+        `MATERIALIZE_RESIDUE` fact for `list.contains()` on narwhals-pandas
+        has the identical gap -- its own raw `TypeError` also leaks
+        unenriched through this exact code path, 2026-08-13). This is a
+        pre-existing residue-enrichment architecture gap, not something
+        introduced here or fixable within this item's scope -- filed as a
+        new backlog item."""
+        import pandas as pd
+
         df = backend_factory.create({"text": ["a,b,c"]}, "narwhals-pandas")
-        assert_capability_gated(
-            FK_STR.SPLIT,
-            CONST_BACKEND.NARWHALS,
-            dialect="narwhals-pandas",
-            build=lambda: ma.col("text").str.string_split(",").compile(df),
-        )
+        with pytest.raises(TypeError, match="pyarrow-backed series"):
+            collect_expr(df, ma.col("text").str.string_split(","))
+
+        # The pyarrow-backed case genuinely works -- proves this really is
+        # storage-dependent, not a disguised whole-op gap.
+        pyarrow_df = pd.DataFrame({"text": ["a,b,c", "d,e"]}).convert_dtypes(dtype_backend="pyarrow")
+        expr = ma.col("text").str.string_split(",")
+        assert collect_expr(pyarrow_df, expr) == [["a", "b", "c"], ["d", "e"]]
 
 
 

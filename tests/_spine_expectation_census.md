@@ -10,12 +10,12 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| src/mountainash/expressions/backends/capabilities/string.py:205 | manual-map | INITCAP | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:205 | manual-map | SWAPCASE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:205 | manual-map | TITLE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:205 | manual-map | CAPITALIZE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:205 | manual-map | CENTER | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:205 | manual-map | SWAPCASE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | INITCAP | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | SWAPCASE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | TITLE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | CAPITALIZE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | CENTER | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | SWAPCASE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
 | tests/conform/cross_backend/test_conform_drift.py:34 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-02') — migrated |
 | tests/conform/cross_backend/test_conform_transforms.py:14 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-03') — migrated |
 | tests/conform/cross_backend/test_null_fill_mode.py:66 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-TYPE-02') — migrated |

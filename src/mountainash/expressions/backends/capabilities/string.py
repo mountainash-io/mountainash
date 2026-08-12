@@ -6,8 +6,10 @@ Migrated from mountainash.expressions.backends.expression_systems.string_option_
 from __future__ import annotations
 
 from mountainash.core.capabilities import (
+    Boundary,
     CapabilityFact,
     CapabilityLevel,
+    Enforcement,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -927,9 +929,9 @@ _NARWHALS_STRING_SPLIT_DYNAMIC_FACTS = (
 _NARWHALS_PANDAS_STRING_SPLIT_UNSUPPORTED = (
     "narwhals-pandas' str.split() requires a pyarrow-backed pandas series "
     "(raises TypeError: 'This operation requires a pyarrow-backed series') "
-    "-- the plain numpy-backed pandas DataFrame mountainash's narwhals-pandas "
-    "backend is constructed from fails for any separator, literal or dynamic; "
-    "narwhals-polars works correctly for a literal separator"
+    "against the plain numpy-backed storage most pandas DataFrames use; a "
+    "pyarrow-backed pandas DataFrame (e.g. via .convert_dtypes(dtype_backend="
+    "'pyarrow')) works correctly, as does narwhals-polars for any storage"
 )
 _NARWHALS_PANDAS_STRING_SPLIT_FACTS = (
     CapabilityFact(
@@ -939,14 +941,19 @@ _NARWHALS_PANDAS_STRING_SPLIT_FACTS = (
         backend=CONST_BACKEND.NARWHALS,
         dialect="narwhals-pandas",
         message=_NARWHALS_PANDAS_STRING_SPLIT_UNSUPPORTED,
-        workaround="Use a narwhals-polars, Polars, or Ibis backend for string_split",
+        workaround="Use a pyarrow-backed pandas DataFrame, narwhals-polars, "
+            "Polars, or Ibis for string_split",
         since=_SINCE_SPLIT_FAMILY,
         upstream_ref="NW-STR-22",
-        probe_exempt="whole-op gate on a dialect-scoped WILDCARD_PARAM fact; "
-            "narwhals-pandas' own pyarrow-backend requirement is a "
-            "structural constraint of the standard (non-pyarrow) pandas "
-            "fixture mountainash constructs, not a per-argument literal-"
-            "vs-dynamic distinction an OpSpec probe could discriminate",
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        native_errors=(TypeError,),
+        probe_exempt="whole-op materialize-time storage residue "
+            "(narwhals-pandas pyarrow-backed-series requirement) -- "
+            "storage-dependent, not an intrinsic dialect-wide gap: a "
+            "pyarrow-backed pandas DataFrame genuinely works, so this "
+            "cannot be a build-time GATE (mirrors NW-LIST-01's identical "
+            "pyarrow-storage-dependent CONTAINS/T_CONTAINS pattern)",
     ),
 )
 _EVIDENCE_SPLIT_FAMILY = ProbeEvidence(

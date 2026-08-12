@@ -62,7 +62,7 @@ audited_unknown: 0
 | Axis | Breakdown |
 | --- | --- |
 | Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1286 |
-| Enforcement | gate 1503, router_metadata 3, materialize_residue 3 |
+| Enforcement | gate 1502, router_metadata 3, materialize_residue 4 |
 | Backend | polars 258, narwhals 642, ibis 609 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
@@ -363,7 +363,7 @@ audited_unknown: 0
 | `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `SPLIT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `SPLIT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 | `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `STRPOS` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
