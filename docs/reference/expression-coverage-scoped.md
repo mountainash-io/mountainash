@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 35 · Facts: 1500 · Registered operations: 324 · Implementation records: 972
+Declarations: 36 · Facts: 1503 · Registered operations: 324 · Implementation records: 972
 
 Legend — scoped deviations:
 
@@ -1179,6 +1179,12 @@ Legend — scoped deviations:
 
 ### `LIKE` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
 
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-polars | * | — | — | unsupported | gate | build | — | ibis-polars has no compilation rule for StringSQLLike (OperationNotDefinedError) for any pattern, literal or dynamic; ibis-duckdb/ibis-sqlite both translate LIKE to native SQL correctly | Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns | IB-STR-06 | 2026-08-12 | — | whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed on an OpSpec param — verified by the dedicated cross-backend gate test in test_pattern.py (TestLikeIbisPolarsGate) and the native-bypass self-healing probe in test_op_level_gate_probes.py (test_like_ibis_polars_native_still_broken) |
+
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation | Lowercase the input and search operand explicitly before applying the case-sensitive operation | — | 2026-07-23 | — | — |
@@ -1366,6 +1372,7 @@ Legend — scoped deviations:
 | ibis-duckdb | occurrence | 2 | — | unsupported | gate | build | — | The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied | — | — | 2026-07-23 | — | — |
 | ibis-duckdb | position | — | — | unsupported | gate | build | — | The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied | — | — | 2026-07-23 | — | value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check |
 | ibis-duckdb | position | 2 | — | unsupported | gate | build | — | The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied | — | — | 2026-07-23 | — | — |
+| ibis-polars | pattern | — | — | literal_only | gate | build | — | ibis-polars compiles this to Polars' native columnar-argument path, which raises Ibis's own UnsupportedArgumentError for a dynamic (column-valued) argument; a literal value works fine | Use a literal string pattern/separator instead of a column reference | IB-STR-09 | 2026-08-12 | — | — |
 
 ### `REGEXP_MATCH_ALL` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 
@@ -1712,6 +1719,12 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | characters | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | dynamic arg silently miscompiles via str(Expr) into a no-op char-class, returning the input unchanged rather than raising — cannot be confirmed by an exception-based probe |
+
+### `SPLIT` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-polars | separator | — | — | literal_only | gate | build | — | ibis-polars compiles this to Polars' native columnar-argument path, which raises Ibis's own UnsupportedArgumentError for a dynamic (column-valued) argument; a literal value works fine | Use a literal string pattern/separator instead of a column reference | IB-STR-10 | 2026-08-12 | — | — |
 
 ### `STARTS_WITH` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 

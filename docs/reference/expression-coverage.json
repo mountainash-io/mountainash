@@ -1,7 +1,7 @@
 {
   "stamp": {
-    "declarations": 35,
-    "facts": 1500,
+    "declarations": 36,
+    "facts": 1503,
     "operations": 324,
     "implementation_records": 972
   },
@@ -39,8 +39,8 @@
           "unknown": 0
         },
         "default_capable": 138,
-        "audited_clean": 115,
-        "constrained": 71,
+        "audited_clean": 114,
+        "constrained": 72,
         "audited_unknown": 0
       }
     },
@@ -48,21 +48,21 @@
     "ops_total": 324,
     "facts_by_level": {
       "expr_capable": 155,
-      "literal_only": 60,
+      "literal_only": 62,
       "polymorphic": 9,
-      "unsupported": 1276
+      "unsupported": 1277
     },
     "facts_by_enforcement": {
-      "gate": 1494,
+      "gate": 1497,
       "router_metadata": 3,
       "materialize_residue": 3
     },
     "facts_by_backend": {
       "polars": 257,
       "narwhals": 639,
-      "ibis": 604
+      "ibis": 607
     },
-    "facts_total": 1500
+    "facts_total": 1503
   },
   "families": [
     {
@@ -34371,7 +34371,7 @@
                 "params": 1,
                 "option_selectors": 2,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -34437,6 +34437,22 @@
                   "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-polars",
+                  "param": "*",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars has no compilation rule for StringSQLLike (OperationNotDefinedError) for any pattern, literal or dynamic; ibis-duckdb/ibis-sqlite both translate LIKE to native SQL correctly",
+                  "workaround": "Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns",
+                  "upstream_ref": "IB-STR-06",
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed on an OpSpec param — verified by the dedicated cross-backend gate test in test_pattern.py (TestLikeIbisPolarsGate) and the native-bypass self-healing probe in test_op_level_gate_probes.py (test_like_ibis_polars_native_still_broken)"
                 }
               ],
               "residue": [],
@@ -36394,10 +36410,10 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 5,
+                "params": 6,
                 "option_selectors": 6,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -36653,6 +36669,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-polars",
+                  "param": "pattern",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars compiles this to Polars' native columnar-argument path, which raises Ibis's own UnsupportedArgumentError for a dynamic (column-valued) argument; a literal value works fine",
+                  "workaround": "Use a literal string pattern/separator instead of a column reference",
+                  "upstream_ref": "IB-STR-09",
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -41207,15 +41239,32 @@
               "impl_protocol": "SubstraitIbisScalarStringExpressionSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
+                "params": 1,
                 "option_selectors": 0,
                 "value_classes": 0,
-                "dialects": 0
+                "dialects": 1
               },
-              "constraints": [],
+              "constraints": [
+                {
+                  "dialect": "ibis-polars",
+                  "param": "separator",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars compiles this to Polars' native columnar-argument path, which raises Ibis's own UnsupportedArgumentError for a dynamic (column-valued) argument; a literal value works fine",
+                  "workaround": "Use a literal string pattern/separator instead of a column reference",
+                  "upstream_ref": "IB-STR-10",
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
               "residue": [],
               "routed": [],
               "refinements": []
@@ -55500,6 +55549,79 @@
           "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
           "workaround": "Use a literal string pattern instead of a column reference",
           "upstream_ref": "PL-STR-02",
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
+    },
+    {
+      "backend": "ibis",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-12",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "polars",
+            "1.43.2"
+          ]
+        ],
+        "fixtures": [
+          "ibis-polars",
+          "ibis-duckdb",
+          "ibis-sqlite"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": "ibis-polars",
+          "param": "*",
+          "option_value": null,
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars has no compilation rule for StringSQLLike (OperationNotDefinedError) for any pattern, literal or dynamic; ibis-duckdb/ibis-sqlite both translate LIKE to native SQL correctly",
+          "workaround": "Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns",
+          "upstream_ref": "IB-STR-06",
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed on an OpSpec param — verified by the dedicated cross-backend gate test in test_pattern.py (TestLikeIbisPolarsGate) and the native-bypass self-healing probe in test_op_level_gate_probes.py (test_like_ibis_polars_native_still_broken)"
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "pattern",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars compiles this to Polars' native columnar-argument path, which raises Ibis's own UnsupportedArgumentError for a dynamic (column-valued) argument; a literal value works fine",
+          "workaround": "Use a literal string pattern/separator instead of a column reference",
+          "upstream_ref": "IB-STR-09",
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "separator",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars compiles this to Polars' native columnar-argument path, which raises Ibis's own UnsupportedArgumentError for a dynamic (column-valued) argument; a literal value works fine",
+          "workaround": "Use a literal string pattern/separator instead of a column reference",
+          "upstream_ref": "IB-STR-10",
           "since": "2026-08-12",
           "native_errors": [],
           "probe_exempt": null
@@ -70816,24 +70938,6 @@
       "summary": "cross_join with suffix disambiguation fails on ibis SQL backends (ibis-duckdb BinderException, ibis-sqlite OperationalError) — suffixes kwarg incompatibility",
       "impact": "Relation.cross_join() raises on ibis-duckdb/ibis-sqlite; polars/narwhals and ibis-polars compute it",
       "workaround": "Use a polars/narwhals backend or ibis-polars for cross joins",
-      "upstream_ref": null,
-      "since": "2026-08-06"
-    },
-    {
-      "id": "IB-STR-01",
-      "kind": "engine_leniency",
-      "operation_keys": [
-        {
-          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
-          "op": "LIKE"
-        }
-      ],
-      "backends": [
-        "ibis-polars"
-      ],
-      "summary": "ibis-polars has no translation rule for SQL LIKE patterns (OperationNotDefinedError)",
-      "impact": "str LIKE-pattern matching raises on ibis-polars; ibis-duckdb/ibis-sqlite and polars/narwhals handle it",
-      "workaround": "Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns",
       "upstream_ref": null,
       "since": "2026-08-06"
     },

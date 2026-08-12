@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 35 · Facts: 1500 · Registered operations: 324 · Implementation records: 972
+Declarations: 36 · Facts: 1503 · Registered operations: 324 · Implementation records: 972
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -52,7 +52,7 @@ Legend — cell states (by exception):
 | --- | --- | --- | --- | --- | --- | --- |
 | polars | 199 | 75 | 50 | 0 | 0 | 324 |
 | narwhals | 97 | 152 | 75 | 0 | 0 | 324 |
-| ibis | 138 | 115 | 71 | 0 | 0 | 324 |
+| ibis | 138 | 114 | 72 | 0 | 0 | 324 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 155, literal_only 60, polymorphic 9, unsupported 1276 |
-| Enforcement | gate 1494, router_metadata 3, materialize_residue 3 |
-| Backend | polars 257, narwhals 639, ibis 604 |
+| Level | expr_capable 155, literal_only 62, polymorphic 9, unsupported 1277 |
+| Enforcement | gate 1497, router_metadata 3, materialize_residue 3 |
+| Backend | polars 257, narwhals 639, ibis 607 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -85,6 +85,7 @@ audited_unknown: 0
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0 | ibis-sqlite, ibis-duckdb |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars |
+| ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars, ibis-duckdb, ibis-sqlite |
 | narwhals | mountainash | datetime | 2026-07-05 |  |  |
 | narwhals | mountainash | datetime | 2026-07-24 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -341,13 +342,13 @@ audited_unknown: 0
 | `ENDS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `INITCAP` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
 | `LEFT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
-| `LIKE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `LIKE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) · unsupported on ibis-polars ✓ dialect-verified: ibis-duckdb |
 | `LOWER` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `LPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `LTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `OCTET_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
 | `REGEXP_COUNT` | ◐ partial (4 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 8 option-selectors, 0 value-classes, 1 dialects) |
-| `REGEXP_MATCH` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_MATCH` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_MATCH_ALL` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
 | `REGEXP_REPLACE` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_SPLIT` | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
@@ -359,7 +360,7 @@ audited_unknown: 0
 | `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `SPLIT` | ✓ audited | ✓ audited | ✓ audited |
+| `SPLIT` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 | `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `STRPOS` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
@@ -524,7 +525,6 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 | IB-REL-07 | engine_leniency | ibis-sqlite | — | ibis-sqlite lacks array/pivot relational translations: drop_nans, unpivot/melt raise OperationNotDefinedError | Relation.drop_nans()/unpivot()/melt() raise on ibis-sqlite; other backends compute them | Use ibis-duckdb or a polars/narwhals backend for these relational ops | — | 2026-08-06 |
 | IB-REL-08 | semantics | ibis-duckdb, ibis-sqlite | — | asof join is unreliable on ibis SQL backends: ibis-duckdb returns a wrong (diverging) result and ibis-sqlite raises UnsupportedOperationError | Relation.join_asof() diverges on ibis-duckdb and raises on ibis-sqlite; polars/narwhals compute it correctly | Use a polars or narwhals backend for asof joins | — | 2026-08-06 |
 | IB-REL-09 | engine_leniency | ibis-duckdb, ibis-sqlite | — | cross_join with suffix disambiguation fails on ibis SQL backends (ibis-duckdb BinderException, ibis-sqlite OperationalError) — suffixes kwarg incompatibility | Relation.cross_join() raises on ibis-duckdb/ibis-sqlite; polars/narwhals and ibis-polars compute it | Use a polars/narwhals backend or ibis-polars for cross joins | — | 2026-08-06 |
-| IB-STR-01 | engine_leniency | ibis-polars | `LIKE` | ibis-polars has no translation rule for SQL LIKE patterns (OperationNotDefinedError) | str LIKE-pattern matching raises on ibis-polars; ibis-duckdb/ibis-sqlite and polars/narwhals handle it | Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns | — | 2026-08-06 |
 | IB-STR-02 | engine_leniency | ibis-polars | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | ibis-polars rejects case-insensitive string matching (contains/starts_with/ends_with with case_sensitive=False) — UnsupportedArgumentError | case-insensitive contains/starts_with/ends_with raise on ibis-polars; other backends compute them | Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for case-insensitive matching | — | 2026-08-06 |
 | IB-TYPE-02 | semantics | ibis-duckdb, ibis-sqlite | `IS_NAN`, `FILL_NAN` | SQL engines treat NaN as NULL; NaN == NaN yields NULL not False | is_nan/fill_nan/NaN comparisons diverge on SQL engines | Use is_null/fill_null on SQL backends | IB-TYPE-02 | 2026-07-05 |
 | IB-TYPE-04 | type_inference | ibis-duckdb, ibis-polars, ibis-sqlite | — | Ibis defers type resolution to its backend, unlike eager Polars | Type-sensitive operations and result comparisons can differ despite matching values | — | IB-TYPE-04 | 2026-07-05 |
