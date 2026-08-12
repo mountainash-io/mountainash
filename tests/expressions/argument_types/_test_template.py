@@ -175,7 +175,7 @@ def _materialize_result(df, compiled, backend: str) -> None:
             df.select(compiled).collect()
         else:
             df.select(compiled)
-    elif backend == "ibis":
+    elif backend in ("ibis", "ibis-polars"):
         df.select(compiled.name("__result__")).execute()
     elif backend in ("narwhals-polars", "narwhals-pandas"):
         df.select(compiled).to_native()

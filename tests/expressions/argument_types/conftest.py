@@ -46,6 +46,10 @@ def make_df(
         import ibis
         connection = ibis.duckdb.connect()
         return connection.create_table("option_test", pdf, overwrite=True)
+    if backend == "ibis-polars":
+        import ibis
+        connection = ibis.polars.connect()
+        return connection.create_table("option_test", pdf, overwrite=True)
     if backend == "narwhals-polars":
         import narwhals as nw
         return nw.from_native(pdf, eager_only=True)

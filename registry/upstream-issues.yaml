@@ -1177,12 +1177,17 @@ issues:
   root_cause: parameter_width
   affected_backends:
   - polars
+  - ibis-polars
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: error_enrichment
   notes: Check newer Polars versions. Only 2 KNOWN_EXPR_LIMITATIONS for Polars total.
-  last_verified: '2026-05-11'
+    Also surfaces transitively on ibis-polars (count_substring's dynamic branch
+    lowers to this same native path via Ibis's non-regex .replace()) — gated as a
+    dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend (backlog item
+    81, 2026-08-12).
+  last_verified: '2026-08-12'
 - id: PL-STR-02
   project: polars
   category: string-ops
@@ -1191,12 +1196,17 @@ issues:
   root_cause: parameter_width
   affected_backends:
   - polars
+  - ibis-polars
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: error_enrichment
-  notes: Same class as PL-STR-01.
-  last_verified: '2026-05-11'
+  notes: Same class as PL-STR-01. Also surfaces transitively on ibis-polars
+    (replace's and regexp_replace's dynamic-pattern fallback branches both lower
+    to this same native path via Ibis's regex .re_replace()) — gated as a
+    dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend (backlog item
+    81, 2026-08-12).
+  last_verified: '2026-08-12'
 - id: PL-STR-03
   project: polars
   category: string-ops

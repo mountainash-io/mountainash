@@ -44,6 +44,7 @@ _FAMILY_DEFAULT_FIXTURES = {
 _FIXTURE_DIALECT = {
     "polars": "polars",
     "ibis": None,
+    "ibis-polars": "ibis-polars",
     "narwhals-polars": "narwhals-polars",
     "narwhals-pandas": "narwhals-pandas",
 }
