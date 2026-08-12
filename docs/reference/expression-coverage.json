@@ -1,7 +1,7 @@
 {
   "stamp": {
-    "declarations": 36,
-    "facts": 1503,
+    "declarations": 39,
+    "facts": 1509,
     "operations": 324,
     "implementation_records": 972
   },
@@ -27,8 +27,8 @@
           "unknown": 0
         },
         "default_capable": 97,
-        "audited_clean": 152,
-        "constrained": 75,
+        "audited_clean": 151,
+        "constrained": 76,
         "audited_unknown": 0
       },
       "ibis": {
@@ -47,22 +47,22 @@
     "contradictions": 0,
     "ops_total": 324,
     "facts_by_level": {
-      "expr_capable": 155,
-      "literal_only": 62,
+      "expr_capable": 149,
+      "literal_only": 65,
       "polymorphic": 9,
-      "unsupported": 1277
+      "unsupported": 1286
     },
     "facts_by_enforcement": {
-      "gate": 1497,
+      "gate": 1502,
       "router_metadata": 3,
-      "materialize_residue": 3
+      "materialize_residue": 4
     },
     "facts_by_backend": {
-      "polars": 257,
-      "narwhals": 639,
-      "ibis": 607
+      "polars": 258,
+      "narwhals": 642,
+      "ibis": 609
     },
-    "facts_total": 1503
+    "facts_total": 1509
   },
   "families": [
     {
@@ -38675,12 +38675,28 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 3,
+                "params": 4,
                 "option_selectors": 4,
                 "value_classes": 0,
                 "dialects": 1
               },
               "constraints": [
+                {
+                  "dialect": null,
+                  "param": "pattern",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "Polars regexp_string_split requires a literal pattern -- the map_elements fallback binds pattern as a Python closure value, not a column expression",
+                  "workaround": "Use a literal string regex pattern",
+                  "upstream_ref": "PL-STR-04",
+                  "since": "2026-08-13",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
                 {
                   "dialect": "polars",
                   "param": "case_sensitivity",
@@ -38804,16 +38820,32 @@
               "impl_method": "regexp_string_split",
               "impl_protocol": "SubstraitNarwhalsScalarStringExpressionSystem",
               "audited": true,
-              "whole_op": null,
+              "whole_op": "unsupported",
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
                 "params": 3,
-                "option_selectors": 4,
+                "option_selectors": 7,
                 "value_classes": 0,
                 "dialects": 2
               },
               "constraints": [
+                {
+                  "dialect": null,
+                  "param": "*",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "Narwhals has no regex-split primitive at the pinned version -- ExprStringNamespace.split(by) is literal-substring-only, no other method performs regex splitting on any narwhals dialect",
+                  "workaround": "Use a Polars or ibis-duckdb/ibis-polars(literal) backend for regex split",
+                  "upstream_ref": "NW-STR-20",
+                  "since": "2026-08-13",
+                  "native_errors": [],
+                  "probe_exempt": "whole-op gate on a family-wide WILDCARD_PARAM fact; no OpSpec exists since narwhals genuinely has no candidate method to probe -- verified by a dedicated native-API-surface self-healing probe (not a re-invocation of the mountainash wrapper's own hard-coded raise)"
+                },
                 {
                   "dialect": "narwhals-pandas",
                   "param": "case_sensitivity",
@@ -38848,6 +38880,38 @@
                 },
                 {
                   "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_SENSITIVE",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "dotall",
+                  "option_value": "DOTALL_DISABLED",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
                   "param": "dotall",
                   "option_value": "DOTALL_ENABLED",
                   "value_class": null,
@@ -38856,6 +38920,22 @@
                   "boundary": "build",
                   "condition": null,
                   "message": "The native backend does not implement this regexp flag's non-default Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "multiline",
+                  "option_value": "MULTILINE_DISABLED",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
@@ -38912,6 +38992,38 @@
                 },
                 {
                   "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_SENSITIVE",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "dotall",
+                  "option_value": "DOTALL_DISABLED",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
                   "param": "dotall",
                   "option_value": "DOTALL_ENABLED",
                   "value_class": null,
@@ -38920,6 +39032,22 @@
                   "boundary": "build",
                   "condition": null,
                   "message": "The native backend does not implement this regexp flag's non-default Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "multiline",
+                  "option_value": "MULTILINE_DISABLED",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
@@ -38945,104 +39073,7 @@
               ],
               "residue": [],
               "routed": [],
-              "refinements": [
-                {
-                  "dialect": "narwhals-pandas",
-                  "param": "case_sensitivity",
-                  "option_value": "CASE_SENSITIVE",
-                  "value_class": null,
-                  "level": "expr_capable",
-                  "enforcement": "gate",
-                  "boundary": "build",
-                  "condition": null,
-                  "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
-                  "workaround": null,
-                  "upstream_ref": null,
-                  "since": "2026-07-23",
-                  "native_errors": [],
-                  "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
-                },
-                {
-                  "dialect": "narwhals-pandas",
-                  "param": "dotall",
-                  "option_value": "DOTALL_DISABLED",
-                  "value_class": null,
-                  "level": "expr_capable",
-                  "enforcement": "gate",
-                  "boundary": "build",
-                  "condition": null,
-                  "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
-                  "workaround": null,
-                  "upstream_ref": null,
-                  "since": "2026-07-23",
-                  "native_errors": [],
-                  "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
-                },
-                {
-                  "dialect": "narwhals-pandas",
-                  "param": "multiline",
-                  "option_value": "MULTILINE_DISABLED",
-                  "value_class": null,
-                  "level": "expr_capable",
-                  "enforcement": "gate",
-                  "boundary": "build",
-                  "condition": null,
-                  "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
-                  "workaround": null,
-                  "upstream_ref": null,
-                  "since": "2026-07-23",
-                  "native_errors": [],
-                  "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
-                },
-                {
-                  "dialect": "narwhals-polars",
-                  "param": "case_sensitivity",
-                  "option_value": "CASE_SENSITIVE",
-                  "value_class": null,
-                  "level": "expr_capable",
-                  "enforcement": "gate",
-                  "boundary": "build",
-                  "condition": null,
-                  "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
-                  "workaround": null,
-                  "upstream_ref": null,
-                  "since": "2026-07-23",
-                  "native_errors": [],
-                  "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
-                },
-                {
-                  "dialect": "narwhals-polars",
-                  "param": "dotall",
-                  "option_value": "DOTALL_DISABLED",
-                  "value_class": null,
-                  "level": "expr_capable",
-                  "enforcement": "gate",
-                  "boundary": "build",
-                  "condition": null,
-                  "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
-                  "workaround": null,
-                  "upstream_ref": null,
-                  "since": "2026-07-23",
-                  "native_errors": [],
-                  "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
-                },
-                {
-                  "dialect": "narwhals-polars",
-                  "param": "multiline",
-                  "option_value": "MULTILINE_DISABLED",
-                  "value_class": null,
-                  "level": "expr_capable",
-                  "enforcement": "gate",
-                  "boundary": "build",
-                  "condition": null,
-                  "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
-                  "workaround": null,
-                  "upstream_ref": null,
-                  "since": "2026-07-23",
-                  "native_errors": [],
-                  "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
-                }
-              ]
+              "refinements": []
             },
             "ibis": {
               "impl": "implemented",
@@ -39053,10 +39084,10 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 3,
+                "params": 4,
                 "option_selectors": 4,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 3
               },
               "constraints": [
                 {
@@ -39186,6 +39217,38 @@
                   "since": "2026-07-23",
                   "native_errors": [],
                   "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-polars",
+                  "param": "pattern",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars compiles regexp_string_split to Polars' native re_split, which raises Ibis's own IbisError for a dynamic (column-valued) pattern; a literal pattern works fine",
+                  "workaround": "Use a literal string pattern instead of a column reference",
+                  "upstream_ref": "IB-STR-13",
+                  "since": "2026-08-13",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "*",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite has no compilation rule for RegexSplit (OperationNotDefinedError) for any pattern, literal or dynamic; ibis-duckdb translates it to native SQL correctly and ibis-polars supports a literal pattern",
+                  "workaround": "Use ibis-duckdb, ibis-polars with a literal pattern, or a Polars backend for regex split",
+                  "upstream_ref": "IB-STR-12",
+                  "since": "2026-08-13",
+                  "native_errors": [],
+                  "probe_exempt": "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed on an OpSpec param -- verified by a dedicated cross-backend gate test plus the native-bypass self-healing probe in test_op_level_gate_probes.py, mirroring item 83's TestLikeIbisPolarsGate / test_like_ibis_polars_native_still_broken"
                 }
               ],
               "residue": [],
@@ -41220,16 +41283,52 @@
               "impl_protocol": "SubstraitNarwhalsScalarStringExpressionSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
+                "params": 1,
                 "option_selectors": 0,
                 "value_classes": 0,
-                "dialects": 0
+                "dialects": 1
               },
-              "constraints": [],
-              "residue": [],
+              "constraints": [
+                {
+                  "dialect": null,
+                  "param": "separator",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "Narwhals str.split() requires a literal separator string, not an Expr -- raises TypeError even for an Expr-wrapped literal",
+                  "workaround": "Use a literal separator string",
+                  "upstream_ref": "NW-STR-21",
+                  "since": "2026-08-13",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
+              "residue": [
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "*",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "materialize_residue",
+                  "boundary": "materialize",
+                  "condition": null,
+                  "message": "narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') against the plain numpy-backed storage most pandas DataFrames use; a pyarrow-backed pandas DataFrame (e.g. via .convert_dtypes(dtype_backend='pyarrow')) works correctly, as does narwhals-polars for any storage",
+                  "workaround": "Use a pyarrow-backed pandas DataFrame, narwhals-polars, Polars, or Ibis for string_split",
+                  "upstream_ref": "NW-STR-22",
+                  "since": "2026-08-13",
+                  "native_errors": [
+                    "TypeError"
+                  ],
+                  "probe_exempt": "whole-op materialize-time storage residue (narwhals-pandas pyarrow-backed-series requirement) -- storage-dependent, not an intrinsic dialect-wide gap: a pyarrow-backed pandas DataFrame genuinely works, so this cannot be a build-time GATE (mirrors NW-LIST-01's identical pyarrow-storage-dependent CONTAINS/T_CONTAINS pattern)"
+                }
+              ],
               "routed": [],
               "refinements": []
             },
@@ -55629,6 +55728,69 @@
       ]
     },
     {
+      "backend": "ibis",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-13",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "polars",
+            "1.43.2"
+          ],
+          [
+            "narwhals",
+            "2.24.0"
+          ]
+        ],
+        "fixtures": [
+          "ibis-duckdb",
+          "ibis-polars",
+          "ibis-sqlite",
+          "narwhals-polars",
+          "narwhals-pandas"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": "ibis-polars",
+          "param": "pattern",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars compiles regexp_string_split to Polars' native re_split, which raises Ibis's own IbisError for a dynamic (column-valued) pattern; a literal pattern works fine",
+          "workaround": "Use a literal string pattern instead of a column reference",
+          "upstream_ref": "IB-STR-13",
+          "since": "2026-08-13",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "*",
+          "option_value": null,
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite has no compilation rule for RegexSplit (OperationNotDefinedError) for any pattern, literal or dynamic; ibis-duckdb translates it to native SQL correctly and ibis-polars supports a literal pattern",
+          "workaround": "Use ibis-duckdb, ibis-polars with a literal pattern, or a Polars backend for regex split",
+          "upstream_ref": "IB-STR-12",
+          "since": "2026-08-13",
+          "native_errors": [],
+          "probe_exempt": "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed on an OpSpec param -- verified by a dedicated cross-backend gate test plus the native-bypass self-healing probe in test_op_level_gate_probes.py, mirroring item 83's TestLikeIbisPolarsGate / test_like_ibis_polars_native_still_broken"
+        }
+      ]
+    },
+    {
       "backend": "narwhals",
       "source": "mountainash",
       "domain": "datetime",
@@ -63351,16 +63513,16 @@
           "param": "case_sensitivity",
           "option_value": "CASE_SENSITIVE",
           "value_class": null,
-          "level": "expr_capable",
+          "level": "unsupported",
           "enforcement": "gate",
           "boundary": "build",
           "condition": null,
-          "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+          "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
           "native_errors": [],
-          "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
+          "probe_exempt": null
         },
         {
           "dialect": "narwhals-pandas",
@@ -63639,16 +63801,16 @@
           "param": "dotall",
           "option_value": "DOTALL_DISABLED",
           "value_class": null,
-          "level": "expr_capable",
+          "level": "unsupported",
           "enforcement": "gate",
           "boundary": "build",
           "condition": null,
-          "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+          "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
           "native_errors": [],
-          "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
+          "probe_exempt": null
         },
         {
           "dialect": "narwhals-pandas",
@@ -63895,16 +64057,16 @@
           "param": "multiline",
           "option_value": "MULTILINE_DISABLED",
           "value_class": null,
-          "level": "expr_capable",
+          "level": "unsupported",
           "enforcement": "gate",
           "boundary": "build",
           "condition": null,
-          "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+          "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
           "native_errors": [],
-          "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
+          "probe_exempt": null
         },
         {
           "dialect": "narwhals-pandas",
@@ -64695,16 +64857,16 @@
           "param": "case_sensitivity",
           "option_value": "CASE_SENSITIVE",
           "value_class": null,
-          "level": "expr_capable",
+          "level": "unsupported",
           "enforcement": "gate",
           "boundary": "build",
           "condition": null,
-          "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+          "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
           "native_errors": [],
-          "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
+          "probe_exempt": null
         },
         {
           "dialect": "narwhals-polars",
@@ -64983,16 +65145,16 @@
           "param": "dotall",
           "option_value": "DOTALL_DISABLED",
           "value_class": null,
-          "level": "expr_capable",
+          "level": "unsupported",
           "enforcement": "gate",
           "boundary": "build",
           "condition": null,
-          "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+          "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
           "native_errors": [],
-          "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
+          "probe_exempt": null
         },
         {
           "dialect": "narwhals-polars",
@@ -65239,16 +65401,16 @@
           "param": "multiline",
           "option_value": "MULTILINE_DISABLED",
           "value_class": null,
-          "level": "expr_capable",
+          "level": "unsupported",
           "enforcement": "gate",
           "boundary": "build",
           "condition": null,
-          "message": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+          "message": "The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-23",
           "native_errors": [],
-          "probe_exempt": "The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate"
+          "probe_exempt": null
         },
         {
           "dialect": "narwhals-polars",
@@ -66077,6 +66239,87 @@
           "since": "2026-08-12",
           "native_errors": [],
           "probe_exempt": null
+        }
+      ]
+    },
+    {
+      "backend": "narwhals",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-13",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "polars",
+            "1.43.2"
+          ],
+          [
+            "narwhals",
+            "2.24.0"
+          ]
+        ],
+        "fixtures": [
+          "ibis-duckdb",
+          "ibis-polars",
+          "ibis-sqlite",
+          "narwhals-polars",
+          "narwhals-pandas"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": null,
+          "param": "*",
+          "option_value": null,
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "Narwhals has no regex-split primitive at the pinned version -- ExprStringNamespace.split(by) is literal-substring-only, no other method performs regex splitting on any narwhals dialect",
+          "workaround": "Use a Polars or ibis-duckdb/ibis-polars(literal) backend for regex split",
+          "upstream_ref": "NW-STR-20",
+          "since": "2026-08-13",
+          "native_errors": [],
+          "probe_exempt": "whole-op gate on a family-wide WILDCARD_PARAM fact; no OpSpec exists since narwhals genuinely has no candidate method to probe -- verified by a dedicated native-API-surface self-healing probe (not a re-invocation of the mountainash wrapper's own hard-coded raise)"
+        },
+        {
+          "dialect": null,
+          "param": "separator",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "Narwhals str.split() requires a literal separator string, not an Expr -- raises TypeError even for an Expr-wrapped literal",
+          "workaround": "Use a literal separator string",
+          "upstream_ref": "NW-STR-21",
+          "since": "2026-08-13",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "*",
+          "option_value": null,
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "materialize_residue",
+          "boundary": "materialize",
+          "condition": null,
+          "message": "narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') against the plain numpy-backed storage most pandas DataFrames use; a pyarrow-backed pandas DataFrame (e.g. via .convert_dtypes(dtype_backend='pyarrow')) works correctly, as does narwhals-polars for any storage",
+          "workaround": "Use a pyarrow-backed pandas DataFrame, narwhals-polars, Polars, or Ibis for string_split",
+          "upstream_ref": "NW-STR-22",
+          "since": "2026-08-13",
+          "native_errors": [
+            "TypeError"
+          ],
+          "probe_exempt": "whole-op materialize-time storage residue (narwhals-pandas pyarrow-backed-series requirement) -- storage-dependent, not an intrinsic dialect-wide gap: a pyarrow-backed pandas DataFrame genuinely works, so this cannot be a build-time GATE (mirrors NW-LIST-01's identical pyarrow-storage-dependent CONTAINS/T_CONTAINS pattern)"
         }
       ]
     },
@@ -70295,6 +70538,41 @@
           "probe_exempt": null
         }
       ]
+    },
+    {
+      "backend": "polars",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-13",
+        "library_versions": [
+          [
+            "polars",
+            "1.43.2"
+          ]
+        ],
+        "fixtures": [
+          "polars"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": null,
+          "param": "pattern",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "Polars regexp_string_split requires a literal pattern -- the map_elements fallback binds pattern as a Python closure value, not a column expression",
+          "workaround": "Use a literal string regex pattern",
+          "upstream_ref": "PL-STR-04",
+          "since": "2026-08-13",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
     }
   ],
   "divergences": [
@@ -71319,6 +71597,24 @@
       "workaround": "Use a polars or ibis SQL backend for str.center()",
       "upstream_ref": null,
       "since": "2026-08-06"
+    },
+    {
+      "id": "MA-STR-03",
+      "kind": "engine_leniency",
+      "operation_keys": [
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "REGEXP_SPLIT"
+        }
+      ],
+      "backends": [
+        "polars"
+      ],
+      "summary": "regexp_string_split on an empty or zero-width-capable regex pattern diverges from the ibis-duckdb oracle — Polars has no native regex-split primitive, so mountainash falls back to a Python re.finditer-based split, which consolidates zero-width matches differently than DuckDB's regex engine",
+      "impact": "regexp_string_split('') or a zero-width-capable pattern like 'a*' returns extra leading/trailing empty-string elements on polars that ibis-duckdb's native re_split does not produce; ordinary (non-degenerate) patterns are unaffected",
+      "workaround": "Use an ibis-duckdb backend for regexp_string_split with an empty or zero-width-capable pattern",
+      "upstream_ref": "MA-STR-03",
+      "since": "2026-08-13"
     },
     {
       "id": "MA-TERN-01",

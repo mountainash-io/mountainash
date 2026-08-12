@@ -943,7 +943,12 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             List of strings.
 
         Note:
-            Ibis doesn't have regex split. Falls back to normal split.
+            Uses Ibis's native re_split. Works on ibis-duckdb (literal +
+            dynamic pattern) and ibis-polars (literal pattern only -- a
+            dynamic pattern is gated as a dialect-scoped LITERAL_ONLY
+            CapabilityFact, IB-STR-13). ibis-sqlite has no RegexSplit
+            compilation rule at all -- gated as a dialect-scoped
+            UNSUPPORTED whole-op CapabilityFact (IB-STR-12).
         """
-        # Ibis doesn't have regex split - fallback
-        return input
+        input = self._lift_deferred_receiver(input, pattern)
+        return input.re_split(pattern)

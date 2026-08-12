@@ -10,12 +10,12 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| src/mountainash/expressions/backends/capabilities/string.py:191 | manual-map | INITCAP | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:191 | manual-map | SWAPCASE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:191 | manual-map | TITLE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:191 | manual-map | CAPITALIZE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:191 | manual-map | CENTER | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:191 | manual-map | SWAPCASE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | INITCAP | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | SWAPCASE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | TITLE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | CAPITALIZE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | CENTER | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | SWAPCASE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
 | tests/conform/cross_backend/test_conform_drift.py:34 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-02') — migrated |
 | tests/conform/cross_backend/test_conform_transforms.py:14 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-03') — migrated |
 | tests/conform/cross_backend/test_null_fill_mode.py:66 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-TYPE-02') — migrated |
@@ -68,7 +68,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/expressions/cross_backend/test_compose_datetime_extended.py:11 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-01') — migrated |
 | tests/expressions/cross_backend/test_compose_datetime_extended.py:15 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-DT-10') — migrated |
 | tests/expressions/cross_backend/test_compose_datetime_extended.py:19 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-DT-11') — migrated |
-| tests/expressions/cross_backend/test_compose_string_extended.py:16 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-STR-15') — migrated |
+| tests/expressions/cross_backend/test_compose_string_extended.py:13 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-STR-15') — migrated |
 | tests/expressions/cross_backend/test_compose_ternary.py:9 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-TERN-01') — migrated |
 | tests/expressions/cross_backend/test_conditional.py:369 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-06') — migrated |
 | tests/expressions/cross_backend/test_datetime_component_results.py:27 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-02') — migrated |
@@ -115,6 +115,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/expressions/cross_backend/test_relation_with_row_index.py:32 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-REL-01') — migrated |
 | tests/expressions/cross_backend/test_remaining_ops_results.py:188 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-06') — migrated |
 | tests/expressions/cross_backend/test_string.py:257 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-STR-19') — migrated |
+| tests/expressions/cross_backend/test_string.py:882 | static-marker | UNRESOLVED | polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-STR-03') — migrated |
 | tests/expressions/cross_backend/test_string_extension_results.py:12 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-STR-15') — migrated |
 | tests/expressions/cross_backend/test_temporal_advanced.py:23 | static-marker | UNRESOLVED | ibis-sqlite | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-DT-14') — migrated |
 | tests/expressions/cross_backend/test_temporal_advanced.py:31 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-DT-11') — migrated |

@@ -1,10 +1,7 @@
 """Cross-backend tests for extended string operations coverage.
 
-Tests string methods that have working function key enums and backend implementations.
-Many string builder methods (swapcase, capitalize, initcap, lpad, rpad, center, left,
-right, strpos, count_substring, bit_length, octet_length, concat, repeat, reverse,
-replace_slice, concat_ws, string_split, regexp_string_split) reference function key
-enums that don't exist yet — these are aspirational and excluded from coverage targets.
+Tests string methods that have working function key enums and backend
+implementations.
 """
 
 import pytest

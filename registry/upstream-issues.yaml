@@ -1227,6 +1227,23 @@ issues:
     FK_STR.REPEAT (count), FK_STR.CENTER (length, character), FK_STR.REPLACE_SLICE
     (start, length), FK_STR.LPAD (characters), FK_STR.RPAD (characters).'
   last_verified: '2026-05-11'
+- id: PL-STR-04
+  project: polars
+  category: string-ops
+  summary: regexp_string_split requires a literal pattern — expressions rejected
+  root_cause: parameter_width
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Polars has no native regex-split primitive, so mountainash falls back
+    to map_elements with a Python re.finditer-based split (backlog item 85); the
+    lambda binds pattern as a Python closure value at expression-build time, so
+    a dynamic (column-valued) pattern cannot work — gated as a LITERAL_ONLY
+    CapabilityFact for the Polars backend.
+  last_verified: '2026-08-13'
 - id: PL-TYPE-01
   project: polars
   category: type-system
@@ -1683,4 +1700,117 @@ issues:
     wiring gap rather than a single upstream tracker. Linked to the pre-existing
     DivergenceFact(id="MA-STR-01") via upstream_ref, which was previously null
     (backlog item 84, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: MA-STR-03
+  project: mountainash-internal
+  category: string-ops
+  summary: regexp_string_split on an empty or zero-width-capable regex pattern
+    diverges from the ibis-duckdb oracle on the Polars backend
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: xfail_strict
+  notes: Polars has no native regex-split primitive, so mountainash falls back
+    to a Python re.finditer-based split (backlog item 85); this correctly excludes
+    captured-group text from the output (matching the ibis-duckdb oracle) but
+    consolidates zero-width matches differently than DuckDB's regex engine for
+    an empty ('') or zero-width-capable ('a*') pattern. Ordinary (non-degenerate)
+    patterns are unaffected. Linked to DivergenceFact(id="MA-STR-03") via
+    upstream_ref (backlog item 85, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: IB-STR-12
+  project: ibis
+  category: string-ops
+  summary: regexp_string_split has no compilation rule on Ibis SQLite backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ibis-sqlite raises OperationNotDefinedError ("Compilation rule for
+    'RegexSplit' operation is not defined") for any pattern, literal or dynamic;
+    ibis-duckdb translates it to native SQL correctly and ibis-polars supports
+    a literal pattern. Gated as a dialect-scoped UNSUPPORTED CapabilityFact
+    (whole-op, WILDCARD_PARAM) for the Ibis backend (backlog item 85, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: IB-STR-13
+  project: ibis
+  category: string-ops
+  summary: regexp_string_split requires a literal pattern on Ibis Polars backend
+    — dynamic column argument raises IbisError
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: ibis-polars compiles regexp_string_split to Polars' native re_split;
+    Ibis itself detects and rejects a dynamic (column-valued) pattern with its
+    own IbisError ("Only a single scalar pattern is supported for Polars
+    re_split") before reaching Polars. A literal pattern works fine. Gated as
+    a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend (backlog
+    item 85, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: NW-STR-20
+  project: narwhals
+  category: string-ops
+  summary: Narwhals has no regex-split primitive at all — regexp_string_split
+    is unsupported on every dialect
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: Narwhals 2.24.0's ExprStringNamespace has no regex-split primitive —
+    split(by) is literal-substring-only, no other method performs regex
+    splitting. Gated as a family-wide UNSUPPORTED CapabilityFact (whole-op,
+    WILDCARD_PARAM, dialect=None) for the Narwhals backend (backlog item 85,
+    2026-08-13).
+  last_verified: '2026-08-13'
+- id: NW-STR-21
+  project: narwhals
+  category: string-ops
+  summary: string_split requires a literal separator — Narwhals str.split()
+    cannot accept an Expr at all
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Narwhals's str.split(by) is typed to accept only a raw str, not an
+    Expr — raises TypeError even for an Expr-wrapped literal, not just a
+    dynamic column reference. Gated as a family-wide LITERAL_ONLY
+    CapabilityFact for the Narwhals backend (backlog item 86, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: NW-STR-22
+  project: narwhals
+  category: string-ops
+  summary: string_split is unsupported on narwhals-pandas — requires a
+    pyarrow-backed pandas series
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: narwhals-pandas's str.split() raises TypeError ("This operation
+    requires a pyarrow-backed series") for any separator, literal or dynamic,
+    against the plain numpy-backed pandas DataFrame mountainash's
+    narwhals-pandas backend is constructed from; narwhals-polars works
+    correctly for a literal separator. Gated as a dialect-scoped UNSUPPORTED
+    CapabilityFact (whole-op, WILDCARD_PARAM) for the Narwhals backend
+    (backlog item 86, 2026-08-13).
   last_verified: '2026-08-13'

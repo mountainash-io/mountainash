@@ -56,6 +56,25 @@ def _pl_fold(expr: "PolarsExpr", case_sensitivity: Any) -> "PolarsExpr":
     return expr
 
 
+def _regexp_split_excluding_groups(pattern: str, s: str | None) -> list[str] | None:
+    """Split `s` on `pattern`, excluding any captured-group substrings from
+    the result (unlike bare re.split). Matches the Substrait
+    regexp_string_split contract: "the substrings matched by the pattern
+    will be used as the separators... and will not be included in the
+    resulting list" -- bare re.split leaks capture-group text into the
+    output when the pattern contains parentheses (verified against the
+    ibis-duckdb oracle, backlog item 85)."""
+    if s is None:
+        return None
+    parts: list[str] = []
+    last = 0
+    for m in re.finditer(pattern, s):
+        parts.append(s[last:m.start()])
+        last = m.end()
+    parts.append(s[last:])
+    return parts
+
+
 class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarStringExpressionProtocol.
 
@@ -845,7 +864,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         self,
         input: PolarsExpr,
         /,
-        pattern: PolarsExpr,
+        pattern: PolarsExpr | str,
         case_sensitivity: Any = None,
         multiline: Any = None,
         dotall: Any = None,
@@ -861,5 +880,18 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Returns:
             List of strings.
+
+        Note:
+            Polars has no native regex-split primitive (str.split/
+            split_exact/splitn are literal-substring-only) -- falls back to
+            map_elements with a capture-group-safe split helper, mirroring
+            this file's established pattern for other missing primitives
+            (swapcase/capitalize/center/replace_slice/repeat). `pattern`
+            must be a literal -- gated via a LITERAL_ONLY CapabilityFact
+            (PL-STR-04); the visitor rejects a dynamic argument before this
+            method is ever called with one.
         """
-        return input.str.split(pattern)
+        return input.map_elements(
+            lambda s: _regexp_split_excluding_groups(pattern, s),
+            return_dtype=pl.List(pl.String),
+        )
