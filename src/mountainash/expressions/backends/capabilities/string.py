@@ -571,7 +571,9 @@ _IBIS_POLARS_FACTS = tuple(
 # native LOWER()/UPPER() are ASCII-only (no ICU extension loaded in
 # mountainash's Ibis SQLite connection); CASE_INSENSITIVE's Unicode-aware
 # lowercasing contract (Kelvin Sign U+212A -> 'k') is unavailable on this one
-# dialect while every other Ibis dialect/backend delivers it honestly.
+# dialect; verified on polars/ibis-duckdb/narwhals-polars/narwhals-pandas —
+# ibis-polars is untested by the Kelvin Sign discriminator suite (excluded
+# there for its own, unrelated StringTranslate reason) and not claimed here.
 # CASE_INSENSITIVE was EXPR_CAPABLE-by-absence on ibis-sqlite for
 # contains/starts_with/ends_with (the same shape CASE_INSENSITIVE_ASCII had
 # on ibis-polars before item 75's _IBIS_POLARS_FACTS) — mirrors that exact
