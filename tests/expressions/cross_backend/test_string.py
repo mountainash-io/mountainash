@@ -474,6 +474,18 @@ class TestCountSubstring:
         expr = ma.col("text").str.count_substring("a")
         assert collect_expr(df, expr) == [None, 3], f"[{backend_name}]"
 
+    def test_count_substring_null_substring(self, backend_name, backend_factory, collect_expr):
+        """A null literal substring propagates to a null result on every
+        row -- not a crash (Ibis: len(None)/replace on an untyped null
+        scalar; Narwhals: len(None); Polars: count_matches() SchemaError
+        on an untyped-null literal) and not a collapse to a single row
+        (narwhals-pandas does not broadcast a bare nw.lit(None) with no
+        column reference under .select() -- verified empirically)."""
+        data = {"text": ["banana", "apple", "cherry"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring(ma.lit(None))
+        assert collect_expr(df, expr) == [None, None, None], f"[{backend_name}]"
+
 
 # A dynamic (column-valued) substring: narwhals (all variants, including
 # mountainash's own "pandas" -- routes through the identical narwhals
@@ -502,6 +514,20 @@ def test_count_substring_dynamic_operand(backend_name, backend_factory, collect_
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.count_substring(ma.col("needle"))
     assert collect_expr(df, expr) == [3, 2, 6], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _COUNT_SUBSTRING_DYNAMIC_HONORING)
+def test_count_substring_dynamic_operand_regex_metacharacter(backend_name, backend_factory, collect_expr):
+    """A dynamic (column-valued) needle containing a regex metacharacter
+    ('.') must count LITERAL occurrences, not be interpreted as a regex
+    ("any character"). Distinguishes correct literal semantics from a
+    naive regex-based fold: "aaaa" has zero literal '.', "a.b.c" has two."""
+    data = {"text": ["aaaa", "banana", "a.b.c"], "needle": [".", "a", "."]}
+    df = backend_factory.create(data, backend_name)
+    expr = ma.col("text").str.count_substring(ma.col("needle"))
+    assert collect_expr(df, expr) == [0, 3, 2], f"[{backend_name}]"
 
 
 

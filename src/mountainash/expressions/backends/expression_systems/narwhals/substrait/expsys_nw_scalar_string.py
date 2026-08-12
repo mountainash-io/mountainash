@@ -544,7 +544,22 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             str.count_matches(literal=True) semantics exactly (verified
             empirically), including its len(input) + 1 convention for an
             empty substring.
+
+            A null literal substring short-circuits to a null result
+            before the native call rather than crashing on `len(None)`
+            (backlog item 80 precedent). Wrapped in `nw.when(input.is_null())
+            .then(nw.lit(None)).otherwise(nw.lit(None))` rather than a bare
+            `nw.lit(None)` -- narwhals-pandas does NOT broadcast a literal
+            with no column reference to the input's row count under
+            `.select()` (verified empirically: collapses to a single row
+            regardless of input length); wrapping the null result in a
+            `when` whose CONDITION references `input` gives it a row-shape
+            to broadcast against, independent of the condition's truth
+            value. `_nw_fold` isn't reused here -- it also folds
+            `case_sensitivity`, which count_substring doesn't wire.
         """
+        if substring is None:
+            return nw.when(input.is_null()).then(nw.lit(None)).otherwise(nw.lit(None))
         if substring == "":
             return input.str.len_chars() + 1
         removed = input.str.replace_all(substring, "", literal=True)
