@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 30 · Facts: 1440 · Registered operations: 324 · Implementation records: 972
+Declarations: 33 · Facts: 1493 · Registered operations: 324 · Implementation records: 972
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -52,7 +52,7 @@ Legend — cell states (by exception):
 | --- | --- | --- | --- | --- | --- | --- |
 | polars | 199 | 75 | 50 | 0 | 0 | 324 |
 | narwhals | 97 | 152 | 75 | 0 | 0 | 324 |
-| ibis | 138 | 118 | 68 | 0 | 0 | 324 |
+| ibis | 138 | 115 | 71 | 0 | 0 | 324 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 155, literal_only 56, polymorphic 9, unsupported 1220 |
-| Enforcement | gate 1434, router_metadata 3, materialize_residue 3 |
-| Backend | polars 247, narwhals 618, ibis 575 |
+| Level | expr_capable 155, literal_only 56, polymorphic 9, unsupported 1273 |
+| Enforcement | gate 1487, router_metadata 3, materialize_residue 3 |
+| Backend | polars 257, narwhals 638, ibis 598 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -82,6 +82,7 @@ audited_unknown: 0
 | ibis | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | ibis | substrait | string | 2026-07-05 |  |  |
 | ibis | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| ibis | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-07-05 |  |  |
 | narwhals | mountainash | datetime | 2026-07-24 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -95,12 +96,14 @@ audited_unknown: 0
 | narwhals | substrait | string | 2026-07-05 |  |  |
 | narwhals | substrait | string | 2026-07-05 | narwhals 2.19.0 |  |
 | narwhals | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| narwhals | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | polars | mountainash | relation | 2026-07-05 |  |  |
 | polars | mountainash | set | — | — | — |
 | polars | mountainash | ternary | — | — | — |
 | polars | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | string | 2026-07-05 |  | polars |
 | polars | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| polars | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 
 ## Per-family coverage
 
@@ -331,32 +334,32 @@ audited_unknown: 0
 | `CHAR_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
 | `CONCAT` | ✓ audited | ✓ audited | ✓ audited |
 | `CONCAT_WS` | ✓ audited | ✓ audited | ✓ audited |
-| `CONTAINS` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✓ audited ✓ dialect-verified: ibis-duckdb |
-| `COUNT_SUBSTRING` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ENDS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✓ audited ✓ dialect-verified: ibis-duckdb |
+| `CONTAINS` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `COUNT_SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `ENDS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `INITCAP` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
 | `LEFT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
-| `LIKE` | ◐ partial (2 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `LIKE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `LOWER` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `LPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `LTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `OCTET_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
-| `REGEXP_COUNT` | ◐ partial (4 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 7 option-selectors, 0 value-classes, 1 dialects) |
-| `REGEXP_MATCH` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_MATCH_ALL` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 1 dialects) |
-| `REGEXP_REPLACE` | ◐ partial (5 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 5 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_SPLIT` | ◐ partial (3 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 3 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_STRPOS` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 8 option-selectors, 0 value-classes, 1 dialects) |
+| `REGEXP_COUNT` | ◐ partial (4 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 8 option-selectors, 0 value-classes, 1 dialects) |
+| `REGEXP_MATCH` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_MATCH_ALL` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
+| `REGEXP_REPLACE` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_SPLIT` | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_STRPOS` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
 | `REPEAT` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ✓ audited |
-| `REPLACE` | ◐ partial (2 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REPLACE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REPLACE_SLICE` | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `REVERSE` | ✓ audited | ✓ audited | ✓ audited |
 | `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `SPLIT` | ✓ audited | ✓ audited | ✓ audited |
-| `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ✓ audited ✓ dialect-verified: ibis-duckdb |
-| `STRPOS` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `STRPOS` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SWAPCASE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
 | `TITLE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
