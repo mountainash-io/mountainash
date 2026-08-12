@@ -43,26 +43,37 @@ _ASCII_LOWER_STR = "abcdefghijklmnopqrstuvwxyz"
 _ASCII_TRANSLATION = str.maketrans(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
 
 
-def _nw_fold(expr: "NarwhalsExpr | str", case_sensitivity: Any) -> "NarwhalsExpr | str":
-    """Apply the fold a case_sensitivity option value implies, to EITHER a
-    NarwhalsExpr or a literal Python str operand -- contains/starts_with/
-    ends_with's `substring` parameter is typed `NarwhalsExpr | str`, and a
-    literal string must fold via plain Python (no narwhals call), distinct
-    from the NarwhalsExpr branch's `.str` method chain (mirrors the existing
-    CASE_INSENSITIVE branch's isinstance split). CASE_SENSITIVE (and any
-    other/omitted value) leaves expr unchanged; CASE_INSENSITIVE applies
-    full Unicode lowercasing; CASE_INSENSITIVE_ASCII folds only A-Z/a-z via
-    26 chained single-character replaces (narwhals has no batch-translate
-    primitive), leaving every other code point (Kelvin Sign, Turkish
-    I-with-dot, ...) untouched -- see backlog item 75."""
+def _nw_fold(expr: "NarwhalsExpr | str | None", case_sensitivity: Any) -> "NarwhalsExpr | str | None":
+    """Apply the fold a case_sensitivity option value implies, to a
+    NarwhalsExpr, a literal Python str operand, or a bare None -- contains/
+    starts_with/ends_with's `substring` parameter is typed
+    `NarwhalsExpr | str`, and a literal string must fold via plain Python
+    (no narwhals call), distinct from the NarwhalsExpr branch's `.str`
+    method chain (mirrors the existing CASE_INSENSITIVE branch's isinstance
+    split). CASE_SENSITIVE (and any other/omitted value) leaves expr
+    unchanged; CASE_INSENSITIVE applies full Unicode lowercasing;
+    CASE_INSENSITIVE_ASCII folds only A-Z/a-z via 26 chained
+    single-character replaces (narwhals has no batch-translate primitive),
+    leaving every other code point (Kelvin Sign, Turkish I-with-dot, ...)
+    untouched -- see backlog item 75.
+
+    A null search operand (item 80) arrives EITHER as a bare Python `None`
+    (narwhals-pandas) or an untyped-null NarwhalsExpr (narwhals-polars) --
+    both backends probed directly. `expr is None` short-circuits the
+    former; `.cast(nw.String)` (a no-op for an already-String expr) gives
+    the latter a concrete dtype the .str accessor accepts, instead of
+    crashing. The null itself still propagates through either path
+    unchanged."""
+    if expr is None:
+        return None
     if case_sensitivity == "CASE_INSENSITIVE":
         if isinstance(expr, str):
             return expr.lower()
-        return expr.str.to_lowercase()
+        return expr.cast(nw.String).str.to_lowercase()
     if case_sensitivity == "CASE_INSENSITIVE_ASCII":
         if isinstance(expr, str):
             return expr.translate(_ASCII_TRANSLATION)
-        folded = expr
+        folded = expr.cast(nw.String)
         for upper, lower in zip(_ASCII_UPPER_STR, _ASCII_LOWER_STR):
             folded = folded.str.replace_all(upper, lower, literal=True)
         return folded

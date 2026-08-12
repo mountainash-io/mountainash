@@ -233,6 +233,17 @@ _DYNAMIC_OPERAND_HONORING = {
 
 _KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
 
+# A null-typed LITERAL search operand (e.g. ma.lit(None)) now propagates a
+# null boolean result on every backend EXCEPT narwhals-pandas/pandas, which
+# reject a None pattern entirely at .str.contains()/.str.starts_with()/
+# .str.ends_with() itself -- pre-existing, unrelated to case_sensitivity
+# (verified identical under the plain CASE_SENSITIVE default), not
+# something a case-fold-level fix can reach. See backlog item 80.
+_NULL_SEARCH_OPERAND_HONORING_BACKENDS = [
+    b for b in _ASCII_FOLD_HONORING_BACKENDS
+    if b not in ("narwhals-pandas", "pandas")
+]
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -375,27 +386,39 @@ class TestCaseInsensitiveAsciiIbisPolarsGate:
             ).compile(df)
 
 
-def test_case_insensitive_null_search_operand_is_a_pre_existing_cross_backend_crash(
-    backend_factory,
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _NULL_SEARCH_OPERAND_HONORING_BACKENDS)
+def test_case_insensitive_ascii_null_search_operand_propagates_null(
+    backend_name, backend_factory, collect_expr,
 ):
-    """Not new scope: a null-typed LITERAL search operand under
-    case_sensitivity=CASE_INSENSITIVE already crashes with a raw native
-    exception (SchemaError/AttributeError/NarwhalsError, backend-specific)
-    on every backend for contains/starts_with/ends_with — pre-existing,
-    unrelated to item 75, and NOT fixed here (out of scope: item 75 only
-    adds CASE_INSENSITIVE_ASCII alongside the existing, unmodified
-    CASE_INSENSITIVE fold call sites). CASE_INSENSITIVE_ASCII mirrors the
-    identical crash shape — proof that this item introduces no NEW
-    divergence, not that the underlying gap is fixed. Flagged for separate
-    triage rather than silently worked around."""
-    df = backend_factory.create({"text": ["hello"]}, "polars")
-    with pytest.raises(Exception):  # native SchemaError — not mountainash's own type
-        ma_top.relation(df).select(
-            ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE").alias("r")
-        ).to_dict()
-    with pytest.raises(Exception):  # identical crash shape under the new value
+    """A null-typed literal search operand under case_sensitivity=
+    CASE_INSENSITIVE_ASCII yields a null boolean result rather than
+    crashing -- both _pl_fold/_ib_fold/_nw_fold cast the operand to a
+    concrete string type before folding (a no-op for an already-string
+    operand), so the untyped null gets a dtype the .str/.lower()/
+    .translate() accessor accepts, and the null itself propagates through
+    unchanged (backlog item 80's fix, closed for these 6 backends)."""
+    df = backend_factory.create({"text": ["hello"]}, backend_name)
+    expr = ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII")
+    assert collect_expr(df, expr) == [None], f"[{backend_name}]"
+
+
+def test_case_insensitive_null_search_operand_narwhals_pandas_still_crashes(backend_factory):
+    """narwhals-pandas' own .str.contains()/.str.starts_with()/.str.ends_with()
+    reject a None pattern value entirely -- confirmed identical under the
+    plain CASE_SENSITIVE default (unmodified, pre-existing code), so this is
+    a narwhals-pandas base-operation limitation, not something item 75/80's
+    case-fold-level null guard reaches. Documents the residual gap rather
+    than silently declaring item 80 fully closed. Backlog item 80."""
+    df = backend_factory.create({"text": ["hello"]}, "narwhals-pandas")
+    with pytest.raises(TypeError, match="only supports str pattern values"):
         ma_top.relation(df).select(
             ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII").alias("r")
+        ).to_dict()
+    with pytest.raises(TypeError, match="only supports str pattern values"):
+        ma_top.relation(df).select(
+            ma.col("text").str.contains(None).alias("r")  # plain CASE_SENSITIVE default -- identical crash
         ).to_dict()
 
 # =============================================================================

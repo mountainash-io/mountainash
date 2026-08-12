@@ -51,11 +51,17 @@ def _ib_fold(expr: "IbisValueExpr", case_sensitivity: Any) -> "IbisValueExpr":
     here: `.lower()`/`.translate()` take no Deferred-typed arguments, so the
     concrete-receiver-plus-Deferred-argument crash (item 226b/226c) cannot
     occur on this call shape; the caller lifts `input` once via
-    `_lift_deferred_receiver` before folding either side."""
+    `_lift_deferred_receiver` before folding either side.
+
+    Casts to string first (a no-op for an already-string expr) so an
+    untyped null literal (`ibis.literal(None)` for the search operand --
+    item 80) has a `.lower()`/`.translate()` to call instead of raising
+    AttributeError on a bare NullScalar; the null itself still propagates
+    through either call unchanged."""
     if case_sensitivity == "CASE_INSENSITIVE":
-        return expr.lower()
+        return expr.cast("string").lower()
     if case_sensitivity == "CASE_INSENSITIVE_ASCII":
-        return expr.translate(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
+        return expr.cast("string").translate(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
     return expr
 
 

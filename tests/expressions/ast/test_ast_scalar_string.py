@@ -271,7 +271,6 @@ class TestRegexpPositionalOptionChannel:
         assert node.options.get("occurrence") == 1
 
 
-
 class TestCaseInsensitiveAsciiOptionShape:
     """CASE_INSENSITIVE_ASCII reaches the AST as the literal enum string, not
     a boolean-coerced value (backlog item 75) -- covers one real op (contains)

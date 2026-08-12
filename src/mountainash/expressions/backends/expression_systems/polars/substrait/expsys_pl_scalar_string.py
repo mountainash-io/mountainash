@@ -42,11 +42,17 @@ def _pl_fold(expr: "PolarsExpr", case_sensitivity: Any) -> "PolarsExpr":
     (and any other/omitted value) leaves expr unchanged; CASE_INSENSITIVE
     applies full Unicode lowercasing; CASE_INSENSITIVE_ASCII folds only
     A-Z/a-z via a single-pass replace_many, leaving every other code point
-    (Kelvin Sign, Turkish I-with-dot, ...) untouched -- see backlog item 75."""
+    (Kelvin Sign, Turkish I-with-dot, ...) untouched -- see backlog item 75.
+
+    Casts to Utf8 first (a no-op for an already-String expr) so an untyped
+    null literal (`ma.lit(None)` for the search operand -- item 80) gets a
+    concrete String dtype the .str accessor accepts, instead of crashing
+    with SchemaError; the null itself still propagates through .str.*
+    unchanged."""
     if case_sensitivity == "CASE_INSENSITIVE":
-        return expr.str.to_lowercase()
+        return expr.cast(pl.Utf8).str.to_lowercase()
     if case_sensitivity == "CASE_INSENSITIVE_ASCII":
-        return expr.str.replace_many(_ASCII_UPPER, _ASCII_LOWER)
+        return expr.cast(pl.Utf8).str.replace_many(_ASCII_UPPER, _ASCII_LOWER)
     return expr
 
 
