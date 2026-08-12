@@ -824,7 +824,8 @@ class TestRegexpMatchSplitIbisPolarsGate:
         future change cannot silently make it worse without a test
         noticing."""
         df = backend_factory.create({"text": ["a,b,c"]}, "ibis-polars")
-        with pytest.raises(Exception):
+        import polars as pl
+        with pytest.raises(pl.exceptions.SchemaError):
             collect_expr(df, ma.col("text").str.string_split(ma.lit(None)))
 
 

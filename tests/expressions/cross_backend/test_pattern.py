@@ -115,12 +115,25 @@ class TestLikeIbisPolarsGate:
     )
     def test_like_is_gated_on_ibis_polars(self, build_match, backend_factory):
         df = backend_factory.create({"text": ["hello"], "pattern": ["J%"]}, "ibis-polars")
+
+        def build():
+            # Ibis's own `.like()` call is lazy — `StringSQLLike`'s missing
+            # translation rule only raises at materialize time, not at
+            # `.compile()`. Force execution here so this test actually
+            # discriminates "fact present" (raises BackendCapabilityError
+            # synchronously, inside .compile(), before ever reaching
+            # .execute()) from "fact absent" (native OperationNotDefinedError
+            # only surfaces once materialized) — a bare `.compile(df)` alone
+            # would pass vacuously either way.
+            compiled = ma.col("text").str.like(build_match()).compile(df)
+            return df.mutate(r=compiled).execute()
+
         assert_capability_gated(
             FK_STR.LIKE,
             CONST_BACKEND.IBIS,
             dialect="ibis-polars",
             param=WILDCARD_PARAM,
-            build=lambda: ma.col("text").str.like(build_match()).compile(df),
+            build=build,
         )
 
 
