@@ -677,6 +677,92 @@ _IBIS_SQLITE_CASE_INSENSITIVE_FACTS = tuple(
     for operation_key in _ASCII_FOLD_KEYS.values()  # contains/starts_with/ends_with
 )
 
+# ---------------------------------------------------------------------------
+# ibis-polars raw native-error leaks on like/regexp_match_substring/
+# string_split (backlog item 83, 2026-08-12) — adjacent-but-distinct gaps
+# found during item 81's audit, deliberately out of that item's
+# re_replace/.replace()-scoped fix. Three genuinely different shapes:
+#
+# - `like`: ibis-polars has NO compilation rule for StringSQLLike at all
+#   (OperationNotDefinedError), for ANY pattern — literal included. Not a
+#   literal-vs-dynamic split like item 81's ops; a whole-op gate (mirrors
+#   strptime.py's dialect-scoped WILDCARD_PARAM UNSUPPORTED precedent for
+#   ibis-sqlite). ibis-duckdb/ibis-sqlite both translate LIKE to native SQL
+#   correctly (empirically confirmed) — this is ibis-polars-specific, not
+#   family-wide, so it does NOT belong in _op_level_facts()'s backend-wide
+#   (dialect=None) BROKEN_STRING_OPS_BY_BACKEND map.
+# - `regexp_match_substring`/`string_split`: a DYNAMIC (column-valued)
+#   pattern/separator raises Ibis's own `UnsupportedArgumentError: Polars
+#   does not support columnar argument ...` — a literal works fine. Same
+#   LITERAL_ONLY, dialect-scoped mechanism as item 81's
+#   _IBIS_POLARS_DYNAMIC_PATTERN_FACTS (the gate pre-empts Ibis's own
+#   .re_extract()/.split() call before it's reached; no MATERIALIZE_RESIDUE
+#   catch needed).
+#
+# `regexp_strpos`/`regexp_count_substring` were re-confirmed (not fixed —
+# already correct): both raise BackendCapabilityError unconditionally in
+# Python (expsys_ib_scalar_string.py), before any Ibis call, with no
+# reachable literal-vs-dynamic branch difference to gate underneath.
+# `regexp_string_split` is a SEPARATE, more severe bug (silent no-op
+# returning unsplit input, not a raise, on every Ibis dialect) — filed as
+# backlog item 85, deliberately not touched here.
+# ---------------------------------------------------------------------------
+_SINCE_RAW_ERROR_LEAKS = "2026-08-12"
+_IBIS_POLARS_LIKE_UNSUPPORTED = (
+    "ibis-polars has no compilation rule for StringSQLLike "
+    "(OperationNotDefinedError) for any pattern, literal or dynamic; "
+    "ibis-duckdb/ibis-sqlite both translate LIKE to native SQL correctly"
+)
+_LIKE_OP_LEVEL_EXEMPTION = (
+    "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed "
+    "on an OpSpec param — verified by the dedicated cross-backend gate test "
+    "in test_pattern.py (TestLikeIbisPolarsGate) and the native-bypass "
+    "self-healing probe in test_op_level_gate_probes.py "
+    "(test_like_ibis_polars_native_still_broken)"
+)
+_IBIS_POLARS_LIKE_FACTS = (
+    CapabilityFact(
+        operation_key=FK_STR.LIKE,
+        param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message=_IBIS_POLARS_LIKE_UNSUPPORTED,
+        workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns",
+        since=_SINCE_RAW_ERROR_LEAKS,
+        upstream_ref="IB-STR-06",
+        probe_exempt=_LIKE_OP_LEVEL_EXEMPTION,
+    ),
+)
+_IBIS_POLARS_REGEXP_SPLIT_UNSUPPORTED = (
+    "ibis-polars compiles this to Polars' native columnar-argument path, "
+    "which raises Ibis's own UnsupportedArgumentError for a dynamic "
+    "(column-valued) argument; a literal value works fine"
+)
+_IBIS_POLARS_REGEXP_SPLIT_WORKAROUND = (
+    "Use a literal string pattern/separator instead of a column reference"
+)
+_IBIS_POLARS_REGEXP_SPLIT_UPSTREAM_REF = {
+    (FK_STR.REGEXP_MATCH, "pattern"): "IB-STR-09",
+    (FK_STR.SPLIT, "separator"): "IB-STR-10",
+}
+_IBIS_POLARS_REGEXP_SPLIT_FACTS = tuple(
+    CapabilityFact(
+        operation_key=operation_key,
+        param=param,
+        level=CapabilityLevel.LITERAL_ONLY,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message=_IBIS_POLARS_REGEXP_SPLIT_UNSUPPORTED,
+        workaround=_IBIS_POLARS_REGEXP_SPLIT_WORKAROUND,
+        since=_SINCE_RAW_ERROR_LEAKS,
+        upstream_ref=_IBIS_POLARS_REGEXP_SPLIT_UPSTREAM_REF[(operation_key, param)],
+    )
+    for operation_key, param in _IBIS_POLARS_REGEXP_SPLIT_UPSTREAM_REF
+)
+_IBIS_POLARS_RAW_ERROR_LEAKS_FACTS = _IBIS_POLARS_LIKE_FACTS + _IBIS_POLARS_REGEXP_SPLIT_FACTS
+
+
 
 OP_LEVEL_FKEYS = {**_CHAR_SET_KEYS, "center": FK_STR.CENTER}
 _OP_LEVEL_UNSUPPORTED = (
@@ -734,6 +820,11 @@ _EVIDENCE_IBIS_SQLITE_CASE_INSENSITIVE = ProbeEvidence(
     library_versions=(("ibis", "12.0.0"),),
     fixtures=("ibis-sqlite", "ibis-duckdb"),
 )
+_EVIDENCE_RAW_ERROR_LEAKS = ProbeEvidence(
+    probe_date=_SINCE_RAW_ERROR_LEAKS,
+    library_versions=(("ibis", "12.0.0"), ("polars", "1.43.2")),
+    fixtures=("ibis-polars", "ibis-duckdb", "ibis-sqlite"),
+)
 
 DECLARATIONS = (
     CapabilityDeclaration(
@@ -782,5 +873,11 @@ DECLARATIONS = (
         source=FactSource.SUBSTRAIT,
         facts=_IBIS_SQLITE_CASE_INSENSITIVE_FACTS,
         evidence=_EVIDENCE_IBIS_SQLITE_CASE_INSENSITIVE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_POLARS_RAW_ERROR_LEAKS_FACTS,
+        evidence=_EVIDENCE_RAW_ERROR_LEAKS,
     ),
 )

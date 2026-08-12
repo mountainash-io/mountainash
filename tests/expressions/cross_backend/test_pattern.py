@@ -17,13 +17,27 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
-from fixtures.capability_gating import xfail_divergence
+from fixtures.capability_gating import assert_capability_gated
+from mountainash.core.capabilities import WILDCARD_PARAM, load_all_capability_declarations
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
 
+load_all_capability_declarations()
+
+# `_LIKE_LIST` stays the full backend list — `test_regex_and_numeric_filter`
+# (below) consumes it directly for an UNRELATED regex_contains test with no
+# LIKE dependency; narrowing this list would silently drop that test's
+# `ibis-polars` coverage too. `_LIKE_HONORING_LIST` excludes `ibis-polars`
+# for the three LIKE-*result*-asserting call sites only (mirrors
+# `_ASCII_FOLD_HONORING_BACKENDS`'s shape in test_string.py) — `like` on
+# `ibis-polars` now hard-gates (backlog item 83, whole-op UNSUPPORTED
+# CapabilityFact), it never produces "a different but successful" result,
+# so it does not belong in a result-asserting parametrize list at all;
+# see `TestLikeIbisPolarsGate` below for the dedicated gate assertion.
 _LIKE_LIST = ["polars", "pandas", "narwhals-polars", "ibis-polars", "ibis-duckdb", "ibis-sqlite"]
-_LIKE_MARKED = [
-    pytest.param(b, marks=xfail_divergence("IB-STR-01", backend=b)) if b == "ibis-polars" else b
-    for b in _LIKE_LIST
-]
+_LIKE_HONORING_LIST = [b for b in _LIKE_LIST if b != "ibis-polars"]
 
 
 # =============================================================================
@@ -31,13 +45,12 @@ _LIKE_MARKED = [
 # =============================================================================
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIKE_MARKED)
+@pytest.mark.parametrize("backend_name", _LIKE_HONORING_LIST)
 class TestSQLLikePatterns:
     """Test SQL LIKE pattern matching."""
 
     def test_like_starts_with(self, backend_name, backend_factory):
         """Test LIKE pattern: starts with."""
-        # LIKE is not supported by Ibis Polars backend - upstream limitation
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson", "Alice"]
@@ -54,7 +67,6 @@ class TestSQLLikePatterns:
 
     def test_like_ends_with(self, backend_name, backend_factory):
         """Test LIKE pattern: ends with."""
-        # LIKE is not supported by Ibis Polars backend - upstream limitation
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson", "Alice"]
@@ -71,7 +83,6 @@ class TestSQLLikePatterns:
 
     def test_like_contains(self, backend_name, backend_factory):
         """Test LIKE pattern: contains."""
-        # LIKE is not supported by Ibis Polars backend - upstream limitation
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson", "Alice"]
@@ -84,6 +95,32 @@ class TestSQLLikePatterns:
         expected = ["John Doe", "John Smith", "Bob Johnson"]
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
+        )
+
+
+class TestLikeIbisPolarsGate:
+    """ibis-polars has no compilation rule for StringSQLLike — the whole-op
+    gate raises a clean BackendCapabilityError at BUILD time rather than
+    letting the raw OperationNotDefinedError leak through at materialize
+    time (backlog item 83). Unlike item 81's dynamic-pattern ops, this
+    fires for a LITERAL pattern too — there is no literal-vs-dynamic split,
+    the dialect simply has no translation rule for LIKE at all."""
+
+    @pytest.mark.parametrize(
+        "build_match",
+        [
+            pytest.param(lambda: "J%", id="literal"),
+            pytest.param(lambda: ma.col("pattern"), id="dynamic"),
+        ],
+    )
+    def test_like_is_gated_on_ibis_polars(self, build_match, backend_factory):
+        df = backend_factory.create({"text": ["hello"], "pattern": ["J%"]}, "ibis-polars")
+        assert_capability_gated(
+            FK_STR.LIKE,
+            CONST_BACKEND.IBIS,
+            dialect="ibis-polars",
+            param=WILDCARD_PARAM,
+            build=lambda: ma.col("text").str.like(build_match()).compile(df),
         )
 
 
@@ -241,10 +278,9 @@ class TestRegexReplace:
 class TestPatternWithBooleanLogic:
     """Test combining pattern operations with boolean filters."""
 
-    @pytest.mark.parametrize("backend_name", _LIKE_MARKED)
+    @pytest.mark.parametrize("backend_name", _LIKE_HONORING_LIST)
     def test_pattern_and_numeric_filter(self, backend_name, backend_factory):
         """Test pattern AND numeric comparison."""
-        # LIKE is not supported by Ibis Polars backend - upstream limitation
 
         data = {
             "name": ["John Doe", "Jane Smith", "John Smith", "Bob Johnson"],
@@ -435,10 +471,9 @@ class TestComplexRegexPatterns:
 class TestPatternEdgeCases:
     """Test edge cases for pattern operations."""
 
-    @pytest.mark.parametrize("backend_name", _LIKE_MARKED)
+    @pytest.mark.parametrize("backend_name", _LIKE_HONORING_LIST)
     def test_like_empty_string(self, backend_name, backend_factory, get_result_count):
         """Test LIKE with empty string."""
-        # LIKE is not supported by Ibis Polars backend - upstream limitation
 
         data = {
             "text": ["", "a", "", "test", ""]

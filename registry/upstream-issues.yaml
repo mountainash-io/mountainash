@@ -86,10 +86,13 @@ issues:
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_filing
-  our_workaround: xfail_strict
-  notes: 5 xfails. Polars has no LIKE operation, so Ibis Polars backend can't translate
-    it.
-  last_verified: '2026-05-11'
+  our_workaround: error_enrichment
+  notes: Polars has no LIKE operation, so Ibis Polars backend can't translate it —
+    gated as a dialect-scoped UNSUPPORTED CapabilityFact (whole-op, WILDCARD_PARAM)
+    for the Ibis backend (backlog item 83, 2026-08-12); a clean BackendCapabilityError
+    now replaces the raw OperationNotDefinedError leak, for both literal and dynamic
+    patterns.
+  last_verified: '2026-08-12'
 - id: IB-STR-07
   project: ibis
   category: string-ops
@@ -1473,6 +1476,44 @@ issues:
   notes: Ibis StringValue has re_search, re_extract, re_replace, re_split but no re_extract_all,
     re_count, or re_find. All 3 extended regex ops raise BackendCapabilityError.
   last_verified: '2026-05-11'
+- id: IB-STR-09
+  project: ibis
+  category: string-ops
+  summary: regexp_match_substring requires a literal pattern on Ibis Polars backend
+    — dynamic column argument raises UnsupportedArgumentError
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: ibis-polars compiles regexp_match_substring to Polars' native columnar-argument
+    path via .re_extract(); Ibis itself detects and rejects a dynamic (column-valued)
+    pattern with its own UnsupportedArgumentError before reaching Polars (a different
+    exception class than the raw polars.exceptions.ComputeError PL-STR-01/02 leak
+    through — Ibis's own validation catches this one earlier). A literal pattern works
+    fine. Gated as a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend
+    (backlog item 83, 2026-08-12).
+  last_verified: '2026-08-12'
+- id: IB-STR-10
+  project: ibis
+  category: string-ops
+  summary: string_split requires a literal separator on Ibis Polars backend —
+    dynamic column argument raises UnsupportedArgumentError
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Same shape as IB-STR-09 — ibis-polars compiles string_split to Polars' native
+    columnar-argument path via .split(); Ibis's own UnsupportedArgumentError catches a
+    dynamic (column-valued) separator before reaching Polars. A literal separator works
+    fine. Gated as a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend
+    (backlog item 83, 2026-08-12).
+  last_verified: '2026-08-12'
 - id: IB-MATH-04
   project: ibis
   category: math-ops

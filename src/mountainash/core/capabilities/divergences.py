@@ -582,17 +582,6 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-STR-01",
-            kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(FK_STR.LIKE,),
-            backends=("ibis-polars",),
-            summary="ibis-polars has no translation rule for SQL LIKE patterns (OperationNotDefinedError)",
-            impact="str LIKE-pattern matching raises on ibis-polars; ibis-duckdb/ibis-sqlite and polars/narwhals handle it",
-            workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for LIKE patterns",
-            upstream_ref=None,
-            since="2026-08-06",
-        ),
-        DivergenceFact(
             id="IB-STR-02",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH),

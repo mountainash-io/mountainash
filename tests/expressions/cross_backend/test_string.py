@@ -745,6 +745,111 @@ class TestNullPatternPreExistingGapNotWorsened:
             collect_expr(df, build())
 
 
+
+# ibis-polars raw native-error leaks on regexp_match_substring/string_split
+# (backlog item 83). Literal path is genuinely unaffected on ibis-polars
+# (no existing coverage found there prior to this item — confirmed via
+# grep, not assumed) — new regression tests below prove it, not merely
+# assume it stays untouched.
+def test_regexp_match_substring_literal_pattern_on_ibis_polars(backend_factory, collect_expr):
+    df = backend_factory.create({"text": ["abc 123", "no digits", "7 ate 9"]}, "ibis-polars")
+    expr = ma.col("text").str.regexp_match_substring(r"\d+")
+    assert collect_expr(df, expr) == ["123", None, "7"]
+
+
+def test_string_split_literal_separator_on_ibis_polars(backend_factory, collect_expr):
+    df = backend_factory.create({"text": ["a,b,c", "d,e", "f"]}, "ibis-polars")
+    expr = ma.col("text").str.string_split(",")
+    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
+
+
+class TestRegexpMatchSplitIbisPolarsGate:
+    """ibis-polars compiles `regexp_match_substring`/`string_split` down to
+    Polars' native `.re_extract()`/`.split()`, which do not support a
+    dynamic (column-valued) pattern/separator argument — Ibis itself
+    detects this and raises its own `UnsupportedArgumentError` (a different
+    root cause and exception class than item 81's `PL-STR-01/02`-shaped
+    gap: this is Ibis's own validation, not a raw Polars ComputeError leak).
+    A dynamic pattern/separator raises a clean BackendCapabilityError at
+    BUILD time (LITERAL_ONLY dialect-scoped fact) instead, pre-empting
+    Ibis's own raise before it's ever reached (backlog item 83).
+
+    Manual try/except, not ``pytest.raises`` — same AST-scan reason as
+    ``TestDynamicPatternIbisPolarsGate`` above (this file also has a
+    migrated-bucket site, ``TestCaseInsensitiveAsciiIbisPolarsGate``)."""
+
+    @pytest.mark.parametrize(
+        ("operation_key", "param", "build"),
+        [
+            (
+                FK_STR.REGEXP_MATCH, "pattern",
+                lambda: ma.col("text").str.regexp_match_substring(ma.col("pattern")),
+            ),
+            (
+                FK_STR.SPLIT, "separator",
+                lambda: ma.col("text").str.string_split(ma.col("sep")),
+            ),
+        ],
+        ids=["regexp_match_substring", "string_split"],
+    )
+    def test_dynamic_pattern_is_gated_on_ibis_polars(self, operation_key, param, build, backend_factory):
+        df = backend_factory.create(
+            {"text": ["hello world"], "pattern": ["hello"], "sep": [" "]}, "ibis-polars"
+        )
+        caught: BackendCapabilityError | None = None
+        try:
+            build().compile(df)
+        except BackendCapabilityError as exc:
+            caught = exc
+        if caught is None:
+            pytest.fail(f"expected BackendCapabilityError for {operation_key}/{param} on ibis-polars")
+        err = caught
+        assert err.function_key == operation_key
+        assert err.limitation is not None
+        assert err.limitation.operation_key == operation_key
+        assert err.limitation.param == param
+        assert err.limitation.backend is CONST_BACKEND.IBIS
+        assert err.limitation.dialect == "ibis-polars"
+        assert err.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+    def test_string_split_null_separator_still_raises_on_ibis_polars(self, backend_factory, collect_expr):
+        """A null-LITERAL separator is a SEPARATE, pre-existing raw-error
+        leak (`polars.exceptions.SchemaError`) outside this item's
+        dynamic-column scope — not introduced or changed by the
+        LITERAL_ONLY fix (a null LiteralNode unwraps to the same raw `None`
+        before and after; Ibis coerces it into an equivalent null literal
+        internally either way, so the observable SchemaError is unaffected).
+        Deliberately out of scope (disclosed, not fixed here); this test
+        locks in the CURRENT (unfortunate but unchanged) behavior so a
+        future change cannot silently make it worse without a test
+        noticing."""
+        df = backend_factory.create({"text": ["a,b,c"]}, "ibis-polars")
+        with pytest.raises(Exception):
+            collect_expr(df, ma.col("text").str.string_split(ma.lit(None)))
+
+
+def test_regexp_strpos_and_count_substring_stay_cleanly_gated_on_ibis_polars(backend_factory):
+    """Re-confirmation (backlog item 83's own "should be re-confirmed" note):
+    `regexp_strpos`/`regexp_count_substring` already raise
+    `BackendCapabilityError` unconditionally in Python
+    (`expsys_ib_scalar_string.py`), before any Ibis call — with no reachable
+    literal-vs-dynamic branch difference to gate underneath. Executable
+    check, not prose alone."""
+    df = backend_factory.create({"text": ["hello"], "pattern": ["ell"]}, "ibis-polars")
+    for build in (
+        lambda: ma.col("text").str.regexp_strpos("ell"),
+        lambda: ma.col("text").str.regexp_strpos(ma.col("pattern")),
+        lambda: ma.col("text").str.regexp_count_substring("ell"),
+        lambda: ma.col("text").str.regexp_count_substring(ma.col("pattern")),
+    ):
+        caught = None
+        try:
+            build().compile(df)
+        except BackendCapabilityError as exc:
+            caught = exc
+        assert caught is not None, f"expected BackendCapabilityError for {build}"
+
+
 # =============================================================================
 # Cross-Backend Tests - String Substring
 # =============================================================================
@@ -1196,7 +1301,7 @@ class TestConcatMultiOperand:
     def test_concat_ws_all_null_row_yields_empty_string(
         self, backend_name, backend_factory, collect_expr
     ):
-        """The exact IB-STR-09 trigger scenario the fold eliminates: an
+        """The all-null-row trigger scenario the fold eliminates: an
         all-null row must yield '', not NULL, on every dialect.
 
         A second, fully-populated row anchors both columns' dtype as

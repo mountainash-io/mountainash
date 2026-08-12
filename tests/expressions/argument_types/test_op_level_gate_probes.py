@@ -58,3 +58,32 @@ def test_gated_op_raises_on_public_path(op, fixture):
         dialect=gate_dialect(fixture),
         build=lambda: ma.relation(df).select(build().name.alias("r")).to_dict(),
     )
+
+
+
+def test_like_ibis_polars_native_still_broken():
+    """Dialect-scoped whole-op gate (backlog item 83) — `like`'s
+    `WILDCARD_PARAM` `UNSUPPORTED` fact is `dialect="ibis-polars"`, not a
+    `BROKEN_STRING_OPS_BY_BACKEND` (family-wide, dialect=None) entry, so it
+    is not covered by `_gated_params()`/`op_level_result()` above, which
+    only has `_FAMILY_FIXTURES`/`_FIXTURE_DIALECT` entries for the bare
+    "ibis" family identity. Build the gate-disabled visitor directly
+    instead (mirrors test_capability_probes.py::test_native_path_probe's
+    construction). Asserts the SPECIFIC native exception, not a bare
+    `Exception` — a broad catch would silently accept an unrelated harness
+    failure forever instead of the intended native limitation. If upstream
+    ever ships a StringSQLLike translation rule for ibis-polars, this test
+    fails outright — a loud signal to revisit the gate."""
+    import ibis
+    from expressions.argument_types._test_template import _materialize_result
+    from mountainash.expressions.core.expression_system.expsys_base import (
+        get_expression_system,
+    )
+    from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+
+    df = make_df({"text": ["hello"]}, "ibis-polars")
+    system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-polars")
+    visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False)
+    compiled = visitor.visit(ma.col("text").str.like("J%")._node)
+    with pytest.raises(ibis.common.exceptions.OperationNotDefinedError):
+        _materialize_result(df, compiled, "ibis-polars")
