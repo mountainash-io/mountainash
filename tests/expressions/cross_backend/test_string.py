@@ -423,6 +423,115 @@ def test_case_insensitive_ascii_null_search_operand_propagates_null(
     assert collect_expr(df, expr) == [None], f"[{backend_name}]"
 
 # =============================================================================
+# Cross-Backend Tests - count_substring (backlog item 78)
+# =============================================================================
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestCountSubstring:
+    """count_substring was a hardcoded stub returning 0 unconditionally on
+    Ibis and Narwhals (backlog item 78) -- real length-arithmetic
+    implementation now matches Polars' own str.count_matches(literal=True)
+    semantics exactly (verified empirically) for a literal substring, on
+    every backend."""
+
+    def test_count_substring_multiple_occurrences(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["banana", "aaaa", "no vowels here"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring("a")
+        assert collect_expr(df, expr) == [3, 4, 0], f"[{backend_name}]"
+
+    def test_count_substring_zero_occurrences(self, backend_name, backend_factory, collect_expr):
+        data = {"text": ["hello", "world"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring("xyz")
+        assert collect_expr(df, expr) == [0, 0], f"[{backend_name}]"
+
+    def test_count_substring_non_overlapping(self, backend_name, backend_factory, collect_expr):
+        """Non-overlapping counting: "aaa" contains "aa" once (positions
+        0-1) -- the candidate "aa" at position 1-2 overlaps the first
+        match's consumed characters and does not count as a second one."""
+        data = {"text": ["aaa", "aaaa"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring("aa")
+        assert collect_expr(df, expr) == [1, 2], f"[{backend_name}]"
+
+    def test_count_substring_empty_substring(self, backend_name, backend_factory, collect_expr):
+        """Matches Polars' own count_matches("") convention exactly: one
+        match at every one of the len(input) + 1 'gap' positions."""
+        data = {"text": ["abc", "", "xx"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring("")
+        assert collect_expr(df, expr) == [4, 1, 3], f"[{backend_name}]"
+
+    def test_count_substring_null_input(self, backend_name, backend_factory, collect_expr):
+        """Anchored with a second real-valued row: DuckDB rejects an
+        all-null-typed column at table creation (item 61 precedent) --
+        a test-fixture limitation, not a fold-logic concern."""
+        data = {"text": [None, "banana"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring("a")
+        assert collect_expr(df, expr) == [None, 3], f"[{backend_name}]"
+
+    def test_count_substring_null_substring(self, backend_name, backend_factory, collect_expr):
+        """A null literal substring propagates to a null result on every
+        row -- not a crash (Ibis: len(None)/replace on an untyped null
+        scalar; Narwhals: len(None); Polars: count_matches() SchemaError
+        on an untyped-null literal) and not a collapse to a single row
+        (narwhals-pandas does not broadcast a bare nw.lit(None) with no
+        column reference under .select() -- verified empirically)."""
+        data = {"text": ["banana", "apple", "cherry"]}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("text").str.count_substring(ma.lit(None))
+        assert collect_expr(df, expr) == [None, None, None], f"[{backend_name}]"
+
+
+# A dynamic (column-valued) substring: narwhals (all variants, including
+# mountainash's own "pandas" -- routes through the identical narwhals
+# expression-system code, item 80 precedent) gates it LITERAL_ONLY --
+# narwhals' str.replace_all() pattern argument does not accept an
+# expression on ANY dialect (verified empirically), the same root cause as
+# sibling replace.substring (NW-STR-03), reused here. ibis-polars is
+# excluded too: a dynamic substring crashes with a raw, unenriched
+# polars.exceptions.ComputeError -- a pre-existing gap shared with
+# replace() (disclosed, not fixed here -- see backlog item
+# ibis-polars-dynamic-pattern-raw-error.md).
+_COUNT_SUBSTRING_DYNAMIC_HONORING = [
+    b for b in ALL_BACKENDS
+    if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", "ibis-polars")
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _COUNT_SUBSTRING_DYNAMIC_HONORING)
+def test_count_substring_dynamic_operand(backend_name, backend_factory, collect_expr):
+    """Needle varies per row (proving per-row evaluation, not a fixed value
+    baked in at build time) and includes an empty-substring row (proving the
+    dynamic empty-substring guard, not just the literal one)."""
+    data = {"text": ["banana", "aaaa", "hello"], "needle": ["a", "aa", ""]}
+    df = backend_factory.create(data, backend_name)
+    expr = ma.col("text").str.count_substring(ma.col("needle"))
+    assert collect_expr(df, expr) == [3, 2, 6], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _COUNT_SUBSTRING_DYNAMIC_HONORING)
+def test_count_substring_dynamic_operand_regex_metacharacter(backend_name, backend_factory, collect_expr):
+    """A dynamic (column-valued) needle containing a regex metacharacter
+    ('.') must count LITERAL occurrences, not be interpreted as a regex
+    ("any character"). Distinguishes correct literal semantics from a
+    naive regex-based fold: "aaaa" has zero literal '.', "a.b.c" has two."""
+    data = {"text": ["aaaa", "banana", "a.b.c"], "needle": [".", "a", "."]}
+    df = backend_factory.create(data, backend_name)
+    expr = ma.col("text").str.count_substring(ma.col("needle"))
+    assert collect_expr(df, expr) == [0, 3, 2], f"[{backend_name}]"
+
+
+
+# =============================================================================
 # Cross-Backend Tests - String Replace
 # =============================================================================
 

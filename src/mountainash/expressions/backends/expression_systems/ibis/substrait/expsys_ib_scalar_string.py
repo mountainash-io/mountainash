@@ -452,16 +452,71 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             substring: Substring to count.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Case sensitivity option (gated UNSUPPORTED for
+                any non-default value; count_substring was not one of the 3
+                string ops given a real ASCII-fold implementation in item 75).
 
         Returns:
             Count of occurrences.
 
         Note:
-            Ibis may not have count. Falls back to 0.
+            No single "count non-overlapping occurrences" primitive exists
+            across Ibis dialects, so this computes it via length
+            arithmetic: (len(input) - len(input with every substring
+            occurrence removed)) / len(substring) -- verified empirically
+            to match Polars' str.count_matches(literal=True) semantics
+            exactly, including its len(input) + 1 convention for an empty
+            substring.
+
+            `_extract_literal_if_possible` returns exactly `None` ONLY for
+            a compile-time-known null literal (never for a genuinely
+            column-valued/Deferred substring, which it passes through
+            unchanged) -- unambiguous, so a null pattern short-circuits
+            to a null result directly, without ever calling `.replace()`.
+            This is required, not just tidy: on ibis-polars specifically,
+            `.replace()` with a null pattern raises `pattern cannot be
+            'null' in 'replace' expression` (verified empirically) --
+            the SAME dynamic-pattern limitation the ordinary
+            column-valued dynamic branch below already has there (shared
+            with `replace`; see backlog item 81), but this path avoids it
+            entirely rather than merely accepting it, since a null
+            pattern's result is unconditionally null regardless of what
+            `.replace()` would have done.
+
+            A literal (build-time-known) NON-null substring is
+            regex-escaped and removed via `re_replace` (mirrors
+            `replace`'s own literal-escape technique above -- see its
+            docstring for why `.replace()` alone isn't used there). A
+            genuinely dynamic (column-valued) substring instead uses
+            Ibis's plain, non-regex `.replace()`: verified empirically
+            (duckdb + sqlite, both with a Deferred receiver and a
+            Deferred/column pattern) to remove EVERY literal occurrence,
+            not just the first, so no regex-escaping is needed or
+            possible for a value only known at execution time. This
+            dynamic `.replace()` call itself still crashes with a raw,
+            unenriched native error on ibis-polars for a genuinely
+            per-row-varying column pattern (the pre-existing gap `replace`
+            already has there; not something this item fixes or asserts
+            around; see backlog item 81) -- only the null-literal case
+            above is fully closed.
         """
-        # Ibis doesn't have count_substring directly - fallback
-        return ibis.literal(0)
+        input = self._lift_deferred_receiver(input, substring)
+        pattern = self._extract_literal_if_possible(substring)
+        if pattern is None:
+            null_result = ibis.literal(None, type="int64")
+            return self._lift_deferred_receiver(null_result, input)
+        if isinstance(pattern, str):
+            if pattern == "":
+                return input.length() + 1
+            removed = input.re_replace(re.escape(pattern), "")
+            return (input.length() - removed.length()) // len(pattern)
+        removed = input.replace(substring, "")
+        sub_len = substring.length()
+        diff = input.length() - removed.length()
+        cond = self._lift_deferred_receiver(
+            sub_len == 0, input.length() + 1, diff // sub_len
+        )
+        return cond.ifelse(input.length() + 1, diff // sub_len)
 
     # =========================================================================
     # Length Operations

@@ -55,6 +55,7 @@ _STRING_LITERAL_ONLY: tuple[tuple[Any, str], ...] = (
     (FK_STR.TRIM, "characters"),
     (FK_STR.LTRIM, "characters"),
     (FK_STR.RTRIM, "characters"),
+    (FK_STR.COUNT_SUBSTRING, "substring"),
 )
 _DT_LITERAL_ONLY: tuple[tuple[Any, str], ...] = (
     (FK_DT.ADD_YEARS, "years"),
@@ -102,6 +103,22 @@ _STRING_UPSTREAM_REF = {
     (FK_STR.TRIM, "characters"): "NW-STR-07",
     (FK_STR.LTRIM, "characters"): "NW-STR-07",
     (FK_STR.RTRIM, "characters"): "NW-STR-07",
+    (FK_STR.COUNT_SUBSTRING, "substring"): "NW-STR-03",
+}
+# count_substring's substring is the sole _STRING_LITERAL_ONLY entry the
+# shared _NW_STRING_MSG ("...on the pandas backend...") misdescribes: it is
+# deliberately absent from _POLARS_BACKED_FIXED because the limitation is
+# universal (verified empirically on both narwhals-pandas and
+# narwhals-polars/-lazy) -- str.replace_all()'s pattern argument rejects a
+# column expression on every narwhals dialect, unlike its sibling
+# search-operand params where only the pandas backend is restricted.
+_STRING_LITERAL_ONLY_MESSAGE_OVERRIDES: dict[tuple[Any, str], str] = {
+    (FK_STR.COUNT_SUBSTRING, "substring"): (
+        "Narwhals str.replace_all()'s pattern argument does not accept a "
+        "column expression on any dialect (pandas or polars-backed) -- "
+        "count_substring's fold is built on replace_all, unlike sibling "
+        "search-operand params that are pandas-only restricted."
+    ),
 }
 _POLARS_FIXED_UPSTREAM_REF = {
     (FK_STR.CONTAINS, "substring"): "NW-STR-01",
@@ -112,13 +129,13 @@ _POLARS_FIXED_UPSTREAM_REF = {
 }
 
 
-# String family-LITERAL_ONLY wave: 17 facts from _STRING_LITERAL_ONLY.
+# String family-LITERAL_ONLY wave: 18 facts from _STRING_LITERAL_ONLY.
 _NW_STRING_ITER_FACTS: tuple[CapabilityFact, ...] = tuple(
     CapabilityFact(
         operation_key=op, param=param,
         level=CapabilityLevel.LITERAL_ONLY,
         backend=CONST_BACKEND.NARWHALS,
-        message=_NW_STRING_MSG,
+        message=_STRING_LITERAL_ONLY_MESSAGE_OVERRIDES.get((op, param), _NW_STRING_MSG),
         workaround="Use a literal string value instead of a column reference",
         since="2026-07-05",
         upstream_ref=_STRING_UPSTREAM_REF.get((op, param)),
@@ -259,7 +276,7 @@ _NW_POLARS_FIXED_FACTS: tuple[CapabilityFact, ...] = tuple(
 
 
 # NARWHALS_EXPR_CAPABILITIES preserves the legacy tuple's element order:
-# 17 string iter + 2 string chars + 5 list + 8 dt iter + 10 polars-fixed = 42.
+# 18 string iter + 2 string chars + 5 list + 8 dt iter + 10 polars-fixed = 43.
 NARWHALS_EXPR_CAPABILITIES: tuple[CapabilityFact, ...] = (
     _NW_STRING_ITER_FACTS
     + _NW_STRING_CHAR_FACTS

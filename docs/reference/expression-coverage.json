@@ -1,7 +1,7 @@
 {
   "stamp": {
     "declarations": 33,
-    "facts": 1493,
+    "facts": 1494,
     "operations": 324,
     "implementation_records": 972
   },
@@ -48,21 +48,21 @@
     "ops_total": 324,
     "facts_by_level": {
       "expr_capable": 155,
-      "literal_only": 56,
+      "literal_only": 57,
       "polymorphic": 9,
       "unsupported": 1273
     },
     "facts_by_enforcement": {
-      "gate": 1487,
+      "gate": 1488,
       "router_metadata": 3,
       "materialize_residue": 3
     },
     "facts_by_backend": {
       "polars": 257,
-      "narwhals": 638,
+      "narwhals": 639,
       "ibis": 598
     },
-    "facts_total": 1493
+    "facts_total": 1494
   },
   "families": [
     {
@@ -33334,12 +33334,28 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 1,
+                "params": 2,
                 "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 2
               },
               "constraints": [
+                {
+                  "dialect": null,
+                  "param": "substring",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "Narwhals str.replace_all()'s pattern argument does not accept a column expression on any dialect (pandas or polars-backed) -- count_substring's fold is built on replace_all, unlike sibling search-operand params that are pandas-only restricted.",
+                  "workaround": "Use a literal string value instead of a column reference",
+                  "upstream_ref": "NW-STR-03",
+                  "since": "2026-07-05",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
                 {
                   "dialect": "narwhals-pandas",
                   "param": "case_sensitivity",
@@ -62343,6 +62359,22 @@
           "message": "Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
           "workaround": "Use a literal string value instead of a column reference",
           "upstream_ref": "NW-STR-06",
+          "since": "2026-07-05",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "substring",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "Narwhals str.replace_all()'s pattern argument does not accept a column expression on any dialect (pandas or polars-backed) -- count_substring's fold is built on replace_all, unlike sibling search-operand params that are pandas-only restricted.",
+          "workaround": "Use a literal string value instead of a column reference",
+          "upstream_ref": "NW-STR-03",
           "since": "2026-07-05",
           "native_errors": [],
           "probe_exempt": null

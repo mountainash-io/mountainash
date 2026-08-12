@@ -497,9 +497,18 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             case_sensitivity: Case sensitivity option.
 
         Returns:
-            Integer expression.
+            Integer expression. A null substring short-circuits to a null
+            result: `.cast(pl.Utf8)` gives an untyped-null literal a
+            concrete String dtype (a no-op for an already-String expr)
+            before it reaches count_matches(), which otherwise raises a
+            SchemaError on the untyped null at SCHEMA-RESOLUTION time --
+            `pl.when(...).then(None).otherwise(...)` does NOT avoid this,
+            since Polars validates both branches' schemas eagerly
+            regardless of the runtime condition (verified empirically).
+            Matches the null-propagation convention count_substring's
+            Ibis/Narwhals implementations use for the same input (item 78).
         """
-        return input.str.count_matches(substring, literal=True)
+        return input.str.count_matches(substring.cast(pl.Utf8), literal=True)
 
     # =========================================================================
     # Length Operations

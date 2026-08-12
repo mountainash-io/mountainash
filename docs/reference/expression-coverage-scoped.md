@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 33 · Facts: 1493 · Registered operations: 324 · Implementation records: 972
+Declarations: 33 · Facts: 1494 · Registered operations: 324 · Implementation records: 972
 
 Legend — scoped deviations:
 
@@ -1081,6 +1081,7 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | substring | — | — | literal_only | gate | build | — | Narwhals str.replace_all()'s pattern argument does not accept a column expression on any dialect (pandas or polars-backed) -- count_substring's fold is built on replace_all, unlike sibling search-operand params that are pandas-only restricted. | Use a literal string value instead of a column reference | NW-STR-03 | 2026-07-05 | — | — |
 | narwhals-pandas | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation | Lowercase the input and search operand explicitly before applying the case-sensitive operation | — | 2026-07-23 | — | — |
 | narwhals-pandas | case_sensitivity | CASE_INSENSITIVE_ASCII | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here) | Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation | — | 2026-08-12 | — | — |
 | narwhals-pandas | case_sensitivity | CASE_SENSITIVE | — | expr_capable | gate | build | — | The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate |

@@ -1061,6 +1061,45 @@
   runtime_observable: true
   since: '2026-08-01'
   display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING|pandas|substring|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING
+  backend: pandas
+  param: substring
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING|narwhals-polars|substring|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING
+  backend: narwhals-polars
+  param: substring
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING|narwhals-pandas|substring|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING
+  backend: narwhals-pandas
+  param: substring
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
 - key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT|polars|count|None
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT
