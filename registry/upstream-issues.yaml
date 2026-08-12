@@ -1531,6 +1531,26 @@ issues:
     fine. Gated as a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend
     (backlog item 83, 2026-08-12).
   last_verified: '2026-08-12'
+- id: IB-STR-11
+  project: ibis
+  category: string-ops
+  summary: Case-insensitive string matching (contains/starts_with/ends_with with
+    case_sensitive=False) is unsupported on Ibis Polars backend — UnsupportedArgumentError
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ibis-polars raises UnsupportedArgumentError for case_sensitive=False on
+    contains/starts_with/ends_with; ibis-duckdb/ibis-sqlite and polars/narwhals compute
+    it. Renamed from a colliding DivergenceFact id (was "IB-STR-02", which already
+    named an unrelated entry in this registry — the "no center function" gap below)
+    when backlog item 84's id-namespace-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog item
+    84, 2026-08-13).
+  last_verified: '2026-08-13'
 - id: IB-MATH-04
   project: ibis
   category: math-ops
@@ -1660,6 +1680,27 @@ issues:
   our_workaround: none
   notes: ''
   last_verified: '2026-07-05'
+- id: MA-STR-01
+  project: mountainash-internal
+  category: string-ops
+  summary: str.contains with a columnar (per-row) literal pattern is unsupported
+    on pandas and Ibis Polars backend
+  root_cause: mountainash_internal
+  affected_backends:
+  - pandas
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: xfail_strict
+  notes: col.str.contains(other_col) raises on pandas (enriched BackendCapabilityError,
+    not registry-resolvable) and ibis-polars (UnsupportedArgumentError); polars and
+    ibis-duckdb/ibis-sqlite compute the per-row substring test. Spans two unrelated
+    backend families for related-but-distinct reasons, so classified as an internal
+    wiring gap rather than a single upstream tracker. Linked to the pre-existing
+    DivergenceFact(id="MA-STR-01") via upstream_ref, which was previously null
+    (backlog item 84, 2026-08-13).
+  last_verified: '2026-08-13'
 - id: MA-STR-03
   project: mountainash-internal
   category: string-ops

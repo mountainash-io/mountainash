@@ -58,7 +58,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/expressions/cross_backend/test_aggregate_results.py:74 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-AGG-01') — migrated |
 | tests/expressions/cross_backend/test_aggregate_results.py:75 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-06') — migrated |
 | tests/expressions/cross_backend/test_arithmetic.py:504 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-MATH-05') — migrated |
-| tests/expressions/cross_backend/test_case_insensitive_string.py:24 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-STR-02') — migrated |
+| tests/expressions/cross_backend/test_case_insensitive_string.py:24 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-STR-11') — migrated |
 | tests/expressions/cross_backend/test_cast.py:220 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-CAST-01') — migrated |
 | tests/expressions/cross_backend/test_cast.py:222 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-CAST-04') — migrated |
 | tests/expressions/cross_backend/test_cast.py:254 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-CAST-01') — migrated |

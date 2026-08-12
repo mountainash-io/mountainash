@@ -21,7 +21,7 @@ _IBIS_POLARS_CI_XFAIL = (
 # unconditionally, even for this file's all-ASCII fixtures). Covered instead
 # by test_string.py's TestCaseInsensitiveIbisSqliteGate.
 _CI = [
-    pytest.param(b, marks=xfail_divergence("IB-STR-02", backend=b))
+    pytest.param(b, marks=xfail_divergence("IB-STR-11", backend=b))
     for b in ALL_BACKENDS
     if b != "ibis-sqlite"
 ]
