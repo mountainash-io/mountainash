@@ -582,14 +582,14 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-STR-02",
+            id="IB-STR-11",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH),
             backends=("ibis-polars",),
             summary="ibis-polars rejects case-insensitive string matching (contains/starts_with/ends_with with case_sensitive=False) — UnsupportedArgumentError",
             impact="case-insensitive contains/starts_with/ends_with raise on ibis-polars; other backends compute them",
             workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for case-insensitive matching",
-            upstream_ref=None,
+            upstream_ref="IB-STR-11",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -600,7 +600,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="str.contains with a columnar (per-row) literal pattern is unsupported on pandas (enriched BackendCapabilityError, not registry-resolvable) and ibis-polars (UnsupportedArgumentError)",
             impact="col.str.contains(other_col) raises on pandas and ibis-polars; polars and ibis-duckdb/ibis-sqlite compute the per-row substring test",
             workaround="Use a polars or ibis SQL backend for columnar substring patterns",
-            upstream_ref=None,
+            upstream_ref="MA-STR-01",
             since="2026-08-06",
         ),
         DivergenceFact(
