@@ -221,13 +221,18 @@ def test_no_op_level_fact_is_left_unbacked() -> None:
 
 # Value-scoped facts whose dialect the 4-fixture argument-type matrix cannot
 # instantiate at all -- its "ibis" fixture is hardcoded to ibis-duckdb (see
-# conftest.py's MATRIX_IDENTITIES); there is no ibis-polars fixture here to
-# carry a per-cell OptionCell. Structurally unreachable by this module, not
-# an actual coverage gap -- verified instead by test_string.py's
-# TestCaseInsensitiveAsciiIbisPolarsGate, which builds a real ibis-polars
-# backend directly. Backlog item 75 (2026-08-12).
+# conftest.py's MATRIX_IDENTITIES); there is no ibis-polars/ibis-sqlite
+# fixture here to carry a per-cell OptionCell. Structurally unreachable by
+# this module, not an actual coverage gap -- verified instead by
+# test_string.py's TestCaseInsensitiveAsciiIbisPolarsGate /
+# TestCaseInsensitiveIbisSqliteGate, which build a real ibis-polars /
+# ibis-sqlite backend directly. Backlog items 75 (2026-08-12) and 79
+# (2026-08-12).
 _MATRIX_UNREACHABLE_DIALECT_FACTS = {
     (fkey, "case_sensitivity", "CASE_INSENSITIVE_ASCII", CONST_BACKEND.IBIS, "ibis-polars")
+    for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
+} | {
+    (fkey, "case_sensitivity", "CASE_INSENSITIVE", CONST_BACKEND.IBIS, "ibis-sqlite")
     for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
 }
 
@@ -376,7 +381,12 @@ def test_case_insensitive_ascii_facts_mirror_case_insensitive_plus_ibis_polars_g
     EXACTLY, for the 10 always-unsupported string ops, PLUS the 3
     ibis-polars entries the mandated dialect spike discovered (ibis-polars
     has no compilation rule for StringTranslate, so contains/starts_with/
-    ends_with — real everywhere else — are UNSUPPORTED there alone).
+    ends_with — real everywhere else — are UNSUPPORTED there alone), MINUS
+    the 3 ibis-sqlite entries backlog item 79 added to CASE_INSENSITIVE
+    alone (ibis-sqlite's native LOWER()/UPPER() are ASCII-only, so
+    CASE_INSENSITIVE_ASCII's narrower ASCII-only contract is genuinely
+    honored there — no fact — while CASE_INSENSITIVE's Unicode-aware-
+    lowercasing contract is not).
 
     Derived from the CASE_INSENSITIVE fact set itself, not a hardcoded
     count/list — this guard tracks the registry rather than a number that
@@ -397,11 +407,17 @@ def test_case_insensitive_ascii_facts_mirror_case_insensitive_plus_ibis_polars_g
         (fkey, CONST_BACKEND.IBIS, "ibis-polars")
         for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
     }
-    assert case_insensitive_ascii_keys == case_insensitive_keys | ibis_polars_gap, (
+    ibis_sqlite_gap = {
+        (fkey, CONST_BACKEND.IBIS, "ibis-sqlite")
+        for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
+    }
+    assert case_insensitive_ascii_keys == (
+        (case_insensitive_keys - ibis_sqlite_gap) | ibis_polars_gap
+    ), (
         "CASE_INSENSITIVE_ASCII fact footprint diverges from "
-        "CASE_INSENSITIVE + the ibis-polars gap: "
-        f"ascii-only={case_insensitive_ascii_keys - (case_insensitive_keys | ibis_polars_gap)}; "
-        f"missing-from-ascii={(case_insensitive_keys | ibis_polars_gap) - case_insensitive_ascii_keys}"
+        "CASE_INSENSITIVE + the ibis-polars gap - the ibis-sqlite gap: "
+        f"ascii-only={case_insensitive_ascii_keys - ((case_insensitive_keys - ibis_sqlite_gap) | ibis_polars_gap)}; "
+        f"missing-from-ascii={((case_insensitive_keys - ibis_sqlite_gap) | ibis_polars_gap) - case_insensitive_ascii_keys}"
     )
     # Every CASE_INSENSITIVE_ASCII fact registered for contains/starts_with/
     # ends_with must be the single ibis-polars entry — absence is the
