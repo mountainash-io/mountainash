@@ -231,18 +231,22 @@ _DYNAMIC_OPERAND_HONORING = {
     "ends_with": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite"],
 }
 
-_KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
-
-# A null-typed LITERAL search operand (e.g. ma.lit(None)) now propagates a
-# null boolean result on every backend EXCEPT narwhals-pandas/pandas, which
-# reject a None pattern entirely at .str.contains()/.str.starts_with()/
-# .str.ends_with() itself -- pre-existing, unrelated to case_sensitivity
-# (verified identical under the plain CASE_SENSITIVE default), not
-# something a case-fold-level fix can reach. See backlog item 80.
-_NULL_SEARCH_OPERAND_HONORING_BACKENDS = [
-    b for b in _ASCII_FOLD_HONORING_BACKENDS
-    if b not in ("narwhals-pandas", "pandas")
+# Null INPUT-row propagation (contains(None-row, "x") -> null, not False) is
+# a narrower cell than the null-search-operand fix above: narwhals-pandas
+# and (mountainash's) pandas -- both compile through the identical narwhals
+# expression-system code -- represent a boolean column as a plain numpy
+# `bool` array, which has no null representation. Forcing one via
+# nw.when/then/otherwise produces an object-dtype column of Python `bool`
+# objects, and Python's bitwise-NOT (`~True == -2`, not logical negation)
+# then silently corrupts every downstream `~expr` on that column --
+# verified directly; not something fixable at this layer without either
+# regressing negation elsewhere or forcing every narwhals-pandas DataFrame
+# onto a nullable dtype backend end-to-end. See backlog item 80.
+_NULL_INPUT_ROW_HONORING_BACKENDS = [
+    b for b in _ASCII_FOLD_HONORING_BACKENDS if b not in ("pandas", "narwhals-pandas")
 ]
+
+_KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
 
 
 @pytest.mark.cross_backend
@@ -298,27 +302,26 @@ class TestCaseInsensitiveAsciiFold:
         expr = ma.col("text").str.contains("test", case_sensitive="CASE_INSENSITIVE_ASCII")
         assert collect_expr(df, expr) == [True], f"[{backend_name}]"
 
-    def test_contains_ascii_null_input(self, backend_name, backend_factory, collect_expr):
-        # Anchored with a second real-valued row: an all-null-typed column
-        # cannot be constructed on every backend (DuckDB rejects it at table
-        # creation; item 61 precedent) — this is a test-fixture limitation,
-        # not a fold-logic concern.
-        data = {"text": [None, "anchor"]}
-        df = backend_factory.create(data, backend_name)
-        expr = ma.col("text").str.contains("x", case_sensitive="CASE_INSENSITIVE_ASCII")
-        # pandas-backed str.contains never propagates null (returns False for
-        # a null input row) regardless of case_sensitivity -- pre-existing,
-        # unrelated to item 75 (verified identical under the plain
-        # case-sensitive default), not something this item's fold touches.
-        expect_null = backend_name not in ("pandas", "narwhals-pandas")
-        expected = [None if expect_null else False, False]
-        assert collect_expr(df, expr) == expected, f"[{backend_name}]"
-
     def test_contains_ascii_already_lowercase(self, backend_name, backend_factory, collect_expr):
         data = {"text": ["already lowercase"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("text").str.contains("lower", case_sensitive="CASE_INSENSITIVE_ASCII")
         assert collect_expr(df, expr) == [True], f"[{backend_name}]"
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _NULL_INPUT_ROW_HONORING_BACKENDS)
+def test_contains_ascii_null_input(backend_name, backend_factory, collect_expr):
+    # Anchored with a second real-valued row: an all-null-typed column
+    # cannot be constructed on every backend (DuckDB rejects it at table
+    # creation; item 61 precedent) — this is a test-fixture limitation,
+    # not a fold-logic concern. pandas/narwhals-pandas excluded — see
+    # _NULL_INPUT_ROW_HONORING_BACKENDS.
+    data = {"text": [None, "anchor"]}
+    df = backend_factory.create(data, backend_name)
+    expr = ma.col("text").str.contains("x", case_sensitive="CASE_INSENSITIVE_ASCII")
+    assert collect_expr(df, expr) == [None, False], f"[{backend_name}]"
 
 
 @pytest.mark.cross_backend
@@ -388,38 +391,22 @@ class TestCaseInsensitiveAsciiIbisPolarsGate:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", _NULL_SEARCH_OPERAND_HONORING_BACKENDS)
+@pytest.mark.parametrize("backend_name", _ASCII_FOLD_HONORING_BACKENDS)
 def test_case_insensitive_ascii_null_search_operand_propagates_null(
     backend_name, backend_factory, collect_expr,
 ):
-    """A null-typed literal search operand under case_sensitivity=
-    CASE_INSENSITIVE_ASCII yields a null boolean result rather than
-    crashing -- both _pl_fold/_ib_fold/_nw_fold cast the operand to a
-    concrete string type before folding (a no-op for an already-string
-    operand), so the untyped null gets a dtype the .str/.lower()/
-    .translate() accessor accepts, and the null itself propagates through
-    unchanged (backlog item 80's fix, closed for these 6 backends)."""
+    """A null-typed literal search operand (e.g. ma.col("text").str.
+    contains(None)) under case_sensitivity=CASE_INSENSITIVE_ASCII yields a
+    null boolean result rather than crashing: contains/starts_with/
+    ends_with short-circuit to a null result before calling the native
+    search method when the (folded) search operand is None -- real cell on
+    every one of these 8 backends, unconditionally (not gated on backend).
+    This is distinct from a null INPUT row with a real search operand,
+    which remains False (not null) on pandas/narwhals-pandas specifically
+    -- see _NULL_INPUT_ROW_HONORING_BACKENDS and backlog item 80."""
     df = backend_factory.create({"text": ["hello"]}, backend_name)
     expr = ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII")
     assert collect_expr(df, expr) == [None], f"[{backend_name}]"
-
-
-def test_case_insensitive_null_search_operand_narwhals_pandas_still_crashes(backend_factory):
-    """narwhals-pandas' own .str.contains()/.str.starts_with()/.str.ends_with()
-    reject a None pattern value entirely -- confirmed identical under the
-    plain CASE_SENSITIVE default (unmodified, pre-existing code), so this is
-    a narwhals-pandas base-operation limitation, not something item 75/80's
-    case-fold-level null guard reaches. Documents the residual gap rather
-    than silently declaring item 80 fully closed. Backlog item 80."""
-    df = backend_factory.create({"text": ["hello"]}, "narwhals-pandas")
-    with pytest.raises(TypeError, match="only supports str pattern values"):
-        ma_top.relation(df).select(
-            ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII").alias("r")
-        ).to_dict()
-    with pytest.raises(TypeError, match="only supports str pattern values"):
-        ma_top.relation(df).select(
-            ma.col("text").str.contains(None).alias("r")  # plain CASE_SENSITIVE default -- identical crash
-        ).to_dict()
 
 # =============================================================================
 # Cross-Backend Tests - String Replace
