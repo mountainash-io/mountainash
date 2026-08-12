@@ -71545,6 +71545,33 @@
       "since": "2026-08-06"
     },
     {
+      "id": "NW-STR-19",
+      "kind": "semantics",
+      "operation_keys": [
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "CONTAINS"
+        },
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "STARTS_WITH"
+        },
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "ENDS_WITH"
+        }
+      ],
+      "backends": [
+        "pandas",
+        "narwhals-pandas"
+      ],
+      "summary": "contains()/starts_with()/ends_with() on a null INPUT row (not a null search operand) returns False on pandas/narwhals-pandas instead of propagating null: plain-numpy-backed pandas boolean columns have no null representation, and forcing one via nw.when/then/otherwise produces an object-dtype column of Python bool objects, which breaks `~` elsewhere (bitwise-NOT on bool is not logical negation)",
+      "impact": "a null row in the searched column silently yields False rather than null on pandas/narwhals-pandas for contains/starts_with/ends_with; every other backend (polars, ibis, narwhals-polars, narwhals-lazy) propagates null correctly",
+      "workaround": "Use a polars, narwhals-polars, narwhals-lazy, or ibis backend where a null row must propagate through contains/starts_with/ends_with",
+      "upstream_ref": null,
+      "since": "2026-08-12"
+    },
+    {
       "id": "NW-WIN-01",
       "kind": "engine_leniency",
       "operation_keys": [

@@ -12,8 +12,12 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import assert_capability_gated, xfail_divergence
 from mountainash.core.capabilities import load_all_capability_declarations
-from mountainash.core.types import BackendCapabilityError
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
 
 load_all_capability_declarations()
 
@@ -231,6 +235,8 @@ _DYNAMIC_OPERAND_HONORING = {
     "ends_with": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite"],
 }
 
+_KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
+
 # Null INPUT-row propagation (contains(None-row, "x") -> null, not False) is
 # a narrower cell than the null-search-operand fix above: narwhals-pandas
 # and (mountainash's) pandas -- both compile through the identical narwhals
@@ -239,14 +245,15 @@ _DYNAMIC_OPERAND_HONORING = {
 # nw.when/then/otherwise produces an object-dtype column of Python `bool`
 # objects, and Python's bitwise-NOT (`~True == -2`, not logical negation)
 # then silently corrupts every downstream `~expr` on that column --
-# verified directly; not something fixable at this layer without either
-# regressing negation elsewhere or forcing every narwhals-pandas DataFrame
-# onto a nullable dtype backend end-to-end. See backlog item 80.
-_NULL_INPUT_ROW_HONORING_BACKENDS = [
-    b for b in _ASCII_FOLD_HONORING_BACKENDS if b not in ("pandas", "narwhals-pandas")
+# verified directly; not fixable at this layer without either regressing
+# negation elsewhere or forcing every narwhals-pandas DataFrame onto a
+# nullable dtype backend end-to-end. Declared as DivergenceFact NW-STR-19
+# and routed through xfail_divergence below (not silently excluded).
+_NULL_INPUT_ROW_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("NW-STR-19", backend=b))
+    for b in _ASCII_FOLD_HONORING_BACKENDS
 ]
 
-_KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
 
 
 @pytest.mark.cross_backend
@@ -311,13 +318,13 @@ class TestCaseInsensitiveAsciiFold:
 
 @pytest.mark.cross_backend
 @pytest.mark.string
-@pytest.mark.parametrize("backend_name", _NULL_INPUT_ROW_HONORING_BACKENDS)
+@pytest.mark.parametrize("backend_name", _NULL_INPUT_ROW_BACKENDS)
 def test_contains_ascii_null_input(backend_name, backend_factory, collect_expr):
     # Anchored with a second real-valued row: an all-null-typed column
     # cannot be constructed on every backend (DuckDB rejects it at table
     # creation; item 61 precedent) — this is a test-fixture limitation,
-    # not a fold-logic concern. pandas/narwhals-pandas excluded — see
-    # _NULL_INPUT_ROW_HONORING_BACKENDS.
+    # not a fold-logic concern. pandas/narwhals-pandas xfail via NW-STR-19
+    # (_NULL_INPUT_ROW_BACKENDS) rather than being silently excluded.
     data = {"text": [None, "anchor"]}
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.contains("x", case_sensitive="CASE_INSENSITIVE_ASCII")
@@ -383,10 +390,17 @@ class TestCaseInsensitiveAsciiIbisPolarsGate:
     @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
     def test_ascii_fold_is_gated_on_ibis_polars(self, method, backend_factory):
         df = backend_factory.create({"text": ["hello"]}, "ibis-polars")
-        with pytest.raises(BackendCapabilityError):
-            getattr(ma.col("text").str, method)(
+        operation_key = getattr(FK_STR, method.upper())
+        assert_capability_gated(
+            operation_key,
+            CONST_BACKEND.IBIS,
+            dialect="ibis-polars",
+            param="case_sensitivity",
+            option_value="CASE_INSENSITIVE_ASCII",
+            build=lambda: getattr(ma.col("text").str, method)(
                 "hello", case_sensitive="CASE_INSENSITIVE_ASCII"
-            ).compile(df)
+            ).compile(df),
+        )
 
 
 @pytest.mark.cross_backend
@@ -403,7 +417,7 @@ def test_case_insensitive_ascii_null_search_operand_propagates_null(
     every one of these 8 backends, unconditionally (not gated on backend).
     This is distinct from a null INPUT row with a real search operand,
     which remains False (not null) on pandas/narwhals-pandas specifically
-    -- see _NULL_INPUT_ROW_HONORING_BACKENDS and backlog item 80."""
+    -- see DivergenceFact NW-STR-19 and test_contains_ascii_null_input."""
     df = backend_factory.create({"text": ["hello"]}, backend_name)
     expr = ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII")
     assert collect_expr(df, expr) == [None], f"[{backend_name}]"

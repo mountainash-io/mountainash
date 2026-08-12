@@ -28,6 +28,12 @@ def test_narwhals_pandas_titlecase_divergence_registered():
     assert d.operation_keys == (FK_STR.TITLE, FK_STR.INITCAP)
 
 
+def test_narwhals_pandas_null_input_row_divergence_registered():
+    d = divergence_by_id("NW-STR-19")
+    assert d.backends == ("pandas", "narwhals-pandas")
+    assert d.operation_keys == (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
+
+
 def test_upstream_ref_is_self_ref_or_absent():
     # A divergence's ``upstream_ref`` is either its own id (a registry-cataloged
     # gap — joined to registry/upstream-issues.yaml by test_upstream_registry_join)
