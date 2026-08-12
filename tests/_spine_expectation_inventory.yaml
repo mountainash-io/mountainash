@@ -593,6 +593,19 @@
   runtime_observable: true
   since: '2026-08-01'
   display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE|ibis-polars|substring|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE
+  backend: ibis-polars
+  param: substring
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
 - key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS|pandas|substring|None
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS
@@ -766,6 +779,19 @@
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE
   backend: narwhals-pandas
+  param: pattern
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE|ibis-polars|pattern|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE
+  backend: ibis-polars
   param: pattern
   option_value: null
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
@@ -1091,6 +1117,19 @@
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING
   backend: narwhals-pandas
+  param: substring
+  option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING|ibis-polars|substring|None
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING
+  backend: ibis-polars
   param: substring
   option_value: null
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate

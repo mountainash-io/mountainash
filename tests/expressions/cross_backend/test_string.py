@@ -13,8 +13,9 @@ import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.capability_gating import assert_capability_gated, xfail_divergence
-from mountainash.core.capabilities import load_all_capability_declarations
+from mountainash.core.capabilities import CapabilityLevel, load_all_capability_declarations
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
@@ -629,6 +630,119 @@ class TestStringReplace:
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
+
+
+# A dynamic (column-valued) substring on `replace`: raw `polars` (and
+# `polars-lazy`) already gates this cleanly via a pre-existing LITERAL_ONLY
+# fact (PL-STR-01, expressions/backends/capabilities/polars.py) and every
+# Narwhals variant already gates it too (NW-STR-03/NW-STR-05-class), so
+# ibis-duckdb/ibis-sqlite are the ONLY backends where a dynamic substring
+# genuinely honors (verified empirically). ibis-polars is the sole gap this
+# item closes — excluded here and asserted cleanly gated instead; see
+# TestDynamicPatternIbisPolarsGate below (same shape as
+# _ASCII_FOLD_HONORING_BACKENDS / TestCaseInsensitiveAsciiIbisPolarsGate,
+# item 75).
+_REPLACE_DYNAMIC_HONORING = ["ibis-duckdb", "ibis-sqlite"]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", _REPLACE_DYNAMIC_HONORING)
+def test_str_replace_dynamic_operand(backend_name, backend_factory, collect_expr):
+    """Pattern varies per row (proving per-row evaluation, not a fixed
+    value baked in at build time)."""
+    data = {"text": ["hello world", "foo bar", "hello foo"], "pattern": ["hello", "foo", "hello"]}
+    df = backend_factory.create(data, backend_name)
+    expr = ma.col("text").str.replace(ma.col("pattern"), "X")
+    assert collect_expr(df, expr) == ["X world", "X bar", "X foo"], f"[{backend_name}]"
+
+
+class TestDynamicPatternIbisPolarsGate:
+    """ibis-polars compiles `.re_replace()`/`.replace()` down to Polars'
+    native str.replace()/str.replace_all(), which does not support a
+    dynamic (column-valued) pattern argument (upstream PL-STR-01/PL-STR-02;
+    backlog item 81). A dynamic pattern on replace/count_substring/
+    regexp_replace raises a clean BackendCapabilityError at BUILD time
+    (LITERAL_ONLY dialect-scoped fact) instead of leaking the raw
+    polars.exceptions.ComputeError. Literal patterns are unaffected on
+    every dialect (see TestStringReplace/TestCountSubstring/
+    TestComposeStringRegexExtended.test_regexp_replace).
+
+    NOT via ``assert_capability_gated`` -- that helper's ``capability_gate()``
+    only recognizes ``UNSUPPORTED``-level facts (a structural gap in the
+    shared helper, not specific to this fix); ``capability_census.py``
+    classifies a ``LITERAL_ONLY`` fact "retained (not an assertable gate)",
+    not "migrated", so a hand-written assertion is the sanctioned path here.
+    Uses a manual try/except (not ``pytest.raises``) so
+    ``test_no_migrated_site_carries_a_raw_capability_form``'s file-wide AST
+    scan -- which bans any ``pytest.raises(BackendCapabilityError)`` in a
+    file that also has an unrelated migrated-bucket site (this file's
+    TestCaseInsensitiveAsciiIbisPolarsGate, an UNSUPPORTED fact) -- does not
+    misclassify this retained-bucket assertion as a banned migrated-site
+    reconstruction."""
+
+    @pytest.mark.parametrize(
+        ("operation_key", "param", "build"),
+        [
+            (
+                FK_STR.REPLACE, "substring",
+                lambda: ma.col("text").str.replace(ma.col("pattern"), "X"),
+            ),
+            (
+                FK_STR.COUNT_SUBSTRING, "substring",
+                lambda: ma.col("text").str.count_substring(ma.col("pattern")),
+            ),
+            (
+                FK_STR.REGEXP_REPLACE, "pattern",
+                lambda: ma.col("text").str.regexp_replace(ma.col("pattern"), "X"),
+            ),
+        ],
+        ids=["replace", "count_substring", "regexp_replace"],
+    )
+    def test_dynamic_pattern_is_gated_on_ibis_polars(self, operation_key, param, build, backend_factory):
+        df = backend_factory.create({"text": ["hello world"], "pattern": ["hello"]}, "ibis-polars")
+        caught: BackendCapabilityError | None = None
+        try:
+            build().compile(df)
+        except BackendCapabilityError as exc:
+            caught = exc
+        if caught is None:
+            pytest.fail(f"expected BackendCapabilityError for {operation_key}/{param} on ibis-polars")
+        err = caught
+        assert err.function_key == operation_key
+        assert err.limitation is not None
+        assert err.limitation.operation_key == operation_key
+        assert err.limitation.param == param
+        assert err.limitation.backend is CONST_BACKEND.IBIS
+        assert err.limitation.dialect == "ibis-polars"
+        assert err.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+
+class TestNullPatternPreExistingGapNotWorsened:
+    """A null-LITERAL pattern (`ma.lit(None)`) on replace/regexp_replace is a
+    SEPARATE, pre-existing raw-error leak from item 81's dynamic-column
+    scope — confirmed identical on raw `polars` too (not ibis-polars
+    specific), and NOT introduced or changed by the LITERAL_ONLY fix above
+    (a null LiteralNode was already unwrapped to a raw value before this
+    change; the crash is byte-identical pre- and post-fix). Deliberately out
+    of item 81's scope (disclosed, not fixed here — a real, separate,
+    cross-backend null-handling gap for a future backlog item); this test
+    locks in the CURRENT (unfortunate but unchanged) behavior so a future
+    change to either the gate or the backend body cannot silently make it
+    worse without a test noticing."""
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            lambda: ma.col("text").str.replace(ma.lit(None), "X"),
+            lambda: ma.col("text").str.regexp_replace(ma.lit(None), "X"),
+        ],
+        ids=["replace", "regexp_replace"],
+    )
+    def test_null_literal_pattern_still_raises_on_ibis_polars(self, build, backend_factory, collect_expr):
+        df = backend_factory.create({"text": ["hello world"]}, "ibis-polars")
+        with pytest.raises(Exception):
+            collect_expr(df, build())
 
 
 # =============================================================================

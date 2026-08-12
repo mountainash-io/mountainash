@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 34 · Facts: 1497 · Registered operations: 324 · Implementation records: 972
+Declarations: 35 · Facts: 1500 · Registered operations: 324 · Implementation records: 972
 
 Legend — scoped deviations:
 
@@ -1099,6 +1099,7 @@ Legend — scoped deviations:
 | ibis-duckdb | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation | Lowercase the input and search operand explicitly before applying the case-sensitive operation | — | 2026-07-23 | — | — |
 | ibis-duckdb | case_sensitivity | CASE_INSENSITIVE_ASCII | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here) | Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation | — | 2026-08-12 | — | — |
 | ibis-duckdb | case_sensitivity | CASE_SENSITIVE | — | expr_capable | gate | build | — | The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate |
+| ibis-polars | substring | — | — | literal_only | gate | build | — | ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81) | Use a literal string pattern instead of a column reference | PL-STR-01 | 2026-08-12 | — | — |
 
 ### `ENDS_WITH` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 
@@ -1505,6 +1506,7 @@ Legend — scoped deviations:
 | ibis-duckdb | occurrence | 2 | — | unsupported | gate | build | — | The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied | — | — | 2026-07-23 | — | — |
 | ibis-duckdb | position | — | — | unsupported | gate | build | — | The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied | — | — | 2026-07-23 | — | value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check |
 | ibis-duckdb | position | 2 | — | unsupported | gate | build | — | The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied | — | — | 2026-07-23 | — | — |
+| ibis-polars | pattern | — | — | literal_only | gate | build | — | ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81) | Use a literal string pattern instead of a column reference | PL-STR-02 | 2026-08-12 | — | — |
 
 ### `REGEXP_SPLIT` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 
@@ -1662,6 +1664,7 @@ Legend — scoped deviations:
 | ibis-duckdb | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation | Lowercase the input and search operand explicitly before applying the case-sensitive operation | — | 2026-07-23 | — | — |
 | ibis-duckdb | case_sensitivity | CASE_INSENSITIVE_ASCII | — | unsupported | gate | build | — | The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here) | Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation | — | 2026-08-12 | — | — |
 | ibis-duckdb | case_sensitivity | CASE_SENSITIVE | — | expr_capable | gate | build | — | The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate |
+| ibis-polars | substring | — | — | literal_only | gate | build | — | ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81) | Use a literal string pattern instead of a column reference | PL-STR-02 | 2026-08-12 | — | — |
 
 ### `REPLACE_SLICE` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 

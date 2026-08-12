@@ -567,6 +567,64 @@ _IBIS_POLARS_FACTS = tuple(
 
 
 # ---------------------------------------------------------------------------
+# ibis-polars dynamic-pattern gap (backlog item 81, 2026-08-12) — a distinct
+# probe wave from both the 2026-07-23 baseline and the 2026-08-12 ASCII-fold
+# wave above, so it gets its own CapabilityDeclaration/ProbeEvidence. Ibis's
+# `.re_replace()` (replace's/regexp_replace's fallback path) and `.replace()`
+# (count_substring's dynamic-branch path) both compile on ibis-polars down to
+# Polars' native str.replace()/str.replace_all(), which does not support a
+# dynamic (column-valued) pattern argument at all -- a confirmed upstream
+# Polars limitation already tracked for the raw polars backend as
+# PL-STR-01/PL-STR-02 (POLARS_EXPR_CAPABILITIES in capabilities/polars.py,
+# which registers the identical LITERAL_ONLY disposition for the raw
+# backend). Empirically confirmed (2026-08-12, ibis 12.0.0) that ONLY these
+# three (op, param) pairs are affected -- trim/ltrim/rtrim's `characters`
+# param already has its own family-level (dialect=None) LITERAL_ONLY gate
+# for the whole Ibis backend (capabilities/ibis.py), confirmed via direct
+# probe to already raise a clean BackendCapabilityError pre-fix on
+# ibis-polars, so it needed no new fact here. Literal patterns are
+# unaffected on every dialect -- LITERAL_ONLY unwraps a LiteralNode to its
+# raw Python
+# value before replace()/count_substring()/regexp_replace() run, which their
+# existing literal-branch code (or, for regexp_replace, Ibis's own
+# raw-string coercion) already handles unchanged.
+# ---------------------------------------------------------------------------
+_SINCE_DYNAMIC_PATTERN = "2026-08-12"
+_IBIS_POLARS_DYNAMIC_PATTERN_UNSUPPORTED = (
+    "ibis-polars compiles this to Polars' native str.replace()/"
+    "str.replace_all(), which does not support a dynamic (column-valued) "
+    "pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw "
+    "polars backend; see backlog item 81)"
+)
+_IBIS_POLARS_DYNAMIC_PATTERN_WORKAROUND = (
+    "Use a literal string pattern instead of a column reference"
+)
+# Mapped by native call shape (confirmed via direct probe of the error
+# message/expression repr): count_substring's dynamic branch uses Ibis's
+# non-regex `.replace()` (same class as PL-STR-01's "str.replace" case);
+# replace's and regexp_replace's fallback branches both use `.re_replace()`
+# (regex) — same class as PL-STR-02 ("str.replace_all/str.replace with
+# regex"), which its own upstream-issues.yaml note already calls "same class
+# as PL-STR-01".
+_IBIS_POLARS_DYNAMIC_PATTERN_UPSTREAM_REF = {
+    (FK_STR.REPLACE, "substring"): "PL-STR-02",
+    (FK_STR.COUNT_SUBSTRING, "substring"): "PL-STR-01",
+    (FK_STR.REGEXP_REPLACE, "pattern"): "PL-STR-02",
+}
+_IBIS_POLARS_DYNAMIC_PATTERN_FACTS: tuple[CapabilityFact, ...] = tuple(
+    CapabilityFact(
+        operation_key=operation_key,
+        param=param,
+        level=CapabilityLevel.LITERAL_ONLY,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message=_IBIS_POLARS_DYNAMIC_PATTERN_UNSUPPORTED,
+        workaround=_IBIS_POLARS_DYNAMIC_PATTERN_WORKAROUND,
+        since=_SINCE_DYNAMIC_PATTERN,
+        upstream_ref=_IBIS_POLARS_DYNAMIC_PATTERN_UPSTREAM_REF[(operation_key, param)],
+    )
+    for operation_key, param in _IBIS_POLARS_DYNAMIC_PATTERN_UPSTREAM_REF
+)
 # ibis-sqlite / CASE_INSENSITIVE (backlog item 79, 2026-08-12) — ibis-sqlite's
 # native LOWER()/UPPER() are ASCII-only (no ICU extension loaded in
 # mountainash's Ibis SQLite connection); CASE_INSENSITIVE's Unicode-aware
@@ -666,6 +724,11 @@ _EVIDENCE_ASCII_FOLD = ProbeEvidence(
     ),
 )
 
+_EVIDENCE_DYNAMIC_PATTERN = ProbeEvidence(
+    probe_date=_SINCE_DYNAMIC_PATTERN,
+    library_versions=(("ibis", "12.0.0"), ("polars", "1.43.2")),
+    fixtures=("ibis-polars",),
+)
 _EVIDENCE_IBIS_SQLITE_CASE_INSENSITIVE = ProbeEvidence(
     probe_date=_SINCE_IBIS_SQLITE_CASE_INSENSITIVE,
     library_versions=(("ibis", "12.0.0"),),
@@ -707,6 +770,12 @@ DECLARATIONS = (
         backend=CONST_BACKEND.NARWHALS, domain=Domain.STRING,
         source=FactSource.SUBSTRAIT, facts=_NARWHALS_ASCII_FOLD_FACTS,
         evidence=_EVIDENCE_ASCII_FOLD,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_POLARS_DYNAMIC_PATTERN_FACTS,
+        evidence=_EVIDENCE_DYNAMIC_PATTERN,
     ),
     CapabilityDeclaration(
         backend=CONST_BACKEND.IBIS, domain=Domain.STRING,

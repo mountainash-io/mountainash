@@ -96,3 +96,25 @@ class TestComposeStringRegexExtended:
         actual = collect_expr(df, expr)
         assert actual[0] == "aXbXcX", f"[{backend_name}] got {actual[0]}"
         assert actual[1] == "no-digits", f"[{backend_name}] got {actual[1]}"
+
+
+# A dynamic (column-valued) pattern on regexp_replace: raw `polars`
+# (and `polars-lazy`) already gates this cleanly via a pre-existing
+# LITERAL_ONLY fact (PL-STR-02, expressions/backends/capabilities/polars.py)
+# and every Narwhals variant already gates it too, so ibis-duckdb/
+# ibis-sqlite are the ONLY backends where a dynamic pattern genuinely honors
+# (verified empirically). ibis-polars is the sole gap this item closes —
+# excluded here and asserted cleanly gated instead; see
+# test_string.py::TestDynamicPatternIbisPolarsGate.
+_REGEXP_REPLACE_DYNAMIC_HONORING = ["ibis-duckdb", "ibis-sqlite"]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _REGEXP_REPLACE_DYNAMIC_HONORING)
+def test_regexp_replace_dynamic_operand(backend_name, backend_factory, collect_expr):
+    """Pattern varies per row (proving per-row evaluation, not a fixed
+    value baked in at build time)."""
+    data = {"text": ["hello 123", "foo bar"], "pattern": [r"\d+", r"bar"]}
+    df = backend_factory.create(data, backend_name)
+    expr = ma.col("text").str.regexp_replace(ma.col("pattern"), "NUM")
+    assert collect_expr(df, expr) == ["hello NUM", "foo NUM"], f"[{backend_name}]"

@@ -1,7 +1,7 @@
 {
   "stamp": {
-    "declarations": 34,
-    "facts": 1497,
+    "declarations": 35,
+    "facts": 1500,
     "operations": 324,
     "implementation_records": 972
   },
@@ -48,21 +48,21 @@
     "ops_total": 324,
     "facts_by_level": {
       "expr_capable": 155,
-      "literal_only": 57,
+      "literal_only": 60,
       "polymorphic": 9,
       "unsupported": 1276
     },
     "facts_by_enforcement": {
-      "gate": 1491,
+      "gate": 1494,
       "router_metadata": 3,
       "materialize_residue": 3
     },
     "facts_by_backend": {
       "polars": 257,
       "narwhals": 639,
-      "ibis": 601
+      "ibis": 604
     },
-    "facts_total": 1497
+    "facts_total": 1500
   },
   "families": [
     {
@@ -33483,10 +33483,10 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 1,
+                "params": 2,
                 "option_selectors": 2,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -33549,6 +33549,22 @@
                   "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
                   "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-polars",
+                  "param": "substring",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
+                  "workaround": "Use a literal string pattern instead of a column reference",
+                  "upstream_ref": "PL-STR-01",
                   "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
@@ -38278,10 +38294,10 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 5,
+                "params": 6,
                 "option_selectors": 6,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -38537,6 +38553,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-polars",
+                  "param": "pattern",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
+                  "workaround": "Use a literal string pattern instead of a column reference",
+                  "upstream_ref": "PL-STR-02",
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -40491,10 +40523,10 @@
               "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 1,
+                "params": 2,
                 "option_selectors": 2,
                 "value_classes": 0,
-                "dialects": 1
+                "dialects": 2
               },
               "constraints": [
                 {
@@ -40557,6 +40589,22 @@
                   "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
                   "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-polars",
+                  "param": "substring",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "literal_only",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
+                  "workaround": "Use a literal string pattern instead of a column reference",
+                  "upstream_ref": "PL-STR-02",
                   "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
@@ -55381,6 +55429,77 @@
           "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
           "workaround": null,
           "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
+    },
+    {
+      "backend": "ibis",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-12",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "polars",
+            "1.43.2"
+          ]
+        ],
+        "fixtures": [
+          "ibis-polars"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": "ibis-polars",
+          "param": "pattern",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
+          "workaround": "Use a literal string pattern instead of a column reference",
+          "upstream_ref": "PL-STR-02",
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "substring",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
+          "workaround": "Use a literal string pattern instead of a column reference",
+          "upstream_ref": "PL-STR-01",
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "substring",
+          "option_value": null,
+          "value_class": null,
+          "level": "literal_only",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars compiles this to Polars' native str.replace()/str.replace_all(), which does not support a dynamic (column-valued) pattern argument (tracked upstream as PL-STR-01/PL-STR-02 for the raw polars backend; see backlog item 81)",
+          "workaround": "Use a literal string pattern instead of a column reference",
+          "upstream_ref": "PL-STR-02",
           "since": "2026-08-12",
           "native_errors": [],
           "probe_exempt": null
