@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 36 · Facts: 1503 · Registered operations: 324 · Implementation records: 972
+Declarations: 39 · Facts: 1509 · Registered operations: 324 · Implementation records: 972
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -51,7 +51,7 @@ Legend — cell states (by exception):
 | Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |
 | --- | --- | --- | --- | --- | --- | --- |
 | polars | 199 | 75 | 50 | 0 | 0 | 324 |
-| narwhals | 97 | 152 | 75 | 0 | 0 | 324 |
+| narwhals | 97 | 151 | 76 | 0 | 0 | 324 |
 | ibis | 138 | 114 | 72 | 0 | 0 | 324 |
 
 contradictions: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 155, literal_only 62, polymorphic 9, unsupported 1277 |
-| Enforcement | gate 1497, router_metadata 3, materialize_residue 3 |
-| Backend | polars 257, narwhals 639, ibis 607 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1286 |
+| Enforcement | gate 1503, router_metadata 3, materialize_residue 3 |
+| Backend | polars 258, narwhals 642, ibis 609 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -86,6 +86,7 @@ audited_unknown: 0
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars, ibis-duckdb, ibis-sqlite |
+| ibis | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-07-05 |  |  |
 | narwhals | mountainash | datetime | 2026-07-24 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -100,6 +101,7 @@ audited_unknown: 0
 | narwhals | substrait | string | 2026-07-05 | narwhals 2.19.0 |  |
 | narwhals | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
+| narwhals | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | polars | mountainash | relation | 2026-07-05 |  |  |
 | polars | mountainash | set | — | — | — |
 | polars | mountainash | ternary | — | — | — |
@@ -107,6 +109,7 @@ audited_unknown: 0
 | polars | substrait | string | 2026-07-05 |  | polars |
 | polars | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
+| polars | substrait | string | 2026-08-13 | polars 1.43.2 | polars |
 
 ## Per-family coverage
 
@@ -351,7 +354,7 @@ audited_unknown: 0
 | `REGEXP_MATCH` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_MATCH_ALL` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
 | `REGEXP_REPLACE` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_SPLIT` | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_SPLIT` | ◐ partial (4 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (3 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 4 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ✓ dialect-verified: ibis-duckdb |
 | `REGEXP_STRPOS` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
 | `REPEAT` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ✓ audited |
 | `REPLACE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
@@ -360,7 +363,7 @@ audited_unknown: 0
 | `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
 | `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `SPLIT` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `SPLIT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 | `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
 | `STRPOS` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
@@ -468,6 +471,12 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
+### `REGEXP_SPLIT` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | Narwhals has no regex-split primitive at the pinned version -- ExprStringNamespace.split(by) is literal-substring-only, no other method performs regex splitting on any narwhals dialect | Use a Polars or ibis-duckdb/ibis-polars(literal) backend for regex split | NW-STR-20 | 2026-08-13 | — | whole-op gate on a family-wide WILDCARD_PARAM fact; no OpSpec exists since narwhals genuinely has no candidate method to probe -- verified by a dedicated native-API-surface self-healing probe (not a re-invocation of the mountainash wrapper's own hard-coded raise) |
+
 ### `SWAPCASE` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
@@ -542,6 +551,7 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 | MA-REL-02 | semantics | pandas, narwhals-pandas | — | horizontal greatest()/least() produce diverging values on pandas and narwhals-pandas (pandas element-wise max/min semantics differ from polars/ibis) | Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree | Use a polars or ibis backend for horizontal greatest/least | — | 2026-08-06 |
 | MA-STR-01 | engine_leniency | pandas, ibis-polars | `CONTAINS` | str.contains with a columnar (per-row) literal pattern is unsupported on pandas (enriched BackendCapabilityError, not registry-resolvable) and ibis-polars (UnsupportedArgumentError) | col.str.contains(other_col) raises on pandas and ibis-polars; polars and ibis-duckdb/ibis-sqlite compute the per-row substring test | Use a polars or ibis SQL backend for columnar substring patterns | — | 2026-08-06 |
 | MA-STR-02 | engine_leniency | pandas, narwhals, ibis-polars | `CENTER` | str.center(width, char) is unsupported on pandas/narwhals (enriched BackendCapabilityError — padding option not honorable) and ibis-polars (UnsupportedArgumentError — columnar length argument) | ma.col(x).str.center(...) raises on pandas, all narwhals backends, and ibis-polars; polars and ibis-duckdb/ibis-sqlite compute it | Use a polars or ibis SQL backend for str.center() | — | 2026-08-06 |
+| MA-STR-03 | engine_leniency | polars | `REGEXP_SPLIT` | regexp_string_split on an empty or zero-width-capable regex pattern diverges from the ibis-duckdb oracle — Polars has no native regex-split primitive, so mountainash falls back to a Python re.finditer-based split, which consolidates zero-width matches differently than DuckDB's regex engine | regexp_string_split('') or a zero-width-capable pattern like 'a*' returns extra leading/trailing empty-string elements on polars that ibis-duckdb's native re_split does not produce; ordinary (non-degenerate) patterns are unaffected | Use an ibis-duckdb backend for regexp_string_split with an empty or zero-width-capable pattern | MA-STR-03 | 2026-08-13 |
 | MA-TERN-01 | engine_leniency | polars, pandas, narwhals-pandas | — | a ternary comparison with a fill_null operand and booleanizer=None raises on polars/polars-lazy (SchemaError: expected Boolean got i64) and pandas/narwhals-pandas (TypeError: Boolean array expected) | t_gt(col.fill_null(0)) with booleanizer=None raises on polars/polars-lazy and pandas/narwhals-pandas; narwhals-polars/narwhals-lazy and ibis compute it | Pass an explicit booleanizer, or use narwhals-polars/ibis backends | — | 2026-08-06 |
 | MA-TYPE-01 | type_inference | ibis-duckdb, ibis-polars, ibis-sqlite | — | Typed all-NULL columns lose their declared dtype through to_polars()'s pandas bridge | Ibis-backed materialization reports String or Float64 instead of the declared dtype | Re-cast after materialization or inspect the pre-materialization Ibis schema | MA-TYPE-01 | 2026-07-05 |
 | MA-TYPE-02 | semantics | pandas, narwhals-pandas | `CAST` | All-NULL casts to non-nullable numpy int64/bool raise or corrupt nulls | Pandas-backed integer casts raise and boolean casts can map None to False | Use polars, narwhals-polars, narwhals-lazy, or an Ibis backend | MA-TYPE-02 | 2026-07-05 |

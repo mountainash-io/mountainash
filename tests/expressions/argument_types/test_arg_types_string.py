@@ -23,6 +23,7 @@ from expressions.argument_types.option_disposition import (
     param_taxonomy,
 )
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.capabilities.schema import WILDCARD_PARAM
 from mountainash.expressions.backends.capabilities.string import (
     BROKEN_STRING_OPS_BY_BACKEND,
 )
@@ -808,9 +809,18 @@ _REGEXP_UNSUPPORTED_OPS = frozenset(
         "regexp_count_substring",
     }
 )
+# Narwhals-only whole-op gate (backlog item 85, NW-STR-20) -- unlike
+# _REGEXP_UNSUPPORTED_OPS above (unsupported on every non-polars backend
+# uniformly), regexp_string_split works correctly on ibis-duckdb and on
+# ibis-polars for a literal pattern (which this 4-backend matrix's "ibis"
+# identity, mapped to ibis-duckdb only, exercises) -- only Narwhals has no
+# regex-split primitive at all.
+_REGEXP_UNSUPPORTED_NARWHALS_ONLY_OPS = frozenset({"regexp_string_split"})
 
 
 def _regexp_operation_unsupported(op: str, backend: str) -> bool:
+    if op in _REGEXP_UNSUPPORTED_NARWHALS_ONLY_OPS:
+        return backend in ("narwhals-polars", "narwhals-pandas")
     return op in _REGEXP_UNSUPPORTED_OPS and backend != "polars"
 
 
@@ -898,17 +908,21 @@ def test_default_regexp_flag_matches_omission(param, op, backend):
     if _regexp_operation_unsupported(op, backend):
         # Both builds emit the default enum value, whose dialect-scoped option
         # fact now blocks dispatch before the unavailable backend method runs.
+        # regexp_string_split on narwhals (backlog item 85, NW-STR-20) is a
+        # WHOLE-OP WILDCARD_PARAM gate rather than a flag-option-level one
+        # (the other 3 ops in _REGEXP_UNSUPPORTED_OPS) -- accommodate both.
         for expression in (spec.build_expr(), spec.reference_expr()):
             with pytest.raises(BackendCapabilityError) as exc_info:
                 option_result(df, expression, backend)
             limitation = exc_info.value.limitation
             assert limitation is not None
             assert limitation.operation_key is spec.fkey
-            assert limitation.param in _REGEXP_FLAG_FKEYS
-            assert (
-                limitation.option_value
-                == _REGEXP_FLAG_DEFAULTS[limitation.param]
-            )
+            assert limitation.param in _REGEXP_FLAG_FKEYS or limitation.param == WILDCARD_PARAM
+            if limitation.param != WILDCARD_PARAM:
+                assert (
+                    limitation.option_value
+                    == _REGEXP_FLAG_DEFAULTS[limitation.param]
+                )
             assert limitation.level.name == "UNSUPPORTED"
         return
 

@@ -92,6 +92,23 @@ _REGEXP_UNSUPPORTED_OPS = frozenset(
         "regexp_count_substring",
     }
 )
+# regexp_string_split (backlog item 85, NW-STR-20) is different from the
+# 3 ops above: it works on ibis-duckdb and ibis-polars(literal) via
+# re_split, and is unsupported ONLY on Narwhals (no regex-split primitive
+# at all), not uniformly on every non-Polars backend.
+_REGEXP_UNSUPPORTED_OPS_NARWHALS_ONLY = frozenset({"regexp_string_split"})
+
+
+def _regexp_op_unsupported_for_backend(op: str, backend: CONST_BACKEND) -> bool:
+    """True when op's whole capability is unavailable on this backend
+    family, uniformly regardless of flag value -- drives regexp flag
+    default/enabled fact generation in _dialect_facts()/_positional_facts()/
+    _IBIS_FAMILY_DEFAULTS."""
+    if op in _REGEXP_UNSUPPORTED_OPS_NARWHALS_ONLY:
+        return backend is CONST_BACKEND.NARWHALS
+    return op in _REGEXP_UNSUPPORTED_OPS and backend is not CONST_BACKEND.POLARS
+
+
 _POSITIONAL_IGNORED = (
     "The native backend does not honor the regexp position/occurrence/group "
     "option; it is silently ignored rather than applied"
@@ -138,10 +155,7 @@ def _positional_facts(
         for op, operation_key in operations.items():
             if (op, param, backend) in _POSITIONAL_HONORED:
                 continue
-            op_unavailable = (
-                op in _REGEXP_UNSUPPORTED_OPS
-                and backend is not CONST_BACKEND.POLARS
-            )
+            op_unavailable = _regexp_op_unsupported_for_backend(op, backend)
             message = (
                 _REGEXP_OPERATION_UNAVAILABLE
                 if op_unavailable
@@ -355,23 +369,20 @@ def _dialect_facts(
             option_value=values[0],
             level=(
                 CapabilityLevel.UNSUPPORTED
-                if op in _REGEXP_UNSUPPORTED_OPS
-                and backend is not CONST_BACKEND.POLARS
+                if _regexp_op_unsupported_for_backend(op, backend)
                 else CapabilityLevel.EXPR_CAPABLE
             ),
             backend=backend,
             dialect=dialect,
             message=(
                 _REGEXP_OPERATION_UNAVAILABLE
-                if op in _REGEXP_UNSUPPORTED_OPS
-                and backend is not CONST_BACKEND.POLARS
+                if _regexp_op_unsupported_for_backend(op, backend)
                 else _REGEXP_FLAG_DEFAULT_EQUIVALENT
             ),
             since=_SINCE,
             probe_exempt=(
                 None
-                if op in _REGEXP_UNSUPPORTED_OPS
-                and backend is not CONST_BACKEND.POLARS
+                if _regexp_op_unsupported_for_backend(op, backend)
                 else _REGEXP_FLAG_DEFAULT_EQUIVALENT
             ),
         )
@@ -825,6 +836,125 @@ _EVIDENCE_RAW_ERROR_LEAKS = ProbeEvidence(
     library_versions=(("ibis", "12.0.0"), ("polars", "1.43.2")),
     fixtures=("ibis-polars", "ibis-duckdb", "ibis-sqlite"),
 )
+# ---------------------------------------------------------------------------
+# regexp_string_split silent no-op on every backend + narwhals plain
+# string_split silent no-op (backlog items 85/86, 2026-08-13). Distinct
+# constant names from the item-83 `_IBIS_POLARS_REGEXP_SPLIT_*` block above
+# deliberately -- that block describes REGEXP_MATCH/SPLIT dynamic-pattern
+# gates, NOT FK_STR.REGEXP_SPLIT (this function key) -- reusing the name
+# would compound an existing naming collision, not resolve it.
+# ---------------------------------------------------------------------------
+_SINCE_SPLIT_FAMILY = "2026-08-13"
+_IBIS_SQLITE_REGEXP_STRING_SPLIT_UNSUPPORTED = (
+    "ibis-sqlite has no compilation rule for RegexSplit "
+    "(OperationNotDefinedError) for any pattern, literal or dynamic; "
+    "ibis-duckdb translates it to native SQL correctly and ibis-polars "
+    "supports a literal pattern"
+)
+_IBIS_SQLITE_REGEXP_STRING_SPLIT_EXEMPTION = (
+    "whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed "
+    "on an OpSpec param -- verified by a dedicated cross-backend gate test "
+    "plus the native-bypass self-healing probe in "
+    "test_op_level_gate_probes.py, mirroring item 83's "
+    "TestLikeIbisPolarsGate / test_like_ibis_polars_native_still_broken"
+)
+_IBIS_SQLITE_REGEXP_STRING_SPLIT_FACTS = (
+    CapabilityFact(
+        operation_key=FK_STR.REGEXP_SPLIT,
+        param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-sqlite",
+        message=_IBIS_SQLITE_REGEXP_STRING_SPLIT_UNSUPPORTED,
+        workaround="Use ibis-duckdb, ibis-polars with a literal pattern, or "
+            "a Polars backend for regex split",
+        since=_SINCE_SPLIT_FAMILY,
+        upstream_ref="IB-STR-12",
+        probe_exempt=_IBIS_SQLITE_REGEXP_STRING_SPLIT_EXEMPTION,
+    ),
+)
+_IBIS_POLARS_REGEXP_STRING_SPLIT_DYNAMIC_FACTS = (
+    CapabilityFact(
+        operation_key=FK_STR.REGEXP_SPLIT,
+        param="pattern",
+        level=CapabilityLevel.LITERAL_ONLY,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message="ibis-polars compiles regexp_string_split to Polars' "
+            "native re_split, which raises Ibis's own IbisError for a "
+            "dynamic (column-valued) pattern; a literal pattern works fine",
+        workaround="Use a literal string pattern instead of a column reference",
+        since=_SINCE_SPLIT_FAMILY,
+        upstream_ref="IB-STR-13",
+    ),
+)
+_NARWHALS_REGEXP_STRING_SPLIT_FACTS = (
+    CapabilityFact(
+        operation_key=FK_STR.REGEXP_SPLIT,
+        param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.NARWHALS,
+        dialect=None,
+        message="Narwhals has no regex-split primitive at the pinned "
+            "version -- ExprStringNamespace.split(by) is literal-substring-"
+            "only, no other method performs regex splitting on any "
+            "narwhals dialect",
+        workaround="Use a Polars or ibis-duckdb/ibis-polars(literal) "
+            "backend for regex split",
+        since=_SINCE_SPLIT_FAMILY,
+        upstream_ref="NW-STR-20",
+        probe_exempt="whole-op gate on a family-wide WILDCARD_PARAM fact; "
+            "no OpSpec exists since narwhals genuinely has no candidate "
+            "method to probe -- verified by a dedicated native-API-surface "
+            "self-healing probe (not a re-invocation of the mountainash "
+            "wrapper's own hard-coded raise)",
+    ),
+)
+_NARWHALS_STRING_SPLIT_DYNAMIC_FACTS = (
+    CapabilityFact(
+        operation_key=FK_STR.SPLIT, param="separator",
+        level=CapabilityLevel.LITERAL_ONLY,
+        backend=CONST_BACKEND.NARWHALS,
+        dialect=None,
+        message="Narwhals str.split() requires a literal separator "
+            "string, not an Expr -- raises TypeError even for an "
+            "Expr-wrapped literal",
+        workaround="Use a literal separator string",
+        since=_SINCE_SPLIT_FAMILY,
+        upstream_ref="NW-STR-21",
+    ),
+)
+_NARWHALS_PANDAS_STRING_SPLIT_UNSUPPORTED = (
+    "narwhals-pandas' str.split() requires a pyarrow-backed pandas series "
+    "(raises TypeError: 'This operation requires a pyarrow-backed series') "
+    "-- the plain numpy-backed pandas DataFrame mountainash's narwhals-pandas "
+    "backend is constructed from fails for any separator, literal or dynamic; "
+    "narwhals-polars works correctly for a literal separator"
+)
+_NARWHALS_PANDAS_STRING_SPLIT_FACTS = (
+    CapabilityFact(
+        operation_key=FK_STR.SPLIT,
+        param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.NARWHALS,
+        dialect="narwhals-pandas",
+        message=_NARWHALS_PANDAS_STRING_SPLIT_UNSUPPORTED,
+        workaround="Use a narwhals-polars, Polars, or Ibis backend for string_split",
+        since=_SINCE_SPLIT_FAMILY,
+        upstream_ref="NW-STR-22",
+        probe_exempt="whole-op gate on a dialect-scoped WILDCARD_PARAM fact; "
+            "narwhals-pandas' own pyarrow-backend requirement is a "
+            "structural constraint of the standard (non-pyarrow) pandas "
+            "fixture mountainash constructs, not a per-argument literal-"
+            "vs-dynamic distinction an OpSpec probe could discriminate",
+    ),
+)
+_EVIDENCE_SPLIT_FAMILY = ProbeEvidence(
+    probe_date=_SINCE_SPLIT_FAMILY,
+    library_versions=(("ibis", "12.0.0"), ("polars", "1.43.2"), ("narwhals", "2.24.0")),
+    fixtures=("ibis-duckdb", "ibis-polars", "ibis-sqlite", "narwhals-polars", "narwhals-pandas"),
+)
+
 
 DECLARATIONS = (
     CapabilityDeclaration(
@@ -879,5 +1009,20 @@ DECLARATIONS = (
         source=FactSource.SUBSTRAIT,
         facts=_IBIS_POLARS_RAW_ERROR_LEAKS_FACTS,
         evidence=_EVIDENCE_RAW_ERROR_LEAKS,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=_IBIS_SQLITE_REGEXP_STRING_SPLIT_FACTS
+        + _IBIS_POLARS_REGEXP_STRING_SPLIT_DYNAMIC_FACTS,
+        evidence=_EVIDENCE_SPLIT_FAMILY,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=_NARWHALS_REGEXP_STRING_SPLIT_FACTS
+        + _NARWHALS_STRING_SPLIT_DYNAMIC_FACTS
+        + _NARWHALS_PANDAS_STRING_SPLIT_FACTS,
+        evidence=_EVIDENCE_SPLIT_FAMILY,
     ),
 )

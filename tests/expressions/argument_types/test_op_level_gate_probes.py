@@ -87,3 +87,94 @@ def test_like_ibis_polars_native_still_broken():
     compiled = visitor.visit(ma.col("text").str.like("J%")._node)
     with pytest.raises(ibis.common.exceptions.OperationNotDefinedError):
         _materialize_result(df, compiled, "ibis-polars")
+
+
+def test_regexp_string_split_ibis_sqlite_native_still_broken():
+    """Dialect-scoped whole-op gate (backlog item 85) — mirrors
+    test_like_ibis_polars_native_still_broken exactly. If upstream ever
+    ships a RegexSplit compilation rule for ibis-sqlite, this test fails
+    outright — a loud signal to revisit the gate."""
+    import ibis
+    from mountainash.expressions.core.expression_system.expsys_base import (
+        get_expression_system,
+    )
+    from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+
+    # make_df() (expressions.argument_types.conftest) and
+    # _materialize_result() (_test_template.py) have no ibis-sqlite entry --
+    # constructed/materialized directly here, mirroring backend_registry.py's
+    # _build_ibis_sqlite and _materialize_result's ibis/ibis-polars branch.
+    connection = ibis.sqlite.connect(":memory:")
+    df = connection.create_table("option_test", {"text": ["a1b"]}, overwrite=True)
+    system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-sqlite")
+    visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False)
+    compiled = visitor.visit(ma.col("text").str.regexp_string_split(r"\d+")._node)
+    with pytest.raises(ibis.common.exceptions.OperationNotDefinedError):
+        df.select(compiled.name("__result__")).execute()
+
+
+def test_regexp_string_split_ibis_polars_dynamic_pattern_native_still_broken():
+    """Dialect-scoped LITERAL_ONLY gate (backlog item 85) — a dynamic
+    (column-valued) pattern raises Ibis's own IbisError before ever
+    reaching Polars. If upstream ever accepts a dynamic pattern for
+    Polars re_split, this test fails outright.
+
+    Uses 3 non-uniform rows deliberately: a single-row "column" degenerates
+    to something ibis-polars' query optimizer treats as effectively scalar
+    and silently succeeds instead of raising (verified empirically,
+    2026-08-13) -- multiple, non-uniform rows are required to genuinely
+    exercise the dynamic-argument rejection."""
+    import ibis
+    from expressions.argument_types._test_template import _materialize_result
+    from mountainash.expressions.core.expression_system.expsys_base import (
+        get_expression_system,
+    )
+    from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+
+    df = make_df(
+        {"text": ["a1b", "c2d", "e3f"], "pattern": [r"\d+", r"[a-z]", r"\d"]},
+        "ibis-polars",
+    )
+    system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-polars")
+    visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False)
+    compiled = visitor.visit(
+        ma.col("text").str.regexp_string_split(ma.col("pattern"))._node
+    )
+    with pytest.raises(ibis.common.exceptions.IbisError):
+        _materialize_result(df, compiled, "ibis-polars")
+
+
+def test_narwhals_regexp_split_native_still_absent():
+    """Family-wide whole-op gate (backlog item 85) — probes the RAW
+    narwhals API surface directly, not mountainash's own defensive raise
+    (which always fires regardless of narwhals' actual capability and so
+    cannot self-heal). Two structural checks: (1) no method on
+    ExprStringNamespace performs regex splitting, (2) split() has no
+    regex-mode parameter (e.g. a `literal=` kwarg mirroring
+    replace_all/contains). If narwhals ever adds either, this test fails
+    outright -- a loud signal to revisit the gate and implement a real fix."""
+    import inspect
+
+    import narwhals as nw
+    from narwhals.expr_str import ExprStringNamespace
+
+    public_methods = [
+        name for name in dir(ExprStringNamespace) if not name.startswith("_")
+    ]
+    regex_split_candidates = [
+        name for name in public_methods
+        if name != "split" and ("split" in name.lower() or "regex" in name.lower())
+    ]
+    assert not regex_split_candidates, (
+        f"narwhals gained a candidate regex-split method: {regex_split_candidates} "
+        "-- revisit the NW-STR-20 whole-op gate"
+    )
+
+    split_params = inspect.signature(ExprStringNamespace.split).parameters
+    assert "literal" not in split_params and "regex" not in split_params, (
+        "narwhals's str.split() gained a literal/regex-mode parameter -- "
+        "revisit the NW-STR-20 whole-op gate"
+    )
+
+    with pytest.raises(TypeError):
+        nw.col("text").str.split("1", literal=False)  # type: ignore[call-arg]

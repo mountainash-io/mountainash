@@ -119,10 +119,33 @@ _EVIDENCE = ProbeEvidence(
 )
 
 
+_REGEXP_SPLIT_FACT = CapabilityFact(
+    operation_key=FK_STR.REGEXP_SPLIT, param="pattern",
+    level=CapabilityLevel.LITERAL_ONLY,
+    backend=CONST_BACKEND.POLARS,
+    message="Polars regexp_string_split requires a literal pattern -- the "
+        "map_elements fallback binds pattern as a Python closure value, "
+        "not a column expression",
+    workaround="Use a literal string regex pattern",
+    since="2026-08-13",
+    upstream_ref="PL-STR-04",
+)
+
+_EVIDENCE_REGEXP_SPLIT = ProbeEvidence(
+    probe_date="2026-08-13",
+    library_versions=(("polars", "1.43.2"),),
+    fixtures=("polars",),
+)
+
 DECLARATIONS = (
     CapabilityDeclaration(
         backend=CONST_BACKEND.POLARS, domain=Domain.STRING,
         source=FactSource.SUBSTRAIT, facts=POLARS_EXPR_CAPABILITIES,
         evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.POLARS, domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT, facts=(_REGEXP_SPLIT_FACT,),
+        evidence=_EVIDENCE_REGEXP_SPLIT,
     ),
 )

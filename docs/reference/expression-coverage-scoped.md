@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 36 · Facts: 1503 · Registered operations: 324 · Implementation records: 972
+Declarations: 39 · Facts: 1509 · Registered operations: 324 · Implementation records: 972
 
 Legend — scoped deviations:
 
@@ -1519,6 +1519,7 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | pattern | — | — | literal_only | gate | build | — | Polars regexp_string_split requires a literal pattern -- the map_elements fallback binds pattern as a Python closure value, not a column expression | Use a literal string regex pattern | PL-STR-04 | 2026-08-13 | — | — |
 | polars | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
 | polars | case_sensitivity | CASE_INSENSITIVE_ASCII | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics | — | — | 2026-08-12 | — | — |
 | polars | case_sensitivity | CASE_SENSITIVE | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
@@ -1533,20 +1534,26 @@ Legend — scoped deviations:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | narwhals-pandas | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
 | narwhals-pandas | case_sensitivity | CASE_INSENSITIVE_ASCII | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics | — | — | 2026-08-12 | — | — |
-| narwhals-pandas | case_sensitivity | CASE_SENSITIVE | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
-| narwhals-pandas | dotall | DOTALL_DISABLED | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
+| narwhals-pandas | case_sensitivity | CASE_SENSITIVE | — | unsupported | gate | build | — | The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored | — | — | 2026-07-23 | — | — |
+| narwhals-pandas | dotall | DOTALL_DISABLED | — | unsupported | gate | build | — | The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored | — | — | 2026-07-23 | — | — |
 | narwhals-pandas | dotall | DOTALL_ENABLED | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
-| narwhals-pandas | multiline | MULTILINE_DISABLED | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
+| narwhals-pandas | multiline | MULTILINE_DISABLED | — | unsupported | gate | build | — | The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored | — | — | 2026-07-23 | — | — |
 | narwhals-pandas | multiline | MULTILINE_ENABLED | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
 | narwhals-polars | case_sensitivity | CASE_INSENSITIVE | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
 | narwhals-polars | case_sensitivity | CASE_INSENSITIVE_ASCII | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics | — | — | 2026-08-12 | — | — |
-| narwhals-polars | case_sensitivity | CASE_SENSITIVE | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
-| narwhals-polars | dotall | DOTALL_DISABLED | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
+| narwhals-polars | case_sensitivity | CASE_SENSITIVE | — | unsupported | gate | build | — | The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored | — | — | 2026-07-23 | — | — |
+| narwhals-polars | dotall | DOTALL_DISABLED | — | unsupported | gate | build | — | The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored | — | — | 2026-07-23 | — | — |
 | narwhals-polars | dotall | DOTALL_ENABLED | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
-| narwhals-polars | multiline | MULTILINE_DISABLED | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
+| narwhals-polars | multiline | MULTILINE_DISABLED | — | unsupported | gate | build | — | The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored | — | — | 2026-07-23 | — | — |
 | narwhals-polars | multiline | MULTILINE_ENABLED | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
 
 ### `REGEXP_SPLIT` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | * | — | — | unsupported | gate | build | — | ibis-sqlite has no compilation rule for RegexSplit (OperationNotDefinedError) for any pattern, literal or dynamic; ibis-duckdb translates it to native SQL correctly and ibis-polars supports a literal pattern | Use ibis-duckdb, ibis-polars with a literal pattern, or a Polars backend for regex split | IB-STR-12 | 2026-08-13 | — | whole-op gate on a dialect-scoped WILDCARD_PARAM fact; cannot be keyed on an OpSpec param -- verified by a dedicated cross-backend gate test plus the native-bypass self-healing probe in test_op_level_gate_probes.py, mirroring item 83's TestLikeIbisPolarsGate / test_like_ibis_polars_native_still_broken |
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -1561,6 +1568,7 @@ Legend — scoped deviations:
 | ibis-duckdb | dotall | DOTALL_ENABLED | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
 | ibis-duckdb | multiline | MULTILINE_DISABLED | — | expr_capable | gate | build | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate | — | — | 2026-07-23 | — | The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate |
 | ibis-duckdb | multiline | MULTILINE_ENABLED | — | unsupported | gate | build | — | The native backend does not implement this regexp flag's non-default Substrait semantics | — | — | 2026-07-23 | — | — |
+| ibis-polars | pattern | — | — | literal_only | gate | build | — | ibis-polars compiles regexp_string_split to Polars' native re_split, which raises Ibis's own IbisError for a dynamic (column-valued) pattern; a literal pattern works fine | Use a literal string pattern instead of a column reference | IB-STR-13 | 2026-08-13 | — | — |
 
 ### `REGEXP_STRPOS` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 
@@ -1719,6 +1727,18 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | characters | — | — | literal_only | gate | build | — | Ibis has no native equivalent; mountainash composes this operation from literal parameters — dynamic column parameters are unsupported | Use a literal value, or the polars backend | — | 2026-07-05 | — | dynamic arg silently miscompiles via str(Expr) into a no-op char-class, returning the input unchanged rather than raising — cannot be confirmed by an exception-based probe |
+
+### `SPLIT` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-pandas | * | — | — | unsupported | gate | build | — | narwhals-pandas' str.split() requires a pyarrow-backed pandas series (raises TypeError: 'This operation requires a pyarrow-backed series') -- the plain numpy-backed pandas DataFrame mountainash's narwhals-pandas backend is constructed from fails for any separator, literal or dynamic; narwhals-polars works correctly for a literal separator | Use a narwhals-polars, Polars, or Ibis backend for string_split | NW-STR-22 | 2026-08-13 | — | whole-op gate on a dialect-scoped WILDCARD_PARAM fact; narwhals-pandas' own pyarrow-backend requirement is a structural constraint of the standard (non-pyarrow) pandas fixture mountainash constructs, not a per-argument literal-vs-dynamic distinction an OpSpec probe could discriminate |
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | separator | — | — | literal_only | gate | build | — | Narwhals str.split() requires a literal separator string, not an Expr -- raises TypeError even for an Expr-wrapped literal | Use a literal separator string | NW-STR-21 | 2026-08-13 | — | — |
 
 ### `SPLIT` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
 

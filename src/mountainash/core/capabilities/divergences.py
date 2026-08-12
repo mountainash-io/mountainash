@@ -966,6 +966,17 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-12",
         ),
+        DivergenceFact(
+            id="MA-STR-03",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(FK_STR.REGEXP_SPLIT,),
+            backends=("polars",),
+            summary="regexp_string_split on an empty or zero-width-capable regex pattern diverges from the ibis-duckdb oracle — Polars has no native regex-split primitive, so mountainash falls back to a Python re.finditer-based split, which consolidates zero-width matches differently than DuckDB's regex engine",
+            impact="regexp_string_split('') or a zero-width-capable pattern like 'a*' returns extra leading/trailing empty-string elements on polars that ibis-duckdb's native re_split does not produce; ordinary (non-degenerate) patterns are unaffected",
+            workaround="Use an ibis-duckdb backend for regexp_string_split with an empty or zero-width-capable pattern",
+            upstream_ref="MA-STR-03",
+            since="2026-08-13",
+        ),
     )
 
 

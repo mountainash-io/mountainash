@@ -850,6 +850,161 @@ def test_regexp_strpos_and_count_substring_stay_cleanly_gated_on_ibis_polars(bac
             caught = exc
         assert caught is not None, f"expected BackendCapabilityError for {build}"
 
+# =============================================================================
+# Cross-Backend Tests - regexp_string_split / string_split (backlog items 85/86)
+# =============================================================================
+# regexp_string_split was broken on every backend: Polars called
+# str.split(pattern) (Polars' str.split is literal-substring-only, not a
+# regex primitive) instead of real regex splitting; Ibis was a bare
+# `return input` pass-through on all 3 dialects; Narwhals was also a bare
+# pass-through, and narwhals has no native regex-split capability at all.
+# narwhals.string_split (item 86, non-regex) was also a bare pass-through
+# despite narwhals genuinely supporting a literal-separator native split.
+
+def test_regexp_string_split_real_output_on_polars(backend_factory, collect_expr):
+    """Polars has no native regex-split primitive — the map_elements
+    fallback must actually split on the regex, not the previous silent
+    literal-split-that-never-matches no-op."""
+    df = backend_factory.create({"text": ["a1b22c", "d333e", "f"]}, "polars")
+    expr = ma.col("text").str.regexp_string_split(r"\d+")
+    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
+
+
+def test_regexp_string_split_excludes_capture_group_text_on_polars(backend_factory, collect_expr):
+    """A pattern with a capturing group must not leak the captured text into
+    the result — the Substrait contract is explicit that matched separators
+    are excluded from the output, unlike bare re.split's default behavior."""
+    df = backend_factory.create({"text": ["a1b22c"]}, "polars")
+    expr = ma.col("text").str.regexp_string_split(r"(\d+)")
+    assert collect_expr(df, expr) == [["a", "b", "c"]]
+
+
+@xfail_divergence("MA-STR-03", backend="polars")
+def test_regexp_string_split_zero_width_pattern_is_documented_divergence_on_polars(backend_factory, collect_expr):
+    """Empty/zero-width-capable patterns diverge from the ibis-duckdb oracle
+    — a genuine engine-consolidation difference between DuckDB's regex
+    engine and Python's re module (not introduced by this fix), documented
+    rather than silently chased for bit-for-bit parity."""
+    df = backend_factory.create({"text": ["ab"]}, "polars")
+    expr = ma.col("text").str.regexp_string_split(r"a*")
+    assert collect_expr(df, expr) == [["", "b"]]
+
+
+def test_regexp_string_split_real_output_on_ibis_duckdb(backend_factory, collect_expr):
+    """ibis-duckdb's native re_split works correctly, literal or dynamic
+    pattern — was previously a silent no-op."""
+    df = backend_factory.create({"text": ["a1b22c", "d333e", "f"]}, "ibis-duckdb")
+    expr = ma.col("text").str.regexp_string_split(r"\d+")
+    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
+
+
+def test_regexp_string_split_literal_pattern_on_ibis_polars(backend_factory, collect_expr):
+    """ibis-polars' re_split works for a literal pattern — was previously a
+    silent no-op; the dynamic-pattern case is gated (see
+    TestRegexpStringSplitGates below)."""
+    df = backend_factory.create({"text": ["a1b22c", "d333e", "f"]}, "ibis-polars")
+    expr = ma.col("text").str.regexp_string_split(r"\d+")
+    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
+
+
+def test_string_split_real_output_on_narwhals_polars(backend_factory, collect_expr):
+    """narwhals's plain (non-regex) string_split has a working native
+    primitive for a literal separator — was previously a silent no-op
+    (backlog item 86). narwhals-pandas is separately gated below: its
+    str.split() requires a pyarrow-backed series the standard (non-pyarrow)
+    pandas fixture doesn't provide."""
+    df = backend_factory.create({"text": ["a,b,c", "d,e", "f"]}, "narwhals-polars")
+    expr = ma.col("text").str.string_split(",")
+    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
+
+
+class TestRegexpStringSplitGates:
+    """Whole-op / literal-only gates for regexp_string_split (backlog item
+    85) and string_split (backlog item 86) — mirrors
+    TestLikeIbisPolarsGate/TestRegexpMatchSplitIbisPolarsGate's gate
+    patterns from item 83. UNSUPPORTED whole-op gates use
+    assert_capability_gated; LITERAL_ONLY per-argument gates use a manual
+    try/except (assert_capability_gated's capability_gate() helper only
+    resolves UNSUPPORTED-level facts, mirroring
+    TestRegexpMatchSplitIbisPolarsGate.test_dynamic_pattern_is_gated_on_ibis_polars)."""
+
+    @pytest.mark.parametrize("pattern_kind", ["literal", "dynamic"])
+    def test_ibis_sqlite_whole_op_gate(self, pattern_kind, backend_factory):
+        """ibis-sqlite has no RegexSplit compilation rule at all — fires for
+        both a literal and a dynamic pattern, unlike the ibis-polars
+        dynamic-only gate below."""
+        df = backend_factory.create({"text": ["a1b"], "pattern": [r"\d+"]}, "ibis-sqlite")
+        pattern = r"\d+" if pattern_kind == "literal" else ma.col("pattern")
+        assert_capability_gated(
+            FK_STR.REGEXP_SPLIT,
+            CONST_BACKEND.IBIS,
+            dialect="ibis-sqlite",
+            build=lambda: ma.col("text").str.regexp_string_split(pattern).compile(df),
+        )
+
+    def test_ibis_polars_dynamic_pattern_gate(self, backend_factory):
+        """ibis-polars supports a literal pattern (see
+        test_regexp_string_split_literal_pattern_on_ibis_polars above) but
+        rejects a dynamic (column-valued) one."""
+        df = backend_factory.create({"text": ["a1b"], "pattern": [r"\d+"]}, "ibis-polars")
+        caught: BackendCapabilityError | None = None
+        try:
+            ma.col("text").str.regexp_string_split(ma.col("pattern")).compile(df)
+        except BackendCapabilityError as exc:
+            caught = exc
+        if caught is None:
+            pytest.fail("expected BackendCapabilityError for regexp_string_split/pattern on ibis-polars")
+        assert caught.function_key == FK_STR.REGEXP_SPLIT
+        assert caught.limitation is not None
+        assert caught.limitation.operation_key == FK_STR.REGEXP_SPLIT
+        assert caught.limitation.param == "pattern"
+        assert caught.limitation.backend is CONST_BACKEND.IBIS
+        assert caught.limitation.dialect == "ibis-polars"
+        assert caught.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+    @pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas"])
+    def test_narwhals_regexp_string_split_whole_op_gate(self, backend_name, backend_factory):
+        """Narwhals has no regex-split primitive at all — gated whole-op,
+        family-wide."""
+        df = backend_factory.create({"text": ["a1b"]}, backend_name)
+        assert_capability_gated(
+            FK_STR.REGEXP_SPLIT,
+            CONST_BACKEND.NARWHALS,
+            build=lambda: ma.col("text").str.regexp_string_split(r"\d+").compile(df),
+        )
+
+    @pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas"])
+    def test_narwhals_string_split_dynamic_separator_gate(self, backend_name, backend_factory):
+        """narwhals's str.split(by) cannot accept an Expr at all — even an
+        Expr-wrapped literal fails, so this fires for a dynamic column too.
+        On narwhals-pandas this is subsumed by the whole-op gate below (both
+        fire, since the dynamic-arg LITERAL_ONLY fact is checked first by
+        the visitor); on narwhals-polars only this LITERAL_ONLY fact applies."""
+        df = backend_factory.create({"text": ["a,b,c"], "sep": [","]}, backend_name)
+        caught: BackendCapabilityError | None = None
+        try:
+            ma.col("text").str.string_split(ma.col("sep")).compile(df)
+        except BackendCapabilityError as exc:
+            caught = exc
+        if caught is None:
+            pytest.fail(f"expected BackendCapabilityError for string_split/separator on {backend_name}")
+        assert caught.function_key == FK_STR.SPLIT
+        assert caught.limitation is not None
+        assert caught.limitation.operation_key == FK_STR.SPLIT
+        assert caught.limitation.backend is CONST_BACKEND.NARWHALS
+
+    def test_narwhals_pandas_string_split_whole_op_gate(self, backend_factory):
+        """narwhals-pandas' str.split() requires a pyarrow-backed series --
+        fails for a literal separator too, unlike narwhals-polars."""
+        df = backend_factory.create({"text": ["a,b,c"]}, "narwhals-pandas")
+        assert_capability_gated(
+            FK_STR.SPLIT,
+            CONST_BACKEND.NARWHALS,
+            dialect="narwhals-pandas",
+            build=lambda: ma.col("text").str.string_split(",").compile(df),
+        )
+
+
 
 # =============================================================================
 # Cross-Backend Tests - String Substring

@@ -941,10 +941,13 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             List of strings.
 
         Note:
-            Narwhals may not have split. Returns input as fallback.
+            separator must be a literal -- gated via a LITERAL_ONLY
+            CapabilityFact (NW-STR-21); narwhals's str.split(by: str)
+            cannot accept an Expr at all, confirmed 2026-08-13 (raises
+            TypeError even for an Expr-wrapped literal, not just a dynamic
+            column reference).
         """
-        # Narwhals doesn't have split - fallback
-        return input
+        return input.str.split(separator)
 
     def regexp_string_split(
         self,
@@ -968,7 +971,16 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             List of strings.
 
         Note:
-            Narwhals doesn't have regex split. Returns input as fallback.
+            Narwhals has no regex-split primitive at the pinned version --
+            gated as a family-wide WILDCARD_PARAM UNSUPPORTED
+            CapabilityFact (NW-STR-20).
         """
-        # Narwhals doesn't have regex split - fallback
-        return input
+        from mountainash.core.types import BackendCapabilityError
+        raise BackendCapabilityError(
+            "Narwhals has no regex-split primitive (str.split is "
+            "literal-only, no method accepts a regex pattern). Use a "
+            "Polars or Ibis backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+        )
+
