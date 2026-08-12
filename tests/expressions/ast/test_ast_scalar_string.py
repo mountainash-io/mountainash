@@ -269,3 +269,21 @@ class TestRegexpPositionalOptionChannel:
         assert len(node.arguments) == 3
         assert node.options.get("position") == 3
         assert node.options.get("occurrence") == 1
+
+
+class TestCaseInsensitiveAsciiOptionShape:
+    """CASE_INSENSITIVE_ASCII reaches the AST as the literal enum string, not
+    a boolean-coerced value (backlog item 75) -- covers one real op (contains)
+    and one raise-path op (like), per the design spec's AST-shape assertion."""
+
+    def test_contains_case_insensitive_ascii(self):
+        node = ma.col("x").str.contains("y", case_sensitive="CASE_INSENSITIVE_ASCII")._node
+        assert isinstance(node, ScalarFunctionNode)
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS
+        assert node.options["case_sensitivity"] == "CASE_INSENSITIVE_ASCII"
+
+    def test_like_case_insensitive_ascii(self):
+        node = ma.col("x").str.like("y%", case_sensitive="CASE_INSENSITIVE_ASCII")._node
+        assert isinstance(node, ScalarFunctionNode)
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_STRING.LIKE
+        assert node.options["case_sensitivity"] == "CASE_INSENSITIVE_ASCII"

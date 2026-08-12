@@ -956,6 +956,27 @@ def _all() -> tuple[DivergenceFact, ...]:
             upstream_ref=None,
             since="2026-08-06",
         ),
+        DivergenceFact(
+            id="NW-STR-19",
+            kind=DivergenceKind.SEMANTICS,
+            operation_keys=(FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH),
+            backends=("pandas", "narwhals-pandas"),
+            summary="contains()/starts_with()/ends_with() on a null INPUT row (not a null "
+                    "search operand) returns False on pandas/narwhals-pandas instead of "
+                    "propagating null: plain-numpy-backed pandas boolean columns have no "
+                    "null representation, and forcing one via nw.when/then/otherwise "
+                    "produces an object-dtype column of Python bool objects, which breaks "
+                    "`~` elsewhere (bitwise-NOT on bool is not logical negation)",
+            impact="a null row in the searched column silently yields False rather than "
+                    "null on pandas/narwhals-pandas for contains/starts_with/ends_with; "
+                    "every other backend (polars, ibis, narwhals-polars, narwhals-lazy) "
+                    "propagates null correctly",
+            workaround="Use a polars, narwhals-polars, narwhals-lazy, or ibis backend "
+                       "where a null row must propagate through contains/starts_with/"
+                       "ends_with",
+            upstream_ref=None,
+            since="2026-08-12",
+        ),
     )
 
 

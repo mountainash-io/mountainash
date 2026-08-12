@@ -33,6 +33,29 @@ def _pl_concat_fold(sep: "PolarsExpr", inputs: "tuple[PolarsExpr, ...]") -> "Pol
     return text_acc
 
 
+_ASCII_UPPER = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+_ASCII_LOWER = list("abcdefghijklmnopqrstuvwxyz")
+
+
+def _pl_fold(expr: "PolarsExpr", case_sensitivity: Any) -> "PolarsExpr":
+    """Apply the fold a case_sensitivity option value implies. CASE_SENSITIVE
+    (and any other/omitted value) leaves expr unchanged; CASE_INSENSITIVE
+    applies full Unicode lowercasing; CASE_INSENSITIVE_ASCII folds only
+    A-Z/a-z via a single-pass replace_many, leaving every other code point
+    (Kelvin Sign, Turkish I-with-dot, ...) untouched -- see backlog item 75.
+
+    Casts to Utf8 first (a no-op for an already-String expr) so an untyped
+    null literal (`ma.lit(None)` for the search operand -- item 80) gets a
+    concrete String dtype the .str accessor accepts, instead of crashing
+    with SchemaError; the null itself still propagates through .str.*
+    unchanged."""
+    if case_sensitivity == "CASE_INSENSITIVE":
+        return expr.cast(pl.Utf8).str.to_lowercase()
+    if case_sensitivity == "CASE_INSENSITIVE_ASCII":
+        return expr.cast(pl.Utf8).str.replace_many(_ASCII_UPPER, _ASCII_LOWER)
+    return expr
+
+
 class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarStringExpressionProtocol.
 
@@ -394,11 +417,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            return input.str.to_lowercase().str.contains(
-                substring.str.to_lowercase(), literal=True
-            )
-        return input.str.contains(substring, literal=True)
+        return _pl_fold(input, case_sensitivity).str.contains(
+            _pl_fold(substring, case_sensitivity), literal=True
+        )
 
     def starts_with(
         self,
@@ -417,9 +438,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            return input.str.to_lowercase().str.starts_with(substring.str.to_lowercase())
-        return input.str.starts_with(substring)
+        return _pl_fold(input, case_sensitivity).str.starts_with(
+            _pl_fold(substring, case_sensitivity)
+        )
 
     def ends_with(
         self,
@@ -438,9 +459,9 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            return input.str.to_lowercase().str.ends_with(substring.str.to_lowercase())
-        return input.str.ends_with(substring)
+        return _pl_fold(input, case_sensitivity).str.ends_with(
+            _pl_fold(substring, case_sensitivity)
+        )
 
     def strpos(
         self,

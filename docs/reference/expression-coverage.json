@@ -1,7 +1,7 @@
 {
   "stamp": {
-    "declarations": 30,
-    "facts": 1440,
+    "declarations": 33,
+    "facts": 1493,
     "operations": 324,
     "implementation_records": 972
   },
@@ -39,8 +39,8 @@
           "unknown": 0
         },
         "default_capable": 138,
-        "audited_clean": 118,
-        "constrained": 68,
+        "audited_clean": 115,
+        "constrained": 71,
         "audited_unknown": 0
       }
     },
@@ -50,19 +50,19 @@
       "expr_capable": 155,
       "literal_only": 56,
       "polymorphic": 9,
-      "unsupported": 1220
+      "unsupported": 1273
     },
     "facts_by_enforcement": {
-      "gate": 1434,
+      "gate": 1487,
       "router_metadata": 3,
       "materialize_residue": 3
     },
     "facts_by_backend": {
-      "polars": 247,
-      "narwhals": 618,
-      "ibis": 575
+      "polars": 257,
+      "narwhals": 638,
+      "ibis": 598
     },
-    "facts_total": 1440
+    "facts_total": 1493
   },
   "families": [
     {
@@ -33201,15 +33201,32 @@
               "impl_protocol": "SubstraitIbisScalarStringExpressionSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
-                "option_selectors": 0,
+                "params": 1,
+                "option_selectors": 1,
                 "value_classes": 0,
-                "dialects": 0
+                "dialects": 1
               },
-              "constraints": [],
+              "constraints": [
+                {
+                  "dialect": "ibis-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
               "residue": [],
               "routed": [],
               "refinements": [
@@ -33249,7 +33266,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -33267,6 +33284,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -33302,7 +33335,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -33324,6 +33357,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "narwhals-polars",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -33336,6 +33385,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -33387,7 +33452,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -33409,6 +33474,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "ibis-duckdb",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -33421,6 +33502,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -33597,15 +33694,32 @@
               "impl_protocol": "SubstraitIbisScalarStringExpressionSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
-                "option_selectors": 0,
+                "params": 1,
+                "option_selectors": 1,
                 "value_classes": 0,
-                "dialects": 0
+                "dialects": 1
               },
-              "constraints": [],
+              "constraints": [
+                {
+                  "dialect": "ibis-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
               "residue": [],
               "routed": [],
               "refinements": [
@@ -33973,7 +34087,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 2,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -34009,6 +34123,22 @@
                   "since": "2026-07-23",
                   "native_errors": [],
                   "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
                 }
               ],
               "residue": [],
@@ -34042,7 +34172,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 2,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -34080,6 +34210,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "narwhals-polars",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -34092,6 +34238,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -34143,7 +34305,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -34165,6 +34327,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "ibis-duckdb",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -34177,6 +34355,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -34714,7 +34908,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 4,
-                "option_selectors": 4,
+                "option_selectors": 5,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -34732,6 +34926,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -34863,7 +35073,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 4,
-                "option_selectors": 7,
+                "option_selectors": 8,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -34881,6 +35091,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -35009,6 +35235,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -35139,7 +35381,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 4,
-                "option_selectors": 7,
+                "option_selectors": 8,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -35157,6 +35399,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -35285,6 +35543,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -35423,7 +35697,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 5,
+                "option_selectors": 6,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -35441,6 +35715,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -35604,7 +35894,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 6,
-                "option_selectors": 6,
+                "option_selectors": 7,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -35622,6 +35912,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -35766,6 +36072,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -36009,7 +36331,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 5,
+                "option_selectors": 6,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -36027,6 +36349,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -36139,6 +36477,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -36310,7 +36664,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 5,
+                "option_selectors": 6,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -36328,6 +36682,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -36491,7 +36861,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 8,
+                "option_selectors": 9,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -36509,6 +36879,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -36669,6 +37055,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -36831,7 +37233,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 8,
+                "option_selectors": 9,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -36849,6 +37251,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -37009,6 +37427,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -37179,7 +37613,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 4,
+                "option_selectors": 5,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -37213,6 +37647,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -37344,7 +37794,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 7,
-                "option_selectors": 5,
+                "option_selectors": 6,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -37394,6 +37844,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -37506,6 +37972,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -37749,7 +38231,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 5,
+                "option_selectors": 6,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -37767,6 +38249,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -37879,6 +38377,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38050,7 +38564,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 3,
-                "option_selectors": 3,
+                "option_selectors": 4,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -38068,6 +38582,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38167,7 +38697,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 3,
-                "option_selectors": 3,
+                "option_selectors": 4,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -38185,6 +38715,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38233,6 +38779,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38380,7 +38942,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 3,
-                "option_selectors": 3,
+                "option_selectors": 4,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -38398,6 +38960,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38446,6 +39024,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38553,7 +39147,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 5,
+                "option_selectors": 6,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -38571,6 +39165,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38734,7 +39344,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 8,
+                "option_selectors": 9,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -38752,6 +39362,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -38912,6 +39538,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -39074,7 +39716,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 5,
-                "option_selectors": 8,
+                "option_selectors": 9,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -39092,6 +39734,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -39252,6 +39910,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -39504,7 +40178,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 2,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -39540,6 +40214,22 @@
                   "since": "2026-07-23",
                   "native_errors": [],
                   "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
                 }
               ],
               "residue": [],
@@ -39573,7 +40263,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 3,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -39627,6 +40317,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "narwhals-polars",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -39639,6 +40345,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -39722,7 +40444,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -39744,6 +40466,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "ibis-duckdb",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -39756,6 +40494,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -40521,15 +41275,32 @@
               "impl_protocol": "SubstraitIbisScalarStringExpressionSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
-                "option_selectors": 0,
+                "params": 1,
+                "option_selectors": 1,
                 "value_classes": 0,
-                "dialects": 0
+                "dialects": 1
               },
-              "constraints": [],
+              "constraints": [
+                {
+                  "dialect": "ibis-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
               "residue": [],
               "routed": [],
               "refinements": [
@@ -40569,7 +41340,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -40587,6 +41358,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -40622,7 +41409,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 2
               },
@@ -40644,6 +41431,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": "narwhals-pandas",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "narwhals-polars",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -40656,6 +41459,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "narwhals-polars",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -40707,7 +41526,7 @@
               "contradiction": false,
               "selector_counts": {
                 "params": 1,
-                "option_selectors": 1,
+                "option_selectors": 2,
                 "value_classes": 0,
                 "dialects": 1
               },
@@ -40729,6 +41548,22 @@
                   "probe_exempt": null
                 },
                 {
+                  "dialect": null,
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
                   "dialect": "ibis-duckdb",
                   "param": "case_sensitivity",
                   "option_value": "CASE_INSENSITIVE",
@@ -40741,6 +41576,22 @@
                   "workaround": "Lowercase the input and search operand explicitly before applying the case-sensitive operation",
                   "upstream_ref": null,
                   "since": "2026-07-23",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "case_sensitivity",
+                  "option_value": "CASE_INSENSITIVE_ASCII",
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+                  "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+                  "upstream_ref": null,
+                  "since": "2026-08-12",
                   "native_errors": [],
                   "probe_exempt": null
                 }
@@ -54009,6 +54860,402 @@
       ]
     },
     {
+      "backend": "ibis",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-12",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "narwhals",
+            "2.24.0"
+          ]
+        ],
+        "fixtures": [
+          "polars",
+          "ibis-duckdb",
+          "ibis-polars",
+          "ibis-sqlite",
+          "narwhals-polars",
+          "narwhals-pandas"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-polars has no compilation rule for StringTranslate (OperationNotDefinedError); the ASCII-only fold CASE_INSENSITIVE_ASCII needs for contains/starts_with/ends_with is unavailable on this dialect, unlike ibis-duckdb/ibis-sqlite which both support .translate()",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
+    },
+    {
       "backend": "narwhals",
       "source": "mountainash",
       "domain": "datetime",
@@ -64097,6 +65344,354 @@
       ]
     },
     {
+      "backend": "narwhals",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-12",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "narwhals",
+            "2.24.0"
+          ]
+        ],
+        "fixtures": [
+          "polars",
+          "ibis-duckdb",
+          "ibis-polars",
+          "ibis-sqlite",
+          "narwhals-polars",
+          "narwhals-pandas"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-pandas",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "narwhals-polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
+    },
+    {
       "backend": "polars",
       "source": "mountainash",
       "domain": "relation",
@@ -68123,6 +69718,194 @@
           "probe_exempt": null
         }
       ]
+    },
+    {
+      "backend": "polars",
+      "source": "substrait",
+      "domain": "string",
+      "evidence": {
+        "probe_date": "2026-08-12",
+        "library_versions": [
+          [
+            "ibis",
+            "12.0.0"
+          ],
+          [
+            "narwhals",
+            "2.24.0"
+          ]
+        ],
+        "fixtures": [
+          "polars",
+          "ibis-duckdb",
+          "ibis-polars",
+          "ibis-sqlite",
+          "narwhals-polars",
+          "narwhals-pandas"
+        ]
+      },
+      "facts": [
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+          "workaround": "Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "polars",
+          "param": "case_sensitivity",
+          "option_value": "CASE_INSENSITIVE_ASCII",
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-12",
+          "native_errors": [],
+          "probe_exempt": null
+        }
+      ]
     }
   ],
   "divergences": [
@@ -69760,6 +71543,33 @@
       "workaround": "Use a polars or ibis backend for str.replace_slice()",
       "upstream_ref": null,
       "since": "2026-08-06"
+    },
+    {
+      "id": "NW-STR-19",
+      "kind": "semantics",
+      "operation_keys": [
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "CONTAINS"
+        },
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "STARTS_WITH"
+        },
+        {
+          "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+          "op": "ENDS_WITH"
+        }
+      ],
+      "backends": [
+        "pandas",
+        "narwhals-pandas"
+      ],
+      "summary": "contains()/starts_with()/ends_with() on a null INPUT row (not a null search operand) returns False on pandas/narwhals-pandas instead of propagating null: plain-numpy-backed pandas boolean columns have no null representation, and forcing one via nw.when/then/otherwise produces an object-dtype column of Python bool objects, which breaks `~` elsewhere (bitwise-NOT on bool is not logical negation)",
+      "impact": "a null row in the searched column silently yields False rather than null on pandas/narwhals-pandas for contains/starts_with/ends_with; every other backend (polars, ibis, narwhals-polars, narwhals-lazy) propagates null correctly",
+      "workaround": "Use a polars, narwhals-polars, narwhals-lazy, or ibis backend where a null row must propagate through contains/starts_with/ends_with",
+      "upstream_ref": null,
+      "since": "2026-08-12"
     },
     {
       "id": "NW-WIN-01",

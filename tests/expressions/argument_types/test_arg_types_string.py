@@ -81,7 +81,7 @@ _CASE_INSENSITIVE_DECLARED_OPS = (
 )
 
 
-def _case_sensitivity_expr(op: str, case_sensitive: bool | None = None):
+def _case_sensitivity_expr(op: str, case_sensitive: bool | str | None = None):
     kwargs = {} if case_sensitive is None else {"case_sensitive": case_sensitive}
     string = ma.col("text").str
     if op == "contains":
@@ -107,10 +107,16 @@ def _case_sensitivity_probe(op: str, value: str) -> OptionSpec:
         "case_sensitivity",
         value,
         "str",
-        lambda: _case_sensitivity_expr(op, value == "CASE_SENSITIVE"),
+        # Pass the literal enum string directly rather than routing through
+        # the case_sensitive=True/False boolean shortcut -- CASE_INSENSITIVE
+        # and CASE_INSENSITIVE_ASCII are two distinct non-default values and
+        # the boolean shortcut can only ever represent one (round-1 review
+        # finding; backlog item 75). _case_sensitivity_expr's isinstance(str)
+        # passthrough (api_bldr_scalar_string.py) already supports this.
+        lambda: _case_sensitivity_expr(op, value),
         lambda: _case_sensitivity_expr(op),
         _CASE_SENSITIVITY_DATA[op],
-        expected_discriminates=value == "CASE_INSENSITIVE",
+        expected_discriminates=value != "CASE_SENSITIVE",
     )
 
 
@@ -154,7 +160,7 @@ def test_case_sensitive_string_option_matches_omission(op, backend):
     )
 
 
-_CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE")
+_CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII")
 _CASE_INSENSITIVE_NATIVE_FAILURES = {
     (op, backend): OptionProbeDidNotDiscriminateError
     for op in _CASE_INSENSITIVE_DECLARED_OPS
@@ -204,7 +210,7 @@ REGISTERED_OPTION_PROBES.extend(
         ),
         (
             _CASE_INSENSITIVE_NATIVE_FAILURES[(op, backend)]
-            if value == "CASE_INSENSITIVE"
+            if value != "CASE_SENSITIVE"
             and op in _CASE_INSENSITIVE_DECLARED_OPS
             else None
         ),
@@ -218,11 +224,12 @@ OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
     (
         _CASE_SENSITIVITY_FKEYS[op],
         "case_sensitivity",
-        "CASE_INSENSITIVE",
+        value,
         CONST_BACKEND.IBIS,
         None,
     )
     for op in _CASE_INSENSITIVE_DECLARED_OPS
+    for value in ("CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII")
 )
 
 _INVALID_CASE_SENSITIVITY_REJECTIONS = [
@@ -780,7 +787,7 @@ _REGEXP_FLAG_FKEYS = {
     },
 }
 _REGEXP_FLAG_VALUES = {
-    "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE"),
+    "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII"),
     "multiline": ("MULTILINE_DISABLED", "MULTILINE_ENABLED"),
     "dotall": ("DOTALL_DISABLED", "DOTALL_ENABLED"),
 }
@@ -825,7 +832,15 @@ def _regexp_flag_expr(op: str, param: str, value: str | None = None):
                 "multiline": "multiline",
                 "dotall": "dotall",
             }[param]: (
-                value == _REGEXP_FLAG_DEFAULTS[param]
+                # Pass the literal enum string directly for case_sensitivity
+                # rather than routing through a True/False boolean shortcut --
+                # CASE_INSENSITIVE and CASE_INSENSITIVE_ASCII are two distinct
+                # non-default values a boolean can't represent (round-1 review
+                # finding; backlog item 75). _regexp_flag_options's
+                # isinstance(str) passthrough already supports this.
+                # multiline/dotall have only 2 legal values, so the existing
+                # boolean shape is unambiguous and stays as-is.
+                value
                 if param == "case_sensitivity"
                 else value == _REGEXP_FLAG_VALUES[param][1]
             )
@@ -903,16 +918,16 @@ def test_default_regexp_flag_matches_omission(param, op, backend):
 
 
 @pytest.mark.parametrize(
-    "param,op",
+    "param,op,enabled",
     [
-        (param, op)
+        (param, op, value)
         for param, operations in _REGEXP_FLAG_FKEYS.items()
         for op in operations
+        for value in _REGEXP_FLAG_VALUES[param][1:]
     ],
 )
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_enabled_regexp_flag_declared_unsupported(param, op, backend, request):
-    enabled = _REGEXP_FLAG_VALUES[param][1]
+def test_enabled_regexp_flag_declared_unsupported(param, op, enabled, backend, request):
     spec = _regexp_flag_probe(op, param, enabled)
     request.applymarker(
         xfail_option_unsupported(
@@ -1042,12 +1057,13 @@ OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
     (
         fkey,
         param,
-        _REGEXP_FLAG_VALUES[param][1],
+        value,
         CONST_BACKEND.IBIS,
         None,
     )
     for param, operations in _REGEXP_FLAG_FKEYS.items()
     for fkey in operations.values()
+    for value in _REGEXP_FLAG_VALUES[param][1:]
 )
 OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
     (

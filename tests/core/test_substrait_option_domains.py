@@ -60,68 +60,21 @@ def test_arithmetic_domains_match_pin_exactly() -> None:
     )
 
 
-# Pre-existing data-integrity gap, discovered by this drift guard, unrelated
-# to backlog item 61's concat/concat_ws scope — NOT silently corrected here
-# per closed-by-default-verification.md R2 (exception sets must be named,
-# reasoned, and dated). OPTION_DOMAINS is missing exactly
-# 'CASE_INSENSITIVE_ASCII' for these 13 ops' 'case_sensitivity' domain
-# (present in the pinned Substrait spec); flagged for separate triage.
-#
-# Tracked at value granularity (not by excluding the whole key) so any
-# OTHER divergence on these keys — a further missing value, an extra
-# bogus value, anything beyond this exact known gap — still fails loudly.
-_KNOWN_STRING_DOMAIN_MISSING_VALUES: dict[tuple[str, str], frozenset[str]] = {
-    (op, "case_sensitivity"): frozenset({"CASE_INSENSITIVE_ASCII"})
-    for op in (
-        "contains",
-        "count_substring",
-        "ends_with",
-        "like",
-        "regexp_count_substring",
-        "regexp_match_substring",
-        "regexp_match_substring_all",
-        "regexp_replace",
-        "regexp_string_split",
-        "regexp_strpos",
-        "replace",
-        "starts_with",
-        "strpos",
-    )
-}
-
-
 def test_string_domains_match_pin_exactly() -> None:
+    """Backlog item 75: OPTION_DOMAINS now carries CASE_INSENSITIVE_ASCII for
+    all 13 affected string ops, closing the drift item 61's byte-pinned guard
+    discovered. No exception set remains — any future divergence from the pin
+    fails loudly."""
     from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
         OPTION_DOMAINS,
     )
 
     fixture = _fixture_domains("functions_string.yaml", "string")
     packaged = {key: values for key, values in OPTION_DOMAINS.items() if key in fixture}
-    expected = {
-        key: values - _KNOWN_STRING_DOMAIN_MISSING_VALUES.get(key, frozenset())
-        for key, values in fixture.items()
-    }
-    assert packaged == expected, (
-        "packaged string domains diverge from pin beyond the tracked "
-        "_KNOWN_STRING_DOMAIN_MISSING_VALUES gap: "
-        f"{set(packaged.items()) ^ set(expected.items())}"
+    assert packaged == fixture, (
+        "packaged string domains diverge from pin: "
+        f"{set(packaged.items()) ^ set(fixture.items())}"
     )
-
-
-def test_no_stale_string_domain_drift_entries() -> None:
-    """Every _KNOWN_STRING_DOMAIN_MISSING_VALUES entry must still be genuinely
-    missing from OPTION_DOMAINS — if a value has been added, the entry is stale."""
-    from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
-        OPTION_DOMAINS,
-    )
-
-    for key, missing in _KNOWN_STRING_DOMAIN_MISSING_VALUES.items():
-        packaged_values = OPTION_DOMAINS.get(key, frozenset())
-        assert not missing.issubset(packaged_values), (
-            f"Stale _KNOWN_STRING_DOMAIN_MISSING_VALUES entry: {key} — "
-            f"{sorted(missing)} now present in OPTION_DOMAINS! Remove from "
-            "_KNOWN_STRING_DOMAIN_MISSING_VALUES."
-        )
 
 
 def test_fixture_parser_accepts_historical_list_encoding() -> None:
@@ -164,6 +117,36 @@ def test_validate_option_rejects_invalid_known_domain_value() -> None:
         match=r"invalid overflow='WRAP' for add; legal: \['ERROR', 'SATURATE', 'SILENT'\]",
     ):
         validate_option("add", "overflow", "WRAP")
+
+
+def test_validate_option_accepts_case_insensitive_ascii() -> None:
+    """CASE_INSENSITIVE_ASCII is a real Substrait-legal enum member for the
+    case_sensitivity domain on every one of the 13 affected string ops —
+    regression guard for backlog item 75 (was rejected as invalid before the
+    domain fix landed)."""
+    from mountainash.expressions.core.expression_api.api_builders.substrait._option_domains import (
+        validate_option,
+    )
+
+    for op in (
+        "contains",
+        "count_substring",
+        "ends_with",
+        "like",
+        "regexp_count_substring",
+        "regexp_match_substring",
+        "regexp_match_substring_all",
+        "regexp_replace",
+        "regexp_string_split",
+        "regexp_strpos",
+        "replace",
+        "starts_with",
+        "strpos",
+    ):
+        assert (
+            validate_option(op, "case_sensitivity", "CASE_INSENSITIVE_ASCII")
+            == "CASE_INSENSITIVE_ASCII"
+        ), f"{op}.case_sensitivity should accept CASE_INSENSITIVE_ASCII"
 
 
 @pytest.mark.parametrize(

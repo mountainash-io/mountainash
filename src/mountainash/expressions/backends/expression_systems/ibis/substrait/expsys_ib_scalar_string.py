@@ -37,6 +37,34 @@ def _escape_char_class(characters: str) -> str:
     return "".join(out)
 
 
+_ASCII_UPPER_STR = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_ASCII_LOWER_STR = "abcdefghijklmnopqrstuvwxyz"
+
+
+def _ib_fold(expr: "IbisValueExpr", case_sensitivity: Any) -> "IbisValueExpr":
+    """Apply the fold a case_sensitivity option value implies. CASE_SENSITIVE
+    (and any other/omitted value) leaves expr unchanged; CASE_INSENSITIVE
+    applies full Unicode lowercasing; CASE_INSENSITIVE_ASCII folds only
+    A-Z/a-z via DuckDB/SQLite's native translate(), leaving every other code
+    point (Kelvin Sign, Turkish I-with-dot, ...) untouched -- see backlog
+    item 75. No `_lift_deferred`/`_lift_deferred_receiver` bridging is needed
+    here: `.lower()`/`.translate()` take no Deferred-typed arguments, so the
+    concrete-receiver-plus-Deferred-argument crash (item 226b/226c) cannot
+    occur on this call shape; the caller lifts `input` once via
+    `_lift_deferred_receiver` before folding either side.
+
+    Casts to string first (a no-op for an already-string expr) so an
+    untyped null literal (`ibis.literal(None)` for the search operand --
+    item 80) has a `.lower()`/`.translate()` to call instead of raising
+    AttributeError on a bare NullScalar; the null itself still propagates
+    through either call unchanged."""
+    if case_sensitivity == "CASE_INSENSITIVE":
+        return expr.cast("string").lower()
+    if case_sensitivity == "CASE_INSENSITIVE_ASCII":
+        return expr.cast("string").translate(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
+    return expr
+
+
 class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of ScalarStringExpressionProtocol.
 
@@ -361,9 +389,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Whether the input string contains the substring."""
         input = self._lift_deferred_receiver(input, substring)
-        if case_sensitivity == "CASE_INSENSITIVE":
-            return input.lower().contains(substring.lower())
-        return input.contains(substring)
+        return _ib_fold(input, case_sensitivity).contains(
+            _ib_fold(substring, case_sensitivity)
+        )
 
     def starts_with(
         self,
@@ -374,9 +402,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Whether input string starts with the substring."""
         input = self._lift_deferred_receiver(input, substring)
-        if case_sensitivity == "CASE_INSENSITIVE":
-            return input.lower().startswith(substring.lower())
-        return input.startswith(substring)
+        return _ib_fold(input, case_sensitivity).startswith(
+            _ib_fold(substring, case_sensitivity)
+        )
 
     def ends_with(
         self,
@@ -387,9 +415,9 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Whether input string ends with the substring."""
         input = self._lift_deferred_receiver(input, substring)
-        if case_sensitivity == "CASE_INSENSITIVE":
-            return input.lower().endswith(substring.lower())
-        return input.endswith(substring)
+        return _ib_fold(input, case_sensitivity).endswith(
+            _ib_fold(substring, case_sensitivity)
+        )
 
     def strpos(
         self,

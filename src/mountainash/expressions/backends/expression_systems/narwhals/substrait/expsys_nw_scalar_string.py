@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import functools
 import re
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, cast
 
 import narwhals as nw
 
@@ -36,6 +36,48 @@ def _nw_concat_fold(sep: "NarwhalsExpr", inputs: "tuple[NarwhalsExpr, ...]") -> 
         text_acc = text_acc + piece
         any_seen = any_seen | present
     return text_acc
+
+
+_ASCII_UPPER_STR = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_ASCII_LOWER_STR = "abcdefghijklmnopqrstuvwxyz"
+_ASCII_TRANSLATION = str.maketrans(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
+
+
+def _nw_fold(expr: "NarwhalsExpr | str | None", case_sensitivity: Any) -> "NarwhalsExpr | str | None":
+    """Apply the fold a case_sensitivity option value implies, to a
+    NarwhalsExpr, a literal Python str operand, or a bare None -- contains/
+    starts_with/ends_with's `substring` parameter is typed
+    `NarwhalsExpr | str`, and a literal string must fold via plain Python
+    (no narwhals call), distinct from the NarwhalsExpr branch's `.str`
+    method chain (mirrors the existing CASE_INSENSITIVE branch's isinstance
+    split). CASE_SENSITIVE (and any other/omitted value) leaves expr
+    unchanged; CASE_INSENSITIVE applies full Unicode lowercasing;
+    CASE_INSENSITIVE_ASCII folds only A-Z/a-z via 26 chained
+    single-character replaces (narwhals has no batch-translate primitive),
+    leaving every other code point (Kelvin Sign, Turkish I-with-dot, ...)
+    untouched -- see backlog item 75.
+
+    A null search operand (item 80) arrives EITHER as a bare Python `None`
+    (narwhals-pandas) or an untyped-null NarwhalsExpr (narwhals-polars) --
+    both backends probed directly. `expr is None` short-circuits the
+    former; `.cast(nw.String)` (a no-op for an already-String expr) gives
+    the latter a concrete dtype the .str accessor accepts, instead of
+    crashing. The null itself still propagates through either path
+    unchanged."""
+    if expr is None:
+        return None
+    if case_sensitivity == "CASE_INSENSITIVE":
+        if isinstance(expr, str):
+            return expr.lower()
+        return expr.cast(nw.String).str.to_lowercase()
+    if case_sensitivity == "CASE_INSENSITIVE_ASCII":
+        if isinstance(expr, str):
+            return expr.translate(_ASCII_TRANSLATION)
+        folded = expr.cast(nw.String)
+        for upper, lower in zip(_ASCII_UPPER_STR, _ASCII_LOWER_STR):
+            folded = folded.str.replace_all(upper, lower, literal=True)
+        return folded
+    return expr
 
 
 class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarStringExpressionSystemProtocol[nw.Expr]):
@@ -385,13 +427,24 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            if isinstance(substring, str):
-                lowered = substring.lower()
-            else:
-                lowered = substring.str.to_lowercase()
-            return input.str.to_lowercase().str.contains(lowered)
-        return input.str.contains(substring)
+        # input is always NarwhalsExpr (never str), unlike substring -- cast
+        # narrows _nw_fold's Union return so mypy resolves `.str` here.
+        folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
+        folded_substring = _nw_fold(substring, case_sensitivity)
+        # A null-typed search operand short-circuits to a null result before
+        # the native call rather than crashing (backlog item 61 precedent,
+        # generalized here). A null INPUT row is a narrower, separate,
+        # documented limitation on narwhals-pandas/pandas specifically (see
+        # backlog item 80): plain-numpy-backed pandas boolean columns have
+        # no null representation, and wrapping the result in nw.when/then to
+        # force one produces an object-dtype column of Python bool objects,
+        # which silently breaks `~` elsewhere (Python bitwise-NOT on bool is
+        # not logical negation: ~True == -2). Not fixable at this layer
+        # without either regressing negation or forcing every narwhals-pandas
+        # DataFrame onto a nullable dtype backend end-to-end.
+        if folded_substring is None:
+            return nw.lit(None)
+        return folded_input.str.contains(folded_substring)
 
     def starts_with(
         self,
@@ -410,13 +463,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            if isinstance(substring, str):
-                lowered = substring.lower()
-            else:
-                lowered = substring.str.to_lowercase()
-            return input.str.to_lowercase().str.starts_with(lowered)
-        return input.str.starts_with(substring)
+        folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
+        folded_substring = _nw_fold(substring, case_sensitivity)
+        if folded_substring is None:
+            return nw.lit(None)
+        return folded_input.str.starts_with(folded_substring)
 
     def ends_with(
         self,
@@ -435,13 +486,11 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         Returns:
             Boolean expression.
         """
-        if case_sensitivity == "CASE_INSENSITIVE":
-            if isinstance(substring, str):
-                lowered = substring.lower()
-            else:
-                lowered = substring.str.to_lowercase()
-            return input.str.to_lowercase().str.ends_with(lowered)
-        return input.str.ends_with(substring)
+        folded_input = cast("NarwhalsExpr", _nw_fold(input, case_sensitivity))
+        folded_substring = _nw_fold(substring, case_sensitivity)
+        if folded_substring is None:
+            return nw.lit(None)
+        return folded_input.str.ends_with(folded_substring)
 
     def strpos(
         self,

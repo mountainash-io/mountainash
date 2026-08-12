@@ -52,6 +52,7 @@ from mountainash.core.capabilities import (
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
@@ -218,13 +219,49 @@ def test_no_op_level_fact_is_left_unbacked() -> None:
     )
 
 
+# Value-scoped facts whose dialect the 4-fixture argument-type matrix cannot
+# instantiate at all -- its "ibis" fixture is hardcoded to ibis-duckdb (see
+# conftest.py's MATRIX_IDENTITIES); there is no ibis-polars fixture here to
+# carry a per-cell OptionCell. Structurally unreachable by this module, not
+# an actual coverage gap -- verified instead by test_string.py's
+# TestCaseInsensitiveAsciiIbisPolarsGate, which builds a real ibis-polars
+# backend directly. Backlog item 75 (2026-08-12).
+_MATRIX_UNREACHABLE_DIALECT_FACTS = {
+    (fkey, "case_sensitivity", "CASE_INSENSITIVE_ASCII", CONST_BACKEND.IBIS, "ibis-polars")
+    for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
+}
+
+
+def test_no_stale_matrix_unreachable_dialect_fact_entries() -> None:
+    """Every _MATRIX_UNREACHABLE_DIALECT_FACTS entry must still be a genuine,
+    registered fact whose dialect the matrix's 4 fixtures cannot reach — if
+    the matrix ever grows an ibis-polars fixture, this entry becomes stale
+    and must be removed (matches item 61's staleness-guard precedent for
+    drift exception sets)."""
+    registered = _option_fact_keys()
+    matrix_dialects = {
+        dialect for _family, dialect in disposition._FIXTURE_IDENTITY.values()
+    }
+    for key in _MATRIX_UNREACHABLE_DIALECT_FACTS:
+        assert key in registered, (
+            f"Stale _MATRIX_UNREACHABLE_DIALECT_FACTS entry: {key} is no "
+            "longer a registered fact — remove it."
+        )
+        assert key[4] not in matrix_dialects, (
+            f"Stale _MATRIX_UNREACHABLE_DIALECT_FACTS entry: {key} — its "
+            f"dialect {key[4]!r} is now reachable by the matrix's fixtures; "
+            "remove this entry and let the exact arm cover it directly."
+        )
+
+
 def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
     # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts.
     # Op-level cells are backed by WILDCARD_PARAM facts (Task 4 / PR-B), not
     # value-scoped ones, so they are excluded from this arm. The orphan guard
     # test_op_level_backed_cells_resolve_to_wildcard_facts above walks the
-    # op-level side of the contract.
-    fact_keys = _option_fact_keys()
+    # op-level side of the contract. _MATRIX_UNREACHABLE_DIALECT_FACTS are
+    # also excluded — see that constant's docstring.
+    fact_keys = _option_fact_keys() - _MATRIX_UNREACHABLE_DIALECT_FACTS
     exact_declared_keys = {
         cell_fact_key(cell)
         for cell in OPTION_DISPOSITIONS
@@ -331,6 +368,54 @@ def test_duckdb_refinement_precedes_ibis_family_default() -> None:
         assert family_default is not None
         assert family_default.level is CapabilityLevel.UNSUPPORTED
         assert family_default.dialect is None
+
+
+def test_case_insensitive_ascii_facts_mirror_case_insensitive_plus_ibis_polars_gap() -> None:
+    """Backlog item 75: CASE_INSENSITIVE_ASCII's (operation_key, backend,
+    dialect) UNSUPPORTED-fact footprint must equal CASE_INSENSITIVE's
+    EXACTLY, for the 10 always-unsupported string ops, PLUS the 3
+    ibis-polars entries the mandated dialect spike discovered (ibis-polars
+    has no compilation rule for StringTranslate, so contains/starts_with/
+    ends_with — real everywhere else — are UNSUPPORTED there alone).
+
+    Derived from the CASE_INSENSITIVE fact set itself, not a hardcoded
+    count/list — this guard tracks the registry rather than a number that
+    can silently drift (round-3 design review finding)."""
+    all_facts = CapabilityRegistry.facts()
+    case_insensitive_keys = {
+        (fact.operation_key, fact.backend, fact.dialect)
+        for fact in all_facts
+        if fact.param == "case_sensitivity" and fact.option_value == "CASE_INSENSITIVE"
+    }
+    case_insensitive_ascii_keys = {
+        (fact.operation_key, fact.backend, fact.dialect)
+        for fact in all_facts
+        if fact.param == "case_sensitivity"
+        and fact.option_value == "CASE_INSENSITIVE_ASCII"
+    }
+    ibis_polars_gap = {
+        (fkey, CONST_BACKEND.IBIS, "ibis-polars")
+        for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
+    }
+    assert case_insensitive_ascii_keys == case_insensitive_keys | ibis_polars_gap, (
+        "CASE_INSENSITIVE_ASCII fact footprint diverges from "
+        "CASE_INSENSITIVE + the ibis-polars gap: "
+        f"ascii-only={case_insensitive_ascii_keys - (case_insensitive_keys | ibis_polars_gap)}; "
+        f"missing-from-ascii={(case_insensitive_keys | ibis_polars_gap) - case_insensitive_ascii_keys}"
+    )
+    # Every CASE_INSENSITIVE_ASCII fact registered for contains/starts_with/
+    # ends_with must be the single ibis-polars entry — absence is the
+    # EXPR_CAPABLE signal for those three everywhere else; a fact of any
+    # kind on another (backend, dialect) pair is itself a bug.
+    real_op_keys = {FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH}
+    real_op_ascii_facts = {
+        (fact.operation_key, fact.backend, fact.dialect)
+        for fact in all_facts
+        if fact.operation_key in real_op_keys
+        and fact.param == "case_sensitivity"
+        and fact.option_value == "CASE_INSENSITIVE_ASCII"
+    }
+    assert real_op_ascii_facts == ibis_polars_gap
 
 
 def test_honored_cells_and_discriminator_probes_are_mutually_backed() -> None:
