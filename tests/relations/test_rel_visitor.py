@@ -564,3 +564,20 @@ class TestExpressionChildrenWalker:
         cyclic["self"] = cyclic
         node = ScalarFunctionNode(function_key=FK_STR.UPPER, arguments=[], options=cyclic)
         assert list(_iter_function_keys(node)) == [FK_STR.UPPER]
+
+
+class TestMinimalBackendConstructionRegression:
+    """Item 89 round-2: the per-ref identity resolver/swap logic added to
+    RelationDAG._compile_with_refs lives entirely in dag.py and never
+    reads backend_type/dialect off visitor.backend directly -- confirm
+    UnifiedRelationVisitor itself still tolerates a relation system
+    lacking those attributes entirely (unrelated to any DAG machinery)."""
+
+    def test_visitor_constructs_and_dispatches_without_backend_type_or_dialect(
+        self, backend, expr_visitor
+    ):
+        assert not hasattr(backend, "backend_type")
+        assert not hasattr(backend, "dialect")
+        visitor = UnifiedRelationVisitor(backend, expr_visitor)
+        result = visitor.visit(ReadRelNode(dataframe="df"))
+        assert result == "read(df)"
