@@ -191,6 +191,22 @@ class TestEnrichMaterializationPreferOperationKeys:
         assert exc.value.limitation.message == "a"
         assert isinstance(exc.value.__cause__, TypeError)
 
+    def test_matching_key_wrong_exception_type_raises_raw(self, _two_colliding_residue_facts):
+        # A structurally-present, correctly-preferred key whose fact
+        # requires TypeError must never be force-matched against a
+        # different exception type -- prefer_operation_keys narrows
+        # candidates, it never overrides the native_errors type check.
+        backend = _FakeBackend(CONST_BACKEND.NARWHALS, "narwhals-pandas")
+        key_a, _key_b = _two_colliding_residue_facts
+
+        def _boom_value_error():
+            raise ValueError("unrelated")
+
+        with pytest.raises(ValueError, match="unrelated"):
+            enrich_materialization(
+                backend, _boom_value_error, prefer_operation_keys=frozenset({key_a}),
+            )
+
     def test_both_candidates_preferred_still_ambiguous_raises_raw(self, _two_colliding_residue_facts):
         backend = _FakeBackend(CONST_BACKEND.NARWHALS, "narwhals-pandas")
         key_a, key_b = _two_colliding_residue_facts

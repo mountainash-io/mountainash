@@ -134,8 +134,10 @@ class TestDagMaterializeResidueDialectPropagation:
         return nw.from_native(pl.DataFrame(data), eager_only=True)
 
     def test_dag_collect_enriches_failure_on_dependency_ref(self):
-        # NW-LIST-01 fails while materialising a DEPENDENCY ref, not the
-        # collect() target itself.
+        # NW-LIST-01 fails while materialising a DEPENDENCY ref ("derived"),
+        # not the collect() target itself ("final", a harmless passthrough) --
+        # proves the DAG's ref-materialisation loop is enriched too, not just
+        # the final target compile.
         from mountainash.relations.dag import RelationDAG
 
         nwf = self._nw_pandas({"tags": [[1, 2, 3]]})
@@ -145,8 +147,9 @@ class TestDagMaterializeResidueDialectPropagation:
             "derived",
             dag.ref("stg").select(ma.col("tags").list.contains(2).name.alias("r")),
         )
+        dag.add("final", dag.ref("derived").select("r"))
         with pytest.raises(BackendCapabilityError) as exc_info:
-            dag.collect("derived")
+            dag.collect("final")
         assert exc_info.value.limitation.upstream_ref == "NW-LIST-01"
 
     def test_dag_execute_enriches_adhoc_target(self):

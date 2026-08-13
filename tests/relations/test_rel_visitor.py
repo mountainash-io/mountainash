@@ -452,19 +452,69 @@ class TestExpressionChildrenWalker:
 
     def test_singular_or_list_value_and_options_collected(self):
         from mountainash.expressions.core.expression_nodes import (
-            FieldReferenceNode, LiteralNode, SingularOrListNode,
+            LiteralNode, ScalarFunctionNode, SingularOrListNode,
+        )
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+            FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
         )
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             _iter_function_keys,
         )
 
         node = SingularOrListNode(
-            value=FieldReferenceNode(field="status"),
-            options=[LiteralNode(value="active"), LiteralNode(value="pending")],
+            value=ScalarFunctionNode(function_key=FK_STR.UPPER, arguments=[]),
+            options=[
+                LiteralNode(value="active"),
+                ScalarFunctionNode(function_key=FK_LIST.CONTAINS, arguments=[]),
+            ],
         )
-        # FieldReferenceNode/LiteralNode carry no function_key -- this just
-        # proves traversal reaches value + every option without raising.
-        assert list(_iter_function_keys(node)) == []
+        # value AND every options element are actually reached -- both
+        # function-bearing children must surface, not just one.
+        assert set(_iter_function_keys(node)) == {FK_STR.UPPER, FK_LIST.CONTAINS}
+
+    def test_window_function_arguments_and_partition_by_collected(self):
+        from mountainash.expressions.core.expression_nodes import (
+            FieldReferenceNode, ScalarFunctionNode, WindowFunctionNode, WindowSpec,
+        )
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+            FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
+        )
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            _iter_function_keys,
+        )
+
+        node = WindowFunctionNode(
+            arguments=[ScalarFunctionNode(function_key=FK_STR.UPPER, arguments=[])],
+            window_spec=WindowSpec(
+                partition_by=[
+                    ScalarFunctionNode(function_key=FK_LIST.CONTAINS, arguments=[]),
+                    FieldReferenceNode(field="grp"),  # non-ExpressionNode-key noise, ignored
+                ]
+            ),
+        )
+        assert set(_iter_function_keys(node)) == {FK_STR.UPPER, FK_LIST.CONTAINS}
+
+    def test_over_node_expression_and_partition_by_collected(self):
+        from mountainash.expressions.core.expression_nodes import (
+            OverNode, ScalarFunctionNode, WindowSpec,
+        )
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+            FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+        )
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            _iter_function_keys,
+        )
+
+        node = OverNode(
+            expression=ScalarFunctionNode(function_key=FK_ARITH.ADD, arguments=[]),
+            window_spec=WindowSpec(
+                partition_by=[ScalarFunctionNode(function_key=FK_STR.UPPER, arguments=[])]
+            ),
+        )
+        assert set(_iter_function_keys(node)) == {FK_ARITH.ADD, FK_STR.UPPER}
 
     def test_present_expression_function_keys_filters_to_expression_args(self):
         """Only EXPRESSION/EXPRESSION_LIST-kind op.args are consulted --

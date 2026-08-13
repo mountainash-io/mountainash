@@ -163,14 +163,54 @@ class TestAssertCapabilityGated:
     def test_materialize_residue_unrelated_exception_on_handler_op_not_mislabeled(
         self, backend_factory
     ):
-        # A handler-routed op (JOIN) failing for an unrelated reason on
-        # narwhals-pandas must never be mislabeled as NW-LIST-01/NW-STR-22 --
-        # handler ops get an empty (authoritative) preferred-key set.
-        left = backend_factory.create({"id": [1, 2]}, "narwhals-pandas")
-        right = backend_factory.create({"id": [1, 2]}, "narwhals-pandas")
-        rel = ma.relation(left).join(ma.relation(right), left_on="missing_col", right_on="id")
-        with pytest.raises(KeyError):
-            rel.collect()
+        # A handler-routed op failing with a genuine TypeError -- the same
+        # native_errors type every narwhals-pandas residue fact declares --
+        # must never be mislabeled as NW-LIST-01/NW-STR-22. Handler ops get
+        # an empty (authoritative) preferred-key set, so this proves the
+        # empty set actually excludes candidates rather than merely relying
+        # on an exception-type mismatch. Drives UnifiedRelationVisitor
+        # ._dispatch() directly (enforce_capabilities=False) against a REAL
+        # narwhals-pandas relation_system, so enrich_materialization
+        # consults the real registry residue -- a real handler op raising a
+        # native TypeError mid-compile isn't reliably reproducible through
+        # the public API (join/join_asof validate types client-side before
+        # ever reaching the backend).
+        import dataclasses
+
+        from mountainash.expressions.core.expression_system.expsys_base import (
+            get_expression_system,
+        )
+        from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+        from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.relations.core.relation_protocols.relsys_base import (
+            get_relation_system,
+        )
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            RelationOperationRegistry,
+        )
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        nwf = backend_factory.create({"tags": [[1, 2, 3]]}, "narwhals-pandas")
+        relation_system = get_relation_system(CONST_BACKEND.NARWHALS)(dialect="narwhals-pandas")
+        expr_visitor = UnifiedExpressionVisitor(
+            get_expression_system(CONST_BACKEND.NARWHALS)(dialect="narwhals-pandas")
+        )
+        visitor = UnifiedRelationVisitor(
+            relation_system, expr_visitor, enforce_capabilities=False,
+        )
+
+        def _raise_type_error(node, v):
+            raise TypeError("synthetic handler failure")
+
+        real_source_op = RelationOperationRegistry.get(RKEY_MOUNTAINASH_REL["SOURCE"])
+        synthetic_op = dataclasses.replace(real_source_op, handler=_raise_type_error)
+        assert synthetic_op.handler is not None  # confirms the handler branch is exercised
+
+        with pytest.raises(TypeError, match="synthetic handler failure") as ei:
+            visitor._dispatch(ReadRelNode(dataframe=nwf), synthetic_op)
+        assert not isinstance(ei.value, BackendCapabilityError)
 
     def test_no_fact_returns_result(self):
         op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
