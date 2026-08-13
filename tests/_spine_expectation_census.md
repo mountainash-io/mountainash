@@ -20,10 +20,10 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/conform/cross_backend/test_conform_transforms.py:14 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-03') — migrated |
 | tests/conform/cross_backend/test_null_fill_mode.py:66 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-TYPE-02') — migrated |
 | tests/conform/cross_backend/test_relation_conform.py:13 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-01') — migrated |
-| tests/core/test_capability_gating.py:110 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
-| tests/core/test_capability_gating.py:118 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-MATH-01') — migrated |
-| tests/core/test_capability_gating.py:123 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
-| tests/core/test_capability_gating.py:128 | static-marker | UNRESOLVED | polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
+| tests/core/test_capability_gating.py:188 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
+| tests/core/test_capability_gating.py:196 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-MATH-01') — migrated |
+| tests/core/test_capability_gating.py:201 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
+| tests/core/test_capability_gating.py:206 | static-marker | UNRESOLVED | polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
 | tests/expressions/argument_types/_option_helpers.py:91 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
 | tests/expressions/argument_types/_test_template.py:162 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
 | tests/expressions/argument_types/test_capability_probes.py:156 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |

@@ -94,6 +94,84 @@ class TestAssertCapabilityGated:
             materialize=lambda rel: rel.collect(),  # raises the enriched error
         )
 
+    def test_materialize_residue_narwhals_pandas_list_contains(self, backend_factory):
+        # NW-LIST-01: list.contains() on narwhals-pandas requires a
+        # PyArrow-backed list column. Compile-time (not just materialize-time)
+        # failure -- item 88 fixed the gap that let this leak raw.
+        df = backend_factory.create({"tags": [[1, 2, 3]]}, "narwhals-pandas")
+        expr = ma.col("tags").list.contains(2)
+        assert_capability_gated(
+            FKEY_MOUNTAINASH_SCALAR_LIST.CONTAINS,
+            CONST_BACKEND.NARWHALS,
+            dialect="narwhals-pandas",
+            build=lambda: ma.relation(df).select(expr.name.alias("r")),
+            materialize=lambda rel: rel.collect(),
+        )
+
+    def test_materialize_residue_narwhals_pandas_list_t_contains(self, backend_factory):
+        # NW-LIST-01's t_contains sibling -- same storage-residue fact shape,
+        # a distinct operation_key from CONTAINS.
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_LIST,
+        )
+
+        df = backend_factory.create({"tags": [[1, 2, 3]]}, "narwhals-pandas")
+        expr = ma.col("tags").list.t_contains(2)
+        assert_capability_gated(
+            FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
+            CONST_BACKEND.NARWHALS,
+            dialect="narwhals-pandas",
+            build=lambda: ma.relation(df).select(expr.name.alias("r")),
+            materialize=lambda rel: rel.collect(),
+        )
+
+    def test_materialize_residue_disambiguates_split_from_contains(self, backend_factory):
+        # NW-STR-22 (SPLIT) and NW-LIST-01 (CONTAINS) both declare
+        # native_errors=(TypeError,) on narwhals-pandas -- a SPLIT-only
+        # failure must be attributed to NW-STR-22, never mislabeled as
+        # NW-LIST-01 (backlog item 88 round-2 finding 1).
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_STRING,
+        )
+
+        df = backend_factory.create({"text": ["a,b,c"]}, "narwhals-pandas")
+        expr = ma.col("text").str.string_split(",")
+        assert_capability_gated(
+            FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT,
+            CONST_BACKEND.NARWHALS,
+            dialect="narwhals-pandas",
+            build=lambda: ma.relation(df).select(expr.name.alias("r")),
+            materialize=lambda rel: rel.collect(),
+        )
+
+    def test_materialize_residue_ambiguous_same_select_raises_raw(self, backend_factory):
+        # SPLIT and CONTAINS present in the SAME select, same TypeError --
+        # genuinely ambiguous which one failed. Must never guess: the raw
+        # exception propagates rather than an incorrectly-attributed
+        # BackendCapabilityError (backlog item 88 round-2 finding 2).
+        df = backend_factory.create(
+            {"text": ["a,b,c"], "tags": [[1, 2, 3]]}, "narwhals-pandas"
+        )
+        rel = ma.relation(df).select(
+            ma.col("text").str.string_split(",").name.alias("a"),
+            ma.col("tags").list.contains(2).name.alias("b"),
+        )
+        with pytest.raises(TypeError) as ei:
+            rel.collect()
+        assert not isinstance(ei.value, BackendCapabilityError)
+
+    def test_materialize_residue_unrelated_exception_on_handler_op_not_mislabeled(
+        self, backend_factory
+    ):
+        # A handler-routed op (JOIN) failing for an unrelated reason on
+        # narwhals-pandas must never be mislabeled as NW-LIST-01/NW-STR-22 --
+        # handler ops get an empty (authoritative) preferred-key set.
+        left = backend_factory.create({"id": [1, 2]}, "narwhals-pandas")
+        right = backend_factory.create({"id": [1, 2]}, "narwhals-pandas")
+        rel = ma.relation(left).join(ma.relation(right), left_on="missing_col", right_on="id")
+        with pytest.raises(KeyError):
+            rel.collect()
+
     def test_no_fact_returns_result(self):
         op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
         s = object()

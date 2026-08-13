@@ -322,27 +322,45 @@ class RelationDAG:
             UnifiedRelationVisitor,
         )
 
-        # Resolve backend
+        # Resolve backend family + dialect. Dialect resolution mirrors the
+        # SAME anchor selection used for family detection below -- family
+        # and dialect must come from the same leaf, never two different
+        # refs (item 88 design: DAG dialect propagation).
         if backend_target_name is not None:
             resolved_backend = self._resolve_backend_const(
                 backend, backend_target_name
             )
+            dialect = self._resolve_dialect_for(backend_target_name)
         elif ref_names:
             # Use the first ref (alphabetically, for determinism) for detection
-            resolved_backend = self._resolve_backend_const(
-                backend, sorted(ref_names)[0]
-            )
+            anchor_name = sorted(ref_names)[0]
+            resolved_backend = self._resolve_backend_const(backend, anchor_name)
+            dialect = self._resolve_dialect_for(anchor_name)
         else:
-            # No refs and no target name — fall back to Polars
+            # No refs and no target name — fall back to Polars, but still
+            # try to resolve dialect from the target node's own leaf
+            # (mirrors _execute_with_visitor's analogous backend-family
+            # fallback for this same case).
             from mountainash.core.constants import CONST_BACKEND as _CB
             resolved_backend = (
                 _CB(backend.lower()) if backend else _CB.POLARS
             )
+            dialect = None
+            from mountainash.relations.core.relation_api.relation_base import (
+                RelationBase,
+            )
+            from mountainash.core.backend_detection import identify_backend_identity
+            try:
+                leaf = RelationBase._find_leaf_read_node(node)
+                if leaf is not None:
+                    dialect = identify_backend_identity(leaf.dataframe).dialect
+            except Exception:
+                pass
 
         relation_system_cls = get_relation_system(resolved_backend)
-        relation_system = relation_system_cls()
+        relation_system = relation_system_cls(dialect=dialect)
         expression_system_cls = get_expression_system(resolved_backend)
-        expression_system = expression_system_cls()
+        expression_system = expression_system_cls(dialect=dialect)
         expr_visitor = UnifiedExpressionVisitor(expression_system)
 
         cache: dict[str, Any] = {}
@@ -558,3 +576,38 @@ class RelationDAG:
                     pass
         # No ReadRelNode found — default to Polars (SourceRelNode / inline data).
         return CONST_BACKEND.POLARS
+
+    def _resolve_dialect_for(self, target_name: str) -> Optional[str]:
+        """Dialect for the first ReadRelNode found while walking
+        ``target_name``'s dependency tree -- same anchor-selection order as
+        :meth:`_resolve_backend_const`, so family and dialect are always
+        resolved from the same leaf. Unlike backend-family resolution,
+        dialect is *not* determinable from an explicit ``backend=`` string
+        override, so this always walks regardless (mirrors
+        ``relation_base.py``'s independent dialect resolution). Returns
+        ``None`` when no ReadRelNode is found (e.g. pure SourceRelNode /
+        inline data trees) -- matching ``relation_base.py``'s existing
+        behaviour for the same case.
+        """
+        from mountainash.relations.core.relation_api.relation_base import (
+            RelationBase,
+        )
+        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.relations.dag.errors import RelationDAGRequired
+
+        order = self.topological_order(target=target_name)
+        for n in order:
+            rel = self.relations[n]
+            root = getattr(rel, "_node", None)
+            if root is None:
+                continue
+            try:
+                read_node = RelationBase._find_leaf_read_node(root)
+            except (ValueError, AttributeError, RelationDAGRequired):
+                continue
+            if read_node is not None:
+                try:
+                    return identify_backend_identity(read_node.dataframe).dialect
+                except Exception:
+                    pass
+        return None

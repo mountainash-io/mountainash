@@ -116,3 +116,63 @@ class TestMaterializeBoundary:
         )
         with pytest.raises(BackendCapabilityError, match="materialize-time quirk"):
             dag.collect_with_drift("bad")
+
+
+class TestDagMaterializeResidueDialectPropagation:
+    """Backlog item 88: _compile_with_refs() previously constructed
+    relation_system/expression_system with no dialect at all, so every
+    DAG-path residue lookup returned empty regardless of which choke point
+    was fixed. These exercise the real registry facts end-to-end through
+    every DAG entry point."""
+
+    def _nw_pandas(self, data: dict):
+        import narwhals as nw
+        return nw.from_native(pl.DataFrame(data).to_pandas(), eager_only=True)
+
+    def _nw_polars(self, data: dict):
+        import narwhals as nw
+        return nw.from_native(pl.DataFrame(data), eager_only=True)
+
+    def test_dag_collect_enriches_failure_on_dependency_ref(self):
+        # NW-LIST-01 fails while materialising a DEPENDENCY ref, not the
+        # collect() target itself.
+        from mountainash.relations.dag import RelationDAG
+
+        nwf = self._nw_pandas({"tags": [[1, 2, 3]]})
+        dag = RelationDAG()
+        dag.add("stg", ma.relation(nwf))
+        dag.add(
+            "derived",
+            dag.ref("stg").select(ma.col("tags").list.contains(2).name.alias("r")),
+        )
+        with pytest.raises(BackendCapabilityError) as exc_info:
+            dag.collect("derived")
+        assert exc_info.value.limitation.upstream_ref == "NW-LIST-01"
+
+    def test_dag_execute_enriches_adhoc_target(self):
+        from mountainash.relations.dag import RelationDAG
+
+        nwf = self._nw_pandas({"tags": [[1, 2, 3]]})
+        dag = RelationDAG()
+        rel = ma.relation(nwf).select(ma.col("tags").list.contains(2).name.alias("r"))
+        with pytest.raises(BackendCapabilityError) as exc_info:
+            dag.execute(rel)
+        assert exc_info.value.limitation.upstream_ref == "NW-LIST-01"
+
+    def test_dag_collect_with_drift_enriches_nw_list_04(self):
+        # NW-LIST-04 (narwhals-polars, list.get negative index): confirmed
+        # broken pre-fix even though standalone Relation.collect() already
+        # worked for this fact -- proves the dialect-propagation fix, not
+        # just the choke-point relocation.
+        from mountainash.relations.dag import RelationDAG
+
+        nwf = self._nw_polars({"a": [[1, 2, 3], [4, 5]]})
+        dag = RelationDAG()
+        dag.add("stg", ma.relation(nwf))
+        dag.add(
+            "derived",
+            dag.ref("stg").select(ma.col("a").list.get(-1).name.alias("r")),
+        )
+        with pytest.raises(BackendCapabilityError) as exc_info:
+            dag.collect_with_drift("derived")
+        assert exc_info.value.limitation.upstream_ref == "NW-LIST-04"
