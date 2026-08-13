@@ -493,3 +493,80 @@ class TestPerRefBuildTimeGateFiresOnNonAnchorRefsOwnDialect:
         )
         with pytest.raises(BackendCapabilityError):
             dag.collect("final")
+
+
+class TestExecuteAdhocTreeCombiningDirectNodeWithDifferingDialectRef:
+    """Testing plan #7: an ad-hoc execute() tree combining a direct
+    ReadRelNode (not registered in the DAG) with TWO named RefRelNodes of
+    differing dialects must gate/enrich the NON-anchor ref against its OWN
+    dialect. Two refs are required: with only one ref, that ref trivially
+    IS the anchor (sorted(all_refs)[0] picks the sole ref), which proves
+    nothing about per-ref switching."""
+
+    def test_execute_direct_node_plus_two_refs_of_differing_dialects(
+        self, _dialect_spy_factory
+    ):
+        dag = RelationDAG()
+        anchor_rel = ma.relation(_nw_polars({"k": [1]}))  # a_anchor_ref: alphabetically first -> anchor
+        diff_rel = ma.relation(_nw_pandas({"k": [1]}))  # b_diff_ref: differs from anchor
+        dag.add("a_anchor_ref", anchor_rel)
+        dag.add("b_diff_ref", diff_rel)
+        direct_node_rel = ma.relation(_nw_polars({"k": [1]}))  # NOT registered in the dag
+        adhoc = (
+            direct_node_rel.join(dag.ref("a_anchor_ref"), on="k").join(
+                dag.ref("b_diff_ref"), on="k"
+            )
+        )
+        _dialect_spy_factory(anchor_rel._node, "anchor_ref")
+        _dialect_spy_factory(diff_rel._node, "diff_ref")
+
+        try:
+            dag.execute(adhoc)
+        except Exception:
+            pass  # cross-storage narwhals join raises natively once the
+            # target combines them; irrelevant -- both named refs must
+            # complete their OWN compile first.
+
+        captured = _dialect_spy_factory.captured
+        assert captured["anchor_ref"]["completed"] is True
+        assert captured["anchor_ref"]["entry"]["backend_dialect"] == "narwhals-polars"
+
+        assert captured["diff_ref"]["completed"] is True
+        assert captured["diff_ref"]["entry"]["backend_dialect"] == "narwhals-pandas"
+        assert (
+            captured["diff_ref"]["entry"]["backend_id"]
+            != captured["anchor_ref"]["entry"]["backend_id"]
+        )
+
+
+class TestUnknownDialectStringRefNotSilentlyInherited:
+    """Testing plan #8: a ref whose detected dialect is outside
+    KNOWN_DIALECTS (narwhals-pyarrow) must not error and must not silently
+    inherit the anchor's dialect. Asserts the ref's own compile actually
+    COMPLETED (not merely that some assertion survives a broad except
+    Exception around the whole call) -- only the TARGET's own cross-
+    storage join may legitimately fail."""
+
+    def test_pyarrow_backed_ref_keeps_its_own_unknown_dialect_string(
+        self, _dialect_spy_factory
+    ):
+        pytest.importorskip("pyarrow")
+        dag = RelationDAG()
+        anchor_rel = ma.relation(_nw_polars({"k": [1]}))
+        pyarrow_rel = ma.relation(_nw_pyarrow({"k": [1]}))
+        dag.add("a_anchor", anchor_rel)
+        dag.add("b_pyarrow", pyarrow_rel)
+        dag.add("final", dag.ref("a_anchor").join(dag.ref("b_pyarrow"), on="k"))
+        _dialect_spy_factory(pyarrow_rel._node, "pyarrow_ref")
+
+        try:
+            dag.collect("final")
+        except Exception:
+            pass  # the TARGET's own cross-storage join is expected to
+            # fail; the REF's own compile (a trivial standalone read)
+            # must not.
+
+        captured = _dialect_spy_factory.captured["pyarrow_ref"]
+        assert captured["completed"] is True
+        assert captured["entry"]["backend_dialect"] == "narwhals-pyarrow"
+        assert captured["entry"]["backend_dialect"] != "narwhals-polars"  # not inherited
