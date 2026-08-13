@@ -265,19 +265,14 @@ class RelationDAG:
                     pending |= _walk_refs(ref_node) - all_refs
 
         # Pick a backend target name for detection (first ref alphabetically).
-        # If no refs, detect backend from the relation's own leaf nodes.
+        # If no refs and no explicit backend, _compile_with_refs's own
+        # ad-hoc-node fallback branch (via _resolve_actual_identity_for_node)
+        # detects family+dialect together from this same node's own leaf --
+        # this used to duplicate that detection here (family only, no
+        # dialect) before immediately re-detecting it inside
+        # _compile_with_refs. Removed as dead weight (round-2: "the
+        # resolver still double-walks").
         target_name = sorted(all_refs)[0] if all_refs else None
-        if target_name is None and backend is None:
-            from mountainash.relations.core.relation_api.relation_base import (
-                RelationBase,
-            )
-            from mountainash.core.backend_detection import identify_backend
-            try:
-                leaf = RelationBase._find_leaf_read_node(node)
-                if leaf is not None:
-                    backend = identify_backend(leaf.dataframe).value
-            except Exception:
-                pass
 
         return self._compile_with_refs(
             node,
@@ -322,40 +317,49 @@ class RelationDAG:
             UnifiedRelationVisitor,
         )
 
-        # Resolve backend family + dialect. Dialect resolution mirrors the
-        # SAME anchor selection used for family detection below -- family
-        # and dialect must come from the same leaf, never two different
-        # refs (item 88 design: DAG dialect propagation).
+        # Resolve the anchor's PHYSICAL identity (family, dialect) once, via
+        # the combined resolver -- walking the named anchor relation (or,
+        # for an ad-hoc execute() node with no refs and no target name, the
+        # node's own leaf) -- THEN apply any explicit backend= override on
+        # top, coherently. Round-2 fix: the branches previously combined an
+        # override-derived family with a dialect string detected
+        # independently from a leaf whose actual family might not match the
+        # override, constructing an invalid (family, dialect) hybrid (e.g.
+        # PolarsRelationSystem(dialect="narwhals-pandas")) whenever backend=
+        # was given but disagreed with the anchor's own physical family.
+        # The dialect is now trusted ONLY when it was actually detected on
+        # a leaf belonging to the resolved (possibly overridden) family.
         if backend_target_name is not None:
-            resolved_backend = self._resolve_backend_const(
-                backend, backend_target_name
+            actual_family, actual_dialect = self._resolve_actual_identity_for(
+                backend_target_name
             )
-            dialect = self._resolve_dialect_for(backend_target_name)
         elif ref_names:
             # Use the first ref (alphabetically, for determinism) for detection
             anchor_name = sorted(ref_names)[0]
-            resolved_backend = self._resolve_backend_const(backend, anchor_name)
-            dialect = self._resolve_dialect_for(anchor_name)
+            actual_family, actual_dialect = self._resolve_actual_identity_for(
+                anchor_name
+            )
         else:
-            # No refs and no target name — fall back to Polars, but still
-            # try to resolve dialect from the target node's own leaf
-            # (mirrors _execute_with_visitor's analogous backend-family
-            # fallback for this same case).
-            from mountainash.core.constants import CONST_BACKEND as _CB
-            resolved_backend = (
-                _CB(backend.lower()) if backend else _CB.POLARS
+            # No refs and no target name -- ad-hoc node with no registered
+            # name; probe its own leaf directly.
+            actual_family, actual_dialect = self._resolve_actual_identity_for_node(
+                node
             )
-            dialect = None
-            from mountainash.relations.core.relation_api.relation_base import (
-                RelationBase,
-            )
-            from mountainash.core.backend_detection import identify_backend_identity
+
+        if backend is not None:
             try:
-                leaf = RelationBase._find_leaf_read_node(node)
-                if leaf is not None:
-                    dialect = identify_backend_identity(leaf.dataframe).dialect
-            except Exception:
-                pass
+                resolved_backend = CONST_BACKEND(backend.lower())
+            except ValueError:
+                raise ValueError(f"unknown backend: {backend!r}")
+            # Only trust the detected dialect if it actually belongs to the
+            # resolved (possibly overridden) family -- NEVER combine an
+            # overridden family with a foreign leaf's dialect string.
+            dialect = actual_dialect if actual_family == resolved_backend else None
+        else:
+            resolved_backend = (
+                actual_family if actual_family is not None else CONST_BACKEND.POLARS
+            )
+            dialect = actual_dialect
 
         relation_system_cls = get_relation_system(resolved_backend)
         relation_system = relation_system_cls(dialect=dialect)

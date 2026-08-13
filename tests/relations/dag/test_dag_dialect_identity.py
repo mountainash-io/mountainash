@@ -136,3 +136,88 @@ class TestResolveBackendConstAndDialectForWrappers:
         dag = RelationDAG()
         dag.add("src", ma.relation([{"a": 1}]))
         assert dag._resolve_dialect_for("src") is None
+
+
+@pytest.fixture
+def _visitor_construction_spy(monkeypatch):
+    """Patch UnifiedRelationVisitor.__init__ to record the constructed
+    relation_system's (backend_type, dialect) on every construction.
+    _compile_with_refs constructs exactly ONE UnifiedRelationVisitor per
+    call (the anchor's) -- per-ref swaps (Task 4) mutate
+    visitor.backend/.expr_visitor directly and never call __init__ again
+    -- so this fires exactly once per test here, BEFORE any native
+    dispatch, making it safe even when the actual compile subsequently
+    raises (e.g. PolarsRelationSystem rejecting a raw Narwhals frame).
+
+    Patches the CLASS's own __init__ in place (not a module-level name
+    rebind), so it is picked up regardless of how dag.py imports the
+    name.
+    """
+    from mountainash.relations.core.unified_visitor import relation_visitor as _rv
+
+    original_init = _rv.UnifiedRelationVisitor.__init__
+    constructions: list[dict] = []
+
+    def _spy_init(self, relation_system, *args, **kwargs):
+        constructions.append(
+            {
+                "backend_type": getattr(relation_system, "backend_type", None),
+                "dialect": getattr(relation_system, "dialect", "MISSING"),
+            }
+        )
+        return original_init(self, relation_system, *args, **kwargs)
+
+    monkeypatch.setattr(_rv.UnifiedRelationVisitor, "__init__", _spy_init)
+    yield constructions
+
+
+class TestExplicitBackendAnchorCoherence:
+    """Round-2 finding: the anchor's OWN (family, dialect) construction had
+    the same invalid-hybrid bug the per-ref guard (Task 4) is fixed for --
+    an explicit backend= override combined with a dialect string detected
+    from a leaf of a DIFFERENT physical family. Covers both branches that
+    establish the anchor identity."""
+
+    def test_named_target_branch_never_builds_invalid_hybrid(
+        self, _visitor_construction_spy
+    ):
+        # backend_target_name is not None (collect()'s always-set target).
+        dag = RelationDAG()
+        dag.add("pandas_only", ma.relation(_nw_pandas({"k": [1]})))
+        try:
+            dag.collect("pandas_only", backend="polars")
+        except Exception:
+            pass  # PolarsRelationSystem cannot read a raw Narwhals frame --
+            # irrelevant, we assert the identity used to CONSTRUCT the
+            # visitor, captured before any read is attempted.
+
+        assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.POLARS
+        assert _visitor_construction_spy[0]["dialect"] is None  # never "narwhals-pandas"
+
+    def test_adhoc_node_fallback_branch_never_builds_invalid_hybrid(
+        self, _visitor_construction_spy
+    ):
+        # No refs, no target name (execute() with zero RefRelNode leaves).
+        dag = RelationDAG()
+        rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
+        try:
+            dag.execute(rel, backend="polars")
+        except Exception:
+            pass
+
+        assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.POLARS
+        assert _visitor_construction_spy[0]["dialect"] is None  # never "narwhals-pandas"
+
+    def test_no_override_still_resolves_family_and_dialect_from_same_leaf(
+        self, _visitor_construction_spy
+    ):
+        # Non-regression: the no-override path must still detect the
+        # anchor's REAL family+dialect together (same leaf) and must
+        # actually succeed end-to-end (no mismatch to raise on here).
+        dag = RelationDAG()
+        rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
+        _result, visitor = dag._execute_with_visitor(rel)
+        assert visitor.backend.backend_type == CONST_BACKEND.NARWHALS
+        assert visitor.backend.dialect == "narwhals-pandas"
+        assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.NARWHALS
+        assert _visitor_construction_spy[0]["dialect"] == "narwhals-pandas"
