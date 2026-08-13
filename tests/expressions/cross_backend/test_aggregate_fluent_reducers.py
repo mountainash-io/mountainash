@@ -10,7 +10,7 @@ from fixtures.capability_gating import xfail_divergence
 
 _ALL = ALL_BACKENDS
 _PROD_BACKENDS = [pytest.param(b, marks=xfail_divergence("IB-AGG-05", backend=b)) for b in ALL_BACKENDS]
-_NWAGG_BACKENDS = [pytest.param(b, marks=xfail_divergence("NW-AGG-01", backend=b)) for b in ALL_BACKENDS]
+_NWAGG_BACKENDS = [pytest.param(b, marks=xfail_divergence("NW-AGG-03", backend=b)) for b in ALL_BACKENDS]
 
 
 def _agg(df, expr_factory):

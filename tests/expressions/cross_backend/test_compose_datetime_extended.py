@@ -6,9 +6,9 @@ import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.capability_gating import xfail_divergence
 
-# week_of_year: pandas + all narwhals lack ISO week (NW-DT-01, bare BCE).
+# week_of_year: pandas + all narwhals lack ISO week (NW-DT-06, bare BCE).
 _WEEK_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-DT-01", backend=b)) for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("NW-DT-06", backend=b)) for b in ALL_BACKENDS
 ]
 # calendar-interval add (add_years/add_months): ibis-polars TypeError (IB-DT-10).
 _CALINT_BACKENDS = [

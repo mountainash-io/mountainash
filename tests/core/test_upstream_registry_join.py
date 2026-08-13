@@ -42,28 +42,18 @@ _PENDING_INTERNAL_GAPS: dict[str, str] = {
 # test_no_divergence_id_collides_with_an_unrelated_yaml_entry the first time
 # it ran (backlog item 84, 2026-08-13). Two originally-flagged instances
 # (IB-STR-02, MA-STR-01) were resolved for real in the same change (renamed
-# to IB-STR-11 / linked via upstream_ref respectively); these 16 were
-# additionally discovered by the new detector and are grandfathered here,
-# closed-by-default, pending individual triage (rename vs link) — tracked as
-# backlog item 87, not silently dropped.
-_KNOWN_ID_COLLISIONS: dict[str, str] = {
-    "IB-LIST-01": "DivergenceFact describes ibis's broad missing-list-op surface; the yaml IB-LIST-01 entry describes the same 'ibis array namespace mostly missing' gap by a different enumeration — plausibly the same issue but not verified 1:1. Backlog item 87. Since 2026-08-13.",
-    "IB-REL-07": "DivergenceFact (ibis-sqlite drop_nans/unpivot/melt) is unrelated to yaml IB-REL-07 (ArrayValue.sort() descending param) — needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "IB-REL-08": "DivergenceFact (asof join unreliable) is unrelated to yaml IB-REL-08 (backend rename mapping inverted, likely a mountainash visitor bug) — needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "IB-REL-09": "DivergenceFact (cross_join suffix disambiguation) and yaml IB-REL-09 (join() suffixes kwarg unsupported) both concern Ibis's suffixes kwarg — plausibly the same issue but not verified 1:1. Backlog item 87. Since 2026-08-13.",
-    "IB-WIN-01": "DivergenceFact and yaml IB-WIN-01 both describe 'ibis-polars has no WindowFunction translation rule' near-verbatim — high-confidence same issue, needs upstream_ref linked. Backlog item 87. Since 2026-08-13.",
-    "IB-WIN-02": "DivergenceFact and yaml IB-WIN-02 both describe 'ibis-duckdb/sqlite rank functions are 0-based not 1-based' near-verbatim — high-confidence same issue, needs upstream_ref linked. Backlog item 87. Since 2026-08-13.",
-    "IB-WIN-03": "DivergenceFact (rank(method=average|max) has no SQL equivalent) is unrelated to yaml IB-WIN-03 (lead/lag/shift/cumulative/diff have no WindowFunction translation on ibis-duckdb/sqlite) — different op sets, needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "NW-AGG-01": "DivergenceFact (mode()/any_value() rejected on narwhals-lazy) is unrelated to yaml NW-AGG-01 (an already-RESOLVED variance()/.pow() bug) — needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "NW-DT-01": "DivergenceFact (week_of_year unsupported on pandas/narwhals) is unrelated to yaml NW-DT-01 (datetime offset ops require literal integers) — needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "NW-DT-02": "DivergenceFact (narwhals-pandas dt.date() raises) is unrelated to yaml NW-DT-02 (week_of_year not supported on pandas) — needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "NW-DT-03": "DivergenceFact (narwhals dt.time() unsupported) may or may not be the same as yaml NW-DT-03's vague 'various datetime enrichment ops raise on pandas, need to identify specific methods' — not verified 1:1. Backlog item 87. Since 2026-08-13.",
-    "NW-LIST-05": "DivergenceFact describes narwhals's broad missing-list-op surface; the yaml NW-LIST-05 entry describes the same 'narwhals list namespace mostly missing' gap by a different enumeration — plausibly the same issue but not verified 1:1. Backlog item 87. Since 2026-08-13.",
-    "NW-MATH-01": "DivergenceFact (cot() raises because tan() is missing) is plausibly explained by yaml NW-MATH-01 ('no trigonometric functions, incl. tan') but describes a different symptom (cot, not tan itself) — not verified 1:1. Backlog item 87. Since 2026-08-13.",
-    "NW-MATH-02": "DivergenceFact (trig+angular+hyperbolic all raise) partially overlaps yaml NW-MATH-02 (hyperbolic functions only) — broader scope than the yaml entry, not verified 1:1. Backlog item 87. Since 2026-08-13.",
-    "NW-WIN-01": "DivergenceFact (order-dependent window ops rejected on narwhals-lazy) is unrelated to yaml NW-WIN-01 (ntile() unsupported) — needs a rename to a free id. Backlog item 87. Since 2026-08-13.",
-    "NW-WIN-02": "DivergenceFact (percent_rank/cume_dist/nth_value/diff(n>1) raise) partially overlaps yaml NW-WIN-02 (diff(n>1) only) — broader scope than the yaml entry, not verified 1:1. Backlog item 87. Since 2026-08-13.",
-}
+# to IB-STR-11 / linked via upstream_ref respectively). The 16 additionally
+# discovered by the new detector were grandfathered here pending individual
+# triage (backlog item 87) and have now ALL been resolved for real (6 linked
+# via upstream_ref after empirical verification, 10 renamed to a free id with
+# a new/widened registry entry): IB-LIST-01, NW-LIST-05, NW-MATH-01, IB-WIN-01,
+# IB-WIN-02, NW-DT-03 linked; IB-WIN-03->IB-WIN-05, IB-REL-07->IB-REL-10,
+# IB-REL-08->IB-REL-11, IB-REL-09->IB-REL-12, NW-AGG-01->NW-AGG-03,
+# NW-DT-01->NW-DT-06, NW-DT-02->NW-DT-07, NW-WIN-01->NW-WIN-03,
+# NW-WIN-02->NW-WIN-04, NW-MATH-02->NW-MATH-10 renamed. Empty set kept (not
+# deleted) so a future genuine collision has an obvious place to be
+# grandfathered again, and so this history stays discoverable.
+_KNOWN_ID_COLLISIONS: dict[str, str] = {}
 
 
 def _yaml_entries() -> dict[str, dict]:

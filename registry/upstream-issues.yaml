@@ -217,18 +217,23 @@ issues:
   category: window-ops
   summary: 'ibis-duckdb/sqlite: ranking functions return 0-based values instead of
     1-based'
-  root_cause: upstream_bug
+  root_cause: by_design
   affected_backends:
   - ibis-duckdb
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: needs_investigation
+  status: by_design
   our_workaround: xfail_strict
-  notes: rank(), dense_rank(), row_number() return 0-based values on ibis-duckdb and
-    ibis-sqlite. SQL standard and all other backends use 1-based. Possibly a mountainash
-    visitor offset issue rather than upstream.
-  last_verified: '2026-05-17'
+  notes: 'rank(), dense_rank(), row_number() return 0-based values on ibis-duckdb and
+    ibis-sqlite; SQL standard and other backends (polars/narwhals) use 1-based.
+    Re-verified 2026-08-13 (backlog item 87): this is deliberate Ibis design, not a
+    bug — Ibis''s own rank()/dense_rank() docstring examples document 0-based
+    output verbatim, and ibis.row_number() empirically confirmed 0-based too on
+    ibis-duckdb. Corrected from the prior needs_investigation/upstream_bug
+    classification (root_cause and status were speculative "possibly a mountainash
+    visitor offset issue" before this was checked against Ibis''s own docs).'
+  last_verified: '2026-08-13'
 - id: IB-WIN-03
   project: ibis
   category: window-ops
@@ -246,6 +251,27 @@ issues:
     ntile, cum_sum, cum_max, cum_min, cum_count, cum_prod, diff) fail on ibis-duckdb
     and ibis-sqlite.
   last_verified: '2026-05-17'
+- id: IB-WIN-05
+  project: ibis
+  category: window-ops
+  summary: rank(method='average'|'max') has no SQL equivalent on any Ibis dialect
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: xfail_strict
+  notes: 'SQL has no native RANK variant matching pandas/polars rank(method="average"|"max")
+    semantics (only RANK/DENSE_RANK/ROW_NUMBER exist); mountainash raises a clean
+    BackendCapabilityError for both methods on every Ibis dialect. Renamed from a
+    colliding DivergenceFact id (was "IB-WIN-03", which already named an unrelated
+    entry above — the non-ranking window-translation gap on ibis-duckdb/sqlite) when
+    backlog item 87''s id-collision detector caught the reuse; the DivergenceFact and
+    this entry now self-reference via upstream_ref (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
 - id: IB-DT-01
   project: ibis
   category: datetime-ops
@@ -543,6 +569,71 @@ issues:
   our_workaround: xfail_strict
   notes: Likely mountainash visitor bug, not Ibis issue.
   last_verified: '2026-05-11'
+- id: IB-REL-10
+  project: ibis
+  category: relation-ops
+  summary: 'ibis-sqlite: drop_nans/unpivot/melt raise OperationNotDefinedError'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 'ibis-sqlite lacks array/pivot relational translations: Relation.drop_nans()/
+    unpivot()/melt() raise OperationNotDefinedError; ibis-duckdb/ibis-polars and
+    polars/narwhals compute them. Renamed from a colliding DivergenceFact id (was
+    "IB-REL-07", which already named an unrelated entry above — the ArrayValue.sort()
+    descending-parameter gap) when backlog item 87''s id-collision detector caught
+    the reuse; the DivergenceFact and this entry now self-reference via upstream_ref
+    (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: IB-REL-11
+  project: ibis
+  category: relation-ops
+  summary: asof join is unreliable on Ibis SQL backends
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Relation.join_asof() returns a diverging (wrong) result on ibis-duckdb and
+    raises UnsupportedOperationError on ibis-sqlite; polars/narwhals compute it
+    correctly. Renamed from a colliding DivergenceFact id (was "IB-REL-08", which
+    already named an unrelated entry above — the backend rename-mapping-inverted
+    gap) when backlog item 87''s id-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog
+    item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: IB-REL-12
+  project: ibis
+  category: relation-ops
+  summary: cross_join between two same-named tables from different Ibis connections
+    raises a column-binding error on SQL backends
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Verified empirically (backlog item 87, 2026-08-13): Relation.cross_join()
+    raises duckdb BinderException / sqlite OperationalError ("no such column") when
+    the two input tables share a table name but originate from separate Ibis
+    connections (exactly the shape produced by the test suite''s
+    BackendDataFrameFactory, which names every table "test_table"); ibis-polars and
+    polars/narwhals are unaffected. Root cause not yet isolated to Ibis vs.
+    mountainash''s join visitor — likely a missing table-alias disambiguation when
+    two DatabaseTable operations share a name across connections. Renamed from a
+    colliding DivergenceFact id (was "IB-REL-09", whose yaml entry described a
+    different, no-longer-reproducible "suffixes kwarg" TypeError) when backlog item
+    87''s id-collision detector caught the reuse; the DivergenceFact and this entry
+    now self-reference via upstream_ref.'
+  last_verified: '2026-08-13'
 - id: IB-CTE-01
   project: ibis
   category: recursive-cte
@@ -845,8 +936,48 @@ issues:
 - id: NW-DT-03
   project: narwhals
   category: datetime-ops
-  summary: Various datetime enrichment operations raise NotImplementedError on pandas
-    backend
+  summary: dt.time() is not supported on any Narwhals dialect — NotImplementedError
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Specific method identified for the originally vague "various datetime
+    enrichment ops... need to identify specific methods" note (backlog item 87,
+    2026-08-13): dt.time() raises on narwhals-pandas, narwhals-polars, and
+    narwhals-lazy alike (verified empirically), not narwhals-pandas only.
+    affected_backends widened accordingly; mountainash DivergenceFact NW-DT-03
+    self-references this entry via upstream_ref.'
+  last_verified: '2026-08-13'
+- id: NW-DT-06
+  project: narwhals
+  category: datetime-ops
+  summary: week_of_year (ISO) is not supported on pandas or any Narwhals dialect
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'dt.week_of_year() raises BackendCapabilityError on pandas and all Narwhals
+    dialects; Polars and Ibis compute it. Renamed from a colliding DivergenceFact id
+    (was "NW-DT-01", which already named an unrelated entry above — the
+    literal-integer-only datetime-offset gap) when backlog item 87''s id-collision
+    detector caught the reuse; the DivergenceFact and this entry now self-reference
+    via upstream_ref (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-DT-07
+  project: narwhals
+  category: datetime-ops
+  summary: 'narwhals-pandas: dt.date() raises NotImplementedError'
   root_cause: upstream_feature_gap
   affected_backends:
   - narwhals-pandas
@@ -854,23 +985,33 @@ issues:
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: xfail_strict
-  notes: Narwhals pandas datetime ops limited. Need to identify specific methods.
-  last_verified: '2026-05-11'
+  notes: 'dt.date() raises on narwhals-pandas only; narwhals-polars, polars, and
+    Ibis compute it. Renamed from a colliding DivergenceFact id (was "NW-DT-02",
+    which already named an unrelated entry above — week_of_year not supported on
+    pandas) when backlog item 87''s id-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog item
+    87, 2026-08-13).'
+  last_verified: '2026-08-13'
 - id: NW-MATH-01
   project: narwhals
   category: math-ops
   summary: No trigonometric functions (sin, cos, tan, asin, acos, atan, atan2)
   root_cause: upstream_feature_gap
   affected_backends:
+  - pandas
   - narwhals-pandas
   - narwhals-polars
+  - narwhals-lazy
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_filing
   our_workaround: xfail_strict
-  notes: Covers atan2() as well — raises NotImplementedError on narwhals-pandas and
-    narwhals-polars.
-  last_verified: '2026-05-11'
+  notes: 'Covers atan2() as well — raises NotImplementedError. Widened
+    affected_backends 2026-08-13 (backlog item 87, re-verified live against the
+    self-linked DivergenceFact NW-MATH-01 whose scope is the whole narwhals family
+    plus bare pandas): sin()/tan() raise on bare pandas and narwhals-lazy too, not
+    only narwhals-pandas/narwhals-polars as originally recorded.'
+  last_verified: '2026-08-13'
 - id: NW-MATH-02
   project: narwhals
   category: math-ops
@@ -885,6 +1026,33 @@ issues:
   our_workaround: xfail_strict
   notes: ''
   last_verified: '2026-05-11'
+- id: NW-MATH-10
+  project: narwhals
+  category: math-ops
+  summary: No trigonometric, angular-conversion, or hyperbolic math functions on
+    pandas or Narwhals
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 'mountainash consolidates trig (sin/cos/tan/asin/acos/atan/atan2), angular
+    (radians/degrees), and hyperbolic (sinh/cosh/tanh/asinh/acosh/atanh) into a
+    single DivergenceFact tested together (test_trig_hyperbolic.py), all raising
+    NotImplementedError on pandas and every Narwhals dialect. This entry is broader
+    than the narrower NW-MATH-01 (trig only) and NW-MATH-02 (hyperbolic only)
+    entries above, which remain independently accurate but do not cover the
+    angular-conversion functions. Renamed from a colliding DivergenceFact id (was
+    "NW-MATH-02", which duplicated this yaml id while describing the broader
+    combined scope) when backlog item 87''s id-collision detector caught the reuse;
+    the DivergenceFact and this entry now self-reference via upstream_ref (backlog
+    item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
 - id: NW-MATH-03
   project: narwhals
   category: math-ops
@@ -1024,6 +1192,27 @@ issues:
     (2026-08-01); strict xfail already removed. narwhals-lazy still xfails for a separate
     reason (mode() is length-changing/order-dependent, rejected on a LazyFrame).'
   last_verified: '2026-08-01'
+- id: NW-AGG-03
+  project: narwhals
+  category: aggregate-ops
+  summary: mode()/any_value() are rejected on a narwhals-lazy LazyFrame
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'mode() and any_value() raise InvalidOperationError on narwhals-lazy —
+    order-dependent/length-changing aggregates are not permitted on a LazyFrame;
+    eager Narwhals and every other backend compute them. NW-AGG-02''s own notes
+    above already flag this as "a separate reason" for narwhals-lazy once mode()
+    itself was implemented for the eager dialects. Renamed from a colliding
+    DivergenceFact id (was "NW-AGG-01", which already named an unrelated,
+    already-resolved entry above — the variance()/.pow() bug) when backlog item
+    87''s id-collision detector caught the reuse; the DivergenceFact and this entry
+    now self-reference via upstream_ref (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
 - id: NW-WIN-01
   project: narwhals
   category: window-ops
@@ -1054,6 +1243,50 @@ issues:
   our_workaround: xfail_strict
   notes: diff(n=2) fails on all Narwhals backends. Only n=1 (the default) is supported.
   last_verified: '2026-05-17'
+- id: NW-WIN-03
+  project: narwhals
+  category: window-ops
+  summary: order-dependent window ops are rejected on a narwhals-lazy LazyFrame
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'narwhals-lazy rejects diff/cum_sum/cum_max/cum_min/cum_count/cum_prod/
+    lead/lag/first_value/last_value with InvalidOperationError — order-dependent
+    window expressions are not permitted on a LazyFrame without an explicit order;
+    eager Narwhals and Polars compute them. Renamed from a colliding DivergenceFact
+    id (was "NW-WIN-01", which already named an unrelated entry above — ntile() not
+    supported) when backlog item 87''s id-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog item
+    87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-WIN-04
+  project: narwhals
+  category: window-ops
+  summary: percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas and Narwhals
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'percent_rank()/cume_dist()/nth_value() and multi-step diff(n>1) all raise
+    NotImplementedError on pandas and Narwhals; ibis-duckdb/sqlite compute them
+    (Polars too, except nth_value — see PL-WIN-01). This entry is broader than the
+    narrower NW-WIN-02 (diff(n>1) only) entry above, which remains independently
+    accurate. Renamed from a colliding DivergenceFact id (was "NW-WIN-02", which
+    duplicated this yaml id while describing the broader combined scope) when
+    backlog item 87''s id-collision detector caught the reuse; the DivergenceFact
+    and this entry now self-reference via upstream_ref (backlog item 87,
+    2026-08-13).'
+  last_verified: '2026-08-13'
 - id: NW-LIST-01
   project: narwhals
   category: list-ops
@@ -1120,14 +1353,20 @@ issues:
   affected_backends:
   - narwhals-polars
   - narwhals-pandas
+  - narwhals-lazy
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: xfail_strict
   notes: 'Narwhals v2.21 list namespace has only: len, unique, contains, get, min,
     max, mean, median, sum, sort. All other list ops raise BackendCapabilityError.
-    Polars backend also has xfails for expression handling issues in test_arg_types_list.py.'
-  last_verified: '2026-05-11'
+    Polars backend also has xfails for expression handling issues in
+    test_arg_types_list.py. Widened affected_backends 2026-08-13 (backlog item 87,
+    re-verified live against the self-linked DivergenceFact NW-LIST-05 whose scope
+    is the whole narwhals family): reverse()/head()/gather_every() (and by
+    extension the rest of the missing-op set) raise on narwhals-lazy too, not only
+    narwhals-polars/narwhals-pandas as originally recorded.'
+  last_verified: '2026-08-13'
 - id: NW-LIST-06
   project: narwhals
   category: list-ops

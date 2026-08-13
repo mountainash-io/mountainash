@@ -20,10 +20,10 @@ ALL_BACKENDS = [
 from fixtures.capability_gating import xfail_divergence
 
 _MELT = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-07", backend=b)) for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("IB-REL-10", backend=b)) for b in ALL_BACKENDS
 ]
 _CROSSJOIN = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-09", backend=b)) for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("IB-REL-12", backend=b)) for b in ALL_BACKENDS
 ]
 
 @pytest.mark.cross_backend

@@ -49,9 +49,9 @@ _ALLNULL = [
 _ALLNULL_DUCK = [
     pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b)) for b in ALL_BACKENDS
 ]
-# mode() / any_value(): order-dependent, rejected on a narwhals LazyFrame (NW-AGG-01).
+# mode() / any_value(): order-dependent, rejected on a narwhals LazyFrame (NW-AGG-03).
 _LAZY = [
-    pytest.param(b, marks=xfail_divergence("NW-AGG-01", backend=b)) for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("NW-AGG-03", backend=b)) for b in ALL_BACKENDS
 ]
 # product() non-zero data: ibis-polars returns None (IB-AGG-05); ibis-duckdb/sqlite compute it.
 _PRODUCT = [
@@ -65,13 +65,13 @@ _PRODUCT_ZERO = [
     )
     for b in ALL_BACKENDS
 ]
-# any_value()/n_unique() all-null: narwhals-lazy (NW-AGG-01) + ibis-duckdb
+# any_value()/n_unique() all-null: narwhals-lazy (NW-AGG-03) + ibis-duckdb
 # (IB-REL-06); ibis-polars/ibis-sqlite compute None over an all-null column.
 _ANYVAL_ALLNULL = [
     pytest.param(
         b,
         marks=[
-            xfail_divergence("NW-AGG-01", backend=b),
+            xfail_divergence("NW-AGG-03", backend=b),
             xfail_divergence("IB-REL-06", backend=b),
         ],
     )
