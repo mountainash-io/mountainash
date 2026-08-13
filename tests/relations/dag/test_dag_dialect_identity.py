@@ -430,3 +430,66 @@ class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:
         assert captured["completed"] is True
         assert captured["entry"]["backend_type"] == CONST_BACKEND.IBIS
         assert captured["entry"]["backend_dialect"] is None
+
+
+@pytest.fixture
+def _narwhals_pandas_filter_gate_fact():
+    """Register an isolated, dialect-scoped BUILD-time GATE fact: filter()
+    is UNSUPPORTED on narwhals-pandas specifically (not a real production
+    limitation -- test-only, to deterministically exercise the per-ref
+    GATE path without depending on any real backend quirk or native
+    exception)."""
+    from mountainash.core.capabilities import (
+        CapabilityFact,
+        CapabilityLevel,
+        CapabilityRegistry,
+        Enforcement,
+        WILDCARD_PARAM,
+    )
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_SUBSTRAIT_REL,
+    )
+
+    snap = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.register_backend(
+            CONST_BACKEND.NARWHALS,
+            [
+                CapabilityFact(
+                    operation_key=RKEY_SUBSTRAIT_REL.FILTER,
+                    param=WILDCARD_PARAM,
+                    level=CapabilityLevel.UNSUPPORTED,
+                    backend=CONST_BACKEND.NARWHALS,
+                    dialect="narwhals-pandas",
+                    message="test-only BUILD-time gate for narwhals-pandas filter",
+                    enforcement=Enforcement.GATE,
+                    since="2026-08-13",
+                )
+            ],
+        )
+        yield
+    finally:
+        CapabilityRegistry.restore(snap)
+
+
+class TestPerRefBuildTimeGateFiresOnNonAnchorRefsOwnDialect:
+    """Testing plan #1/#5's missing half: item 89's fix covers BUILD-time
+    GATE facts too, not just MATERIALIZE_RESIDUE -- a dialect-scoped GATE
+    fact on the NON-anchor ref's own dialect must fire during that ref's
+    own compile, even though the anchor's dialect differs. GATE facts
+    fire before any native call, so this test is fully deterministic --
+    no native-exception timing/flakiness concern."""
+
+    def test_gate_fires_on_non_anchor_pandas_ref_filter(
+        self, _narwhals_pandas_filter_gate_fact
+    ):
+        dag = RelationDAG()
+        anchor_rel = ma.relation(_nw_polars({"k": [1, 2]}))  # anchor: narwhals-polars
+        pandas_rel = ma.relation(_nw_pandas({"k": [1, 2]})).filter(ma.col("k") > 0)
+        dag.add("a_anchor", anchor_rel)
+        dag.add("b_pandas_filtered", pandas_rel)
+        dag.add(
+            "final", dag.ref("a_anchor").join(dag.ref("b_pandas_filtered"), on="k")
+        )
+        with pytest.raises(BackendCapabilityError):
+            dag.collect("final")
