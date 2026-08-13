@@ -179,7 +179,8 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
     # handler-routed relation op only ever fires through gate_params — reject
     # silently-dead declarations at registration. Non-GATE roles are exempt:
     # ROUTER_METADATA is consumed by the backend router and
-    # MATERIALIZE_RESIDUE fires after the visitor returns.
+    # MATERIALIZE_RESIDUE enriches a native error raised during dispatch
+    # (item 88) or materialization, never via gate_params.
     if (
         kind == "relation"
         and fact.param != WILDCARD_PARAM

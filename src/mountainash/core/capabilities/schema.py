@@ -53,7 +53,7 @@ class Enforcement(Enum):
     """
     GATE = "gate"                                # visitor raises before backend dispatch
     ROUTER_METADATA = "router_metadata"          # a backend router consumes this; never raises
-    MATERIALIZE_RESIDUE = "materialize_residue"  # enriches an error raised after the visitor
+    MATERIALIZE_RESIDUE = "materialize_residue"  # enriches a native error raised during dispatch or materialization (item 88)
 
 
 _LEGAL_BOUNDARY = {

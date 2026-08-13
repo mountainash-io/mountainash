@@ -1008,27 +1008,30 @@ class TestRegexpStringSplitGates:
         case too (backlog item 85 round-1 review finding).
 
         The standard (non-pyarrow) pandas fixture's failure is asserted as
-        a raw ``TypeError`` here, NOT an enriched ``BackendCapabilityError``
-        -- narwhals' eager `.select()` evaluates lazily-built Expr nodes
-        outside `_call_with_expr_support`'s synchronous try/except AND
-        outside `enrich_materialization`'s wrap point in `.collect()`
-        (verified empirically: the pre-existing `NW-LIST-01`
-        `MATERIALIZE_RESIDUE` fact for `list.contains()` on narwhals-pandas
-        has the identical gap -- its own raw `TypeError` also leaks
-        unenriched through this exact code path, 2026-08-13). This is a
-        pre-existing residue-enrichment architecture gap, not something
-        introduced here or fixable within this item's scope -- filed as a
-        new backlog item."""
+        an enriched ``BackendCapabilityError`` chaining the raw
+        ``TypeError`` -- backlog item 88 (2026-08-13) fixed the
+        residue-enrichment architecture gap that used to let this leak raw
+        (narwhals' eager ``.select()`` evaluates outside the previous
+        wrap points; the fix moved enrichment into
+        ``UnifiedRelationVisitor._dispatch()``, scoped per-node via
+        structurally-present function keys so it cannot be confused with
+        the sibling ``NW-LIST-01`` fact, which shares the same
+        ``TypeError`` native-error type on the same dialect)."""
         import pandas as pd
 
         df = backend_factory.create({"text": ["a,b,c"]}, "narwhals-pandas")
-        with pytest.raises(TypeError, match="pyarrow-backed series"):
-            collect_expr(df, ma.col("text").str.string_split(","))
+        expr = ma.col("text").str.string_split(",")
+        assert_capability_gated(
+            FK_STR.SPLIT,
+            CONST_BACKEND.NARWHALS,
+            dialect="narwhals-pandas",
+            build=lambda: ma_top.relation(df).select(expr.name.alias("r")),
+            materialize=lambda rel: rel.collect(),
+        )
 
         # The pyarrow-backed case genuinely works -- proves this really is
         # storage-dependent, not a disguised whole-op gap.
         pyarrow_df = pd.DataFrame({"text": ["a,b,c", "d,e"]}).convert_dtypes(dtype_backend="pyarrow")
-        expr = ma.col("text").str.string_split(",")
         assert collect_expr(pyarrow_df, expr) == [["a", "b", "c"], ["d", "e"]]
 
 

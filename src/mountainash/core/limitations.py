@@ -66,10 +66,30 @@ def call_with_limitation_enrichment(
         raise
 
 
-def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
+def enrich_materialization(
+    backend: Any,
+    fn: Callable[[], Any],
+    *,
+    prefer_operation_keys: "frozenset | None" = None,
+) -> Any:
     """Materialization-boundary enrichment: consult the spine's MATERIALIZE
     residue (matched by native exception type — residue facts keep their
-    real operation keys)."""
+    real operation keys).
+
+    Args:
+        backend: Relation/expression system carrying ``backend_type``
+            (family) and ``dialect``.
+        fn: Zero-arg callable invoking the native backend operation.
+        prefer_operation_keys: When given (even empty), narrows candidates
+            to residue facts whose operation key is in this set *before*
+            matching by exception type — the caller's structural evidence
+            for which operation(s) were actually being compiled. ``None``
+            (the default) considers every residue fact for the backend,
+            matching the legacy backend-wide behaviour. In both cases, a
+            raised error is enriched only when **exactly one** candidate
+            matches the exception's type; zero or multiple matches leave
+            the original exception to propagate raw rather than guessing.
+    """
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.types import BackendCapabilityError
 
@@ -86,12 +106,22 @@ def enrich_materialization(backend: Any, fn: Callable[[], Any]) -> Any:
     except BackendCapabilityError:
         raise  # already enriched — never re-wrap
     except Exception as exc:
-        for (op_key, _param), fact in residue.items():
-            if isinstance(exc, fact.native_errors):
-                raise BackendCapabilityError(
-                    fact.message,
-                    backend=getattr(backend, "BACKEND_NAME", "unknown"),
-                    function_key=op_key,
-                    limitation=fact,
-                ) from exc
-        raise
+        candidates = residue.items()
+        if prefer_operation_keys is not None:
+            candidates = [
+                item for item in candidates
+                if item[0][0] in prefer_operation_keys
+            ]
+        matches = [
+            (op_key, fact) for (op_key, _param), fact in candidates
+            if isinstance(exc, fact.native_errors)
+        ]
+        if len(matches) == 1:
+            op_key, fact = matches[0]
+            raise BackendCapabilityError(
+                fact.message,
+                backend=getattr(backend, "BACKEND_NAME", "unknown"),
+                function_key=op_key,
+                limitation=fact,
+            ) from exc
+        raise  # 0 or >=2 matches: never guess -- raw exception wins

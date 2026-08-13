@@ -12,13 +12,80 @@ from mountainash.core.types import (
     is_pandas_dataframe, is_pyarrow_table,
 )
 from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
-from mountainash.expressions.core.expression_nodes import ExpressionNode
+from mountainash.expressions.core.expression_nodes import (
+    ExpressionNode, ScalarFunctionNode, CastNode, IfThenNode,
+    SingularOrListNode, WindowFunctionNode, OverNode,
+)
 
 from ..relation_nodes import RelationNode, ReadRelNode
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
     from mountainash.relations.dag.key_context import KeyDriftContext
+
+
+def _expression_children(node: ExpressionNode) -> list:
+    """Genuine expression-AST children of *node* -- never an ``Any``-typed
+    options/literal payload (``arguments-vs-options.md``: options are raw,
+    never visited). Exhaustive over the 7 substrait + 1 mountainash-extension
+    node types (``minimal-ast.md``, ENFORCED)."""
+    if isinstance(node, ScalarFunctionNode):
+        return list(node.arguments)
+    if isinstance(node, CastNode):
+        return [node.input]
+    if isinstance(node, IfThenNode):
+        return [c for pair in node.conditions for c in pair] + [node.else_clause]
+    if isinstance(node, SingularOrListNode):
+        return [node.value, *node.options]
+    if isinstance(node, WindowFunctionNode):
+        kids = [a for a in node.arguments if isinstance(a, ExpressionNode)]
+        if node.window_spec is not None:
+            kids += [
+                p for p in node.window_spec.partition_by
+                if isinstance(p, ExpressionNode)
+            ]
+        return kids
+    if isinstance(node, OverNode):
+        return [
+            node.expression,
+            *(p for p in node.window_spec.partition_by if isinstance(p, ExpressionNode)),
+        ]
+    return []  # FieldReferenceNode, LiteralNode: genuine leaves
+
+
+def _iter_function_keys(value: Any, _seen: "set[int] | None" = None):
+    """Recursively yield every non-None ``function_key`` in an expression
+    AST, handling a raw :class:`ExpressionNode` tree, a
+    :class:`BaseExpressionAPI` wrapper, or a list/tuple of either."""
+    if isinstance(value, BaseExpressionAPI):
+        value = value._node
+    if isinstance(value, ExpressionNode):
+        seen = _seen if _seen is not None else set()
+        if id(value) in seen:
+            return
+        seen.add(id(value))
+        if value.function_key is not None:
+            yield value.function_key
+        for child in _expression_children(value):
+            yield from _iter_function_keys(child, seen)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _iter_function_keys(item, _seen)
+
+
+def _present_expression_function_keys(node: RelationNode, op: Any) -> frozenset:
+    """Function keys structurally present in *node*'s bound
+    ``EXPRESSION``/``EXPRESSION_LIST`` args -- the caller's evidence for
+    which operation(s) were actually being compiled, used to disambiguate
+    :func:`~mountainash.core.limitations.enrich_materialization` candidates
+    that share a native exception type."""
+    from mountainash.relations.core.relation_system.relation_mapping.registry import ArgKind
+
+    keys: set = set()
+    for binding in op.args:
+        if binding.kind in (ArgKind.EXPRESSION, ArgKind.EXPRESSION_LIST):
+            keys.update(_iter_function_keys(getattr(node, binding.field)))
+    return frozenset(keys)
 
 
 class UnifiedRelationVisitor:
@@ -144,12 +211,27 @@ class UnifiedRelationVisitor:
     def _dispatch(self, node: RelationNode, op: Any) -> Any:
         if self.enforce_capabilities:
             self._gate_capabilities(node, op)
+
+        from mountainash.core.limitations import enrich_materialization
+
         if op.handler is not None:
-            return op.handler(node, self)
+            # No generic expression-field introspection for handler-routed
+            # ops today -- an empty (non-None) preferred set is
+            # authoritative in enrich_materialization, so this is a
+            # verified no-op unless/until a handler op registers a
+            # MATERIALIZE_RESIDUE fact.
+            return enrich_materialization(
+                self.backend, lambda: op.handler(node, self),
+                prefer_operation_keys=frozenset(),
+            )
         method = getattr(self.backend, op.protocol_method.__name__)
-        args = [self._bind(node, b) for b in op.args]
+        args = [self._bind(node, b) for b in op.args]  # children compiled OUTSIDE the wrap
         kwargs = self._bind_options(node, op)
-        return method(*args, **kwargs)
+        prefer = _present_expression_function_keys(node, op)
+        return enrich_materialization(
+            self.backend, lambda: method(*args, **kwargs),
+            prefer_operation_keys=prefer,
+        )
 
     def _bind(self, node: RelationNode, binding: Any) -> Any:
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
