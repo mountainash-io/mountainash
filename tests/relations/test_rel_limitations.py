@@ -179,3 +179,40 @@ class TestDagMaterializeResidueDialectPropagation:
         with pytest.raises(BackendCapabilityError) as exc_info:
             dag.collect_with_drift("derived")
         assert exc_info.value.limitation.upstream_ref == "NW-LIST-04"
+
+    def test_dag_collect_enriches_string_split_on_dependency_under_differing_anchor_dialect(
+        self,
+    ):
+        # Item 89 live-bug regression: NW-STR-22 (narwhals-pandas
+        # str.split() requires a pyarrow-backed series) previously leaked
+        # its raw native TypeError when the DAG's anchor dialect
+        # (narwhals-polars, from "a_polars_src", alphabetically first and
+        # therefore anchor) differed from the failing ref's own dialect
+        # (narwhals-pandas, "b_pandas_derived") -- because the whole
+        # compile call shared one visitor/expr_visitor pair scoped to
+        # the anchor. The join target is never actually reached: the
+        # failure is raised while compiling "b_pandas_derived" itself,
+        # inside the per-ref materialisation loop, before the target's
+        # own root.accept(visitor) runs -- isolating item 89's per-ref
+        # dispatch fix from item 91's join/concat operand-coercion
+        # concern.
+        from mountainash.relations.dag import RelationDAG
+
+        a_polars = self._nw_polars({"id": [1, 2]})
+        b_pandas = self._nw_pandas({"id": [1, 2], "s": ["x,y", "p,q"]})
+        dag = RelationDAG()
+        dag.add("a_polars_src", ma.relation(a_polars))
+        dag.add(
+            "b_pandas_derived",
+            ma.relation(b_pandas).select(
+                ma.col("id"),
+                ma.col("s").str.string_split(ma.lit(",")).name.alias("r"),
+            ),
+        )
+        dag.add(
+            "final",
+            dag.ref("a_polars_src").join(dag.ref("b_pandas_derived"), on="id"),
+        )
+        with pytest.raises(BackendCapabilityError) as exc_info:
+            dag.collect("final")
+        assert exc_info.value.limitation.upstream_ref == "NW-STR-22"
