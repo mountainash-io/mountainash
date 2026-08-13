@@ -462,10 +462,15 @@ issues:
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: needs_investigation
-  our_workaround: xfail_strict
-  notes: Ibis has unpivot() — may be mountainash wiring.
-  last_verified: '2026-05-11'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Superseded by IB-REL-10 (backlog item 90, 2026-08-13). Re-verified
+    empirically: unpivot()/melt() work correctly on ibis-duckdb and ibis-polars;
+    only ibis-sqlite raises (OperationNotDefinedError - "Compilation rule for
+    ''Array'' operation is not defined"). The original claim that all three
+    backends fail is stale; see IB-REL-10 for the accurate, narrower
+    (ibis-sqlite-only) description.'
+  last_verified: '2026-08-13'
 - id: IB-REL-03
   project: ibis
   category: relation-ops
@@ -492,10 +497,17 @@ issues:
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: needs_investigation
-  our_workaround: xfail_strict
-  notes: ''
-  last_verified: '2026-05-11'
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Disproven (backlog item 90, 2026-08-13): mountainash''s ibis join
+    implementation (relsys_ib_join.py) never passes a suffixes kwarg to
+    Table.join() - it always uses lname=/rname=. Re-verified empirically:
+    Relation.cross_join() works correctly on ibis-duckdb, ibis-polars, and
+    ibis-sqlite for ordinary distinctly-named tables. The only known cross_join
+    failure on Ibis SQL backends is the narrower, differently-caused IB-REL-12
+    (same-named tables from separate connections raise a column-binding error,
+    not a suffixes TypeError).'
+  last_verified: '2026-08-13'
 - id: IB-REL-05
   project: ibis
   category: relation-ops
