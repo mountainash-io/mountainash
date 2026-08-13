@@ -427,6 +427,56 @@ class RelationDAG:
                 root = getattr(rel, "_node", None)
                 if root is None:
                     raise ValueError(f"relation {n!r} has no _node attribute")
+
+                # Item 89: give each dependency its OWN physical
+                # (family, dialect) identity for the duration of ITS OWN
+                # root.accept(visitor) -- mirrors the key_context per-ref
+                # swap immediately below. Without this, every dependency
+                # was gated/enriched against the ANCHOR's dialect
+                # regardless of its own, silently leaking a raw native
+                # exception whenever a dialect-scoped CapabilityFact
+                # (BUILD-time GATE or MATERIALIZE_RESIDUE) belonged to the
+                # ref's own dialect, not the anchor's.
+                ref_family, ref_dialect = self._resolve_actual_identity_for(n)
+
+                if ref_family is None:
+                    # No physical read identity (pure SourceRelNode/inline-
+                    # data ref). Nothing to compare against -- inherit the
+                    # anchor unconditionally.
+                    visitor.backend, visitor.expr_visitor = (
+                        relation_system,
+                        expr_visitor,
+                    )
+                elif ref_family != resolved_backend:
+                    # Genuinely different family -- item 92's territory (no
+                    # cross-family coercion attempted here). Leave this ref
+                    # on the anchor pair; NEVER construct an invalid
+                    # (family, dialect) hybrid for a foreign family.
+                    visitor.backend, visitor.expr_visitor = (
+                        relation_system,
+                        expr_visitor,
+                    )
+                elif ref_dialect != dialect:
+                    # Same family, dialect differs from the anchor's --
+                    # covers BOTH a genuinely different known dialect AND
+                    # "ref_dialect is None but the anchor's dialect is
+                    # known" (a same-family-unknown-dialect ref must get
+                    # dialect=None explicitly, never silently inherit the
+                    # anchor's specific dialect).
+                    visitor.backend = relation_system_cls(dialect=ref_dialect)
+                    visitor.expr_visitor = UnifiedExpressionVisitor(
+                        expression_system_cls(dialect=ref_dialect)
+                    )
+                else:
+                    # Same family, same dialect as the anchor -- the
+                    # common case. Reuse the anchor's ORIGINAL objects: no
+                    # reconstruction, no new identity, no behaviour change
+                    # for a homogeneous DAG.
+                    visitor.backend, visitor.expr_visitor = (
+                        relation_system,
+                        expr_visitor,
+                    )
+
                 # Each dependency is key-assessed against ITS OWN
                 # constraints, unconditionally — independent of whether the
                 # target itself has a key identity (key_context may be None
@@ -438,9 +488,13 @@ class RelationDAG:
                     schema_of=self.schema,
                 )
                 cache[n] = root.accept(visitor)
-            # Restore the target's context (None for ad-hoc execute())
-            # before compiling the target.
-            visitor.key_context = key_context
+            # Restore the anchor's ORIGINAL backend/expr_visitor/key_context
+            # (None for ad-hoc execute()) before compiling the target itself.
+            visitor.backend, visitor.expr_visitor, visitor.key_context = (
+                relation_system,
+                expr_visitor,
+                key_context,
+            )
 
         # Compile the target node itself
         return node.accept(visitor), visitor

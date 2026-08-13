@@ -221,3 +221,140 @@ class TestExplicitBackendAnchorCoherence:
         assert visitor.backend.dialect == "narwhals-pandas"
         assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.NARWHALS
         assert _visitor_construction_spy[0]["dialect"] == "narwhals-pandas"
+
+
+@pytest.fixture
+def _dialect_spy_factory(monkeypatch):
+    """Patch UnifiedRelationVisitor with a subclass that records, per
+    watched node (by identity), the visitor's ``(id(backend),
+    backend_type, backend.dialect, id(expr_visitor))`` at ``visit()``
+    ENTRY, and whether ``visit()`` COMPLETED without raising. Mirrors
+    ``test_key_drift_identity.py``'s ``_spy_visitor_factory`` -- dag.py
+    imports ``UnifiedRelationVisitor`` via a local ``from ... import``
+    inside ``_compile_with_refs``, re-resolving the module attribute on
+    every call, so this monkeypatch is picked up without mutating any
+    frozen pydantic ``RelationNode``.
+
+    Returns a callable ``_register(node, label)``; captured state is on
+    ``_register.captured`` (``dict[label, {"entry": {...}, "completed":
+    bool}]``) after the DAG call under test runs.
+    """
+    from mountainash.relations.core.unified_visitor import relation_visitor as _rv
+
+    original_cls = _rv.UnifiedRelationVisitor
+    captured: dict[str, dict] = {}
+    watch: dict[int, str] = {}
+
+    class _SpyVisitor(original_cls):  # type: ignore[misc, valid-type]
+        def visit(self, node):
+            label = watch.get(id(node))
+            if label is not None:
+                captured[label] = {
+                    "entry": {
+                        "backend_id": id(self.backend),
+                        "backend_type": getattr(self.backend, "backend_type", None),
+                        "backend_dialect": getattr(self.backend, "dialect", "MISSING"),
+                        "expr_visitor_id": id(self.expr_visitor),
+                    },
+                    "completed": False,
+                }
+            result = super().visit(node)
+            if label is not None:
+                captured[label]["completed"] = True
+            return result
+
+    monkeypatch.setattr(_rv, "UnifiedRelationVisitor", _SpyVisitor)
+
+    def _register(node, label: str) -> None:
+        watch[id(node)] = label
+
+    _register.captured = captured  # type: ignore[attr-defined]
+    yield _register
+
+
+class TestPerRefDialectSwapAndRestore:
+    """Spy-based identity test (testing plan #4): the anchor ref gets the
+    original objects; a same-dialect ref reuses those same objects (by
+    id()); a differing-dialect same-family ref gets a new, correctly-
+    dialected pair; a subsequent same-dialect ref after a swap restores the
+    original objects (catches stale-loop-state bugs); the target sees the
+    originals after the loop. Also covers testing plan #2's "both anchor
+    directions" requirement with a second, role-reversed test."""
+
+    def test_swap_and_restore_across_three_refs(self, _dialect_spy_factory):
+        dag = RelationDAG()
+        a_rel = ma.relation(_nw_polars({"k": [1, 2]}))  # anchor: narwhals-polars
+        b_rel = ma.relation(_nw_pandas({"k": [1, 2]}))  # differs: narwhals-pandas
+        c_rel = ma.relation(_nw_polars({"k": [1, 2]}))  # same as anchor again
+        dag.add("a", a_rel)
+        dag.add("b", b_rel)
+        dag.add("c", c_rel)
+        final_rel = dag.ref("a").join(dag.ref("b"), on="k").join(dag.ref("c"), on="k")
+        dag.add("final", final_rel)
+
+        _dialect_spy_factory(a_rel._node, "a")
+        _dialect_spy_factory(b_rel._node, "b")
+        _dialect_spy_factory(c_rel._node, "c")
+        _dialect_spy_factory(final_rel._node, "final")
+
+        # narwhals cannot natively join a polars-backed frame against a
+        # pandas-backed one -- the join itself is expected to raise once
+        # dispatched. "a"/"b"/"c" are each simple standalone reads with no
+        # combination attempted on their own, so each must COMPLETE;
+        # "final" (the outer join) is watched at visit() entry only.
+        try:
+            dag.collect("final")
+        except Exception:
+            pass
+
+        captured = _dialect_spy_factory.captured
+        assert set(captured) == {"a", "b", "c", "final"}
+        for label in ("a", "b", "c"):
+            assert captured[label]["completed"] is True
+
+        anchor_backend_id = captured["a"]["entry"]["backend_id"]
+        anchor_expr_id = captured["a"]["entry"]["expr_visitor_id"]
+        assert captured["a"]["entry"]["backend_dialect"] == "narwhals-polars"
+
+        assert captured["b"]["entry"]["backend_dialect"] == "narwhals-pandas"
+        assert captured["b"]["entry"]["backend_id"] != anchor_backend_id
+        assert captured["b"]["entry"]["expr_visitor_id"] != anchor_expr_id
+
+        # Restoration, not a fresh third construction and not b's stale state.
+        assert captured["c"]["entry"]["backend_dialect"] == "narwhals-polars"
+        assert captured["c"]["entry"]["backend_id"] == anchor_backend_id
+        assert captured["c"]["entry"]["expr_visitor_id"] == anchor_expr_id
+
+        assert captured["final"]["entry"]["backend_dialect"] == "narwhals-polars"
+        assert captured["final"]["entry"]["backend_id"] == anchor_backend_id
+        assert captured["final"]["entry"]["expr_visitor_id"] == anchor_expr_id
+
+    def test_reversed_anchor_direction_pandas_anchor_polars_differs(
+        self, _dialect_spy_factory
+    ):
+        # Testing plan #2: exercise BOTH anchor directions, not only
+        # "polars-family dialect anchors, pandas-family dialect differs".
+        dag = RelationDAG()
+        a_rel = ma.relation(_nw_pandas({"k": [1, 2]}))  # anchor: narwhals-pandas
+        b_rel = ma.relation(_nw_polars({"k": [1, 2]}))  # differs: narwhals-polars
+        dag.add("a", a_rel)
+        dag.add("b", b_rel)
+        dag.add("final", dag.ref("a").join(dag.ref("b"), on="k"))
+
+        _dialect_spy_factory(a_rel._node, "a")
+        _dialect_spy_factory(b_rel._node, "b")
+
+        try:
+            dag.collect("final")
+        except Exception:
+            pass
+
+        captured = _dialect_spy_factory.captured
+        assert captured["a"]["completed"] is True
+        assert captured["a"]["entry"]["backend_dialect"] == "narwhals-pandas"
+
+        assert captured["b"]["completed"] is True
+        assert captured["b"]["entry"]["backend_dialect"] == "narwhals-polars"
+        assert (
+            captured["b"]["entry"]["backend_id"] != captured["a"]["entry"]["backend_id"]
+        )
