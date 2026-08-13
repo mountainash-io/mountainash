@@ -15,7 +15,7 @@ from fixtures.capability_gating import xfail_divergence
 _CUM_BACKENDS = [
     pytest.param(
         b,
-        marks=[xfail_divergence("NW-WIN-01", backend=b), xfail_divergence("IB-WIN-01", backend=b)],
+        marks=[xfail_divergence("NW-WIN-03", backend=b), xfail_divergence("IB-WIN-01", backend=b)],
     )
     for b in ALL_BACKENDS
 ]

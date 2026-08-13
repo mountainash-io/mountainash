@@ -18,7 +18,7 @@ from fixtures.capability_gating import xfail_divergence
 
 
 _DIFF_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-WIN-01", backend=b))
+    pytest.param(b, marks=xfail_divergence("NW-WIN-03", backend=b))
     if b == "narwhals-lazy"
     else pytest.param(b, marks=xfail_divergence("IB-WIN-01", backend=b))
     if b == "ibis-polars"

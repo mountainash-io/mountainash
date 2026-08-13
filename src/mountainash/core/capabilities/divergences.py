@@ -215,7 +215,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-07-29",
         ),
         DivergenceFact(
-            id="NW-WIN-01",
+            id="NW-WIN-03",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(
                 FK_WIN.DIFF, FK_WIN.CUM_SUM, FK_WIN.CUM_MAX, FK_WIN.CUM_MIN,
@@ -226,7 +226,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="narwhals-lazy rejects order-dependent window expressions (diff/cumulative/lead/lag/shift/first_value/last_value) on a LazyFrame (InvalidOperationError)",
             impact="order-dependent window ops (diff/cum_*/lead/lag/shift/first_value/last_value) raise on narwhals-lazy; eager narwhals and polars compute them",
             workaround="Use an eager backend, or establish an explicit order before the lazy diff",
-            upstream_ref=None,
+            upstream_ref="NW-WIN-03",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -243,7 +243,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="ibis-polars has no translation rule for any WindowFunction (OperationNotDefinedError): rank/dense_rank/row_number/lead/lag/shift/first_value/last_value/nth_value/ntile/percent_rank/cume_dist/cumulative/diff/is_duplicated",
             impact="all window ops raise on ibis-polars; ibis-duckdb/ibis-sqlite and polars/narwhals handle them (rank family with 0-based divergence on ibis SQL — see IB-WIN-02)",
             workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend",
-            upstream_ref=None,
+            upstream_ref="IB-WIN-01",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -280,7 +280,7 @@ def _all() -> tuple[DivergenceFact, ...]:
                    "set_union/set_intersection/set_difference/std/var/shift/diff/concat/join/reverse/"
                    "slice/head/tail/explode raise on narwhals backends",
             workaround="Use a Polars or Ibis backend for these list operations",
-            upstream_ref=None,
+            upstream_ref="NW-LIST-05",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -310,7 +310,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             impact="list.gather_every/arg_min/arg_max/n_unique/count_matches/drop_nulls/set_difference/"
                    "std/var/shift/diff/reverse/slice/head/tail/median raise on ibis backends",
             workaround="Use a Polars backend for these list operations",
-            upstream_ref=None,
+            upstream_ref="IB-LIST-01",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -334,18 +334,18 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="ibis-duckdb/ibis-sqlite compute rank/dense_rank/row_number as 0-based, while polars/narwhals are 1-based",
             impact="rank()/dense_rank()/row_number().over() return values one lower on ibis-duckdb/ibis-sqlite; ordering-relative assertions still hold but absolute ranks differ",
             workaround="Add 1 to the result on ibis SQL backends, or use polars/narwhals for 1-based ranks",
-            upstream_ref=None,
+            upstream_ref="IB-WIN-02",
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-WIN-03",
+            id="IB-WIN-05",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_WIN.RANK_AVERAGE, FK_WIN.RANK_MAX),
             backends=("ibis",),
             summary="Ibis raises BackendCapabilityError (unenriched) for rank(method='average'|'max') — no SQL equivalent",
             impact="rank(method='average') and rank(method='max') raise on all ibis backends; polars/narwhals compute them",
             workaround="Use rank(method='min'/'dense'/'ordinal') on ibis, or polars/narwhals for average/max",
-            upstream_ref=None,
+            upstream_ref="IB-WIN-05",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -393,14 +393,14 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="NW-WIN-02",
+            id="NW-WIN-04",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_SWIN.PERCENT_RANK, FK_SWIN.CUME_DIST, FK_SWIN.NTH_VALUE, FK_WIN.DIFF),
             backends=("narwhals", "pandas"),
             summary="narwhals backends raise NotImplementedError for percent_rank()/cume_dist()/nth_value() and diff(n>1)",
             impact="percent_rank/cume_dist/nth_value and multi-step diff raise on narwhals/pandas; ibis-duckdb/sqlite compute them (polars too, except nth_value — see PL-WIN-01)",
             workaround="Use a polars or ibis SQL backend for these window ops",
-            upstream_ref=None,
+            upstream_ref="NW-WIN-04",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -438,14 +438,14 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="NW-AGG-01",
+            id="NW-AGG-03",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_AGG.MODE, FK_AGG.ANY_VALUE),
             backends=("narwhals-lazy",),
             summary="narwhals-lazy rejects mode()/any_value(): order-dependent/length-changing aggregates are not permitted on a LazyFrame (InvalidOperationError)",
             impact="mode() and any_value() raise on narwhals-lazy; eager narwhals and other backends compute them",
             workaround="Use an eager backend for mode()/any_value()",
-            upstream_ref=None,
+            upstream_ref="NW-AGG-03",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -538,25 +538,25 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="NW-DT-01",
+            id="NW-DT-06",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_MA_DT.EXTRACT_WEEK,),
             backends=("pandas", "narwhals"),
             summary="pandas and narwhals lack ISO week_of_year; the mountainash expression system raises BackendCapabilityError (unenriched)",
             impact="dt.week_of_year() raises on pandas and all narwhals backends; polars and ibis compute it",
             workaround="Use a polars or ibis backend for ISO week extraction",
-            upstream_ref=None,
+            upstream_ref="NW-DT-06",
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="NW-DT-02",
+            id="NW-DT-07",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(FK_MA_DT.DATE,),
             backends=("narwhals-pandas",),
             summary="narwhals-pandas dt.date() raises NotImplementedError",
             impact="dt.date() raises on narwhals-pandas; narwhals-polars, polars and ibis compute it",
             workaround="Use narwhals-polars, polars, or an ibis backend for dt.date()",
-            upstream_ref=None,
+            upstream_ref="NW-DT-07",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -567,7 +567,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="Narwhals does not support dt.time() — NotImplementedError on all narwhals backends",
             impact="dt.time() raises on narwhals-polars/narwhals-pandas/narwhals-lazy; polars and ibis-duckdb/ibis-polars compute it",
             workaround="Use a polars or ibis backend for dt.time()",
-            upstream_ref=None,
+            upstream_ref="NW-DT-03",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -622,7 +622,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="pandas and narwhals lack tan(), so cot() (computed as 1/tan) raises NotImplementedError",
             impact="ma.col(x).cot() raises on pandas and all narwhals backends; polars and ibis compute it",
             workaround="Use a polars or ibis backend for cot()",
-            upstream_ref=None,
+            upstream_ref="NW-MATH-01",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -659,14 +659,14 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-REL-07",
+            id="IB-REL-10",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation ops drop_nans / unpivot / melt
             backends=("ibis-sqlite",),
             summary="ibis-sqlite lacks array/pivot relational translations: drop_nans, unpivot/melt raise OperationNotDefinedError",
             impact="Relation.drop_nans()/unpivot()/melt() raise on ibis-sqlite; other backends compute them",
             workaround="Use ibis-duckdb or a polars/narwhals backend for these relational ops",
-            upstream_ref=None,
+            upstream_ref="IB-REL-10",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -681,25 +681,25 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-REL-08",
+            id="IB-REL-11",
             kind=DivergenceKind.SEMANTICS,
             operation_keys=(),  # relation op join_asof
             backends=("ibis-duckdb", "ibis-sqlite"),
             summary="asof join is unreliable on ibis SQL backends: ibis-duckdb returns a wrong (diverging) result and ibis-sqlite raises UnsupportedOperationError",
             impact="Relation.join_asof() diverges on ibis-duckdb and raises on ibis-sqlite; polars/narwhals compute it correctly",
             workaround="Use a polars or narwhals backend for asof joins",
-            upstream_ref=None,
+            upstream_ref="IB-REL-11",
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-REL-09",
+            id="IB-REL-12",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation op cross_join
             backends=("ibis-duckdb", "ibis-sqlite"),
-            summary="cross_join with suffix disambiguation fails on ibis SQL backends (ibis-duckdb BinderException, ibis-sqlite OperationalError) — suffixes kwarg incompatibility",
+            summary="cross_join between two same-named tables from different Ibis connections raises a column-binding error on ibis SQL backends (ibis-duckdb BinderException, ibis-sqlite OperationalError)",
             impact="Relation.cross_join() raises on ibis-duckdb/ibis-sqlite; polars/narwhals and ibis-polars compute it",
             workaround="Use a polars/narwhals backend or ibis-polars for cross joins",
-            upstream_ref=None,
+            upstream_ref="IB-REL-12",
             since="2026-08-06",
         ),
         DivergenceFact(
@@ -824,7 +824,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="NW-MATH-02",
+            id="NW-MATH-10",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(
                 FK_AR.SIN,
@@ -847,7 +847,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="pandas and narwhals lack native trigonometric, angular-conversion, and hyperbolic math functions; these ops raise NotImplementedError",
             impact="trig (sin/cos/tan/asin/acos/atan/atan2), angular (radians/degrees), and hyperbolic (sinh/cosh/tanh/asinh/acosh/atanh) raise on pandas and all narwhals backends; polars and ibis (polars/duckdb) compute them",
             workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
-            upstream_ref=None,
+            upstream_ref="NW-MATH-10",
             since="2026-08-06",
         ),
         DivergenceFact(

@@ -267,10 +267,11 @@ def test_g_catch_all_consumed_and_stale_detected():
 # ---------------------------------------------------------------------------
 def test_h_contingent_deletions_bound_to_live_facts():
     win = (_TESTS_DIR / "expressions/cross_backend/test_window_results.py").read_text()
-    assert "retirement-verdict" in win and "IB-WIN-03" in win, (
-        "IB-WIN-03 guard deletion lost its retirement-verdict binding"
+    assert "retirement-verdict" in win and "IB-WIN-05" in win, (
+        "IB-WIN-05 (renamed from IB-WIN-03, backlog item 87) guard deletion lost its "
+        "retirement-verdict binding"
     )
-    divergence_by_id("IB-WIN-03")  # the surviving catcher's fact is live
+    divergence_by_id("IB-WIN-05")  # the surviving catcher's fact is live
     w3 = _TESTS_DIR / "expressions/argument_types/test_registered_option_probes.py"
     assert w3.exists(), "W3 (verdict 4.1-W3) was retained whole but its file is gone"
 

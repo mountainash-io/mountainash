@@ -35,7 +35,7 @@ LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
 STRUCT_BACKENDS = ["polars", "narwhals-polars", "ibis-polars", "ibis-duckdb"]
 
-_IBSQL = [pytest.param(b, marks=xfail_divergence("IB-REL-07", backend=b)) for b in ALL_BACKENDS]
+_IBSQL = [pytest.param(b, marks=xfail_divergence("IB-REL-10", backend=b)) for b in ALL_BACKENDS]
 _WRI = [pytest.param(b, marks=xfail_divergence("NW-REL-01", backend=b)) for b in ALL_BACKENDS]
 _UNNEST = [pytest.param(b, marks=xfail_divergence("NW-REL-02", backend=b)) for b in STRUCT_BACKENDS]
 _PIVOT = [pytest.param(b, marks=xfail_divergence("MA-REL-01", backend=b)) for b in ALL_BACKENDS]

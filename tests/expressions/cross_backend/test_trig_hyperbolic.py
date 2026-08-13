@@ -7,26 +7,26 @@ import mountainash.expressions as ma
 from fixtures.capability_gating import xfail_divergence
 
 # Polars + Ibis have native trig support (including SQLite via ibis); pandas and
-# narwhals lack trig/angular functions (NW-MATH-02).
+# narwhals lack trig/angular functions (NW-MATH-10).
 TRIG_BACKENDS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-MATH-02", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-02", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-02", backend="narwhals-pandas")),
+    pytest.param("pandas", marks=xfail_divergence("NW-MATH-10", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-10", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-10", backend="narwhals-pandas")),
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
 
-# Only Polars has native hyperbolic support: pandas/narwhals lack it (NW-MATH-02),
+# Only Polars has native hyperbolic support: pandas/narwhals lack it (NW-MATH-10),
 # ibis-polars/ibis-duckdb lack it (IB-MATH-06), ibis-sqlite lacks it (IB-MATH-02).
 HYPERBOLIC_BACKENDS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-MATH-02", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-02", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-02", backend="narwhals-pandas")),
+    pytest.param("pandas", marks=xfail_divergence("NW-MATH-10", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-10", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-10", backend="narwhals-pandas")),
     pytest.param("ibis-polars", marks=xfail_divergence("IB-MATH-06", backend="ibis-polars")),
     pytest.param("ibis-duckdb", marks=xfail_divergence("IB-MATH-06", backend="ibis-duckdb")),
     pytest.param("ibis-sqlite", marks=xfail_divergence("IB-MATH-02", backend="ibis-sqlite")),

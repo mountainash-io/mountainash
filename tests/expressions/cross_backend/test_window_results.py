@@ -8,12 +8,12 @@ Test data uses unique sort keys to ensure deterministic output ordering.
 Known divergences (declaration-driven via DivergenceFact + xfail_divergence):
 - ibis-polars: no translation rule for any WindowFunction (IB-WIN-01)
 - ibis-duckdb/ibis-sqlite: rank/dense_rank/row_number are 0-based (IB-WIN-02)
-- ibis: rank(method='average'/'max') has no SQL equivalent (IB-WIN-03)
+- ibis: rank(method='average'/'max') has no SQL equivalent (IB-WIN-05)
 - ibis: cum_prod unsupported (IB-WIN-04)
 - ibis/narwhals/pandas: rank(method='dense'/'ordinal') via method param (MA-WIN-01),
   ntile (MA-WIN-02), .over() on elementwise expressions (MA-WIN-03)
-- narwhals/pandas: percent_rank/cume_dist/nth_value/diff(n>1) (NW-WIN-02)
-- narwhals-lazy: order-dependent window ops on a LazyFrame (NW-WIN-01)
+- narwhals/pandas: percent_rank/cume_dist/nth_value/diff(n>1) (NW-WIN-04)
+- narwhals-lazy: order-dependent window ops on a LazyFrame (NW-WIN-03)
 """
 
 from __future__ import annotations
@@ -36,16 +36,16 @@ def _win(*divergence_ids):
 
 _RANK_FAMILY = _win("IB-WIN-01", "IB-WIN-02")   # ibis-polars native; ibis-duckdb/sqlite 0-based
 _RANK_DESC = _win("IB-WIN-01")                    # ibis-polars native; sql 0-based still differs asc/desc
-_LEAD_LAG = _win("IB-WIN-01", "NW-WIN-01")        # ibis-polars native; narwhals-lazy order-dependent
-_CUM = _win("IB-WIN-01", "NW-WIN-01")
-_CUM_PROD = _win("IB-WIN-04", "NW-WIN-01")        # cum_prod unsupported on ALL ibis
-_DIFF = _win("IB-WIN-01", "NW-WIN-01")
-_DIFF_N = _win("IB-WIN-01", "NW-WIN-02")          # narwhals: diff(n>1) unsupported
+_LEAD_LAG = _win("IB-WIN-01", "NW-WIN-03")        # ibis-polars native; narwhals-lazy order-dependent
+_CUM = _win("IB-WIN-01", "NW-WIN-03")
+_CUM_PROD = _win("IB-WIN-04", "NW-WIN-03")        # cum_prod unsupported on ALL ibis
+_DIFF = _win("IB-WIN-01", "NW-WIN-03")
+_DIFF_N = _win("IB-WIN-01", "NW-WIN-04")          # narwhals: diff(n>1) unsupported
 _RANK_METHOD = _win("MA-WIN-01")                  # rank(method=dense/ordinal): polars only
-_RANK_AVG_MAX = _win("IB-WIN-03")                 # ibis no SQL equiv; narwhals now runs
+_RANK_AVG_MAX = _win("IB-WIN-05")                 # ibis no SQL equiv; narwhals now runs
 _NTILE = _win("MA-WIN-02")
-_PCT_CUME = _win("IB-WIN-01", "NW-WIN-02")        # ibis-polars native; narwhals unsupported; ibis sql runs
-_NTH = _win("IB-WIN-01", "NW-WIN-02", "PL-WIN-01")
+_PCT_CUME = _win("IB-WIN-01", "NW-WIN-04")        # ibis-polars native; narwhals unsupported; ibis sql runs
+_NTH = _win("IB-WIN-01", "NW-WIN-04", "PL-WIN-01")
 _OVER_SCALAR = _win("MA-WIN-03")
 
 
@@ -585,9 +585,9 @@ class TestWindowRankMethodMax:
 
 # retirement-verdict: SP2-B (crosswalk Part F ground-truth, rank method=average/max) —
 # TestWindowRankMethodGuard retired: its two pytest.raises(BackendCapabilityError)
-# assertions duplicated the IB-WIN-03 divergence. Sole surviving catcher of the
+# assertions duplicated the IB-WIN-05 divergence. Sole surviving catcher of the
 # rank(method=average|max) ibis gap is the xfail'd TestWindowRankMethodAverage/Max[ibis]
-# cases (routed via xfail_divergence("IB-WIN-03")), whose mutation probe verifies it as
+# cases (routed via xfail_divergence("IB-WIN-05")), whose mutation probe verifies it as
 # load-bearing. The bare BCE was unenriched (.limitation is None), so it is a
 # DivergenceFact, not an assert_capability_gated gate.
 

@@ -24,7 +24,7 @@ TEMPORAL_BACKENDS = [
 from fixtures.capability_gating import xfail_divergence
 
 _DATE_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-DT-02", backend=b)) for b in TEMPORAL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("NW-DT-07", backend=b)) for b in TEMPORAL_BACKENDS
 ]
 _TIME_BACKENDS = [
     pytest.param(
