@@ -534,60 +534,39 @@ class RelationDAG:
             f"(referenced by {referenced_by})"
         )
 
-    def _resolve_backend_const(
-        self, backend: Optional[str], target_name: str
-    ) -> CONST_BACKEND:
-        """Determine the CONST_BACKEND to use for compilation.
+    def _resolve_actual_identity_for(
+        self, target_name: str
+    ) -> "tuple[CONST_BACKEND | None, str | None]":
+        """Detected physical ``(family, dialect)`` for ``target_name``'s own
+        dependency tree, walking in the SAME topological/ancestor order the
+        two independent resolvers below used historically (so both keep
+        resolving from the same leaf), but in ONE walk making exactly ONE
+        :func:`identify_backend_identity` probe per candidate leaf --
+        replacing the previous two independent walks (one via
+        ``identify_backend``, one via ``identify_backend_identity``) that
+        duplicated detection for no reason (round-2 finding:
+        ``identify_backend_identity`` already calls ``identify_backend``
+        internally).
 
-        If ``backend`` is given explicitly, honour it. Otherwise walk the
-        dependency tree of ``target_name`` to find the first ReadRelNode and
-        detect its backend. Falls back to Polars when no ReadRelNode is found
-        (e.g. pure SourceRelNode / inline data trees).
-        """
-        if backend is not None:
-            try:
-                return CONST_BACKEND(backend.lower())
-            except ValueError:
-                raise ValueError(f"unknown backend: {backend!r}")
+        Deliberately IGNORES any explicit ``backend=`` override -- the
+        override is an execution request, not evidence about a ref's own
+        physical identity. Per-ref/anchor guards that need to detect
+        "would an override create an invalid hybrid" must call this
+        directly rather than the override-honouring
+        ``_resolve_backend_const`` wrapper below.
 
-        # Walk through relations in topological order and look for a
-        # ReadRelNode to detect the backend from its dataframe.
-        from mountainash.relations.core.relation_api.relation_base import (
-            RelationBase,
-        )
-        from mountainash.core.backend_detection import identify_backend
-        from mountainash.relations.dag.errors import RelationDAGRequired
-
-        order = self.topological_order(target=target_name)
-        for n in order:
-            rel = self.relations[n]
-            root = getattr(rel, "_node", None)
-            if root is None:
-                continue
-            try:
-                read_node = RelationBase._find_leaf_read_node(root)
-            except (ValueError, AttributeError, RelationDAGRequired):
-                # Node type not handled (e.g. RefRelNode) — skip, try next.
-                continue
-            if read_node is not None:
-                try:
-                    return identify_backend(read_node.dataframe)
-                except Exception:
-                    pass
-        # No ReadRelNode found — default to Polars (SourceRelNode / inline data).
-        return CONST_BACKEND.POLARS
-
-    def _resolve_dialect_for(self, target_name: str) -> Optional[str]:
-        """Dialect for the first ReadRelNode found while walking
-        ``target_name``'s dependency tree -- same anchor-selection order as
-        :meth:`_resolve_backend_const`, so family and dialect are always
-        resolved from the same leaf. Unlike backend-family resolution,
-        dialect is *not* determinable from an explicit ``backend=`` string
-        override, so this always walks regardless (mirrors
-        ``relation_base.py``'s independent dialect resolution). Returns
-        ``None`` when no ReadRelNode is found (e.g. pure SourceRelNode /
-        inline data trees) -- matching ``relation_base.py``'s existing
-        behaviour for the same case.
+        Returns a 3-way taxonomy distinguishing "no physical read at all"
+        from "physical read, unresolved dialect" (round-1 finding: the
+        old two-resolver approach collapsed both to ``dialect=None``,
+        conflating "inherit the anchor unconditionally" with "this ref
+        genuinely has an unknown dialect"):
+          ``(None, None)``      -- no readable leaf (pure SourceRelNode
+                                    tree, or every candidate failed
+                                    detection)
+          ``(family, None)``    -- a readable leaf was found, but its
+                                    dialect is genuinely unbound/unknown
+                                    (e.g. an unbound Ibis table)
+          ``(family, dialect)`` -- fully resolved
         """
         from mountainash.relations.core.relation_api.relation_base import (
             RelationBase,
@@ -604,10 +583,74 @@ class RelationDAG:
             try:
                 read_node = RelationBase._find_leaf_read_node(root)
             except (ValueError, AttributeError, RelationDAGRequired):
+                # Node type not handled, or this candidate's own root is
+                # itself a bare RefRelNode with no direct physical leaf --
+                # skip, try the next candidate in topological order.
                 continue
             if read_node is not None:
                 try:
-                    return identify_backend_identity(read_node.dataframe).dialect
+                    identity = identify_backend_identity(read_node.dataframe)
+                    return identity.family, identity.dialect
                 except Exception:
                     pass
-        return None
+        return None, None
+
+    def _resolve_actual_identity_for_node(
+        self, node: Any
+    ) -> "tuple[CONST_BACKEND | None, str | None]":
+        """Sibling of :meth:`_resolve_actual_identity_for` for the ad-hoc
+        (non-named) ``execute()`` case: a single leaf probe on ``node``
+        itself -- there is no registered relation name to walk via
+        :meth:`topological_order`, so this inspects only ``node``'s own
+        leaf directly."""
+        from mountainash.relations.core.relation_api.relation_base import (
+            RelationBase,
+        )
+        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.relations.dag.errors import RelationDAGRequired
+
+        try:
+            read_node = RelationBase._find_leaf_read_node(node)
+        except (ValueError, AttributeError, RelationDAGRequired):
+            return None, None
+        if read_node is None:
+            return None, None
+        try:
+            identity = identify_backend_identity(read_node.dataframe)
+            return identity.family, identity.dialect
+        except Exception:
+            return None, None
+
+    def _resolve_backend_const(
+        self, backend: Optional[str], target_name: str
+    ) -> CONST_BACKEND:
+        """Determine the CONST_BACKEND to use for compilation.
+
+        If ``backend`` is given explicitly, honour it -- this is the ONE
+        caller-facing entry point that still applies the override;
+        internal per-ref/anchor guards needing the override-independent
+        physical family must call :meth:`_resolve_actual_identity_for`
+        directly. Otherwise walk ``target_name``'s dependency tree for its
+        detected physical family, falling back to Polars when no
+        ReadRelNode is found (e.g. pure SourceRelNode / inline data trees).
+        """
+        if backend is not None:
+            try:
+                return CONST_BACKEND(backend.lower())
+            except ValueError:
+                raise ValueError(f"unknown backend: {backend!r}")
+        family, _dialect = self._resolve_actual_identity_for(target_name)
+        return family if family is not None else CONST_BACKEND.POLARS
+
+    def _resolve_dialect_for(self, target_name: str) -> Optional[str]:
+        """Dialect for the first ReadRelNode found while walking
+        ``target_name``'s dependency tree -- same anchor-selection order
+        as :meth:`_resolve_backend_const`, so family and dialect are
+        always resolved from the same leaf. Unlike backend-family
+        resolution, dialect is *not* determinable from an explicit
+        ``backend=`` string override, so this always walks regardless.
+        Returns ``None`` when no ReadRelNode is found, or when one is
+        found but its dialect is genuinely unbound/unknown.
+        """
+        _family, dialect = self._resolve_actual_identity_for(target_name)
+        return dialect
