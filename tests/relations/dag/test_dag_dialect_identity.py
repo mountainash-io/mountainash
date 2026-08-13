@@ -358,3 +358,75 @@ class TestPerRefDialectSwapAndRestore:
         assert (
             captured["b"]["entry"]["backend_id"] != captured["a"]["entry"]["backend_id"]
         )
+
+
+class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
+    """Round-1 finding (per-ref level, distinct from Task 3's anchor-level
+    fix): an explicit backend= compile call must not construct an invalid
+    hybrid for a NON-anchor ref whose OWN physical family differs from the
+    override. Uses a real Polars-native anchor (so the override is not
+    trivially "the same as detection") plus a separate Narwhals-pandas
+    ref, and asserts on the non-anchor ref specifically -- discriminating
+    Task 4's `ref_family != resolved_backend` branch, not just Task 3's
+    anchor-coherence fix."""
+
+    def test_pandas_ref_under_explicit_polars_backend_with_polars_anchor(
+        self, _dialect_spy_factory
+    ):
+        dag = RelationDAG()
+        polars_anchor_rel = ma.relation(pl.DataFrame({"k": [1]}))
+        pandas_rel = ma.relation(_nw_pandas({"k": [1]}))
+        dag.add("a_polars_anchor", polars_anchor_rel)  # alphabetically first -> anchor
+        dag.add("b_pandas_ref", pandas_rel)
+        dag.add(
+            "final",
+            dag.ref("a_polars_anchor").join(dag.ref("b_pandas_ref"), on="k"),
+        )
+        _dialect_spy_factory(pandas_rel._node, "pandas_ref")
+
+        try:
+            dag.collect("final", backend="polars")
+        except Exception:
+            pass  # PolarsRelationSystem cannot read a raw Narwhals frame --
+            # this ref is on a genuinely different family than the
+            # override (item 92's territory), so its OWN read is
+            # expected to fail; we only assert the STATE at its visit()
+            # entry, captured before that failure.
+
+        captured = _dialect_spy_factory.captured["pandas_ref"]["entry"]
+        assert captured["backend_type"] == CONST_BACKEND.POLARS
+        assert captured["backend_dialect"] != "narwhals-pandas"
+
+
+class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:
+    """Testing plan #6: a same-family ref with a genuinely unbound dialect
+    (an untyped Ibis table) must get dialect=None explicitly, never the
+    anchor's specific known dialect -- and must itself complete without
+    error (only the target's own bound-vs-unbound-connection join may
+    fail, not the ref's own trivial "read this unbound table" compile)."""
+
+    def test_unbound_ibis_table_ref_gets_none(self, _dialect_spy_factory):
+        ibis = pytest.importorskip("ibis")
+        con = ibis.duckdb.connect()
+        bound_table = con.create_table("t", pd.DataFrame({"k": [1]}))
+        anchor_rel = ma.relation(bound_table)  # ibis-duckdb, KNOWN dialect
+        unbound_rel = ma.relation(ibis.table({"k": "int64"}, name="u"))  # dialect=None
+        dag = RelationDAG()
+        dag.add("a_anchor", anchor_rel)  # alphabetically first -> anchor
+        dag.add("b_unbound", unbound_rel)
+        dag.add(
+            "final", dag.ref("a_anchor").join(dag.ref("b_unbound"), on="k")
+        )
+        _dialect_spy_factory(unbound_rel._node, "unbound")
+
+        try:
+            dag.collect("final")
+        except Exception:
+            pass  # the TARGET's own join across an unrelated ibis
+            # connection may fail; the REF's own compile (just wrapping
+            # the unbound table, a lazy no-op) must not.
+
+        captured = _dialect_spy_factory.captured["unbound"]
+        assert captured["completed"] is True
+        assert captured["entry"]["backend_type"] == CONST_BACKEND.IBIS
+        assert captured["entry"]["backend_dialect"] is None
