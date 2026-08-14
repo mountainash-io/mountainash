@@ -7,6 +7,8 @@ Also tests with PyArrow and dict inputs.
 
 from __future__ import annotations
 
+import ibis
+import narwhals as nw
 import pandas as pd
 import polars as pl
 import pyarrow as pa
@@ -141,3 +143,75 @@ class TestCrossTypeJoinDataIntegrity:
         )
         assert result["score_label"].to_list() == ["low", "mid", "high"]
         assert result["weight"].to_list() == pytest.approx([1.1, 2.2, 3.3])
+
+
+class TestPolarsJoinListOfDicts:
+    """Polars left side, list[dict] right side (design spec Revision 2
+    finding 5 -- a pre-existing gap in cross-type-joins.md's own documented
+    contract, closed here since this item already touches this function)."""
+
+    def test_inner_join_list_of_dicts(self, polars_df):
+        list_right = [{"id": 2, "extra": "m"}, {"id": 4, "extra": "n"}]
+        result = relation(polars_df).join(list_right, on="id", how="inner").to_polars()
+        assert isinstance(result, pl.DataFrame)
+        assert sorted(zip(result["id"].to_list(), result["extra"].to_list())) == [
+            (2, "m"),
+            (4, "n"),
+        ]
+
+    def test_left_join_list_of_dicts(self, polars_df):
+        list_right = [{"id": 1, "extra": "a"}, {"id": 3, "extra": "b"}]
+        result = relation(polars_df).join(list_right, on="id", how="left").to_polars()
+        assert isinstance(result, pl.DataFrame)
+        assert "extra" in result.columns
+        # Exact null placement for unmatched left rows (id 2/4/5), same
+        # style as the pre-existing TestPolarsJoinPandas left-join test.
+        extras = result.sort("id")["extra"].to_list()
+        assert extras == ["a", None, "b", None, None]
+
+
+class TestPolarsJoinFallbackPaths:
+    """Design spec testing plan #19: the two pre-existing Polars-branch
+    fallbacks -- the .to_pyarrow() duck-type path (an Ibis Table) and the
+    generic nw.from_native() path (a Narwhals frame) -- exercised end-to-
+    end. These are unchanged code paths, so they are GREEN-before/GREEN-
+    after regression coverage guarding against Task 2's edits accidentally
+    perturbing them."""
+
+    def test_ibis_table_right_uses_to_pyarrow_fallback(self, polars_df):
+        con = ibis.duckdb.connect()
+        ibis_right = con.create_table("ib", {"id": [2, 3], "extra": ["m", "n"]})
+        result = relation(polars_df).join(ibis_right, on="id", how="inner").to_polars()
+        assert isinstance(result, pl.DataFrame)
+        assert sorted(zip(result["id"].to_list(), result["extra"].to_list())) == [
+            (2, "m"),
+            (3, "n"),
+        ]
+
+    def test_narwhals_frame_right_uses_native_fallback(self, polars_df):
+        nw_right = nw.from_native(
+            pd.DataFrame({"id": [2, 3], "extra": ["m", "n"]}), eager_only=True
+        )
+        result = relation(polars_df).join(nw_right, on="id", how="inner").to_polars()
+        assert isinstance(result, pl.DataFrame)
+        assert sorted(zip(result["id"].to_list(), result["extra"].to_list())) == [
+            (2, "m"),
+            (3, "n"),
+        ]
+
+
+class TestPolarsJoinScalarListRejected:
+    """Design spec Revision 2 finding 4: a scalar (non-dict) list right-hand
+    value must NOT silently take the dict-sequence fast path -- it falls
+    through to the generic narwhals fallback, which raises its own clean
+    TypeError rather than producing a meaningless one-column frame.
+
+    GREEN-before/GREEN-after: the pre-existing Polars branch ALREADY rejects
+    a scalar list with this exact message (its generic fallback path), so
+    this is a characterization guard against Task 2's narrowed-predicate
+    edit accidentally BROADENING to accept scalar lists -- NOT a RED-first
+    test."""
+
+    def test_scalar_list_raises_clean_typeerror(self, polars_df):
+        with pytest.raises(TypeError, match="Cannot coerce list to Polars"):
+            relation(polars_df).join([1, 2, 3], on="id", how="inner").to_polars()
