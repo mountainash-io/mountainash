@@ -156,3 +156,48 @@ class TestEagerLazyShapeCoercion:
 def is_narwhals_lazy(frame) -> bool:
     from mountainash.core.types import is_narwhals_lazyframe
     return is_narwhals_lazyframe(frame)
+
+
+class TestRefRelNodeAndAdhocExecuteOperandCoverage:
+    """Design spec testing plan #5-6: RefRelNode (DAG-resolved) operands,
+    and an ad-hoc execute() tree combining a direct ReadRelNode with a
+    RefRelNode of a different dialect, both operand orderings. Verifies
+    the coercion fix's central design claim -- it operates on the
+    VISITED result, so it needs no special-casing for where an operand
+    came from."""
+
+    def test_two_named_refs_different_dialects_collect_correctly(self):
+        from mountainash.relations.dag import RelationDAG
+
+        dag = RelationDAG()
+        dag.add("nw_pandas_src", ma.relation(_nw_pandas({"id": [1, 2], "a": ["x", "y"]})))
+        dag.add("nw_polars_src", ma.relation(_nw_polars({"id": [2, 3], "b": [10, 20]})))
+        dag.add("joined", dag.ref("nw_pandas_src").join(dag.ref("nw_polars_src"), on="id"))
+        result = dag.collect("joined")
+        # dag.collect() returns the narwhals-wrapped result as-is (unlike
+        # Relation.collect()'s unwrap=True default) -- narwhals' own
+        # .to_dict(as_series=False) mirrors Polars' API surface uniformly
+        # regardless of the underlying native backend, so this assertion
+        # doesn't need to know or assume which dialect the anchor resolved
+        # to.
+        assert result.to_dict(as_series=False) == {"id": [2], "a": ["y"], "b": [10]}
+
+    def test_adhoc_execute_ref_left_local_right(self):
+        from mountainash.relations.dag import RelationDAG
+
+        dag = RelationDAG()
+        dag.add("nw_pandas_src", ma.relation(_nw_pandas({"id": [1, 2], "a": ["x", "y"]})))
+        local_polars_df = _nw_polars({"id": [2, 3], "b": [10, 20]})
+        target = dag.ref("nw_pandas_src").join(local_polars_df, on="id")
+        result = dag.execute(target)
+        assert result.to_dict(as_series=False) == {"id": [2], "a": ["y"], "b": [10]}
+
+    def test_adhoc_execute_local_left_ref_right(self):
+        from mountainash.relations.dag import RelationDAG
+
+        dag = RelationDAG()
+        dag.add("nw_pandas_src", ma.relation(_nw_pandas({"id": [1, 2], "a": ["x", "y"]})))
+        local_polars_rel = ma.relation(_nw_polars({"id": [2, 3], "b": [10, 20]}))
+        target = local_polars_rel.join(dag.ref("nw_pandas_src"), on="id")
+        result = dag.execute(target)
+        assert result.to_dict(as_series=False) == {"id": [2], "b": [10], "a": ["y"]}
