@@ -201,3 +201,37 @@ class TestRefRelNodeAndAdhocExecuteOperandCoverage:
         target = local_polars_rel.join(dag.ref("nw_pandas_src"), on="id")
         result = dag.execute(target)
         assert result.to_dict(as_series=False) == {"id": [2], "b": [10], "a": ["y"]}
+
+
+class TestUnionMultiWayDialectCoercion:
+    """Design spec testing plan #4: 3-way mix of pandas/polars/pyarrow
+    narwhals dialects via union_all/union_distinct; inputs[0]'s dialect
+    wins (left-authoritative, matching join's convention); narwhals'
+    raw failure mode for a pandas+PyArrow pair is AttributeError, not
+    TypeError -- this coercion is proactive/identity-based and never
+    depends on narwhals' exception type, proven explicitly here."""
+
+    def test_union_all_three_way_dialect_mix_pandas_anchor(self):
+        a = ma.relation(_nw_pandas({"id": [1], "v": ["a"]}))
+        b = ma.relation(_nw_polars({"id": [2], "v": ["b"]}))
+        c = ma.relation(_nw_pyarrow({"id": [3], "v": ["c"]}))
+        result = ma.concat([a, b, c]).collect()
+        assert sorted(result.to_dict(orient="list")["id"]) == [1, 2, 3]
+        assert sorted(result.to_dict(orient="list")["v"]) == ["a", "b", "c"]
+
+    def test_union_all_pandas_pyarrow_pair_succeeds_despite_attributeerror_native_mode(self):
+        """narwhals' raw nw.concat([pandas, pyarrow]) raises AttributeError
+        (not TypeError) -- confirmed in the design spec's empirical
+        findings. This coercion never relies on catching that native
+        exception (it's proactive), so it must succeed regardless."""
+        a = ma.relation(_nw_pandas({"id": [1], "v": ["a"]}))
+        c = ma.relation(_nw_pyarrow({"id": [2], "v": ["b"]}))
+        result = ma.concat([a, c]).collect()
+        assert sorted(result.to_dict(orient="list")["id"]) == [1, 2]
+
+    def test_union_distinct_dedups_across_dialects(self):
+        a = ma.relation(_nw_pandas({"id": [1, 2], "v": ["a", "b"]}))
+        b = ma.relation(_nw_polars({"id": [2, 3], "v": ["b", "c"]}))
+        result = ma.concat([a, b], distinct=True).collect()
+        rows = sorted(zip(result.to_dict(orient="list")["id"], result.to_dict(orient="list")["v"]))
+        assert rows == [(1, "a"), (2, "b"), (3, "c")]
