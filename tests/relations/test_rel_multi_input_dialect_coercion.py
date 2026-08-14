@@ -45,11 +45,29 @@ class TestMultiInputCrossDialectCoercionAcceptance:
     """Item 91 acceptance test: confirmed live bug (design spec's
     'Empirical findings' section)."""
 
-    def test_join_leaks_raw_typeerror_on_narwhals_dialect_mismatch(self):
+    def test_join_coerces_narwhals_dialect_mismatch_with_correct_data(self):
         left = _nw_pandas({"id": [1, 2], "a": ["x", "y"]})
         right = _nw_polars({"id": [2, 3], "b": [10, 20]})
         rel = ma.relation(left).join(right, on="id")
-        # Pre-fix: raises a raw, unenriched narwhals TypeError. Post-fix
-        # (Task 3): must succeed with correct joined data instead.
-        with pytest.raises(TypeError):
-            rel.collect()
+        result = rel.collect()
+        assert result.to_dict(orient="list") == {"id": [2], "a": ["y"], "b": [10]}
+
+    def test_join_reversed_coerces_right_to_left_polars_authoritative(self):
+        left = _nw_polars({"id": [1, 2], "a": [10, 20]})
+        right = _nw_pandas({"id": [2, 3], "b": ["x", "y"]})
+        rel = ma.relation(left).join(right, on="id")
+        result_visitor = rel._compile_and_execute_with_visitor()
+        result, visitor = result_visitor
+        assert visitor.backend.dialect == "narwhals-polars"
+        assert result.to_dict(as_series=False) == {"id": [2], "a": [20], "b": ["x"]}
+
+    def test_join_asof_coerces_narwhals_dialect_mismatch(self):
+        left = _nw_pandas({"id": [1, 3, 5], "a": ["x", "y", "z"]})
+        right = _nw_polars({"id": [1, 2, 4], "b": [10, 20, 30]})
+        rel = ma.relation(left).join_asof(right, on="id", strategy="backward")
+        result = rel.collect()
+        assert result.to_dict(orient="list") == {
+            "id": [1, 3, 5],
+            "a": ["x", "y", "z"],
+            "b": [10, 20, 30],
+        }
