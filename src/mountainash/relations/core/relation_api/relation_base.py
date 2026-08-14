@@ -157,7 +157,18 @@ class RelationBase:
 
     @staticmethod
     def _find_leaf_read_node(node: RelationNode) -> ReadRelNode | None:
-        """Recursively find the first ReadRelNode in the plan tree."""
+        """Recursively find a ReadRelNode in the plan tree.
+
+        Single-input nodes (the overwhelming majority) keep byte-identical
+        behaviour: recurse into the one child, propagate whatever it raises
+        or returns unmodified -- there is no sibling to reconcile against.
+        A genuinely multi-input node (JoinRelNode/SetRelNode) walks EVERY
+        child, so a RefRelNode in any position is detected before any node
+        visiting begins (item 91); a leaf-less/unrecognized child (e.g.
+        ResourceReadRelNode) is exactly as uninformative here as it always
+        silently was for children[1:] under the old children[0]-only walk,
+        and never aborts detection when another child DOES resolve.
+        """
         if isinstance(node, ReadRelNode):
             return node
         if isinstance(node, SourceRelNode):
@@ -170,15 +181,30 @@ class RelationBase:
                 "standalone. Use RelationDAG.collect() to resolve named references."
             )
         children = node.children()
-        if children:
+        if not children:
+            raise ValueError(
+                f"Cannot find ReadRelNode in plan tree from {type(node).__name__}"
+            )
+        if len(children) == 1:
             return RelationBase._find_leaf_read_node(children[0])
-        raise ValueError(
-            f"Cannot find ReadRelNode in plan tree from {type(node).__name__}"
-        )
+        result = None
+        for child in children:
+            try:
+                found = RelationBase._find_leaf_read_node(child)
+            except ValueError:
+                continue  # RelationDAGRequired still propagates, uncaught
+            if result is None:
+                result = found
+        return result
 
     @staticmethod
     def _find_leaf_backend(node: RelationNode) -> CONST_BACKEND | None:
-        """Recursively find the first node with _leaf_backend set."""
+        """Recursively find the first node with _leaf_backend set.
+
+        Same single-input-unchanged / multi-input-exhaustive split as
+        _find_leaf_read_node above; no raise semantics here at all, so the
+        multi-input case is a simple short-circuit on first non-None.
+        """
         if node._leaf_backend is not None:
             return node._leaf_backend
         if isinstance(node, (ReadRelNode, SourceRelNode)):
@@ -186,6 +212,12 @@ class RelationBase:
         if isinstance(node, RefRelNode):
             return None
         children = node.children()
-        if children:
+        if not children:
+            return None
+        if len(children) == 1:
             return RelationBase._find_leaf_backend(children[0])
+        for child in children:
+            found = RelationBase._find_leaf_backend(child)
+            if found is not None:
+                return found
         return None

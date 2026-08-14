@@ -116,12 +116,13 @@ def identify_backend(dataframe_or_backend: Any) -> CONST_BACKEND:
     )
 
 
-def _narwhals_dialect(nw_frame: Any) -> str | None:
+def narwhals_dialect(nw_frame: Any) -> str | None:
     """Dialect name for a narwhals DataFrame/LazyFrame.
 
     Uses the same `implementation` property identify_backend already reads
     for the narwhals-ibis rejection. Lazy polars-backed frames map to the
-    existing 'narwhals-lazy' vocabulary name.
+    existing 'narwhals-lazy' vocabulary name. Public (not module-private):
+    also consumed by relation_visitor.py's cross-dialect coercion (item 91).
     """
     impl = getattr(nw_frame, "implementation", None)
     if impl is None or not hasattr(impl, "value"):
@@ -152,14 +153,14 @@ def identify_backend_identity(dataframe_or_backend: Any) -> "BackendIdentity":
         return BackendIdentity(family, "polars")
 
     if family is CONST_BACKEND.NARWHALS:
-        dialect = _narwhals_dialect(obj)
+        dialect = narwhals_dialect(obj)
         if dialect is None:
             # Native frame that identify_backend accepted via the narwhals
             # wrap fallback (pandas, pyarrow, ...) — wrap to read implementation.
             try:
                 import narwhals as nw
 
-                dialect = _narwhals_dialect(nw.from_native(obj))
+                dialect = narwhals_dialect(nw.from_native(obj))
             except (TypeError, ValueError):
                 dialect = None
         return BackendIdentity(family, dialect)
