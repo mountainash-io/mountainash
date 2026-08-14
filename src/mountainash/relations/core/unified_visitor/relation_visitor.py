@@ -470,25 +470,39 @@ class UnifiedRelationVisitor:
         """Coerce *value* to match *target*'s backend type.
 
         Supports:
-        - target is Polars LazyFrame/DataFrame → convert value via pl.from_pandas()
-          or narwhals intermediary
-        - target is narwhals DataFrame → convert via nw.from_native()
+        - target is Polars LazyFrame/DataFrame -> convert value via pl.from_pandas()
+          or narwhals intermediary (existing ladder, extended with list[dict])
+        - target is Narwhals DataFrame/LazyFrame -> convert dict/list[dict]/Polars
+          LazyFrame/anything exposing to_pyarrow() (e.g. an Ibis Table -- same
+          duck-type pattern the Polars branch below already uses) into a narwhals
+          frame, then delegate to _coerce_same_family_dialect() (item 91) to match
+          the target's EXACT dialect and eager/lazy shape -- not merely "some"
+          narwhals frame (Revision 1's bug, item 94 Codex review round 1 finding 2)
+        - target is an Ibis Table -> convert value via ibis.memtable(), unwrapping
+          a lazy narwhals wrapper via .to_native() first (memtable() cannot ingest
+          a lazy narwhals frame directly -- round 1 finding 3)
         """
+        from mountainash.core.types import (
+            is_narwhals_dataframe,
+            is_narwhals_lazyframe,
+            is_ibis_table,
+        )
+
         if is_polars_dataframe(target) or is_polars_lazyframe(target):
             if is_polars_lazyframe(value):
                 return value
             if is_polars_dataframe(value):
                 return value.lazy()
-            # Try pandas → polars
             if is_pandas_dataframe(value):
                 import polars as pl
                 return pl.from_pandas(value).lazy()
-            # Try pyarrow → polars
             if is_pyarrow_table(value):
                 import polars as pl
                 return pl.from_arrow(value).lazy()
-            # Try dict → polars
             if isinstance(value, dict):
+                import polars as pl
+                return pl.DataFrame(value).lazy()
+            if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
                 import polars as pl
                 return pl.DataFrame(value).lazy()
             # Arrow before pandas: a pandas round-trip widens temporal types
@@ -500,7 +514,6 @@ class UnifiedRelationVisitor:
                     return pl.from_arrow(to_arrow()).lazy()
                 except Exception:
                     pass
-            # Fallback via narwhals
             try:
                 import narwhals as nw
                 import polars as pl
@@ -511,7 +524,59 @@ class UnifiedRelationVisitor:
             raise TypeError(
                 f"Cannot coerce {type(value).__name__} to Polars for cross-type join."
             )
-        return value
+
+        if is_narwhals_dataframe(target) or is_narwhals_lazyframe(target):
+            source_type = type(value).__name__
+            try:
+                import narwhals as nw
+                if isinstance(value, dict) or (
+                    isinstance(value, (list, tuple))
+                    and (not value or isinstance(value[0], dict))
+                ):
+                    import pandas as pd
+                    value = pd.DataFrame(value)
+                elif is_polars_lazyframe(value):
+                    value = value.collect()
+                else:
+                    to_arrow = getattr(value, "to_pyarrow", None)
+                    if callable(to_arrow):
+                        value = to_arrow()
+                value = nw.from_native(value, eager_only=True)
+            except Exception as exc:
+                raise TypeError(
+                    f"Cannot coerce {source_type} to Narwhals for cross-type "
+                    f"join: {exc}"
+                ) from exc
+            # Delegate dialect/shape matching to item 91's already-reviewed
+            # function -- its own exceptions are already clean and enriched,
+            # so they propagate unwrapped (no double-wrap).
+            return UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+
+        if is_ibis_table(target):
+            source_type = type(value).__name__
+            try:
+                import ibis
+                if is_narwhals_lazyframe(value):
+                    value = value.to_native()
+                return ibis.memtable(value)
+            except Exception as exc:
+                raise TypeError(
+                    f"Cannot coerce {source_type} to Ibis for cross-type join: {exc}"
+                ) from exc
+
+        # Unreachable for any genuine Polars/Narwhals/Ibis-native target (this
+        # function's sole call site passes the LEFT side's own already-visited,
+        # backend-native compiled result -- always one of the three checks
+        # above). Deliberately reachable for an object that satisfies narwhals'
+        # own permissive detection (hasattr(..., "_compliant_frame")) but fails
+        # the strict TypeGuards used above -- a compatibility tightening
+        # consistent with item 91's established policy (_coerce_same_family_
+        # dialect's own docstring: never duck-type where a non-narwhals object
+        # could spoof). Fails loud rather than the prior silent no-op.
+        raise TypeError(
+            f"Cannot coerce {type(value).__name__} to unrecognized target type "
+            f"{type(target).__name__} for cross-type join."
+        )
 
     _NW_DIALECT_CONVERTERS: "dict[str, str]" = {
         "pandas": "to_pandas",
