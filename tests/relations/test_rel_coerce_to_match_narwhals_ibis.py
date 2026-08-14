@@ -214,3 +214,68 @@ class TestScalarListRejectedAgainstNarwhalsTarget:
         target = _nw_pandas({"id": [1, 2]})
         with pytest.raises(TypeError, match="Cannot coerce list to Narwhals"):
             UnifiedRelationVisitor._coerce_to_match(target, [1, 2])
+
+
+@pytest.fixture(params=["duckdb", "polars", "sqlite"])
+def ibis_anchor(request):
+    """An Ibis Table anchor, one per registered dialect. Built from a
+    Polars DataFrame, not a raw dict -- the ibis-polars backend's
+    create_table() rejects a raw dict directly (confirmed via probe:
+    NotImplementedError: The `polars` backend currently does not support
+    reading data of <class 'dict'>), while duckdb/sqlite accept either."""
+    con = IBIS_CONNECTORS[request.param]()
+    anchor_df = pl.DataFrame({"id": [1, 2, 3], "a": ["x", "y", "z"]})
+    return con.create_table("anchor", anchor_df)
+
+
+class TestIbisTargetAllValueShapes:
+    """Design spec testing plan #8-14: 7 value shapes x 3 registered Ibis
+    dialects (duckdb/polars/sqlite) = 21 tests. Every case asserts
+    ibis.memtable() succeeds and produces the correct rows."""
+
+    def _assert_correct(self, coerced):
+        assert isinstance(coerced, ibis.expr.types.Table)
+        df = coerced.to_pandas()
+        rows = sorted(zip(df["id"].tolist(), df["b"].tolist()))
+        assert rows == [(2, 10), (3, 20)]
+
+    def test_pandas_dataframe(self, ibis_anchor):
+        value = pd.DataFrame({"id": [2, 3], "b": [10, 20]})
+        self._assert_correct(UnifiedRelationVisitor._coerce_to_match(ibis_anchor, value))
+
+    def test_polars_dataframe_eager(self, ibis_anchor):
+        value = pl.DataFrame({"id": [2, 3], "b": [10, 20]})
+        self._assert_correct(UnifiedRelationVisitor._coerce_to_match(ibis_anchor, value))
+
+    def test_polars_lazyframe(self, ibis_anchor):
+        value = pl.DataFrame({"id": [2, 3], "b": [10, 20]}).lazy()
+        self._assert_correct(UnifiedRelationVisitor._coerce_to_match(ibis_anchor, value))
+
+    def test_pyarrow_table(self, ibis_anchor):
+        value = pa.table({"id": [2, 3], "b": [10, 20]})
+        self._assert_correct(UnifiedRelationVisitor._coerce_to_match(ibis_anchor, value))
+
+    def test_dict(self, ibis_anchor):
+        value = {"id": [2, 3], "b": [10, 20]}
+        self._assert_correct(UnifiedRelationVisitor._coerce_to_match(ibis_anchor, value))
+
+    def test_list_of_dict(self, ibis_anchor):
+        value = [{"id": 2, "b": 10}, {"id": 3, "b": 20}]
+        self._assert_correct(UnifiedRelationVisitor._coerce_to_match(ibis_anchor, value))
+
+    def test_already_narwhals_wrapped_eager_and_lazy(self, ibis_anchor):
+        """Directly defends against Revision 1's finding-3 regression:
+        ibis.memtable() fails for a LAZY narwhals wrapper unless unwrapped
+        via .to_native() first; an EAGER wrapper needs no unwrapping."""
+        eager_pandas = _nw_pandas({"id": [2, 3], "b": [10, 20]})
+        self._assert_correct(
+            UnifiedRelationVisitor._coerce_to_match(ibis_anchor, eager_pandas)
+        )
+        lazy_pandas = _nw_pandas({"id": [2, 3], "b": [10, 20]}).lazy()
+        self._assert_correct(
+            UnifiedRelationVisitor._coerce_to_match(ibis_anchor, lazy_pandas)
+        )
+        lazy_polars = _nw_polars({"id": [2, 3], "b": [10, 20]}).lazy()
+        self._assert_correct(
+            UnifiedRelationVisitor._coerce_to_match(ibis_anchor, lazy_polars)
+        )
