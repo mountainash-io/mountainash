@@ -373,3 +373,79 @@ class TestExhaustiveLeafWalkRegressionSafety:
         target = type(placeholder)(target_node)
         detected = target._detect_backend_from(target_node)
         assert detected == CONST_BACKEND.POLARS
+
+
+@pytest.fixture
+def _narwhals_pandas_join_gate_fact():
+    """Register an isolated, dialect-scoped GATE fact: JOIN is
+    UNSUPPORTED on narwhals-pandas specifically (test-only, not a real
+    production limitation) -- used to prove item 91 testing plan #10: the
+    compiling visitor gates using the ANCHOR's dialect, not a
+    JoinRelNode's true left-operand dialect. Item 95's scope to fix, not
+    this item's."""
+    from mountainash.core.capabilities import (
+        CapabilityFact,
+        CapabilityLevel,
+        CapabilityRegistry,
+        Enforcement,
+        WILDCARD_PARAM,
+    )
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_SUBSTRAIT_REL,
+    )
+
+    snap = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.register_backend(
+            CONST_BACKEND.NARWHALS,
+            [
+                CapabilityFact(
+                    operation_key=RKEY_SUBSTRAIT_REL.JOIN,
+                    param=WILDCARD_PARAM,
+                    level=CapabilityLevel.UNSUPPORTED,
+                    backend=CONST_BACKEND.NARWHALS,
+                    dialect="narwhals-pandas",
+                    message="test-only GATE for narwhals-pandas join (item 91 testing plan #10)",
+                    enforcement=Enforcement.GATE,
+                    since="2026-08-13",
+                )
+            ],
+        )
+        yield
+    finally:
+        CapabilityRegistry.restore(snap)
+
+
+class TestGatingUsesAnchorDialectNotTrueLeftOperandDialect:
+    """Design spec testing plan #10 (required per Codex's suggested
+    resolution for round-1 finding #2 -- this item ships the fix, item 95
+    ships the gating-precision fix, sequenced after). Pins the current,
+    known-limited behaviour with a REAL dialect-scoped CapabilityFact,
+    not merely an inspection of visitor.backend.dialect."""
+
+    def test_pandas_scoped_join_gate_does_not_fire_when_anchor_is_polars(
+        self, _narwhals_pandas_join_gate_fact
+    ):
+        from mountainash.relations.dag import RelationDAG
+
+        dag = RelationDAG()
+        # "a_polars_src" sorts alphabetically first -> becomes the anchor
+        # (RelationDAG._execute_with_visitor's own documented selection:
+        # sorted(all_refs)[0]) -- regardless of tree position.
+        dag.add("a_polars_src", ma.relation(_nw_polars({"id": [1], "x": [1]})))
+        dag.add("z_pandas_src", ma.relation(_nw_pandas({"id": [1], "y": [1]})))
+        # The join's TRUE left/authoritative operand is "z_pandas_src"
+        # (narwhals-pandas) -- exactly what the registered GATE fact
+        # targets.
+        joined = dag.ref("z_pandas_src").join(dag.ref("a_polars_src"), on="id")
+
+        result, visitor = dag._execute_with_visitor(joined)
+
+        # Pins the current, documented limitation (item 95's charter):
+        # the anchor is narwhals-polars, NOT the join's true left operand
+        # (narwhals-pandas) -- so the pandas-scoped GATE fact never fires,
+        # even though a fully operand-aware gate SHOULD have blocked this
+        # join. The join succeeds anyway (coercion, Task 3, still works
+        # correctly regardless of gating precision).
+        assert visitor.backend.dialect == "narwhals-polars"
+        assert result is not None
