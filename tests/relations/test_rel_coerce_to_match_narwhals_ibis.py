@@ -71,3 +71,79 @@ class TestIbisTargetDictAcceptance:
             "a": ["y", "z"],
             "b": [10, 20],
         }
+
+
+class TestNarwhalsTargetEagerDialects:
+    """Design spec testing plan #1-3: dict/list[dict]/Polars-LazyFrame right-
+    hand values against all 3 eager Narwhals target dialects. Every "join
+    succeeds" assertion checks correct data AND the result's exact dialect
+    matches the target -- not merely "doesn't raise" (directly defends
+    against Revision 1's finding-2 regression, where a `dict` always became
+    pandas-backed regardless of the target's actual dialect)."""
+
+    @pytest.mark.parametrize(
+        "target_factory,target_dialect",
+        [
+            (lambda: _nw_pandas({"id": [1, 2, 3], "a": ["x", "y", "z"]}), "narwhals-pandas"),
+            (lambda: _nw_polars({"id": [1, 2, 3], "a": ["x", "y", "z"]}), "narwhals-polars"),
+            (lambda: _nw_pyarrow({"id": [1, 2, 3], "a": ["x", "y", "z"]}), "narwhals-pyarrow"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "value_factory",
+        [
+            lambda: {"id": [2, 3], "b": [10, 20]},
+            lambda: [{"id": 2, "b": 10}, {"id": 3, "b": 20}],
+            lambda: pl.DataFrame({"id": [2, 3], "b": [10, 20]}).lazy(),
+        ],
+        ids=["dict", "list_of_dict", "polars_lazyframe"],
+    )
+    def test_join_matches_target_dialect_exactly(
+        self, target_factory, target_dialect, value_factory
+    ):
+        from mountainash.core.backend_detection import narwhals_dialect
+
+        target = target_factory()
+        value = value_factory()
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, value)
+        assert narwhals_dialect(coerced) == target_dialect
+        rel = ma.relation(target).join(value, on="id", how="inner")
+        result, visitor = rel._compile_and_execute_with_visitor()
+        assert visitor.backend.dialect == target_dialect
+        # Assert the compiled RESULT (not just the coerced operand) is a
+        # narwhals frame of the target's exact dialect, then verify the
+        # complete joined record set (id, a, b -- not just id, b).
+        assert narwhals_dialect(result) == target_dialect
+        d = result.to_dict(as_series=False)
+        rows = sorted(zip(d["id"], d["a"], d["b"]))
+        assert rows == [(2, "y", 10), (3, "z", 20)]
+
+
+class TestIbisTableToNarwhalsTarget:
+    """Design spec testing plan #4: an Ibis Table right-hand value against a
+    Narwhals target materializes via .to_pyarrow() (the same duck-type
+    pattern the pre-existing Polars branch already uses) then wraps -- this
+    replaces Revision 1's incorrect rejection of Ibis-Table-to-Narwhals."""
+
+    @pytest.mark.parametrize(
+        "target_factory,target_dialect",
+        [
+            (lambda: _nw_pandas({"id": [1, 2, 3], "a": ["x", "y", "z"]}), "narwhals-pandas"),
+            (lambda: _nw_polars({"id": [1, 2, 3], "a": ["x", "y", "z"]}), "narwhals-polars"),
+        ],
+    )
+    def test_ibis_table_materializes_to_target_dialect(self, target_factory, target_dialect):
+        from mountainash.core.backend_detection import narwhals_dialect
+
+        target = target_factory()
+        con = ibis.duckdb.connect()
+        value = con.create_table("t", {"id": [2, 3], "b": [10, 20]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, value)
+        assert narwhals_dialect(coerced) == target_dialect
+        rel = ma.relation(target).join(value, on="id", how="inner")
+        result, visitor = rel._compile_and_execute_with_visitor()
+        assert visitor.backend.dialect == target_dialect
+        assert narwhals_dialect(result) == target_dialect
+        d = result.to_dict(as_series=False)
+        rows = sorted(zip(d["id"], d["a"], d["b"]))
+        assert rows == [(2, "y", 10), (3, "z", 20)]
