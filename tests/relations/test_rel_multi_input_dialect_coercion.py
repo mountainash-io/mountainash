@@ -416,36 +416,28 @@ def _narwhals_pandas_join_gate_fact():
         CapabilityRegistry.restore(snap)
 
 
-class TestGatingUsesAnchorDialectNotTrueLeftOperandDialect:
-    """Design spec testing plan #10 (required per Codex's suggested
-    resolution for round-1 finding #2 -- this item ships the fix, item 95
-    ships the gating-precision fix, sequenced after). Pins the current,
-    known-limited behaviour with a REAL dialect-scoped CapabilityFact,
-    not merely an inspection of visitor.backend.dialect."""
+class TestGatingUsesAuthoritativeDialectNotAnchor:
+    """Item 95: _gate_capabilities resolves the operation's authoritative
+    (first/left) input dialect, not the visitor's anchor dialect. This test
+    was item 91 testing plan #10, which pinned the OLD anchor-dialect
+    limitation; item 95 ships the gating-precision fix and inverts it."""
 
-    def test_pandas_scoped_join_gate_does_not_fire_when_anchor_is_polars(
+    def test_pandas_scoped_join_gate_fires_when_left_operand_is_pandas(
         self, _narwhals_pandas_join_gate_fact
     ):
         from mountainash.relations.dag import RelationDAG
+        from mountainash.core.types import BackendCapabilityError
 
         dag = RelationDAG()
         # "a_polars_src" sorts alphabetically first -> becomes the anchor
-        # (RelationDAG._execute_with_visitor's own documented selection:
-        # sorted(all_refs)[0]) -- regardless of tree position.
+        # (narwhals-polars), regardless of tree position. The join's TRUE
+        # left/authoritative operand is "z_pandas_src" (narwhals-pandas) --
+        # exactly what the registered GATE fact targets.
         dag.add("a_polars_src", ma.relation(_nw_polars({"id": [1], "x": [1]})))
         dag.add("z_pandas_src", ma.relation(_nw_pandas({"id": [1], "y": [1]})))
-        # The join's TRUE left/authoritative operand is "z_pandas_src"
-        # (narwhals-pandas) -- exactly what the registered GATE fact
-        # targets.
         joined = dag.ref("z_pandas_src").join(dag.ref("a_polars_src"), on="id")
 
-        result, visitor = dag._execute_with_visitor(joined)
-
-        # Pins the current, documented limitation (item 95's charter):
-        # the anchor is narwhals-polars, NOT the join's true left operand
-        # (narwhals-pandas) -- so the pandas-scoped GATE fact never fires,
-        # even though a fully operand-aware gate SHOULD have blocked this
-        # join. The join succeeds anyway (coercion, Task 3, still works
-        # correctly regardless of gating precision).
-        assert visitor.backend.dialect == "narwhals-polars"
-        assert result is not None
+        # Item 95: the gate now fires against the authoritative left operand's
+        # dialect (narwhals-pandas), not the anchor's (narwhals-polars).
+        with pytest.raises(BackendCapabilityError):
+            dag._execute_with_visitor(joined)

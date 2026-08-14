@@ -412,6 +412,7 @@ class RelationDAG:
             expression_visitor=expr_visitor,
             ref_resolver=resolver,
             key_context=key_context,
+            identity_resolver=lambda name: self.relations[name]._node,
         )
 
         # Compile refs in topological order

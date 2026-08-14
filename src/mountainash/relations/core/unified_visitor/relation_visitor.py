@@ -88,6 +88,24 @@ def _present_expression_function_keys(node: RelationNode, op: Any) -> frozenset:
     return frozenset(keys)
 
 
+_UNRESOLVED = object()
+
+
+def _first_input_node(node: RelationNode) -> "RelationNode | None":
+    from mountainash.relations.core.relation_nodes import (
+        AggregateRelNode, ConformRelNode, ExtensionRelNode, FetchRelNode,
+        FilterRelNode, JoinRelNode, ProjectRelNode, SetRelNode, SortRelNode,
+    )
+    if isinstance(node, JoinRelNode):
+        return node.left
+    if isinstance(node, SetRelNode):
+        return node.inputs[0] if node.inputs else None
+    if isinstance(node, (FilterRelNode, ProjectRelNode, SortRelNode, FetchRelNode,
+                         AggregateRelNode, ConformRelNode, ExtensionRelNode)):
+        return node.input
+    return None
+
+
 class UnifiedRelationVisitor:
     """Walks a relational AST and produces backend-native results.
 
@@ -103,6 +121,7 @@ class UnifiedRelationVisitor:
         *,
         ref_resolver: Optional[Callable[[str], Any]] = None,
         key_context: Optional["KeyDriftContext"] = None,
+        identity_resolver: Optional[Callable[[str], Any]] = None,
         enforce_capabilities: bool = True,
     ) -> None:
         self.backend = relation_system
@@ -114,6 +133,7 @@ class UnifiedRelationVisitor:
         # then never assesses the keys dimension and ConformDrift.key_changes
         # stays None (not assessed).
         self.key_context = key_context
+        self.identity_resolver = identity_resolver
         self.enforce_capabilities = enforce_capabilities
         if enforce_capabilities:
             # A gating consumer must ensure the capability declaration modules
@@ -174,7 +194,9 @@ class UnifiedRelationVisitor:
         family = getattr(self.backend, "backend_type", None)
         if family is None:
             return
-        dialect = getattr(self.backend, "dialect", None)
+        dialect = self._authoritative_dialect(node, op)
+        if dialect is _UNRESOLVED:
+            dialect = getattr(self.backend, "dialect", None)
 
         def _raise(fact):
             raise BackendCapabilityError(
@@ -207,6 +229,40 @@ class UnifiedRelationVisitor:
                 continue
             if getattr(node, param, None) is not None:
                 _raise(fact)
+
+    def _authoritative_dialect(self, node: RelationNode, op: Any):
+        input_node = _first_input_node(node)
+        if input_node is None:
+            return _UNRESOLVED
+        family, dialect = self._physical_identity(input_node)
+        if family is None or family != self.backend.backend_type:
+            return _UNRESOLVED
+        return dialect
+
+    def _physical_identity(self, node: RelationNode, seen: "set | None" = None):
+        if seen is None:
+            seen = set()
+        try:
+            from mountainash.core.backend_detection import identify_backend_identity
+            from mountainash.relations.core.relation_nodes import ReadRelNode
+            from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+                RefRelNode, ResourceReadRelNode, SourceRelNode,
+            )
+            if isinstance(node, ReadRelNode):
+                ident = identify_backend_identity(node.dataframe)
+                return ident.family, ident.dialect
+            if isinstance(node, RefRelNode):
+                if self.identity_resolver is None or node.name in seen:
+                    return None, None
+                resolved = self.identity_resolver(node.name)
+                return (self._physical_identity(resolved, seen | {node.name})
+                        if resolved is not None else (None, None))
+            if isinstance(node, (SourceRelNode, ResourceReadRelNode)):
+                return None, None
+            child = _first_input_node(node)
+            return self._physical_identity(child, seen) if child is not None else (None, None)
+        except Exception:
+            return None, None
 
     def _dispatch(self, node: RelationNode, op: Any) -> Any:
         if self.enforce_capabilities:
