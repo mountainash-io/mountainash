@@ -71,3 +71,88 @@ class TestMultiInputCrossDialectCoercionAcceptance:
             "a": ["x", "y", "z"],
             "b": [10, 20, 30],
         }
+
+
+class TestEagerLazyShapeCoercion:
+    """Design spec testing plan #7 -- Revision 4's fix for round-3's
+    finding: narwhals_dialect() only special-cases eager/lazy for the
+    `polars` implementation, so eager-pandas vs lazy-pandas (and
+    eager-pyarrow vs lazy-pyarrow) share an IDENTICAL dialect string.
+    Coercion must detect the shape mismatch via an independent eager/lazy
+    check, not dialect-string equality alone."""
+
+    def test_eager_polars_target_collects_lazy_polars_value(self):
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+        import narwhals as nw
+        import polars as pl
+
+        target = _nw_polars({"id": [1, 2]})
+        value = nw.from_native(pl.DataFrame({"id": [1, 2]}).lazy())
+        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        assert not is_narwhals_lazy(coerced)
+        assert coerced.to_native().to_dict(as_series=False) == {"id": [1, 2]}
+
+    def test_eager_pandas_target_collects_lazy_pandas_value(self):
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        target = _nw_pandas({"id": [1, 2]})
+        value = _nw_pandas({"id": [1, 2]}).lazy()
+        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        assert not is_narwhals_lazy(coerced)
+        assert coerced.to_native().to_dict(orient="list") == {"id": [1, 2]}
+
+    def test_eager_pyarrow_target_collects_lazy_pyarrow_value(self):
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        target = _nw_pyarrow({"id": [1, 2]})
+        value = _nw_pyarrow({"id": [1, 2]}).lazy()
+        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        assert not is_narwhals_lazy(coerced)
+
+    def test_lazy_polars_target_rejects_eager_operand(self):
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+        import narwhals as nw
+        import polars as pl
+
+        target = nw.from_native(pl.DataFrame({"id": [1]}).lazy())
+        value = _nw_pandas({"id": [1]})
+        with pytest.raises(TypeError, match="lazy"):
+            UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+
+    def test_lazy_pandas_target_rejects_eager_operand(self):
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        target = _nw_pandas({"id": [1]}).lazy()
+        value = _nw_polars({"id": [1]})
+        with pytest.raises(TypeError, match="lazy"):
+            UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+
+    def test_lazy_value_needing_conversion_after_collect(self):
+        """lazy-Polars value -> collect -> eager-Polars -> convert to
+        pandas target (design spec testing plan #7, third bullet)."""
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+        import narwhals as nw
+        import polars as pl
+
+        target = _nw_pandas({"id": [1, 2]})
+        value = nw.from_native(pl.DataFrame({"id": [1, 2]}).lazy())
+        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        from mountainash.core.backend_detection import narwhals_dialect
+        assert narwhals_dialect(coerced) == "narwhals-pandas"
+
+
+def is_narwhals_lazy(frame) -> bool:
+    from mountainash.core.types import is_narwhals_lazyframe
+    return is_narwhals_lazyframe(frame)
