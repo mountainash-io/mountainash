@@ -147,3 +147,70 @@ class TestIbisTableToNarwhalsTarget:
         d = result.to_dict(as_series=False)
         rows = sorted(zip(d["id"], d["a"], d["b"]))
         assert rows == [(2, "y", 10), (3, "z", 20)]
+
+
+class TestLazyNarwhalsTargetRejectsEagerOperand:
+    """Design spec testing plan #5: a lazy Narwhals target + an eager (or
+    differently-shaped) value raises _coerce_same_family_dialect's own
+    already-reviewed TypeError -- item 91's documented limitation, not a
+    new regression introduced by this item's Narwhals branch."""
+
+    @pytest.mark.parametrize(
+        "value_factory",
+        [
+            lambda: {"id": [1]},
+            lambda: [{"id": 1}],
+            lambda: pl.DataFrame({"id": [1]}).lazy(),
+        ],
+        ids=["dict", "list_of_dict", "polars_lazyframe"],
+    )
+    def test_lazy_target_raises_lazy_typeerror(self, value_factory):
+        target = _nw_pandas({"id": [1, 2]}).lazy()
+        with pytest.raises(TypeError, match="lazy"):
+            UnifiedRelationVisitor._coerce_to_match(target, value_factory())
+
+
+class TestJoinAsofNarwhalsTargetDictValue:
+    """Design spec testing plan #6: join_asof, Narwhals target, dict
+    right-hand value, parameterized over pandas and Polars target dialects.
+    PyArrow-backed narwhals is excluded -- narwhals itself raises its own
+    pre-existing, unrelated NotImplementedError for join_asof on a PyArrow
+    implementation (confirmed via probe), a genuine upstream limitation
+    this item does not attempt to lift."""
+
+    @pytest.mark.parametrize(
+        "target_factory,expected_type",
+        [(_nw_pandas, pd.DataFrame), (_nw_polars, pl.DataFrame)],
+        ids=["pandas", "polars"],
+    )
+    def test_join_asof_coerces_dict_right_hand_side(self, target_factory, expected_type):
+        left = target_factory({"id": [1, 3, 5], "a": ["x", "y", "z"]})
+        right = {"id": [1, 2, 4], "b": [10, 20, 30]}
+        rel = ma.relation(left).join_asof(right, on="id", strategy="backward")
+        result = rel.collect()
+        # Tie the collected result to the EXPECTED native type before
+        # serializing: a narwhals-pandas .collect() yields a raw
+        # pandas.DataFrame, a narwhals-polars .collect() a raw
+        # polars.DataFrame. Assert the type explicitly (sniffing the
+        # object could not catch an accidental cross-dialect result),
+        # then serialize per that type.
+        assert isinstance(result, expected_type)
+        to_dict = (
+            result.to_dict(orient="list")
+            if expected_type is pd.DataFrame
+            else result.to_dict(as_series=False)
+        )
+        assert to_dict == {"id": [1, 3, 5], "a": ["x", "y", "z"], "b": [10, 20, 30]}
+
+
+class TestScalarListRejectedAgainstNarwhalsTarget:
+    """Design spec testing plan #7: a scalar (non-dict) list/tuple right-
+    hand value against a Narwhals target must NOT take the dict-sequence
+    fast path (narrowed predicate) -- it falls through to the generic
+    nw.from_native() fallback, which raises its own clean TypeError citing
+    the original list type."""
+
+    def test_scalar_list_falls_through_to_narwhals_native_rejection(self):
+        target = _nw_pandas({"id": [1, 2]})
+        with pytest.raises(TypeError, match="Cannot coerce list to Narwhals"):
+            UnifiedRelationVisitor._coerce_to_match(target, [1, 2])
