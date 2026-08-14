@@ -241,9 +241,22 @@ class UnifiedRelationVisitor:
         if binding.kind is ArgKind.INPUT:
             return self.visit(value)
         if binding.kind is ArgKind.INPUT_LIST:
-            results = [self.visit(v) for v in value]
+            anchor = self.visit(value[0])   # anchor must succeed; a TypeError propagates
+            results = [anchor]
+            for v in value[1:]:
+                try:
+                    results.append(self.visit(v))
+                except TypeError:
+                    # Cross-family operand: the shared visitor's read() rejected
+                    # the operand's raw dataframe. Coerce it to the anchor's
+                    # family (and, for a narwhals anchor, exact dialect/shape)
+                    # -- the same catch-and-coerce shape _visit_and_coerce_right
+                    # uses for joins. A derived (non-ReadRelNode) root re-raises:
+                    # that is the join path's pre-existing direct-read-only boundary.
+                    if not isinstance(v, ReadRelNode):
+                        raise
+                    results.append(self._coerce_to_match(anchor, v.dataframe))
             if len(results) > 1:
-                anchor = results[0]
                 results = [anchor] + [
                     self._coerce_same_family_dialect(anchor, r) for r in results[1:]
                 ]
