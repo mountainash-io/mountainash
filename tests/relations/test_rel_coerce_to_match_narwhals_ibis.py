@@ -279,3 +279,47 @@ class TestIbisTargetAllValueShapes:
         self._assert_correct(
             UnifiedRelationVisitor._coerce_to_match(ibis_anchor, lazy_polars)
         )
+
+
+class TestErrorWrappingPreservesOriginalTypeAndContext:
+    """Design spec testing plan #15-17."""
+
+    def test_narwhals_conversion_failure_wraps_original_source_type(self):
+        """A valid dict succeeds its own reassignment to an intermediate
+        pd.DataFrame; narwhals.from_native is then force-failed via mock --
+        the wrapped TypeError must cite the ORIGINAL raw type (dict), not
+        the intermediate DataFrame, proving source_type was captured
+        before reassignment."""
+        from unittest.mock import patch
+
+        target = _nw_pandas({"id": [1, 2]})
+        with patch("narwhals.from_native", side_effect=RuntimeError("boom")):
+            with pytest.raises(TypeError, match=r"Cannot coerce dict to Narwhals.*boom"):
+                UnifiedRelationVisitor._coerce_to_match(target, {"id": [1]})
+
+    def test_ibis_conversion_failure_wraps_custom_class_name(self):
+        class NotConvertible:
+            pass
+
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        with pytest.raises(
+            TypeError,
+            match=r"Cannot coerce NotConvertible to Ibis.*DataFrame constructor not properly called",
+        ):
+            UnifiedRelationVisitor._coerce_to_match(target, NotConvertible())
+
+    def test_final_branch_rejects_object_satisfying_only_permissive_detection(self):
+        """A duck-typed object exposing `_compliant_frame` (narwhals' own
+        permissive identify_backend()/read() detection signal) but failing
+        the strict is_narwhals_dataframe/is_narwhals_lazyframe TypeGuards
+        must raise a clean TypeError from the final branch -- a deliberate
+        compatibility tightening vs. the prior accidental pass-through."""
+
+        class Spoof:
+            _compliant_frame = object()
+
+        with pytest.raises(
+            TypeError, match=r"Cannot coerce dict to unrecognized target type Spoof"
+        ):
+            UnifiedRelationVisitor._coerce_to_match(Spoof(), {"id": [1]})
