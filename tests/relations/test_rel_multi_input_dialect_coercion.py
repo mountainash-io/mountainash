@@ -235,3 +235,56 @@ class TestUnionMultiWayDialectCoercion:
         result = ma.concat([a, b], distinct=True).collect()
         rows = sorted(zip(result.to_dict(orient="list")["id"], result.to_dict(orient="list")["v"]))
         assert rows == [(1, "a"), (2, "b"), (3, "c")]
+
+
+class TestUnsupportedDialectAndErrorWrapping:
+    """Design spec testing plan #8-9."""
+
+    def test_unrecognized_target_implementation_raises_clean_typeerror(self):
+        from enum import Enum
+        from unittest.mock import patch
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        class _UnknownImpl(Enum):
+            UNKNOWN = "unknown"
+
+        target = _nw_pandas({"id": [1]})
+        value = _nw_polars({"id": [1]})
+        with patch.object(target, "implementation", _UnknownImpl.UNKNOWN):
+            with pytest.raises(TypeError, match="unsupported target dialect"):
+                UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+
+    def test_conversion_failure_is_wrapped_with_dialect_context_not_leaked_raw(self):
+        from unittest.mock import patch
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+        import narwhals as nw
+
+        target = _nw_pandas({"id": [1]})
+        value = _nw_polars({"id": [1]})
+        frame_type = type(value)
+        original_to_pandas = frame_type.to_pandas
+
+        def _boom(self):
+            raise TypeError("conversion exploded")
+
+        try:
+            frame_type.to_pandas = _boom
+            with pytest.raises(TypeError, match="Failed to coerce"):
+                UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        finally:
+            frame_type.to_pandas = original_to_pandas
+
+    def test_same_dialect_operands_untouched_no_wasted_round_trip(self):
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+
+        target = _nw_pandas({"id": [1]})
+        value = _nw_pandas({"id": [2]})
+        result = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        assert result is value
+        assert result.to_native() is value.to_native()
