@@ -323,3 +323,88 @@ class TestErrorWrappingPreservesOriginalTypeAndContext:
             TypeError, match=r"Cannot coerce dict to unrecognized target type Spoof"
         ):
             UnifiedRelationVisitor._coerce_to_match(Spoof(), {"id": [1]})
+
+
+class TestDegenerateInputCoverage:
+    """Design spec testing plan #18 (expanded per Round 3's non-blocking
+    note): empty/null-only/typed-empty inputs, and an unresolvable lazy
+    source, against both a Narwhals and an Ibis target. Coercion's job is
+    type conversion, not schema validation -- these assert either a
+    legitimate degenerate result or a clean, appropriately-wrapped
+    TypeError, never a silent no-op or data corruption."""
+
+    def test_empty_dict_to_narwhals_succeeds_zero_columns(self):
+        target = _nw_pandas({"id": [1, 2]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, {})
+        assert coerced.to_native().shape == (0, 0)
+
+    def test_empty_list_to_narwhals_succeeds_zero_columns(self):
+        target = _nw_pandas({"id": [1, 2]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, [])
+        assert coerced.to_native().shape == (0, 0)
+
+    def test_empty_dict_to_ibis_succeeds_zero_columns(self):
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, {})
+        assert coerced.schema() == ibis.schema({})
+
+    def test_empty_list_to_ibis_succeeds_zero_columns(self):
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, [])
+        # Zero-column table: assert the schema, do NOT execute (executing a
+        # zero-column table raises a backend-level error -- out of scope).
+        assert coerced.schema() == ibis.schema({})
+
+    def test_null_only_polars_lazyframe_to_ibis_succeeds(self):
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        value = pl.DataFrame({"id": [None, None]}, schema={"id": pl.Int64}).lazy()
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, value)
+        assert coerced.count().to_pandas() == 2
+
+    def test_typed_empty_polars_lazyframe_to_ibis_succeeds(self):
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        value = pl.DataFrame({"id": []}, schema={"id": pl.Int64}).lazy()
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, value)
+        assert coerced.count().to_pandas() == 0
+
+    def test_null_only_dict_to_narwhals_succeeds(self):
+        target = _nw_pandas({"id": [1, 2]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, {"id": [None, None]})
+        assert coerced.to_native().to_dict(orient="list")["id"] == [None, None] or all(
+            pd.isna(v) for v in coerced.to_native()["id"]
+        )
+
+    def test_null_only_dict_to_ibis_succeeds(self):
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, {"id": [None, None]})
+        assert coerced.count().to_pandas() == 2
+
+    def test_null_only_polars_lazyframe_to_narwhals_succeeds(self):
+        target = _nw_pandas({"id": [1, 2]})
+        value = pl.DataFrame({"id": [None, None]}, schema={"id": pl.Int64}).lazy()
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, value)
+        assert coerced.to_native().shape == (2, 1)
+
+    def test_typed_empty_polars_lazyframe_to_narwhals_succeeds(self):
+        target = _nw_pandas({"id": [1, 2]})
+        value = pl.DataFrame({"id": []}, schema={"id": pl.Int64}).lazy()
+        coerced = UnifiedRelationVisitor._coerce_to_match(target, value)
+        assert coerced.to_native().shape == (0, 1)
+
+    def test_unresolvable_lazy_source_to_narwhals_raises_wrapped_typeerror(self):
+        target = _nw_pandas({"id": [1, 2]})
+        value = pl.scan_csv("/tmp/mountainash-item94-does-not-exist.csv")
+        with pytest.raises(TypeError, match="Cannot coerce LazyFrame to Narwhals"):
+            UnifiedRelationVisitor._coerce_to_match(target, value)
+
+    def test_unresolvable_lazy_source_to_ibis_raises_wrapped_typeerror(self):
+        con = ibis.duckdb.connect()
+        target = con.create_table("t", {"id": [1]})
+        value = pl.scan_csv("/tmp/mountainash-item94-does-not-exist.csv")
+        with pytest.raises(TypeError, match="Cannot coerce LazyFrame to Ibis"):
+            UnifiedRelationVisitor._coerce_to_match(target, value)
