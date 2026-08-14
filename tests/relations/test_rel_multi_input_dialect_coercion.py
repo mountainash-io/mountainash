@@ -288,3 +288,88 @@ class TestUnsupportedDialectAndErrorWrapping:
         result = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
         assert result is value
         assert result.to_native() is value.to_native()
+
+
+class TestExhaustiveLeafWalkRegressionSafety:
+    """Design spec testing plan #11 (backlog Required work #4). Both
+    _find_leaf_read_node and _find_leaf_backend currently recurse into
+    children()[0] only -- a RefRelNode in a non-first position is
+    invisible to standalone backend detection until visit_ref's own
+    RelationDAGRequired safety net fires later, during actual node
+    visiting, by which point the first child may have already been
+    partially compiled."""
+
+    def test_ref_in_second_position_raises_before_first_child_compiles(self):
+        from unittest.mock import patch
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
+        from mountainash.relations.dag.errors import RelationDAGRequired
+
+        left = ma.relation(_nw_pandas({"id": [1]}))
+        target = left.join(ma.relation(_nw_pandas({"id": [1]})), on="id")
+        # Replace the right side with an unregistered RefRelNode after
+        # construction, simulating "ref in second position" without
+        # needing a live DAG (this item's fix must reject it standalone).
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+        target_node = target._node.model_copy(
+            update={"right": RefRelNode(name="missing_ref")}
+        )
+        target = type(target)(target_node)
+
+        original_init = UnifiedRelationVisitor.__init__
+        construction_count = [0]
+
+        def _counted_init(self, *args, **kwargs):
+            construction_count[0] += 1
+            return original_init(self, *args, **kwargs)
+
+        with patch.object(UnifiedRelationVisitor, "__init__", _counted_init):
+            with pytest.raises(RelationDAGRequired):
+                target._compile_and_execute()
+        assert construction_count[0] == 0
+
+    def test_readrelnode_in_first_position_still_wins_over_leafless_second_child(self):
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ResourceReadRelNode,
+        )
+        from mountainash.typespec.datapackage import DataResource
+
+        import polars as pl
+        left = ma.relation(pl.DataFrame({"id": [1], "a": [1]}))
+        resource = ResourceReadRelNode(
+            resource=DataResource(name="right", data=[{"id": 1, "b": 2}])
+        )
+        target_node = left.join(left, on="id")._node.model_copy(
+            update={"right": resource}
+        )
+        target = type(left)(target_node)
+        # Detection must still find the left ReadRelNode leaf and pick
+        # Polars -- the leaf-less second child must not abort detection.
+        detected = target._detect_backend_from(target_node)
+        assert detected == CONST_BACKEND.POLARS
+
+    def test_all_children_leafless_falls_through_to_house_default_backend(self):
+        """Round-3 non-blocking suggestion #1: explicit, documented
+        coverage for the all-branches-unrecognizable case -- neither
+        child produces a leaf, detection returns None, and
+        _detect_backend_from's own existing fallback chain (not new
+        leniency invented by this item) defaults to POLARS."""
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ResourceReadRelNode,
+        )
+        from mountainash.typespec.datapackage import DataResource
+
+        resource_a = ResourceReadRelNode(
+            resource=DataResource(name="a", data=[{"id": 1, "x": 1}])
+        )
+        resource_b = ResourceReadRelNode(
+            resource=DataResource(name="b", data=[{"id": 1, "y": 2}])
+        )
+        placeholder = ma.relation(_nw_polars({"id": [1]}))
+        target_node = placeholder.join(placeholder, on="id")._node.model_copy(
+            update={"left": resource_a, "right": resource_b}
+        )
+        target = type(placeholder)(target_node)
+        detected = target._detect_backend_from(target_node)
+        assert detected == CONST_BACKEND.POLARS
