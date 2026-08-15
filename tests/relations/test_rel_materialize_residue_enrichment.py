@@ -98,3 +98,66 @@ class TestDeadDeclarationEnforcement:
                 )
         finally:
             CapabilityRegistry.restore(snap)
+
+
+class TestHandlerPathAndBoundaries:
+    def test_handler_join_residue_fires(self, monkeypatch):
+        from mountainash.relations.backends.relation_systems.narwhals.substrait.relsys_nw_join import (
+            SubstraitNarwhalsJoinRelationSystem,
+        )
+        snap = CapabilityRegistry.snapshot()
+        try:
+            CapabilityRegistry.register_backend(
+                CONST_BACKEND.NARWHALS,
+                [
+                    CapabilityFact(
+                        operation_key=RKEY_SUBSTRAIT_REL.JOIN, param="*",
+                        level=CapabilityLevel.UNSUPPORTED,
+                        backend=CONST_BACKEND.NARWHALS, dialect="narwhals-pandas",
+                        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                        boundary=Boundary.MATERIALIZE, native_errors=(TypeError,),
+                        message="join residue fired (test)",
+                        since="2026-08-14",
+                    )
+                ],
+            )
+            def _boom(self, *a, **k):
+                raise TypeError("forced join failure")
+            monkeypatch.setattr(SubstraitNarwhalsJoinRelationSystem, "join", _boom)
+            nw_df = nw.from_native(pd.DataFrame({"id": [1]}), eager_only=True)
+            with pytest.raises(BackendCapabilityError, match="join residue fired"):
+                ma.relation(nw_df).join(ma.relation(nw_df), on="id").to_polars()
+        finally:
+            CapabilityRegistry.restore(snap)
+
+    def test_child_visit_error_not_narrowed(self, monkeypatch):
+        from mountainash.relations.core.unified_visitor import relation_visitor as rv
+        snap = CapabilityRegistry.snapshot()
+        try:
+            CapabilityRegistry.register_backend(
+                CONST_BACKEND.NARWHALS,
+                [
+                    CapabilityFact(
+                        operation_key=RKEY_SUBSTRAIT_REL.JOIN, param="*",
+                        level=CapabilityLevel.UNSUPPORTED,
+                        backend=CONST_BACKEND.NARWHALS, dialect="narwhals-pandas",
+                        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                        boundary=Boundary.MATERIALIZE, native_errors=(TypeError,),
+                        message="join residue fired (test)",
+                        since="2026-08-14",
+                    )
+                ],
+            )
+            # Force the RIGHT-side child visit/coercion to raise BEFORE the
+            # join's native call -- the join's (JOIN, *) fact must NOT enrich
+            # this child-visit error (children compile outside the wrap).
+            monkeypatch.setattr(
+                rv.UnifiedRelationVisitor,
+                "_visit_and_coerce_right",
+                lambda self, right, left: (_ for _ in ()).throw(TypeError("child visit failure")),
+            )
+            nw_df = nw.from_native(pd.DataFrame({"id": [1]}), eager_only=True)
+            with pytest.raises(TypeError, match="child visit failure"):
+                ma.relation(nw_df).join(ma.relation(nw_df), on="id").to_polars()
+        finally:
+            CapabilityRegistry.restore(snap)
