@@ -216,3 +216,29 @@ class TestDagMaterializeResidueDialectPropagation:
         with pytest.raises(BackendCapabilityError) as exc_info:
             dag.collect("final")
         assert exc_info.value.limitation.upstream_ref == "NW-STR-22"
+
+
+def test_predicate_fact_gates_relation_call():
+    from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.schema import (
+        CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate,
+    )
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
+
+    snap = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, [
+            CapabilityFact(
+                operation_key=RKEY_SUBSTRAIT_REL.FILTER, param="predicate",
+                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
+                message="filter blocked by predicate fact", since="2026-08-15",
+                predicate=Predicate((Clause("predicate", ClauseOp.IS_SET),)),
+            ),
+        ])
+        df = _nw(pl.DataFrame({"a": [1, 2]}))
+        with pytest.raises(BackendCapabilityError, match="filter blocked"):
+            ma.relation(df).filter(ma.col("a").eq(1)).collect()
+    finally:
+        CapabilityRegistry.restore(snap)

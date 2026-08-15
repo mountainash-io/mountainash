@@ -99,6 +99,83 @@ class ValueClass(Enum):
     POLARS_OFFSET = "polars_offset"               # signed Polars duration string
 
 
+class ClauseOp(Enum):
+    """Closed predicate operator set (spec §4.2). Extending is a spec change."""
+    EQ = "eq"                  # resolved value equals a scalar/enum operand
+    IN = "in"                  # resolved value is a member of a frozenset
+    IS_SET = "is_set"          # resolved value is non-None
+    IS_NULL = "is_null"        # resolved value is None
+    IS_LITERAL = "is_literal"  # root param's bound value is a LiteralNode
+    MATCHES_CLASS = "matches_class"  # value_classes.matches(operand, value)
+
+
+# Closed, hashable operand union (spec §4.3). ValueClass is an Enum, so EQ
+# validation must exclude it explicitly.
+Operand = str | int | bool | Enum | frozenset[str | int] | ValueClass | None
+
+
+def _operand_key(operand: Operand) -> tuple:
+    if operand is None:
+        return (0,)
+    if isinstance(operand, frozenset):
+        return (1, tuple(sorted(str(m) for m in operand)))
+    if isinstance(operand, ValueClass):
+        return (2, operand.value)
+    if isinstance(operand, Enum):
+        return (3, type(operand).__name__, operand.value)
+    return (4, operand)
+
+
+def _clause_key(clause: "Clause") -> tuple:
+    return (clause.path, clause.op.name, _operand_key(clause.operand))
+
+
+def _validate_clause(clause: "Clause") -> None:
+    if not clause.path:
+        raise ValueError("Clause path must be non-empty")
+    op, operand = clause.op, clause.operand
+    if op in (ClauseOp.IS_SET, ClauseOp.IS_NULL, ClauseOp.IS_LITERAL):
+        if operand is not None:
+            raise ValueError(f"Clause {op.name} takes no operand, got {operand!r}")
+    elif op is ClauseOp.EQ:
+        if isinstance(operand, ValueClass) or not isinstance(operand, (str, int, bool, Enum)):
+            raise ValueError(f"Clause EQ operand must be a scalar/enum, got {operand!r}")
+    elif op is ClauseOp.IN:
+        if not isinstance(operand, frozenset) or not all(
+            isinstance(m, (str, int)) for m in operand
+        ):
+            raise ValueError(f"Clause IN operand must be frozenset[str|int], got {operand!r}")
+    elif op is ClauseOp.MATCHES_CLASS:
+        if not isinstance(operand, ValueClass):
+            raise ValueError(f"Clause MATCHES_CLASS operand must be a ValueClass, got {operand!r}")
+    else:
+        raise ValueError(f"unknown ClauseOp {op!r}")
+
+
+@dataclass(frozen=True)
+class Clause:
+    path: str
+    op: ClauseOp
+    operand: Operand = None
+
+    def __post_init__(self) -> None:
+        _validate_clause(self)
+
+
+@dataclass(frozen=True)
+class Predicate:
+    """Immutable conjunction of clauses; canonical order, order-insensitive eq/hash."""
+    clauses: tuple[Clause, ...]
+
+    def __post_init__(self) -> None:
+        clauses = self.clauses
+        if not clauses:
+            raise ValueError("Predicate must have at least one clause")
+        if len(set(clauses)) != len(clauses):
+            raise ValueError("Predicate must not contain duplicate clauses")
+        object.__setattr__(self, "clauses", tuple(sorted(clauses, key=_clause_key)))
+
+
 def _validate_since(since: str, owner: str) -> None:
     if not _SINCE_RE.match(since):
         raise ValueError(f"{owner}: since must be YYYY-MM-DD, got {since!r}")
@@ -126,6 +203,7 @@ class CapabilityFact:
                                         # (validated in register_backend — spec 2026-07-06)
     value_class: ValueClass | None = None   # value-class fact; option_value MUST be None
     enforcement: Enforcement = Enforcement.GATE  # what the system does; condition is prose only
+    predicate: Predicate | None = None     # compound co-value limit (§4); None = param-keyed fact
 
     def __post_init__(self) -> None:
         _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
@@ -185,6 +263,42 @@ class CapabilityFact:
                 "is a build-time path choice and residue is a materialize-time "
                 "enrichment; see the 66a compatibility table"
             )
+
+        if self.predicate is not None:
+            if self.boundary is not Boundary.BUILD:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): predicate "
+                    "facts must use the BUILD boundary (§4.5)"
+                )
+            if self.option_value is not None or self.value_class is not None:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
+                    "fact is value-agnostic — the predicate carries the value scoping; "
+                    "option_value and value_class must be None"
+                )
+            if self.param == WILDCARD_PARAM:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
+                    "fact cannot use WILDCARD_PARAM"
+                )
+            if self.enforcement is not Enforcement.GATE:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
+                    "fact has no consuming path for non-GATE enforcement roles — "
+                    "predicate facts gate"
+                )
+            if self.level not in (CapabilityLevel.UNSUPPORTED, CapabilityLevel.EXPR_CAPABLE):
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
+                    "fact must be UNSUPPORTED (blocking) or EXPR_CAPABLE (permitting "
+                    "refinement) — LITERAL_ONLY/POLYMORPHIC have no predicate enforcement path"
+                )
+            roots = {c.path.split(".")[0] for c in self.predicate.clauses}
+            if self.param not in roots:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param!r}): param must "
+                    f"be one of the predicate's clause roots {sorted(roots)}"
+                )
 
 
 class DivergenceKind(Enum):

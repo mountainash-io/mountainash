@@ -231,3 +231,40 @@ def test_enforced_visitor_construction_bootstraps_declarations():
     )
     subprocess.run([sys.executable, "-c", code], check=True)
 
+
+
+def test_predicate_fact_gates_expression_call():
+    from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    )
+    # ABS protocol: def abs(self, x, /, overflow=None) — the literal arg maps to param "x".
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_ARITH.ABS, param="x", level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.POLARS, dialect="polars",
+            message="abs blocked when x==7", since="2026-08-15",
+            predicate=Predicate((Clause("x", ClauseOp.EQ, 7),)),
+        ),
+    ])
+    with pytest.raises(BackendCapabilityError) as exc_info:
+        ma.lit(7).abs().compile(DF)
+    assert exc_info.value.limitation.predicate is not None
+    assert "abs blocked" in str(exc_info.value)
+
+
+def test_predicate_fact_does_not_fire_when_predicate_false():
+    from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    )
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_ARITH.ABS, param="x", level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.POLARS, dialect="polars",
+            message="abs blocked when x==7", since="2026-08-15",
+            predicate=Predicate((Clause("x", ClauseOp.EQ, 7),)),
+        ),
+    ])
+    compiled = ma.lit(9).abs().compile(DF)  # [x EQ 7] does not hold
+    assert compiled is not None

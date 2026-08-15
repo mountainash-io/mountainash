@@ -212,6 +212,7 @@ def test_no_registration_side_effects_on_import():
             importlib.import_module(name)
         assert CapabilityRegistry._facts == {}, "import side-effect registration"
         assert CapabilityRegistry._value_class_facts == {}
+        assert CapabilityRegistry._predicate_facts == []
         assert CapabilityRegistry._kinds == {}
         print("OK")
     """)

@@ -26,7 +26,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/core/test_capability_gating.py:246 | static-marker | UNRESOLVED | polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
 | tests/expressions/argument_types/_option_helpers.py:91 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
 | tests/expressions/argument_types/_test_template.py:162 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
-| tests/expressions/argument_types/test_capability_probes.py:156 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
+| tests/expressions/argument_types/test_capability_probes.py:157 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
 | tests/expressions/argument_types/test_op_level_gate_probes.py:46 | parametrized-case | CAPITALIZE | narwhals-pandas | op | None | spine gate fact (unsupported/gate) on narwhals/narwhals-pandas — derivable via capability_gate |
 | tests/expressions/argument_types/test_op_level_gate_probes.py:46 | parametrized-case | CAPITALIZE | narwhals-polars | op | None | spine gate fact (unsupported/gate) on narwhals/narwhals-polars — derivable via capability_gate |
 | tests/expressions/argument_types/test_op_level_gate_probes.py:46 | parametrized-case | CENTER | narwhals-pandas | op | None | spine gate fact (unsupported/gate) on narwhals/narwhals-pandas — derivable via capability_gate |

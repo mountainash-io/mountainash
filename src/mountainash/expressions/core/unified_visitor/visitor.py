@@ -290,6 +290,28 @@ class UnifiedExpressionVisitor:
                 )
         return resolved
 
+    def _gate_predicate_violations(self, function_key, protocol_method, arguments, options) -> None:
+        """Collecting call-level gate (§3): predicate facts, once per call."""
+        if not self.enforce_capabilities:
+            return
+        from mountainash.core.capabilities import CapabilityRegistry
+        from mountainash.core.capabilities.predicates import bind_expression_call
+        from mountainash.core.types import BackendCapabilityError
+        bound = bind_expression_call(
+            operation_key=function_key, backend=self.backend.backend_type,
+            dialect=getattr(self.backend, "dialect", None),
+            protocol_method=protocol_method, arguments=arguments, options=options,
+        )
+        violations = CapabilityRegistry.violations_for(bound)
+        if violations:
+            ordered = sorted(violations, key=lambda f: (f.param, f.message))
+            combined = "; ".join(f.message for f in ordered)
+            raise BackendCapabilityError(
+                combined, backend=self.backend.BACKEND_NAME,
+                function_key=function_key, limitation=ordered[0],
+            )
+
+
     def visit_scalar_function(self, node: ScalarFunctionNode) -> SupportedExpressions:
         """Compile a scalar function call to backend expression.
 
@@ -314,6 +336,11 @@ class UnifiedExpressionVisitor:
 
         # Get method name from protocol method
         method_name = protocol_method.__name__
+
+        self._gate_predicate_violations(
+            node.function_key, protocol_method, node.arguments, node.options
+        )
+
 
         if self.enforce_capabilities:
             from mountainash.core.capabilities import (

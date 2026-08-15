@@ -51,6 +51,7 @@ def _reset_to_uninitialized():
     CapabilityRegistry._facts = {}
     CapabilityRegistry._kinds = {}
     CapabilityRegistry._value_class_facts = {}
+    CapabilityRegistry._predicate_facts = []
     CapabilityRegistry._declarations = ()
     CapabilityRegistry._load_state = _LoadState.UNINITIALIZED
     CapabilityRegistry._load_error = None

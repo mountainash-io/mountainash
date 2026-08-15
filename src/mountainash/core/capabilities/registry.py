@@ -27,6 +27,7 @@ from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
     from mountainash.core.capabilities.declarations import CapabilityDeclaration
+    from mountainash.core.capabilities.predicates import BoundCall
 
 # backend slot is CONST_BACKEND | str: str families arrive only via the
 # serialization workstream's register_target (spec 2026-07-06); register_backend
@@ -223,6 +224,7 @@ class CapabilityRegistry:
     _facts: Dict[_Key, CapabilityFact] = {}
     _kinds: Dict[str, TargetKind] = {}  # family name -> kind (spec 2026-07-06)
     _value_class_facts: Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]] = {}
+    _predicate_facts: List[CapabilityFact] = []
     _declarations: Tuple["CapabilityDeclaration", ...] = ()
     _load_state: _LoadState = _LoadState.UNINITIALIZED
     _load_error: BaseException | None = None
@@ -312,6 +314,10 @@ class CapabilityRegistry:
         cls._register_identity(family.value, TargetKind.EXECUTE)
         for fact in facts:
             _validate_fact(family, fact)
+            if fact.predicate is not None:
+                cls._check_predicate_conflicts(fact)
+                cls._predicate_facts.append(fact)
+                continue
             if fact.value_class is not None:
                 bkey: _ValueClassBucketKey = (
                     fact.operation_key,
@@ -418,6 +424,7 @@ class CapabilityRegistry:
         for fact in (
             *cls._facts.values(),
             *(f for bucket in cls._value_class_facts.values() for f in bucket),
+            *cls._predicate_facts,
         ):
             if level is not None and fact.level is not level:
                 continue
@@ -489,6 +496,60 @@ class CapabilityRegistry:
         )
 
     @classmethod
+    def _check_predicate_conflicts(cls, fact: CapabilityFact) -> None:
+        from mountainash.core.capabilities.predicates import (
+            predicate_implies, predicates_overlap,
+        )
+        blocking = fact.level is CapabilityLevel.UNSUPPORTED
+        for other in cls._predicate_facts:
+            if other.operation_key != fact.operation_key or other.backend is not fact.backend:
+                continue
+            # Compatible dialect scope: only skip when BOTH are dialect-scoped and DIFFER.
+            if (
+                other.dialect is not None
+                and fact.dialect is not None
+                and other.dialect != fact.dialect
+            ):
+                continue
+            if (other.level is CapabilityLevel.UNSUPPORTED) == blocking:
+                continue  # same disposition: two blockers or two refinements — no conflict
+            if not predicates_overlap(fact.predicate, other.predicate):
+                continue  # disjoint predicates: no shared call
+            a_implies_b = predicate_implies(fact.predicate, other.predicate)
+            b_implies_a = predicate_implies(other.predicate, fact.predicate)
+            if a_implies_b != b_implies_a:
+                continue  # exactly one strictly more specific — subsumption resolves
+            raise ValueError(
+                f"conflicting predicate facts for ({fact.operation_key}, "
+                f"{fact.backend}, {fact.dialect!r}): one blocks and one permits the "
+                "same call, and neither strictly subsumes the other"
+            )
+
+    @classmethod
+    def violations_for(cls, bound_call: "BoundCall") -> frozenset[CapabilityFact]:
+        """Collecting call-level API (§3): every blocking predicate fact that
+        holds for this bound call. `capability_for` is unchanged."""
+        from mountainash.core.capabilities.predicates import predicate_holds
+
+        cls.ensure_loaded()
+        out = set()
+        for fact in cls._predicate_facts:
+            if fact.operation_key != bound_call.operation_key:
+                continue
+            if fact.backend is not bound_call.backend:
+                continue
+            if fact.dialect is not None and fact.dialect != bound_call.dialect:
+                continue
+            if fact.enforcement is not Enforcement.GATE:
+                continue
+            if fact.level is not CapabilityLevel.UNSUPPORTED:
+                continue
+            if predicate_holds(fact.predicate, bound_call.bindings, bound_call.supplied):
+                out.add(fact)
+        return frozenset(out)
+
+
+    @classmethod
     def validate_plan_capabilities(
         cls,
         operation_keys: Iterable[Any],
@@ -521,6 +582,7 @@ class CapabilityRegistry:
         Tuple["CapabilityDeclaration", ...],
         _LoadState,
         Optional[BaseException],
+        Tuple[CapabilityFact, ...],
     ]:
         """Opaque round-trip token for test isolation — captures BOTH _facts
         and _kinds so restore() is symmetric with reset(). Callers must treat
@@ -528,6 +590,7 @@ class CapabilityRegistry:
         return (
             dict(cls._facts), dict(cls._kinds), dict(cls._value_class_facts),
             cls._declarations, cls._load_state, cls._load_error,
+            tuple(cls._predicate_facts),
         )
 
     @classmethod
@@ -540,12 +603,14 @@ class CapabilityRegistry:
             Tuple["CapabilityDeclaration", ...],
             _LoadState,
             Optional[BaseException],
+            Tuple[CapabilityFact, ...],
         ],
     ) -> None:
-        facts, kinds, vclass, decls, state, err = snapshot
+        facts, kinds, vclass, decls, state, err, pred = snapshot
         cls._facts = dict(facts)
         cls._kinds = dict(kinds)
         cls._value_class_facts = dict(vclass)
+        cls._predicate_facts = list(pred)
         cls._declarations = decls
         cls._load_state = state
         cls._load_error = err
@@ -560,6 +625,7 @@ class CapabilityRegistry:
             cls._facts = {}
             cls._kinds = {}
             cls._value_class_facts = {}
+            cls._predicate_facts = []
             cls._declarations = ()
             cls._load_state = _LoadState.ISOLATED
             cls._load_error = None
