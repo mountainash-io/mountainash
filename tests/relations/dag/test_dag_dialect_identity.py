@@ -364,11 +364,9 @@ class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
     """Round-1 finding (per-ref level, distinct from Task 3's anchor-level
     fix): an explicit backend= compile call must not construct an invalid
     hybrid for a NON-anchor ref whose OWN physical family differs from the
-    override. Uses a real Polars-native anchor (so the override is not
-    trivially "the same as detection") plus a separate Narwhals-pandas
-    ref, and asserts on the non-anchor ref specifically -- discriminating
-    Task 4's `ref_family != resolved_backend` branch, not just Task 3's
-    anchor-coherence fix."""
+    override. Item 92 changed the resolution: a BARE foreign ref is now
+    compiled in its OWN family (then coerced to the override family), so the
+    ref's visit entry observes its own family, never an invalid hybrid."""
 
     def test_pandas_ref_under_explicit_polars_backend_with_polars_anchor(
         self, _dialect_spy_factory
@@ -384,18 +382,15 @@ class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
         )
         _dialect_spy_factory(pandas_rel._node, "pandas_ref")
 
-        try:
-            dag.collect("final", backend="polars")
-        except Exception:
-            pass  # PolarsRelationSystem cannot read a raw Narwhals frame --
-            # this ref is on a genuinely different family than the
-            # override (item 92's territory), so its OWN read is
-            # expected to fail; we only assert the STATE at its visit()
-            # entry, captured before that failure.
+        # Item 92: the bare narwhals-pandas ref is compiled in its own family
+        # (narwhals) and coerced to the explicit polars override -- so its
+        # visit entry observes narwhals, not the invalid polars hybrid.
+        result = dag.collect("final", backend="polars")
+        assert result is not None
 
         captured = _dialect_spy_factory.captured["pandas_ref"]["entry"]
-        assert captured["backend_type"] == CONST_BACKEND.POLARS
-        assert captured["backend_dialect"] != "narwhals-pandas"
+        assert captured["backend_type"] == CONST_BACKEND.NARWHALS
+        assert captured["backend_dialect"] == "narwhals-pandas"
 
 
 class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:

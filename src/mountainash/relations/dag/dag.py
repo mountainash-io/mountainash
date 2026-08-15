@@ -4,8 +4,39 @@ from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.core.relation_nodes import ReadRelNode
 from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
+
+
+def _anchor_prototype(family: CONST_BACKEND, dialect: str | None) -> Any:
+    """A lightweight empty object of *family* for coercion to target."""
+    if family is CONST_BACKEND.POLARS:
+        import polars as pl
+        return pl.DataFrame({}).lazy()
+    if family is CONST_BACKEND.IBIS:
+        import ibis
+        return ibis.memtable({})
+    if family is CONST_BACKEND.NARWHALS:
+        import narwhals as nw
+        if dialect == "narwhals-polars":
+            import polars as pl
+            return nw.from_native(pl.DataFrame({}), eager_only=True)
+        if dialect == "narwhals-pyarrow":
+            import pyarrow as pa
+            return nw.from_native(pa.table({}), eager_only=True)
+        import pandas as pd
+        return nw.from_native(pd.DataFrame({}), eager_only=True)
+    return None
+
+
+def _is_lazy_narwhals(obj: Any) -> bool:
+    """True iff *obj* is a narwhals LazyFrame."""
+    try:
+        import narwhals as nw
+        return isinstance(obj, nw.LazyFrame)
+    except Exception:
+        return False
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection
@@ -367,6 +398,20 @@ class RelationDAG:
         expression_system = expression_system_cls(dialect=dialect)
         expr_visitor = UnifiedExpressionVisitor(expression_system)
 
+        if backend_target_name is not None or ref_names:
+            anchor_name = backend_target_name or sorted(ref_names)[0]
+            anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
+            if anchor_leaf is not None and _is_lazy_narwhals(anchor_leaf.dataframe):
+                if any(
+                    self._resolve_actual_identity_for(n)[0]
+                    not in (None, resolved_backend)
+                    and isinstance(getattr(self.relations[n], "_node", None), ReadRelNode)
+                    for n in ref_names
+                ):
+                    raise TypeError(
+                        "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
+                    )
+
         cache: dict[str, Any] = {}
 
         def resolver(n: str) -> Any:
@@ -448,14 +493,24 @@ class RelationDAG:
                         expr_visitor,
                     )
                 elif ref_family != resolved_backend:
-                    # Genuinely different family -- item 92's territory (no
-                    # cross-family coercion attempted here). Leave this ref
-                    # on the anchor pair; NEVER construct an invalid
-                    # (family, dialect) hybrid for a foreign family.
-                    visitor.backend, visitor.expr_visitor = (
-                        relation_system,
-                        expr_visitor,
-                    )
+                    if isinstance(root, ReadRelNode):
+                        anchor_proto = _anchor_prototype(resolved_backend, dialect)
+                        visitor.backend = get_relation_system(ref_family)(dialect=ref_dialect)
+                        visitor.expr_visitor = UnifiedExpressionVisitor(
+                            get_expression_system(ref_family)(dialect=ref_dialect)
+                        )
+                        visitor.key_context = KeyDriftContext(
+                            resource_name=n,
+                            constraints_for=self.constraints_for,
+                            schema_of=self.schema,
+                        )
+                        result = root.accept(visitor)
+                        cache[n] = UnifiedRelationVisitor._coerce_to_match(
+                            anchor_proto, result
+                        )
+                        visitor.backend, visitor.expr_visitor = relation_system, expr_visitor
+                        continue
+                    visitor.backend, visitor.expr_visitor = relation_system, expr_visitor
                 elif ref_dialect != dialect:
                     # Same family, dialect differs from the anchor's --
                     # covers BOTH a genuinely different known dialect AND
@@ -652,6 +707,30 @@ class RelationDAG:
                 except Exception:
                     pass
         return None, None
+
+    def _resolve_identity_leaf(
+        self, target_name: str
+    ) -> "tuple[CONST_BACKEND | None, str | None, Any | None]":
+        """Return the identity and leaf selected for a named relation."""
+        from mountainash.relations.core.relation_api.relation_base import RelationBase
+        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.relations.dag.errors import RelationDAGRequired
+
+        for n in self.topological_order(target=target_name):
+            root = getattr(self.relations[n], "_node", None)
+            if root is None:
+                continue
+            try:
+                read_node = RelationBase._find_leaf_read_node(root)
+            except (ValueError, AttributeError, RelationDAGRequired):
+                continue
+            if read_node is not None:
+                try:
+                    identity = identify_backend_identity(read_node.dataframe)
+                    return identity.family, identity.dialect, read_node
+                except Exception:
+                    pass
+        return None, None, None
 
     def _resolve_actual_identity_for_node(
         self, node: Any
