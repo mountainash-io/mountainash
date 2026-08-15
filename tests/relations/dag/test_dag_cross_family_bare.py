@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pandas as pd
 import polars as pl
-import pytest
 
 import mountainash as ma
 from mountainash.relations.dag import RelationDAG
@@ -50,12 +49,14 @@ class TestCoercionMatrixAndBoundaries:
         result = dag.collect("target")
         assert result is not None
 
-    def test_derived_foreign_dependency_is_not_coerced(self):
-        # Boundary (item 97): a FilterRelNode-rooted foreign dependency stays on
-        # the anchor pair and raises the raw TypeError.
+    def test_derived_foreign_dependency_is_coerced(self):
+        # Item 97 inverts this item-92 boundary: a FilterRelNode-rooted
+        # foreign dependency is now materialised in its own family and
+        # coerced at resolver time, rather than raising from the anchor's
+        # read().
         dag = RelationDAG()
-        dag.add("a_anchor", ma.relation(pl.DataFrame({"id": [1]})))
+        dag.add("a_anchor", ma.relation(pl.DataFrame({"id": [1, 2]})))
         dag.add("z_dep", ma.relation(pd.DataFrame({"id": [2]})).filter(ma.col("id") > 0))
         dag.add("target", dag.ref("a_anchor").join(dag.ref("z_dep"), on="id"))
-        with pytest.raises(TypeError, match="cannot read DataFrame"):
-            dag.collect("target")
+        result = dag.collect("target")
+        assert result.collect().to_dict(as_series=False) == {"id": [2]}
