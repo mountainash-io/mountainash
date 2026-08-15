@@ -95,6 +95,7 @@ def _json_fact_identity(f_dict: dict) -> tuple:
         f_dict["upstream_ref"] or "",
         tuple(f_dict["native_errors"]),
         f_dict["probe_exempt"] or "",
+        (),  # predicate term — empty for synthetic facts (none carry a predicate)
     )
 
 

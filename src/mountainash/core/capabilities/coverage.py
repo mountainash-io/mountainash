@@ -26,6 +26,7 @@ from mountainash.core.capabilities.schema import (
     Enforcement,
     KnownGap,
     WILDCARD_PARAM,
+    _clause_key,
 )
 from mountainash.core.constants import CONST_BACKEND
 
@@ -464,6 +465,7 @@ def fact_sort_key(f: CapabilityFact) -> tuple:
         f.upstream_ref or "",
         tuple(e.__name__ for e in f.native_errors),
         f.probe_exempt or "",
+        tuple(_clause_key(c) for c in f.predicate.clauses) if f.predicate is not None else (),
     )
 
 
