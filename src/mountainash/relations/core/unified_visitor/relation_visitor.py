@@ -221,6 +221,24 @@ class UnifiedRelationVisitor:
         # field is sufficient evidence for a GATE fact to fire on a
         # handler-routed op.
         param_names = tuple(b.field for b in op.args) + tuple(op.options) + op.gate_params
+
+        # Compound predicate gate (§3): collect blocking predicate facts once per call.
+        from mountainash.core.capabilities.predicates import BoundCall
+        bindings = {p: getattr(node, p, None) for p in param_names}
+        supplied = frozenset(p for p in param_names if getattr(node, p, None) is not None)
+        bound = BoundCall(
+            operation_key=op.operation_key, backend=family, dialect=dialect,
+            bindings=bindings, supplied=supplied,
+        )
+        violations = CapabilityRegistry.violations_for(bound)
+        if violations:
+            ordered = sorted(violations, key=lambda f: (f.param, f.message))
+            combined = "; ".join(f.message for f in ordered)
+            raise BackendCapabilityError(
+                combined, backend=self.backend.BACKEND_NAME,
+                function_key=op.operation_key, limitation=ordered[0],
+            )
+
         for param in param_names:
             fact = CapabilityRegistry.capability_for(op.operation_key, param, family, dialect)
             if fact is None or fact.level is not CapabilityLevel.UNSUPPORTED:
