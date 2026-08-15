@@ -71,3 +71,30 @@ class TestDeclarativeUnionResidueFires:
                 ma.concat([ma.relation(nw_df), ma.relation(nw_df)]).to_polars()
         finally:
             CapabilityRegistry.restore(snap)
+
+
+class TestDeadDeclarationEnforcement:
+    def test_handler_routed_residue_fact_requires_wraps_native_call(self):
+        from mountainash.relations.core.relation_system.relation_keys.enums import (
+            RKEY_MOUNTAINASH_REL,
+        )
+        snap = CapabilityRegistry.snapshot()
+        try:
+            with pytest.raises(ValueError, match="wraps_native_call"):
+                CapabilityRegistry.register_backend(
+                    CONST_BACKEND.NARWHALS,
+                    [
+                        CapabilityFact(
+                            operation_key=RKEY_MOUNTAINASH_REL.REF,
+                            param="*",
+                            level=CapabilityLevel.UNSUPPORTED,
+                            backend=CONST_BACKEND.NARWHALS,
+                            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                            boundary=Boundary.MATERIALIZE,
+                            native_errors=(TypeError,),
+                            since="2026-08-14",
+                        )
+                    ],
+                )
+        finally:
+            CapabilityRegistry.restore(snap)

@@ -200,6 +200,21 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
                 "gate_params — the fact could never gate. Add the param to the "
                 "op's gate_params (RelationOperationDef) or declare a non-GATE enforcement role."
             )
+    # Residue reachability (item 98): a handler-routed op's MATERIALIZE_RESIDUE
+    # fact can only ever fire if the handler wraps its native call via
+    # _enrich_native_call (relation_visitor.py) — reject a silently-dead
+    # declaration on an unwrapped handler at registration.
+    if (
+        kind == "relation"
+        and fact.enforcement is Enforcement.MATERIALIZE_RESIDUE
+        and getattr(definition, "handler", None) is not None
+        and not getattr(definition, "wraps_native_call", False)
+    ):
+        raise ValueError(
+            f"CapabilityFact({fact.operation_key!r}): the op is handler-routed "
+            "and does not declare wraps_native_call=True, so a "
+            "MATERIALIZE_RESIDUE fact could never fire through per-op enrichment."
+        )
 
 
 class CapabilityRegistry:

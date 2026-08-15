@@ -50,6 +50,7 @@ class RelationOperationDef:
     options_field: Optional[str] = None    # dict field spread as **kwargs (ExtensionRelNode.options)
     handler: Optional[Callable] = None     # custom compile override: (node, visitor) -> Any
     gate_params: tuple[str, ...] = ()      # extra node fields that gate capability facts
+    wraps_native_call: bool = False        # handler op wraps its native call in _enrich_native_call
 
     def get_signature(self) -> Optional[inspect.Signature]:
         if self.protocol_method is None:

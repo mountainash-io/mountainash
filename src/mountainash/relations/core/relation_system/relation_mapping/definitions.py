@@ -135,6 +135,7 @@ SUBSTRAIT_OPERATIONS = [
         substrait_rel="JoinRel",
         protocol_method=SubstraitJoinRelationSystemProtocol.join,
         handler=handlers.visit_join,  # cross-backend right-side coercion
+        wraps_native_call=True,
     ),
     RelationOperationDef(
         operation_key=RS.AGGREGATE,
@@ -188,6 +189,7 @@ MOUNTAINASH_OPERATIONS = [
         is_extension=True,
         extension_uri=MountainashRelExtension.UTIL,
         handler=handlers.visit_source,
+        wraps_native_call=True,
     ),
     RelationOperationDef(
         operation_key=RM.REF,
@@ -203,6 +205,7 @@ MOUNTAINASH_OPERATIONS = [
         extension_uri=MountainashRelExtension.DAG,
         protocol_method=ExtProto.read_resource,
         handler=handlers.visit_resource_read,
+        wraps_native_call=True,
     ),
     RelationOperationDef(
         operation_key=RM.CONFORM,
@@ -210,6 +213,7 @@ MOUNTAINASH_OPERATIONS = [
         is_extension=True,
         extension_uri=MountainashRelExtension.CONFORM,
         handler=handlers.visit_conform,
+        wraps_native_call=True,
     ),
     RelationOperationDef(
         operation_key=RM.FETCH_FROM_END,
@@ -229,6 +233,7 @@ MOUNTAINASH_OPERATIONS = [
         protocol_method=ExtProto.join_asof,
         handler=handlers.visit_join_asof,
         gate_params=("tolerance",),
+        wraps_native_call=True,
     ),
     RelationOperationDef(
         # No node type: invoked from the conform path, not node dispatch.
