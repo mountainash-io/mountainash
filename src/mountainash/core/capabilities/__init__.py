@@ -10,18 +10,22 @@ from mountainash.core.capabilities.declarations import (
     classify_source,
 )
 from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALECTS
+from mountainash.core.capabilities.predicates import BoundCall
 from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
 from mountainash.core.capabilities.retired import RETIRED_FACTS, RetiredFact
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
+    Clause,
+    ClauseOp,
     DivergenceFact,
     DivergenceKind,
     Enforcement,
     Fidelity,
     GapKind,
     KnownGap,
+    Predicate,
     TargetKind,
     ValueClass,
     WILDCARD_PARAM,
@@ -29,6 +33,7 @@ from mountainash.core.capabilities.schema import (
 
 __all__ = [
     "BackendIdentity",
+    "BoundCall",
     "Boundary",
     "CapabilityDeclaration",
     "CapabilityDeclarationModule",
@@ -36,6 +41,8 @@ __all__ = [
     "CapabilityLevel",
     "CapabilityRegistry",
     "CapabilityViolation",
+    "Clause",
+    "ClauseOp",
     "DivergenceFact",
     "DivergenceKind",
     "Domain",
@@ -45,6 +52,7 @@ __all__ = [
     "GapKind",
     "KNOWN_DIALECTS",
     "KnownGap",
+    "Predicate",
     "ProbeEvidence",
     "RETIRED_FACTS",
     "RetiredFact",

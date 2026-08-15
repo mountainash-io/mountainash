@@ -130,3 +130,137 @@ def test_valid_predicate_fact_constructs():
     )
     assert f.predicate is not None
     assert f.option_value is None and f.value_class is None
+
+
+from mountainash.core.capabilities.predicates import (
+    BoundCall, bind_expression_call, clause_implies, evaluate_clause,
+    predicate_holds, predicate_implies, predicates_overlap, resolve_path,
+)
+from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
+
+
+class _DynamicExpr(ExpressionNode):
+    """Minimal concrete non-literal expression node for dynamic-arg tests."""
+    def accept(self, visitor, **kwargs):
+        raise NotImplementedError
+
+
+def _bound_call(**bindings):
+    return BoundCall(
+        operation_key="TRUNCATE", backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb",
+        bindings=bindings, supplied=frozenset(bindings),
+    )
+
+
+def test_evaluate_eq_in_null_set_literal():
+    bc = _bound_call(unit="WEEK", origin="ISO", multiple=LiteralNode(value=2))
+    assert evaluate_clause(Clause("unit", ClauseOp.EQ, "WEEK"), bc.bindings, bc.supplied)
+    assert evaluate_clause(Clause("origin", ClauseOp.IN, frozenset({"ISO", "REGULAR"})), bc.bindings, bc.supplied)
+    assert evaluate_clause(Clause("unit", ClauseOp.IS_SET), bc.bindings, bc.supplied)
+    assert not evaluate_clause(Clause("unit", ClauseOp.IS_NULL), bc.bindings, bc.supplied)
+    assert evaluate_clause(Clause("multiple", ClauseOp.IS_LITERAL), bc.bindings, bc.supplied)
+
+
+def test_dynamic_arg_makes_value_clauses_false_but_is_set_true():
+    dynamic = _DynamicExpr()  # a non-literal expression node
+    bc = _bound_call(unit=dynamic)
+    assert not evaluate_clause(Clause("unit", ClauseOp.EQ, "WEEK"), bc.bindings, bc.supplied)
+    assert not evaluate_clause(Clause("unit", ClauseOp.IN, frozenset({"WEEK"})), bc.bindings, bc.supplied)
+    assert evaluate_clause(Clause("unit", ClauseOp.IS_SET), bc.bindings, bc.supplied)
+    assert not evaluate_clause(Clause("unit", ClauseOp.IS_NULL), bc.bindings, bc.supplied)
+    assert not evaluate_clause(Clause("unit", ClauseOp.IS_LITERAL), bc.bindings, bc.supplied)
+
+
+def test_literal_none_round_trips_is_null_is_set():
+    bc = _bound_call(unit=LiteralNode(value=None))
+    assert evaluate_clause(Clause("unit", ClauseOp.IS_NULL), bc.bindings, bc.supplied)
+    assert not evaluate_clause(Clause("unit", ClauseOp.IS_SET), bc.bindings, bc.supplied)
+    assert evaluate_clause(Clause("unit", ClauseOp.IS_LITERAL), bc.bindings, bc.supplied)
+
+
+def test_unresolvable_path_raises_not_false():
+    bc = _bound_call(unit="WEEK")
+    with pytest.raises(ValueError, match="not bound"):
+        evaluate_clause(Clause("typo_unit", ClauseOp.EQ, "WEEK"), bc.bindings, bc.supplied)
+
+
+def test_none_final_value_evaluates_per_operator():
+    bc = _bound_call(resource={"dialect": {"escape_char": None}})
+    assert evaluate_clause(Clause("resource.dialect.escape_char", ClauseOp.IS_NULL), bc.bindings, bc.supplied)
+    assert not evaluate_clause(Clause("resource.dialect.escape_char", ClauseOp.IS_SET), bc.bindings, bc.supplied)
+
+
+def test_none_intermediate_raises():
+    bc = _bound_call(resource=None)
+    with pytest.raises(ValueError, match="through None"):
+        evaluate_clause(Clause("resource.dialect.escape_char", ClauseOp.EQ, "x"), bc.bindings, bc.supplied)
+
+
+def test_matches_class_operand():
+    bc = _bound_call(unit="2d")
+    assert evaluate_clause(Clause("unit", ClauseOp.MATCHES_CLASS, ValueClass.DURATION_MULTIPLIER), bc.bindings, bc.supplied)
+
+
+def test_predicate_holds_is_conjunction():
+    p = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"), Clause("origin", ClauseOp.EQ, "ISO")))
+    assert predicate_holds(p, _bound_call(unit="WEEK", origin="ISO").bindings, frozenset({"unit", "origin"}))
+    assert not predicate_holds(p, _bound_call(unit="WEEK", origin="REGULAR").bindings, frozenset({"unit", "origin"}))
+
+
+def test_clause_implies_lattice():
+    eq = Clause("unit", ClauseOp.EQ, "WEEK")
+    assert clause_implies(eq, Clause("unit", ClauseOp.EQ, "WEEK"))
+    assert clause_implies(eq, Clause("unit", ClauseOp.IN, frozenset({"WEEK", "DAY"})))
+    assert clause_implies(eq, Clause("unit", ClauseOp.IS_SET))
+    assert not clause_implies(eq, Clause("unit", ClauseOp.IS_NULL))
+    assert not clause_implies(eq, Clause("other", ClauseOp.EQ, "WEEK"))
+    inn = Clause("unit", ClauseOp.IN, frozenset({"WEEK", "DAY"}))
+    assert clause_implies(inn, Clause("unit", ClauseOp.IN, frozenset({"WEEK", "DAY", "MO"})))
+    assert clause_implies(inn, Clause("unit", ClauseOp.IS_SET))
+    assert not clause_implies(Clause("unit", ClauseOp.IS_LITERAL), Clause("unit", ClauseOp.EQ, "WEEK"))
+
+
+
+def test_predicate_implies_subset_direction():
+    a = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"), Clause("origin", ClauseOp.EQ, "ISO")))
+    b = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
+    assert predicate_implies(a, b)
+    assert not predicate_implies(b, a)
+
+
+def test_predicates_overlap_exclusive_eq():
+    a = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
+    b = Predicate((Clause("unit", ClauseOp.EQ, "DAY"),))
+    assert not predicates_overlap(a, b)
+
+
+def test_predicates_overlap_compatible():
+    a = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
+    b = Predicate((Clause("origin", ClauseOp.EQ, "ISO"),))
+    assert predicates_overlap(a, b)
+
+
+def test_bind_expression_call_aggregates_varargs():
+    def protocol(self, input, /, a, *varargs, b=None, **kwargs):
+        pass
+
+    bc = bind_expression_call(
+        operation_key="OP", backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb",
+        protocol_method=protocol, arguments=["in", "A", "V1", "V2"], options={"b": "B"},
+    )
+    assert bc.bindings["a"] == "A"
+    assert bc.bindings["b"] == "B"
+    assert bc.bindings["varargs"] == ("V1", "V2")
+    assert "a" in bc.supplied and "b" in bc.supplied and "varargs" in bc.supplied
+
+
+def test_bind_expression_call_applies_defaults_outside_supplied():
+    def protocol(self, x, /, overflow=None):
+        pass
+
+    bc = bind_expression_call(
+        operation_key="OP", backend=CONST_BACKEND.POLARS, dialect="polars",
+        protocol_method=protocol, arguments=[LiteralNode(value=7)], options={},
+    )
+    assert bc.bindings["overflow"] is None
+    assert "overflow" not in bc.supplied
