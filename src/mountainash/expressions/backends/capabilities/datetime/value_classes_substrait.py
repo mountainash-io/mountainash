@@ -60,6 +60,18 @@ _LOCAL_TS_MSG = (
     "17:30 for Asia/Kolkata)"
 )
 
+_STRPTIME_TS_MSG = (
+    "strptime_timestamp silently drops the timezone (returns a naive "
+    "timestamp) on ibis -- ibis has no timezone primitives, matching "
+    "assume_timezone/to_timezone/local_timestamp/extract.timezone"
+)
+
+_EXTRACT_TZ_MSG = (
+    "ibis has no timezone primitives; extract/extract_boolean's timezone "
+    "option is silently ignored (the local component is read from the "
+    "stored value, not the target zone) -- see capabilities/datetime/extract.py"
+)
+
 
 def _fact(
     op_key, message: str, backend, dialect: str | None, since: str = "2026-07-29"
@@ -93,6 +105,25 @@ _IBIS_FACTS = tuple(
         dialect,
         since="2026-07-29",
     )
+    for dialect in (None, "ibis-duckdb")
+) + tuple(
+    _fact(
+        FK_SUB_DT.STRPTIME_TIMESTAMP,
+        _STRPTIME_TS_MSG,
+        CONST_BACKEND.IBIS,
+        dialect,
+        since="2026-08-15",
+    )
+    for dialect in (None, "ibis-duckdb")
+) + tuple(
+    _fact(
+        op_key,
+        _EXTRACT_TZ_MSG,
+        CONST_BACKEND.IBIS,
+        dialect,
+        since="2026-08-15",
+    )
+    for op_key in (FK_SUB_DT.EXTRACT, FK_SUB_DT.EXTRACT_BOOLEAN)
     for dialect in (None, "ibis-duckdb")
 )
 

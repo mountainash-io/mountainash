@@ -28,6 +28,10 @@ import pytest
 import mountainash as ma
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.datetime_components import (
+    BooleanComponent,
+    DatetimeComponent,
+)
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_DT,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
@@ -1505,6 +1509,638 @@ REGISTERED_OPTION_PROBES.extend(
     for fmt in _STRPTIME_TS_DOMAIN
 )
 
+# 7. strptime_timestamp.timezone (item 62 — end-to-end wiring)
+_STRPTIME_TS_TZ_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
+_STRPTIME_TS_TZ_DATA = {"s": ["2024-01-05 06:07:08"]}
+
+
+def _strptime_ts_tz_expr(tz: str):
+    return ma.col("s").str.to_datetime("%Y-%m-%d %H:%M:%S", timezone=tz)
+
+
+def _strptime_ts_tz_ref_expr(tz: str):
+    ref = "UTC" if tz != "UTC" else "Australia/Sydney"
+    return _strptime_ts_tz_expr(ref)
+
+
+def _strptime_ts_tz_disposition(backend: str) -> str:
+    return "declared_unsupported" if backend == "ibis" else "honored"
+
+
+def _strptime_ts_tz_probe(tz: str, backend: str) -> OptionSpec:
+    if _strptime_ts_tz_disposition(backend) == "honored":
+        return OptionSpec(
+            FK_DT.STRPTIME_TIMESTAMP, "timezone", tz, "str",
+            lambda t=tz: _strptime_ts_tz_expr(t),
+            lambda t=tz: _strptime_ts_tz_ref_expr(t),
+            _STRPTIME_TS_TZ_DATA, expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.STRPTIME_TIMESTAMP, "timezone", tz, "str",
+        lambda t=tz: _strptime_ts_tz_expr(t),
+        lambda t=tz: _strptime_ts_tz_expr(t),
+        _STRPTIME_TS_TZ_DATA, expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.STRPTIME_TIMESTAMP,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_timestamp",
+        "timezone",
+        backend,
+        tz,
+        "str",
+        _strptime_ts_tz_disposition(backend),
+        (
+            "ibis has no timezone primitives; the timezone option is silently ignored"
+            if backend == "ibis"
+            else "native backend attaches the parsed timezone"
+        ),
+        "class" if backend == "ibis" else "absence",
+    )
+    for backend in ALL_BACKENDS
+    for tz in _STRPTIME_TS_TZ_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _strptime_ts_tz_probe(tz, backend),
+        backend,
+        _strptime_ts_tz_disposition(backend),
+        OptionProbeDidNotDiscriminateError
+        if _strptime_ts_tz_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for tz in _STRPTIME_TS_TZ_DOMAIN
+)
+
+_STRPTIME_TS_TZ_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.STRPTIME_TIMESTAMP,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_timestamp",
+        "timezone",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _strptime_ts_tz_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_STRPTIME_TS_TZ_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _STRPTIME_TS_TZ_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _STRPTIME_TS_TZ_INVALID_REJECTIONS)
+def test_strptime_timestamp_timezone_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+
+# ============================================================================
+# extract / extract_boolean (item 62)
+# ============================================================================
+
+_EXTRACT_COMPONENT_DOMAIN = tuple(c.value for c in DatetimeComponent)
+_EXTRACT_BOOL_COMPONENT_DOMAIN = tuple(c.value for c in BooleanComponent)
+_EXTRACT_INDEXING_DOMAIN = ("ONE", "ZERO")
+_EXTRACT_TZ_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
+# Boundary data: Jan 1 00:30 interpreted as UTC flips to Dec 31 of the prior
+# year in America/New_York, so IS_LEAP_YEAR(timezone=...) discriminates across
+# zones (2024 leap vs 2023 non-leap).
+_EXTRACT_BOOL_TZ_DATA = {"ts": [datetime(2024, 1, 1, 0, 30, 0)]}
+
+# Per-backend component sets the native backend cannot produce (probe-authoritative).
+_EXTRACT_DECLARED = {
+    "polars": frozenset(
+        {"US_YEAR", "MONDAY_WEEK", "SUNDAY_WEEK", "US_WEEK", "PICOSECOND", "TIMEZONE_OFFSET"}
+    ),
+    "ibis": frozenset(
+        {
+            "US_YEAR", "MONDAY_WEEK", "SUNDAY_WEEK", "US_WEEK",
+            "NANOSECOND", "PICOSECOND", "TIMEZONE_OFFSET",
+        }
+    ),
+    "narwhals-polars": frozenset(
+        {
+            "ISO_YEAR", "US_YEAR", "MONDAY_WEEK", "SUNDAY_WEEK", "ISO_WEEK",
+            "US_WEEK", "PICOSECOND", "UNIX_TIME", "TIMEZONE_OFFSET",
+        }
+    ),
+    "narwhals-pandas": frozenset(
+        {
+            "ISO_YEAR", "US_YEAR", "MONDAY_WEEK", "SUNDAY_WEEK", "ISO_WEEK",
+            "US_WEEK", "PICOSECOND", "UNIX_TIME", "TIMEZONE_OFFSET",
+        }
+    ),
+}
+
+
+def _extract_expr(comp: str):
+    return ma.col("ts").dt.extract(comp)
+
+
+def _extract_ref_expr(comp: str):
+    # Reference component chosen to differ from every honored component on the
+    # probe fixture (month=7/day=21 never collide with year/week/… values).
+    return _extract_expr("MONTH" if comp != "MONTH" else "DAY")
+
+
+def _extract_disposition(backend: str, comp: str) -> str:
+    return "declared_unsupported" if comp in _EXTRACT_DECLARED[backend] else "honored"
+
+
+def _extract_component_probe(comp: str, backend: str) -> OptionSpec:
+    if _extract_disposition(backend, comp) == "honored":
+        return OptionSpec(
+            FK_DT.EXTRACT, "component", comp, "datetime",
+            lambda c=comp: _extract_expr(c),
+            lambda c=comp: _extract_ref_expr(c),
+            _DATETIME_UNIT_DATA, expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.EXTRACT, "component", comp, "datetime",
+        lambda c=comp: _extract_expr(c),
+        lambda c=comp: _extract_expr(c),
+        _DATETIME_UNIT_DATA, expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.EXTRACT,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "component",
+        backend,
+        comp,
+        "datetime",
+        _extract_disposition(backend, comp),
+        (
+            "native backend has no primitive for this extract component "
+            "(probe-authoritative)"
+            if _extract_disposition(backend, comp) == "declared_unsupported"
+            else "native backend honors this extract component"
+        ),
+        "absence",
+    )
+    for backend in ALL_BACKENDS
+    for comp in _EXTRACT_COMPONENT_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _extract_component_probe(comp, backend),
+        backend,
+        _extract_disposition(backend, comp),
+        BackendCapabilityError
+        if _extract_disposition(backend, comp) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for comp in _EXTRACT_COMPONENT_DOMAIN
+)
+
+OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
+    (FK_DT.EXTRACT, "component", comp, CONST_BACKEND.IBIS, None)
+    for comp in sorted(_EXTRACT_DECLARED["ibis"])
+)
+OPTION_FAMILY_DEFAULT_FACT_KEYS.add(
+    (FK_DT.EXTRACT_BOOLEAN, "component", "IS_DST", CONST_BACKEND.IBIS, None)
+)
+
+_EXTRACT_COMPONENT_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.EXTRACT,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "component",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _extract_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_COMPONENT_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _EXTRACT_COMPONENT_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _EXTRACT_COMPONENT_INVALID_REJECTIONS)
+def test_extract_component_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+def _extract_indexing_expr(idx: str):
+    return ma.col("ts").dt.extract("MONTH", indexing=idx)
+
+
+def _extract_indexing_probe(idx: str) -> OptionSpec:
+    return OptionSpec(
+        FK_DT.EXTRACT, "indexing", idx, "datetime",
+        lambda i=idx: _extract_indexing_expr(i),
+        lambda: ma.col("ts").dt.extract("MONTH"),
+        _DATETIME_UNIT_DATA,
+        expected_discriminates=(idx == "ZERO"),
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.EXTRACT,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "indexing",
+        backend,
+        idx,
+        "datetime",
+        "honored",
+        "ONE is the native 1-based default; ZERO subtracts one on calendar components",
+        "absence",
+    )
+    for backend in ALL_BACKENDS
+    for idx in _EXTRACT_INDEXING_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _extract_indexing_probe(idx),
+        backend,
+        "honored",
+        None,
+    )
+    for backend in ALL_BACKENDS
+    for idx in _EXTRACT_INDEXING_DOMAIN
+)
+
+_EXTRACT_INDEXING_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.EXTRACT,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "indexing",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _extract_indexing_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_INDEXING_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _EXTRACT_INDEXING_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _EXTRACT_INDEXING_INVALID_REJECTIONS)
+def test_extract_indexing_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+def _extract_tz_expr(tz: str):
+    return ma.col("ts").dt.extract("HOUR", timezone=tz)
+
+
+def _extract_tz_ref_expr(tz: str):
+    ref = "UTC" if tz != "UTC" else "Australia/Sydney"
+    return _extract_tz_expr(ref)
+
+
+def _extract_tz_disposition(backend: str) -> str:
+    return "declared_unsupported" if backend == "ibis" else "honored"
+
+
+def _extract_tz_probe(tz: str, backend: str) -> OptionSpec:
+    if _extract_tz_disposition(backend) == "honored":
+        return OptionSpec(
+            FK_DT.EXTRACT, "timezone", tz, "datetime",
+            lambda t=tz: _extract_tz_expr(t),
+            lambda t=tz: _extract_tz_ref_expr(t),
+            _DATETIME_UNIT_DATA, expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.EXTRACT, "timezone", tz, "datetime",
+        lambda t=tz: _extract_tz_expr(t),
+        lambda t=tz: _extract_tz_expr(t),
+        _DATETIME_UNIT_DATA, expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.EXTRACT,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "timezone",
+        backend,
+        tz,
+        "datetime",
+        _extract_tz_disposition(backend),
+        (
+            "ibis has no timezone primitives; the timezone option is silently ignored"
+            if backend == "ibis"
+            else "native backend converts to the target zone before the component lookup"
+        ),
+        "class" if backend == "ibis" else "absence",
+    )
+    for backend in ALL_BACKENDS
+    for tz in _EXTRACT_TZ_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _extract_tz_probe(tz, backend),
+        backend,
+        _extract_tz_disposition(backend),
+        OptionProbeDidNotDiscriminateError
+        if _extract_tz_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for tz in _EXTRACT_TZ_DOMAIN
+)
+
+_EXTRACT_TZ_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.EXTRACT,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "timezone",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _extract_tz_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_TZ_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _EXTRACT_TZ_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _EXTRACT_TZ_INVALID_REJECTIONS)
+def test_extract_timezone_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+def _extract_boolean_expr(comp: str):
+    if comp == "IS_DST":
+        return ma.col("ts").dt.extract_boolean("IS_DST", timezone="UTC")
+    return ma.col("ts").dt.extract_boolean(comp)
+
+
+def _extract_boolean_disposition(comp: str) -> str:
+    return "declared_unsupported" if comp == "IS_DST" else "honored"
+
+
+def _extract_boolean_component_probe(comp: str, backend: str) -> OptionSpec:
+    if _extract_boolean_disposition(comp) == "honored":
+        return OptionSpec(
+            FK_DT.EXTRACT_BOOLEAN, "component", comp, "datetime",
+            lambda c=comp: _extract_boolean_expr(c),
+            lambda: ma.col("ts").dt.extract("MONTH"),
+            _DATETIME_UNIT_DATA, expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.EXTRACT_BOOLEAN, "component", comp, "datetime",
+        lambda c=comp: _extract_boolean_expr(c),
+        lambda c=comp: _extract_boolean_expr(c),
+        _DATETIME_UNIT_DATA, expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.EXTRACT_BOOLEAN,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract_boolean",
+        "component",
+        backend,
+        comp,
+        "datetime",
+        _extract_boolean_disposition(comp),
+        (
+            "IS_DST is a placeholder (constant False); deferred to backlog item 65"
+            if comp == "IS_DST"
+            else "native backend honors IS_LEAP_YEAR"
+        ),
+        "absence",
+    )
+    for backend in ALL_BACKENDS
+    for comp in _EXTRACT_BOOL_COMPONENT_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _extract_boolean_component_probe(comp, backend),
+        backend,
+        _extract_boolean_disposition(comp),
+        BackendCapabilityError
+        if _extract_boolean_disposition(comp) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for comp in _EXTRACT_BOOL_COMPONENT_DOMAIN
+)
+
+_EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.EXTRACT_BOOLEAN,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract_boolean",
+        "component",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: ma.col("ts").dt.extract_boolean(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS)
+def test_extract_boolean_component_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+def _extract_bool_tz_expr(tz: str):
+    return ma.col("ts").dt.extract_boolean("IS_LEAP_YEAR", timezone=tz)
+
+
+def _extract_bool_tz_ref_expr(tz: str):
+    ref = "America/New_York" if tz != "America/New_York" else "UTC"
+    return _extract_bool_tz_expr(ref)
+
+
+def _extract_bool_tz_probe(tz: str, backend: str) -> OptionSpec:
+    if backend == "ibis":
+        return OptionSpec(
+            FK_DT.EXTRACT_BOOLEAN, "timezone", tz, "datetime",
+            lambda t=tz: _extract_bool_tz_expr(t),
+            lambda t=tz: _extract_bool_tz_expr(t),
+            _EXTRACT_BOOL_TZ_DATA, expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_DT.EXTRACT_BOOLEAN, "timezone", tz, "datetime",
+        lambda t=tz: _extract_bool_tz_expr(t),
+        lambda t=tz: _extract_bool_tz_ref_expr(t),
+        _EXTRACT_BOOL_TZ_DATA, expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_DT.EXTRACT_BOOLEAN,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract_boolean",
+        "timezone",
+        backend,
+        tz,
+        "datetime",
+        _extract_tz_disposition(backend),
+        (
+            "ibis has no timezone primitives; the timezone option is silently ignored"
+            if backend == "ibis"
+            else "native backend converts to the target zone before the boolean lookup"
+        ),
+        "class" if backend == "ibis" else "absence",
+    )
+    for backend in ALL_BACKENDS
+    for tz in _EXTRACT_TZ_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _extract_bool_tz_probe(tz, backend),
+        backend,
+        _extract_tz_disposition(backend),
+        OptionProbeDidNotDiscriminateError
+        if _extract_tz_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for tz in _EXTRACT_TZ_DOMAIN
+)
+
+_EXTRACT_BOOL_TZ_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_DT.EXTRACT_BOOLEAN,
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract_boolean",
+        "timezone",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _extract_bool_tz_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_BOOL_TZ_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _EXTRACT_BOOL_TZ_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _EXTRACT_BOOL_TZ_INVALID_REJECTIONS)
+def test_extract_boolean_timezone_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
 
 TESTED_OPTION_PARAMS: list[tuple] = []
 TESTED_OPTION_PARAMS.extend(
@@ -1558,6 +2194,42 @@ TESTED_OPTION_PARAMS.extend([
         "strptime_timestamp",
         "format",
         param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "strptime_timestamp", "format"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "strptime_timestamp",
+        "timezone",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "strptime_timestamp", "timezone"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "component",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "extract", "component"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "indexing",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "extract", "indexing"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract",
+        "timezone",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "extract", "timezone"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract_boolean",
+        "component",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "extract_boolean", "component"),
+    ),
+    (
+        _SUBSTRAIT_DT_PROTOCOL,
+        "extract_boolean",
+        "timezone",
+        param_taxonomy(_SUBSTRAIT_DT_PROTOCOL, "extract_boolean", "timezone"),
     ),
 ])
 

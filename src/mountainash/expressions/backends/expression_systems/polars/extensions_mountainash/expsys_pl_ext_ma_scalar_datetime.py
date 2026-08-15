@@ -6,10 +6,6 @@ Implements datetime operations for the Polars backend.
 from __future__ import annotations
 
 from datetime import date, datetime
-from mountainash.expressions.core.datetime_components import (
-    BooleanComponent,
-    DatetimeComponent,
-)
 from typing import TYPE_CHECKING, Optional
 
 import polars as pl
@@ -37,87 +33,6 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
     - Timezone: to_timezone, assume_timezone
     - Formatting: strftime
     """
-
-    # =========================================================================
-    # Core Extraction Methods
-    # =========================================================================
-
-    def extract(
-        self,
-        x: PolarsExpr,
-        component: str,
-        timezone: Optional[str] = None,
-        /,
-    ) -> PolarsExpr:
-        """Extract portion of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
-        """
-        # Handle component as string or enum
-        comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
-
-        # Map component to Polars extraction method
-        component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "ISO_YEAR": lambda e: e.dt.iso_year(),
-            "QUARTER": lambda e: e.dt.quarter(),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),  # 1=Monday to 7=Sunday
-            "SUNDAY_DAY_OF_WEEK": lambda e: (e.dt.weekday() % 7) + 1,  # 1=Sunday to 7=Saturday
-            "ISO_WEEK": lambda e: e.dt.week(),
-            "MONDAY_WEEK": lambda e: e.dt.week(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
-            "SUBSECOND": lambda e: e.dt.microsecond(),  # Microseconds since last second
-            "UNIX_TIME": lambda e: e.dt.epoch("s"),
-        }
-
-        if comp in component_map:
-            return component_map[comp](x)
-
-        # Fallback for unhandled components
-        return x.dt.year()  # Default to year
-
-    def extract_boolean(
-        self,
-        x: PolarsExpr,
-        /,
-        component: str,
-    ) -> PolarsExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
-        comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
-
-        if comp == "IS_LEAP_YEAR":
-            # A year is a leap year if divisible by 4, except centuries unless divisible by 400
-            year = x.dt.year()
-            return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
-
-        if comp == "IS_DST":
-            # Polars doesn't have direct DST detection
-            # Return a placeholder - would need timezone-aware implementation
-            return pl.lit(False)
-
-        return pl.lit(False)
 
     # =========================================================================
     # Convenience Extraction Methods

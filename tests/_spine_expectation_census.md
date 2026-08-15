@@ -172,16 +172,16 @@ _none_
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| tests/core/test_api_reachability.py:120 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
+| tests/core/test_api_reachability.py:113 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
 | tests/core/test_compile_smoke.py:712 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: _KNOWN_SMOKE_FAILURES park — the harness expects a NATIVE (non-BackendCapabilityError) compile failure here; not a spine-gated backend capability |
 | tests/core/test_compile_smoke.py:750 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: the dynamic compile-smoke catch-all absorber (inventory_has lookup); the absorbed gaps are the runtime found_via=catch-all rows, not an imperative-drain target |
 | tests/core/test_rel_signature_conformance.py:126 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:236 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:321 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
-| tests/core/test_signature_conformance.py:249 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:624 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:633 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:641 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:809 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:834 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:235 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:601 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:610 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:618 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:780 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:805 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
 

@@ -6,10 +6,6 @@ Implements datetime operations for the Ibis backend.
 from __future__ import annotations
 
 from datetime import date
-from mountainash.expressions.core.datetime_components import (
-    BooleanComponent,
-    DatetimeComponent,
-)
 from typing import TYPE_CHECKING, Optional
 
 import ibis
@@ -56,77 +52,6 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
     Plus convenience methods for common operations.
     """
-
-    # =========================================================================
-    # Core Extraction Methods
-    # =========================================================================
-
-    def extract(
-        self,
-        x: IbisTemporalExpr,
-        component: str,
-        timezone: Optional[str] = None,
-        /,
-    ) -> IbisValueExpr:
-        """Extract portion of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
-        """
-        comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
-
-        component_map = {
-            "YEAR": lambda e: e.year(),
-            "QUARTER": lambda e: e.quarter(),
-            "MONTH": lambda e: e.month(),
-            "DAY": lambda e: e.day(),
-            "DAY_OF_YEAR": lambda e: e.day_of_year(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.day_of_week.index() + ibis.literal(1),  # 1-indexed
-            "ISO_WEEK": lambda e: e.week_of_year(),
-            "HOUR": lambda e: e.hour(),
-            "MINUTE": lambda e: e.minute(),
-            "SECOND": lambda e: e.second(),
-            "MILLISECOND": lambda e: e.millisecond(),
-            "MICROSECOND": lambda e: e.microsecond(),
-            "UNIX_TIME": lambda e: e.epoch_seconds(),
-        }
-
-        if comp in component_map:
-            return component_map[comp](x)
-
-        return x.year()
-
-    def extract_boolean(
-        self,
-        x: IbisValueExpr,
-        /,
-        component: str,
-    ) -> IbisValueExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
-        comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
-
-        if comp == "IS_LEAP_YEAR":
-            year = x.year()
-            return ((year % ibis.literal(4) == ibis.literal(0)) &
-                    (year % ibis.literal(100) != ibis.literal(0))) | (year % ibis.literal(400) == ibis.literal(0))
-
-        if comp == "IS_DST":
-            return ibis.literal(False)
-
-        return ibis.literal(False)
 
     # =========================================================================
     # Convenience Extraction Methods

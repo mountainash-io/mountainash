@@ -748,9 +748,6 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     # Substrait Field Reference / Literal — special node types, not ScalarFunctionNode
     (SubstraitFieldReferenceExpressionSystemProtocol, "col"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Special node type (FieldReferenceNode), not dispatched via function registry", since="2026-05-12"),
     (SubstraitLiteralExpressionSystemProtocol, "lit"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Special node type (LiteralNode), not dispatched via function registry", since="2026-05-12"),
-    # Mountainash Scalar Datetime — methods not yet in function registry
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
-    (MountainAshScalarDatetimeExpressionSystemProtocol, "extract_boolean"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
 }
 
 KNOWN_ASPIRATIONAL_AND_TESTED: dict[tuple[type, str], KnownGap] = {

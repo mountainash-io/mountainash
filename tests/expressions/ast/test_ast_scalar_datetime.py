@@ -127,6 +127,41 @@ class TestDatetimeFormatting:
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.STRFTIME
 
 
+class TestSubstraitExtract:
+    """item 62: canonical Substrait extract/extract_boolean AST identity."""
+
+    def test_extract_component_only(self):
+        expr = ma.col("ts").dt.extract("YEAR")
+        node = expr._node
+        assert isinstance(node, ScalarFunctionNode)
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT
+        assert len(node.arguments) == 1
+        assert node.options == {"component": "YEAR"}
+
+    def test_extract_with_indexing(self):
+        expr = ma.col("ts").dt.extract("MONTH", indexing="ZERO")
+        node = expr._node
+        assert node.options == {"component": "MONTH", "indexing": "ZERO"}
+
+    def test_extract_with_timezone(self):
+        expr = ma.col("ts").dt.extract("HOUR", timezone="UTC")
+        node = expr._node
+        assert node.options == {"component": "HOUR", "timezone": "UTC"}
+
+    def test_extract_boolean_component_only(self):
+        expr = ma.col("ts").dt.extract_boolean("IS_LEAP_YEAR")
+        node = expr._node
+        assert isinstance(node, ScalarFunctionNode)
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN
+        assert len(node.arguments) == 1
+        assert node.options == {"component": "IS_LEAP_YEAR"}
+
+    def test_extract_boolean_with_timezone(self):
+        expr = ma.col("ts").dt.extract_boolean("IS_DST", timezone="UTC")
+        node = expr._node
+        assert node.options == {"component": "IS_DST", "timezone": "UTC"}
+
+
 class TestDatetimeComponents:
     def test_date(self):
         expr = ma.col("ts").dt.date()

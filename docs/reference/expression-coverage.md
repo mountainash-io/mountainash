@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 39 · Facts: 1509 · Registered operations: 324 · Implementation records: 972
+Declarations: 42 · Facts: 1558 · Registered operations: 324 · Implementation records: 972
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -50,9 +50,9 @@ Legend — cell states (by exception):
 
 | Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |
 | --- | --- | --- | --- | --- | --- | --- |
-| polars | 199 | 75 | 50 | 0 | 0 | 324 |
-| narwhals | 97 | 151 | 76 | 0 | 0 | 324 |
-| ibis | 138 | 114 | 72 | 0 | 0 | 324 |
+| polars | 191 | 81 | 52 | 0 | 0 | 324 |
+| narwhals | 97 | 149 | 78 | 0 | 0 | 324 |
+| ibis | 138 | 112 | 74 | 0 | 0 | 324 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1286 |
-| Enforcement | gate 1502, router_metadata 3, materialize_residue 4 |
-| Backend | polars 258, narwhals 642, ibis 609 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1335 |
+| Enforcement | gate 1551, router_metadata 3, materialize_residue 4 |
+| Backend | polars 265, narwhals 662, ibis 631 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -80,6 +80,7 @@ audited_unknown: 0
 | ibis | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
+| ibis | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | string | 2026-07-05 |  |  |
 | ibis | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0 | ibis-sqlite, ibis-duckdb |
@@ -97,6 +98,7 @@ audited_unknown: 0
 | narwhals | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
+| narwhals | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | string | 2026-07-05 |  |  |
 | narwhals | substrait | string | 2026-07-05 | narwhals 2.19.0 |  |
 | narwhals | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -106,6 +108,7 @@ audited_unknown: 0
 | polars | mountainash | set | — | — | — |
 | polars | mountainash | ternary | — | — | — |
 | polars | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| polars | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | string | 2026-07-05 |  | polars |
 | polars | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
@@ -315,14 +318,14 @@ audited_unknown: 0
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `ADD_INTERVALS` | ✓ | ✓ audited | ✓ audited |
-| `ASSUME_TIMEZONE` | ✓ | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `EXTRACT` | ✓ | ✓ audited | ✓ audited |
-| `EXTRACT_BOOLEAN` | ✓ | ✓ audited | ✓ audited |
-| `LOCAL_TIMESTAMP` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `STRFTIME` | ✓ | ✓ audited | ✓ audited |
-| `STRPTIME_DATE` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
-| `STRPTIME_TIMESTAMP` | ✓ | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
+| `ADD_INTERVALS` | ✓ audited | ✓ audited | ✓ audited |
+| `ASSUME_TIMEZONE` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `EXTRACT` | ◐ partial (1 params, 6 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 1 value-classes, 1 dialects) |
+| `EXTRACT_BOOLEAN` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 1 option-selectors, 1 value-classes, 1 dialects) |
+| `LOCAL_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `STRFTIME` | ✓ audited | ✓ audited | ✓ audited |
+| `STRPTIME_DATE` | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
+| `STRPTIME_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) · unsupported on ibis-sqlite |
 
 ### `FKEY_SUBSTRAIT_SCALAR_SET` (substrait / set)
 

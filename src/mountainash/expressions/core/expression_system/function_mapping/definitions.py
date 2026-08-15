@@ -773,7 +773,7 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_timestamp",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
-            options=("format",),
+            options=("format", "timezone"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
@@ -871,13 +871,14 @@ def register_all_functions() -> None:
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="extract",
-            options=("component",),  # component="YEAR"
+            options=("component", "indexing", "timezone"),
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.extract,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
-            substrait_name="extract",
+            substrait_name="extract_boolean",
+            options=("component", "timezone"),
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.extract_boolean,
         ),
         ExpressionFunctionDef(

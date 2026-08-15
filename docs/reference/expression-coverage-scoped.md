@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 39 · Facts: 1509 · Registered operations: 324 · Implementation records: 972
+Declarations: 42 · Facts: 1558 · Registered operations: 324 · Implementation records: 972
 
 Legend — scoped deviations:
 
@@ -963,6 +963,50 @@ Legend — scoped deviations:
 | * | timezone | — | iana_timezone | unsupported | gate | build | — | assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone | — | — | 2026-07-25 | — | — |
 | ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone | — | — | 2026-07-25 | — | — |
 
+### `EXTRACT` × polars (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| polars | component | MONDAY_WEEK, PICOSECOND, SUNDAY_WEEK, TIMEZONE_OFFSET, US_WEEK, US_YEAR | — | unsupported | gate | build | — | the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py) | — | — | 2026-08-15 | — | — |
+
+### `EXTRACT` × narwhals (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-pandas | component | ISO_WEEK, ISO_YEAR, MONDAY_WEEK, PICOSECOND, SUNDAY_WEEK, TIMEZONE_OFFSET, UNIX_TIME, US_WEEK, US_YEAR | — | unsupported | gate | build | — | the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py) | — | — | 2026-08-15 | — | — |
+| narwhals-polars | component | ISO_WEEK, ISO_YEAR, MONDAY_WEEK, PICOSECOND, SUNDAY_WEEK, TIMEZONE_OFFSET, UNIX_TIME, US_WEEK, US_YEAR | — | unsupported | gate | build | — | the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py) | — | — | 2026-08-15 | — | — |
+
+### `EXTRACT` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | component | MONDAY_WEEK, NANOSECOND, PICOSECOND, SUNDAY_WEEK, TIMEZONE_OFFSET, US_WEEK, US_YEAR | — | unsupported | gate | build | — | the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py) | — | — | 2026-08-15 | — | — |
+| * | timezone | — | iana_timezone | unsupported | gate | build | — | ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py | — | — | 2026-08-15 | — | — |
+| ibis-duckdb | component | MONDAY_WEEK, NANOSECOND, PICOSECOND, SUNDAY_WEEK, TIMEZONE_OFFSET, US_WEEK, US_YEAR | — | unsupported | gate | build | — | the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py) | — | — | 2026-08-15 | — | — |
+| ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py | — | — | 2026-08-15 | — | — |
+
+### `EXTRACT_BOOLEAN` × polars (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| polars | component | IS_DST | — | unsupported | gate | build | — | extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation) | — | — | 2026-08-15 | — | — |
+
+### `EXTRACT_BOOLEAN` × narwhals (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-pandas | component | IS_DST | — | unsupported | gate | build | — | extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation) | — | — | 2026-08-15 | — | — |
+| narwhals-polars | component | IS_DST | — | unsupported | gate | build | — | extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation) | — | — | 2026-08-15 | — | — |
+
+### `EXTRACT_BOOLEAN` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | component | IS_DST | — | unsupported | gate | build | — | extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation) | — | — | 2026-08-15 | — | — |
+| * | timezone | — | iana_timezone | unsupported | gate | build | — | ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py | — | — | 2026-08-15 | — | — |
+| ibis-duckdb | component | IS_DST | — | unsupported | gate | build | — | extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation) | — | — | 2026-08-15 | — | — |
+| ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py | — | — | 2026-08-15 | — | — |
+
 ### `LOCAL_TIMESTAMP` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
@@ -993,6 +1037,11 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ibis-sqlite | * | — | — | unsupported | gate | build | — | ibis-sqlite has no compilation rule for StringToDate/StringToTimestamp (OperationNotDefinedError); format-driven parsing is unavailable on this dialect, so it is gated rather than left to fail natively | — | — | 2026-07-30 | — | whole-op gate on a WILDCARD_PARAM fact; cannot be keyed on an OpSpec param (OpSpecs are indexed by concrete argument name) — verified by the dedicated cross-backend gate tests in test_datetime_strptime_format.py |
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | timezone | — | iana_timezone | unsupported | gate | build | — | strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone | — | — | 2026-08-15 | — | — |
+| ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone | — | — | 2026-08-15 | — | — |
 
 ### `CAPITALIZE` × polars (FKEY_SUBSTRAIT_SCALAR_STRING)
 

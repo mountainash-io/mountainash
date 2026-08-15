@@ -6,10 +6,6 @@ Implements datetime operations for the Narwhals backend.
 from __future__ import annotations
 
 from datetime import date, datetime
-from mountainash.expressions.core.datetime_components import (
-    BooleanComponent,
-    DatetimeComponent,
-)
 from typing import TYPE_CHECKING, Optional
 
 import narwhals as nw
@@ -35,85 +31,6 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     Note: Narwhals has a more limited datetime API than Polars. Some methods
     use workarounds or simplified implementations.
     """
-
-    # =========================================================================
-    # Core Extraction Methods
-    # =========================================================================
-
-    def extract(
-        self,
-        x: NarwhalsExpr,
-        component: str,
-        timezone: Optional[str] = None,
-        /,
-    ) -> NarwhalsExpr:
-        """Extract portion of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
-        """
-        comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
-
-        component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "QUARTER": lambda e: e.dt.month() // nw.lit(4) + nw.lit(1),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
-        }
-
-        if comp == "ISO_WEEK":
-            from mountainash.core.types import BackendCapabilityError
-            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
-            raise BackendCapabilityError(
-                "Narwhals does not support ISO week extraction",
-                backend="narwhals",
-                # no generic EXTRACT key exists yet; PR-C adds it (item 62)
-                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
-            )
-
-        if comp in component_map:
-            return component_map[comp](x)
-
-        return x.dt.year()
-
-    def extract_boolean(
-        self,
-        x: NarwhalsExpr,
-        /,
-        component: str,
-    ) -> NarwhalsExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
-        comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
-
-        if comp == "IS_LEAP_YEAR":
-            year = x.dt.year()
-            return ((year % nw.lit(4) == nw.lit(0)) & (year % nw.lit(100) != nw.lit(0))) | (year % nw.lit(400) == nw.lit(0))
-
-        if comp == "IS_DST":
-            return nw.lit(False)
-
-        return nw.lit(False)
 
     # =========================================================================
     # Convenience Extraction Methods

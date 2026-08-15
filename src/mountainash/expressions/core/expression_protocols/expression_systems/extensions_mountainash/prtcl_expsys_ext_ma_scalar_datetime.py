@@ -403,49 +403,6 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         ...
 
     # =========================================================================
-    # Core Dispatch Methods (used by visitor)
-    # =========================================================================
-
-    def extract(
-        self,
-        x: ExpressionT,
-        component: str,
-        timezone: Optional[str] = None,
-        /,
-    ) -> ExpressionT:
-        """Extract a datetime component by name.
-
-        Dispatches to backend-specific extraction (year, month, day, etc.).
-
-        Args:
-            x: Datetime expression.
-            component: Component identifier.
-
-        Returns:
-            Extracted component value.
-        """
-        ...
-
-    def extract_boolean(
-        self,
-        x: ExpressionT,
-        /,
-        component: str,
-    ) -> ExpressionT:
-        """Extract a boolean datetime property.
-
-        Dispatches to backend-specific boolean extraction (is_leap_year, is_dst).
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component identifier.
-
-        Returns:
-            Boolean expression.
-        """
-        ...
-
-    # =========================================================================
     # Timezone Operations
     # =========================================================================
 

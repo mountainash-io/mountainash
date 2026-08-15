@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from mountainash.expressions.core.datetime_components import (
     BooleanComponent,
+    CALENDAR_COMPONENTS,
     DatetimeComponent,
 )
 from typing import TYPE_CHECKING, Optional
@@ -44,78 +45,80 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         component: str,
+        indexing: str = None,
         timezone: str = None,
     ) -> PolarsExpr:
-        """Extract portion of a date/time value.
+        """Extract a date/time component (Substrait: extract).
 
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
+        ``indexing`` (ONE/ZERO) applies only to calendar components; the
+        builder rejects it otherwise. ``timezone`` converts the value to the
+        target IANA zone before the component lookup.
         """
-        # Handle component as string or enum
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
-        # Map component to Polars extraction method
+        e = x
+        if timezone is not None:
+            e = e.dt.convert_time_zone(timezone)
+
         component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "ISO_YEAR": lambda e: e.dt.iso_year(),
-            "QUARTER": lambda e: e.dt.quarter(),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),  # 1=Monday to 7=Sunday
-            "SUNDAY_DAY_OF_WEEK": lambda e: (e.dt.weekday() % 7) + 1,  # 1=Sunday to 7=Saturday
-            "ISO_WEEK": lambda e: e.dt.week(),
-            "MONDAY_WEEK": lambda e: e.dt.week(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
-            "SUBSECOND": lambda e: e.dt.microsecond(),  # Microseconds since last second
-            "UNIX_TIME": lambda e: e.dt.epoch("s"),
+            "YEAR": lambda d: d.dt.year(),
+            "ISO_YEAR": lambda d: d.dt.iso_year(),
+            "QUARTER": lambda d: d.dt.quarter(),
+            "MONTH": lambda d: d.dt.month(),
+            "DAY": lambda d: d.dt.day(),
+            "DAY_OF_YEAR": lambda d: d.dt.ordinal_day(),
+            "MONDAY_DAY_OF_WEEK": lambda d: d.dt.weekday(),
+            "SUNDAY_DAY_OF_WEEK": lambda d: (d.dt.weekday() % 7) + 1,
+            "ISO_WEEK": lambda d: d.dt.week(),
+            "HOUR": lambda d: d.dt.hour(),
+            "MINUTE": lambda d: d.dt.minute(),
+            "SECOND": lambda d: d.dt.second(),
+            "MILLISECOND": lambda d: d.dt.millisecond(),
+            "MICROSECOND": lambda d: d.dt.microsecond() % 1000,
+            "NANOSECOND": lambda d: d.dt.nanosecond() % 1000,
+            "SUBSECOND": lambda d: d.dt.microsecond(),
+            "UNIX_TIME": lambda d: d.dt.epoch("s"),
         }
 
-        if comp in component_map:
-            return component_map[comp](x)
+        if comp not in component_map:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+            raise BackendCapabilityError(
+                f"extract component {comp!r} is not supported on polars",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+            )
 
-        # Fallback for unhandled components
-        return x.dt.year()  # Default to year
+        result = component_map[comp](e)
+        if indexing == "ZERO" and comp in CALENDAR_COMPONENTS:
+            result = result - 1
+        return result
 
     def extract_boolean(
         self,
         x: PolarsExpr,
         /,
         component: str,
+        timezone: str = None,
     ) -> PolarsExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
+        """Extract a boolean date/time component (Substrait: extract_boolean)."""
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
+        e = x
+        if timezone is not None:
+            e = e.dt.convert_time_zone(timezone)
+
         if comp == "IS_LEAP_YEAR":
-            # A year is a leap year if divisible by 4, except centuries unless divisible by 400
-            year = x.dt.year()
+            year = e.dt.year()
             return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
 
-        if comp == "IS_DST":
-            # Polars doesn't have direct DST detection
-            # Return a placeholder - would need timezone-aware implementation
-            return pl.lit(False)
-
-        return pl.lit(False)
-
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+        raise BackendCapabilityError(
+            f"extract_boolean component {comp!r} is not supported on polars",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+        )
 
 
     # =========================================================================

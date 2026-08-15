@@ -25,4 +25,18 @@ class TestStrToDatetime:
         assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP
         assert len(node.arguments) == 1
         assert isinstance(node.arguments[0], FieldReferenceNode)
-        assert node.options.get("format") == "%Y-%m-%d %H:%M:%S"
+        assert node.options == {"format": "%Y-%m-%d %H:%M:%S"}
+
+    def test_to_datetime_with_timezone_includes_option(self):
+        """item 62: timezone reaches the node end-to-end (options dict), not
+        just the builder signature."""
+        expr = ma.col("dt_str").str.to_datetime("%Y-%m-%d %H:%M:%S", timezone="UTC")
+        node = expr._node
+        assert node.function_key == FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP
+        assert node.options == {"format": "%Y-%m-%d %H:%M:%S", "timezone": "UTC"}
+
+    def test_to_datetime_without_timezone_omits_option(self):
+        """Omission is distinct from an explicit value at the AST level."""
+        expr = ma.col("dt_str").str.to_datetime("%Y-%m-%d %H:%M:%S")
+        node = expr._node
+        assert "timezone" not in node.options
