@@ -20,7 +20,7 @@ class SubstraitScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: scalar
     """
 
-    def extract(self, x: ExpressionT, /, component: str, timezone: str) -> ExpressionT:
+    def extract(self, x: ExpressionT, /, component: str, indexing: Optional[str] = None, timezone: Optional[str] = None) -> ExpressionT:
         """Extract portion of a date/time value. * YEAR Return the year. * ISO_YEAR Return the ISO 8601 week-numbering year. First week of an ISO year has the majority (4 or more) of
   its days in January.
 * US_YEAR Return the US epidemiological year. First week of US epidemiological year has the majority (4 or more)
@@ -50,7 +50,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def extract_boolean(self, x: ExpressionT, /, component: str) -> ExpressionT:
+    def extract_boolean(self, x: ExpressionT, /, component: str, timezone: Optional[str] = None) -> ExpressionT:
         """Extract boolean values of a date/time value. * IS_LEAP_YEAR Return true if year of the given value is a leap year and false otherwise. * IS_DST Return true if DST (Daylight Savings Time) is observed at the given value
   in the given timezone.
 
@@ -164,7 +164,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strptime_timestamp(self, x: ExpressionT, /, format: str, timezone: str) -> ExpressionT:
+    def strptime_timestamp(self, x: ExpressionT, /, format: str, timezone: Optional[str] = None) -> ExpressionT:
         """Parse string into timestamp using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference. If timezone is present in timestamp and provided as parameter an error is thrown.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is supplied as parameter and present in the parsed string the parsed timezone is used. If parameter supplied timezone is invalid an error is thrown.
 

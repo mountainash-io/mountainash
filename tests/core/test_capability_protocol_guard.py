@@ -28,6 +28,7 @@ from mountainash.core.capabilities.retired import assert_no_active_retired_overl
 EXPECTED_DECLARATION_MODULES = (
     # expressions/backends/capabilities/
     "mountainash.expressions.backends.capabilities.arithmetic",
+    "mountainash.expressions.backends.capabilities.datetime.extract",
     "mountainash.expressions.backends.capabilities.datetime.options",
     "mountainash.expressions.backends.capabilities.datetime.strptime",
     "mountainash.expressions.backends.capabilities.datetime.value_classes_ma",
@@ -124,6 +125,7 @@ def _domain_predicate(leaf: str):
     domains = {
         "string": Domain.STRING, "arithmetic": Domain.ARITHMETIC,
         "options": Domain.DATETIME, "strptime": Domain.DATETIME,
+        "extract": Domain.DATETIME,
     }
     want = domains[leaf]
     return lambda f: (

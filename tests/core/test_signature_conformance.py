@@ -128,20 +128,6 @@ _KNOWN_SIGNATURE_DIVERGENCES: dict[tuple[str, str, str], str] = {
         "Protocol string_agg(input, separator, ordering) 3-arg vs Ibis string_agg(x) 1-arg. Since 2026-05-18.",
     ("SubstraitAggregateStringExpressionSystemProtocol", "string_agg", "narwhals"):
         "Protocol string_agg(input, separator, ordering) 3-arg vs Narwhals string_agg(x) 1-arg. Since 2026-05-18.",
-    # extract: protocol extract(component, input) vs backends extract(input) — component is an option
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "polars"):
-        "Protocol extract(component, input) vs Polars extract(input) — component passed as option. Since 2026-05-18.",
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "ibis"):
-        "Protocol extract(component, input) vs Ibis extract(input) — component passed as option. Since 2026-05-18.",
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "narwhals"):
-        "Protocol extract(component, input) vs Narwhals extract(input) — component passed as option. Since 2026-05-18.",
-    # strptime_timestamp: protocol strptime_timestamp(input, format, timezone) vs backends strptime_timestamp(input)
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "polars"):
-        "Protocol strptime_timestamp(input, format, timezone) 3-arg vs Polars strptime_timestamp(input) 1-arg. Since 2026-05-18.",
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "ibis"):
-        "Protocol strptime_timestamp(input, format, timezone) 3-arg vs Ibis strptime_timestamp(input) 1-arg. Since 2026-05-18.",
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "narwhals"):
-        "Protocol strptime_timestamp(input, format, timezone) 3-arg vs Narwhals strptime_timestamp(input) 1-arg. Since 2026-05-18.",
     # round: protocol round(x, s) vs backends round(x) — s passed as option
     ("SubstraitScalarRoundingExpressionSystemProtocol", "round", "polars"):
         "Protocol round(x, s) vs Polars round(x) — s passed as option. Since 2026-05-18.",
@@ -396,6 +382,8 @@ def _init_a2_local_builders() -> dict:
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.extract("YEAR"),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.extract_boolean("IS_LEAP_YEAR"),
         SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK: lambda: c.percent_rank().over("b"),
         SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST: lambda: c.cume_dist().over("b"),
         # Constructs successfully but always 0-ary (order_by_col unreachable
@@ -490,19 +478,8 @@ _KNOWN_CALL_PATTERN_MISMATCHES: dict[str, str] = {
 # (fkey_str) → "reason. Since YYYY-MM-DD."
 # Escape hatch for A2 arg-count verification: an entry here means the FKEY's
 # expression truly cannot be constructed with the correct identity via any
-# current public API surface (not merely "the generic resolver doesn't find
-# it" — check the A2-local builder overlay above first). Expected to be
-# small; see f.development-practices/closed-by-default-verification.md.
-_KNOWN_UNVERIFIABLE_CALL_PATTERNS: dict[str, str] = {
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT":
-        "No public builder emits the canonical Substrait EXTRACT key — dt.year() and "
-        "friends emit their own MA-specific keys (e.g. EXTRACT_YEAR). Matches "
-        "test_api_reachability.py's own _UNREACHABLE_FKEYS finding. Since 2026-08-11.",
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN":
-        "No public builder emits the canonical Substrait EXTRACT_BOOLEAN key — "
-        "dt.is_leap_year() emits FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_LEAP_YEAR. Matches "
-        "test_api_reachability.py's own _UNREACHABLE_FKEYS finding. Since 2026-08-11.",
-}
+# current public API surface.
+_KNOWN_UNVERIFIABLE_CALL_PATTERNS: dict[str, str] = {}
 
 
 class _A2ConstructionError(Exception):
@@ -774,12 +751,6 @@ _A3_CASES = _collect_a3_cases()
 _KNOWN_OPTIONS_DRIFT: dict[str, str] = {
     "FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING":
         "Registry has 'start','length' but protocol has 'negative_start' — options not aligned. Since 2026-05-18.",
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP":
-        "Protocol has required 'timezone' option not in registry — timezone handled by API builder. Since 2026-05-18.",
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT":
-        "Protocol extract(component, input) — component is a required positional option not in registry. Since 2026-05-18.",
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN":
-        "Protocol extract_boolean(component, input) — component is a required positional option not in registry. Since 2026-05-18.",
     "FKEY_MOUNTAINASH_NAME.ALIAS":
         "Protocol has required 'name' kwarg not in registry — handled by API builder directly. Since 2026-05-18.",
     "FKEY_MOUNTAINASH_NAME.PREFIX":

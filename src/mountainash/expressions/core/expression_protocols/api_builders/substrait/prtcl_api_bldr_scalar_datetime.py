@@ -50,6 +50,33 @@ class SubstraitScalarDatetimeAPIBuilderProtocol(Protocol):
         ...
 
     # ============================================================
+    # Extraction (Direct Substrait functions)
+    # ============================================================
+
+    def extract(
+        self,
+        component: str,
+        indexing: str | None = None,
+        timezone: str | None = None,
+    ) -> BaseExpressionAPI:
+        """Extract a date/time component.
+
+        Substrait: extract
+        """
+        ...
+
+    def extract_boolean(
+        self,
+        component: str,
+        timezone: str | None = None,
+    ) -> BaseExpressionAPI:
+        """Extract a boolean date/time component.
+
+        Substrait: extract_boolean
+        """
+        ...
+
+    # ============================================================
     # Formatting / Parsing (Direct Substrait functions)
     # ============================================================
 

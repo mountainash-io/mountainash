@@ -160,12 +160,28 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         )
         return self._build(node)
 
-    def to_datetime(self, format: str) -> BaseExpressionAPI:
-        """Parse string to datetime using format string."""
+    def to_datetime(self, format: str, timezone: str = None) -> BaseExpressionAPI:
+        """Parse string to datetime using format string.
+
+        Args:
+            format: strptime format string.
+            timezone: Optional IANA timezone attached to the parsed timestamp.
+        """
+        options = {"format": format}
+        if timezone is not None:
+            from ..api_builder_base import _reject_expression
+            from mountainash.core.capabilities.schema import ValueClass
+            from ._ma_option_domains import validate_open_value
+
+            _reject_expression("timezone", timezone, "strptime_timestamp")
+            timezone = validate_open_value(
+                ValueClass.IANA_TIMEZONE, "timezone", timezone, "strptime_timestamp"
+            )
+            options["timezone"] = timezone
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
             arguments=[self._node],
-            options={"format": format},
+            options=options,
         )
         return self._build(node)
 

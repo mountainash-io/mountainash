@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from mountainash.expressions.core.datetime_components import (
     BooleanComponent,
+    CALENDAR_COMPONENTS,
     DatetimeComponent,
 )
 from typing import TYPE_CHECKING, Optional
@@ -48,56 +49,55 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         component: str,
+        indexing: str = None,
         timezone: str = None,
     ) -> IbisValueExpr:
-        """Extract portion of a date/time value.
+        """Extract a date/time component (Substrait: extract).
 
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
+        ``timezone`` is not honored on ibis (no timezone primitives); the
+        capability gate raises before this body is reached in production.
         """
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
         component_map = {
             "YEAR": lambda e: e.year(),
+            "ISO_YEAR": lambda e: e.iso_year(),
             "QUARTER": lambda e: e.quarter(),
             "MONTH": lambda e: e.month(),
             "DAY": lambda e: e.day(),
             "DAY_OF_YEAR": lambda e: e.day_of_year(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.day_of_week.index() + ibis.literal(1),  # 1-indexed
+            "MONDAY_DAY_OF_WEEK": lambda e: e.day_of_week.index() + ibis.literal(1),
+            "SUNDAY_DAY_OF_WEEK": lambda e: (e.day_of_week.index() + ibis.literal(1)) % ibis.literal(7) + ibis.literal(1),
             "ISO_WEEK": lambda e: e.week_of_year(),
             "HOUR": lambda e: e.hour(),
             "MINUTE": lambda e: e.minute(),
             "SECOND": lambda e: e.second(),
             "MILLISECOND": lambda e: e.millisecond(),
-            "MICROSECOND": lambda e: e.microsecond(),
+            "MICROSECOND": lambda e: e.microsecond() % ibis.literal(1000),
+            "SUBSECOND": lambda e: e.microsecond(),
             "UNIX_TIME": lambda e: e.epoch_seconds(),
         }
 
-        if comp in component_map:
-            return component_map[comp](x)
+        if comp not in component_map:
+            raise BackendCapabilityError(
+                f"extract component {comp!r} is not supported on ibis",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+            )
 
-        return x.year()
+        result = component_map[comp](x)
+        if indexing == "ZERO" and comp in CALENDAR_COMPONENTS:
+            result = result - ibis.literal(1)
+        return result
 
     def extract_boolean(
         self,
         x: IbisValueExpr,
         /,
         component: str,
+        timezone: str = None,
     ) -> IbisValueExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
+        """Extract a boolean date/time component (Substrait: extract_boolean)."""
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
         if comp == "IS_LEAP_YEAR":
@@ -105,10 +105,11 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
             return ((year % ibis.literal(4) == ibis.literal(0)) &
                     (year % ibis.literal(100) != ibis.literal(0))) | (year % ibis.literal(400) == ibis.literal(0))
 
-        if comp == "IS_DST":
-            return ibis.literal(False)
-
-        return ibis.literal(False)
+        raise BackendCapabilityError(
+            f"extract_boolean component {comp!r} is not supported on ibis",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+        )
 
 
 
@@ -367,7 +368,10 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         """
         # `.as_timestamp()` returns timestamp('UTC'); the recast restores the
         # naive wall-clock dtype the previous `cast("timestamp")` produced, so
-        # the fix changes the parse and nothing else.
+        # the fix changes the parse and nothing else. `timezone` is ignored --
+        # ibis has no timezone primitives (matches assume_timezone/to_timezone/
+        # local_timestamp/extract.timezone); a declared_unsupported fact gates
+        # this in production.
         return x.as_timestamp(format).cast("timestamp")
 
     # =========================================================================

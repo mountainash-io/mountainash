@@ -45,4 +45,20 @@ class BooleanComponent(Enum):
     IS_DST = "IS_DST"
 
 
-__all__ = ["DatetimeComponent", "BooleanComponent"]
+CALENDAR_COMPONENTS: frozenset[str] = frozenset(
+    {
+        "QUARTER",
+        "MONTH",
+        "DAY",
+        "DAY_OF_YEAR",
+        "MONDAY_DAY_OF_WEEK",
+        "SUNDAY_DAY_OF_WEEK",
+        "MONDAY_WEEK",
+        "SUNDAY_WEEK",
+        "ISO_WEEK",
+        "US_WEEK",
+    }
+)
+
+
+__all__ = ["DatetimeComponent", "BooleanComponent", "CALENDAR_COMPONENTS"]

@@ -287,6 +287,14 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     # OPTION_DTYPES carries the input column dtype (str), not the option's own type.
     ("strptime_date", "format"): ("str",),
     ("strptime_timestamp", "format"): ("str",),
+    ("strptime_timestamp", "timezone"): ("str",),
+    # Datetime extraction (item 62): closed component/indexing domains and
+    # open IANA-timezone value class operate on the datetime operand column.
+    ("extract", "component"): ("datetime",),
+    ("extract", "indexing"): ("datetime",),
+    ("extract", "timezone"): ("datetime",),
+    ("extract_boolean", "component"): ("datetime",),
+    ("extract_boolean", "timezone"): ("datetime",),
 }
 
 # Representative legal values for open-integer options that have NO finite
@@ -328,6 +336,10 @@ _MA_OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
     # so the result differs when input has day > 12.
     ("strptime_date", "format"): ("%Y-%m-%d", "%Y-%d-%m"),
     ("strptime_timestamp", "format"): ("%Y-%m-%d %H:%M:%S", "%Y-%d-%m %H:%M:%S"),
+    # IANA-timezone value class on extract / extract_boolean (item 62).
+    ("extract", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
+    ("extract_boolean", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
+    ("strptime_timestamp", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
 }
 
 

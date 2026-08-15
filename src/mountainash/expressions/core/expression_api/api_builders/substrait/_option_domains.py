@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from mountainash.core.errors import InvalidOptionValueError
+from mountainash.expressions.core.datetime_components import (
+    BooleanComponent,
+    DatetimeComponent,
+)
 
 
 _OVERFLOW = frozenset({"SILENT", "SATURATE", "ERROR"})
@@ -101,6 +105,11 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("swapcase", "char_set"): _CHAR_SET,
     ("title", "char_set"): _CHAR_SET,
     ("upper", "char_set"): _CHAR_SET,
+    # Datetime extraction closed domains. The enums mirror the upstream
+    # overload union (23 datetime + 2 boolean members) — no new members.
+    ("extract", "component"): frozenset(c.value for c in DatetimeComponent),
+    ("extract", "indexing"): frozenset({"ONE", "ZERO"}),
+    ("extract_boolean", "component"): frozenset(c.value for c in BooleanComponent),
 }
 
 

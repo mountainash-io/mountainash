@@ -822,12 +822,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
             since="2026-07-25",
         )
         for key in {
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "component"),
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
-            ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "component"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract", "timezone"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "extract_boolean", "component"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"),
@@ -852,19 +846,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS[
     ),
     since="2026-07-25",
 )
-_KNOWN_UNTESTED_OPTION_PARAMS[
-    ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "timezone")
-] = KnownGap(
-    gap_kind=GapKind.UNTESTED_OPTION,
-    reason=(
-        "the op IS API-reachable via str.to_datetime, but its ExpressionFunctionDef "
-        "declares only options=('format',), so the timezone argument never reaches "
-        "the backend; deferred with `precision` as parameters of the same upstream "
-        "overload family — see backlog: substrait-datetime-missing-ops section 4.4"
-    ),
-    since="2026-07-30",
-)
-
 
 for _case_sensitivity_op in (
     "contains",
@@ -1322,16 +1303,6 @@ _KNOWN_TESTED_ARGUMENT_PARAM_ALIASES: dict[
     tuple[str, str, str],
     tuple[str, str, str],
 ] = {
-    (
-        "SubstraitScalarDatetimeExpressionSystemProtocol",
-        "extract",
-        "x",
-    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract", "x"),
-    (
-        "SubstraitScalarDatetimeExpressionSystemProtocol",
-        "extract_boolean",
-        "x",
-    ): ("MountainAshScalarDatetimeExpressionSystemProtocol", "extract_boolean", "x"),
     (
         "SubstraitScalarSetExpressionSystemProtocol",
         "is_in",

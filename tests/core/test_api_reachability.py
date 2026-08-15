@@ -35,6 +35,7 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         FKEY_MOUNTAINASH_SCALAR_LIST as ML,
         FKEY_MOUNTAINASH_SCALAR_STRUCT as MS,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE as SA,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME as SD,
         SUBSTRAIT_ARITHMETIC_WINDOW as SW,
     )
 
@@ -58,6 +59,8 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         SA.MEDIAN: lambda: ma.median(0, c),
         # Default method= emits the MA alias key, not the Substrait canonical.
         SW.RANK: lambda: c.rank(method="min").over("b"),
+        SD.EXTRACT: lambda: c.dt.extract("YEAR"),
+        SD.EXTRACT_BOOLEAN: lambda: c.dt.extract_boolean("IS_LEAP_YEAR"),
     }
 
 
@@ -72,16 +75,6 @@ _UNREACHABLE_FKEYS: dict[str, str] = {
     ),
     "FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES": (
         "AST-internal marker node, not a compilable expression"
-    ),
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT": (
-        "no public builder method emits the canonical Substrait EXTRACT key -- "
-        "dt.year() and friends emit their own MA keys; wired by PR-C "
-        "(backlog: substrait-datetime-missing-ops)"
-    ),
-    "FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN": (
-        "no public builder method emits the canonical Substrait EXTRACT_BOOLEAN key -- "
-        "dt.is_leap_year() emits FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_LEAP_YEAR; "
-        "wired by PR-C (backlog: substrait-datetime-missing-ops)"
     ),
 }
 

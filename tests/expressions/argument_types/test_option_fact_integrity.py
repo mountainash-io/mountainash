@@ -613,7 +613,7 @@ def test_representative_dtype_policy_exactly_covers_option_domain_owners() -> No
                 ("modulus", "on_domain_error"),
             }
             else ("datetime",)
-            if key[1] in {"unit", "timezone", "offset", "format"}
+            if key[1] in {"unit", "timezone", "offset", "format", "component", "indexing"}
             and key[0] not in {"strptime_date", "strptime_timestamp"}
             else ("str",)
             if key[0] in {"strptime_date", "strptime_timestamp"}
