@@ -10,29 +10,37 @@ from __future__ import annotations
 
 from typing import Any
 
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
+)
+
 
 def visit_join(node: Any, visitor: Any) -> Any:
     left = visitor.visit(node.left)
     right = visitor._visit_and_coerce_right(node.right, left)
-    return visitor.backend.join(
-        left, right,
-        join_type=node.join_type,
-        on=node.on,
-        left_on=node.left_on,
-        right_on=node.right_on,
-        suffix=node.suffix,
+    return visitor._enrich_native_call(
+        node, RKEY_SUBSTRAIT_REL.JOIN,
+        lambda: visitor.backend.join(
+            left, right,
+            join_type=node.join_type,
+            on=node.on, left_on=node.left_on,
+            right_on=node.right_on, suffix=node.suffix,
+        ),
     )
 
 
 def visit_join_asof(node: Any, visitor: Any) -> Any:
     left = visitor.visit(node.left)
     right = visitor._visit_and_coerce_right(node.right, left)
-    return visitor.backend.join_asof(
-        left, right,
-        on=node.on[0] if node.on else node.left_on[0],
-        by=node.by,
-        strategy=node.strategy or "backward",
-        tolerance=node.tolerance,
+    return visitor._enrich_native_call(
+        node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+        lambda: visitor.backend.join_asof(
+            left, right,
+            on=node.on[0] if node.on else node.left_on[0],
+            by=node.by, strategy=node.strategy or "backward",
+            tolerance=node.tolerance,
+        ),
     )
 
 
@@ -47,21 +55,29 @@ def visit_ref(node: Any, visitor: Any) -> Any:
 
 
 def visit_resource_read(node: Any, visitor: Any) -> Any:
-    out = visitor.backend.read_resource(node.resource)
-    if node.resource.table_schema is not None:
-        out = visitor.apply_conform(
-            out, node.resource.table_schema, empty_from_schema=True,
-            resource_name=node.resource.name,
-        )
-    return out
+    def _read_and_conform():
+        out = visitor.backend.read_resource(node.resource)
+        if node.resource.table_schema is not None:
+            out = visitor.apply_conform(
+                out, node.resource.table_schema, empty_from_schema=True,
+                resource_name=node.resource.name,
+            )
+        return out
+    return visitor._enrich_native_call(node, RKEY_MOUNTAINASH_REL.READ_RESOURCE, _read_and_conform)
 
 
 def visit_source(node: Any, visitor: Any) -> Any:
     from mountainash.pydata.ingress.pydata_ingress import PydataIngress
     df = PydataIngress.convert(node.data)
-    return visitor.backend.read(df)
+    return visitor._enrich_native_call(
+        node, RKEY_MOUNTAINASH_REL.SOURCE,
+        lambda: visitor.backend.read(df),
+    )
 
 
 def visit_conform(node: Any, visitor: Any) -> Any:
     native = visitor.visit(node.input)
-    return visitor.apply_conform(native, node.spec, contract=node.contract)
+    return visitor._enrich_native_call(
+        node, RKEY_MOUNTAINASH_REL.CONFORM,
+        lambda: visitor.apply_conform(native, node.spec, contract=node.contract),
+    )

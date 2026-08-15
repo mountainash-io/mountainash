@@ -71,6 +71,7 @@ def enrich_materialization(
     fn: Callable[[], Any],
     *,
     prefer_operation_keys: "frozenset | None" = None,
+    dialect: "str | None" = None,
 ) -> Any:
     """Materialization-boundary enrichment: consult the spine's MATERIALIZE
     residue (matched by native exception type — residue facts keep their
@@ -89,13 +90,18 @@ def enrich_materialization(
             raised error is enriched only when **exactly one** candidate
             matches the exception's type; zero or multiple matches leave
             the original exception to propagate raw rather than guessing.
+        dialect: override the backend's own dialect for the residue lookup
+            — the authoritative input dialect item 95 resolves for
+            multi-input nodes.
     """
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.types import BackendCapabilityError
 
     family = getattr(backend, "backend_type", None)
     residue = (
-        CapabilityRegistry.residue_for(family, getattr(backend, "dialect", None))
+        CapabilityRegistry.residue_for(
+            family, dialect if dialect is not None else getattr(backend, "dialect", None)
+        )
         if family is not None
         else {}
     )
