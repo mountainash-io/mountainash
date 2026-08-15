@@ -51,3 +51,39 @@ class TestShapeBDerivedInlineRead:
             "name": ["b"],
             "name_right": ["c"],
         }
+
+
+class TestBoundariesAndRegressions:
+    def test_project_rooted_inline_pandas_read_in_union(self):
+        dag = RelationDAG()
+        dag.add("a_pol", ma.relation(_pl({"id": [1], "name": ["a"]})))
+        dag.add(
+            "m_proj",
+            ma.relation(_pd({"id": [2], "name": ["c"]})).select("id", "name"),
+        )
+        dag.add("target", ma.concat([dag.ref("a_pol"), dag.ref("m_proj")]))
+        result = dag.collect("target")
+        assert sorted(result.collect().to_dict(as_series=False)["id"]) == [1, 2]
+
+    def test_transitive_ref_chain(self):
+        dag = RelationDAG()
+        # Names chosen so "a_pol" sorts alphabetically before "n_sel" among
+        # target's own direct refs, keeping the anchor-detection walk
+        # (item 89's deterministic "first ref alphabetically") on the
+        # Polars anchor -- this test targets the transitive-chain
+        # materialisation path, not anchor-selection order.
+        dag.add("m_raw", ma.relation(_pd({"id": [2], "name": ["c"]})).filter(ma.col("id").gt(0)))
+        dag.add("n_sel", dag.ref("m_raw").select("id"))
+        dag.add("a_pol", ma.relation(_pl({"id": [1, 2]})))
+        dag.add("target", dag.ref("a_pol").join(dag.ref("n_sel"), on="id"))
+        result = dag.collect("target")
+        assert result.collect().to_dict(as_series=False)["id"] == [2]
+
+    def test_no_leaf_ref_key_context_preserved(self):
+        # A pure inline-data (SourceRelNode) ref materialises with the anchor
+        # pair and is still key-assessed -- no key_context leak into the target.
+        dag = RelationDAG()
+        dag.add("inline", ma.relation({"id": [1]}))
+        dag.add("target", dag.ref("inline").select("id"))
+        result = dag.collect("target")
+        assert result.collect().to_dict(as_series=False)["id"] == [1]
