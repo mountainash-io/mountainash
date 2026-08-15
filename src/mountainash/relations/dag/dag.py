@@ -4,9 +4,16 @@ from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
 
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.relations.core.relation_nodes import ReadRelNode
 from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
+
+
+def _consumer_prototype(family: CONST_BACKEND, dialect: str | None) -> Any:
+    """Alias for :func:`_anchor_prototype` (the consumer-side prototype
+    ``_coerce_to_match`` needs as its target object). Same function, renamed
+    at the call site so item 97's resolver-time coercion reads naturally
+    without rewriting item 92's territory."""
+    return _anchor_prototype(family, dialect)
 
 
 def _anchor_prototype(family: CONST_BACKEND, dialect: str | None) -> Any:
@@ -398,6 +405,11 @@ class RelationDAG:
         expression_system = expression_system_cls(dialect=dialect)
         expr_visitor = UnifiedExpressionVisitor(expression_system)
 
+        # Item 97 (inherits item 92's Revision 4 upfront guard, broadened to
+        # ANY foreign-family ref -- bare or derived -- not just a bare
+        # ReadRelNode root): a lazy narwhals ANCHOR consuming foreign refs
+        # must reject before caching -- _coerce_to_match's eager-over-lazy
+        # handling is order-dependent and must not be relied upon.
         if backend_target_name is not None or ref_names:
             anchor_name = backend_target_name or sorted(ref_names)[0]
             anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
@@ -405,17 +417,35 @@ class RelationDAG:
                 if any(
                     self._resolve_actual_identity_for(n)[0]
                     not in (None, resolved_backend)
-                    and isinstance(getattr(self.relations[n], "_node", None), ReadRelNode)
                     for n in ref_names
                 ):
                     raise TypeError(
                         "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
                     )
 
-        cache: dict[str, Any] = {}
+        canonical: dict[str, "tuple[Any, CONST_BACKEND | None, str | None]"] = {}
+        coerced: dict[tuple[str, CONST_BACKEND, str | None], Any] = {}
 
         def resolver(n: str) -> Any:
-            return cache[n]
+            value, src_family, src_dialect = canonical[n]
+            if src_family is None:
+                return value  # no-leaf ref: already anchor-family
+            cons_family = visitor.backend.backend_type
+            cons_dialect = visitor.backend.dialect
+            needs_coercion = (
+                src_family != cons_family
+                or (
+                    src_family is CONST_BACKEND.NARWHALS
+                    and src_dialect != cons_dialect
+                )
+            )
+            if not needs_coercion:
+                return value
+            key = (n, cons_family, cons_dialect)
+            if key not in coerced:
+                proto = _consumer_prototype(cons_family, cons_dialect)
+                coerced[key] = UnifiedRelationVisitor._coerce_to_match(proto, value)
+            return coerced[key]
 
         # KeyDriftContext (item 48 PR-D): +1 optional visitor param,
         # analogous to ref_resolver. The context's resource_name is the
@@ -464,7 +494,15 @@ class RelationDAG:
         if ref_names:
             from mountainash.relations.dag.key_context import KeyDriftContext
 
-            # Get full topological order and filter to only the needed refs
+            # Item 97: canonical materialization -- every ref is compiled
+            # exactly once, with ITS OWN (family, dialect) identity, and
+            # stored as (value, family, dialect) in `canonical`. A consumer
+            # of that ref coerces it lazily via `resolver()` above (memoised
+            # per (name, consumer_family, consumer_dialect)). This replaces
+            # item 89's four-way branch (anchor-for-foreign-bare-read /
+            # own-dialect / reuse-anchor) with a three-way branch that still
+            # reuses the anchor's objects for the same-family-same-dialect
+            # case (item 89's zero-cost homogeneous-DAG path).
             full_order = self.topological_order(target=None)
             for n in full_order:
                 if n not in ref_names:
@@ -474,78 +512,50 @@ class RelationDAG:
                 if root is None:
                     raise ValueError(f"relation {n!r} has no _node attribute")
 
-                # Item 89: give each dependency its OWN physical
-                # (family, dialect) identity for the duration of ITS OWN
-                # root.accept(visitor) -- mirrors the key_context per-ref
-                # swap immediately below. Without this, every dependency
-                # was gated/enriched against the ANCHOR's dialect
-                # regardless of its own, silently leaking a raw native
-                # exception whenever a dialect-scoped CapabilityFact
-                # (BUILD-time GATE or MATERIALIZE_RESIDUE) belonged to the
-                # ref's own dialect, not the anchor's.
                 ref_family, ref_dialect = self._resolve_actual_identity_for(n)
 
-                if ref_family is None:
-                    # No physical read identity (pure SourceRelNode/inline-
-                    # data ref). Nothing to compare against -- inherit the
-                    # anchor unconditionally.
-                    visitor.backend, visitor.expr_visitor = (
-                        relation_system,
-                        expr_visitor,
-                    )
-                elif ref_family != resolved_backend:
-                    if isinstance(root, ReadRelNode):
-                        anchor_proto = _anchor_prototype(resolved_backend, dialect)
-                        visitor.backend = get_relation_system(ref_family)(dialect=ref_dialect)
-                        visitor.expr_visitor = UnifiedExpressionVisitor(
-                            get_expression_system(ref_family)(dialect=ref_dialect)
-                        )
-                        visitor.key_context = KeyDriftContext(
-                            resource_name=n,
-                            constraints_for=self.constraints_for,
-                            schema_of=self.schema,
-                        )
-                        result = root.accept(visitor)
-                        cache[n] = UnifiedRelationVisitor._coerce_to_match(
-                            anchor_proto, result
-                        )
-                        visitor.backend, visitor.expr_visitor = relation_system, expr_visitor
-                        continue
-                    visitor.backend, visitor.expr_visitor = relation_system, expr_visitor
-                elif ref_dialect != dialect:
-                    # Same family, dialect differs from the anchor's --
-                    # covers BOTH a genuinely different known dialect AND
-                    # "ref_dialect is None but the anchor's dialect is
-                    # known" (a same-family-unknown-dialect ref must get
-                    # dialect=None explicitly, never silently inherit the
-                    # anchor's specific dialect).
-                    visitor.backend = relation_system_cls(dialect=ref_dialect)
-                    visitor.expr_visitor = UnifiedExpressionVisitor(
-                        expression_system_cls(dialect=ref_dialect)
-                    )
-                else:
-                    # Same family, same dialect as the anchor -- the
-                    # common case. Reuse the anchor's ORIGINAL objects: no
-                    # reconstruction, no new identity, no behaviour change
-                    # for a homogeneous DAG.
-                    visitor.backend, visitor.expr_visitor = (
-                        relation_system,
-                        expr_visitor,
-                    )
-
                 # Each dependency is key-assessed against ITS OWN
-                # constraints, unconditionally — independent of whether the
-                # target itself has a key identity (key_context may be None
-                # for an ad-hoc execute() target; that must not suppress
-                # dependency assessment).
+                # constraints, unconditionally -- including a no-leaf
+                # SourceRelNode ref -- independent of whether the target
+                # itself has a key identity.
                 visitor.key_context = KeyDriftContext(
                     resource_name=n,
                     constraints_for=self.constraints_for,
                     schema_of=self.schema,
                 )
-                cache[n] = root.accept(visitor)
+
+                if ref_family is None:
+                    # No physical read identity (pure SourceRelNode/inline-
+                    # data ref). Materialise with the anchor pair.
+                    visitor.backend, visitor.expr_visitor = (
+                        relation_system,
+                        expr_visitor,
+                    )
+                    canonical[n] = (root.accept(visitor), None, None)
+                elif ref_family == resolved_backend and ref_dialect == dialect:
+                    # Same family + same dialect as the anchor: reuse the
+                    # anchor's ORIGINAL objects (item 89's zero-cost path).
+                    visitor.backend, visitor.expr_visitor = (
+                        relation_system,
+                        expr_visitor,
+                    )
+                    canonical[n] = (root.accept(visitor), ref_family, ref_dialect)
+                else:
+                    # Foreign family, or same family with a different
+                    # dialect: compile with the ref's OWN (family, dialect)
+                    # identity -- never the anchor's -- so a dialect-scoped
+                    # CapabilityFact gates/enriches correctly, and store the
+                    # raw canonical value uncoerced; coercion happens lazily
+                    # at resolver() call time, against the ACTUAL consumer.
+                    visitor.backend = get_relation_system(ref_family)(dialect=ref_dialect)
+                    visitor.expr_visitor = UnifiedExpressionVisitor(
+                        get_expression_system(ref_family)(dialect=ref_dialect)
+                    )
+                    canonical[n] = (root.accept(visitor), ref_family, ref_dialect)
+
             # Restore the anchor's ORIGINAL backend/expr_visitor/key_context
-            # (None for ad-hoc execute()) before compiling the target itself.
+            # ONCE, after the loop -- never per-branch (a trailing no-leaf
+            # ref must not leak its key_context into the target compile).
             visitor.backend, visitor.expr_visitor, visitor.key_context = (
                 relation_system,
                 expr_visitor,
