@@ -532,7 +532,7 @@ class TestExpressionChildrenWalker:
         )
         from mountainash.relations.core.relation_nodes import ProjectRelNode
         from mountainash.relations.core.unified_visitor.relation_visitor import (
-            _present_expression_function_keys,
+            _present_operation_keys,
         )
 
         op = RelationOperationRegistry.get(RKEY_SUBSTRAIT_REL.PROJECT_SELECT)
@@ -544,8 +544,8 @@ class TestExpressionChildrenWalker:
             ],
             operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
         )
-        assert _present_expression_function_keys(node, op) == frozenset(
-            {FK_STR.SPLIT, FK_LIST.CONTAINS}
+        assert _present_operation_keys(node, op) == frozenset(
+            {FK_STR.SPLIT, FK_LIST.CONTAINS, RKEY_SUBSTRAIT_REL.PROJECT_SELECT}
         )
 
     def test_no_cycle_recursion_error_on_self_referential_options(self):

@@ -73,15 +73,15 @@ def _iter_function_keys(value: Any, _seen: "set[int] | None" = None):
             yield from _iter_function_keys(item, _seen)
 
 
-def _present_expression_function_keys(node: RelationNode, op: Any) -> frozenset:
-    """Function keys structurally present in *node*'s bound
-    ``EXPRESSION``/``EXPRESSION_LIST`` args -- the caller's evidence for
-    which operation(s) were actually being compiled, used to disambiguate
-    :func:`~mountainash.core.limitations.enrich_materialization` candidates
-    that share a native exception type."""
+def _present_operation_keys(node: RelationNode, op: Any) -> frozenset:
+    """The op's own RKEY plus the function keys structurally present in
+    *node*'s bound ``EXPRESSION``/``EXPRESSION_LIST`` args -- the caller's
+    evidence for which operation(s) were actually being compiled, used to
+    disambiguate :func:`~mountainash.core.limitations.enrich_materialization`
+    candidates that share a native exception type."""
     from mountainash.relations.core.relation_system.relation_mapping.registry import ArgKind
 
-    keys: set = set()
+    keys: set = {op.operation_key}
     for binding in op.args:
         if binding.kind in (ArgKind.EXPRESSION, ArgKind.EXPRESSION_LIST):
             keys.update(_iter_function_keys(getattr(node, binding.field)))
@@ -271,22 +271,36 @@ class UnifiedRelationVisitor:
         from mountainash.core.limitations import enrich_materialization
 
         if op.handler is not None:
-            # No generic expression-field introspection for handler-routed
-            # ops today -- an empty (non-None) preferred set is
-            # authoritative in enrich_materialization, so this is a
-            # verified no-op unless/until a handler op registers a
-            # MATERIALIZE_RESIDUE fact.
-            return enrich_materialization(
-                self.backend, lambda: op.handler(node, self),
-                prefer_operation_keys=frozenset(),
-            )
+            # Handler ops wrap their own native call (see handlers.py) --
+            # never wrap the whole handler, or a child read/coercion
+            # TypeError would be narrowed under the parent's RKEY.
+            return op.handler(node, self)
         method = getattr(self.backend, op.protocol_method.__name__)
         args = [self._bind(node, b) for b in op.args]  # children compiled OUTSIDE the wrap
         kwargs = self._bind_options(node, op)
-        prefer = _present_expression_function_keys(node, op)
+        prefer = _present_operation_keys(node, op)
+        d = self._authoritative_dialect(node, op)
+        dialect = getattr(self.backend, "dialect", None) if d is _UNRESOLVED else d
         return enrich_materialization(
             self.backend, lambda: method(*args, **kwargs),
             prefer_operation_keys=prefer,
+            dialect=dialect,
+        )
+
+    def _enrich_native_call(self, node: RelationNode, operation_key: Any, fn: Callable[[], Any]) -> Any:
+        """Wrap a single native backend call in residue enrichment, scoped to
+        ``operation_key`` and the authoritative input dialect (item 95)."""
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            RelationOperationRegistry,
+        )
+        op = RelationOperationRegistry.get(operation_key)
+        d = self._authoritative_dialect(node, op)   # item 95: _UNRESOLVED | str | None
+        dialect = getattr(self.backend, "dialect", None) if d is _UNRESOLVED else d
+        return enrich_materialization(
+            self.backend, fn,
+            prefer_operation_keys=frozenset({operation_key}),
+            dialect=dialect,
         )
 
     def _bind(self, node: RelationNode, binding: Any) -> Any:
