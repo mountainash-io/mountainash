@@ -25,6 +25,16 @@ _CASE_SENSITIVITY = frozenset(
 _MULTILINE = frozenset({"MULTILINE_DISABLED", "MULTILINE_ENABLED"})
 _DOTALL = frozenset({"DOTALL_DISABLED", "DOTALL_ENABLED"})
 
+# Temporal-rounding option domains (round_temporal/round_calendar, item 74).
+# Distinct from _ROUNDING (arithmetic tie-breaking) -- these are the four
+# Substrait rounding directions for datetime bucket rounding. _ROUND_UNITS is
+# the single shared 9-unit closed domain both ops accept at build time (real
+# Substrait gives them the identical domain -- there is no per-op split).
+_TEMPORAL_ROUNDING_MODES = frozenset({"FLOOR", "CEIL", "ROUND_TIE_DOWN", "ROUND_TIE_UP"})
+_ROUND_UNITS = frozenset({
+    "YEAR", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND",
+})
+
 # Generated from Substrait v0.98.0, commit
 # b322d463804660674e43c9d2b659730375e3026e. The pinned-fixture guard owns
 # drift detection; runtime code must never read from tests/.
@@ -110,6 +120,13 @@ OPTION_DOMAINS: dict[tuple[str, str], frozenset[str]] = {
     ("extract", "component"): frozenset(c.value for c in DatetimeComponent),
     ("extract", "indexing"): frozenset({"ONE", "ZERO"}),
     ("extract_boolean", "component"): frozenset(c.value for c in BooleanComponent),
+    # Temporal rounding (item 74) -- real Substrait shared 9-unit domain,
+    # verified against functions_datetime.yaml (no per-op split; origin is
+    # excluded here entirely, it is an arguments-channel parameter in v1).
+    ("round_temporal", "rounding"): _TEMPORAL_ROUNDING_MODES,
+    ("round_temporal", "unit"): _ROUND_UNITS,
+    ("round_calendar", "rounding"): _TEMPORAL_ROUNDING_MODES,
+    ("round_calendar", "unit"): _ROUND_UNITS,
 }
 
 
