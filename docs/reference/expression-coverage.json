@@ -1,7 +1,7 @@
 {
   "stamp": {
     "declarations": 42,
-    "facts": 1558,
+    "facts": 1560,
     "operations": 324,
     "implementation_records": 972
   },
@@ -39,8 +39,8 @@
           "unknown": 0
         },
         "default_capable": 138,
-        "audited_clean": 112,
-        "constrained": 74,
+        "audited_clean": 111,
+        "constrained": 75,
         "audited_unknown": 0
       }
     },
@@ -50,19 +50,19 @@
       "expr_capable": 149,
       "literal_only": 65,
       "polymorphic": 9,
-      "unsupported": 1335
+      "unsupported": 1337
     },
     "facts_by_enforcement": {
-      "gate": 1551,
+      "gate": 1553,
       "router_metadata": 3,
       "materialize_residue": 4
     },
     "facts_by_backend": {
       "polars": 265,
       "narwhals": 662,
-      "ibis": 631
+      "ibis": 633
     },
-    "facts_total": 1558
+    "facts_total": 1560
   },
   "families": [
     {
@@ -4997,15 +4997,48 @@
               "impl_protocol": "MountainAshIbisScalarDatetimeExpressionSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
+                "params": 1,
                 "option_selectors": 0,
-                "value_classes": 0,
-                "dialects": 0
+                "value_classes": 1,
+                "dialects": 1
               },
-              "constraints": [],
+              "constraints": [
+                {
+                  "dialect": null,
+                  "param": "timezone",
+                  "option_value": null,
+                  "value_class": "iana_timezone",
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-16",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-duckdb",
+                  "param": "timezone",
+                  "option_value": null,
+                  "value_class": "iana_timezone",
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-16",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
               "residue": [],
               "routed": [],
               "refinements": []
@@ -48142,6 +48175,22 @@
         },
         {
           "dialect": null,
+          "param": "timezone",
+          "option_value": null,
+          "value_class": "iana_timezone",
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-16",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": null,
           "param": "unit",
           "option_value": null,
           "value_class": "duration_multiplier",
@@ -48217,6 +48266,22 @@
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-07-29",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-duckdb",
+          "param": "timezone",
+          "option_value": null,
+          "value_class": "iana_timezone",
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-16",
           "native_errors": [],
           "probe_exempt": null
         },

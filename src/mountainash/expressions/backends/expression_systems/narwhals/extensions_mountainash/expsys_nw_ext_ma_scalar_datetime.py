@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 

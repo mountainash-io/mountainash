@@ -280,6 +280,7 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     # Datetime open-value options.
     ("assume_timezone", "timezone"): ("datetime",),
     ("to_timezone", "timezone"): ("datetime",),
+    ("is_dst", "timezone"): ("datetime",),
     ("local_timestamp", "timezone"): ("datetime",),
     ("offset_by", "offset"): ("datetime",),
     ("strftime", "format"): ("datetime",),
@@ -323,6 +324,7 @@ OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
 _MA_OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
     ("assume_timezone", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
     ("to_timezone", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
+    ("is_dst", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
     ("local_timestamp", "timezone"): ("UTC", "Australia/Sydney", "America/New_York"),
     ("offset_by", "offset"): ("1d", "-3mo", "2h30m"),
     ("strftime", "format"): ("%Y-%m-%d", "%H:%M:%S"),

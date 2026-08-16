@@ -6,7 +6,7 @@ Implements datetime operations for the Polars backend.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import polars as pl
 

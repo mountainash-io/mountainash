@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 42 · Facts: 1558 · Registered operations: 324 · Implementation records: 972
+Declarations: 42 · Facts: 1560 · Registered operations: 324 · Implementation records: 972
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -52,7 +52,7 @@ Legend — cell states (by exception):
 | --- | --- | --- | --- | --- | --- | --- |
 | polars | 191 | 81 | 52 | 0 | 0 | 324 |
 | narwhals | 97 | 149 | 78 | 0 | 0 | 324 |
-| ibis | 138 | 112 | 74 | 0 | 0 | 324 |
+| ibis | 138 | 111 | 75 | 0 | 0 | 324 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1335 |
-| Enforcement | gate 1551, router_metadata 3, materialize_residue 4 |
-| Backend | polars 265, narwhals 662, ibis 631 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1337 |
+| Enforcement | gate 1553, router_metadata 3, materialize_residue 4 |
+| Backend | polars 265, narwhals 662, ibis 633 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -161,7 +161,7 @@ audited_unknown: 0
 | `EXTRACT_WEEKDAY` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_YEAR` | ✓ | ✓ audited | ✓ audited |
 | `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
-| `IS_DST` | ✓ | ✓ audited | ✓ audited |
+| `IS_DST` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
 | `IS_LEAP_YEAR` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_END` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_START` | ✓ | ✓ audited | ✓ audited |
