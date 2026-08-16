@@ -10,7 +10,7 @@ from mountainash.expressions.core.datetime_components import (
     CALENDAR_COMPONENTS,
     DatetimeComponent,
 )
-from typing import Any, TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 
 import narwhals as nw
 

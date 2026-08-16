@@ -45,6 +45,14 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
         FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE: ([ma.col("a"), "UTC"], {}),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE: ([ma.col("a"), "UTC"], {}),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP: ([ma.col("a"), "UTC"], {}),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL: (
+            [ma.col("a")],
+            {"rounding": "FLOOR", "unit": "DAY"},
+        ),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR: (
+            [ma.col("a")],
+            {"rounding": "FLOOR", "unit": "MONTH"},
+        ),
     }
 
 

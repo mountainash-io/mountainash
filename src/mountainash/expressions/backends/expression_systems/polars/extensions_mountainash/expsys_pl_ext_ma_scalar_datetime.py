@@ -409,7 +409,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Truncated datetime.
         """
-        return x.dt.truncate(unit)
+        return self._round(x, "FLOOR", unit)
 
     def round_dt(
         self,
@@ -426,7 +426,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Rounded datetime.
         """
-        return x.dt.round(unit)
+        return self._round(x, "ROUND_TIE_UP", unit)
 
     def ceil_dt(
         self,
@@ -443,10 +443,7 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Ceiling datetime.
         """
-        # Polars doesn't have ceil for datetime, use truncate + add
-        truncated = x.dt.truncate(unit)
-        # If truncated != original, add one unit
-        return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
+        return self._round(x, "CEIL", unit)
 
     def floor_dt(
         self,
@@ -463,8 +460,23 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         Returns:
             Floor datetime.
         """
-        # Floor is the same as truncate
-        return x.dt.truncate(unit)
+        # Floor is the same as truncate.
+        return self._round(x, "FLOOR", unit)
+
+    def _round(self, x: PolarsExpr, rounding: str, unit: str) -> PolarsExpr:
+        """Redirect through the real round_temporal/round_calendar
+        implementation (item 74). `unit` is already normalize_unit()'d and
+        validate_ma_option()'d by the builder before it reaches here."""
+        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import parse_ma_unit
+
+        multiple, canonical_unit, family = parse_ma_unit(unit)
+        if family == "calendar":
+            return self.round_calendar(
+                x, rounding=rounding, unit=canonical_unit, multiple=multiple
+            )
+        return self.round_temporal(
+            x, rounding=rounding, unit=canonical_unit, multiple=multiple
+        )
 
     # =========================================================================
     # Timezone Methods

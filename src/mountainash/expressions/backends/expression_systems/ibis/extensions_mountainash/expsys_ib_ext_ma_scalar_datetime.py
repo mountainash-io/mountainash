@@ -26,21 +26,6 @@ _TO_TIMEZONE_UNSUPPORTED = (
 )
 
 
-# Ibis .truncate() expects a bare unit letter, not the Polars-style "<n><unit>" duration.
-# Shared by truncate() and floor_dt() (floor == truncate for datetime). Units with no
-# entry here (e.g. "1q") fall through unmapped and raise a native ibis error — declared
-# UNSUPPORTED on ibis via capability facts.
-_IBIS_TRUNCATE_UNIT_MAPPING = {
-    "1y": "Y",
-    "1mo": "M",
-    "1w": "W",
-    "1d": "D",
-    "1h": "h",
-    "1m": "m",
-    "1s": "s",
-    "1ms": "ms",
-    "1us": "us",
-}
 
 
 class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol["IbisValueExpr"]):
@@ -431,15 +416,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         Args:
             x: Datetime expression.
-            unit: Unit string (1d, 1h, Y, M, D, h, m, s, etc.).
+            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
 
         Returns:
             Truncated datetime.
         """
-        # Ibis truncate expects just the unit letter, not "1d" format
-        # Convert "1d" -> "D", "1h" -> "h", etc.
-        unit_mapped = _IBIS_TRUNCATE_UNIT_MAPPING.get(unit, unit)
-        return x.truncate(unit_mapped)
+        return self._round(x, "FLOOR", unit)
 
     def round_dt(
         self,
@@ -451,16 +433,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         Args:
             x: Datetime expression.
-            unit: Unit string.
+            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Ibis may not have round. Falls back to truncate.
         """
-        # Ibis doesn't have round - fallback to truncate
-        return x.truncate(unit)
+        return self._round(x, "ROUND_TIE_UP", unit)
 
     def ceil_dt(
         self,
@@ -472,16 +450,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         Args:
             x: Datetime expression.
-            unit: Unit string.
+            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
 
         Returns:
             Ceiling datetime.
-
-        Note:
-            Ibis doesn't have ceil. Falls back to truncate.
         """
-        # Ibis doesn't have ceil - fallback to truncate
-        return x.truncate(unit)
+        return self._round(x, "CEIL", unit)
 
     def floor_dt(
         self,
@@ -493,19 +467,28 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         Args:
             x: Datetime expression.
-            unit: Unit string.
+            unit: Unit string (1d, 1h, 1mo, 1y, etc.).
 
         Returns:
             Floor datetime.
-
-        Note:
-            floor == truncate for datetime (both drop the sub-unit remainder), so
-            ibis floor is honored wherever truncate is. Applies the same Polars-style
-            duration -> ibis unit-letter mapping as truncate (round_dt/ceil_dt have no
-            native ibis impl and are declared UNSUPPORTED via capability facts instead).
         """
-        unit_mapped = _IBIS_TRUNCATE_UNIT_MAPPING.get(unit, unit)
-        return x.truncate(unit_mapped)
+        # Floor is the same as truncate.
+        return self._round(x, "FLOOR", unit)
+
+    def _round(self, x: IbisTemporalExpr, rounding: str, unit: str) -> IbisValueExpr:
+        """Redirect through the real round_temporal/round_calendar
+        implementation (item 74). `unit` is already normalize_unit()'d and
+        validate_ma_option()'d by the builder before it reaches here."""
+        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import parse_ma_unit
+
+        multiple, canonical_unit, family = parse_ma_unit(unit)
+        if family == "calendar":
+            return self.round_calendar(
+                x, rounding=rounding, unit=canonical_unit, multiple=multiple
+            )
+        return self.round_temporal(
+            x, rounding=rounding, unit=canonical_unit, multiple=multiple
+        )
 
     # =========================================================================
     # Timezone Methods

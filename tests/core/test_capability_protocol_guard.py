@@ -30,6 +30,7 @@ EXPECTED_DECLARATION_MODULES = (
     "mountainash.expressions.backends.capabilities.arithmetic",
     "mountainash.expressions.backends.capabilities.datetime.extract",
     "mountainash.expressions.backends.capabilities.datetime.options",
+    "mountainash.expressions.backends.capabilities.datetime.rounding",
     "mountainash.expressions.backends.capabilities.datetime.strptime",
     "mountainash.expressions.backends.capabilities.datetime.value_classes_ma",
     "mountainash.expressions.backends.capabilities.datetime.value_classes_substrait",
@@ -125,7 +126,7 @@ def _domain_predicate(leaf: str):
     domains = {
         "string": Domain.STRING, "arithmetic": Domain.ARITHMETIC,
         "options": Domain.DATETIME, "strptime": Domain.DATETIME,
-        "extract": Domain.DATETIME,
+        "extract": Domain.DATETIME, "rounding": Domain.DATETIME,
     }
     want = domains[leaf]
     return lambda f: (

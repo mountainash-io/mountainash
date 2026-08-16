@@ -94,11 +94,13 @@ def _is_dst_returns_constant_false() -> bool:
     return all(v is False for v in out["d"].to_list())
 
 
-def _round_temporal_calendar_backends_are_broken() -> bool:
-    """round_temporal/round_calendar backend bodies are still stub placeholders
-    (item 74, Tasks 4-6). Build a column and confirm the call still fails on
-    Polars (the reference backend). Returns False once real per-backend
-    bodies are wired (a correct compile no longer raises)."""
+def _round_temporal_calendar_still_works() -> bool:
+    """round_temporal/round_calendar are real, cross-backend-tested
+    implementations (item 74) covered by a dedicated plain pytest file
+    rather than this module's disposition matrix. Build a column and
+    confirm the call still succeeds on Polars (the reference backend).
+    Returns False if this op ever regresses back to broken -- the parked
+    reason claiming coverage exists elsewhere would then need re-examining."""
     from datetime import datetime
 
     import polars as pl
@@ -110,9 +112,9 @@ def _round_temporal_calendar_backends_are_broken() -> bool:
         ma.relation(df).with_columns(
             ma.col("ts").dt.round_temporal(rounding="FLOOR", unit="DAY").name.alias("d")
         ).to_polars()
-        return False
-    except Exception:
         return True
+    except Exception:
+        return False
 
 
 def _round_origin_always_rejected() -> bool:
@@ -860,64 +862,76 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
         }
     }
 )
-# round_temporal/round_calendar (item 74): rounding/unit/multiple ARE wired
-# real options as of Task 2-3 (closed OPTION_DOMAINS, API-builder validated),
-# but polars/ibis/narwhals backend bodies are still stub placeholders pending
-# Tasks 4-6 -- no cross-backend disposition exists yet to move these into
-# TESTED_OPTION_PARAMS. origin is permanently excluded from v1 (real Substrait
-# types it as an arguments-channel value, not a string option; any non-None
-# value always raises InvalidOptionValueError at build time regardless of
-# backend) -- it has no legal value to ever test.
+# round_temporal/round_calendar (item 74): rounding/unit/multiple ARE real,
+# fully implemented, and cross-backend tested -- but via a dedicated plain
+# pytest file (tests/expressions/cross_backend/test_datetime_rounding.py),
+# not via this module's OPTION_DISPOSITIONS/param_taxonomy machinery (that
+# would require building a full per-value disposition matrix mirroring
+# truncate/round_dt/ceil_dt/floor_dt's _unit_* helpers above, out of scope
+# for this PR). origin is permanently excluded from v1 (real Substrait
+# types it as an arguments-channel value, not a string option; any
+# non-None value always raises InvalidOptionValueError at build time
+# regardless of backend) -- it has no legal value to ever test.
 _KNOWN_UNTESTED_OPTION_PARAMS.update(
     {
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
-                "wired real option (Task 2-3); backend bodies are still stub "
-                "placeholders (Tasks 4-6) — see backlog: round-temporal-calendar-real-implementation"
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
             ),
             since="2026-08-16",
         ),
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
-                "wired real option (Task 2-3); backend bodies are still stub "
-                "placeholders (Tasks 4-6) — see backlog: round-temporal-calendar-real-implementation"
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
             ),
             since="2026-08-16",
         ),
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "unit"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
-                "wired real option (Task 2-3); backend bodies are still stub "
-                "placeholders (Tasks 4-6) — see backlog: round-temporal-calendar-real-implementation"
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
             ),
             since="2026-08-16",
         ),
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "multiple"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
-                "wired real option (Task 2-3); backend bodies are still stub "
-                "placeholders (Tasks 4-6) — see backlog: round-temporal-calendar-real-implementation"
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
             ),
             since="2026-08-16",
         ),
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
-                "wired real option (Task 2-3); backend bodies are still stub "
-                "placeholders (Tasks 4-6) — see backlog: round-temporal-calendar-real-implementation"
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
             ),
             since="2026-08-16",
         ),
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
-                "wired real option (Task 2-3); backend bodies are still stub "
-                "placeholders (Tasks 4-6) — see backlog: round-temporal-calendar-real-implementation"
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
             ),
             since="2026-08-16",
         ),
+    }
+)
+_KNOWN_UNTESTED_OPTION_PARAMS.update(
+    {
         ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"): KnownGap(
             gap_kind=GapKind.UNTESTED_OPTION,
             reason=(
@@ -1843,9 +1857,9 @@ def test_untested_option_param_custom_reasons_still_hold():
         elif "placeholder stub" in r:
             if not _is_dst_returns_constant_false():
                 reason_false.append(((proto, op, param), "is_dst no longer returns constant False"))
-        elif "backend bodies are still stub placeholders" in r:
-            if not _round_temporal_calendar_backends_are_broken():
-                reason_false.append(((proto, op, param), "round_temporal/round_calendar backend bodies no longer raise (implemented)"))
+        elif "tested via a dedicated cross-backend test file" in r:
+            if not _round_temporal_calendar_still_works():
+                reason_false.append(((proto, op, param), "round_temporal/round_calendar no longer works — its dedicated test file coverage claim needs re-examining"))
         elif "origin is permanently excluded from v1" in r:
             if not _round_origin_always_rejected():
                 reason_false.append(((proto, op, param), "round_temporal/round_calendar origin no longer always raises"))

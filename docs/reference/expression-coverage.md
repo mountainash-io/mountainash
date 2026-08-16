@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 42 · Facts: 1558 · Registered operations: 324 · Implementation records: 972
+Declarations: 43 · Facts: 1460 · Registered operations: 326 · Implementation records: 978
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -50,9 +50,9 @@ Legend — cell states (by exception):
 
 | Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |
 | --- | --- | --- | --- | --- | --- | --- |
-| polars | 191 | 81 | 52 | 0 | 0 | 324 |
-| narwhals | 97 | 149 | 78 | 0 | 0 | 324 |
-| ibis | 138 | 112 | 74 | 0 | 0 | 324 |
+| polars | 191 | 83 | 52 | 0 | 0 | 326 |
+| narwhals | 97 | 151 | 78 | 0 | 0 | 326 |
+| ibis | 138 | 112 | 76 | 0 | 0 | 326 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1335 |
-| Enforcement | gate 1551, router_metadata 3, materialize_residue 4 |
-| Backend | polars 265, narwhals 662, ibis 631 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1237 |
+| Enforcement | gate 1453, router_metadata 3, materialize_residue 4 |
+| Backend | polars 265, narwhals 586, ibis 609 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -72,8 +72,8 @@ audited_unknown: 0
 | Backend | Source | Domain | Probe date | Library versions | Fixtures |
 | --- | --- | --- | --- | --- | --- |
 | ibis | mountainash | datetime | 2026-07-05 |  |  |
-| ibis | mountainash | datetime | 2026-07-24 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| ibis | mountainash | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| ibis | mountainash | datetime | 2026-08-16 |  | ibis-duckdb |
+| ibis | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
 | ibis | mountainash | relation | 2026-07-05 |  |  |
 | ibis | mountainash | set | — | — | — |
 | ibis | mountainash | ternary | — | — | — |
@@ -81,6 +81,7 @@ audited_unknown: 0
 | ibis | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| ibis | substrait | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars |
 | ibis | substrait | string | 2026-07-05 |  |  |
 | ibis | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0 | ibis-sqlite, ibis-duckdb |
@@ -89,8 +90,8 @@ audited_unknown: 0
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars, ibis-duckdb, ibis-sqlite |
 | ibis | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-07-05 |  |  |
-| narwhals | mountainash | datetime | 2026-07-24 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | mountainash | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | datetime | 2026-08-16 |  | narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | list | 2026-07-05 |  |  |
 | narwhals | mountainash | relation | 2026-07-05 |  |  |
 | narwhals | mountainash | set | — | — | — |
@@ -134,7 +135,7 @@ audited_unknown: 0
 | `ADD_MONTHS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `ADD_SECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `ADD_YEARS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `CEIL` | ✓ | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 1 dialects) |
+| `CEIL` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 0 value-classes, 2 dialects) |
 | `DATE` | ✓ | ✓ audited | ✓ audited |
 | `DAYS_IN_MONTH` | ✓ | ✓ audited | ✓ audited |
 | `DIFF_DAYS` | ✓ | ✓ audited | ✓ audited |
@@ -160,14 +161,14 @@ audited_unknown: 0
 | `EXTRACT_WEEK` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_WEEKDAY` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_YEAR` | ✓ | ✓ audited | ✓ audited |
-| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
+| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 0 value-classes, 1 dialects) |
 | `IS_DST` | ✓ | ✓ audited | ✓ audited |
 | `IS_LEAP_YEAR` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_END` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_START` | ✓ | ✓ audited | ✓ audited |
 | `NOW` | ✓ | ✓ audited | ✓ audited |
 | `OFFSET_BY` | ✓ | ✓ audited | ✓ audited |
-| `ROUND` | ✓ | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 20 option-selectors, 1 value-classes, 1 dialects) |
+| `ROUND` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 0 value-classes, 2 dialects) |
 | `TIME` | ✓ | ✓ audited | ✓ audited |
 | `TODAY` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_DAYS` | ✓ | ✓ audited | ✓ audited |
@@ -178,7 +179,7 @@ audited_unknown: 0
 | `TOTAL_NANOSECONDS` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_SECONDS` | ✓ | ✓ audited | ✓ audited |
 | `TO_TIMEZONE` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 2 option-selectors, 1 value-classes, 1 dialects) |
+| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 0 value-classes, 1 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_LIST` (mountainash / list)
 
@@ -323,6 +324,8 @@ audited_unknown: 0
 | `EXTRACT` | ◐ partial (1 params, 6 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 1 value-classes, 1 dialects) |
 | `EXTRACT_BOOLEAN` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 1 option-selectors, 1 value-classes, 1 dialects) |
 | `LOCAL_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `ROUND_CALENDAR` | ✓ audited | ✓ audited | ◐ partial (2 params, 8 option-selectors, 0 value-classes, 2 dialects) |
+| `ROUND_TEMPORAL` | ✓ audited | ✓ audited | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) |
 | `STRFTIME` | ✓ audited | ✓ audited | ✓ audited |
 | `STRPTIME_DATE` | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
 | `STRPTIME_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) · unsupported on ibis-sqlite |

@@ -51,7 +51,9 @@ from mountainash.core.capabilities import (
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_SUB_DT,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
@@ -234,6 +236,40 @@ _MATRIX_UNREACHABLE_DIALECT_FACTS = {
 } | {
     (fkey, "case_sensitivity", "CASE_INSENSITIVE", CONST_BACKEND.IBIS, "ibis-sqlite")
     for fkey in (FK_STR.CONTAINS, FK_STR.STARTS_WITH, FK_STR.ENDS_WITH)
+} | {
+    # item 74: truncate/round_dt/ceil_dt/floor_dt redirect through the real
+    # round_temporal/round_calendar implementation, which has genuine
+    # ibis-sqlite (sub-day units + quarter) and ibis-polars (calendar-unit
+    # round/ceil) gaps -- verified directly by
+    # TestDatetimeUnitIbisSqliteGate / TestDatetimeUnitIbisPolarsGate in
+    # test_arg_types_datetime.py (this matrix's "ibis" fixture is hardcoded
+    # to ibis-duckdb, which honors every value).
+    (fkey, "unit", value, CONST_BACKEND.IBIS, "ibis-sqlite")
+    for fkey in (FK_MA_DT.TRUNCATE, FK_MA_DT.ROUND, FK_MA_DT.CEIL, FK_MA_DT.FLOOR)
+    for value in (
+        "1h", "1m", "1s", "1ms", "1us", "1q",
+        "hour", "minute", "second", "millisecond", "microsecond", "quarter",
+    )
+} | {
+    (fkey, "unit", value, CONST_BACKEND.IBIS, "ibis-polars")
+    for fkey in (FK_MA_DT.ROUND, FK_MA_DT.CEIL)
+    for value in ("1y", "1mo", "1q", "year", "month", "quarter")
+} | {
+    # item 74: capabilities/datetime/rounding.py's direct Substrait
+    # round_temporal/round_calendar facts for the same two dialect gaps --
+    # verified directly by test_datetime_rounding.py's
+    # TestRoundTemporalSqliteSubDayUnsupported /
+    # TestRoundCalendarPolarsMonthYearUnsupported /
+    # TestRoundCalendarSqliteMultipleUnsupported.
+    (fkey, "unit", value, CONST_BACKEND.IBIS, "ibis-sqlite")
+    for fkey in (FK_SUB_DT.ROUND_TEMPORAL, FK_SUB_DT.ROUND_CALENDAR)
+    for value in ("HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND")
+} | {
+    (FK_SUB_DT.ROUND_TEMPORAL, "multiple", "2", CONST_BACKEND.IBIS, "ibis-sqlite"),
+    (FK_SUB_DT.ROUND_CALENDAR, "multiple", "3", CONST_BACKEND.IBIS, "ibis-sqlite"),
+} | {
+    (FK_SUB_DT.ROUND_CALENDAR, "unit", value, CONST_BACKEND.IBIS, "ibis-polars")
+    for value in ("MONTH", "YEAR")
 }
 
 
