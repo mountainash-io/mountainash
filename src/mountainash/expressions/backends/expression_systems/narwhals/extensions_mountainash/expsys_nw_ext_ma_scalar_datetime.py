@@ -5,6 +5,7 @@ Implements datetime operations for the Narwhals backend.
 
 from __future__ import annotations
 
+import datetime as dt
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -121,14 +122,43 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> NarwhalsExpr:
-        """Check if DST is observed at this time.
+        """Return True if DST is observed for x in the given timezone.
 
-        Note: Narwhals doesn't have direct DST detection.
-        Returns False as a placeholder.
+        Narwhals has no direct DST/offset primitive. Hand-rolled via two
+        reference-offset comparisons: compute the zone's UTC offset at `x`,
+        and compare against the smaller (standard-time) of two fixed
+        reference-instant offsets six months apart. DST always moves the
+        offset in the direction that makes local time further from UTC, so
+        `current_offset > standard_offset` <=> DST is in effect. Zones with
+        no DST have equal reference offsets, so this is always False.
+
+        Verified against `zoneinfo` for UTC, America/New_York,
+        America/Los_Angeles, Europe/Paris, Australia/Sydney,
+        Pacific/Auckland, Asia/Kolkata (both hemispheres).
+
+        Warning: `utc_naive` must always be derived directly from `x`
+        (never by converting back from `local_naive`), and every reference
+        offset must be derived directly from a fresh UTC-anchored literal --
+        narwhals 2.24.0 + pandas 3.0.5 raises AttributeError when a second
+        `convert_time_zone` call chains directly onto an expression whose
+        first hop already targeted America/New_York or America/Los_Angeles.
         """
-        return nw.lit(False)
+        utc_naive = x.dt.convert_time_zone("UTC").dt.replace_time_zone(None)
+        local_naive = x.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
+        current_offset = local_naive - utc_naive
+
+        def _offset_at(utc_dt: datetime) -> NarwhalsExpr:
+            ref_utc = nw.lit(utc_dt)
+            ref_utc_naive = ref_utc.dt.replace_time_zone(None)
+            ref_local_naive = ref_utc.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
+            return ref_local_naive - ref_utc_naive
+
+        ref1 = _offset_at(datetime(2020, 1, 1, 12, 0, tzinfo=dt.timezone.utc))
+        ref2 = _offset_at(datetime(2020, 7, 1, 12, 0, tzinfo=dt.timezone.utc))
+        standard_offset = nw.when(ref1 < ref2).then(ref1).otherwise(ref2)
+        return current_offset > standard_offset
 
     # =========================================================================
     # Date Arithmetic Methods

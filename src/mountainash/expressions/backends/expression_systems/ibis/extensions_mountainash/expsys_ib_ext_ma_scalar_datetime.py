@@ -24,6 +24,10 @@ _TO_TIMEZONE_UNSUPPORTED = (
     "to_timezone is not supported on ibis — the target zone never reaches the "
     "engine; see capabilities/datetime/value_classes_ma.py"
 )
+_IS_DST_UNSUPPORTED = (
+    "is_dst is not supported on ibis — ibis has no DST/timezone-offset "
+    "primitive; see capabilities/datetime/value_classes_ma.py"
+)
 
 
 # Ibis .truncate() expects a bare unit letter, not the Polars-style "<n><unit>" duration.
@@ -143,14 +147,19 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         self,
         x: IbisTemporalExpr,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> IbisValueExpr:
-        """Check if DST is observed at this time.
+        """Ibis has no timezone/DST detection primitive; declared UNSUPPORTED.
 
-        Note: Ibis doesn't have direct DST detection.
-        Returns False as a placeholder.
+        Declared UNSUPPORTED on ibis (see capabilities/datetime/value_classes_ma.py)
+        — the capability gate raises before this method is reached. The raise
+        here is defence in depth (mirrors to_timezone's established pattern).
         """
-        return ibis.literal(False)
+        raise BackendCapabilityError(
+            _IS_DST_UNSUPPORTED,
+            backend="ibis",
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
+        )
 
     # =========================================================================
     # Date Arithmetic Methods

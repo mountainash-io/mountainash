@@ -2142,6 +2142,11 @@ def test_extract_boolean_timezone_invalid_option_rejected_at_build_time(
         rejection.build_expr()
 
 
+def test_is_dst_requires_timezone() -> None:
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("ts").dt.is_dst()
+
+
 TESTED_OPTION_PARAMS: list[tuple] = []
 TESTED_OPTION_PARAMS.extend(
     (

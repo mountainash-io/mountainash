@@ -187,7 +187,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> ExpressionT:
         """Check if DST is observed at this time."""
         ...

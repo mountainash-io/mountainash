@@ -116,14 +116,25 @@ class MountainAshPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem
         self,
         x: PolarsExpr,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> PolarsExpr:
-        """Check if DST is observed at this time.
+        """Return True if DST is observed for x in the given timezone.
 
-        Note: Polars doesn't have direct DST detection.
-        Returns False as a placeholder.
+        Args:
+            x: Datetime expression.
+            timezone: IANA timezone name. `x` need not be timezone-aware:
+                `convert_time_zone` converts to the target zone.
+
+        Returns:
+            Boolean expression; True where DST is in effect. Matches the
+            existing extract/extract_boolean precedent: a naive `x` is
+            silently treated as UTC (no guard applied here either).
         """
-        return pl.lit(False)
+        return (
+            x.dt.convert_time_zone(timezone)
+            .dt.dst_offset()
+            .ne(pl.duration(seconds=0))
+        )
 
     # =========================================================================
     # Date Arithmetic Methods

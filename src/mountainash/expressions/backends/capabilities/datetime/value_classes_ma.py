@@ -80,6 +80,10 @@ _TO_TIMEZONE_MSG = (
     "bare CAST AS TIMESTAMPTZ), so any expression composed on the result "
     "raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)"
 )
+_IS_DST_MSG = (
+    "is_dst is not supported on ibis -- ibis has no DST/timezone-offset "
+    "primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)"
+)
 
 
 def _mult_fact(op: str, backend, dialect: str | None, message: str) -> CapabilityFact:
@@ -108,12 +112,28 @@ def _tz_fact(backend, dialect: str | None, message: str) -> CapabilityFact:
     )
 
 
+def _is_dst_fact(backend, dialect: str | None, message: str) -> CapabilityFact:
+    return CapabilityFact(
+        operation_key=FK_DT.IS_DST,
+        param="timezone",
+        value_class=ValueClass.IANA_TIMEZONE,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=backend,
+        dialect=dialect,
+        message=message,
+        since="2026-08-16",
+    )
+
+
 _IBIS_FACTS = tuple(
     _mult_fact(op, CONST_BACKEND.IBIS, dialect, _IBIS_MSG)
     for op in _IBIS_MULTIPLIER_OPS
     for dialect in (None, "ibis-duckdb")  # family default + duckdb
 ) + tuple(
     _tz_fact(CONST_BACKEND.IBIS, dialect, _TO_TIMEZONE_MSG)
+    for dialect in (None, "ibis-duckdb")
+) + tuple(
+    _is_dst_fact(CONST_BACKEND.IBIS, dialect, _IS_DST_MSG)
     for dialect in (None, "ibis-duckdb")
 )
 _NARWHALS_FACTS = tuple(
