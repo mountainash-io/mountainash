@@ -414,6 +414,32 @@ OP_SPECS: list[OpSpec] = [
         matrix_arg_is_input=True,
         complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
     ),
+    # round_temporal.x / round_calendar.x (item 74): rounding/unit/multiple are
+    # fixed options (rounding/unit reclassified as options, not expression args)
+    # so first_scalar_build_gate() sees the same ScalarFunctionNode shape as
+    # to_timezone/local_timestamp above regardless of input_type.
+    OpSpec(
+        function_key=FK_DT.ROUND_TEMPORAL,
+        op_name="round_temporal",
+        build=lambda receiver, _arg: receiver.dt.round_temporal(rounding="FLOOR", unit="DAY"),
+        raw_arg=datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        arg_col_name="ts",
+        param_name="x",
+        data=_TZ_MATRIX_DATA,
+        matrix_arg_is_input=True,
+        complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
+    ),
+    OpSpec(
+        function_key=FK_DT.ROUND_CALENDAR,
+        op_name="round_calendar",
+        build=lambda receiver, _arg: receiver.dt.round_calendar(rounding="FLOOR", unit="MONTH"),
+        raw_arg=datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        arg_col_name="ts",
+        param_name="x",
+        data=_TZ_MATRIX_DATA,
+        matrix_arg_is_input=True,
+        complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
+    ),
 ]
 
 

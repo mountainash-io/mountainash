@@ -101,3 +101,35 @@ class SubstraitScalarDatetimeAPIBuilderProtocol(Protocol):
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
         """
         ...
+
+    # ============================================================
+    # Rounding (Direct Substrait functions)
+    # ============================================================
+
+    def round_temporal(
+        self,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: object = None,
+    ) -> BaseExpressionAPI:
+        """Round a timestamp/date/time to a multiple of a fixed-duration unit.
+
+        Substrait: round_temporal
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
+
+    def round_calendar(
+        self,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: object = None,
+    ) -> BaseExpressionAPI:
+        """Round a timestamp/date/time to a multiple of a calendar unit.
+
+        Substrait: round_calendar
+        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
+        """
+        ...
