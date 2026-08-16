@@ -10,7 +10,7 @@ from mountainash.expressions.core.datetime_components import (
     CALENDAR_COMPONENTS,
     DatetimeComponent,
 )
-from typing import TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING, Optional
 
 import narwhals as nw
 
@@ -21,6 +21,48 @@ from mountainash.expressions.core.expression_protocols.expression_systems.substr
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
+
+# round_temporal's in-scope units (v1): YEAR/MONTH/WEEK are declared
+# UNSUPPORTED there (ambiguous fixed-duration length) -- round_calendar
+# covers YEAR/MONTH but also declares WEEK unsupported (narwhals dt.truncate
+# rejects "1w" on both dialects).
+_ROUND_TEMPORAL_UNITS = frozenset(
+    {"DAY", "HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND"}
+)
+
+# Substrait canonical unit name -> Polars-style duration-string suffix.
+# Narwhals dt.truncate/dt.offset_by use the same combined "<n><suffix>"
+# format as Polars (verified against narwhals 2.24.0 on both dialects) --
+# bare Substrait names ("YEAR") are NOT accepted, unlike ibis.
+_NARWHALS_UNIT_SUFFIX = {
+    "YEAR": "y", "MONTH": "mo", "DAY": "d",
+    "HOUR": "h", "MINUTE": "m", "SECOND": "s",
+    "MILLISECOND": "ms", "MICROSECOND": "us",
+}
+
+
+def _round_datetime(x: NarwhalsExpr, rounding: str, unit: str, multiple: int) -> NarwhalsExpr:
+    """Shared round_temporal/round_calendar implementation (unit != WEEK).
+
+    Narwhals has no native round/ceil/tie primitive at all -- every mode
+    but FLOOR is hand-rolled from dt.truncate + dt.offset_by + duration
+    comparison via total_seconds() (verified against narwhals 2.24.0 on
+    both narwhals-polars and narwhals-pandas, including calendar units and
+    multiple > 1, e.g. "3mo" for a quarter).
+    """
+    every = f"{multiple}{_NARWHALS_UNIT_SUFFIX[unit]}"
+    floor = x.dt.truncate(every)
+    if rounding == "FLOOR":
+        return floor
+    ceiling = nw.when(floor == x).then(x).otherwise(floor.dt.offset_by(every))
+    if rounding == "CEIL":
+        return ceiling
+    diff_down = (x - floor).dt.total_seconds()
+    diff_up = (ceiling - x).dt.total_seconds()
+    if rounding == "ROUND_TIE_UP":
+        return nw.when(diff_up <= diff_down).then(ceiling).otherwise(floor)
+    # ROUND_TIE_DOWN: nearest, tying to the earlier point on equidistance.
+    return nw.when(diff_down <= diff_up).then(floor).otherwise(ceiling)
 
 class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarDatetimeExpressionProtocol.
@@ -391,53 +433,78 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        rounding: Optional[str] = None,
-        unit: str = "1d",
+        rounding: str,
+        unit: str,
         multiple: int = 1,
-        origin: Optional[str] = None,
+        origin: Any = None,
     ) -> NarwhalsExpr:
-        """Round datetime to a multiple of a time unit.
+        """Round datetime to a multiple of a fixed-duration time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Time unit string.
-            multiple: Multiple of unit (default 1).
-            origin: Origin timestamp for rounding.
+            unit: One of DAY, HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND.
+                YEAR/MONTH/WEEK are declared UNSUPPORTED here (ambiguous
+                fixed-duration length; see capabilities/datetime/rounding.py)
+                -- the raise below is defence in depth.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Narwhals only supports truncate. Falls back to truncate for all modes.
         """
-        # Narwhals only has truncate - use for all rounding modes
-        return x.dt.truncate(unit)
+        if unit not in _ROUND_TEMPORAL_UNITS:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
+
+            raise BackendCapabilityError(
+                f"round_temporal unit={unit!r} is not supported -- fixed-duration "
+                "rounding is ambiguous for YEAR/MONTH/WEEK; use round_calendar",
+                backend="narwhals",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            )
+        return _round_datetime(x, rounding, unit, multiple)
 
     def round_calendar(
         self,
         x: NarwhalsExpr,
         /,
-        rounding: Optional[str] = None,
-        unit: str = "1d",
-        origin: Optional[str] = None,
+        rounding: str,
+        unit: str,
         multiple: int = 1,
+        origin: Any = None,
     ) -> NarwhalsExpr:
-        """Round datetime to a calendar unit.
-
-        Similar to round_temporal but for calendar-aware rounding.
+        """Round datetime to a multiple of a calendar time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Calendar unit string.
-            origin: Origin timestamp.
-            multiple: Multiple of unit.
+            unit: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, or
+                MICROSECOND. WEEK is declared UNSUPPORTED (narwhals'
+                ``dt.truncate`` rejects the "1w" duration on both dialects,
+                verified 2026-08-16 -- matches the existing MA
+                truncate/floor_dt "1w" gap in capabilities/datetime/options.py)
+                -- the raise below is defence in depth.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Narwhals only supports truncate. Falls back to truncate.
         """
-        return self.round_temporal(x, rounding, unit, multiple, origin)
+        if unit == "WEEK":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
+
+            raise BackendCapabilityError(
+                "round_calendar unit='WEEK' is not supported on narwhals -- "
+                "dt.truncate rejects the '1w' duration on both dialects",
+                backend="narwhals",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            )
+        return _round_datetime(x, rounding, unit, multiple)

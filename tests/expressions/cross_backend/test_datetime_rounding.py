@@ -165,10 +165,28 @@ class TestRoundTemporalSqliteSubDayUnsupported:
             collect_expr(df, expr)
 
 
+WEEK_CAPABLE_BACKENDS = [
+    b for b in TEMPORAL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas")
+]
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", TEMPORAL_BACKENDS)
-class TestRoundCalendarFloorCeilWeekDay:
-    """WEEK and DAY are supported on every backend, including ibis-polars."""
+class TestRoundCalendarFloorCeilDay:
+    """DAY is supported on every backend."""
+
+    def test_floor_day(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create(_TIE_DATA, backend_name)
+        actual = collect_expr(
+            df, ma.col("ts").dt.round_calendar(rounding="FLOOR", unit="DAY")
+        )
+        assert actual == [datetime(2026, 3, 15, 0, 0, 0)]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", WEEK_CAPABLE_BACKENDS)
+class TestRoundCalendarFloorCeilWeek:
+    """narwhals dt.truncate rejects the '1w' duration on both dialects."""
 
     def test_floor_week(self, backend_name, backend_factory, collect_expr):
         # 2026-03-15 is a Sunday; ISO week starts Monday 2026-03-09.
@@ -178,6 +196,15 @@ class TestRoundCalendarFloorCeilWeekDay:
         )
         assert actual == [datetime(2026, 3, 9, 0, 0, 0)]
 
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas"])
+class TestRoundCalendarNarwhalsWeekUnsupported:
+    def test_raises_capability_error(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create(_TIE_DATA, backend_name)
+        expr = ma.col("ts").dt.round_calendar(rounding="FLOOR", unit="WEEK")
+        with pytest.raises(BackendCapabilityError, match="round_calendar"):
+            collect_expr(df, expr)
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", MONTH_YEAR_CAPABLE_BACKENDS)
