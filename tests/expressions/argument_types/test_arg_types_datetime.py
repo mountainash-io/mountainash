@@ -2183,6 +2183,12 @@ TESTED_OPTION_PARAMS.extend([
         param_taxonomy(_MA_DT_PROTOCOL, "to_timezone", "timezone"),
     ),
     (
+        _MA_DT_PROTOCOL,
+        "is_dst",
+        "timezone",
+        param_taxonomy(_MA_DT_PROTOCOL, "is_dst", "timezone"),
+    ),
+    (
         _SUBSTRAIT_DT_PROTOCOL,
         "local_timestamp",
         "timezone",
