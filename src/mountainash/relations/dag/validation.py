@@ -26,11 +26,13 @@ def validate(
     context: "dict[str, Any] | None" = None,
     backend: str | None = None,
     failure_sample: int | None = None,
+    allow_imperfect_key: bool = False,
 ) -> DAGValidationResult:
     """Full validation — all per-resource checks, then all FK checks."""
     return _run(
         dag, specs, context=context, backend=backend,
         fail_fast=False, failure_sample=failure_sample,
+        allow_imperfect_key=allow_imperfect_key,
     )
 
 
@@ -41,11 +43,13 @@ def validate_quick(
     context: "dict[str, Any] | None" = None,
     backend: str | None = None,
     failure_sample: int | None = None,
+    allow_imperfect_key: bool = False,
 ) -> DAGValidationResult:
     """Fast validation — same runner, fail_fast=True. Identical shapes."""
     return _run(
         dag, specs, context=context, backend=backend,
         fail_fast=True, failure_sample=failure_sample,
+        allow_imperfect_key=allow_imperfect_key,
     )
 
 
@@ -57,6 +61,7 @@ def _run(
     backend: str | None,
     fail_fast: bool,
     failure_sample: int | None,
+    allow_imperfect_key: bool = False,
 ) -> DAGValidationResult:
     from mountainash.datacontracts.compiler import compile_datacontract
     from mountainash.datacontracts.contract import BaseDataContract
@@ -104,4 +109,5 @@ def _run(
         failure_sample=failure_sample,
         backend=backend,
         fk_error_summaries=fk_errors,
+        allow_imperfect_key=allow_imperfect_key,
     )

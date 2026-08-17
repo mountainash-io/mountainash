@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from mountainash.typespec.datapackage import DataPackage
-from mountainash.validation.errors import IdentityInvalidError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -119,12 +118,14 @@ def test_conforming_data_passes_cross_backend(tmp_path, backend_name):
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", _COLLECT_BACKENDS)
-def test_duplicate_primary_key_raises_identity_error(tmp_path, backend_name):
+def test_duplicate_primary_key_isolates_identity_failure(tmp_path, backend_name):
     """Item 8j's characterization: a declared primary_key resolving to keyed
-    identity raises IdentityInvalidError and aborts the batch — it never
-    returns a DAGValidationResult for that call. This is the first check
-    that a descriptor-sourced to_typespec() produces a TypeSpec whose
-    primary_key still triggers that precondition."""
+    identity is isolated into that resource's own failing result
+    (check_id="__identity__") rather than raised out of dag.validate — the
+    batch still returns a DAGValidationResult (spec item 8j §3.2). This is
+    the first check that a descriptor-sourced to_typespec() produces a
+    TypeSpec whose primary_key still triggers that precondition, now
+    surfaced through the DAG's per-resource isolation instead of a raise."""
     pkg = _load_package(
         tmp_path,
         parents=[
@@ -138,8 +139,11 @@ def test_duplicate_primary_key_raises_identity_error(tmp_path, backend_name):
     dag = pkg.to_relation_dag()
     specs = {r.name: r.to_typespec() for r in pkg.resources}
 
-    with pytest.raises(IdentityInvalidError):
-        dag.validate(specs, backend=backend_name)
+    result = dag.validate(specs, backend=backend_name)  # must not raise
+
+    assert result.passes is False
+    parents_summaries = result.results["parents"].check_summaries
+    assert _status(parents_summaries, "__identity__") == "error"
 
 
 @pytest.mark.cross_backend
