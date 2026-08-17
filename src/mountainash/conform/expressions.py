@@ -956,12 +956,8 @@ def _build_field_expr(
     # Other backends fall through to base type cast only.
     elif fld.categories is not None:
         # Extract values from categories (handles both simple and object forms)
-        cat_values: list[Any] = []
-        for cat in fld.categories:
-            if isinstance(cat, dict):
-                cat_values.append(cat["value"])
-            else:
-                cat_values.append(cat)
+        from mountainash.typespec._categorical import categorical_values
+        cat_values = categorical_values(fld.categories)
 
         # Step 1: base type cast (if needed)
         if fld.type and fld.type != UniversalType.ANY:
