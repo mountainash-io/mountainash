@@ -19,7 +19,13 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
     def explode(self, relation: RelationT, /, *, columns: list[str]) -> RelationT: ...
 
     def sample(
-        self, relation: RelationT, /, *, n: Optional[int] = None, fraction: Optional[float] = None
+        self,
+        relation: RelationT,
+        /,
+        *,
+        n: Optional[int] = None,
+        fraction: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> RelationT: ...
 
     def unpivot(

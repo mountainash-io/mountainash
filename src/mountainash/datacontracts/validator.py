@@ -6,6 +6,7 @@ result shapes by construction (spec §6.5, item 18 subsumed).
 from __future__ import annotations
 
 import inspect
+import random
 from typing import TYPE_CHECKING, Any, Callable
 
 import polars as pl
@@ -60,31 +61,38 @@ class Validator:
         if isinstance(materialised, pl.LazyFrame):
             materialised = materialised.collect()
         return materialised
-
     @classmethod
     def _slice(
-        cls, rel: Any, *, head: int | None, tail: int | None,
-        sample: int | None, random_seed: int | None,
-    ) -> Any:
-        """17 P4: slicing happens exactly once, before the runner."""
-        import mountainash as ma
-
+        cls,
+        rel: Any,
+        *,
+        head: int | None,
+        tail: int | None,
+        sample: int | None,
+        random_seed: int | None,
+    ) -> tuple[Any, dict[str, Any]]:
+        """Apply slicing once, keeping seeded sampling on the source backend."""
+        diagnostics: dict[str, Any] = {}
         if head is not None:
             rel = rel.head(head)
         if tail is not None:
             rel = rel.tail(tail)
         if sample is not None:
-            if random_seed is None:
-                # Relation.sample is cross-backend (no seed param; Ibis
-                # approximates n via fraction) — stays on the native backend.
-                rel = rel.sample(n=sample)
+            effective_seed = (
+                random_seed if random_seed is not None else random.randrange(2**31)
+            )
+            sampled = rel.sample(n=sample, seed=effective_seed)
+            if sampled.count_rows() == 0 and rel.count_rows() > 0:
+                rel = rel.limit(sample)
+                diagnostics["sample_fallback"] = {
+                    "reason": "sampled slice was empty on non-empty input",
+                    "requested_sample": sample,
+                    "random_seed": random_seed,
+                    "fallback": f"limit({sample})",
+                }
             else:
-                # Seeded sampling: Relation.sample has no seed parameter, so
-                # deterministic sampling materialises to Polars (documented
-                # narrowing; follow-on backlog: seed option on Relation.sample).
-                frame = cls._to_polars_frame(rel)
-                rel = ma.relation(frame.sample(n=sample, seed=random_seed))
-        return rel
+                rel = sampled
+        return rel, diagnostics
 
     # -- public API -----------------------------------------------------------
 
@@ -175,7 +183,9 @@ class Validator:
         # --- data phase
         prepared = self._prepare_data(data, context)
         rel = prepared if isinstance(prepared, Relation) else ma.relation(prepared)
-        rel = self._slice(rel, head=head, tail=tail, sample=sample, random_seed=random_seed)
+        rel, slice_diagnostics = self._slice(
+            rel, head=head, tail=tail, sample=sample, random_seed=random_seed
+        )
 
         if getattr(self.contract.Config, "coerce", True):
             rel = rel.conform(spec)
@@ -191,6 +201,8 @@ class Validator:
             validator_name=self.name,
             datacontract_name=self.contract.contract_name(),
         )
+        if slice_diagnostics:
+            result.diagnostics.update(slice_diagnostics)
         if skipped:
             # skipped summaries are visibility only: appended to the frame,
             # never part of the runner's pass computation (they cannot fail)

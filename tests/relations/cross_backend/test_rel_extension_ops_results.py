@@ -319,19 +319,61 @@ class TestTopK:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _SAMPLE)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestSample:
-    def test_sample_n(self, backend_name, backend_factory):
-        df = backend_factory.create(
-            {"a": list(range(20))}, backend_name
+    """Seeded sampling is deterministic within each backend."""
+
+    def _frame(self, backend_factory, backend_name):
+        return backend_factory.create(
+            {"a": list(range(20)), "b": [i * 10 for i in range(20)]},
+            backend_name,
         )
-        result = ma.relation(df).sample(n=5).to_dicts()
+
+    def _mark_seed_support(self, request, backend_name):
+        reasons = {
+            "ibis-polars": "ibis-polars: Table.sample with a random seed is unsupported",
+            "ibis-sqlite": "ibis-sqlite: Table.sample with a random seed is unsupported",
+        }
+        if backend_name in reasons:
+            request.node.add_marker(pytest.mark.xfail(strict=True, reason=reasons[backend_name]))
+
+    def test_sample_n_row_count(self, backend_name, backend_factory, request):
+        self._mark_seed_support(request, backend_name)
+        df = self._frame(backend_factory, backend_name)
+        result = ma.relation(df).sample(n=5, seed=7).to_dicts()
         if backend_name.startswith("ibis-"):
-            # Ibis converts n to a fraction (Bernoulli per-row), so the sample size has no
-            # guaranteed floor — it can legitimately return anywhere from 0 to len(input) rows.
             assert 0 <= len(result) <= 20
         else:
             assert len(result) == 5
-        all_values = set(range(20))
-        for row in result:
-            assert row["a"] in all_values
+
+    def test_same_seed_same_rows(self, backend_name, backend_factory, request):
+        self._mark_seed_support(request, backend_name)
+        df = self._frame(backend_factory, backend_name)
+        first = ma.relation(df).sample(n=5, seed=42).to_dicts()
+        second = ma.relation(df).sample(n=5, seed=42).to_dicts()
+        assert sorted_dicts(first, "a") == sorted_dicts(second, "a")
+
+    def test_same_seed_same_rows_fraction(self, backend_name, backend_factory, request):
+        self._mark_seed_support(request, backend_name)
+        df = self._frame(backend_factory, backend_name)
+        first = ma.relation(df).sample(fraction=0.4, seed=3).to_dicts()
+        second = ma.relation(df).sample(fraction=0.4, seed=3).to_dicts()
+        assert sorted_dicts(first, "a") == sorted_dicts(second, "a")
+
+    def test_oversize_n_returns_all_rows(self, backend_name, backend_factory, request):
+        df = self._frame(backend_factory, backend_name)
+        result = ma.relation(df).sample(n=100, seed=1).to_dicts()
+        assert sorted_dicts(result, "a") == sorted_dicts(
+            ma.relation(df).to_dicts(), "a"
+        )
+
+    def test_fraction_zero_returns_no_rows(self, backend_name, backend_factory, request):
+        df = self._frame(backend_factory, backend_name)
+        assert ma.relation(df).sample(fraction=0.0, seed=1).to_dicts() == []
+
+    def test_fraction_one_returns_all_rows(self, backend_name, backend_factory, request):
+        df = self._frame(backend_factory, backend_name)
+        result = ma.relation(df).sample(fraction=1.0, seed=1).to_dicts()
+        assert sorted_dicts(result, "a") == sorted_dicts(
+            ma.relation(df).to_dicts(), "a"
+        )
