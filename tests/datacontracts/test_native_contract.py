@@ -44,9 +44,33 @@ class TestToTypespec:
     def test_to_checks_ids(self):
         ids = [c.id for c in UserContract.to_checks()]
         assert "id__not_null" in ids
-        assert "id__unique" in ids
+        assert "email__not_null" in ids
         assert "email__pattern" in ids
         assert "age__ge" in ids
+
+    def test_to_checks_includes_primary_key_unique(self):
+        ids = [c.id for c in UserContract.to_checks()]
+        assert "primary_key_unique" in ids  # UserContract: Config.natural_key = ["id"]
+
+    def test_to_checks_includes_primary_key_unique_for_primary_key_config(self):
+        class OrderContract(BaseDataContract):
+            order_id: int = Field(nullable=False)
+
+            class Config:
+                name = "orders"
+                primary_key = ["order_id"]
+
+        ids = [c.id for c in OrderContract.to_checks()]
+        assert "primary_key_unique" in ids
+
+
+def test_to_checks_matches_compile_datacontract_check_ids():
+    from mountainash.datacontracts.compiler import compile_datacontract, contract_from_typespec
+
+    spec = UserContract.to_typespec()
+    compiled_ids = {c.id for c in compile_datacontract(spec)}
+    contract_ids = {c.id for c in contract_from_typespec(spec).to_checks()}
+    assert compiled_ids == contract_ids
 
 
 class TestValidate:
