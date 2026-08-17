@@ -60,18 +60,24 @@ def parse_type_string(s: str) -> Optional[Any]:
         return pa.type_for_alias(s)  # unparameterized names, unchanged
     except (KeyError, ValueError):
         pass
-    if m := _TIMESTAMP_RE.match(s):
-        unit, tz = m.groups()
-        return pa.timestamp(unit, tz=tz) if tz else pa.timestamp(unit)
-    if m := _DURATION_RE.match(s):
-        return pa.duration(m.group(1))
-    if m := _TIME_RE.match(s):
-        bits, unit = m.groups()
-        return (pa.time32 if bits == "32" else pa.time64)(unit)
-    if m := _DECIMAL_RE.match(s):
-        bits, prec, scale = m.groups()
-        ctor = pa.decimal128 if bits == "128" else pa.decimal256
-        return ctor(int(prec), int(scale))
+    try:
+        if m := _TIMESTAMP_RE.match(s):
+            unit, tz = m.groups()
+            return pa.timestamp(unit, tz=tz) if tz else pa.timestamp(unit)
+        if m := _DURATION_RE.match(s):
+            return pa.duration(m.group(1))
+        if m := _TIME_RE.match(s):
+            bits, unit = m.groups()
+            return (pa.time32 if bits == "32" else pa.time64)(unit)
+        if m := _DECIMAL_RE.match(s):
+            bits, prec, scale = m.groups()
+            ctor = pa.decimal128 if bits == "128" else pa.decimal256
+            return ctor(int(prec), int(scale))
+    except (KeyError, ValueError):
+        # Syntactically-valid-but-semantically-invalid (timestamp[badunit],
+        # decimal128(999, 10)) — return None so the resolver raises the typed
+        # InvalidBackendTypeError instead of leaking a raw Arrow ValueError.
+        return None
     return None
 
 

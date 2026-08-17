@@ -431,6 +431,22 @@ class TestConvertersOverRegistry:
         ])
         assert to_polars_schema(spec)["x"] is pl.Int64
 
+    def test_semantically_invalid_backend_type_raises_typed_error_not_raw(self):
+        """Regression (GLM-5.2 whole-branch review, Important finding 1): a
+        syntactically-valid-but-semantically-invalid PyArrow string
+        (timestamp[badunit]) must surface as the typed InvalidBackendTypeError
+        through the converter, never a raw Arrow constructor ValueError."""
+        from mountainash.core.dtypes import InvalidBackendTypeError
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_arrow_schema
+        spec = TypeSpec(fields=[
+            FieldSpec(name="x", type=UniversalType.INTEGER,
+                      backend_type="timestamp[badunit]"),
+        ])
+        with pytest.raises(InvalidBackendTypeError, match="timestamp\[badunit\]"):
+            to_arrow_schema(spec)
+
     def test_backend_type_preferred_when_parseable(self):
         import polars as pl
         from mountainash.typespec import TypeSpec, FieldSpec

@@ -98,17 +98,44 @@ class TestEmptyFrameUpgradedDtypes:
 
 
 class TestInlineReadUpgradedDtypes:
-    """item 53's inline-read cast path must produce the upgraded dtypes."""
+    """item 53's inline-read cast path must produce the upgraded dtypes,
+    cross-backend (review Minor 2: closes the Polars-only asymmetry)."""
 
-    def test_all_null_inline_data(self):
+    def _ext(self, backend):
+        factories = {
+            "polars": _polars_ext,
+            "narwhals": _narwhals_ext,
+            "ibis": _ibis_ext,
+        }
+        return factories[backend]()
+
+    def _collect_pl(self, native) -> pl.DataFrame:
+        if hasattr(native, "to_pyarrow") and not hasattr(native, "collect"):  # ibis
+            return pl.from_arrow(native.to_pyarrow())
+        if hasattr(native, "collect"):
+            native = native.collect()
+        if hasattr(native, "to_native"):  # narwhals -> pl.DataFrame
+            native = native.to_native()
+        assert isinstance(native, pl.DataFrame)
+        return native
+
+    @pytest.mark.parametrize("backend", ["polars", "narwhals", "ibis"])
+    def test_all_null_inline_data(self, backend):
         from mountainash.typespec.datapackage import DataResource
         res = DataResource(
             name="t", format="json", data=ALL_NULL_DATA, schema=UPGRADED_SCHEMA_DICT,
         )
-        df = _polars_ext().read_resource(res).collect()
+        df = self._collect_pl(self._ext(backend).read_resource(res))
         assert df.schema["ts"] == pl.Datetime(time_unit="us", time_zone="UTC")
-        assert df.schema["cat"] == pl.Enum(["a", "b"])
         assert df.schema["lst"] == pl.List(pl.Int64)
+        # Categorical is a genuine type-boundary conversion through the
+        # ibis/Arrow memtable (backlog note: Enum becomes a dictionary/string
+        # array — not guaranteed dtype preservation); polars/narwhals keep the
+        # Enum because narwhals wraps the cast polars frame with no Arrow hop.
+        if backend == "ibis":
+            assert df.schema["cat"] == pl.String
+        else:
+            assert df.schema["cat"] == pl.Enum(["a", "b"])
 
 
 class TestNoRaisePartnerRegression:

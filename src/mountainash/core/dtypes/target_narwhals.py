@@ -62,4 +62,8 @@ def parse_type_string(s: str) -> Optional[Any]:
          "Categorical", "Enum")
     }
     result = parse_constructor_repr(s, namespace)
-    return result if isinstance(result, type) or result is not None else None
+    # No nw.DataType base class exists to isinstance-check instances against;
+    # the namespace is closed + AST-validated upstream, so any non-None
+    # construction is a legitimate parameterized dtype (DTypeClass instances
+    # are not `type`s — isinstance(None-check) is precisely `result is not None`).
+    return result
