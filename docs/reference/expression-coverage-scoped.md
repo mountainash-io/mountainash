@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 43 · Facts: 1460 · Registered operations: 326 · Implementation records: 978
+Declarations: 43 · Facts: 1462 · Registered operations: 326 · Implementation records: 978
 
 Legend — scoped deviations:
 
@@ -157,6 +157,13 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+
+### `IS_DST` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | timezone | — | iana_timezone | unsupported | gate | build | — | is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb) | — | — | 2026-08-16 | — | — |
+| ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb) | — | — | 2026-08-16 | — | — |
 
 ### `ROUND` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
