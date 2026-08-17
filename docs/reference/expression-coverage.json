@@ -70850,19 +70850,6 @@
       "since": "2026-08-06"
     },
     {
-      "id": "NW-REL-03",
-      "kind": "engine_leniency",
-      "operation_keys": [],
-      "backends": [
-        "narwhals-lazy"
-      ],
-      "summary": "narwhals-lazy has no sample() on a LazyFrame (AttributeError)",
-      "impact": "Relation.sample() raises on narwhals-lazy; eager backends sample rows",
-      "workaround": "Use an eager backend for sample()",
-      "upstream_ref": null,
-      "since": "2026-08-06"
-    },
-    {
       "id": "NW-STR-14",
       "kind": "semantics",
       "operation_keys": [

@@ -87,7 +87,7 @@ class Validator:
                 diagnostics["sample_fallback"] = {
                     "reason": "sampled slice was empty on non-empty input",
                     "requested_sample": sample,
-                    "random_seed": random_seed,
+                    "random_seed": effective_seed,
                     "fallback": f"limit({sample})",
                 }
             else:

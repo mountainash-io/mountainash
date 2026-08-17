@@ -39,7 +39,6 @@ _IBSQL = [pytest.param(b, marks=xfail_divergence("IB-REL-10", backend=b)) for b 
 _WRI = [pytest.param(b, marks=xfail_divergence("NW-REL-01", backend=b)) for b in ALL_BACKENDS]
 _UNNEST = [pytest.param(b, marks=xfail_divergence("NW-REL-02", backend=b)) for b in STRUCT_BACKENDS]
 _PIVOT = [pytest.param(b, marks=xfail_divergence("MA-REL-01", backend=b)) for b in ALL_BACKENDS]
-_SAMPLE = [pytest.param(b, marks=xfail_divergence("NW-REL-03", backend=b)) for b in ALL_BACKENDS]
 
 
 def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:

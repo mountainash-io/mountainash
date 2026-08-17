@@ -211,6 +211,17 @@ class TestSeededSlice:
         ]
         assert totals and all(total == 5 for total in totals)
 
+    def test_implicit_fallback_records_effective_seed(self, monkeypatch):
+        from mountainash.datacontracts import validator as validator_module
+        from mountainash.relations import Relation
+
+        monkeypatch.setattr(validator_module.random, "randrange", lambda _: 12345)
+        monkeypatch.setattr(Relation, "sample", lambda self, **_: self.head(0))
+        result = self._contract().validate_datacontract(
+            pl.DataFrame({"a": list(range(20))}), sample=5
+        )
+        assert result.diagnostics["sample_fallback"]["random_seed"] == 12345
+
     @pytest.mark.parametrize("backend", ["polars", "pandas", "ibis-duckdb"])
     def test_seeded_validate_is_deterministic(self, backend):
         df = pl.DataFrame({"a": [i - 10 for i in range(100)]})
