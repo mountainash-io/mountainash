@@ -234,6 +234,38 @@ class TestConvertersOverRegistry:
         spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)])
         assert to_polars_schema(spec)["a"] is pl.String
 
+    def test_invalid_backend_type_raises_on_every_fixed_target(self):
+        """Spec §7 test 6: the raise fires per-target on the three targets
+        whose parsers were upgraded (Polars/Narwhals/PyArrow). Ibis/Pandas
+        are skipped — their parsers are already correct and regression-locked
+        (Task 5), so an unparseable string there is not the primary surface."""
+        from mountainash.core.dtypes import InvalidBackendTypeError, TypeTarget
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import _resolve_field_native
+        field = FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="garbage")
+        for target in (TypeTarget.POLARS, TypeTarget.NARWHALS, TypeTarget.PYARROW):
+            with pytest.raises(InvalidBackendTypeError) as exc_info:
+                _resolve_field_native(field, target)
+            msg = str(exc_info.value)
+            assert "x" in msg          # names the field
+            assert "garbage" in msg    # names the string
+            assert target.value in msg  # names its own target
+
+    @pytest.mark.parametrize("backend_type", [None, ""])
+    def test_empty_or_none_backend_type_falls_through(self, backend_type):
+        """Spec §5: backend_type=None/"" is 'no override given', not invalid
+        input — falls through to canonical (item 53's ANY->STRING case relies
+        on this)."""
+        import polars as pl
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_polars_schema
+        spec = TypeSpec(fields=[
+            FieldSpec(name="x", type=UniversalType.INTEGER, backend_type=backend_type),
+        ])
+        assert to_polars_schema(spec)["x"] is pl.Int64
+
     def test_backend_type_preferred_when_parseable(self):
         import polars as pl
         from mountainash.typespec import TypeSpec, FieldSpec
@@ -244,12 +276,17 @@ class TestConvertersOverRegistry:
         ])
         assert to_polars_schema(spec)["x"] is pl.Int32
 
-    def test_unparseable_backend_type_falls_back(self):
+    def test_unparseable_backend_type_raises(self):
+        """Validation strictness (item 54, §5): a non-empty, non-None
+        backend_type that the target cannot parse raises — the resolver no
+        longer silently falls back to canonical."""
         import polars as pl
+        from mountainash.core.dtypes import InvalidBackendTypeError
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema
         spec = TypeSpec(fields=[
             FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="garbage"),
         ])
-        assert to_polars_schema(spec)["x"] is pl.Int64
+        with pytest.raises(InvalidBackendTypeError, match="garbage"):
+            to_polars_schema(spec)

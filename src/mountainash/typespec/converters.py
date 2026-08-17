@@ -13,7 +13,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict
 
-from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import (
+    InvalidBackendTypeError,
+    MountainashDtype,
+    TypeTarget,
+    registry,
+)
 from mountainash.typespec.universal_types import to_canonical
 
 if TYPE_CHECKING:
@@ -35,6 +40,11 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
         parsed = registry.parse_type_string(field.backend_type, target)
         if parsed is not None:
             return parsed
+        # Validation strictness (item 54, §5): only a non-empty, non-None
+        # backend_type that the target cannot parse raises. None/"" means "no
+        # override given" and falls through to canonical (item 53's ANY->STRING
+        # case relies on that).
+        raise InvalidBackendTypeError(field.name, field.backend_type, target)
     canon = to_canonical(field.type)
     if canon is None:  # ANY
         canon = MountainashDtype.STRING
