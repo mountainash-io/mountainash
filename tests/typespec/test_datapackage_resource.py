@@ -1,5 +1,8 @@
 import pytest
+
 from mountainash.typespec.datapackage import DataResource, TableDialect
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
 
 
 def test_minimal_resource_with_path():
@@ -44,3 +47,45 @@ def test_dialect_round_trip():
     r = DataResource.from_descriptor(raw)
     assert isinstance(r.dialect, TableDialect)
     assert r.to_descriptor() == raw
+
+
+
+def test_to_typespec_none_when_no_schema():
+    r = DataResource(name="t", path="t.csv")
+    assert r.to_typespec() is None
+
+
+def test_to_typespec_passthrough_when_already_typespec():
+    spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    r = DataResource(name="t", path="t.csv", schema=spec)
+    assert r.to_typespec() is spec
+
+
+def test_to_typespec_converts_raw_dict():
+    r = DataResource(
+        name="t", path="t.csv",
+        schema={"fields": [{"name": "id", "type": "integer"}]},
+    )
+    spec = r.to_typespec()
+    assert spec.field_names == ["id"]
+    assert spec.get_field("id").type == UniversalType.INTEGER
+
+
+def test_to_typespec_raises_on_garbage_schema():
+    r = DataResource(name="t", path="t.csv", schema="garbage")
+    with pytest.raises(TypeError, match="table_schema"):
+        r.to_typespec()
+
+
+def test_to_contract_raises_when_no_schema():
+    r = DataResource(name="t", path="t.csv")
+    with pytest.raises(ValueError, match="table_schema"):
+        r.to_contract()
+
+
+def test_to_contract_delegates_to_typespec():
+    r = DataResource(
+        name="t", path="t.csv",
+        schema={"fields": [{"name": "id", "type": "integer"}]},
+    )
+    assert r.to_contract().to_typespec().fields == r.to_typespec().fields
