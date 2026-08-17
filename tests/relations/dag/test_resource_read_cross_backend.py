@@ -517,14 +517,17 @@ class TestInlineReadSchemaFidelity:
         assert df.height == 0
 
 
-class TestInlineReadItem54Deferred:
-    """Assert the CURRENT (item-53) behaviour of dtypes deferred to item 54.
-    These are NOT the aspirational result — they lock what item 53 delivers so
-    item 54 can flip them deliberately. Do not 'fix' these here."""
+class TestInlineReadParameterizedBackendType:
+    """Parameterized backend_type fidelity on the inline-read path (item 54).
 
-    def test_parameterized_backend_type_falls_to_string(self, backend_ext):
-        # tz-aware Datetime string contains '(' -> parse_type_string returns
-        # None -> ANY -> String. Item 54 will honour it.
+    These flipped from item 53's deferred behaviour ("falls to String") in
+    PR-1 of item 54: a tz-aware Datetime string now parses to a real
+    parameterized dtype instead of degrading to ANY -> String."""
+
+    def test_parameterized_backend_type_produces_real_dtype(self, backend_ext):
+        # tz-aware Datetime string contains '(' — previously parse_type_string
+        # returned None -> ANY -> String; item 54 now reconstructs the real
+        # parameterized dtype.
         res = DataResource(
             name="t", format="json",
             data={"ts": [None]},
@@ -534,7 +537,7 @@ class TestInlineReadItem54Deferred:
             ]},
         )
         df = _collect_pl(backend_ext.read_resource(res))
-        assert df.schema["ts"] == pl.String  # item 54: should become tz-aware Datetime
+        assert df.schema["ts"] == pl.Datetime(time_zone="UTC")
 
 
 class TestInlineReadCastError:
