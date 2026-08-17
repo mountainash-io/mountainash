@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from mountainash.typespec.spec import TypeSpec
     # from upath import Path
 
 
@@ -138,6 +139,26 @@ class DataResource(BaseModel):
                 out["schema"] = typespec_to_frictionless(self.table_schema)
         out.update(self.extras)
         return out
+
+    def to_typespec(self) -> Optional["TypeSpec"]:
+        if self.table_schema is None:
+            return None
+        from mountainash.typespec.spec import TypeSpec
+        if isinstance(self.table_schema, TypeSpec):
+            return self.table_schema
+        if isinstance(self.table_schema, dict):
+            from mountainash.typespec.frictionless import typespec_from_frictionless
+            return typespec_from_frictionless(self.table_schema)
+        raise TypeError(
+            f"DataResource {self.name!r}.table_schema must be a dict or TypeSpec, "
+            f"got {type(self.table_schema).__name__}"
+        )
+
+    def to_contract(self, *, name: Optional[str] = None) -> Any:
+        spec = self.to_typespec()
+        if spec is None:
+            raise ValueError(f"DataResource {self.name!r} has no table_schema — cannot build a contract")
+        return spec.to_contract(name=name)
 
 
 _KNOWN_PACKAGE_FIELDS = {
