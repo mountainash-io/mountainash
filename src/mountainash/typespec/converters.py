@@ -143,15 +143,20 @@ def to_polars_schema(schema: TypeSpec) -> Dict[str, Any]:
 # Pandas Converters
 # ============================================================================
 
-def to_pandas_dtypes(schema: TypeSpec) -> Dict[str, str]:
+def to_pandas_dtypes(schema: TypeSpec) -> Dict[str, Any]:
     """
     Convert TypeSpec to pandas dtypes dict.
+
+    Non-categorical fields map to pandas dtype strings; a field with
+    ``categories`` set maps to a real ``pd.CategoricalDtype`` instance
+    (item 54, gap 3) — accepted directly by ``df.astype(...)``.
 
     Args:
         schema: TypeSpec to convert
 
     Returns:
-        Dict mapping column names to pandas dtype strings
+        Dict mapping column names to pandas dtype strings (or
+        pd.CategoricalDtype instances for categorical fields)
 
     Example:
         >>> schema = TypeSpec.from_simple_dict({"id": "integer", "name": "string"})
@@ -159,7 +164,18 @@ def to_pandas_dtypes(schema: TypeSpec) -> Dict[str, str]:
         >>> pandas_dtypes
         {'id': 'Int64', 'name': 'string'}
     """
-    return {f.name: _resolve_field_native(f, TypeTarget.PANDAS) for f in schema.fields}
+    from mountainash.typespec._categorical import categorical_values
+    result: Dict[str, Any] = {}
+    for f in schema.fields:
+        if f.categories is not None:
+            values = categorical_values(f.categories)
+            import pandas as pd
+            result[f.name] = pd.CategoricalDtype(
+                categories=values, ordered=bool(f.categories_ordered)
+            )
+        else:
+            result[f.name] = _resolve_field_native(f, TypeTarget.PANDAS)
+    return result
 
 
 # ============================================================================

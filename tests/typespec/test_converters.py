@@ -92,10 +92,43 @@ class TestToPandasDtypes:
         assert len(result) == len(list(UniversalType))
 
     def test_returns_dict_of_strings(self, basic_schema):
+        """Non-categorical fields are plain strings; a categorical field is
+        the deliberate exception (a real pd.CategoricalDtype instance)."""
+        import pandas as pd
+        categorical = TypeSpec(fields=[
+            FieldSpec(name="cat", type=UniversalType.STRING,
+                      categories=["a", "b"], categories_ordered=True),
+        ])
         result = to_pandas_dtypes(basic_schema)
         assert isinstance(result, dict)
         for v in result.values():
             assert isinstance(v, str)
+        cat_result = to_pandas_dtypes(categorical)
+        assert isinstance(cat_result["cat"], pd.CategoricalDtype)
+        assert not isinstance(cat_result["cat"], str)
+
+    def test_categorical_field_returns_categorical_dtype(self):
+        """§4.3: to_pandas_dtypes returns a real pd.CategoricalDtype instance
+        for a categorical field — pandas accepts it directly as astype input."""
+        import pandas as pd
+        spec = TypeSpec(fields=[
+            FieldSpec(name="col", type=UniversalType.STRING,
+                      categories=["a", "b"], categories_ordered=True),
+        ])
+        result = to_pandas_dtypes(spec)
+        assert isinstance(result["col"], pd.CategoricalDtype)
+        assert list(result["col"].categories) == ["a", "b"]
+        assert result["col"].ordered is True
+
+    def test_unordered_categorical_field_ordered_false(self):
+        import pandas as pd
+        spec = TypeSpec(fields=[
+            FieldSpec(name="col", type=UniversalType.STRING,
+                      categories=["a", "b"], categories_ordered=False),
+        ])
+        result = to_pandas_dtypes(spec)
+        assert isinstance(result["col"], pd.CategoricalDtype)
+        assert result["col"].ordered is False
 
 
 # ============================================================================
