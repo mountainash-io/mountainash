@@ -46,8 +46,15 @@ class TestPolars:
     def test_parse_type_string_bare_name(self):
         assert target_polars.parse_type_string("Int32") is pl.Int32
 
-    def test_parse_type_string_parameterized_returns_none(self):
-        assert target_polars.parse_type_string("Datetime(time_unit='us', time_zone=None)") is None
+    def test_parse_type_string_parameterized_round_trips(self):
+        # Parameterized reprs now reconstruct via the safe-eval parser
+        # (item 54, gap 1) — no longer dropped to canonical fallback.
+        assert target_polars.parse_type_string(
+            "Datetime(time_unit='us', time_zone=None)"
+        ) == pl.Datetime(time_unit="us", time_zone=None)
+
+    def test_parse_type_string_garbage_returns_none(self):
+        assert target_polars.parse_type_string("garbage") is None
 
 
 class TestPandas:

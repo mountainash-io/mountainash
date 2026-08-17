@@ -52,9 +52,18 @@ def from_native(native: Any) -> Optional[D]:
 
 
 def parse_type_string(s: str) -> Optional[Any]:
-    if "(" in s:  # parameterized reprs not reconstructable via getattr
-        return None
-    t = getattr(pl, s, None)
-    if isinstance(t, type) and issubclass(t, pl.DataType):
-        return t
+    if "(" not in s:
+        t = getattr(pl, s, None)
+        return t if isinstance(t, type) and issubclass(t, pl.DataType) else None
+    from ._paramstring import parse_constructor_repr
+    namespace = {
+        n: getattr(pl, n) for n in
+        ("Datetime", "Duration", "Decimal", "List", "Array", "Int8", "Int16",
+         "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Float32",
+         "Float64", "Boolean", "String", "Binary", "Date", "Time",
+         "Categorical", "Enum")
+    }
+    result = parse_constructor_repr(s, namespace)
+    if result is not None and isinstance(result, pl.DataType):
+        return result
     return None
