@@ -277,6 +277,12 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("round_dt", "unit"): ("datetime",),
     ("ceil_dt", "unit"): ("datetime",),
     ("floor_dt", "unit"): ("datetime",),
+    # Substrait round_temporal/round_calendar (item 74) — shared 9-unit
+    # closed domain lives in OPTION_DOMAINS.
+    ("round_temporal", "unit"): ("datetime",),
+    ("round_temporal", "rounding"): ("float64",),
+    ("round_calendar", "unit"): ("datetime",),
+    ("round_calendar", "rounding"): ("float64",),
     # Datetime open-value options.
     ("assume_timezone", "timezone"): ("datetime",),
     ("to_timezone", "timezone"): ("datetime",),

@@ -1,14 +1,31 @@
 """Import-safe datetime option capability declarations.
 
-Disposition matrix (verified by the controller Step-0 probe of all four
-fixtures, post-Task-3a — authoritative):
+Disposition matrix (item 74: truncate/round_dt/ceil_dt/floor_dt now redirect
+through the real round_temporal/round_calendar implementation instead of a
+silent-wrong truncate-fallback; re-verified 2026-08-16 against the pinned
+libraries -- authoritative):
 
-| op          | polars | ibis (ibis-duckdb)         | narwhals (each dialect)    |
-|-------------|--------|----------------------------|----------------------------|
-| truncate    | ALL    | honor core+1w; declare 1q  | honor core+1q; declare 1w  |
-| floor_dt    | ALL    | honor core+1w; declare 1q  | honor core+1q; declare 1w  |
-| round_dt    | ALL    | declare EVERY value        | declare EVERY value        |
-| ceil_dt     | ALL    | declare EVERY value        | declare EVERY value        |
+| op          | polars | ibis-duckdb | ibis-sqlite            | ibis-polars      | narwhals (each dialect) |
+|-------------|--------|-------------|-------------------------|------------------|--------------------------|
+| truncate    | ALL    | ALL         | declare sub-day+quarter | ALL              | declare 1w               |
+| floor_dt    | ALL    | ALL         | declare sub-day+quarter | ALL              | declare 1w               |
+| round_dt    | ALL    | ALL         | declare sub-day+quarter | declare cal+qtr  | declare 1w               |
+| ceil_dt     | ALL    | ALL         | declare sub-day+quarter | declare cal+qtr  | declare 1w               |
+
+"declare sub-day+quarter" = {1h, 1m, 1s, 1ms, 1us, 1q} declared UNSUPPORTED
+on ibis-sqlite for every op: sqlite's TimestampTruncate has no support for
+units finer than DAY (blocks FLOOR itself, hence every op), and its
+TimestampBucket has no compilation rule at all (blocks the multiple=3
+bucketing 1q needs, regardless of rounding mode).
+
+"declare cal+qtr" = {1y, 1mo, 1q} declared UNSUPPORTED on ibis-polars, but
+ONLY for round_dt/ceil_dt: those need `floor + ibis.interval(months=..)`/
+`interval(years=..)` to compute the next boundary, and ibis's polars
+sub-backend translates intervals via `polars.duration()`, which has no
+months/years kwarg. truncate/floor_dt only ever call FLOOR (no interval
+needed), so they honor 1y/1mo/1q on ibis-polars -- unlike ibis-sqlite's gap,
+this one is genuinely rounding-mode-scoped, verified empirically (both
+dialects' full op x value matrix probed directly, not inferred).
 
 Portable core = {1y, 1mo, 1d, 1h, 1m, 1s, 1ms, 1us}. 1ns was dropped in Task 3a
 (divisor-by-zero panic in polars). Honored cells carry NO fact — the cell
@@ -16,8 +33,7 @@ disposition is ``honored``. Declared cells carry a value-scoped UNSUPPORTED
 fact; the visitor raises ``BackendCapabilityError`` BEFORE calling the
 backend (enforce_capabilities=True by default), so the silent
 narwhals-truncate fallback and the raw ibis error are both replaced by a
-clean error path. Backend round/ceil/floor impls are NOT edited — the
-capability facts are the only honesty mechanism.
+clean error path.
 
 Friendly aliases (year, quarter, month, week, day, hour, minute, second,
 millisecond, microsecond) are normalized to their canonical duration form
@@ -31,14 +47,17 @@ the canonical-form facts — the visitor never resolves the alias form
 because the api builder already normalized it — but the integrity guard
 counts them as separate cells, so they must be separately declared.
 
-Family / dialect separation (mirrors the string ``padding`` slice):
-  - ibis declared: family-default (dialect=None) fact AND ibis-duckdb fact;
-    ibis-duckdb-specific, but a dialect=None family default protects every
-    other ibis dialect (ibis-sqlite, ibis-bigquery, ...) from silently
-    re-accepting a value the family cannot honor.
-  - narwhals declared: per-dialect facts only (narwhals-polars AND
-    narwhals-pandas) — design-review I-1; NEVER a single dialect=None
-    narwhals family fact, which would conflate the two dialects.
+Dialect scoping (item 74 revision): NO ibis family default (dialect=None).
+ibis-duckdb honors every value; ibis-sqlite and ibis-polars each have real,
+independent gaps (different units, different op subsets) discovered by
+direct probing, not inference from one dialect. A shared family-default
+baseline would either wrongly restrict duckdb or wrongly permit
+sqlite/polars — concrete per-dialect facts for the two known-divergent
+dialects is the honest choice (mirrors capabilities/datetime/rounding.py's
+identical policy for the underlying Substrait round_temporal/round_calendar
+ops in this same PR). narwhals declared facts remain per-dialect only
+(narwhals-polars AND narwhals-pandas) — design-review I-1; NEVER a single
+dialect=None narwhals family fact, which would conflate the two dialects.
 
 Migrated from mountainash.expressions.backends.expression_systems.datetime_option_capabilities (2026-08 capability-architecture PR).
 """
@@ -54,10 +73,10 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 
 
-_SINCE = "2026-07-24"
+_SINCE = "2026-08-16"
 
 # Domain spelling must match MA_OPTION_DOMAINS — the test-side guard cross-references
-# them. Post-Task-3a: 1ns/nanosecond were dropped; 1q (quarter) and 1w (week) remain
+# them. 1ns/nanosecond were dropped (Task 3a); 1q (quarter) and 1w (week) remain
 # in the friendly input set but are declared per-backend by capability facts.
 _ALL_UNIT_VALUES = ("1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q")
 _FRIENDLY_ALIASES: dict[str, str] = {
@@ -65,43 +84,35 @@ _FRIENDLY_ALIASES: dict[str, str] = {
     "day": "1d", "hour": "1h", "minute": "1m", "second": "1s",
     "millisecond": "1ms", "microsecond": "1us",
 }
-# Every value the disposition matrix enumerates: duration forms + friendly
-# aliases. Both forms share the same per-backend disposition (the api
-# builder normalizes aliases to the canonical form, so the backend only
-# sees one or the other).
-_ALL_VALUES_WITH_ALIASES: tuple[str, ...] = (
-    _ALL_UNIT_VALUES + tuple(_FRIENDLY_ALIASES)
-)
 
-# Each (op, fkey) maps to the unit value set the visitor must gate. truncate
-# and floor_dt share semantics (floor == truncate) per Task 3a; both honor
-# core+1w on ibis (1q is not in ibis TimestampTruncate) and core+1q on
-# narwhals (1w is not a supported narwhals truncate unit). round_dt and
-# ceil_dt have NO native datetime impl on ibis/narwhals (silent
-# truncate-fallback is an anti-pattern) — declared UNSUPPORTED for EVERY
-# unit value on ibis and both narwhals dialects.
+# Each op maps to the FKEY the visitor gates on.
 _UNIT_OP_FKEYS: dict[str, object] = {
     "truncate": FK_DT.TRUNCATE,
     "round_dt": FK_DT.ROUND,
     "ceil_dt": FK_DT.CEIL,
     "floor_dt": FK_DT.FLOOR,
 }
+_ALL_FOUR_OPS = tuple(_UNIT_OP_FKEYS)
 
-# (op, value) pairs ibis-duckdb DECLARES UNSUPPORTED. (truncate and floor_dt:
-# only 1q is undeclared on ibis; 1w is honored. round_dt and ceil_dt: ALL
-# values are undeclared.) Keyed by duration form; the friendly-alias form
-# is added at declaration time so the integrity guard sees both.
-_IBIS_DUCKDB_DECLARED: dict[str, tuple[str, ...]] = {
-    "truncate": ("1q",),
-    "floor_dt": ("1q",),
-    "round_dt": _ALL_UNIT_VALUES,
-    "ceil_dt": _ALL_UNIT_VALUES,
+# ibis-sqlite: every op declares the same set (TimestampTruncate has no
+# sub-day support at all, which blocks FLOOR itself; TimestampBucket has no
+# sqlite compilation rule, which blocks 1q's multiple=3 bucketing).
+_IBIS_SQLITE_DECLARED: dict[str, tuple[str, ...]] = {
+    op: ("1h", "1m", "1s", "1ms", "1us", "1q") for op in _ALL_FOUR_OPS
 }
+
+# ibis-polars: ONLY round_dt/ceil_dt declare 1y/1mo/1q -- truncate/floor_dt
+# (FLOOR-only, no interval addition) honor them.
+_IBIS_POLARS_DECLARED: dict[str, tuple[str, ...]] = {
+    "round_dt": ("1y", "1mo", "1q"),
+    "ceil_dt": ("1y", "1mo", "1q"),
+}
+
+# narwhals: every op declares only 1w (dt.truncate rejects the '1w' duration
+# on both dialects; round_dt/ceil_dt redirect through the same truncate-based
+# implementation as truncate/floor_dt, so they inherit the identical gap).
 _NARWHALS_DECLARED: dict[str, tuple[str, ...]] = {
-    "truncate": ("1w",),
-    "floor_dt": ("1w",),
-    "round_dt": _ALL_UNIT_VALUES,
-    "ceil_dt": _ALL_UNIT_VALUES,
+    op: ("1w",) for op in _ALL_FOUR_OPS
 }
 
 
@@ -125,40 +136,25 @@ def _declared_with_aliases(
     return out
 
 
-# Per-(op, value) human-readable limitation messages, named after the real
-# backend behavior the controller probe observed.
-_IBIS_QUARTER_UNSUPPORTED = (
-    "ibis TimestampTruncate rejects the quarter unit '1q' (and its "
-    "friendly alias 'quarter')"
+_IBIS_SQLITE_MSG = (
+    "ibis-sqlite has no TimestampTruncate support for units finer than DAY, "
+    "and no TimestampBucket compilation rule (blocks multiple>1 bucketing, "
+    "which quarter needs); verified 2026-08-16, ibis 12.0.0"
 )
-_IBIS_NO_NATIVE_ROUND_CEIL = (
-    "ibis has no native datetime round/ceil; silently falling back to "
-    "truncate would return a wrong value"
+_IBIS_POLARS_MSG = (
+    "ibis's polars sub-backend translates interval addition via "
+    "polars.duration(), which has no months/years kwarg -- round/ceil "
+    "cannot compute the next calendar boundary (truncate/floor, which only "
+    "need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"
 )
 _NARWHALS_TRUNCATE_WEEK_UNSUPPORTED = (
-    "narwhals truncate rejects the week unit '1w' (and its friendly "
-    "alias 'week')"
-)
-_NARWHALS_NO_NATIVE_ROUND_CEIL = (
-    "narwhals has no native datetime round/ceil; silently falling back to "
-    "truncate would return a wrong value"
+    "narwhals dt.truncate rejects the week unit '1w' (and its friendly "
+    "alias 'week') on both dialects"
 )
 
 
-def _ibis_duckdb_message(op: str, value: str) -> str:
-    if op in {"round_dt", "ceil_dt"}:
-        return _IBIS_NO_NATIVE_ROUND_CEIL
-    return _IBIS_QUARTER_UNSUPPORTED
-
-
-def _narwhals_message(op: str, value: str) -> str:
-    if op in {"round_dt", "ceil_dt"}:
-        return _NARWHALS_NO_NATIVE_ROUND_CEIL
-    return _NARWHALS_TRUNCATE_WEEK_UNSUPPORTED
-
-
-def _build_ibis_duckdb_facts() -> tuple[CapabilityFact, ...]:
-    declared = _declared_with_aliases(_IBIS_DUCKDB_DECLARED)
+def _build_ibis_sqlite_facts() -> tuple[CapabilityFact, ...]:
+    declared = _declared_with_aliases(_IBIS_SQLITE_DECLARED)
     return tuple(
         CapabilityFact(
             operation_key=_UNIT_OP_FKEYS[op],
@@ -166,8 +162,8 @@ def _build_ibis_duckdb_facts() -> tuple[CapabilityFact, ...]:
             option_value=value,
             level=CapabilityLevel.UNSUPPORTED,
             backend=CONST_BACKEND.IBIS,
-            dialect="ibis-duckdb",
-            message=_ibis_duckdb_message(op, value),
+            dialect="ibis-sqlite",
+            message=_IBIS_SQLITE_MSG,
             since=_SINCE,
         )
         for op, declared_values in declared.items()
@@ -175,12 +171,8 @@ def _build_ibis_duckdb_facts() -> tuple[CapabilityFact, ...]:
     )
 
 
-def _build_ibis_family_defaults() -> tuple[CapabilityFact, ...]:
-    """ibis dialect=None family-default facts — protect every other ibis
-    dialect (ibis-sqlite, ibis-bigquery, …) from silently re-accepting a
-    value the family cannot honor. Mirrors _IBIS_FAMILY_DEFAULTS in the
-    string padding slice."""
-    declared = _declared_with_aliases(_IBIS_DUCKDB_DECLARED)
+def _build_ibis_polars_facts() -> tuple[CapabilityFact, ...]:
+    declared = _declared_with_aliases(_IBIS_POLARS_DECLARED)
     return tuple(
         CapabilityFact(
             operation_key=_UNIT_OP_FKEYS[op],
@@ -188,8 +180,8 @@ def _build_ibis_family_defaults() -> tuple[CapabilityFact, ...]:
             option_value=value,
             level=CapabilityLevel.UNSUPPORTED,
             backend=CONST_BACKEND.IBIS,
-            dialect=None,
-            message=_ibis_duckdb_message(op, value),
+            dialect="ibis-polars",
+            message=_IBIS_POLARS_MSG,
             since=_SINCE,
         )
         for op, declared_values in declared.items()
@@ -207,7 +199,7 @@ def _build_narwhals_dialect_facts(dialect: str) -> tuple[CapabilityFact, ...]:
             level=CapabilityLevel.UNSUPPORTED,
             backend=CONST_BACKEND.NARWHALS,
             dialect=dialect,
-            message=_narwhals_message(op, value),
+            message=_NARWHALS_TRUNCATE_WEEK_UNSUPPORTED,
             since=_SINCE,
         )
         for op, declared_values in declared.items()
@@ -215,14 +207,13 @@ def _build_narwhals_dialect_facts(dialect: str) -> tuple[CapabilityFact, ...]:
     )
 
 
-_IBIS_DUCKDB_FACTS = _build_ibis_duckdb_facts()
-_IBIS_FAMILY_DEFAULTS = _build_ibis_family_defaults()
+_IBIS_FACTS = _build_ibis_sqlite_facts() + _build_ibis_polars_facts()
 _NARWHALS_POLARS_FACTS = _build_narwhals_dialect_facts("narwhals-polars")
 _NARWHALS_PANDAS_FACTS = _build_narwhals_dialect_facts("narwhals-pandas")
 
-# polars honors EVERY value in the MA unit domain — no facts. The portable
-# core + the divergent members (1w, 1q) all reach a real polars method.
-# (1ns was dropped in Task 3a — the validator rejects it before the visitor.)
+# polars honors EVERY value in the MA unit domain — no facts.
+# ibis-duckdb honors EVERY value now that round_dt/ceil_dt redirect through
+# the real round_temporal/round_calendar implementation — no facts.
 
 
 from mountainash.core.capabilities.declarations import (  # noqa: E402
@@ -233,18 +224,16 @@ from mountainash.core.capabilities.declarations import (  # noqa: E402
 )
 
 _EVIDENCE = ProbeEvidence(
-    probe_date=_SINCE,          # 2026-07-24
-    library_versions=(),        # not recorded in the original docstring
-    fixtures=(
-        "polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas",
-    ),
+    probe_date=_SINCE,
+    library_versions=(),
+    fixtures=("ibis-sqlite", "ibis-polars", "narwhals-polars", "narwhals-pandas"),
 )
 
 DECLARATIONS = (
     CapabilityDeclaration(
         backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
         source=FactSource.MOUNTAINASH,
-        facts=_IBIS_FAMILY_DEFAULTS + _IBIS_DUCKDB_FACTS,
+        facts=_IBIS_FACTS,
         evidence=_EVIDENCE,
     ),
     CapabilityDeclaration(

@@ -94,6 +94,49 @@ def _is_dst_returns_constant_false() -> bool:
     return all(v is False for v in out["d"].to_list())
 
 
+def _round_temporal_calendar_still_works() -> bool:
+    """round_temporal/round_calendar are real, cross-backend-tested
+    implementations (item 74) covered by a dedicated plain pytest file
+    rather than this module's disposition matrix. Build a column and
+    confirm the call still succeeds on Polars (the reference backend).
+    Returns False if this op ever regresses back to broken -- the parked
+    reason claiming coverage exists elsewhere would then need re-examining."""
+    from datetime import datetime
+
+    import polars as pl
+
+    import mountainash as ma
+
+    df = pl.DataFrame({"ts": [datetime(2026, 7, 21, 13, 37, 45)]})
+    try:
+        ma.relation(df).with_columns(
+            ma.col("ts").dt.round_temporal(rounding="FLOOR", unit="DAY").name.alias("d")
+        ).to_polars()
+        return True
+    except Exception:
+        return False
+
+
+def _round_origin_always_rejected() -> bool:
+    """origin is permanently excluded from round_temporal/round_calendar in v1
+    -- any non-None value must always raise InvalidOptionValueError at build
+    time, on every backend, forever. Returns False if this is ever no longer
+    true (origin becomes wired to a real value channel)."""
+    import mountainash as ma
+    from mountainash.core.errors import InvalidOptionValueError
+
+    for build in (
+        lambda: ma.col("ts").dt.round_temporal(rounding="FLOOR", unit="DAY", origin="2026-01-01"),
+        lambda: ma.col("ts").dt.round_calendar(rounding="FLOOR", unit="MONTH", origin="2026-01-01"),
+    ):
+        try:
+            build()
+            return False
+        except InvalidOptionValueError:
+            continue
+    return True
+
+
 def _collect_tested_params() -> set[tuple[str, str]]:
     return {(ref.op_name, ref.param_name) for ref in _collect_tested_param_refs()}
 
@@ -546,8 +589,6 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'lte', 'y'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'multiply', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'multiply', 'y'),
-        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'round_calendar', 'x'),
-        ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'round_temporal', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strftime', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strptime_date', 'x'),
         ('test_arg_types_datetime', 'SubstraitScalarDatetimeExpressionSystemProtocol', 'strptime_time', 'x'),
@@ -805,12 +846,7 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
 }
 
 # Datetime option params — retagged with precise, backlog-linked reasons (PR-C).
-# Missing-op params: the operation is not exposed by the API builder, so the option
-# cannot be wired until the op exists. Ops in scope: extract, round_calendar,
-# round_temporal, strptime_time. (strptime_date and strptime_timestamp are
-# drained by the disposition matrix in test_arg_types_datetime.py; their
-# respective parks are removed below and their timezone park is re-keyed with
-# its real reason rather than the shared "operation not implemented" lie.)
+# strptime_time is still genuinely unimplemented in the API builder.
 _KNOWN_UNTESTED_OPTION_PARAMS.update(
     {
         key: KnownGap(
@@ -822,16 +858,98 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
             since="2026-07-25",
         )
         for key in {
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "unit"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "multiple"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "origin"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time", "format"),
         }
+    }
+)
+# round_temporal/round_calendar (item 74): rounding/unit/multiple ARE real,
+# fully implemented, and cross-backend tested -- but via a dedicated plain
+# pytest file (tests/expressions/cross_backend/test_datetime_rounding.py),
+# not via this module's OPTION_DISPOSITIONS/param_taxonomy machinery (that
+# would require building a full per-value disposition matrix mirroring
+# truncate/round_dt/ceil_dt/floor_dt's _unit_* helpers above, out of scope
+# for this PR). origin is permanently excluded from v1 (real Substrait
+# types it as an arguments-channel value, not a string option; any
+# non-None value always raises InvalidOptionValueError at build time
+# regardless of backend) -- it has no legal value to ever test.
+_KNOWN_UNTESTED_OPTION_PARAMS.update(
+    {
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "multiple"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
+            ),
+            since="2026-08-16",
+        ),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "rounding"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
+            ),
+            since="2026-08-16",
+        ),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "unit"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
+            ),
+            since="2026-08-16",
+        ),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "multiple"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
+            ),
+            since="2026-08-16",
+        ),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "rounding"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
+            ),
+            since="2026-08-16",
+        ),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "unit"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "tested via a dedicated cross-backend test file, not this "
+                "module's disposition matrix — see backlog: "
+                "round-temporal-calendar-real-implementation"
+            ),
+            since="2026-08-16",
+        ),
+    }
+)
+_KNOWN_UNTESTED_OPTION_PARAMS.update(
+    {
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar", "origin"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "origin is permanently excluded from v1 — real Substrait types it "
+                "as an arguments-channel value, not a string option; any non-None "
+                "value always raises InvalidOptionValueError at build time"
+            ),
+            since="2026-08-16",
+        ),
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal", "origin"): KnownGap(
+            gap_kind=GapKind.UNTESTED_OPTION,
+            reason=(
+                "origin is permanently excluded from v1 — real Substrait types it "
+                "as an arguments-channel value, not a string option; any non-None "
+                "value always raises InvalidOptionValueError at build time"
+            ),
+            since="2026-08-16",
+        ),
     }
 )
 
@@ -1010,8 +1128,6 @@ _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "lt"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "lte"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "multiply"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_calendar"),
-            ("SubstraitScalarDatetimeExpressionSystemProtocol", "round_temporal"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time"),
             ("SubstraitScalarDatetimeExpressionSystemProtocol", "subtract"),
             ("SubstraitScalarLogarithmicExpressionSystemProtocol", "ln"),
@@ -1036,6 +1152,19 @@ for _wired_strptime_op in ("strptime_date", "strptime_timestamp"):
             "TESTED_PARAMS keys are plain strings, which forces registry_wired=False"
         ),
         since="2026-07-30",
+    )
+for _wired_round_op in ("round_temporal", "round_calendar"):
+    _KNOWN_UNWIRED_TESTED_OPS[
+        ("SubstraitScalarDatetimeExpressionSystemProtocol", _wired_round_op)
+    ] = KnownGap(
+        gap_kind=GapKind.OTHER,
+        reason=(
+            "protocol_method IS registered and the op IS API-reachable (item 74, "
+            "Task 1-3); the entry is retained only because the legacy plain-string "
+            "TESTED_PARAMS key (predating the real OP_SPEC entry) forces "
+            "registry_wired=False"
+        ),
+        since="2026-08-16",
     )
 
 
@@ -1716,6 +1845,12 @@ def test_untested_option_param_custom_reasons_still_hold():
         elif "placeholder stub" in r:
             if not _is_dst_returns_constant_false():
                 reason_false.append(((proto, op, param), "is_dst no longer returns constant False"))
+        elif "tested via a dedicated cross-backend test file" in r:
+            if not _round_temporal_calendar_still_works():
+                reason_false.append(((proto, op, param), "round_temporal/round_calendar no longer works — its dedicated test file coverage claim needs re-examining"))
+        elif "origin is permanently excluded from v1" in r:
+            if not _round_origin_always_rejected():
+                reason_false.append(((proto, op, param), "round_temporal/round_calendar origin no longer always raises"))
         else:
             unclassified.append(((proto, op, param), r))
 

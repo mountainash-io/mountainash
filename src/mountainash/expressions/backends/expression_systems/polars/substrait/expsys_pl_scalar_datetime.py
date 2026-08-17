@@ -10,16 +10,56 @@ from mountainash.expressions.core.datetime_components import (
     CALENDAR_COMPONENTS,
     DatetimeComponent,
 )
-from typing import TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING, Optional
 
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarDatetimeExpressionSystemProtocol
-
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
+
+# Substrait canonical unit name -> Polars duration-string suffix. Combined
+# with an integer multiplier (e.g. "2d", "3h", "1mo") this is accepted
+# natively by Polars' dt.truncate/dt.round/dt.offset_by -- verified against
+# polars 1.43.2 (item 74).
+_POLARS_UNIT_SUFFIX = {
+    "YEAR": "y", "MONTH": "mo", "WEEK": "w", "DAY": "d",
+    "HOUR": "h", "MINUTE": "m", "SECOND": "s",
+    "MILLISECOND": "ms", "MICROSECOND": "us",
+}
+
+# round_temporal's in-scope units (v1): YEAR/MONTH/WEEK are declared
+# UNSUPPORTED there (ambiguous fixed-duration length) -- round_calendar
+# covers all nine.
+_ROUND_TEMPORAL_UNITS = frozenset(
+    {"DAY", "HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND"}
+)
+
+
+def _round_datetime(x: PolarsExpr, rounding: str, unit: str, multiple: int) -> PolarsExpr:
+    """Shared round_temporal/round_calendar implementation.
+
+    FLOOR/CEIL/ROUND_TIE_DOWN are hand-rolled from dt.truncate + dt.offset_by
+    (Polars has no native CEIL or tie-down primitive). ROUND_TIE_UP uses
+    Polars' native dt.round -- verified empirically (2026-08-16) that its
+    tie rule IS tie-up (10:30 -> 11:00, not 10:00) and that it accepts every
+    combined multiplier/unit string used here, including calendar units.
+    """
+    every = f"{multiple}{_POLARS_UNIT_SUFFIX[unit]}"
+    floor = x.dt.truncate(every)
+    if rounding == "FLOOR":
+        return floor
+    if rounding == "ROUND_TIE_UP":
+        return x.dt.round(every)
+    ceiling = pl.when(floor == x).then(x).otherwise(floor.dt.offset_by(every))
+    if rounding == "CEIL":
+        return ceiling
+    # ROUND_TIE_DOWN: nearest, tying to the earlier point on equidistance.
+    diff_down = x - floor
+    diff_up = ceiling - x
+    return pl.when(diff_down <= diff_up).then(floor).otherwise(ceiling)
 
 class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarDatetimeExpressionProtocol.
@@ -396,56 +436,67 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        rounding: Optional[str] = None,
-        unit: str = "1d",
+        rounding: str,
+        unit: str,
         multiple: int = 1,
-        origin: Optional[str] = None,
+        origin: Any = None,
     ) -> PolarsExpr:
-        """Round datetime to a multiple of a time unit.
+        """Round datetime to a multiple of a fixed-duration time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Time unit string.
-            multiple: Multiple of unit (default 1).
-            origin: Origin timestamp for rounding.
+            unit: One of DAY, HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND.
+                YEAR/MONTH/WEEK are declared UNSUPPORTED here (ambiguous
+                fixed-duration length; see capabilities/datetime/rounding.py)
+                -- the raise below is defence in depth, the real gate is the
+                capability fact.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope; real Substrait origin is an
+                arguments-channel value, not a string option).
 
         Returns:
             Rounded datetime.
         """
-        rounding = rounding if rounding else "FLOOR"
+        if unit not in _ROUND_TEMPORAL_UNITS:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
 
-        if rounding == "FLOOR":
-            return x.dt.truncate(unit)
-        elif rounding == "CEIL":
-            truncated = x.dt.truncate(unit)
-            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
-        else:
-            # ROUND_TIE_DOWN, ROUND_TIE_UP - use round
-            return x.dt.round(unit)
+            raise BackendCapabilityError(
+                f"round_temporal unit={unit!r} is not supported -- fixed-duration "
+                "rounding is ambiguous for YEAR/MONTH/WEEK; use round_calendar",
+                backend="polars",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            )
+        return _round_datetime(x, rounding, unit, multiple)
 
     def round_calendar(
         self,
         x: PolarsExpr,
         /,
-        rounding: Optional[str] = None,
-        unit: str = "1d",
-        origin: Optional[str] = None,
+        rounding: str,
+        unit: str,
         multiple: int = 1,
+        origin: Any = None,
     ) -> PolarsExpr:
-        """Round datetime to a calendar unit.
+        """Round datetime to a multiple of a calendar time unit.
 
-        Similar to round_temporal but for calendar-aware rounding.
+        All nine Substrait units are in scope (calendar rounding is
+        unambiguous for every one, unlike round_temporal).
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Calendar unit string.
-            origin: Origin timestamp.
-            multiple: Multiple of unit.
+            unit: YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MILLISECOND,
+                or MICROSECOND.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
         """
-        # For Polars, calendar rounding uses the same approach
-        return self.round_temporal(x, rounding, unit, multiple, origin)
+        return _round_datetime(x, rounding, unit, multiple)

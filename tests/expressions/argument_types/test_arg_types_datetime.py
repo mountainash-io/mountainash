@@ -414,6 +414,32 @@ OP_SPECS: list[OpSpec] = [
         matrix_arg_is_input=True,
         complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
     ),
+    # round_temporal.x / round_calendar.x (item 74): rounding/unit/multiple are
+    # fixed options (rounding/unit reclassified as options, not expression args)
+    # so first_scalar_build_gate() sees the same ScalarFunctionNode shape as
+    # to_timezone/local_timestamp above regardless of input_type.
+    OpSpec(
+        function_key=FK_DT.ROUND_TEMPORAL,
+        op_name="round_temporal",
+        build=lambda receiver, _arg: receiver.dt.round_temporal(rounding="FLOOR", unit="DAY"),
+        raw_arg=datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        arg_col_name="ts",
+        param_name="x",
+        data=_TZ_MATRIX_DATA,
+        matrix_arg_is_input=True,
+        complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
+    ),
+    OpSpec(
+        function_key=FK_DT.ROUND_CALENDAR,
+        op_name="round_calendar",
+        build=lambda receiver, _arg: receiver.dt.round_calendar(rounding="FLOOR", unit="MONTH"),
+        raw_arg=datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc),
+        arg_col_name="ts",
+        param_name="x",
+        data=_TZ_MATRIX_DATA,
+        matrix_arg_is_input=True,
+        complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
+    ),
 ]
 
 
@@ -557,30 +583,23 @@ def _unit_reference_expr(op: str, build_value: str):
     return _unit_expr(op, _REFERENCE_VALUE_BY_BUILD[build_value])
 
 
-# (op, value) pairs HELD OUT of the ibis-duckdb honor set; declared on ibis.
-# Friendly aliases inherit the same disposition as their canonical duration
-# form ("quarter" -> "1q", "week" -> "1w"), per the api-builder's friendly
-# normalization at validate_ma_option.
-_IBIS_DUCKDB_DECLARED_DURATION = {
-    "truncate": {"1q", "2d", "3h"},
-    "floor_dt": {"1q", "2d", "3h"},
-    "round_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q", "2d", "3h"},
-    "ceil_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q", "2d", "3h"},
-}
+# ibis-duckdb (this generic "ibis" test fixture) now honors EVERY value —
+# round_dt/ceil_dt redirect through the real round_temporal/round_calendar
+# implementation instead of a silent-wrong truncate fallback (item 74).
+# narwhals still declares only "1w" (dt.truncate rejects the week duration
+# on both dialects) — now uniformly across all 4 ops, not just
+# truncate/floor_dt (round_dt/ceil_dt redirect through the same
+# truncate-based body and inherit the identical gap).
 _NARWHALS_DECLARED_DURATION = {
     "truncate": {"1w"},
     "floor_dt": {"1w"},
-    "round_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q", "2d", "3h"},
-    "ceil_dt": {"1y", "1mo", "1d", "1h", "1m", "1s", "1ms", "1us", "1w", "1q", "2d", "3h"},
+    "round_dt": {"1w"},
+    "ceil_dt": {"1w"},
 }
 _FRIENDLY_TO_DURATION = {
     "year": "1y", "quarter": "1q", "month": "1mo", "week": "1w",
     "day": "1d", "hour": "1h", "minute": "1m", "second": "1s",
     "millisecond": "1ms", "microsecond": "1us",
-}
-_IBIS_DUCKDB_DECLARED = {
-    op: declared | {friendly for friendly, dur in _FRIENDLY_TO_DURATION.items() if dur in declared}
-    for op, declared in _IBIS_DUCKDB_DECLARED_DURATION.items()
 }
 _NARWHALS_DECLARED = {
     op: declared | {friendly for friendly, dur in _FRIENDLY_TO_DURATION.items() if dur in declared}
@@ -590,38 +609,21 @@ _NARWHALS_DECLARED = {
 
 def _unit_disposition(op: str, value: str, backend: str) -> str:
     """Mirror the verified matrix: honored or declared_unsupported per cell."""
-    if backend == "polars":
-        return "honored"  # polars honors ALL values; the matrix column
-    if backend == "ibis":
-        return "declared_unsupported" if value in _IBIS_DUCKDB_DECLARED[op] else "honored"
+    if backend in ("polars", "ibis"):
+        return "honored"  # both fully honor every value now (item 74).
     # narwhals-polars and narwhals-pandas share the same per-dialect fact sets.
     return "declared_unsupported" if value in _NARWHALS_DECLARED[op] else "honored"
 
 
 def _unit_backing_mode(op: str, value: str, backend: str) -> str:
-    disp = _unit_disposition(op, value, backend)
-    if disp != "declared_unsupported":
-        return "absence"
-    if value in {"2d", "3h"}:
-        return "class"
-    return "exact-fallback"
+    return "absence" if _unit_disposition(op, value, backend) != "declared_unsupported" else "exact-fallback"
 
 
 def _unit_reason(op: str, value: str, backend: str) -> str:
     if _unit_disposition(op, value, backend) == "honored":
         return "native backend honors the unit on this op"
-    if backend == "ibis":
-        if value in {"2d", "3h"}:
-            return "ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted"
-        if op in {"round_dt", "ceil_dt"}:
-            return "ibis has no native datetime round/ceil; silently falling back to truncate would return a wrong value"
-        return "ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter')"
-    # narwhals
-    if value in {"2d", "3h"}:
-        return "narwhals has no native datetime round/ceil; a multiplier value silently falls back to truncate and returns a wrong (down-rounded) result"
-    if op in {"round_dt", "ceil_dt"}:
-        return "narwhals has no native datetime round/ceil; silently falling back to truncate would return a wrong value"
-    return "narwhals truncate rejects the week unit '1w' (and its friendly alias 'week')"
+    # narwhals -- the only remaining declared cell (week).
+    return "narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects"
 
 
 def _unit_probe(op: str, value: str, backend: str) -> OptionSpec:
@@ -637,52 +639,24 @@ def _unit_probe(op: str, value: str, backend: str) -> OptionSpec:
             _DATETIME_UNIT_DATA,
             expected_discriminates=True,
         )
-    # declared_unsupported
-    if backend == "ibis":
-        return OptionSpec(
-            _UNIT_OP_FKEYS[op],
-            "unit",
-            value,
-            "datetime",
-            lambda v=value: _unit_expr(op, v),
-            lambda v=value: _unit_reference_expr(op, v),
-            _DATETIME_UNIT_DATA,
-            expected_discriminates=True,
-        )
-    # narwhals
-    canonical = _FRIENDLY_TO_DURATION.get(value, value)
-    if canonical == "1w":
-        return OptionSpec(
-            _UNIT_OP_FKEYS[op],
-            "unit",
-            value,
-            "datetime",
-            lambda v=value: _unit_expr(op, v),
-            lambda v=value: _unit_reference_expr(op, v),
-            _DATETIME_UNIT_DATA,
-            expected_discriminates=True,
-        )
+    # declared_unsupported (narwhals, week only)
     return OptionSpec(
         _UNIT_OP_FKEYS[op],
         "unit",
         value,
         "datetime",
         lambda v=value: _unit_expr(op, v),
-        lambda v=value: _unit_expr(op, v),  # same value → always equal
+        lambda v=value: _unit_reference_expr(op, v),
         _DATETIME_UNIT_DATA,
-        expected_discriminates=True,  # mismatch: probe raises sentinel
+        expected_discriminates=True,
     )
 
 
 def _unit_native_failure(op: str, value: str, backend: str):
-    if backend == "ibis":
-        from ibis.common.annotations import SignatureValidationError
-        return SignatureValidationError
-    # narwhals
-    canonical = _FRIENDLY_TO_DURATION.get(value, value)
-    if canonical == "1w":
-        return ValueError
-    return OptionProbeDidNotDiscriminateError
+    # Only reachable for narwhals' declared "1w" cell -- the MA wrapper
+    # redirects through round_calendar, whose own defence-in-depth raise
+    # (BackendCapabilityError) pre-empts narwhals' underlying raw ValueError.
+    return BackendCapabilityError
 
 
 # Per-op, per-unit HONORED result (verified by the controller Step-0 probe).
@@ -795,13 +769,6 @@ REGISTERED_OPTION_PROBES.extend(
     for op in sorted(_UNIT_OP_FKEYS)
     for backend in ALL_BACKENDS
     for value in _ALL_UNIT_VALUES
-)
-
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (_UNIT_OP_FKEYS[op], "unit", value, CONST_BACKEND.IBIS, None)
-    for op in sorted(_UNIT_OP_FKEYS)
-    for value in _ALL_UNIT_VALUES
-    if value in _IBIS_DUCKDB_DECLARED[op] and value not in {"2d", "3h"}
 )
 
 

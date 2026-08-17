@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 42 · Facts: 1560 · Registered operations: 324 · Implementation records: 972
+Declarations: 43 · Facts: 1462 · Registered operations: 326 · Implementation records: 978
 
 Legend — scoped deviations:
 
@@ -131,39 +131,32 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| narwhals-pandas | unit | — | duration_multiplier | unsupported | gate | build | — | narwhals has no native datetime round/ceil; a multiplier value silently falls back to truncate and returns a wrong (down-rounded) result | — | — | 2026-07-25 | — | — |
-| narwhals-pandas | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | narwhals has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
-| narwhals-polars | unit | — | duration_multiplier | unsupported | gate | build | — | narwhals has no native datetime round/ceil; a multiplier value silently falls back to truncate and returns a wrong (down-rounded) result | — | — | 2026-07-25 | — | — |
-| narwhals-polars | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | narwhals has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
+| narwhals-pandas | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-pandas | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
 
 ### `CEIL` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| * | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | ibis has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
-| ibis-duckdb | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| ibis-duckdb | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | ibis has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
+| ibis-polars | unit | 1mo, 1q, 1y, month, quarter, year | — | unsupported | gate | build | — | ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `FLOOR` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| narwhals-pandas | unit | 1w | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
-| narwhals-pandas | unit | week | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
-| narwhals-polars | unit | 1w | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
-| narwhals-polars | unit | week | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
+| narwhals-pandas | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-pandas | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
 
 ### `FLOOR` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| * | unit | 1q | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
-| * | unit | quarter | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
-| ibis-duckdb | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| ibis-duckdb | unit | 1q | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
-| ibis-duckdb | unit | quarter | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
+| ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `IS_DST` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
@@ -176,19 +169,17 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| narwhals-pandas | unit | — | duration_multiplier | unsupported | gate | build | — | narwhals has no native datetime round/ceil; a multiplier value silently falls back to truncate and returns a wrong (down-rounded) result | — | — | 2026-07-25 | — | — |
-| narwhals-pandas | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | narwhals has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
-| narwhals-polars | unit | — | duration_multiplier | unsupported | gate | build | — | narwhals has no native datetime round/ceil; a multiplier value silently falls back to truncate and returns a wrong (down-rounded) result | — | — | 2026-07-25 | — | — |
-| narwhals-polars | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | narwhals has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
+| narwhals-pandas | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-pandas | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
 
 ### `ROUND` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| * | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | ibis has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
-| ibis-duckdb | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| ibis-duckdb | unit | 1d, 1h, 1m, 1mo, 1ms, 1q, 1s, 1us, 1w, 1y, day, hour, microsecond, millisecond, minute, month, quarter, second, week, year | — | unsupported | gate | build | — | ibis has no native datetime round/ceil; silently falling back to truncate would return a wrong value | — | — | 2026-07-24 | — | — |
+| ibis-polars | unit | 1mo, 1q, 1y, month, quarter, year | — | unsupported | gate | build | — | ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `TO_TIMEZONE` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
@@ -201,21 +192,16 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| narwhals-pandas | unit | 1w | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
-| narwhals-pandas | unit | week | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
-| narwhals-polars | unit | 1w | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
-| narwhals-polars | unit | week | — | unsupported | gate | build | — | narwhals truncate rejects the week unit '1w' (and its friendly alias 'week') | — | — | 2026-07-24 | — | — |
+| narwhals-pandas | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-pandas | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | 1w | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
+| narwhals-polars | unit | week | — | unsupported | gate | build | — | narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects | — | — | 2026-08-16 | — | — |
 
 ### `TRUNCATE` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| * | unit | 1q | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
-| * | unit | quarter | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
-| ibis-duckdb | unit | — | duration_multiplier | unsupported | gate | build | — | ibis TimestampTruncate rejects Polars-style multiplier duration units (e.g. '2d', '3h', '12mo'); only single bare units are accepted | — | — | 2026-07-25 | — | — |
-| ibis-duckdb | unit | 1q | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
-| ibis-duckdb | unit | quarter | — | unsupported | gate | build | — | ibis TimestampTruncate rejects the quarter unit '1q' (and its friendly alias 'quarter') | — | — | 2026-07-24 | — | — |
+| ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `CONTAINS` × narwhals (FKEY_MOUNTAINASH_SCALAR_LIST)
 
@@ -1020,6 +1006,22 @@ Legend — scoped deviations:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | timezone | — | iana_timezone | unsupported | gate | build | — | local_timestamp returns the UTC wall clock, not the target-zone wall clock -- ibis has no timezone method and the naive re-cast discards the conversion (verified 2026-07-29, ibis 12.0.0/duckdb: 12:00 instead of 17:30 for Asia/Kolkata) | — | — | 2026-07-29 | — | — |
 | ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | local_timestamp returns the UTC wall clock, not the target-zone wall clock -- ibis has no timezone method and the naive re-cast discards the conversion (verified 2026-07-29, ibis 12.0.0/duckdb: 12:00 instead of 17:30 for Asia/Kolkata) | — | — | 2026-07-29 | — | — |
+
+### `ROUND_CALENDAR` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-polars | unit | MONTH | — | unsupported | gate | build | — | ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- CEIL/ROUND_TIE_DOWN/ROUND_TIE_UP cannot compute the next calendar boundary; verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-polars | unit | YEAR | — | unsupported | gate | build | — | ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- CEIL/ROUND_TIE_DOWN/ROUND_TIE_UP cannot compute the next calendar boundary; verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | multiple | 3 | — | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- multiple > 1 is unsupported for every unit; verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | unit | HOUR, MICROSECOND, MILLISECOND, MINUTE, SECOND | — | unsupported | gate | build | — | ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+
+### `ROUND_TEMPORAL` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | multiple | 2 | — | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- multiple > 1 is unsupported for every unit; verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | unit | HOUR, MICROSECOND, MILLISECOND, MINUTE, SECOND | — | unsupported | gate | build | — | ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `STRPTIME_DATE` × narwhals (FKEY_SUBSTRAIT_SCALAR_DATETIME)
 

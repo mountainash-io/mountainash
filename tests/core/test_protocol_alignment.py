@@ -723,8 +723,6 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     (SubstraitScalarDatetimeExpressionSystemProtocol, "gt"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "gte"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="Datetime comparisons handled by scalar_comparison", since="2026-05-12"),
     (SubstraitScalarDatetimeExpressionSystemProtocol, "strptime_time"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_temporal"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
-    (SubstraitScalarDatetimeExpressionSystemProtocol, "round_calendar"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered", since="2026-05-12"),
     # Substrait Scalar Geometry — not yet in function registry
     (SubstraitScalarGeometryExpressionSystemProtocol, "buffer"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),
     (SubstraitScalarGeometryExpressionSystemProtocol, "centroid"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),

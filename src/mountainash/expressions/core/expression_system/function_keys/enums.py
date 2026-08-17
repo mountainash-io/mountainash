@@ -456,6 +456,10 @@ class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     # Arithmetic
     ADD_INTERVALS = auto()
 
+    # Rounding
+    ROUND_TEMPORAL = auto()
+    ROUND_CALENDAR = auto()
+
     # Migrated from mountainash namespace — catalog functions_datetime.yaml ops
     ASSUME_TIMEZONE = auto()
     STRFTIME = auto()

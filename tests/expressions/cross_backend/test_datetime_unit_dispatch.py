@@ -54,19 +54,13 @@ ALL_BACKENDS_DATETIME_UNIT = (
     "narwhals-pandas",
 )
 
-# (backend, op) → reason. round/ceil have no native datetime impl on ibis or narwhals
-# (the silent truncate-fallback is an anti-pattern); Task 3 declares them UNSUPPORTED so
-# the visitor raises a clean BackendCapabilityError. ibis floor was fixed in Task 3
-# (floor == truncate; applies the unit-mapping) and is NO LONGER divergent — its removal
-# from this map was forced by the strict xfail flipping to XPASS, exactly as intended.
-_KNOWN_FALLBACK_DIVERGENCES: dict[tuple[str, str], str] = {
-    ("ibis-duckdb", "round"): "ibis has no native datetime round; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
-    ("ibis-duckdb", "ceil"): "ibis has no native datetime ceil; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
-    ("narwhals-polars", "round"): "narwhals has no native datetime round; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
-    ("narwhals-polars", "ceil"): "narwhals has no native datetime ceil; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
-    ("narwhals-pandas", "round"): "narwhals has no native datetime round; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
-    ("narwhals-pandas", "ceil"): "narwhals has no native datetime ceil; declared UNSUPPORTED -> BackendCapabilityError (Task 3)",
-}
+# (backend, op) → reason. Historically ibis/narwhals had no native datetime
+# round/ceil (silent truncate-fallback anti-pattern); item 74's round_temporal/
+# round_calendar redirect gave every backend a real implementation, so this
+# map is now empty. ibis floor was fixed first (Task 3 of the earlier plan);
+# round/ceil followed via item 74 — each removal was forced by the strict
+# xfail flipping to XPASS, exactly as intended.
+_KNOWN_FALLBACK_DIVERGENCES: dict[tuple[str, str], str] = {}
 
 
 @pytest.mark.cross_backend

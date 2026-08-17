@@ -10,7 +10,7 @@ from mountainash.expressions.core.datetime_components import (
     CALENDAR_COMPONENTS,
     DatetimeComponent,
 )
-from typing import TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 
 import ibis
 
@@ -28,6 +28,48 @@ _LOCAL_TIMESTAMP_UNSUPPORTED = (
     "local_timestamp is not supported on ibis — it yields the UTC wall clock, "
     "not the target zone wall clock; see capabilities/datetime/value_classes_substrait.py"
 )
+
+# round_temporal's in-scope units (v1): YEAR/MONTH/WEEK are declared
+# UNSUPPORTED there (ambiguous fixed-duration length) -- round_calendar
+# covers all nine.
+_ROUND_TEMPORAL_UNITS = frozenset(
+    {"DAY", "HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND"}
+)
+
+# Substrait canonical unit name -> ibis.interval()/TimestampValue.bucket()
+# plural kwarg. x.truncate(unit) accepts the canonical uppercase name
+# directly (verified against ibis 12.0.0/duckdb) so no translation is
+# needed there.
+_IBIS_INTERVAL_KWARGS = {
+    "YEAR": "years", "MONTH": "months", "WEEK": "weeks", "DAY": "days",
+    "HOUR": "hours", "MINUTE": "minutes", "SECOND": "seconds",
+    "MILLISECOND": "milliseconds", "MICROSECOND": "microseconds",
+}
+
+
+def _round_datetime(x: IbisValueExpr, rounding: str, unit: str, multiple: int) -> IbisValueExpr:
+    """Shared round_temporal/round_calendar implementation.
+
+    x.truncate(unit) gives FLOOR at multiple=1. For multiple>1,
+    TimestampValue.bucket(**{kwarg: multiple}) buckets from the UNIX epoch
+    (ibis has no per-op origin parameter honored here; v1 never supplies a
+    custom origin). CEIL/tie modes are hand-rolled: ibis rejects Polars-style
+    combined multiplier truncate strings (SignatureValidationError, verified
+    2026-08-16) and has no native round/ceil primitive at all.
+    """
+    kwarg = _IBIS_INTERVAL_KWARGS[unit]
+    floor = x.truncate(unit) if multiple == 1 else x.bucket(**{kwarg: multiple})
+    if rounding == "FLOOR":
+        return floor
+    ceiling = (floor == x).ifelse(x, floor + ibis.interval(**{kwarg: multiple}))
+    if rounding == "CEIL":
+        return ceiling
+    diff_down = x.epoch_seconds().cast("int64") - floor.epoch_seconds().cast("int64")
+    diff_up = ceiling.epoch_seconds().cast("int64") - x.epoch_seconds().cast("int64")
+    if rounding == "ROUND_TIE_UP":
+        return (diff_up <= diff_down).ifelse(ceiling, floor)
+    # ROUND_TIE_DOWN: nearest, tying to the earlier point on equidistance.
+    return (diff_down <= diff_up).ifelse(floor, ceiling)
 
 
 class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol["IbisValueExpr"]):
@@ -404,53 +446,60 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        rounding: Optional[str] = None,
-        unit: str = "1d",
+        rounding: str,
+        unit: str,
         multiple: int = 1,
-        origin: Optional[str] = None,
+        origin: Any = None,
     ) -> IbisValueExpr:
-        """Round datetime to a multiple of a time unit.
+        """Round datetime to a multiple of a fixed-duration time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Time unit string.
-            multiple: Multiple of unit (default 1).
-            origin: Origin timestamp for rounding.
+            unit: One of DAY, HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND.
+                YEAR/MONTH/WEEK are declared UNSUPPORTED here (ambiguous
+                fixed-duration length; see capabilities/datetime/rounding.py)
+                -- the raise below is defence in depth.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Ibis only supports truncate. Falls back to truncate for all modes.
         """
-        # Ibis only has truncate - use for all rounding modes
-        return x.truncate(unit)
+        if unit not in _ROUND_TEMPORAL_UNITS:
+            raise BackendCapabilityError(
+                f"round_temporal unit={unit!r} is not supported -- fixed-duration "
+                "rounding is ambiguous for YEAR/MONTH/WEEK; use round_calendar",
+                backend="ibis",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            )
+        return _round_datetime(x, rounding, unit, multiple)
 
     def round_calendar(
         self,
         x: IbisValueExpr,
         /,
-        rounding: Optional[str] = None,
-        unit: str = "1d",
-        origin: Optional[str] = None,
+        rounding: str,
+        unit: str,
         multiple: int = 1,
+        origin: Any = None,
     ) -> IbisValueExpr:
-        """Round datetime to a calendar unit.
+        """Round datetime to a multiple of a calendar time unit.
 
-        Similar to round_temporal but for calendar-aware rounding.
+        All nine Substrait units are in scope (calendar rounding is
+        unambiguous for every one, unlike round_temporal).
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Calendar unit string.
-            origin: Origin timestamp.
-            multiple: Multiple of unit.
+            unit: YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MILLISECOND,
+                or MICROSECOND.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Ibis only supports truncate. Falls back to truncate.
         """
-        return self.round_temporal(x, rounding, unit, multiple, origin)
+        return _round_datetime(x, rounding, unit, multiple)

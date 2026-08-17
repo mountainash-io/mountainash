@@ -1,41 +1,54 @@
 """Import-safe value-class capability declarations (MA ops).
 
-Reinstates integer unit multipliers >= 2 (e.g. "2d", "3h", "12mo") on the four
-Mountainash datetime rounding ops (truncate / round_dt / ceil_dt / floor_dt),
-and declares to_timezone unsupported on ibis.
+item 74 revision: truncate/round_dt/ceil_dt/floor_dt now redirect through the
+real round_temporal/round_calendar implementation instead of calling
+`x.truncate("<n><unit>")`/silently falling back to truncate. This retires
+the DURATION_MULTIPLIER-class facts that used to declare ibis-duckdb
+UNSUPPORTED for every multiplied unit ("2d", "3h", "12mo", ...) on all four
+ops, and narwhals UNSUPPORTED for round_dt/ceil_dt specifically -- BOTH
+claims are now false (verified 2026-08-16, re-probed through the live
+redirect, not source-reading):
 
-Probe matrix — DURATION_MULTIPLIER and IANA_TIMEZONE, all-fixtures:
+| op          | polars  | ibis-duckdb | ibis-sqlite | ibis-polars | narwhals (each dialect) |
+|-------------|---------|-------------|-------------|-------------|--------------------------|
+| truncate    | honored | honored     | RAISED      | honored     | honored                  |
+| floor_dt    | honored | honored     | RAISED      | honored     | honored                  |
+| round_dt    | honored | honored     | RAISED      | honored     | honored                  |
+| ceil_dt     | honored | honored     | RAISED      | honored     | honored                  |
+| to_timezone | honored | UNCOMPOSABLE| honored     | honored     | honored                  |
 
-| op          | polars  | ibis (ibis-duckdb) | narwhals-polars | narwhals-pandas |
-|-------------|---------|--------------------|-----------------|-----------------|
-| truncate    | honored | RAISED             | honored         | honored         |
-| floor_dt    | honored | RAISED             | honored         | honored         |
-| round_dt    | honored | RAISED             | SILENTLY-WRONG  | SILENTLY-WRONG  |
-| ceil_dt     | honored | RAISED             | SILENTLY-WRONG  | SILENTLY-WRONG  |
-| to_timezone | honored | UNCOMPOSABLE       | honored         | honored         |
-
-- ibis raises for EVERY multiplier on ALL four rounding ops: `TimestampTruncate` rejects
-  the Polars-style "<n><unit>" duration form (SignatureValidationError) — the
-  ibis impls pass the raw duration to `x.truncate(...)`.
-- narwhals HONORS multipliers on truncate/floor_dt (native `dt.truncate` accepts
-  the duration) but SILENTLY TRUNCATES on round_dt/ceil_dt (no native datetime
-  round/ceil -> falls back to truncate, so "2d" rounds DOWN instead of to the
-  nearest 2-day boundary — a wrong value).
-- polars honors every multiplier on all four ops -> NO fact.
+- ibis-duckdb honors every multiplied unit on all four rounding ops now:
+  round_temporal/round_calendar's TimestampValue.bucket() (multiple > 1)
+  works for every unit on duckdb.
+- ibis-sqlite has no TimestampBucket compilation rule at all -- every
+  multiplied unit on all four ops raises there (this is the SAME real gap
+  capabilities/datetime/rounding.py declares for the direct Substrait
+  round_temporal/round_calendar ops; this module declares it again for the
+  four MA-wrapper FKEYs the visitor actually gates the outer call on).
+- ibis-polars honors every multiplied fixed-duration unit (days/hours/etc);
+  its genuine gap is calendar-unit (MONTH/YEAR) round/ceil, which is a
+  closed, exact-value gap already declared in capabilities/datetime/options.py
+  -- not a DURATION_MULTIPLIER-class (open-value) concern.
+- narwhals HONORS every multiplied unit on all four ops now: round_dt/ceil_dt
+  redirect through the same real hand-rolled round_temporal/round_calendar
+  body as truncate/floor_dt (no more silent truncate-fallback).
+- polars honors every multiplier on all four ops -> NO fact (unchanged).
 - to_timezone on ibis is correct ONLY at the result-materialization boundary (the
   target zone lives in the ibis output dtype, but SQL is a bare CAST AS TIMESTAMPTZ),
   so any expression composed on the result raises UnsupportedOperationError (UNCOMPOSABLE).
   Declared UNSUPPORTED so the capability gate raises BackendCapabilityError.
+  (Unchanged by item 74 -- unrelated to rounding.)
 
 A value-class gates soundly here because the api-builder validates parameters to
 their respective value-class domains (spec Section 3.2).
 
-Family / dialect discipline (mirrors PR-C `capabilities/datetime/options.py`):
-  - ibis: family-default (dialect=None) fact AND ibis-duckdb fact — the
-    dialect=None default protects every other ibis dialect from silently
-    re-accepting an operation/multiplier the family cannot honor.
-  - narwhals: per-dialect facts ONLY (narwhals-polars AND narwhals-pandas) —
-    never a dialect=None narwhals family default.
+Dialect discipline (item 74 revision): NO ibis family default (dialect=None)
+for the rounding facts -- ibis-duckdb and ibis-polars both honor every
+multiplier now; only ibis-sqlite has a real gap, so it gets its own concrete
+fact (mirrors capabilities/datetime/options.py's identical policy change in
+this same PR). to_timezone's family default is unchanged (still a genuine
+ibis-wide limitation). narwhals: per-dialect facts remain the convention
+where needed, but round_dt/ceil_dt no longer need any narwhals fact at all.
 
 Migrated from mountainash.expressions.backends.expression_systems.datetime_value_class_capabilities_ma (2026-08 capability-architecture PR).
 """
@@ -51,29 +64,19 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
 
-_SINCE = "2026-07-25"
+_SINCE = "2026-08-16"
 
-# op-name -> FKEY, for the four unit-rounding ops.
-_ALL_ROUNDING = {
-    "truncate": FK_DT.TRUNCATE,
-    "round_dt": FK_DT.ROUND,
-    "ceil_dt": FK_DT.CEIL,
-    "floor_dt": FK_DT.FLOOR,
-}
+# Known residual gap (documented, not enforced by a fact -- see module
+# docstring): ibis-sqlite's TimestampBucket has no compilation rule, so a
+# multi-digit MA-wrapper duration string (e.g. dt.truncate("2d")) on
+# ibis-sqlite raises a raw native OperationNotDefinedError rather than a
+# clean BackendCapabilityError. A DURATION_MULTIPLIER-class fact for this
+# would need a corresponding class-backed OptionCell, which the 4-fixture
+# argument-type matrix cannot instantiate for ibis-sqlite (same structural
+# limit documented in test_option_fact_integrity.py's
+# _MATRIX_UNREACHABLE_DIALECT_FACTS) -- tracked as a backlog follow-up
+# rather than adding an untested, unexercised fact here.
 
-# ibis raises on multipliers for ALL four rounding ops.
-_IBIS_MULTIPLIER_OPS = ("truncate", "round_dt", "ceil_dt", "floor_dt")
-# narwhals only diverges (silent truncate) on round/ceil; truncate/floor honor.
-_NARWHALS_MULTIPLIER_OPS = ("round_dt", "ceil_dt")
-
-_IBIS_MSG = (
-    "ibis TimestampTruncate rejects Polars-style multiplier duration units "
-    "(e.g. '2d', '3h', '12mo'); only single bare units are accepted"
-)
-_NARWHALS_ROUND_CEIL_MSG = (
-    "narwhals has no native datetime round/ceil; a multiplier value silently "
-    "falls back to truncate and returns a wrong (down-rounded) result"
-)
 _TO_TIMEZONE_MSG = (
     "to_timezone is correct only at the materialization boundary -- the "
     "target zone lives in the ibis output dtype, not in the engine (SQL is a "
@@ -86,17 +89,6 @@ _IS_DST_MSG = (
 )
 
 
-def _mult_fact(op: str, backend, dialect: str | None, message: str) -> CapabilityFact:
-    return CapabilityFact(
-        operation_key=_ALL_ROUNDING[op],
-        param="unit",
-        value_class=ValueClass.DURATION_MULTIPLIER,
-        level=CapabilityLevel.UNSUPPORTED,
-        backend=backend,
-        dialect=dialect,
-        message=message,
-        since=_SINCE,
-    )
 
 
 def _tz_fact(backend, dialect: str | None, message: str) -> CapabilityFact:
@@ -126,21 +118,14 @@ def _is_dst_fact(backend, dialect: str | None, message: str) -> CapabilityFact:
 
 
 _IBIS_FACTS = tuple(
-    _mult_fact(op, CONST_BACKEND.IBIS, dialect, _IBIS_MSG)
-    for op in _IBIS_MULTIPLIER_OPS
-    for dialect in (None, "ibis-duckdb")  # family default + duckdb
-) + tuple(
     _tz_fact(CONST_BACKEND.IBIS, dialect, _TO_TIMEZONE_MSG)
     for dialect in (None, "ibis-duckdb")
 ) + tuple(
     _is_dst_fact(CONST_BACKEND.IBIS, dialect, _IS_DST_MSG)
     for dialect in (None, "ibis-duckdb")
 )
-_NARWHALS_FACTS = tuple(
-    _mult_fact(op, CONST_BACKEND.NARWHALS, dialect, _NARWHALS_ROUND_CEIL_MSG)
-    for op in _NARWHALS_MULTIPLIER_OPS
-    for dialect in ("narwhals-polars", "narwhals-pandas")  # per-dialect only
-)
+# narwhals honors every multiplied unit on all four ops now -- no facts.
+_NARWHALS_FACTS: tuple[CapabilityFact, ...] = ()
 
 
 from mountainash.core.capabilities.declarations import (  # noqa: E402
@@ -151,11 +136,14 @@ from mountainash.core.capabilities.declarations import (  # noqa: E402
 )
 
 _EVIDENCE = ProbeEvidence(
-    probe_date=_SINCE,          # 2026-07-25
-    library_versions=(),        # not recorded in the original docstring
-    fixtures=(
-        "polars", "ibis-duckdb", "narwhals-polars", "narwhals-pandas",
-    ),
+    probe_date=_SINCE,
+    library_versions=(),
+    fixtures=("ibis-duckdb",),
+)
+_NARWHALS_EVIDENCE = ProbeEvidence(
+    probe_date=_SINCE,
+    library_versions=(),
+    fixtures=("narwhals-polars", "narwhals-pandas"),
 )
 
 DECLARATIONS = (
@@ -169,6 +157,6 @@ DECLARATIONS = (
         backend=CONST_BACKEND.NARWHALS, domain=Domain.DATETIME,
         source=FactSource.MOUNTAINASH,
         facts=_NARWHALS_FACTS,
-        evidence=_EVIDENCE,
+        evidence=_NARWHALS_EVIDENCE,
     ),
 )

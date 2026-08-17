@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -182,7 +182,15 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_temporal(self, x: ExpressionT, /, rounding: Optional[str] = None, unit: str = "1d", multiple: int = 1, origin: Optional[str] = None) -> ExpressionT:
+    def round_temporal(
+        self,
+        x: ExpressionT,
+        /,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
+    ) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -191,7 +199,15 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_calendar(self, x: ExpressionT, /, rounding: Optional[str] = None, unit: str = "1d", origin: Optional[str] = None, multiple: int = 1) -> ExpressionT:
+    def round_calendar(
+        self,
+        x: ExpressionT,
+        /,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
+    ) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -199,3 +215,4 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
         """
         ...
+

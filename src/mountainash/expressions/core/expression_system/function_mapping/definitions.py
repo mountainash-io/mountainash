@@ -887,6 +887,20 @@ def register_all_functions() -> None:
             substrait_name="add_intervals",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.add_intervals,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
+            substrait_name="round_temporal",
+            options=("rounding", "unit", "multiple"),
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.round_temporal,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            substrait_uri=SubstraitExtension.SCALAR_DATETIME,
+            substrait_name="round_calendar",
+            options=("rounding", "unit", "multiple"),
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.round_calendar,
+        ),
     ]
 
     # ========================================

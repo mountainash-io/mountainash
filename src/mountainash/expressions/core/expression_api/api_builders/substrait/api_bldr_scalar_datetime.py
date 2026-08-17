@@ -214,3 +214,88 @@ class SubstraitScalarDatetimeAPIBuilder(
             arguments=[self._node, y_node],
         )
         return self._build(node)
+
+    def round_temporal(
+        self,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
+    ) -> BaseExpressionAPI:
+        """Round to a multiple of a fixed-duration time unit (Substrait: round_temporal).
+
+        Args:
+            rounding: One of ``"FLOOR"``, ``"CEIL"``, ``"ROUND_TIE_DOWN"``,
+                ``"ROUND_TIE_UP"``.
+            unit: Closed Substrait unit domain (``YEAR``..``MICROSECOND``,
+                shared with ``round_calendar``). ``YEAR``/``MONTH``/``WEEK``
+                build here but are ``declared_unsupported`` at the capability
+                layer in v1 (fixed-duration rounding is ambiguous for them).
+            multiple: Positive multiplier on ``unit``. Defaults to 1.
+            origin: Not supported in v1 -- real Substrait types this as an
+                ``arguments``-channel value (same type as the receiver), not
+                a string option; a non-``None`` value always raises.
+        """
+        from mountainash.core.errors import InvalidOptionValueError
+        from ._option_domains import validate_option
+
+        _reject_expression("rounding", rounding, "round_temporal")
+        _reject_expression("unit", unit, "round_temporal")
+        rounding = validate_option("round_temporal", "rounding", rounding)
+        unit = validate_option("round_temporal", "unit", unit)
+        if not isinstance(multiple, int) or isinstance(multiple, bool) or multiple < 1:
+            raise InvalidOptionValueError(
+                "round_temporal multiple must be a positive int (>= 1)"
+            )
+        if origin is not None:
+            raise InvalidOptionValueError(
+                "round_temporal origin is not supported in this implementation"
+            )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            arguments=[self._node],
+            options={"rounding": rounding, "unit": unit, "multiple": multiple},
+        )
+        return self._build(node)
+
+    def round_calendar(
+        self,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
+    ) -> BaseExpressionAPI:
+        """Round to a multiple of a calendar time unit (Substrait: round_calendar).
+
+        Args:
+            rounding: One of ``"FLOOR"``, ``"CEIL"``, ``"ROUND_TIE_DOWN"``,
+                ``"ROUND_TIE_UP"``.
+            unit: Closed Substrait unit domain (``YEAR``..``MICROSECOND``,
+                shared with ``round_temporal``). All nine units are in scope
+                here (calendar rounding is unambiguous for every one).
+            multiple: Positive multiplier on ``unit``. Defaults to 1.
+            origin: Not supported in v1 -- real Substrait types this as an
+                ``arguments``-channel value (same type as the receiver), not
+                a string option; a non-``None`` value always raises.
+        """
+        from mountainash.core.errors import InvalidOptionValueError
+        from ._option_domains import validate_option
+
+        _reject_expression("rounding", rounding, "round_calendar")
+        _reject_expression("unit", unit, "round_calendar")
+        rounding = validate_option("round_calendar", "rounding", rounding)
+        unit = validate_option("round_calendar", "unit", unit)
+        if not isinstance(multiple, int) or isinstance(multiple, bool) or multiple < 1:
+            raise InvalidOptionValueError(
+                "round_calendar multiple must be a positive int (>= 1)"
+            )
+        if origin is not None:
+            raise InvalidOptionValueError(
+                "round_calendar origin is not supported in this implementation"
+            )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            arguments=[self._node],
+            options={"rounding": rounding, "unit": unit, "multiple": multiple},
+        )
+        return self._build(node)

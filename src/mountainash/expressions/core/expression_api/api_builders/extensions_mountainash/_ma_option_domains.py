@@ -99,3 +99,41 @@ def validate_open_value(value_class: Any, param: str, value: Any, op: str) -> An
         )
     return value
 
+
+
+import re as _re  # noqa: E402 -- module-local, avoids widening the top-level import block
+
+# Canonical Substrait unit each MA duration suffix maps to. "q" (quarter)
+# maps to MONTH -- its multiplier is folded to a multiple-of-3 by
+# parse_ma_unit below (real Substrait has no QUARTER unit; item 74 spec §3.2).
+_MA_SUFFIX_TO_CANONICAL = {
+    "y": "YEAR", "mo": "MONTH", "q": "MONTH", "w": "WEEK", "d": "DAY",
+    "h": "HOUR", "m": "MINUTE", "s": "SECOND", "ms": "MILLISECOND", "us": "MICROSECOND",
+}
+_MA_CALENDAR_UNITS = frozenset({"YEAR", "MONTH", "WEEK"})
+_MA_UNIT_RE = _re.compile(r"^(\d+)([a-z]+)$")
+
+
+def parse_ma_unit(value: str) -> tuple[int, str, str]:
+    """Parse an already-validated, alias-normalized MA duration string (e.g.
+    "2d" -> (2, "DAY", "temporal") or "1mo" -> (1, "MONTH", "calendar")) for
+    the round_temporal/round_calendar redirect (item 74). `value` must
+    already be normalize_unit()-normalized (friendly words resolved to their
+    duration form) and validate_ma_option()-validated (multiplier + suffix
+    known-legal) -- this function does not itself validate.
+
+    "1q" (quarter) folds to (3, "MONTH", "calendar") -- multiplier composes
+    for multi-digit quarter input too, e.g. "2q" -> (6, "MONTH", "calendar").
+    """
+    match = _MA_UNIT_RE.match(value)
+    if match is None:
+        raise InvalidOptionValueError(f"cannot parse MA duration unit {value!r}")
+    multiplier = int(match.group(1))
+    suffix = match.group(2)
+    canonical = _MA_SUFFIX_TO_CANONICAL.get(suffix)
+    if canonical is None:
+        raise InvalidOptionValueError(f"unknown MA duration suffix {suffix!r} in {value!r}")
+    if suffix == "q":
+        multiplier *= 3
+    family = "calendar" if canonical in _MA_CALENDAR_UNITS else "temporal"
+    return multiplier, canonical, family
