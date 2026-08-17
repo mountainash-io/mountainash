@@ -24,6 +24,16 @@ class TestGuardAdaptedNotCopied:
         bare-name parse proves the guard was adapted, not copy-pasted."""
         assert target_narwhals.parse_type_string("Int64") is nw.Int64
 
+    def test_namespace_classes_present_at_pinned_floor(self):
+        """Floor verification (spec §2.3 / plan Task 13, 2026-08-17): the four
+        namespace classes the safe-eval parser constructs — Array, Enum,
+        Categorical, Decimal — plus the DTypeClass instantiation mechanism
+        were verified present (class defs + top-level exports) in the narwhals
+        2.20.0 wheel (the pinned floor in pyproject.toml). No floor change was
+        needed; this documents the check so a future floor raise re-runs it."""
+        for name in ("Array", "Enum", "Categorical", "Decimal"):
+            assert hasattr(nw, name), f"nw.{name} missing at resolved version"
+
 
 class TestParameterizedRoundTrip:
     @pytest.mark.parametrize("s,expected", [

@@ -31,6 +31,23 @@ class TestParameterizedRoundTrip:
         assert target_pyarrow.parse_type_string("string") == pa.string()
 
 
+class TestSemanticallyInvalidReturnsNone:
+    """Syntactically-valid-but-semantically-invalid strings match their regex
+    but must return None (never leak a raw Arrow constructor ValueError) so
+    the resolver raises the typed InvalidBackendTypeError instead."""
+
+    @pytest.mark.parametrize("s", [
+        "timestamp[badunit]",
+        "decimal128(999, 10)",
+        "decimal256(999, 10)",
+        "time64[badunit]",
+        "time32[badunit]",
+        "duration[badunit]",
+    ])
+    def test_semantically_invalid_returns_none(self, s):
+        assert target_pyarrow.parse_type_string(s) is None
+
+
 class TestOutOfScopeStaysNone:
     @pytest.mark.parametrize("s", [
         "list<item: int64>",     # recursive list grammar — out of scope

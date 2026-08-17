@@ -92,10 +92,43 @@ class TestToPandasDtypes:
         assert len(result) == len(list(UniversalType))
 
     def test_returns_dict_of_strings(self, basic_schema):
+        """Non-categorical fields are plain strings; a categorical field is
+        the deliberate exception (a real pd.CategoricalDtype instance)."""
+        import pandas as pd
+        categorical = TypeSpec(fields=[
+            FieldSpec(name="cat", type=UniversalType.STRING,
+                      categories=["a", "b"], categories_ordered=True),
+        ])
         result = to_pandas_dtypes(basic_schema)
         assert isinstance(result, dict)
         for v in result.values():
             assert isinstance(v, str)
+        cat_result = to_pandas_dtypes(categorical)
+        assert isinstance(cat_result["cat"], pd.CategoricalDtype)
+        assert not isinstance(cat_result["cat"], str)
+
+    def test_categorical_field_returns_categorical_dtype(self):
+        """§4.3: to_pandas_dtypes returns a real pd.CategoricalDtype instance
+        for a categorical field — pandas accepts it directly as astype input."""
+        import pandas as pd
+        spec = TypeSpec(fields=[
+            FieldSpec(name="col", type=UniversalType.STRING,
+                      categories=["a", "b"], categories_ordered=True),
+        ])
+        result = to_pandas_dtypes(spec)
+        assert isinstance(result["col"], pd.CategoricalDtype)
+        assert list(result["col"].categories) == ["a", "b"]
+        assert result["col"].ordered is True
+
+    def test_unordered_categorical_field_ordered_false(self):
+        import pandas as pd
+        spec = TypeSpec(fields=[
+            FieldSpec(name="col", type=UniversalType.STRING,
+                      categories=["a", "b"], categories_ordered=False),
+        ])
+        result = to_pandas_dtypes(spec)
+        assert isinstance(result["col"], pd.CategoricalDtype)
+        assert result["col"].ordered is False
 
 
 # ============================================================================
@@ -206,6 +239,138 @@ class TestConvertToBackend:
 
 
 # ============================================================================
+# TestCategoricalSchema (item 54, gap 3)
+# ============================================================================
+
+class TestCategoricalSchema:
+    """Gap 3: categories/categoriesOrdered -> real Polars categorical.
+
+    categories takes priority over backend_type/type entirely — mirrors
+    conform stage 5's mutually-exclusive branch ordering exactly."""
+
+    def _spec(self, categories, ordered=None, backend_type=None):
+        return TypeSpec(fields=[
+            FieldSpec(
+                name="cat",
+                type=UniversalType.STRING,
+                categories=categories,
+                categories_ordered=ordered,
+                backend_type=backend_type,
+            ),
+        ])
+
+    def test_unordered_categories_is_pl_categorical(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(["a", "b"], ordered=False))
+        assert result["cat"] is pl.Categorical
+
+    def test_ordered_categories_is_pl_enum(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(["a", "b"], ordered=True))
+        assert result["cat"] == pl.Enum(["a", "b"])
+
+    def test_object_form_categories_use_shared_extraction(self):
+        """Object-form categories must extract identically to conform's
+        stage-5b (shared categorical_values helper — no drift)."""
+        import polars as pl
+        from mountainash.typespec._categorical import categorical_values
+        cats = [{"value": 0, "label": "Low"}, {"value": 1, "label": "High"}]
+        result = to_polars_schema(self._spec(cats, ordered=True))
+        assert result["cat"] == pl.Enum([str(v) for v in categorical_values(cats)])
+
+    def test_categories_win_over_invalid_backend_type(self):
+        """Precedence (spec §5): a field with BOTH categories set AND an
+        invalid backend_type takes the categorical branch and never raises —
+        the backend_type is never even parsed for such a field."""
+        import polars as pl
+        result = to_polars_schema(self._spec(["a"], ordered=False, backend_type="garbage"))
+        assert result["cat"] is pl.Categorical
+
+    def test_ibis_categories_stay_string(self):
+        """Ibis has no categorical primitive — categories present still
+        resolves to string (explicit, not silently untested)."""
+        result = to_ibis_schema(self._spec(["a", "b"], ordered=True))
+        assert result["cat"] == "string"
+
+
+# ============================================================================
+# TestNestedListItemType (item 54, gap 2)
+# ============================================================================
+
+class TestNestedListItemType:
+    """Gap 2: nested LIST inner type via the existing FieldSpec.item_type.
+
+    item_type is a Frictionless-standard carriage (spec §list) already carried
+    on FieldSpec — the resolver previously never read it, so ARRAY resolved to
+    a bare container (and PyArrow silently defaulted every untyped list to a
+    string element)."""
+
+    def _spec(self, item_type=None):
+        return TypeSpec(fields=[
+            FieldSpec(name="lst", type=UniversalType.ARRAY, item_type=item_type),
+        ])
+
+    def test_polars_item_type_resolves_inner(self):
+        import polars as pl
+        result = to_polars_schema(self._spec("integer"))
+        assert result["lst"] == pl.List(pl.Int64)
+
+    def test_narwhals_item_type_resolves_inner(self):
+        import narwhals as nw
+        result = to_polars_schema(self._spec("integer"))
+        # narwhals wraps the already-cast polars-native frame on the live
+        # consumers (empty_frame / inline-read); assert the narwhals-native
+        # form of the same inner type is reachable via the registry.
+        from mountainash.core.dtypes import TypeTarget, registry
+        from mountainash.typespec.converters import _resolve_field_native
+        native = _resolve_field_native(self._spec("integer").fields[0], TypeTarget.NARWHALS)
+        assert native == nw.List(nw.Int64)
+        assert native is not nw.List  # real parameterized instance, not bare class
+
+    def test_pyarrow_item_type_resolves_inner_not_string(self):
+        """Second latent bug regression: the bare fallback silently defaulted
+        every untyped list to a string element. With item_type the inner must
+        be the real element type."""
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        result = to_arrow_schema(self._spec("integer"))
+        field = result.field("lst")
+        assert field.type == pa.list_(pa.int64())
+        assert field.type.value_type == pa.int64()  # NOT pa.string()
+
+    def test_ibis_item_type_resolves_inner(self):
+        result = to_ibis_schema(self._spec("integer"))
+        assert result["lst"] == "array<int64>"
+
+    def test_pandas_stays_object(self):
+        """Pandas has no native parameterized list dtype — 'object' is the
+        correct, only representation (regression lock, not a gap)."""
+        result = to_pandas_dtypes(self._spec("integer"))
+        assert result["lst"] == "object"
+
+    @pytest.mark.parametrize("item_type", [None, "any"])
+    def test_no_parameterization_keeps_bare_container(self, item_type):
+        """No item_type (or item_type='any' — same code path) -> bare
+        container, unchanged (regression)."""
+        import polars as pl
+        result = to_polars_schema(self._spec(item_type))
+        assert result["lst"] is pl.List
+
+    def test_unknown_item_type_raises_with_field_context_and_chain(self):
+        """item_type='garbage' is a second raise surface beyond
+        InvalidBackendTypeError: UnknownDtypeError naming the field, chained
+        to the original parse_universal error (chain must not be dropped)."""
+        from mountainash.core.dtypes import UnknownDtypeError
+        with pytest.raises(UnknownDtypeError) as exc_info:
+            to_polars_schema(self._spec("garbage"))
+        assert "lst" in str(exc_info.value)
+        assert "garbage" in str(exc_info.value)
+        # chain: __cause__ is the original UnknownDtypeError parse_universal
+        # raised, not swallowed by a message-only copy
+        assert isinstance(exc_info.value.__cause__, UnknownDtypeError)
+
+
+# ============================================================================
 # TestConvertersOverRegistry
 # ============================================================================
 
@@ -265,6 +430,22 @@ class TestConvertersOverRegistry:
             FieldSpec(name="x", type=UniversalType.INTEGER, backend_type=backend_type),
         ])
         assert to_polars_schema(spec)["x"] is pl.Int64
+
+    def test_semantically_invalid_backend_type_raises_typed_error_not_raw(self):
+        """Regression (GLM-5.2 whole-branch review, Important finding 1): a
+        syntactically-valid-but-semantically-invalid PyArrow string
+        (timestamp[badunit]) must surface as the typed InvalidBackendTypeError
+        through the converter, never a raw Arrow constructor ValueError."""
+        from mountainash.core.dtypes import InvalidBackendTypeError
+        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.typespec.converters import to_arrow_schema
+        spec = TypeSpec(fields=[
+            FieldSpec(name="x", type=UniversalType.INTEGER,
+                      backend_type="timestamp[badunit]"),
+        ])
+        with pytest.raises(InvalidBackendTypeError, match="timestamp\[badunit\]"):
+            to_arrow_schema(spec)
 
     def test_backend_type_preferred_when_parseable(self):
         import polars as pl
