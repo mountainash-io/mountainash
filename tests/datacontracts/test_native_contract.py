@@ -1,9 +1,11 @@
 """Native BaseDataContract: declaration collection, TypeSpec round trip, validate."""
 import polars as pl
+import pytest
 
 from mountainash.datacontracts.contract import BaseDataContract
 from mountainash.datacontracts.field import Field
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.validation.errors import IdentityInvalidError
 
 
 class UserContract(BaseDataContract):
@@ -115,6 +117,35 @@ class TestValidate:
         assert list(full.check_summaries.columns) == list(quick.check_summaries.columns)
         assert list(full.failure_cases.columns) == list(quick.failure_cases.columns)
         assert quick.check_summaries.height <= full.check_summaries.height
+
+    def test_validate_datacontract_raises_by_default_on_duplicate_key(self):
+        df = pl.DataFrame(
+            {"id": [1, 1], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        with pytest.raises(IdentityInvalidError):
+            UserContract.validate_datacontract(df)
+
+    def test_validate_datacontract_allow_imperfect_key_reports_primary_key_unique(self):
+        df = pl.DataFrame(
+            {"id": [1, 1], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract(df, allow_imperfect_key=True)
+        assert result.passes is False
+        failing = set(
+            result.check_summaries.filter(
+                result.check_summaries["status"] != "passed"
+            )["check_id"].to_list()
+        )
+        assert "primary_key_unique" in failing
+        assert result.identity_diagnostics["duplicate_key_tuples"] == 1
+
+    def test_validate_datacontract_quick_allow_imperfect_key_same_shape(self):
+        df = pl.DataFrame(
+            {"id": [1, 1], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract_quick(df, allow_imperfect_key=True)
+        assert result.passes is False
+        assert result.identity_diagnostics["duplicate_key_tuples"] == 1
 
 
 class NoKeyContract(BaseDataContract):

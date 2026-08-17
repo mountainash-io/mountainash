@@ -105,13 +105,22 @@ class BaseDataContract:
         tail: int | None = None,
         sample: int | None = None,
         random_seed: int | None = None,
+        allow_imperfect_key: bool = False,
     ) -> "ValidationResult":
-        """Validate data against this contract; returns (never raises)."""
+        """Validate data against this contract; returns a ValidationResult.
+
+        Raises IdentityInvalidError if this contract declares a keyed identity
+        (Config.primary_key / Config.natural_key) and the data does not honour
+        it: always for key fields missing from the data (declaration-phase,
+        spec §7); for null-key rows or duplicate key tuples, unless
+        allow_imperfect_key=True — which lets the run proceed and reports the
+        duplicates via the primary_key_unique check instead (spec §9.3).
+        """
         from mountainash.datacontracts.validator import Validator
 
         return Validator(name=cls.contract_name(), contract=cls).validate(
             data, context=context, head=head, tail=tail, sample=sample,
-            random_seed=random_seed,
+            random_seed=random_seed, allow_imperfect_key=allow_imperfect_key,
         )
 
     @classmethod
@@ -124,11 +133,15 @@ class BaseDataContract:
         tail: int | None = None,
         sample: int | None = None,
         random_seed: int | None = None,
+        allow_imperfect_key: bool = False,
     ) -> "ValidationResult":
-        """Quick validation — same runner, fail_fast=True (item 18 subsumed)."""
+        """Quick validation — same runner, fail_fast=True (item 18 subsumed).
+
+        See validate_datacontract for the allow_imperfect_key contract.
+        """
         from mountainash.datacontracts.validator import Validator
 
         return Validator(name=cls.contract_name(), contract=cls).validate_quick(
             data, context=context, head=head, tail=tail, sample=sample,
-            random_seed=random_seed,
+            random_seed=random_seed, allow_imperfect_key=allow_imperfect_key,
         )
