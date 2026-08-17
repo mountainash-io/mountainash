@@ -120,10 +120,23 @@ def to_polars_schema(schema: TypeSpec) -> Dict[str, Any]:
         {'id': Int64, 'name': Utf8}
     """
     from mountainash.core.lazy_imports import import_polars
+    from mountainash.typespec._categorical import categorical_values
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for to_polars_schema()")
-    return {f.name: _resolve_field_native(f, TypeTarget.POLARS) for f in schema.fields}
+    result = {}
+    for f in schema.fields:
+        if f.categories is not None:
+            # categories takes priority over backend_type/type entirely
+            # (mirrors conform stage 5's branch order exactly).
+            values = categorical_values(f.categories)
+            result[f.name] = (
+                pl.Enum([str(v) for v in values]) if f.categories_ordered
+                else pl.Categorical
+            )
+        else:
+            result[f.name] = _resolve_field_native(f, TypeTarget.POLARS)
+    return result
 
 
 # ============================================================================

@@ -206,6 +206,61 @@ class TestConvertToBackend:
 
 
 # ============================================================================
+# TestCategoricalSchema (item 54, gap 3)
+# ============================================================================
+
+class TestCategoricalSchema:
+    """Gap 3: categories/categoriesOrdered -> real Polars categorical.
+
+    categories takes priority over backend_type/type entirely — mirrors
+    conform stage 5's mutually-exclusive branch ordering exactly."""
+
+    def _spec(self, categories, ordered=None, backend_type=None):
+        return TypeSpec(fields=[
+            FieldSpec(
+                name="cat",
+                type=UniversalType.STRING,
+                categories=categories,
+                categories_ordered=ordered,
+                backend_type=backend_type,
+            ),
+        ])
+
+    def test_unordered_categories_is_pl_categorical(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(["a", "b"], ordered=False))
+        assert result["cat"] is pl.Categorical
+
+    def test_ordered_categories_is_pl_enum(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(["a", "b"], ordered=True))
+        assert result["cat"] == pl.Enum(["a", "b"])
+
+    def test_object_form_categories_use_shared_extraction(self):
+        """Object-form categories must extract identically to conform's
+        stage-5b (shared categorical_values helper — no drift)."""
+        import polars as pl
+        from mountainash.typespec._categorical import categorical_values
+        cats = [{"value": 0, "label": "Low"}, {"value": 1, "label": "High"}]
+        result = to_polars_schema(self._spec(cats, ordered=True))
+        assert result["cat"] == pl.Enum([str(v) for v in categorical_values(cats)])
+
+    def test_categories_win_over_invalid_backend_type(self):
+        """Precedence (spec §5): a field with BOTH categories set AND an
+        invalid backend_type takes the categorical branch and never raises —
+        the backend_type is never even parsed for such a field."""
+        import polars as pl
+        result = to_polars_schema(self._spec(["a"], ordered=False, backend_type="garbage"))
+        assert result["cat"] is pl.Categorical
+
+    def test_ibis_categories_stay_string(self):
+        """Ibis has no categorical primitive — categories present still
+        resolves to string (explicit, not silently untested)."""
+        result = to_ibis_schema(self._spec(["a", "b"], ordered=True))
+        assert result["cat"] == "string"
+
+
+# ============================================================================
 # TestNestedListItemType (item 54, gap 2)
 # ============================================================================
 
