@@ -344,20 +344,23 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: extract_boolean (IS_DST)
 
         Args:
-            timezone: IANA timezone name (e.g., "America/New_York").
+            timezone: IANA timezone name (e.g., "America/New_York"). Required.
 
         Returns:
             New ExpressionAPI with is_dst node.
         """
-        options = {}
-        if timezone is not None:
-            from ._ma_option_domains import validate_open_value
-            from mountainash.core.capabilities.schema import ValueClass
+        if timezone is None:
+            from mountainash.core.errors import InvalidOptionValueError
 
-            timezone = validate_open_value(
-                ValueClass.IANA_TIMEZONE, "timezone", timezone, "is_dst"
-            )
-            options["timezone"] = timezone
+            raise InvalidOptionValueError("is_dst requires a timezone")
+
+        from ._ma_option_domains import validate_open_value
+        from mountainash.core.capabilities.schema import ValueClass
+
+        timezone = validate_open_value(
+            ValueClass.IANA_TIMEZONE, "timezone", timezone, "is_dst"
+        )
+        options = {"timezone": timezone}
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
             arguments=[self._node],

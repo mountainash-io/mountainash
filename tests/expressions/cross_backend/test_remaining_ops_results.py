@@ -3,8 +3,9 @@
 Tests relative datetime ops (older_than, newer_than),
 rfloor_divide, and null aggregates (null_count, has_nulls).
 
-is_dst is excluded — it currently fails at the AST level
-(ScalarFunctionNode options=None validation error).
+is_dst has its own dedicated coverage in test_datetime_is_dst.py (item 65)
+and in test_arg_types_datetime.py/test_datetime_unit_dispatch.py for
+build-time validation.
 """
 
 from __future__ import annotations
