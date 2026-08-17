@@ -1,6 +1,7 @@
 """Tests for contract_from_typespec — TypeSpec to native BaseDataContract."""
 from __future__ import annotations
 
+import pytest
 import polars as pl
 
 from mountainash.typespec.spec import TypeSpec, FieldSpec, FieldConstraints
@@ -208,3 +209,42 @@ class TestCompileDatacontract:
         df = pl.DataFrame({"val": [None, "x"]})
         result = Contract.validate_datacontract(df)
         assert result.passes is True
+
+class TestPatternCheckCrossBackend:
+    """Pattern checks must fail on non-matching values on every backend."""
+
+    def _spec(self):
+        return _make_spec(
+            FieldSpec(
+                name="code",
+                type=UniversalType.STRING,
+                constraints=FieldConstraints(pattern=r"^[a-z]{3}-[0-9]{2}$"),
+            )
+        )
+
+    def _data(self, backend, values):
+        df = pl.DataFrame({"code": values})
+        if backend == "narwhals-pandas":
+            import narwhals as nw
+
+            return nw.from_native(df.to_pandas())
+        if backend == "ibis-duckdb":
+            ibis = pytest.importorskip("ibis")
+
+            return ibis.duckdb.connect().create_table("t", df.to_arrow())
+        return df
+
+    @pytest.mark.parametrize("backend", ["polars", "narwhals-pandas", "ibis-duckdb"])
+    def test_non_matching_value_fails(self, backend):
+        result = self._spec().to_contract(name="pattern_xb").validate_datacontract(
+            self._data(backend, ["abc-12", "###"])
+        )
+        assert not result.passes
+        assert "code__pattern" in _failing_check_ids(result)
+
+    @pytest.mark.parametrize("backend", ["polars", "narwhals-pandas", "ibis-duckdb"])
+    def test_matching_values_pass(self, backend):
+        result = self._spec().to_contract(name="pattern_xb").validate_datacontract(
+            self._data(backend, ["abc-12", "xyz-99"])
+        )
+        assert result.passes

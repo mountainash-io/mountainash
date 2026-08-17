@@ -648,17 +648,6 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="NW-REL-03",
-            kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(),  # relation op sample
-            backends=("narwhals-lazy",),
-            summary="narwhals-lazy has no sample() on a LazyFrame (AttributeError)",
-            impact="Relation.sample() raises on narwhals-lazy; eager backends sample rows",
-            workaround="Use an eager backend for sample()",
-            upstream_ref=None,
-            since="2026-08-06",
-        ),
-        DivergenceFact(
             id="IB-REL-10",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation ops drop_nans / unpivot / melt

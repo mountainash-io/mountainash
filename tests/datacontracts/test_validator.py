@@ -8,7 +8,7 @@ import mountainash as ma
 from mountainash.datacontracts.validator import Validator
 from mountainash.datacontracts.contract import BaseDataContract
 from mountainash.datacontracts.field import Field
-from mountainash.datacontracts.rule import Rule, guarded
+from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.result import ValidationResult
 
@@ -176,3 +176,79 @@ class TestValidatorProcessorWiring:
         result = validator.validate(df, head=2)
         assert result.processor is not None
         assert len(result.processor._source_data) == 2
+
+class TestSeededSlice:
+    """Seeded validation slices stay on backend and avoid vacuous passes."""
+
+    def _contract(self):
+        from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import parse_universal
+
+        spec = TypeSpec(fields=[
+            FieldSpec(
+                name="a",
+                type=parse_universal("integer"),
+                constraints=FieldConstraints(minimum=0),
+            ),
+        ])
+        return spec.to_contract(name="seeded_slice")
+
+    def test_empty_sample_slice_falls_back_and_records_diagnostics(self, monkeypatch):
+        from mountainash.relations import Relation
+
+        def empty_sample(self, *, n=None, fraction=None, seed=None):
+            return self.head(0)
+
+        monkeypatch.setattr(Relation, "sample", empty_sample)
+        df = pl.DataFrame({"a": list(range(20))})
+        result = self._contract().validate_datacontract(df, sample=5, random_seed=1)
+        assert "sample_fallback" in result.diagnostics
+        assert result.diagnostics["sample_fallback"]["requested_sample"] == 5
+        totals = [
+            summary["total_rows"]
+            for summary in result.check_summaries.to_dicts()
+            if summary["total_rows"] is not None
+        ]
+        assert totals and all(total == 5 for total in totals)
+
+    def test_implicit_fallback_records_effective_seed(self, monkeypatch):
+        from mountainash.datacontracts import validator as validator_module
+        from mountainash.relations import Relation
+
+        monkeypatch.setattr(validator_module.random, "randrange", lambda _: 12345)
+        monkeypatch.setattr(Relation, "sample", lambda self, **_: self.head(0))
+        result = self._contract().validate_datacontract(
+            pl.DataFrame({"a": list(range(20))}), sample=5
+        )
+        assert result.diagnostics["sample_fallback"]["random_seed"] == 12345
+
+    @pytest.mark.parametrize("backend", ["polars", "pandas", "ibis-duckdb"])
+    def test_seeded_validate_is_deterministic(self, backend):
+        df = pl.DataFrame({"a": [i - 10 for i in range(100)]})
+        if backend == "pandas":
+            data = df.to_pandas()
+        elif backend == "ibis-duckdb":
+            ibis = pytest.importorskip("ibis")
+            data = ibis.duckdb.connect().create_table("t", df.to_arrow())
+        else:
+            data = df
+        contract = self._contract()
+        first = contract.validate_datacontract(data, sample=20, random_seed=7)
+        second = contract.validate_datacontract(data, sample=20, random_seed=7)
+        assert first.passes == second.passes
+        assert first.check_summaries.drop("elapsed").to_dicts() == second.check_summaries.drop("elapsed").to_dicts()
+        assert first.failure_cases.to_dicts() == second.failure_cases.to_dicts()
+
+    def test_never_validates_empty_slice_silently_on_ibis(self):
+        ibis = pytest.importorskip("ibis")
+        con = ibis.duckdb.connect()
+        table = con.create_table("t", pl.DataFrame({"a": list(range(30))}).to_arrow())
+        contract = self._contract()
+        for seed in range(8):
+            result = contract.validate_datacontract(table, sample=1, random_seed=seed)
+            totals = [
+                summary["total_rows"]
+                for summary in result.check_summaries.to_dicts()
+                if summary["total_rows"] is not None
+            ]
+            assert any(total > 0 for total in totals) or "sample_fallback" in result.diagnostics

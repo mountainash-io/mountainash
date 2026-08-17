@@ -407,13 +407,29 @@ class Relation(RelationBase):
         *,
         n: Optional[int] = None,
         fraction: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> Relation:
-        """Sample rows."""
+        """Sample rows using a validated common argument contract."""
+        from mountainash.relations.core.errors import InvalidSampleArgumentsError
+
+        if (n is None) == (fraction is None):
+            raise InvalidSampleArgumentsError(
+                "sample() requires exactly one of n or fraction "
+                f"(got n={n!r}, fraction={fraction!r})"
+            )
+        if n is not None and n < 0:
+            raise InvalidSampleArgumentsError(f"sample(n=...) must be >= 0, got {n}")
+        if fraction is not None and not (0.0 <= fraction <= 1.0):
+            raise InvalidSampleArgumentsError(
+                f"sample(fraction=...) must be in [0, 1], got {fraction}"
+            )
         options: dict[str, Any] = {}
         if n is not None:
             options["n"] = n
         if fraction is not None:
             options["fraction"] = fraction
+        if seed is not None:
+            options["seed"] = seed
         return self._make(
             ExtensionRelNode(
                 input=self._node,

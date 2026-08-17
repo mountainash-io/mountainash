@@ -16,3 +16,7 @@ class UnregisteredRelationNodeError(MountainashError):
             f"via RelationVisitRegistry.register({node_type.__name__}, handler) "
             f"or define _operation_key plus a RelationOperationDef for it."
         )
+
+
+class InvalidSampleArgumentsError(MountainashError, ValueError):
+    """Relation.sample() argument-contract violation."""

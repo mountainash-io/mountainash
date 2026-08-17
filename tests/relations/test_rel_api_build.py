@@ -396,3 +396,53 @@ class TestFindLeafReadNode:
         node = ReadRelNode(dataframe="x")
         leaf = Relation._find_leaf_read_node(node)
         assert leaf.dataframe == "x"
+
+
+class TestSampleArgumentContract:
+    """Relation.sample validates its common argument contract at build time."""
+
+    def _rel(self) -> Relation:
+        return relation("df")
+
+    def test_neither_n_nor_fraction_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        with pytest.raises(InvalidSampleArgumentsError, match="exactly one"):
+            self._rel().sample()
+
+    def test_both_n_and_fraction_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        with pytest.raises(InvalidSampleArgumentsError, match="exactly one"):
+            self._rel().sample(n=2, fraction=0.5)
+
+    def test_negative_n_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        with pytest.raises(InvalidSampleArgumentsError, match=">= 0"):
+            self._rel().sample(n=-1)
+
+    def test_fraction_out_of_range_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        for bad in (-0.1, 1.5):
+            with pytest.raises(InvalidSampleArgumentsError, match=r"\[0, 1\]"):
+                self._rel().sample(fraction=bad)
+
+    def test_error_is_valueerror_compat(self):
+        from mountainash.core.errors import MountainashError
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        assert issubclass(InvalidSampleArgumentsError, ValueError)
+        assert issubclass(InvalidSampleArgumentsError, MountainashError)
+
+    def test_seed_lands_in_options(self):
+        assert self._rel().sample(n=2, seed=42)._node.options == {"n": 2, "seed": 42}
+
+    def test_seed_omitted_from_options_when_none(self):
+        assert self._rel().sample(fraction=0.5)._node.options == {"fraction": 0.5}
+
+    def test_boundary_arguments_are_valid(self):
+        assert self._rel().sample(n=0)._node.options == {"n": 0}
+        assert self._rel().sample(fraction=0.0)._node.options == {"fraction": 0.0}
+        assert self._rel().sample(fraction=1.0)._node.options == {"fraction": 1.0}

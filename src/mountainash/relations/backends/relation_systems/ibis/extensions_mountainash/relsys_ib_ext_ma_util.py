@@ -45,14 +45,20 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         return result
 
     def sample(
-        self, relation: ir.Table, /, *, n: Optional[int] = None, fraction: Optional[float] = None
+        self,
+        relation: ir.Table,
+        /,
+        *,
+        n: Optional[int] = None,
+        fraction: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> ir.Table:
         if fraction is not None:
-            return relation.sample(fraction)
+            return relation.sample(fraction, method="row", seed=seed)
         if n is not None:
             total = relation.count().execute()
             frac = min(n / total, 1.0) if total > 0 else 1.0
-            return relation.sample(frac)
+            return relation.sample(frac, method="row", seed=seed)
         raise ValueError("Either n or fraction must be specified for sample().")
 
     def unpivot(

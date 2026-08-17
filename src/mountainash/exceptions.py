@@ -21,6 +21,7 @@ from mountainash.conform.errors import (
     ConformTransformError,
     SchemaDriftError,
 )
+from mountainash.relations.core.errors import InvalidSampleArgumentsError
 from mountainash.relations.dag.errors import (
     DAGError,
     RelationDAGRequired,
@@ -53,6 +54,7 @@ from mountainash.validation.errors import (
 __all__ = [
     "MountainashError",
     "InvalidOptionValueError",
+    "InvalidSampleArgumentsError",
     "BareExpressionCollectionError",
     "ConformError",
     "MissingFieldsError",

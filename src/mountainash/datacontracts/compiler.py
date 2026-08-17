@@ -109,16 +109,11 @@ def constraint_checks(
             )
         )
     if c is not None and c.pattern is not None:
-        # `pattern` is a regex (Frictionless pattern / regex-match semantics),
-        # NOT a literal substring — str.contains is Substrait literal contains,
-        # so a regex must go through regexp_match_substring (partial match ->
-        # not-null == the pattern matched somewhere).
         checks.append(
             RowRule(
                 id=f"{col}__pattern",
                 expr=_maybe_guard(
-                    nullable, col,
-                    ma.col(col).str.regexp_match_substring(c.pattern).is_not_null(),
+                    nullable, col, ma.col(col).str.regex_contains(c.pattern)
                 ),
                 severity=severity,
                 fields=[col],
