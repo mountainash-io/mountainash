@@ -45,7 +45,7 @@ class TestDatetimeBooleanExtraction:
         assert len(node.arguments) == 1
 
     def test_is_dst(self):
-        expr = ma.col("ts").dt.is_dst()
+        expr = ma.col("ts").dt.is_dst("America/New_York")
         node = expr._node
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST

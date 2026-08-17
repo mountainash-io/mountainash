@@ -19,7 +19,7 @@ are direct Substrait functions and defined in prtcl_scalar_datetime.py.
 
 from __future__ import annotations
 
-from typing import Optional, Protocol
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -187,7 +187,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> ExpressionT:
         """Check if DST is observed at this time."""
         ...

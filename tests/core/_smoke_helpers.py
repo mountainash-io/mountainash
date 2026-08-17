@@ -44,6 +44,7 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
         FKEY_SUBSTRAIT_CAST.CAST: ([ma.col("a")], {"dtype": "str"}),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE: ([ma.col("a"), "UTC"], {}),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE: ([ma.col("a"), "UTC"], {}),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST: ([ma.col("a"), "UTC"], {}),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP: ([ma.col("a"), "UTC"], {}),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL: (
             [ma.col("a")],

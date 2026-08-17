@@ -235,9 +235,9 @@ def test_validate_open_offset_rejects_garbage():
 
 
 def test_is_dst_builder_validation():
-    # no-arg must work without raising
-    expr_no_arg = ma.col("ts").dt.is_dst()
-    assert expr_no_arg is not None
+    # no-arg now raises: timezone is required (see test_is_dst_requires_timezone)
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("ts").dt.is_dst()
     # valid IANA timezone
     expr_valid = ma.col("ts").dt.is_dst("Australia/Sydney")
     assert expr_valid is not None

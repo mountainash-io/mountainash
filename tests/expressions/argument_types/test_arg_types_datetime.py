@@ -1212,6 +1212,132 @@ def test_to_timezone_invalid_option_rejected_at_build_time(
         rejection.build_expr()
 
 
+# 4a. is_dst
+_IS_DST_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
+_IS_DST_DATA = {"ts": [datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc)]}
+
+
+def _is_dst_expr(tz: str):
+    return ma.col("ts").dt.is_dst(tz)
+
+
+def _is_dst_ref_expr(tz: str):
+    # July 21 2026: America/New_York is in DST (True); UTC and Australia/Sydney
+    # (southern-hemisphere winter) are both not (False). Contrast against
+    # America/New_York unless tz already is it, guaranteeing a differing result.
+    ref_tz = "UTC" if tz == "America/New_York" else "America/New_York"
+    return _is_dst_expr(ref_tz)
+
+
+def _is_dst_disposition(backend: str) -> str:
+    return "declared_unsupported" if backend == "ibis" else "honored"
+
+
+def _is_dst_backing_mode(backend: str) -> str:
+    return "class" if backend == "ibis" else "absence"
+
+
+def _is_dst_reason(backend: str) -> str:
+    if backend == "ibis":
+        return (
+            "is_dst is not supported on ibis -- ibis has no DST/timezone-offset "
+            "primitive to build on"
+        )
+    return "native backend honors is_dst"
+
+
+def _is_dst_probe(tz: str, backend: str) -> OptionSpec:
+    if _is_dst_disposition(backend) == "honored":
+        return OptionSpec(
+            FK_MA_DT.IS_DST,
+            "timezone",
+            tz,
+            "datetime",
+            lambda t=tz: _is_dst_expr(t),
+            lambda t=tz: _is_dst_ref_expr(t),
+            _IS_DST_DATA,
+            expected_discriminates=True,
+        )
+    return OptionSpec(
+        FK_MA_DT.IS_DST,
+        "timezone",
+        tz,
+        "datetime",
+        lambda t=tz: _is_dst_expr(t),
+        lambda t=tz: _is_dst_expr(t),
+        _IS_DST_DATA,
+        expected_discriminates=True,
+    )
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_MA_DT.IS_DST,
+        _MA_DT_PROTOCOL,
+        "is_dst",
+        "timezone",
+        backend,
+        tz,
+        "datetime",
+        _is_dst_disposition(backend),
+        _is_dst_reason(backend),
+        _is_dst_backing_mode(backend),
+    )
+    for backend in ALL_BACKENDS
+    for tz in _IS_DST_DOMAIN
+)
+
+REGISTERED_OPTION_PROBES.extend(
+    OptionProbeRegistration(
+        _is_dst_probe(tz, backend),
+        backend,
+        _is_dst_disposition(backend),
+        BackendCapabilityError
+        if _is_dst_disposition(backend) == "declared_unsupported"
+        else None,
+    )
+    for backend in ALL_BACKENDS
+    for tz in _IS_DST_DOMAIN
+)
+
+_IS_DST_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_MA_DT.IS_DST,
+        _MA_DT_PROTOCOL,
+        "is_dst",
+        "timezone",
+        INVALID_OPTION_VALUE,
+        "datetime",
+        lambda: _is_dst_expr(INVALID_OPTION_VALUE),
+    )
+]
+REGISTERED_INVALID_OPTION_REJECTIONS.extend(_IS_DST_INVALID_REJECTIONS)
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+        "absence",
+    )
+    for rejection in _IS_DST_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("rejection", _IS_DST_INVALID_REJECTIONS)
+def test_is_dst_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
 # 5. local_timestamp
 _LOCAL_TS_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
 
@@ -2109,6 +2235,11 @@ def test_extract_boolean_timezone_invalid_option_rejected_at_build_time(
         rejection.build_expr()
 
 
+def test_is_dst_requires_timezone() -> None:
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("ts").dt.is_dst()
+
+
 TESTED_OPTION_PARAMS: list[tuple] = []
 TESTED_OPTION_PARAMS.extend(
     (
@@ -2143,6 +2274,12 @@ TESTED_OPTION_PARAMS.extend([
         "to_timezone",
         "timezone",
         param_taxonomy(_MA_DT_PROTOCOL, "to_timezone", "timezone"),
+    ),
+    (
+        _MA_DT_PROTOCOL,
+        "is_dst",
+        "timezone",
+        param_taxonomy(_MA_DT_PROTOCOL, "is_dst", "timezone"),
     ),
     (
         _SUBSTRAIT_DT_PROTOCOL,
