@@ -591,7 +591,9 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 
 ## Known gaps
 
-None recorded.
+| Kind | Reason | Since | Review due |
+| --- | --- | --- | --- |
+| other | ibis-sqlite's TimestampBucket has no compilation rule, so a multi-digit MA-wrapper duration string (e.g. dt.truncate('2d')) on ibis-sqlite raises a raw native OperationNotDefinedError rather than a clean BackendCapabilityError. A DURATION_MULTIPLIER-class fact for this would need a corresponding class-backed OptionCell, which the 4-fixture argument-type matrix cannot instantiate for ibis-sqlite (same structural limit as test_option_fact_integrity.py's _MATRIX_UNREACHABLE_DIALECT_FACTS) -- see backlog item 99. | 2026-08-16 | 2027-02-15 |
 
 ## Retirement changelog
 
