@@ -2,6 +2,7 @@
 """PyArrow target mappings. Imported lazily."""
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import pyarrow as pa
@@ -56,6 +57,27 @@ def from_native(native: Any) -> Optional[D]:
 
 def parse_type_string(s: str) -> Optional[Any]:
     try:
-        return pa.type_for_alias(s)
+        return pa.type_for_alias(s)  # unparameterized names, unchanged
     except (KeyError, ValueError):
-        return None
+        pass
+    if m := _TIMESTAMP_RE.match(s):
+        unit, tz = m.groups()
+        return pa.timestamp(unit, tz=tz) if tz else pa.timestamp(unit)
+    if m := _DURATION_RE.match(s):
+        return pa.duration(m.group(1))
+    if m := _TIME_RE.match(s):
+        bits, unit = m.groups()
+        return (pa.time32 if bits == "32" else pa.time64)(unit)
+    if m := _DECIMAL_RE.match(s):
+        bits, prec, scale = m.groups()
+        ctor = pa.decimal128 if bits == "128" else pa.decimal256
+        return ctor(int(prec), int(scale))
+    return None
+
+
+# Bounded bracket/paren family — the only parameterized forms PyArrow's
+# str() emits that type_for_alias does not already parse.
+_TIMESTAMP_RE = re.compile(r"^timestamp\[(\w+)(?:, tz=(.+))?\]$")
+_DURATION_RE = re.compile(r"^duration\[(\w+)\]$")
+_TIME_RE = re.compile(r"^time(32|64)\[(\w+)\]$")
+_DECIMAL_RE = re.compile(r"^decimal(128|256)\((\d+),\s*(\d+)\)$")
