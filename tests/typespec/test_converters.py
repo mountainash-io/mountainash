@@ -206,6 +206,83 @@ class TestConvertToBackend:
 
 
 # ============================================================================
+# TestNestedListItemType (item 54, gap 2)
+# ============================================================================
+
+class TestNestedListItemType:
+    """Gap 2: nested LIST inner type via the existing FieldSpec.item_type.
+
+    item_type is a Frictionless-standard carriage (spec §list) already carried
+    on FieldSpec — the resolver previously never read it, so ARRAY resolved to
+    a bare container (and PyArrow silently defaulted every untyped list to a
+    string element)."""
+
+    def _spec(self, item_type=None):
+        return TypeSpec(fields=[
+            FieldSpec(name="lst", type=UniversalType.ARRAY, item_type=item_type),
+        ])
+
+    def test_polars_item_type_resolves_inner(self):
+        import polars as pl
+        result = to_polars_schema(self._spec("integer"))
+        assert result["lst"] == pl.List(pl.Int64)
+
+    def test_narwhals_item_type_resolves_inner(self):
+        import narwhals as nw
+        result = to_polars_schema(self._spec("integer"))
+        # narwhals wraps the already-cast polars-native frame on the live
+        # consumers (empty_frame / inline-read); assert the narwhals-native
+        # form of the same inner type is reachable via the registry.
+        from mountainash.core.dtypes import TypeTarget, registry
+        from mountainash.typespec.converters import _resolve_field_native
+        native = _resolve_field_native(self._spec("integer").fields[0], TypeTarget.NARWHALS)
+        assert native == nw.List(nw.Int64)
+        assert native is not nw.List  # real parameterized instance, not bare class
+
+    def test_pyarrow_item_type_resolves_inner_not_string(self):
+        """Second latent bug regression: the bare fallback silently defaulted
+        every untyped list to a string element. With item_type the inner must
+        be the real element type."""
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        result = to_arrow_schema(self._spec("integer"))
+        field = result.field("lst")
+        assert field.type == pa.list_(pa.int64())
+        assert field.type.value_type == pa.int64()  # NOT pa.string()
+
+    def test_ibis_item_type_resolves_inner(self):
+        result = to_ibis_schema(self._spec("integer"))
+        assert result["lst"] == "array<int64>"
+
+    def test_pandas_stays_object(self):
+        """Pandas has no native parameterized list dtype — 'object' is the
+        correct, only representation (regression lock, not a gap)."""
+        result = to_pandas_dtypes(self._spec("integer"))
+        assert result["lst"] == "object"
+
+    @pytest.mark.parametrize("item_type", [None, "any"])
+    def test_no_parameterization_keeps_bare_container(self, item_type):
+        """No item_type (or item_type='any' — same code path) -> bare
+        container, unchanged (regression)."""
+        import polars as pl
+        result = to_polars_schema(self._spec(item_type))
+        assert result["lst"] is pl.List
+
+    def test_unknown_item_type_raises_with_field_context_and_chain(self):
+        """item_type='garbage' is a second raise surface beyond
+        InvalidBackendTypeError: UnknownDtypeError naming the field, chained
+        to the original parse_universal error (chain must not be dropped)."""
+        from mountainash.core.dtypes import UnknownDtypeError
+        with pytest.raises(UnknownDtypeError) as exc_info:
+            to_polars_schema(self._spec("garbage"))
+        assert "lst" in str(exc_info.value)
+        assert "garbage" in str(exc_info.value)
+        # chain: __cause__ is the original UnknownDtypeError parse_universal
+        # raised, not swallowed by a message-only copy
+        assert isinstance(exc_info.value.__cause__, UnknownDtypeError)
+
+
+# ============================================================================
 # TestConvertersOverRegistry
 # ============================================================================
 

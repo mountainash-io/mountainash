@@ -17,6 +17,7 @@ from mountainash.core.dtypes import (
     InvalidBackendTypeError,
     MountainashDtype,
     TypeTarget,
+    UnknownDtypeError,
     registry,
 )
 from mountainash.typespec.universal_types import to_canonical
@@ -48,7 +49,51 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
     canon = to_canonical(field.type)
     if canon is None:  # ANY
         canon = MountainashDtype.STRING
-    return registry.to_native_schema(canon, target)
+    native = registry.to_native_schema(canon, target)
+
+    if canon is MountainashDtype.LIST and field.item_type:
+        native = _resolve_list_inner(field.name, field.item_type, target, native)
+    return native
+
+
+def _resolve_list_inner(
+    field_name: str, item_type_str: str, target: TypeTarget, bare_native: Any
+) -> Any:
+    """Parameterize a bare list container with its Frictionless item_type
+    (item 54, gap 2). Layered AFTER the backend_type/raise branch — a
+    backend_type wins first; canonical LIST + item_type is the fallback
+    enrichment, not a new top-priority branch.
+
+    Pandas returns bare_native unchanged — no native parameterized list
+    dtype, "object" is the correct, only representation.
+    """
+    from mountainash.typespec.universal_types import parse_universal
+    try:
+        item_universal = parse_universal(item_type_str)
+    except UnknownDtypeError as e:
+        # parse_universal raises without field context; chain it so the error
+        # is traceable to its source field while keeping UnknownDtypeError
+        # (the repo convention for "input not recognized as any dtype").
+        raise UnknownDtypeError(
+            f"field {field_name!r}: item_type {item_type_str!r} is not a "
+            f"recognized UniversalType"
+        ) from e
+    item_canon = to_canonical(item_universal)
+    if item_canon is None:  # item_type == "any" — no parameterization possible
+        return bare_native
+    inner_native = registry.to_native_schema(item_canon, target)
+    if target is TypeTarget.POLARS:
+        from mountainash.core.lazy_imports import import_polars
+        return import_polars().List(inner_native)
+    if target is TypeTarget.NARWHALS:
+        from mountainash.core.lazy_imports import import_narwhals
+        return import_narwhals().List(inner_native)
+    if target is TypeTarget.PYARROW:
+        from mountainash.core.lazy_imports import import_pyarrow
+        return import_pyarrow().list_(inner_native)
+    if target is TypeTarget.IBIS:
+        return f"array<{inner_native}>"  # ibis schema is string-keyed
+    return bare_native  # PANDAS — no native parameterized list dtype
 
 
 # ============================================================================
