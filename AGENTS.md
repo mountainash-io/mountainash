@@ -195,13 +195,7 @@ For detailed file organisation see principle: `f.development-practices/file-orga
 
 ## Dependencies
 
-**IMPORTANT:** Using **local Ibis fork** with Polars calendar interval fix:
-
-```toml
-ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "sqlite", "duckdb"] }
-```
-
-All other dependencies are in `pyproject.toml`.
+All dependencies are declared in `pyproject.toml` (`ibis-framework>=9.0.0` resolved from PyPI for the `ibis` extra — no local fork or path dependency).
 
 **Workspace dependency for DataPackage I/O:** `mountainash-utils-files` (sibling package, optional `storage` extra) provides `StorageFacade` used by `core/io.py` to load remote `DataResource` paths. `core.io.is_remote()` delegates to the facade's scheme registry for auto-detection; `core.io.facade_read_bytes()` calls `StorageFacade.from_path()`. Local paths bypass the facade and use Polars directly. The import is lazy so a local-only test run never touches `mountainash_utils_files`.
 

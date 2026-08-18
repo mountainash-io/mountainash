@@ -39,7 +39,7 @@ def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
 from fixtures.capability_gating import xfail_divergence
 
 _ASOF = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-11", backend=b)) for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("IB-REL-13", backend=b)) for b in ALL_BACKENDS
 ]
 
 @pytest.mark.cross_backend
