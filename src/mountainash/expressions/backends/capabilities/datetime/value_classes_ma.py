@@ -65,17 +65,21 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 
 _SINCE = "2026-08-16"
+_MULTIPLIER_SINCE = "2026-08-18"
 
-# Known residual gap (documented, not enforced by a fact -- see module
-# docstring): ibis-sqlite's TimestampBucket has no compilation rule, so a
-# multi-digit MA-wrapper duration string (e.g. dt.truncate("2d")) on
-# ibis-sqlite raises a raw native OperationNotDefinedError rather than a
-# clean BackendCapabilityError. A DURATION_MULTIPLIER-class fact for this
-# would need a corresponding class-backed OptionCell, which the 4-fixture
-# argument-type matrix cannot instantiate for ibis-sqlite (same structural
-# limit documented in test_option_fact_integrity.py's
-# _MATRIX_UNREACHABLE_DIALECT_FACTS) -- tracked as a backlog follow-up
-# rather than adding an untested, unexercised fact here.
+# ibis-sqlite multiplier gap (backlog item 99, enforced since 2026-08-18):
+# ibis's TimestampBucket (multiple > 1) has no sqlite compilation rule, so a
+# multiplied MA-wrapper duration string (e.g. dt.truncate("2d")) raises a raw
+# native OperationNotDefinedError unless gated. The DURATION_MULTIPLIER
+# value-class facts below declare it UNSUPPORTED so the visitor option gate
+# raises a clean BackendCapabilityError at build time. A value-class fact is
+# sound here because the api-builder validates `unit` to exactly this
+# predicate's domain (MA_OPTION_DOMAINS / validate_open_value, spec §3.2).
+# The 4-fixture argument-type matrix cannot instantiate ibis-sqlite, so the
+# facts are verified by the dedicated TestMaMultiplierIbisSqliteGate gate
+# tests (tests/expressions/cross_backend/test_datetime_rounding.py) and are
+# exempted from the matrix-exercise guard in test_option_fact_integrity.py's
+# class arm.
 
 _TO_TIMEZONE_MSG = (
     "to_timezone is correct only at the materialization boundary -- the "
@@ -117,13 +121,36 @@ def _is_dst_fact(backend, dialect: str | None, message: str) -> CapabilityFact:
     )
 
 
+_MA_MULTIPLIER_MSG = (
+    "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA "
+    "duration (e.g. dt.truncate('2d')) is unsupported there; verified "
+    "2026-08-18, ibis 12.0.0"
+)
+
+
+def _ma_multiplier_facts() -> tuple[CapabilityFact, ...]:
+    return tuple(
+        CapabilityFact(
+            operation_key=fkey,
+            param="unit",
+            value_class=ValueClass.DURATION_MULTIPLIER,
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-sqlite",
+            message=_MA_MULTIPLIER_MSG,
+            since=_MULTIPLIER_SINCE,
+        )
+        for fkey in (FK_DT.TRUNCATE, FK_DT.ROUND, FK_DT.CEIL, FK_DT.FLOOR)
+    )
+
+
 _IBIS_FACTS = tuple(
     _tz_fact(CONST_BACKEND.IBIS, dialect, _TO_TIMEZONE_MSG)
     for dialect in (None, "ibis-duckdb")
 ) + tuple(
     _is_dst_fact(CONST_BACKEND.IBIS, dialect, _IS_DST_MSG)
     for dialect in (None, "ibis-duckdb")
-)
+) + _ma_multiplier_facts()
 # narwhals honors every multiplied unit on all four ops now -- no facts.
 _NARWHALS_FACTS: tuple[CapabilityFact, ...] = ()
 
@@ -138,7 +165,7 @@ from mountainash.core.capabilities.declarations import (  # noqa: E402
 _EVIDENCE = ProbeEvidence(
     probe_date=_SINCE,
     library_versions=(),
-    fixtures=("ibis-duckdb",),
+    fixtures=("ibis-duckdb", "ibis-sqlite"),
 )
 _NARWHALS_EVIDENCE = ProbeEvidence(
     probe_date=_SINCE,
