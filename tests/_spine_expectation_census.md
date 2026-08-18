@@ -20,6 +20,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/conform/cross_backend/test_conform_transforms.py:14 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-03') — migrated |
 | tests/conform/cross_backend/test_null_fill_mode.py:66 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-TYPE-02') — migrated |
 | tests/conform/cross_backend/test_relation_conform.py:13 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-01') — migrated |
+| tests/conform/cross_backend/test_relation_conform.py:141 | static-marker | UNRESOLVED | ibis-sqlite | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-04') — migrated |
 | tests/core/test_capability_gating.py:228 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
 | tests/core/test_capability_gating.py:236 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-MATH-01') — migrated |
 | tests/core/test_capability_gating.py:241 | static-marker | UNRESOLVED | ibis-duckdb | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
