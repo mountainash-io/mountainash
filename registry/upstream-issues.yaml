@@ -2089,3 +2089,29 @@ issues:
     CapabilityFact (whole-op, WILDCARD_PARAM) for the Narwhals backend
     (backlog item 86, 2026-08-13).
   last_verified: '2026-08-13'
+- id: IB-DT-19
+  project: ibis
+  category: datetime-ops
+  summary: SQLite backend memtable registration crashes on null date/timestamp
+    values (NaT binding)
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: _register_in_memory_table (ibis/backends/sqlite/__init__.py) stages
+    memtables via op.data.to_frame() (a pandas roundtrip). A null date32 or
+    timestamp value becomes pandas NaT, which sqlite3 cannot bind — crashes
+    create_table/insert for any frame containing a null temporal value.
+    Verified empirically 2026-08-18 against ibis 12.0.0 — raw pyarrow.Table
+    sources are incidentally safe for date columns only (PyArrow's
+    Table.to_pandas() defaults date_as_object=True, so a null date32 becomes
+    Python None, not NaT) but not for timestamp columns; polars/pandas
+    DataFrame sources crash for both date and timestamp columns (their own
+    to_pandas() maps Date to datetime64 directly). Discovered downstream in
+    mountainash-data (DEBT-13), not via mountainash's own cross-backend probe
+    suite — mountainash itself does not yet have a CapabilityFact/DivergenceFact
+    exercising this path.
+  last_verified: '2026-08-18'
