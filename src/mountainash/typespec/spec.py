@@ -89,6 +89,7 @@ class FieldSpec:
     group_char: Optional[str] = None
     bare_number: Optional[bool] = None
     item_type: Optional[str] = None
+    object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: OBJECT inner-field schema
     delimiter: Optional[str] = None
     backend_type: Optional[str] = None
     null_fill: Any = None
@@ -136,6 +137,8 @@ class FieldSpec:
             result["bareNumber"] = self.bare_number
         if self.item_type is not None:
             result["itemType"] = self.item_type
+        if self.object_fields is not None:
+            result["objectFields"] = [f.to_dict() for f in self.object_fields]
         if self.delimiter is not None:
             result["delimiter"] = self.delimiter
         if self.backend_type:
