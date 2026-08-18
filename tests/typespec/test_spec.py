@@ -73,6 +73,37 @@ class TestFieldSpec:
         assert "constraints" in d
         assert d["constraints"]["required"] is True
         assert d["constraints"]["min_length"] == 2
+    def test_field_spec_has_object_fields_default_none(self):
+        f = FieldSpec(name="addr", type=UniversalType.OBJECT)
+        assert f.object_fields is None
+
+    def test_object_fields_omitted_from_dict_when_unset(self):
+        f = FieldSpec(name="addr", type=UniversalType.OBJECT)
+        d = f.to_dict()
+        assert "objectFields" not in d
+
+    def test_object_fields_exported_recursively_in_to_dict(self):
+        inner = [
+            FieldSpec(name="street", type=UniversalType.STRING),
+            FieldSpec(name="zip", type=UniversalType.STRING),
+        ]
+        f = FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=inner)
+        d = f.to_dict()
+        assert d["objectFields"] == [
+            {"name": "street", "type": "string"},
+            {"name": "zip", "type": "string"},
+        ]
+
+    def test_object_fields_two_levels_deep_in_to_dict(self):
+        geo = [FieldSpec(name="lat", type=UniversalType.NUMBER)]
+        inner = [
+            FieldSpec(name="street", type=UniversalType.STRING),
+            FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=geo),
+        ]
+        f = FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=inner)
+        d = f.to_dict()
+        assert d["objectFields"][1]["name"] == "geo"
+        assert d["objectFields"][1]["objectFields"] == [{"name": "lat", "type": "number"}]
 
 
 # ============================================================================

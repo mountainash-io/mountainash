@@ -959,10 +959,11 @@ def _build_field_expr(
         from mountainash.typespec._categorical import categorical_values
         cat_values = categorical_values(fld.categories)
 
-        # Step 1: base type cast (if needed)
-        if fld.type and fld.type != UniversalType.ANY:
+        # OBJECT has no scalar base cast; categories still take precedence
+        # over object_fields for this degenerate declaration.
+        if fld.type and fld.type not in (UniversalType.ANY, UniversalType.OBJECT):
             canon = to_canonical(fld.type)
-            if canon is not None:  # ANY -> no cast (guard already excludes ANY)
+            if canon is not None:
                 expr = expr.cast(canon)
 
         # Step 2: categorical wrapper (Polars-specific)
@@ -1005,6 +1006,18 @@ def _build_field_expr(
             .when(str_expr.is_in(*false_vals)).then(ma.lit(False))
             .otherwise(ma.lit(None))
         )
+    # Stage 5e: STRUCT — cast an already-struct-typed source column to the
+    # fully nested typed struct (item 102). Source is assumed to already be
+    # native struct/dict-shaped; this is not a JSON-string parse path.
+    elif fld.type == UniversalType.OBJECT and fld.object_fields:
+        from mountainash.core.dtypes import TypeTarget
+        from mountainash.typespec.converters import _resolve_struct_inner
+
+        native_struct = _resolve_struct_inner(
+            fld.name, fld.object_fields, TypeTarget.POLARS, None
+        )
+        expr = expr.cast(native_struct)
+
 
     # Stage 5d: DEFAULT TYPE CAST
     # Branches on type_action (item 48 Task 6 data_type policy): "coerce"

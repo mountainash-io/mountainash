@@ -368,6 +368,126 @@ class TestNestedListItemType:
         # chain: __cause__ is the original UnknownDtypeError parse_universal
         # raised, not swallowed by a message-only copy
         assert isinstance(exc_info.value.__cause__, UnknownDtypeError)
+# ============================================================================
+# TestNestedStructObjectFields (item 102)
+# ============================================================================
+
+class TestNestedStructObjectFields:
+    """object_fields: nested STRUCT inner-field schema via FieldSpec."""
+
+    def _spec(self, object_fields=None):
+        return TypeSpec(fields=[
+            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=object_fields),
+        ])
+
+    def _flat_fields(self):
+        return [
+            FieldSpec(name="street", type=UniversalType.STRING),
+            FieldSpec(name="zip", type=UniversalType.STRING),
+        ]
+
+    def _nested_fields(self):
+        return [
+            FieldSpec(name="street", type=UniversalType.STRING),
+            FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
+                FieldSpec(name="lat", type=UniversalType.NUMBER),
+                FieldSpec(name="lon", type=UniversalType.NUMBER),
+            ]),
+        ]
+
+    def test_polars_flat_struct_resolves_inner_fields(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(self._flat_fields()))
+        assert result["addr"] == pl.Struct({"street": pl.String, "zip": pl.String})
+
+    def test_polars_two_level_nested_struct_resolves_recursively(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(self._nested_fields()))
+        expected = pl.Struct({
+            "street": pl.String,
+            "geo": pl.Struct({"lat": pl.Float64, "lon": pl.Float64}),
+        })
+        assert result["addr"] == expected
+
+    def test_pyarrow_flat_struct_resolves_inner_fields(self):
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        result = to_arrow_schema(self._spec(self._flat_fields()))
+        field = result.field("addr")
+        assert pa.types.is_struct(field.type)
+        assert field.type.field("street").type == pa.string()
+        assert field.type.field("zip").type == pa.string()
+
+    def test_narwhals_flat_struct_resolves_inner_fields(self):
+        import narwhals as nw
+        from mountainash.core.dtypes import TypeTarget
+        from mountainash.typespec.converters import _resolve_field_native
+        native = _resolve_field_native(self._spec(self._flat_fields()).fields[0], TypeTarget.NARWHALS)
+        assert native == nw.Struct({"street": nw.String, "zip": nw.String})
+
+    def test_ibis_flat_struct_resolves_inner_fields_as_schema_string(self):
+        result = to_ibis_schema(self._spec(self._flat_fields()))
+        assert result["addr"] == "struct<street: string, zip: string>"
+
+    def test_ibis_two_level_nested_struct_schema_string(self):
+        result = to_ibis_schema(self._spec(self._nested_fields()))
+        assert result["addr"] == "struct<street: string, geo: struct<lat: float64, lon: float64>>"
+
+    def test_pandas_stays_object_regardless_of_object_fields(self):
+        result = to_pandas_dtypes(self._spec(self._flat_fields()))
+        assert result["addr"] == "object"
+
+    def test_no_object_fields_keeps_bare_container(self):
+        import polars as pl
+        result = to_polars_schema(self._spec(None))
+        assert result["addr"] is pl.Struct
+
+    def test_empty_object_fields_list_keeps_bare_container(self):
+        import polars as pl
+        result = to_polars_schema(self._spec([]))
+        assert result["addr"] is pl.Struct
+
+    def test_inner_field_categories_resolve_correctly(self):
+        import polars as pl
+        fields = [FieldSpec(name="kind", type=UniversalType.STRING,
+                            categories=["home", "work"], categories_ordered=True)]
+        result = to_polars_schema(self._spec(fields))
+        assert result["addr"] == pl.Struct({"kind": pl.Enum(["home", "work"])})
+
+    def test_recursion_error_on_pathologically_deep_chain(self):
+        from mountainash.core.dtypes import TypeTarget
+        from mountainash.typespec.converters import _resolve_struct_inner
+        deep = FieldSpec(name="leaf", type=UniversalType.INTEGER)
+        for i in range(10000):
+            deep = FieldSpec(name=f"level_{i}", type=UniversalType.OBJECT, object_fields=[deep])
+        with pytest.raises(RecursionError):
+            _resolve_struct_inner("addr", [deep], TypeTarget.POLARS, None)
+
+
+# ============================================================================
+# TestCategoricalRefactorRegression (item 102, spec §4.1)
+# ============================================================================
+
+class TestCategoricalRefactorRegression:
+    def test_resolve_field_native_polars_categorical(self):
+        import polars as pl
+        from mountainash.core.dtypes import TypeTarget
+        from mountainash.typespec.converters import _resolve_field_native
+        field = FieldSpec(name="cat", type=UniversalType.STRING,
+                          categories=["a", "b"], categories_ordered=False)
+        assert _resolve_field_native(field, TypeTarget.POLARS) is pl.Categorical
+
+    def test_resolve_field_native_pandas_categorical(self):
+        import pandas as pd
+        from mountainash.core.dtypes import TypeTarget
+        from mountainash.typespec.converters import _resolve_field_native
+        field = FieldSpec(name="cat", type=UniversalType.STRING,
+                          categories=["a", "b"], categories_ordered=True)
+        result = _resolve_field_native(field, TypeTarget.PANDAS)
+        assert isinstance(result, pd.CategoricalDtype)
+        assert list(result.categories) == ["a", "b"]
+        assert result.ordered is True
+
 
 
 # ============================================================================

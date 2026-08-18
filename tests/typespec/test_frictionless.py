@@ -127,6 +127,49 @@ class TestToFrictionless:
         field_dict = result["fields"][0]
         assert field_dict["constraints"]["enum"] == ["A", "B"]
         assert field_dict["x-mountainash"]["enum_weights"] == {"A": 0.7, "B": 0.3}
+    def test_object_fields_exported_under_x_mountainash(self):
+        spec = TypeSpec(fields=[
+            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
+                FieldSpec(name="street", type=UniversalType.STRING),
+                FieldSpec(name="zip", type=UniversalType.STRING),
+            ]),
+        ])
+        result = typespec_to_frictionless(spec)
+        field_result = result["fields"][0]
+        assert field_result["x-mountainash"]["object_fields"] == [
+            {"name": "street", "type": "string"},
+            {"name": "zip", "type": "string"},
+        ]
+
+    def test_object_fields_two_levels_deep_exported(self):
+        spec = TypeSpec(fields=[
+            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
+                FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
+                    FieldSpec(name="lat", type=UniversalType.NUMBER),
+                    FieldSpec(name="lon", type=UniversalType.NUMBER),
+                ]),
+            ]),
+        ])
+        result = typespec_to_frictionless(spec)
+        geo = result["fields"][0]["x-mountainash"]["object_fields"][0]
+        assert geo["name"] == "geo"
+        assert geo["type"] == "object"
+        assert geo["x-mountainash"]["object_fields"] == [
+            {"name": "lat", "type": "number"},
+            {"name": "lon", "type": "number"},
+        ]
+
+    def test_nested_field_carries_its_own_categories(self):
+        """Nested object_fields entries are complete field descriptors."""
+        spec = TypeSpec(fields=[
+            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
+                FieldSpec(name="kind", type=UniversalType.STRING,
+                          categories=["home", "work"], categories_ordered=False),
+            ]),
+        ])
+        result = typespec_to_frictionless(spec)
+        inner = result["fields"][0]["x-mountainash"]["object_fields"][0]
+        assert inner["categories"] == ["home", "work"]
 
 
 # ============================================================================
@@ -270,6 +313,39 @@ class TestFromFrictionless:
         }
         spec = typespec_from_frictionless(descriptor)
         assert spec.fields[0].constraints.enum_weights == {"A": 0.7, "B": 0.3}
+    def test_object_fields_imported_recursively(self):
+        descriptor = {
+            "fields": [
+                {
+                    "name": "addr", "type": "object",
+                    "x-mountainash": {
+                        "object_fields": [
+                            {"name": "street", "type": "string"},
+                            {
+                                "name": "geo", "type": "object",
+                                "x-mountainash": {
+                                    "object_fields": [
+                                        {"name": "lat", "type": "number"},
+                                    ]
+                                },
+                            },
+                        ]
+                    },
+                }
+            ]
+        }
+        spec = typespec_from_frictionless(descriptor)
+        addr = spec.get_field("addr")
+        assert addr is not None
+        assert [f.name for f in addr.object_fields] == ["street", "geo"]
+        geo = addr.object_fields[1]
+        assert geo.object_fields[0].name == "lat"
+        assert geo.object_fields[0].type == UniversalType.NUMBER
+
+    def test_no_object_fields_key_leaves_none(self):
+        descriptor = {"fields": [{"name": "x", "type": "string"}]}
+        spec = typespec_from_frictionless(descriptor)
+        assert spec.get_field("x").object_fields is None
 
     def test_foreign_keys_round_trip(self):
         fk = ForeignKey(
@@ -344,6 +420,21 @@ class TestRoundTrip:
         score_field = reimported.get_field("score")
         assert score_field is not None
         assert score_field.null_fill == 0.0
+    def test_object_fields_round_trip_two_levels_deep(self):
+        original = TypeSpec(fields=[
+            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
+                FieldSpec(name="street", type=UniversalType.STRING),
+                FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
+                    FieldSpec(name="lat", type=UniversalType.NUMBER),
+                    FieldSpec(name="lon", type=UniversalType.NUMBER),
+                ]),
+            ]),
+        ])
+        descriptor = typespec_to_frictionless(original)
+        restored = typespec_from_frictionless(descriptor)
+        redescriptor = typespec_to_frictionless(restored)
+        assert redescriptor == descriptor
+        assert restored.get_field("addr").object_fields[1].object_fields[0].name == "lat"
 
     def test_json_serializable(self):
         spec = TypeSpec(

@@ -430,6 +430,27 @@ def extract_from_dataframe(
 from_dataframe = extract_from_dataframe
 
 
+def _fields_from_polars_struct(dtype: "pl.Struct") -> list["FieldSpec"]:
+    """Recursively build FieldSpec.object_fields from a Polars struct."""
+    from mountainash.core.lazy_imports import import_polars
+    pl = import_polars()
+    fields = []
+    for f in dtype.fields:
+        name, inner = f.name, f.dtype
+        item_type = None
+        if isinstance(inner, pl.List) and inner.inner is not None:
+            inner_universal, _ = from_canonical(
+                registry.from_native(inner.inner, target=TypeTarget.POLARS)
+            )
+            item_type = inner_universal.value
+        object_fields = _fields_from_polars_struct(inner) if isinstance(inner, pl.Struct) else None
+        universal_type, _ = from_canonical(registry.from_native(inner, target=TypeTarget.POLARS))
+        fields.append(FieldSpec(
+            name=name, type=universal_type, item_type=item_type, object_fields=object_fields,
+        ))
+    return fields
+
+
 def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -> TypeSpec:
     """Extract schema from Polars DataFrame or LazyFrame."""
     from mountainash.core.lazy_imports import import_polars
@@ -443,23 +464,24 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
     schema_dict = df.schema
 
     for col_name, dtype in schema_dict.items():
-        # Get backend type name
-        backend_type_str = str(dtype)
-
-        # Convert to universal type
         universal_type = _universal_from_native(dtype, TypeTarget.POLARS)
 
         item_type = None
+        object_fields = None
         if isinstance(dtype, pl.List) and dtype.inner is not None:
             inner_universal, _ = from_canonical(
                 registry.from_native(dtype.inner, target=TypeTarget.POLARS)
             )
             item_type = inner_universal.value
+        elif isinstance(dtype, pl.Struct):
+            object_fields = _fields_from_polars_struct(dtype)
 
+        backend_type_str = None if isinstance(dtype, pl.Struct) else str(dtype)
         schema_field = FieldSpec(
             name=col_name,
             type=universal_type,
             item_type=item_type,
+            object_fields=object_fields,
             backend_type=backend_type_str if preserve_backend_types else None,
         )
         fields.append(schema_field)
@@ -505,6 +527,27 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
     )
 
 
+def _fields_from_pyarrow_struct(dtype: "pa.StructType") -> list["FieldSpec"]:
+    """Recursively build FieldSpec.object_fields from a PyArrow struct."""
+    from mountainash.core.lazy_imports import import_pyarrow
+    pa = import_pyarrow()
+    fields = []
+    for f in dtype:
+        name, inner = f.name, f.type
+        item_type = None
+        if pa.types.is_list(inner):
+            inner_universal, _ = from_canonical(
+                registry.from_native(inner.value_type, target=TypeTarget.PYARROW)
+            )
+            item_type = inner_universal.value
+        object_fields = _fields_from_pyarrow_struct(inner) if pa.types.is_struct(inner) else None
+        universal_type, _ = from_canonical(registry.from_native(inner, target=TypeTarget.PYARROW))
+        fields.append(FieldSpec(
+            name=name, type=universal_type, item_type=item_type, object_fields=object_fields,
+        ))
+    return fields
+
+
 def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -> TypeSpec:
     """Extract schema from PyArrow Table."""
     from mountainash.core.lazy_imports import import_pyarrow
@@ -515,26 +558,25 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
     fields = []
 
     for field in table.schema:
-        # Get backend type
         backend_type = field.type
-
-        # Convert to string for normalization
-        backend_type_str = str(backend_type)
-
-        # Convert to universal type
         universal_type = _universal_from_native(backend_type, TypeTarget.PYARROW)
 
         item_type = None
+        object_fields = None
         if pa.types.is_list(backend_type):
             inner_universal, _ = from_canonical(
                 registry.from_native(backend_type.value_type, target=TypeTarget.PYARROW)
             )
             item_type = inner_universal.value
+        elif pa.types.is_struct(backend_type):
+            object_fields = _fields_from_pyarrow_struct(backend_type)
 
+        backend_type_str = None if pa.types.is_struct(backend_type) else str(backend_type)
         schema_field = FieldSpec(
             name=field.name,
             type=universal_type,
             item_type=item_type,
+            object_fields=object_fields,
             backend_type=backend_type_str if preserve_backend_types else None,
         )
         fields.append(schema_field)

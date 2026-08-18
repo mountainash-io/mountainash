@@ -102,6 +102,73 @@ def _parse_constraints(
 # Export: TypeSpec → Frictionless dict
 # ---------------------------------------------------------------------------
 
+def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
+    """Export one FieldSpec to a Frictionless field descriptor dict.
+
+    Recurses into ``object_fields`` (item 102) so nested fields retain the
+    complete field descriptor shape of top-level fields.
+    """
+    field_dict: Dict[str, Any] = {
+        "name": fspec.name,
+        "type": fspec.type.value if isinstance(fspec.type, UniversalType) else str(fspec.type),
+    }
+
+    if fspec.format != "default":
+        field_dict["format"] = fspec.format
+    if fspec.title:
+        field_dict["title"] = fspec.title
+    if fspec.description:
+        field_dict["description"] = fspec.description
+    if fspec.constraints is not None:
+        constraints_dict = _constraints_to_dict(fspec.constraints)
+        if constraints_dict:
+            field_dict["constraints"] = constraints_dict
+    if fspec.missing_values is not None:
+        field_dict["missingValues"] = fspec.missing_values
+    if fspec.categories is not None:
+        field_dict["categories"] = fspec.categories
+    if fspec.true_values is not None:
+        field_dict["trueValues"] = fspec.true_values
+    if fspec.false_values is not None:
+        field_dict["falseValues"] = fspec.false_values
+    if fspec.categories_ordered is not None:
+        field_dict["categoriesOrdered"] = fspec.categories_ordered
+    if fspec.example is not None:
+        field_dict["example"] = fspec.example
+    if fspec.rdf_type is not None:
+        field_dict["rdfType"] = fspec.rdf_type
+    if fspec.decimal_char is not None:
+        field_dict["decimalChar"] = fspec.decimal_char
+    if fspec.group_char is not None:
+        field_dict["groupChar"] = fspec.group_char
+    if fspec.bare_number is not None:
+        field_dict["bareNumber"] = fspec.bare_number
+    if fspec.item_type is not None:
+        field_dict["itemType"] = fspec.item_type
+    if fspec.delimiter is not None:
+        field_dict["delimiter"] = fspec.delimiter
+
+    field_extensions: Dict[str, Any] = {}
+    if fspec.rename_from is not None:
+        field_extensions["rename_from"] = fspec.rename_from
+    if fspec.null_fill is not None:
+        field_extensions["null_fill"] = fspec.null_fill
+    if fspec.custom_cast is not None:
+        field_extensions["custom_cast"] = fspec.custom_cast
+    if fspec.constraints and fspec.constraints.enum_weights is not None:
+        field_extensions["enum_weights"] = fspec.constraints.enum_weights
+    if fspec.backend_type is not None:
+        field_extensions["backend_type"] = fspec.backend_type
+    if fspec.object_fields is not None:
+        field_extensions["object_fields"] = [
+            _field_to_frictionless_dict(inner) for inner in fspec.object_fields
+        ]
+    if field_extensions:
+        field_dict["x-mountainash"] = field_extensions
+
+    return field_dict
+
+
 def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     """Convert a TypeSpec to a Frictionless Table Schema descriptor dict.
 
@@ -153,64 +220,9 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["x-mountainash"] = spec_ext
 
     # Fields
-    fields_list: List[Dict[str, Any]] = []
-    for fspec in spec.fields:
-        field_dict: Dict[str, Any] = {
-            "name": fspec.name,
-            "type": fspec.type.value if isinstance(fspec.type, UniversalType) else str(fspec.type),
-        }
-
-        if fspec.format != "default":
-            field_dict["format"] = fspec.format
-        if fspec.title:
-            field_dict["title"] = fspec.title
-        if fspec.description:
-            field_dict["description"] = fspec.description
-        if fspec.constraints is not None:
-            constraints_dict = _constraints_to_dict(fspec.constraints)
-            if constraints_dict:
-                field_dict["constraints"] = constraints_dict
-        if fspec.missing_values is not None:
-            field_dict["missingValues"] = fspec.missing_values
-        if fspec.categories is not None:  # Gap 7
-            field_dict["categories"] = fspec.categories
-        if fspec.true_values is not None:  # Gap 9
-            field_dict["trueValues"] = fspec.true_values
-        if fspec.false_values is not None:  # Gap 9
-            field_dict["falseValues"] = fspec.false_values
-        if fspec.categories_ordered is not None:
-            field_dict["categoriesOrdered"] = fspec.categories_ordered
-        if fspec.example is not None:
-            field_dict["example"] = fspec.example
-        if fspec.rdf_type is not None:
-            field_dict["rdfType"] = fspec.rdf_type
-        if fspec.decimal_char is not None:
-            field_dict["decimalChar"] = fspec.decimal_char
-        if fspec.group_char is not None:
-            field_dict["groupChar"] = fspec.group_char
-        if fspec.bare_number is not None:
-            field_dict["bareNumber"] = fspec.bare_number
-        if fspec.item_type is not None:
-            field_dict["itemType"] = fspec.item_type
-        if fspec.delimiter is not None:
-            field_dict["delimiter"] = fspec.delimiter
-
-        # Field-level x-mountainash extensions
-        field_extensions: Dict[str, Any] = {}
-        if fspec.rename_from is not None:
-            field_extensions["rename_from"] = fspec.rename_from
-        if fspec.null_fill is not None:
-            field_extensions["null_fill"] = fspec.null_fill
-        if fspec.custom_cast is not None:
-            field_extensions["custom_cast"] = fspec.custom_cast
-        if fspec.constraints and fspec.constraints.enum_weights is not None:
-            field_extensions["enum_weights"] = fspec.constraints.enum_weights
-        if fspec.backend_type is not None:  # Gap 10: move under x-mountainash
-            field_extensions["backend_type"] = fspec.backend_type
-        if field_extensions:
-            field_dict["x-mountainash"] = field_extensions
-
-        fields_list.append(field_dict)
+    fields_list: List[Dict[str, Any]] = [
+        _field_to_frictionless_dict(fspec) for fspec in spec.fields
+    ]
 
     descriptor["fields"] = fields_list
     return descriptor
@@ -219,6 +231,73 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Import: Frictionless dict / JSON string / Path → TypeSpec
 # ---------------------------------------------------------------------------
+
+def _field_from_frictionless_dict(raw_field: Dict[str, Any]) -> "FieldSpec":
+    """Import one Frictionless field descriptor into a FieldSpec.
+
+    Recurses into ``x-mountainash.object_fields`` (item 102) so nested
+    descriptors mirror the export helper exactly.
+    """
+    name: str = raw_field["name"]
+    type_str: str = raw_field.get("type", "string")
+    universal_type = parse_universal(type_str)
+
+    format_: str = raw_field.get("format", "default")
+    field_title: Optional[str] = raw_field.get("title")
+    field_description: Optional[str] = raw_field.get("description")
+    field_missing_values: Optional[List[str]] = raw_field.get("missingValues")
+    categories: Optional[List[Any]] = raw_field.get("categories")
+    true_values: Optional[List[str]] = raw_field.get("trueValues")
+    false_values: Optional[List[str]] = raw_field.get("falseValues")
+    categories_ordered: Optional[bool] = raw_field.get("categoriesOrdered")
+    example: Optional[Any] = raw_field.get("example")
+    rdf_type: Optional[str] = raw_field.get("rdfType")
+    decimal_char: Optional[str] = raw_field.get("decimalChar")
+    group_char: Optional[str] = raw_field.get("groupChar")
+    bare_number: Optional[bool] = raw_field.get("bareNumber")
+    item_type: Optional[str] = raw_field.get("itemType")
+    delimiter: Optional[str] = raw_field.get("delimiter")
+
+    field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
+    rename_from: Optional[str] = field_ext.get("rename_from")
+    null_fill: Any = field_ext.get("null_fill")
+    custom_cast: Optional[str] = field_ext.get("custom_cast")
+    enum_weights: Optional[Dict[str, float]] = field_ext.get("enum_weights")
+    backend_type: Optional[str] = field_ext.get("backend_type")
+    raw_object_fields: Optional[List[Dict[str, Any]]] = field_ext.get("object_fields")
+    object_fields: Optional[List[FieldSpec]] = (
+        [_field_from_frictionless_dict(rf) for rf in raw_object_fields]
+        if raw_object_fields is not None else None
+    )
+
+    constraints = _parse_constraints(raw_field.get("constraints"), enum_weights=enum_weights)
+
+    return FieldSpec(
+        name=name,
+        type=universal_type,
+        format=format_,
+        title=field_title,
+        description=field_description,
+        constraints=constraints,
+        missing_values=field_missing_values,
+        categories=categories,
+        categories_ordered=categories_ordered,
+        example=example,
+        rdf_type=rdf_type,
+        decimal_char=decimal_char,
+        group_char=group_char,
+        bare_number=bare_number,
+        item_type=item_type,
+        delimiter=delimiter,
+        true_values=true_values,
+        false_values=false_values,
+        backend_type=backend_type,
+        rename_from=rename_from,
+        null_fill=null_fill,
+        custom_cast=custom_cast,
+        object_fields=object_fields,
+    )
+
 
 def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSpec:
     """Create a TypeSpec from a Frictionless Table Schema descriptor.
@@ -280,64 +359,10 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         foreign_keys = [foreign_key_from_dict(raw_fk) for raw_fk in raw_fks]
 
     # -- Fields --
-    fields: List[FieldSpec] = []
-    for raw_field in descriptor.get("fields", []):
-        name: str = raw_field["name"]
-        type_str: str = raw_field.get("type", "string")
-        universal_type = parse_universal(type_str)
-
-        format_: str = raw_field.get("format", "default")
-        field_title: Optional[str] = raw_field.get("title")
-        field_description: Optional[str] = raw_field.get("description")
-        field_missing_values: Optional[List[str]] = raw_field.get("missingValues")
-        categories: Optional[List[Any]] = raw_field.get("categories")  # Gap 7
-        true_values: Optional[List[str]] = raw_field.get("trueValues")  # Gap 9
-        false_values: Optional[List[str]] = raw_field.get("falseValues")  # Gap 9
-        categories_ordered: Optional[bool] = raw_field.get("categoriesOrdered")
-        example: Optional[Any] = raw_field.get("example")
-        rdf_type: Optional[str] = raw_field.get("rdfType")
-        decimal_char: Optional[str] = raw_field.get("decimalChar")
-        group_char: Optional[str] = raw_field.get("groupChar")
-        bare_number: Optional[bool] = raw_field.get("bareNumber")
-        item_type: Optional[str] = raw_field.get("itemType")
-        delimiter: Optional[str] = raw_field.get("delimiter")
-
-        # Field-level x-mountainash extensions
-        field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
-        rename_from: Optional[str] = field_ext.get("rename_from")
-        null_fill: Any = field_ext.get("null_fill")
-        custom_cast: Optional[str] = field_ext.get("custom_cast")
-        enum_weights: Optional[Dict[str, float]] = field_ext.get("enum_weights")
-        backend_type: Optional[str] = field_ext.get("backend_type")  # Gap 10
-
-        constraints = _parse_constraints(raw_field.get("constraints"), enum_weights=enum_weights)
-
-        fields.append(
-            FieldSpec(
-                name=name,
-                type=universal_type,
-                format=format_,
-                title=field_title,
-                description=field_description,
-                constraints=constraints,
-                missing_values=field_missing_values,
-                categories=categories,
-                categories_ordered=categories_ordered,
-                example=example,
-                rdf_type=rdf_type,
-                decimal_char=decimal_char,
-                group_char=group_char,
-                bare_number=bare_number,
-                item_type=item_type,
-                delimiter=delimiter,
-                true_values=true_values,
-                false_values=false_values,
-                backend_type=backend_type,
-                rename_from=rename_from,
-                null_fill=null_fill,
-                custom_cast=custom_cast,
-            )
-        )
+    fields: List[FieldSpec] = [
+        _field_from_frictionless_dict(raw_field)
+        for raw_field in descriptor.get("fields", [])
+    ]
 
     return TypeSpec(
         fields=fields,

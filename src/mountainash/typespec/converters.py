@@ -32,28 +32,55 @@ if TYPE_CHECKING:
 # ============================================================================
 
 def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
-    """backend_type (if the target can parse it) > FieldSpec.type via canon.
-
-    ANY materializes as STRING (documented default — a target schema must be
-    complete). No silent warn-and-default fallbacks.
-    """
+    """Resolve categories, backend overrides, canonical types, and containers."""
+    if field.categories is not None and target in (TypeTarget.POLARS, TypeTarget.PANDAS):
+        from mountainash.typespec._categorical import categorical_values
+        values = categorical_values(field.categories)
+        if target is TypeTarget.POLARS:
+            from mountainash.core.lazy_imports import import_polars
+            pl = import_polars()
+            return pl.Enum([str(v) for v in values]) if field.categories_ordered else pl.Categorical
+        import pandas as pd
+        return pd.CategoricalDtype(categories=values, ordered=bool(field.categories_ordered))
     if field.backend_type:
         parsed = registry.parse_type_string(field.backend_type, target)
         if parsed is not None:
             return parsed
-        # Validation strictness (item 54, §5): only a non-empty, non-None
-        # backend_type that the target cannot parse raises. None/"" means "no
-        # override given" and falls through to canonical (item 53's ANY->STRING
-        # case relies on that).
         raise InvalidBackendTypeError(field.name, field.backend_type, target)
     canon = to_canonical(field.type)
-    if canon is None:  # ANY
+    if canon is None:
         canon = MountainashDtype.STRING
     native = registry.to_native_schema(canon, target)
-
     if canon is MountainashDtype.LIST and field.item_type:
         native = _resolve_list_inner(field.name, field.item_type, target, native)
+    elif canon is MountainashDtype.STRUCT and field.object_fields:
+        native = _resolve_struct_inner(field.name, field.object_fields, target, native)
     return native
+
+
+def _resolve_struct_inner(
+    field_name: str, object_fields: list["FieldSpec"], target: TypeTarget, bare_native: Any,
+) -> Any:
+    """Build a fully parameterized native struct dtype from nested FieldSpecs."""
+    if target is TypeTarget.PANDAS:
+        return bare_native
+    inner_pairs = [(f.name, _resolve_field_native(f, target)) for f in object_fields]
+    if target is TypeTarget.POLARS:
+        from mountainash.core.lazy_imports import import_polars
+        pl = import_polars()
+        return pl.Struct({name: native for name, native in inner_pairs})
+    if target is TypeTarget.NARWHALS:
+        from mountainash.core.lazy_imports import import_narwhals
+        nw = import_narwhals()
+        return nw.Struct({name: native for name, native in inner_pairs})
+    if target is TypeTarget.PYARROW:
+        from mountainash.core.lazy_imports import import_pyarrow
+        pa = import_pyarrow()
+        return pa.struct([pa.field(name, native) for name, native in inner_pairs])
+    if target is TypeTarget.IBIS:
+        inner_str = ", ".join(f"{name}: {native}" for name, native in inner_pairs)
+        return f"struct<{inner_str}>"
+    return bare_native
 
 
 def _resolve_list_inner(
@@ -120,22 +147,12 @@ def to_polars_schema(schema: TypeSpec) -> Dict[str, Any]:
         {'id': Int64, 'name': Utf8}
     """
     from mountainash.core.lazy_imports import import_polars
-    from mountainash.typespec._categorical import categorical_values
     pl = import_polars()
     if pl is None:
         raise ImportError("polars is required for to_polars_schema()")
     result = {}
     for f in schema.fields:
-        if f.categories is not None:
-            # categories takes priority over backend_type/type entirely
-            # (mirrors conform stage 5's branch order exactly).
-            values = categorical_values(f.categories)
-            result[f.name] = (
-                pl.Enum([str(v) for v in values]) if f.categories_ordered
-                else pl.Categorical
-            )
-        else:
-            result[f.name] = _resolve_field_native(f, TypeTarget.POLARS)
+        result[f.name] = _resolve_field_native(f, TypeTarget.POLARS)
     return result
 
 
@@ -164,17 +181,9 @@ def to_pandas_dtypes(schema: TypeSpec) -> Dict[str, Any]:
         >>> pandas_dtypes
         {'id': 'Int64', 'name': 'string'}
     """
-    from mountainash.typespec._categorical import categorical_values
     result: Dict[str, Any] = {}
     for f in schema.fields:
-        if f.categories is not None:
-            values = categorical_values(f.categories)
-            import pandas as pd
-            result[f.name] = pd.CategoricalDtype(
-                categories=values, ordered=bool(f.categories_ordered)
-            )
-        else:
-            result[f.name] = _resolve_field_native(f, TypeTarget.PANDAS)
+        result[f.name] = _resolve_field_native(f, TypeTarget.PANDAS)
     return result
 
 
