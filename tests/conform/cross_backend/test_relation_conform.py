@@ -134,6 +134,33 @@ class TestRelationConformStructStrictModes:
         # but discarded from the OUTPUT.
         assert list(result.columns) == ["pid"]
         assert "other" not in result.columns
+_STRUCT_CAST = [
+    pytest.param("narwhals-polars"),
+    pytest.param("ibis-polars"),
+    pytest.param("ibis-duckdb"),
+    pytest.param("ibis-sqlite", marks=xfail_divergence("MA-CONF-04", backend="ibis-sqlite")),
+    # narwhals-pandas deliberately excluded: MA-CONF-01 already establishes
+    # pandas-backed struct data is broken at a more fundamental level.
+]
+
+
+@pytest.mark.parametrize("backend_name", _STRUCT_CAST)
+class TestRelationConformStructCastOffPolars:
+    """Struct conform materialization is deliberately Polars-only."""
+
+    def test_struct_cast_raises_dtype_mapping_error_off_polars(self, backend_name, backend_factory):
+        from mountainash.core.dtypes import DtypeMappingError
+        df = backend_factory.create({"addr": [{"street": "Main St", "zip": "12345"}]}, backend_name)
+        spec = TypeSpec(
+            fields=[FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
+                FieldSpec(name="street", type=UniversalType.STRING),
+                FieldSpec(name="zip", type=UniversalType.STRING),
+            ])],
+        )
+        with pytest.raises(DtypeMappingError):
+            ma.relation(df).conform(spec).to_polars()
+
+
 
 
 class TestRelationConformFullPipeline:
