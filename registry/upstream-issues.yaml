@@ -603,23 +603,47 @@ issues:
 - id: IB-REL-11
   project: ibis
   category: relation-ops
-  summary: asof join is unreliable on Ibis SQL backends
-  root_cause: upstream_bug
+  summary: 'RESOLVED: ibis-duckdb asof join returned nondeterministic row order'
+  root_cause: mountainash_internal
   affected_backends:
   - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Originally described as "asof join is unreliable on Ibis SQL backends"
+    covering both ibis-duckdb and ibis-sqlite. Root-caused (2026-08-18, PR #297
+    CI investigation): Relation.join_asof() on the Ibis backend never applied an
+    explicit ORDER BY, and DuckDB gives no row-order guarantee for ASOF JOIN
+    output absent one — the query planner nondeterministically returned rows in
+    original or shuffled order run-to-run, flipping the strict-xfail test between
+    XFAIL and XPASS(strict) independent of any test-suite change. Not a value
+    divergence — the join values were always correct, only positional-assertion
+    row order flapped. Fixed by ordering the Ibis join_asof result by the join
+    key(s) (relsys_ib_ext_ma_util.py) to match polars/narwhals'' left-order
+    preservation. The distinct ibis-sqlite raise (SQLite has no ASOF JOIN
+    translation) was split off to IB-REL-13, which remains a genuine open gap.
+    Renamed from a colliding DivergenceFact id (was "IB-REL-08") 2026-08-13;
+    that history stands, this entry is now closed.'
+  last_verified: '2026-08-18'
+- id: IB-REL-13
+  project: ibis
+  category: relation-ops
+  summary: 'ibis-sqlite: asof join raises UnsupportedOperationError'
+  root_cause: upstream_feature_gap
+  affected_backends:
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: needs_investigation
+  status: needs_filing
   our_workaround: xfail_strict
-  notes: 'Relation.join_asof() returns a diverging (wrong) result on ibis-duckdb and
-    raises UnsupportedOperationError on ibis-sqlite; polars/narwhals compute it
-    correctly. Renamed from a colliding DivergenceFact id (was "IB-REL-08", which
-    already named an unrelated entry above — the backend rename-mapping-inverted
-    gap) when backlog item 87''s id-collision detector caught the reuse; the
-    DivergenceFact and this entry now self-reference via upstream_ref (backlog
-    item 87, 2026-08-13).'
-  last_verified: '2026-08-13'
+  notes: 'Split from IB-REL-11 (2026-08-18) after the ibis-duckdb portion (a
+    nondeterministic row-order bug, not a value divergence) was fixed in
+    mountainash by ordering the join_asof result deterministically. This entry
+    tracks the remaining genuine upstream gap: Ibis has no ASOF JOIN translation
+    for the SQLite backend, so Table.asof_join() raises UnsupportedOperationError
+    on ibis-sqlite. Use a polars or narwhals backend for asof joins on that data.'
+  last_verified: '2026-08-18'
 - id: IB-REL-12
   project: ibis
   category: relation-ops

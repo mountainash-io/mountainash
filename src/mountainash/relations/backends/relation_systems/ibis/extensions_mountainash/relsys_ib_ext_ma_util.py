@@ -197,4 +197,12 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             kwargs["by"] = by
         if tolerance is not None:
             kwargs["tolerance"] = tolerance
-        return left.asof_join(right, **kwargs)
+        result = left.asof_join(right, **kwargs)
+        # Ibis's SQL backends (duckdb, sqlite) give no row-order guarantee for
+        # ASOF JOIN output absent an explicit ORDER BY. An asof join is defined
+        # over data pre-sorted by `on`, so restoring that order here is the
+        # correct, deterministic result — it matches polars/narwhals, which
+        # preserve left input order. Without this, results were flaky rather
+        # than wrong (see docs/known-divergences.md IB-REL-11, resolved).
+        order_cols = [*by, on] if by else [on]
+        return result.order_by(order_cols)
