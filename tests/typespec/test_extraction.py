@@ -398,6 +398,83 @@ class TestExtractionOverRegistry:
         assert field.type == UniversalType.ARRAY
         assert field.item_type == "integer"
 
+    def test_polars_struct_populates_object_fields(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame([{"addr": {"street": "Main St", "zip": "12345"}}])
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "addr"]
+        assert field.type == UniversalType.OBJECT
+        names = {f.name: f.type for f in field.object_fields}
+        assert names == {"street": UniversalType.STRING, "zip": UniversalType.STRING}
+
+    def test_polars_struct_two_levels_deep_populates_object_fields_recursively(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame([{"addr": {"street": "Main St", "geo": {"lat": 1.0, "lon": 2.0}}}])
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "addr"]
+        (geo,) = [f for f in field.object_fields if f.name == "geo"]
+        assert geo.type == UniversalType.OBJECT
+        assert {f.name for f in geo.object_fields} == {"lat", "lon"}
+
+    def test_polars_struct_extracts_with_backend_type_none(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        df = pl.DataFrame([{"addr": {"street": "Main St"}}])
+        spec = extract_from_dataframe(df, preserve_backend_types=True)
+        (field,) = [f for f in spec.fields if f.name == "addr"]
+        assert field.backend_type is None
+
+    def test_pyarrow_struct_populates_object_fields(self):
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        table = pa.table({"addr": pa.array(
+            [{"street": "Main St", "zip": "12345"}],
+            type=pa.struct([pa.field("street", pa.string()), pa.field("zip", pa.string())]),
+        )})
+        spec = extract_from_dataframe(table)
+        (field,) = [f for f in spec.fields if f.name == "addr"]
+        assert field.type == UniversalType.OBJECT
+        names = {f.name: f.type for f in field.object_fields}
+        assert names == {"street": UniversalType.STRING, "zip": UniversalType.STRING}
+
+    def test_pyarrow_struct_extracts_with_backend_type_none(self):
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        from mountainash.typespec.extraction import extract_from_dataframe
+        table = pa.table({"addr": pa.array(
+            [{"street": "Main St"}], type=pa.struct([pa.field("street", pa.string())]),
+        )})
+        spec = extract_from_dataframe(table, preserve_backend_types=True)
+        (field,) = [f for f in spec.fields if f.name == "addr"]
+        assert field.backend_type is None
+
+    def test_extraction_resolver_round_trip_pins_full_struct_not_just_no_raise(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.converters import to_polars_schema
+        df = pl.DataFrame([{"addr": {"street": "Main St", "zip": "12345"}}])
+        spec = extract_from_dataframe(df, preserve_backend_types=True)
+        result = to_polars_schema(spec)
+        assert result["addr"] == pl.Struct({"street": pl.String, "zip": pl.String})
+
+    def test_extraction_resolver_round_trip_empty_frame(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
+        )
+        df = pl.DataFrame([{"addr": {"street": "Main St", "zip": "12345"}}])
+        spec = extract_from_dataframe(df, preserve_backend_types=True)
+        empty = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
+        collected = empty.collect()
+        assert collected.schema["addr"] == pl.Struct({"street": pl.String, "zip": pl.String})
+        assert collected.shape == (0, 1)
     def test_unknown_dtype_raises(self):
         import polars as pl
         from mountainash.core.dtypes.errors import UnknownDtypeError
