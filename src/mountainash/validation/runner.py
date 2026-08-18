@@ -20,7 +20,7 @@ import polars as pl
 
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.validation.checks import VERDICT_PASSING, check_kind
-from mountainash.validation.errors import UnknownCheckTypeError
+from mountainash.validation.errors import IdentityInvalidError, UnknownCheckTypeError
 from mountainash.validation.identity import RowIdentity, validate_keyed_identity
 from mountainash.validation.result import (
     CheckSummary,
@@ -434,6 +434,7 @@ class ValidationRunner:
         failure_sample: int | None = None,
         backend: str | None = None,
         fk_error_summaries: "list[CheckSummary] | None" = None,
+        allow_imperfect_key: bool = False,
     ) -> "DAGValidationResult":
         from mountainash.relations import relation as as_relation
         from mountainash.validation.checks import ForeignKeyRule
@@ -452,15 +453,43 @@ class ValidationRunner:
         for name, checks in checks_by_resource.items():
             intra = [c for c in checks if not isinstance(c, ForeignKeyRule)]
             fk_rules.extend(c for c in checks if isinstance(c, ForeignKeyRule))
-            result = self.validate_relation(
-                _resolver(name),
-                intra,
-                identity=identity_by_resource.get(name),
-                context=context,
-                fail_fast=fail_fast,
-                failure_sample=failure_sample,
-                validator_name=name,
-            )
+            resource_identity = identity_by_resource.get(name) or RowIdentity("none")
+            try:
+                result = self.validate_relation(
+                    _resolver(name),
+                    intra,
+                    identity=resource_identity,
+                    allow_imperfect_key=allow_imperfect_key,
+                    context=context,
+                    fail_fast=fail_fast,
+                    failure_sample=failure_sample,
+                    validator_name=name,
+                )
+            except IdentityInvalidError as exc:
+                # spec item 8j §3.2: a resource's invalid keyed identity never
+                # aborts the batch — isolate it into that resource's own failing
+                # result, same as every other exception in this loop already is
+                # (materialisation failures, runner.py:118-134). "__identity__"
+                # mirrors the existing "__fk__" synthetic-result naming
+                # (runner.py:470, the fail_fast early-return branch this snippet
+                # mirrors; runner.py:490, the fk_result construction).
+                summary = CheckSummary(
+                    check_id="__identity__",
+                    check_kind=None,
+                    status="error",
+                    severity="blocking",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+                result = ValidationResult(
+                    passes=False,
+                    validator_name=name,
+                    datacontract_name=None,
+                    context=dict(context or {}),
+                    check_summaries=summaries_frame([summary]),
+                    failure_cases=combine_failure_frames([], resource_identity),
+                    identity=resource_identity,
+                    identity_diagnostics={},
+                )
             results[name] = result
             if fail_fast and not result.passes:
                 return DAGValidationResult(

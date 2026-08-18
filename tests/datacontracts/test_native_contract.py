@@ -1,9 +1,11 @@
 """Native BaseDataContract: declaration collection, TypeSpec round trip, validate."""
 import polars as pl
+import pytest
 
 from mountainash.datacontracts.contract import BaseDataContract
 from mountainash.datacontracts.field import Field
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.validation.errors import IdentityInvalidError
 
 
 class UserContract(BaseDataContract):
@@ -44,9 +46,33 @@ class TestToTypespec:
     def test_to_checks_ids(self):
         ids = [c.id for c in UserContract.to_checks()]
         assert "id__not_null" in ids
-        assert "id__unique" in ids
+        assert "email__not_null" in ids
         assert "email__pattern" in ids
         assert "age__ge" in ids
+
+    def test_to_checks_includes_primary_key_unique(self):
+        ids = [c.id for c in UserContract.to_checks()]
+        assert "primary_key_unique" in ids  # UserContract: Config.natural_key = ["id"]
+
+    def test_to_checks_includes_primary_key_unique_for_primary_key_config(self):
+        class OrderContract(BaseDataContract):
+            order_id: int = Field(nullable=False)
+
+            class Config:
+                name = "orders"
+                primary_key = ["order_id"]
+
+        ids = [c.id for c in OrderContract.to_checks()]
+        assert "primary_key_unique" in ids
+
+
+def test_to_checks_matches_compile_datacontract_check_ids():
+    from mountainash.datacontracts.compiler import compile_datacontract, contract_from_typespec
+
+    spec = UserContract.to_typespec()
+    compiled_ids = {c.id for c in compile_datacontract(spec)}
+    contract_ids = {c.id for c in contract_from_typespec(spec).to_checks()}
+    assert compiled_ids == contract_ids
 
 
 class TestValidate:
@@ -91,6 +117,35 @@ class TestValidate:
         assert list(full.check_summaries.columns) == list(quick.check_summaries.columns)
         assert list(full.failure_cases.columns) == list(quick.failure_cases.columns)
         assert quick.check_summaries.height <= full.check_summaries.height
+
+    def test_validate_datacontract_raises_by_default_on_duplicate_key(self):
+        df = pl.DataFrame(
+            {"id": [1, 1], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        with pytest.raises(IdentityInvalidError):
+            UserContract.validate_datacontract(df)
+
+    def test_validate_datacontract_allow_imperfect_key_reports_primary_key_unique(self):
+        df = pl.DataFrame(
+            {"id": [1, 1], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract(df, allow_imperfect_key=True)
+        assert result.passes is False
+        failing = set(
+            result.check_summaries.filter(
+                result.check_summaries["status"] != "passed"
+            )["check_id"].to_list()
+        )
+        assert "primary_key_unique" in failing
+        assert result.identity_diagnostics["duplicate_key_tuples"] == 1
+
+    def test_validate_datacontract_quick_allow_imperfect_key_same_shape(self):
+        df = pl.DataFrame(
+            {"id": [1, 1], "email": ["a@b.c", "d@e.f"], "age": [30, 40], "note": ["x", "y"]}
+        )
+        result = UserContract.validate_datacontract_quick(df, allow_imperfect_key=True)
+        assert result.passes is False
+        assert result.identity_diagnostics["duplicate_key_tuples"] == 1
 
 
 class NoKeyContract(BaseDataContract):

@@ -292,3 +292,106 @@ class TestFastMode:
         fk_summary = result.fk_result.check_summaries.row(0, named=True)
         assert fk_summary["check_id"] == "fk__c__pid__p"
         assert fk_summary["fail_count"] == 1
+
+
+class TestIdentityIsolation:
+    def _dup_pk_dag(self):
+        return _build_dag({"users": pl.DataFrame({"id": [1, 1], "age": [30, 40]})})
+
+    @pytest.mark.parametrize("spec_kind", ["typespec", "primary_key_contract", "natural_key_contract"])
+    def test_allow_imperfect_key_reports_primary_key_unique(self, spec_kind):
+        dag = self._dup_pk_dag()
+        if spec_kind == "typespec":
+            spec = TypeSpec(
+                fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
+                        FieldSpec(name="age", type=UniversalType.INTEGER)],
+                primary_key=["id"],
+            )
+        elif spec_kind == "primary_key_contract":
+            class C(BaseDataContract):
+                id: int
+                age: int
+                class Config:
+                    primary_key = ["id"]
+            spec = C
+        else:
+            class C(BaseDataContract):
+                id: int
+                age: int
+                class Config:
+                    natural_key = ["id"]
+            spec = C
+
+        result = dag.validate(specs={"users": spec}, allow_imperfect_key=True)
+        assert result.passes is False
+        failing = set(
+            result.results["users"].check_summaries.filter(
+                result.results["users"].check_summaries["status"] != "passed"
+            )["check_id"].to_list()
+        )
+        assert "primary_key_unique" in failing
+
+    def test_default_isolates_identity_failure_no_exception(self):
+        dag = self._dup_pk_dag()
+        dag.add("other", ma.relation(pl.DataFrame({"name": ["ok"]})))
+        spec_users = TypeSpec(
+            fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
+                    FieldSpec(name="age", type=UniversalType.INTEGER)],
+            primary_key=["id"],
+        )
+        spec_other = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+
+        result = dag.validate(specs={"users": spec_users, "other": spec_other})  # no allow_imperfect_key
+
+        assert result.passes is False
+        users_summary = result.results["users"].check_summaries.row(0, named=True)
+        assert users_summary["check_id"] == "__identity__"
+        assert users_summary["status"] == "error"
+        assert result.results["other"].passes is True
+
+    @pytest.mark.parametrize("order", [("users", "other"), ("other", "users")])
+    def test_quick_fail_fast_ordering(self, order):
+        dag = self._dup_pk_dag()
+        dag.add("other", ma.relation(pl.DataFrame({"name": ["ok"]})))
+        spec_users = TypeSpec(
+            fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
+                    FieldSpec(name="age", type=UniversalType.INTEGER)],
+            primary_key=["id"],
+        )
+        spec_other = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+        specs = {order[0]: (spec_users if order[0] == "users" else spec_other),
+                 order[1]: (spec_users if order[1] == "users" else spec_other)}
+
+        result = dag.validate_quick(specs=specs)
+
+        assert result.passes is False
+        assert "users" in result.results
+        if order == ("users", "other"):
+            assert "other" not in result.results  # stopped before the second resource ran
+        else:
+            assert result.results["other"].passes is True  # ran and reported before the stop
+
+    def test_single_resource_dict_does_not_raise(self):
+        dag = self._dup_pk_dag()
+        spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
+                    FieldSpec(name="age", type=UniversalType.INTEGER)],
+            primary_key=["id"],
+        )
+        result = dag.validate(specs={"users": spec})  # must not raise
+        assert result.passes is False
+
+    def test_missing_key_fields_isolated_not_raised_even_with_allow_imperfect_key(self):
+        # identity.py:69-73's missing-key-fields raise is unconditional - allow_imperfect_key
+        # never suppresses it (spec §7 round-2 fix) - but §3.2's DAG-tier isolation is categorical
+        # regardless of *why* IdentityInvalidError was raised, so it must still not escape here.
+        dag = _build_dag({"users": pl.DataFrame({"age": [30, 40]})})  # no "id" column at all
+        spec = TypeSpec(
+            fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
+            primary_key=["id"],  # declared key column absent from the actual data
+        )
+        result = dag.validate(specs={"users": spec}, allow_imperfect_key=True)  # must not raise
+        assert result.passes is False
+        users_summary = result.results["users"].check_summaries.row(0, named=True)
+        assert users_summary["check_id"] == "__identity__"
+        assert users_summary["status"] == "error"
