@@ -736,6 +736,17 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
+            id="MA-CONF-04",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # typespec/conform struct materialization
+            backends=("ibis-sqlite",),
+            summary="ibis-sqlite cannot construct struct-typed tables at all — UnsupportedBackendType('Struct types aren't supported in SQLite') on table creation, struct literals, and string-to-struct casts",
+            impact="any test constructing a struct-typed source table on ibis-sqlite raises UnsupportedBackendType; ibis-duckdb/ibis-polars and polars/narwhals construct it (resolver schema-string construction for to_ibis_schema stays exercised — only real-table execution is gated)",
+            workaround="Use ibis-duckdb/ibis-polars or a polars/narwhals backend for struct-typed data",
+            upstream_ref=None,
+            since="2026-08-18",
+        ),
+        DivergenceFact(
             id="MA-TERN-01",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # ternary with a null-safe operand, booleanizer=None
