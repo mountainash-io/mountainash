@@ -273,6 +273,20 @@ _MATRIX_UNREACHABLE_DIALECT_FACTS = {
 }
 
 
+# Value-class facts whose (backend, dialect) the 4-fixture matrix cannot
+# instantiate either (same structural limit as _MATRIX_UNREACHABLE_DIALECT_FACTS
+# above, but for class-keyed facts: no option_value means they cannot enter that
+# exact-value set). Verified instead by dedicated gate tests that build a real
+# ibis-sqlite backend -- TestMaMultiplierIbisSqliteGate in
+# test_datetime_rounding.py (backlog item 99: the MA wrapper multiplier
+# durations dt.truncate('2d') etc. hit ibis-sqlite's missing TimestampBucket
+# compilation rule).
+_UNREACHABLE_DIALECT_CLASS_FACTS = {
+    (fkey, "unit", CONST_BACKEND.IBIS, "ibis-sqlite")
+    for fkey in (FK_MA_DT.TRUNCATE, FK_MA_DT.ROUND, FK_MA_DT.CEIL, FK_MA_DT.FLOOR)
+}
+
+
 def test_no_stale_matrix_unreachable_dialect_fact_entries() -> None:
     """Every _MATRIX_UNREACHABLE_DIALECT_FACTS entry must still be a genuine,
     registered fact whose dialect the matrix's 4 fixtures cannot reach — if
@@ -292,6 +306,31 @@ def test_no_stale_matrix_unreachable_dialect_fact_entries() -> None:
             f"Stale _MATRIX_UNREACHABLE_DIALECT_FACTS entry: {key} — its "
             f"dialect {key[4]!r} is now reachable by the matrix's fixtures; "
             "remove this entry and let the exact arm cover it directly."
+        )
+
+
+def test_no_stale_unreachable_dialect_class_fact_entries() -> None:
+    """Every _UNREACHABLE_DIALECT_CLASS_FACTS entry must still be a genuine,
+    registered value-class fact whose dialect the matrix's 4 fixtures cannot
+    reach — mirror of test_no_stale_matrix_unreachable_dialect_fact_entries
+    for the class arm (backlog item 99)."""
+    registered_class = {
+        (fact.operation_key, fact.param, fact.backend, fact.dialect)
+        for fact in CapabilityRegistry.facts()
+        if fact.value_class is not None and fact.level in _GATING
+    }
+    matrix_dialects = {
+        dialect for _family, dialect in disposition._FIXTURE_IDENTITY.values()
+    }
+    for key in _UNREACHABLE_DIALECT_CLASS_FACTS:
+        assert key in registered_class, (
+            f"Stale _UNREACHABLE_DIALECT_CLASS_FACTS entry: {key} is no "
+            "longer a registered value-class fact — remove it."
+        )
+        assert key[3] not in matrix_dialects, (
+            f"Stale _UNREACHABLE_DIALECT_CLASS_FACTS entry: {key} — its "
+            f"dialect {key[3]!r} is now reachable by the matrix's fixtures; "
+            "remove this entry and let the class arm cover it directly."
         )
 
 
@@ -332,6 +371,8 @@ def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
         if fact.value_class is not None
         and fact.level in _GATING
         and fact.dialect is not None
+        and (fact.operation_key, fact.param, fact.backend, fact.dialect)
+        not in _UNREACHABLE_DIALECT_CLASS_FACTS
     }
     resolved_class_facts = {
         disposition.resolve_cell_class_fact(cell)
