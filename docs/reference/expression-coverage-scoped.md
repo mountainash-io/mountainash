@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 43 · Facts: 1462 · Registered operations: 326 · Implementation records: 978
+Declarations: 43 · Facts: 1466 · Registered operations: 326 · Implementation records: 978
 
 Legend — scoped deviations:
 
@@ -141,6 +141,7 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ibis-polars | unit | 1mo, 1q, 1y, month, quarter, year | — | unsupported | gate | build | — | ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | unit | — | duration_multiplier | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0 | — | — | 2026-08-18 | — | — |
 | ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `FLOOR` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
@@ -156,6 +157,7 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | unit | — | duration_multiplier | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0 | — | — | 2026-08-18 | — | — |
 | ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `IS_DST` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
@@ -179,6 +181,7 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ibis-polars | unit | 1mo, 1q, 1y, month, quarter, year | — | unsupported | gate | build | — | ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
+| ibis-sqlite | unit | — | duration_multiplier | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0 | — | — | 2026-08-18 | — | — |
 | ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `TO_TIMEZONE` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
@@ -201,6 +204,7 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | unit | — | duration_multiplier | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0 | — | — | 2026-08-18 | — | — |
 | ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
 ### `CONTAINS` × narwhals (FKEY_MOUNTAINASH_SCALAR_LIST)

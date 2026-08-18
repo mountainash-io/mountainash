@@ -1,7 +1,7 @@
 {
   "stamp": {
     "declarations": 43,
-    "facts": 1462,
+    "facts": 1466,
     "operations": 326,
     "implementation_records": 978
   },
@@ -50,19 +50,19 @@
       "expr_capable": 149,
       "literal_only": 65,
       "polymorphic": 9,
-      "unsupported": 1239
+      "unsupported": 1243
     },
     "facts_by_enforcement": {
-      "gate": 1455,
+      "gate": 1459,
       "router_metadata": 3,
       "materialize_residue": 4
     },
     "facts_by_backend": {
       "polars": 265,
       "narwhals": 586,
-      "ibis": 611
+      "ibis": 615
     },
-    "facts_total": 1462
+    "facts_total": 1466
   },
   "families": [
     {
@@ -1804,7 +1804,7 @@
               "selector_counts": {
                 "params": 1,
                 "option_selectors": 16,
-                "value_classes": 0,
+                "value_classes": 1,
                 "dialects": 2
               },
               "constraints": [
@@ -1901,6 +1901,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-08-16",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "unit",
+                  "option_value": null,
+                  "value_class": "duration_multiplier",
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-18",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -3848,10 +3864,26 @@
               "selector_counts": {
                 "params": 1,
                 "option_selectors": 12,
-                "value_classes": 0,
+                "value_classes": 1,
                 "dialects": 1
               },
               "constraints": [
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "unit",
+                  "option_value": null,
+                  "value_class": "duration_multiplier",
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-18",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
                 {
                   "dialect": "ibis-sqlite",
                   "param": "unit",
@@ -4594,7 +4626,7 @@
               "selector_counts": {
                 "params": 1,
                 "option_selectors": 16,
-                "value_classes": 0,
+                "value_classes": 1,
                 "dialects": 2
               },
               "constraints": [
@@ -4691,6 +4723,22 @@
                   "workaround": null,
                   "upstream_ref": null,
                   "since": "2026-08-16",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "unit",
+                  "option_value": null,
+                  "value_class": "duration_multiplier",
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-18",
                   "native_errors": [],
                   "probe_exempt": null
                 },
@@ -5696,10 +5744,26 @@
               "selector_counts": {
                 "params": 1,
                 "option_selectors": 12,
-                "value_classes": 0,
+                "value_classes": 1,
                 "dialects": 1
               },
               "constraints": [
+                {
+                  "dialect": "ibis-sqlite",
+                  "param": "unit",
+                  "option_value": null,
+                  "value_class": "duration_multiplier",
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+                  "workaround": null,
+                  "upstream_ref": null,
+                  "since": "2026-08-18",
+                  "native_errors": [],
+                  "probe_exempt": null
+                },
                 {
                   "dialect": "ibis-sqlite",
                   "param": "unit",
@@ -45289,7 +45353,8 @@
         "probe_date": "2026-08-16",
         "library_versions": [],
         "fixtures": [
-          "ibis-duckdb"
+          "ibis-duckdb",
+          "ibis-sqlite"
         ]
       },
       "facts": [
@@ -45354,6 +45419,70 @@
           "workaround": null,
           "upstream_ref": null,
           "since": "2026-08-16",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "unit",
+          "option_value": null,
+          "value_class": "duration_multiplier",
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-18",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "unit",
+          "option_value": null,
+          "value_class": "duration_multiplier",
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-18",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "unit",
+          "option_value": null,
+          "value_class": "duration_multiplier",
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-18",
+          "native_errors": [],
+          "probe_exempt": null
+        },
+        {
+          "dialect": "ibis-sqlite",
+          "param": "unit",
+          "option_value": null,
+          "value_class": "duration_multiplier",
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0",
+          "workaround": null,
+          "upstream_ref": null,
+          "since": "2026-08-18",
           "native_errors": [],
           "probe_exempt": null
         }
@@ -71095,13 +71224,6 @@
       "since": "2026-08-06"
     }
   ],
-  "gaps": [
-    {
-      "gap_kind": "other",
-      "reason": "ibis-sqlite's TimestampBucket has no compilation rule, so a multi-digit MA-wrapper duration string (e.g. dt.truncate('2d')) on ibis-sqlite raises a raw native OperationNotDefinedError rather than a clean BackendCapabilityError. A DURATION_MULTIPLIER-class fact for this would need a corresponding class-backed OptionCell, which the 4-fixture argument-type matrix cannot instantiate for ibis-sqlite (same structural limit as test_option_fact_integrity.py's _MATRIX_UNREACHABLE_DIALECT_FACTS) -- see backlog item 99.",
-      "since": "2026-08-16",
-      "review_due": "2027-02-15"
-    }
-  ],
+  "gaps": [],
   "retired": []
 }

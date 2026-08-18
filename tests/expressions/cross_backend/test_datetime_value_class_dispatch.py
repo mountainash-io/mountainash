@@ -20,12 +20,18 @@ option is non-functional, so it carries NO value-class fact and stays parked
 are honored on every fixture — no facts.
 
 DURATION_MULTIPLIER (integer unit multipliers >= 2, e.g. "2d"/"3h"/"12mo")
-facts and this file's former `test_multiplier_gate` regression were RETIRED
-by item 74: truncate/round_dt/ceil_dt/floor_dt now redirect through the real
+facts for the cross-backend fixtures and this file's former
+`test_multiplier_gate` regression were RETIRED by item 74:
+truncate/round_dt/ceil_dt/floor_dt now redirect through the real
 round_temporal/round_calendar implementation instead of a silent-wrong
 truncate fallback, so every fixture honors every multiplier value (see
 `src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py`
-module docstring for the re-probed disposition table).
+module docstring for the re-probed disposition table). The one exception is
+ibis-sqlite (missing TimestampBucket compilation rule) — its
+DURATION_MULTIPLIER class facts were re-registered by backlog item 99 and
+are gated by TestMaMultiplierIbisSqliteGate in
+`tests/expressions/cross_backend/test_datetime_rounding.py`, outside this
+file's 4-fixture matrix (which has no ibis-sqlite fixture).
 """
 from __future__ import annotations
 

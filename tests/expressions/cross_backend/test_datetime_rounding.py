@@ -281,3 +281,40 @@ class TestRoundCalendarSqliteMultipleUnsupported:
         expr = ma.col("ts").dt.round_calendar(rounding="FLOOR", unit="MONTH", multiple=3)
         with pytest.raises(BackendCapabilityError, match="TimestampBucket"):
             collect_expr(df, expr)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ["ibis-sqlite"])
+class TestMaMultiplierIbisSqliteGate:
+    """Backlog item 99: the MA wrappers (dt.truncate/round/ceil/floor) accept
+    multiplier durations ("2d"/"3h"/"12mo") and on ibis-sqlite those reach
+    TimestampBucket, which has no sqlite compilation rule. The
+    DURATION_MULTIPLIER value-class fact must raise a clean
+    BackendCapabilityError at build time, never a raw
+    OperationNotDefinedError. Single-unit durations ("1d") are unaffected."""
+
+    @pytest.mark.parametrize(
+        ("op", "unit"),
+        [
+            ("truncate", "2d"),
+            ("round", "3h"),
+            ("ceil", "12mo"),
+            ("floor", "2w"),
+        ],
+    )
+    def test_multiplier_unit_raises_capability_error(
+        self, backend_name, op, unit, backend_factory, collect_expr
+    ):
+        df = backend_factory.create(_MULTI_DATA, backend_name)
+        expr = getattr(ma.col("ts").dt, op)(unit)
+        with pytest.raises(BackendCapabilityError, match="TimestampBucket"):
+            collect_expr(df, expr)
+
+    @pytest.mark.parametrize("op", ["truncate", "round", "ceil", "floor"])
+    def test_single_unit_still_compiles(
+        self, backend_name, op, backend_factory, collect_expr
+    ):
+        df = backend_factory.create(_MULTI_DATA, backend_name)
+        expr = getattr(ma.col("ts").dt, op)("1d")
+        actual = collect_expr(df, expr)
+        assert len(actual) == 1

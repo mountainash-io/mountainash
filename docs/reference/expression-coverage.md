@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 43 · Facts: 1462 · Registered operations: 326 · Implementation records: 978
+Declarations: 43 · Facts: 1466 · Registered operations: 326 · Implementation records: 978
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1239 |
-| Enforcement | gate 1455, router_metadata 3, materialize_residue 4 |
-| Backend | polars 265, narwhals 586, ibis 611 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1243 |
+| Enforcement | gate 1459, router_metadata 3, materialize_residue 4 |
+| Backend | polars 265, narwhals 586, ibis 615 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -72,7 +72,7 @@ audited_unknown: 0
 | Backend | Source | Domain | Probe date | Library versions | Fixtures |
 | --- | --- | --- | --- | --- | --- |
 | ibis | mountainash | datetime | 2026-07-05 |  |  |
-| ibis | mountainash | datetime | 2026-08-16 |  | ibis-duckdb |
+| ibis | mountainash | datetime | 2026-08-16 |  | ibis-duckdb, ibis-sqlite |
 | ibis | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
 | ibis | mountainash | relation | 2026-07-05 |  |  |
 | ibis | mountainash | set | — | — | — |
@@ -135,7 +135,7 @@ audited_unknown: 0
 | `ADD_MONTHS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `ADD_SECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
 | `ADD_YEARS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `CEIL` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 0 value-classes, 2 dialects) |
+| `CEIL` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 1 value-classes, 2 dialects) |
 | `DATE` | ✓ | ✓ audited | ✓ audited |
 | `DAYS_IN_MONTH` | ✓ | ✓ audited | ✓ audited |
 | `DIFF_DAYS` | ✓ | ✓ audited | ✓ audited |
@@ -161,14 +161,14 @@ audited_unknown: 0
 | `EXTRACT_WEEK` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_WEEKDAY` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_YEAR` | ✓ | ✓ audited | ✓ audited |
-| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 0 value-classes, 1 dialects) |
+| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 1 value-classes, 1 dialects) |
 | `IS_DST` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
 | `IS_LEAP_YEAR` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_END` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_START` | ✓ | ✓ audited | ✓ audited |
 | `NOW` | ✓ | ✓ audited | ✓ audited |
 | `OFFSET_BY` | ✓ | ✓ audited | ✓ audited |
-| `ROUND` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 0 value-classes, 2 dialects) |
+| `ROUND` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 1 value-classes, 2 dialects) |
 | `TIME` | ✓ | ✓ audited | ✓ audited |
 | `TODAY` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_DAYS` | ✓ | ✓ audited | ✓ audited |
@@ -179,7 +179,7 @@ audited_unknown: 0
 | `TOTAL_NANOSECONDS` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_SECONDS` | ✓ | ✓ audited | ✓ audited |
 | `TO_TIMEZONE` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 0 value-classes, 1 dialects) |
+| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 1 value-classes, 1 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_LIST` (mountainash / list)
 
@@ -591,9 +591,7 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 
 ## Known gaps
 
-| Kind | Reason | Since | Review due |
-| --- | --- | --- | --- |
-| other | ibis-sqlite's TimestampBucket has no compilation rule, so a multi-digit MA-wrapper duration string (e.g. dt.truncate('2d')) on ibis-sqlite raises a raw native OperationNotDefinedError rather than a clean BackendCapabilityError. A DURATION_MULTIPLIER-class fact for this would need a corresponding class-backed OptionCell, which the 4-fixture argument-type matrix cannot instantiate for ibis-sqlite (same structural limit as test_option_fact_integrity.py's _MATRIX_UNREACHABLE_DIALECT_FACTS) -- see backlog item 99. | 2026-08-16 | 2027-02-15 |
+None recorded.
 
 ## Retirement changelog
 
