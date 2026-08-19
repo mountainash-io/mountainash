@@ -670,17 +670,6 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-06",
         ),
         DivergenceFact(
-            id="IB-REL-13",
-            kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(),  # relation op join_asof
-            backends=("ibis-sqlite",),
-            summary="ibis-sqlite: asof join raises UnsupportedOperationError — no ASOF JOIN translation",
-            impact="Relation.join_asof() raises on ibis-sqlite; polars/narwhals and ibis-duckdb compute it correctly",
-            workaround="Use a polars or narwhals backend for asof joins",
-            upstream_ref="IB-REL-13",
-            since="2026-08-18",
-        ),
-        DivergenceFact(
             id="NW-REL-03",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation op join_asof tolerance param

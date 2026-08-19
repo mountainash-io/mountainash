@@ -39,25 +39,14 @@ def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
 
 from fixtures.capability_gating import xfail_divergence
 
-_ASOF = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-13", backend=b)) for b in ALL_BACKENDS
-]
-
+_ASOF = ALL_BACKENDS
 _ASOF_DIRECTIONAL = [
-    pytest.param(
-        b,
-        marks=(xfail_divergence("IB-REL-13", backend=b), xfail_divergence("IB-REL-15", backend=b)),
-    )
-    for b in ALL_BACKENDS
+    pytest.param(b, marks=xfail_divergence("IB-REL-15", backend=b)) for b in ALL_BACKENDS
 ]
 _ASOF_TEMPORAL_NEAREST = [
     pytest.param(
         b,
-        marks=(
-            xfail_divergence("IB-REL-13", backend=b),
-            xfail_divergence("IB-REL-15", backend=b),
-            xfail_divergence("IB-REL-14", backend=b),
-        ),
+        marks=(xfail_divergence("IB-REL-15", backend=b), xfail_divergence("IB-REL-14", backend=b)),
     )
     for b in ALL_BACKENDS
 ]
@@ -81,7 +70,6 @@ _ASOF_NEAREST_DUP = [
     pytest.param(
         b,
         marks=(
-            xfail_divergence("IB-REL-13", backend=b),
             xfail_divergence("IB-REL-15", backend=b),
             xfail_divergence("NW-REL-05", backend=b),
         ),
