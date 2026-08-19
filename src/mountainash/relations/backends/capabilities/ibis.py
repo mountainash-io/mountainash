@@ -11,6 +11,7 @@ from mountainash.core.capabilities import (
     CapabilityLevel,
     Enforcement,
 )
+from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
@@ -41,6 +42,23 @@ IBIS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
         condition="resource.dialect.escape_char is set",
         enforcement=Enforcement.ROUTER_METADATA,
         probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
+    ),
+    CapabilityFact(
+        operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+        param="strategy",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-polars",
+        message="join_asof forward/nearest lowers to a non-equality candidate join; the "
+                "ibis Polars backend rejects non-equality join predicates "
+                "(TypeError: Only equality join predicates supported with pandas).",
+        workaround="Use ibis-duckdb/ibis-sqlite, or polars/narwhals backends.",
+        upstream_ref="IB-REL-15",
+        since="2026-08-18",
+        predicate=Predicate(clauses=(
+            Clause(path="strategy", op=ClauseOp.IN,
+                   operand=frozenset({"forward", "nearest"})),
+        )),
     ),
 )
 

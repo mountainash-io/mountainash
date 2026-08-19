@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 43 · Facts: 1466 · Registered operations: 326 · Implementation records: 978
+Declarations: 43 · Facts: 1467 · Registered operations: 326 · Implementation records: 978
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -52,7 +52,7 @@ Legend — cell states (by exception):
 | --- | --- | --- | --- | --- | --- | --- |
 | polars | 191 | 83 | 52 | 0 | 0 | 326 |
 | narwhals | 97 | 151 | 78 | 0 | 0 | 326 |
-| ibis | 138 | 111 | 77 | 0 | 0 | 326 |
+| ibis | 138 | 110 | 78 | 0 | 0 | 326 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1243 |
-| Enforcement | gate 1459, router_metadata 3, materialize_residue 4 |
-| Backend | polars 265, narwhals 586, ibis 615 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1244 |
+| Enforcement | gate 1460, router_metadata 3, materialize_residue 4 |
+| Backend | polars 265, narwhals 586, ibis 616 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -388,7 +388,7 @@ audited_unknown: 0
 | `EMPTY_FRAME` | ✓ audited | ✓ audited | ✓ audited |
 | `EXPLODE` | ✓ audited | ✓ audited | ✓ audited |
 | `FETCH_FROM_END` | ✓ audited | ✓ audited | ✓ audited |
-| `JOIN_ASOF` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `JOIN_ASOF` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 | `PIVOT` | ✓ audited | ✓ audited | ✓ audited |
 | `READ_RESOURCE` | ✓ audited ↻ routed | ✓ audited ↻ routed | ✓ audited ↻ routed |
 | `REF` | ✓ᴴ audited | ✓ᴴ audited | ✓ᴴ audited |
@@ -539,7 +539,10 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 | IB-REL-06 | engine_leniency | ibis-duckdb | — | DuckDB rejects tables containing untyped all-NULL columns | Projections whose column is entirely null raise a type resolution error | cast the null column to an explicit type first | IB-REL-06 | 2026-07-05 |
 | IB-REL-10 | engine_leniency | ibis-sqlite | — | ibis-sqlite lacks array/pivot relational translations: drop_nans, unpivot/melt raise OperationNotDefinedError | Relation.drop_nans()/unpivot()/melt() raise on ibis-sqlite; other backends compute them | Use ibis-duckdb or a polars/narwhals backend for these relational ops | IB-REL-10 | 2026-08-06 |
 | IB-REL-12 | engine_leniency | ibis-duckdb, ibis-sqlite | — | cross_join between two same-named tables from different Ibis connections raises a column-binding error on ibis SQL backends (ibis-duckdb BinderException, ibis-sqlite OperationalError) | Relation.cross_join() raises on ibis-duckdb/ibis-sqlite; polars/narwhals and ibis-polars compute it | Use a polars/narwhals backend or ibis-polars for cross joins | IB-REL-12 | 2026-08-06 |
-| IB-REL-13 | engine_leniency | ibis-sqlite | — | ibis-sqlite: asof join raises UnsupportedOperationError — no ASOF JOIN translation | Relation.join_asof() raises on ibis-sqlite; polars/narwhals and ibis-duckdb compute it correctly | Use a polars or narwhals backend for asof joins | IB-REL-13 | 2026-08-18 |
+| IB-REL-14 | engine_leniency | ibis-sqlite | — | ibis-sqlite has no TimestampDelta translation (OperationNotDefinedError, probe-confirmed on ibis 12.0.0); the asof emulation cannot compute a temporal distance there | Relation.join_asof(strategy='nearest') or tolerance=... over a temporal `on` column raises BackendCapabilityError on ibis-sqlite; forward/backward over temporal keys (no distance needed) work fine there | Use ibis-duckdb, polars, or narwhals for temporal nearest/tolerance asof joins | — | 2026-08-18 |
+| IB-REL-15 | engine_leniency | ibis-polars | — | ibis-polars rejects the emulation's non-equality candidate join (TypeError: Only equality join predicates supported with pandas, probe-confirmed); forward/nearest strategies are permanently capability-gated there | Relation.join_asof(strategy='forward'\|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected | Use ibis-duckdb, ibis-sqlite, polars, or narwhals for forward/nearest asof joins | IB-REL-15 | 2026-08-18 |
+| IB-REL-16 | engine_leniency | ibis-duckdb | — | ibis-duckdb's native asof_join picks the FIRST equal-key right row on a duplicate-right-key tie under backward; Polars picks the LAST (probe-confirmed on ibis 12.0.0). ibis-polars native (delegating to real Polars) and the Ibis emulation used everywhere else both already match Polars on this | Relation.join_asof(strategy='backward') on ibis-duckdb may select a different (but still equally-valid, at-or-before) right row than Polars when the right frame has duplicate keys at the matched value | Use ibis-sqlite, ibis-polars, polars, or narwhals for exact duplicate-tie parity under backward | — | 2026-08-19 |
+| IB-REL-17 | engine_leniency | ibis-duckdb, ibis-sqlite | — | Ibis's SQL-backend asof paths (native duckdb backward, and the emulation used for forward/nearest and all sqlite strategies) order output by [by, on] for determinism, which groups rows contiguously by `by` value; Polars (and narwhals/pandas natively, and ibis-polars natively) instead preserve the left input's own row order, which differs whenever `by` groups are interleaved in that input | Relation.join_asof(by=...) on ibis-duckdb/ibis-sqlite returns rows grouped by `by` value rather than in left input order when groups interleave; matched values are always correct, only row position differs | Use ibis-polars, polars, or narwhals if exact left-input row order must be preserved for interleaved by-groups | — | 2026-08-19 |
 | IB-STR-11 | engine_leniency | ibis-polars | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | ibis-polars rejects case-insensitive string matching (contains/starts_with/ends_with with case_sensitive=False) — UnsupportedArgumentError | case-insensitive contains/starts_with/ends_with raise on ibis-polars; other backends compute them | Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend for case-insensitive matching | IB-STR-11 | 2026-08-06 |
 | IB-TYPE-02 | semantics | ibis-duckdb, ibis-sqlite | `IS_NAN`, `FILL_NAN` | SQL engines treat NaN as NULL; NaN == NaN yields NULL not False | is_nan/fill_nan/NaN comparisons diverge on SQL engines | Use is_null/fill_null on SQL backends | IB-TYPE-02 | 2026-07-05 |
 | IB-TYPE-04 | type_inference | ibis-duckdb, ibis-polars, ibis-sqlite | — | Ibis defers type resolution to its backend, unlike eager Polars | Type-sensitive operations and result comparisons can differ despite matching values | — | IB-TYPE-04 | 2026-07-05 |
@@ -579,6 +582,9 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 | NW-MATH-10 | engine_leniency | pandas, narwhals | `SIN`, `COS`, `TAN`, `ASIN`, `ACOS`, `ATAN`, `ATAN2`, `RADIANS`, `DEGREES`, `SINH`, `COSH`, `TANH`, `ASINH`, `ACOSH`, `ATANH` | pandas and narwhals lack native trigonometric, angular-conversion, and hyperbolic math functions; these ops raise NotImplementedError | trig (sin/cos/tan/asin/acos/atan/atan2), angular (radians/degrees), and hyperbolic (sinh/cosh/tanh/asinh/acosh/atanh) raise on pandas and all narwhals backends; polars and ibis (polars/duckdb) compute them | Use a polars or ibis-polars/ibis-duckdb backend for these math functions | NW-MATH-10 | 2026-08-06 |
 | NW-REL-01 | engine_leniency | narwhals-lazy | — | narwhals-lazy with_row_index() requires an explicit order_by= (row order over a LazyFrame is undefined); calling it without one raises TypeError | Relation.with_row_index() raises on narwhals-lazy; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index | Use an eager backend, or pass an explicit order before the lazy row index | — | 2026-08-06 |
 | NW-REL-02 | engine_leniency | narwhals | — | Narwhals does not support unnest of a struct column | Relation.unnest() raises on narwhals backends; polars and ibis compute it | Use a polars or ibis backend for unnest | — | 2026-08-06 |
+| NW-REL-03 | engine_leniency | narwhals-polars, narwhals-pandas, narwhals-lazy, pandas | — | narwhals join_asof(tolerance=...) is GATE-UNSUPPORTED family-wide (capabilities/narwhals.py); a raw pandas.DataFrame is routed through the same narwhals identity at runtime | Relation.join_asof(tolerance=...) raises BackendCapabilityError on all narwhals-family dialects, including the 'pandas' test backend | Drop tolerance= or use the polars/ibis backends | — | 2026-08-18 |
+| NW-REL-04 | engine_leniency | narwhals-pandas, pandas | — | pandas merge_asof raises ValueError on null as-of keys (left or right side); narwhals-polars/narwhals-lazy compute no-match rows like Polars | Relation.join_asof() with null keys raises on narwhals-pandas and the 'pandas' test backend; polars/narwhals-polars/narwhals-lazy/ibis compute no-match rows | Use a polars, narwhals-polars, narwhals-lazy, or ibis backend for asof joins over null keys | — | 2026-08-18 |
+| NW-REL-05 | engine_leniency | narwhals-pandas, pandas | — | narwhals-pandas nearest may pick a different duplicate right row than Polars on a duplicate-right-key tie (Polars keeps the last of a tied group; the portable forward-wins fix inherits pandas merge_asof's own first-of-duplicates convention within each of its two internal legs) — the genuine cross-side tie (forward candidate vs a DIFFERENT-valued backward candidate) is unaffected and matches Polars | Relation.join_asof(strategy='nearest') on narwhals-pandas/'pandas' may select a different (but still equally-near) right row than Polars when the right frame has duplicate keys at the winning distance | Use polars, narwhals-polars, narwhals-lazy, or an ibis backend for exact duplicate-tie parity under nearest | — | 2026-08-19 |
 | NW-STR-14 | semantics | narwhals-pandas | `TITLE`, `INITCAP` | narwhals-pandas title/initcap route to pandas str.title(); its Unicode titlecasing of sharp-S/ligatures differs from polars to_titlecase (e.g. 'ße' -> 'ẞe' vs 'SSe') | title()/initcap() on narwhals-pandas may differ from polars/narwhals-polars on non-ASCII inputs (sharp-S, ligatures); ASCII is identical | Use polars or narwhals-polars where exact polars titlecasing of non-ASCII is required | — | 2026-07-29 |
 | NW-STR-15 | semantics | pandas, narwhals | `LTRIM`, `RTRIM` | pandas and narwhals lack directional trimming: ltrim/rtrim and strip_chars_start/end strip BOTH sides (only strip_chars is native), so leading/trailing-only requests over-strip | ltrim/rtrim and str.strip_chars_start()/strip_chars_end() strip both sides on pandas/narwhals; polars and ibis strip only the requested side | Use a polars or ibis backend for directional trimming | — | 2026-08-06 |
 | NW-STR-17 | engine_leniency | pandas, narwhals | `REPEAT` | str.repeat(n) is unsupported on pandas and narwhals (BackendCapabilityError); no repeat translation is wired for these backends | ma.col(x).str.repeat(n) raises on pandas and all narwhals backends; polars and ibis compute it | Use a polars or ibis backend for str.repeat() | — | 2026-08-06 |

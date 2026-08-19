@@ -197,17 +197,174 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         strategy: str,
         tolerance: Any,
     ) -> ir.Table:
-        kwargs: dict[str, Any] = {"on": on}
-        if by is not None:
-            kwargs["by"] = by
+        # backward has a native ASOF JOIN translation on duckdb and polars;
+        # sqlite has none, and forward/nearest have no native direction
+        # control anywhere -- those route through the emulation.
+        if strategy == "backward" and self.dialect in ("ibis-duckdb", "ibis-polars"):
+            return self._native_asof(left, right, on=on, by=by, tolerance=tolerance)
+        return self._emulate_asof(
+            left, right, on=on, by=by, strategy=strategy, tolerance=tolerance
+        )
+
+    def _native_asof(
+        self,
+        left: ir.Table,
+        right: ir.Table,
+        *,
+        on: str,
+        by: Optional[list[str]],
+        tolerance: Any,
+    ) -> ir.Table:
+        """Native asof_join for `backward` on ibis-duckdb/ibis-polars, with `by`
+        translated to predicates (ibis 12 has no `by` parameter) and
+        Polars-parity schema (the `{on}_right` column ibis 12.0.0's asof_join
+        always emits is dropped -- a pre-existing leak in the current
+        codebase, only caught because this plan's tests do full-row Polars-
+        oracle equality).
+
+        Two DECLARED (not fixed) divergences from Polars on ibis-duckdb:
+        IB-REL-16 (duplicate-right-key ties under backward pick the FIRST row,
+        not the LAST) and IB-REL-17 (row order for interleaved `by` groups is
+        grouped-by-value, not left-input-preserving). Neither is a value-
+        correctness defect -- every matched row is a valid at-or-before match,
+        just not necessarily THE SAME one Polars happens to pick among equals.
+
+        One genuine bug IS fixed here, not declared: without an explicit
+        secondary sort key, duplicate-LEFT-row order on ibis-duckdb is
+        NONDETERMINISTIC (probe-confirmed: varied across 20 fresh-connection
+        reps) -- the `_ma_left_id` tiebreak pins this deterministically (and,
+        as a side effect, correctly, since duplicate-left-row cases have no
+        by-group-interleaving ambiguity). `ibis.row_number()` has no
+        translation on ibis-polars (IB-REL-01), and isn't needed there: it
+        delegates directly to real Polars' own `join_asof`, which already
+        preserves left input order natively and stably with no `order_by` at
+        all (probe-confirmed: 20/20 identical reps, including interleaved
+        groups) -- adding one there would only break that.
+        """
+        by_cols = list(by) if by else []
+        if self.dialect == "ibis-duckdb":
+            left_id = left.mutate(_ma_left_id=ibis.row_number())
+            predicates = [left_id[c] == right[c] for c in by_cols]
+            result = left_id.asof_join(right, on=on, predicates=predicates, tolerance=tolerance)
+            on_right = f"{on}_right"
+            drop = [c for c in ([on_right] + [f"{c}_right" for c in by_cols]) if c in result.columns]
+            if drop:
+                result = result.drop(*drop)
+            return result.order_by([*by_cols, on, "_ma_left_id"]).drop("_ma_left_id")
+
+        predicates = [left[c] == right[c] for c in by_cols]
+        result = left.asof_join(right, on=on, predicates=predicates, tolerance=tolerance)
+        on_right = f"{on}_right"
+        drop = [c for c in ([on_right] + [f"{c}_right" for c in by_cols]) if c in result.columns]
+        if drop:
+            result = result.drop(*drop)
+        return result
+
+    def _emulate_asof(
+        self,
+        left: ir.Table,
+        right: ir.Table,
+        *,
+        on: str,
+        by: Optional[list[str]],
+        strategy: str,
+        tolerance: Any,
+    ) -> ir.Table:
+        """Emulate an asof join as an Ibis relational expression (spec §5.2)
+        for forward/nearest (any SQL dialect) and every strategy on
+        ibis-sqlite. Probe-verified (scripts/probes/probe_asof_emulation.py)
+        against the Polars oracle for VALUE correctness on every case.
+
+        Composition: presort both inputs by `[by, on]`, assign a row_number
+        identity to each, inner-join on the strategy's directional predicate
+        (none for `nearest`, ranked purely by distance), rank per left row
+        (forward: smallest qualifying key, ties broken by smallest id;
+        backward: largest qualifying key, ties broken by largest id; nearest:
+        distance then right id descending -- reproduces both "forward wins a
+        genuine cross-side tie" and "last wins a same-value duplicate tie"),
+        filter rank 0 (0-based), left-keep join, drop internal/collision
+        columns.
+
+        DECLARED (not fixed): IB-REL-17 -- the final `order_by([by, on, id])`
+        groups rows by `by` value, diverging from Polars' left-input-order
+        preservation when groups interleave. Values are always correct.
+
+        Temporal keys: a `datetime.timedelta` tolerance is converted to
+        seconds before comparison. Raises BackendCapabilityError for temporal
+        on-columns combined with nearest/tolerance on ibis-sqlite (IB-REL-14):
+        `IntervalColumn` has no `.abs()`, and `.delta(unit="second")` has no
+        sqlite translation (OperationNotDefinedError). Plain forward/backward
+        over temporal keys need no distance and work fine on both dialects.
+        """
+        from datetime import timedelta
+
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.relations.core.relation_system.relation_keys.enums import (
+            RKEY_MOUNTAINASH_REL,
+        )
+
+        left_cols = list(left.columns)
+        right_cols = list(right.columns)
+        by_cols = list(by) if by else []
+
+        is_temporal = left[on].type().is_temporal()
+        if self.dialect == "ibis-sqlite" and is_temporal and (
+            strategy == "nearest" or tolerance is not None
+        ):
+            raise BackendCapabilityError(
+                "ibis-sqlite has no TimestampDelta translation "
+                "(OperationNotDefinedError); temporal join_asof nearest/tolerance "
+                "distance cannot be computed on this dialect. Use ibis-duckdb, "
+                "polars, or narwhals for temporal nearest/tolerance asof joins.",
+                backend="ibis",
+                function_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+            )
+
+        if is_temporal and isinstance(tolerance, timedelta):
+            tolerance = tolerance.total_seconds()
+
+        def _distance(a, b):
+            if is_temporal:
+                return a.delta(b, unit="second").abs()
+            return (a - b).abs()
+
+        left_sorted = left.order_by([*by_cols, on])
+        right_sorted = right.order_by([*by_cols, on])
+        left_id = left_sorted.mutate(_ma_left_id=ibis.row_number())
+        right_id = right_sorted.mutate(_ma_right_id=ibis.row_number())
+
+        if strategy == "forward":
+            pred = right_id[on] >= left_id[on]
+        elif strategy == "backward":
+            pred = right_id[on] <= left_id[on]
+        else:  # nearest: no directional filter, ranked purely by distance below
+            pred = ibis.literal(True)
+        for col in by_cols:
+            pred = pred & (right_id[col] == left_id[col])
         if tolerance is not None:
-            kwargs["tolerance"] = tolerance
-        result = left.asof_join(right, **kwargs)
-        # Ibis's SQL backends (duckdb, sqlite) give no row-order guarantee for
-        # ASOF JOIN output absent an explicit ORDER BY. An asof join is defined
-        # over data pre-sorted by `on`, so restoring that order here is the
-        # correct, deterministic result — it matches polars/narwhals, which
-        # preserve left input order. Without this, results were flaky rather
-        # than wrong (see docs/known-divergences.md IB-REL-11, resolved).
-        order_cols = [*by, on] if by else [on]
-        return result.order_by(order_cols)
+            pred = pred & (_distance(right_id[on], left_id[on]) <= tolerance)
+
+        cand = left_id.join(right_id, pred)
+        on_right = f"{on}_right" if on in left_cols else on
+
+        if strategy == "forward":
+            rank_order = [cand[on_right], cand["_ma_right_id"]]
+        elif strategy == "backward":
+            rank_order = [ibis.desc(cand[on_right]), ibis.desc(cand["_ma_right_id"])]
+        else:
+            rank_order = [_distance(cand[on_right], cand[on]), ibis.desc(cand["_ma_right_id"])]
+
+        ranked = cand.mutate(
+            _ma_rank=ibis.row_number().over(
+                ibis.window(group_by="_ma_left_id", order_by=rank_order)
+            )
+        )
+        right_out_cols = [c if c not in left_cols else f"{c}_right" for c in right_cols]
+        best = ranked.filter(ranked["_ma_rank"] == 0).select("_ma_left_id", *right_out_cols)
+
+        result = left_id.left_join(best, "_ma_left_id")
+        drop_cols = {"_ma_left_id_right", on_right} | {f"{c}_right" for c in by_cols}
+        result = result.drop(*[c for c in drop_cols if c in result.columns])
+        result = result.order_by([*by_cols, on, "_ma_left_id"])
+        public = [c for c in result.columns if c != "_ma_left_id"]
+        return result.select(*public)

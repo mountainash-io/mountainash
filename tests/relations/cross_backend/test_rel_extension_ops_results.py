@@ -14,6 +14,7 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 )
 from fixtures.capability_gating import (
     assert_capability_gated,
+    assert_predicate_capability_gated,
     gate_dialect,
     gate_family,
     xfail_divergence,
@@ -376,3 +377,30 @@ class TestSample:
         assert sorted_dicts(result, "a") == sorted_dicts(
             ma.relation(df).to_dicts(), "a"
         )
+
+
+@pytest.mark.cross_backend
+class TestJoinAsofStrategyGate:
+    def test_ibis_polars_forward_nearest_gated(self):
+        import ibis
+        import polars as pl
+
+        con = ibis.polars.connect()
+        left = con.create_table("gate_l", pl.DataFrame({"t": [1, 3], "val": ["a", "b"]}), overwrite=True)
+        right = con.create_table("gate_r", pl.DataFrame({"t": [2, 4], "score": [20, 40]}), overwrite=True)
+
+        for strategy in ("forward", "nearest"):
+            def _build(strategy=strategy):
+                return ma.relation(left).join_asof(right, on="t", strategy=strategy).to_polars()
+            err = assert_predicate_capability_gated(_build)
+            assert err.function_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
+
+    def test_ibis_polars_backward_not_gated(self):
+        import ibis
+        import polars as pl
+
+        con = ibis.polars.connect()
+        left = con.create_table("gate_l2", pl.DataFrame({"t": [1, 3], "val": ["a", "b"]}), overwrite=True)
+        right = con.create_table("gate_r2", pl.DataFrame({"t": [2, 4], "score": [20, 40]}), overwrite=True)
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_polars()
+        assert result.height == 2

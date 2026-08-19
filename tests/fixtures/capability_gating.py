@@ -132,6 +132,36 @@ def assert_capability_gated(operation_key, family, *, dialect=None, build,
     return None
 
 
+def assert_predicate_capability_gated(build) -> BackendCapabilityError:
+    """Assert ``build()`` raises ``BackendCapabilityError`` from a
+    predicate-gated ``CapabilityFact`` (item 108: the ibis-polars
+    join_asof ``strategy`` gate).
+
+    Not a case ``assert_capability_gated`` can express: ``capability_gate()``
+    resolves a fact via ``CapabilityRegistry.capability_for``, which reads only
+    ``_facts``/``_value_class_facts`` — never ``_predicate_facts``. A predicate
+    fact's applicability depends on the ACTUAL bound call values (e.g.
+    ``strategy="forward"`` vs ``"backward"``), which only exist once ``build()``
+    actually runs through the real dispatch and its predicate is evaluated —
+    there is no static ``(operation_key, family, dialect, param)`` tuple to
+    pre-declare. This helper is the predicate-fact counterpart:
+    ``pytest.raises`` plus the ``.limitation.predicate is not None`` check
+    lives here, once, so no call site needs its own hand-coded reconstruction
+    (the pattern ``test_no_migrated_site_carries_a_raw_capability_form`` polices
+    out of migrated test files).
+
+    Returns the raised error so the caller can assert further fields
+    (e.g. ``.function_key``).
+    """
+    with pytest.raises(BackendCapabilityError) as ei:
+        build()
+    assert ei.value.limitation.predicate is not None, (
+        f"expected a predicate-gated BackendCapabilityError, got "
+        f"limitation={ei.value.limitation!r}"
+    )
+    return ei.value
+
+
 def xfail_divergence(divergence_id, *, backend, strict=True) -> pytest.MarkDecorator:
     """Mark a test xfail when a known DivergenceFact applies to ``backend``.
 
