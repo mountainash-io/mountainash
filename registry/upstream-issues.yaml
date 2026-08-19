@@ -2100,18 +2100,32 @@ issues:
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_filing
-  our_workaround: none
-  notes: _register_in_memory_table (ibis/backends/sqlite/__init__.py) stages
+  our_workaround: fallback_impl
+  notes: '_register_in_memory_table (ibis/backends/sqlite/__init__.py) stages
     memtables via op.data.to_frame() (a pandas roundtrip). A null date32 or
     timestamp value becomes pandas NaT, which sqlite3 cannot bind — crashes
     create_table/insert for any frame containing a null temporal value.
     Verified empirically 2026-08-18 against ibis 12.0.0 — raw pyarrow.Table
-    sources are incidentally safe for date columns only (PyArrow's
+    sources are incidentally safe for date columns only (PyArrow''s
     Table.to_pandas() defaults date_as_object=True, so a null date32 becomes
     Python None, not NaT) but not for timestamp columns; polars/pandas
     DataFrame sources crash for both date and timestamp columns (their own
     to_pandas() maps Date to datetime64 directly). Discovered downstream in
-    mountainash-data (DEBT-13), not via mountainash's own cross-backend probe
-    suite — mountainash itself does not yet have a CapabilityFact/DivergenceFact
-    exercising this path.
-  last_verified: '2026-08-18'
+    mountainash-data (DEBT-13), not via mountainash''s own cross-backend probe
+    suite. Worked around 2026-08-19 (backlog item 112, PR #303): a single
+    idempotent sqlite3.register_adapter(NaTType, lambda _: None) call
+    (relations/backends/relation_systems/ibis/_sqlite_compat.py::ensure_sqlite_nat_adapter),
+    invoked lazily at every mountainash call site that builds an
+    ibis.memtable()/create_table() from data that could contain a null
+    temporal value (cross-type join coercion, resource ingestion, and the
+    cross-backend test-fixture factory). Confirmed no PyArrow/schema-level
+    input shape avoids the crash — ibis re-normalises internally before its
+    own pandas roundtrip regardless of input. A subprocess-isolated
+    xfail(strict=True) monitor (test_backend_registry.py) reproduces the raw
+    upstream crash outside mountainash''s own adapter patch and will XPASS
+    when ibis fixes this natively. mountainash-data''s own DEBT-13 (a
+    separate, still-unshipped fix in that repo''s IbisBackend.create_table
+    write path) remains independent — this workaround only covers
+    mountainash''s own memtable-construction call sites, not connections
+    created directly via mountainash-data.'
+  last_verified: '2026-08-19'
