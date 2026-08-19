@@ -68,9 +68,25 @@ def _build_ibis_polars(data: DataDict, table_name: str):
     return conn.create_table(table_name, pl.DataFrame(data), overwrite=True)
 
 
+def create_ibis_sqlite_table(conn, name: str, data: DataDict, *, overwrite: bool = True):
+    """Create an ibis-sqlite table, safe against null date/timestamp values.
+
+    Single source of truth for every ibis-sqlite table-creation call site in
+    the cross-backend test suite (this module, backend_helpers.py, and
+    conftest.py's ibis_sqlite_df fixture) -- delegates the NaT-binding
+    workaround to mountainash's own production fix (item 112 / IB-DT-19)
+    rather than re-registering a second copy of it.
+    """
+    from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
+        ensure_sqlite_nat_adapter,
+    )
+    ensure_sqlite_nat_adapter()
+    return conn.create_table(name, data, overwrite=overwrite)
+
+
 def _build_ibis_sqlite(data: DataDict, table_name: str):
     conn = ibis.sqlite.connect(":memory:")
-    return conn.create_table(table_name, data, overwrite=True)
+    return create_ibis_sqlite_table(conn, table_name, data)
 
 
 def _build_ibis_duckdb(data: DataDict, table_name: str):

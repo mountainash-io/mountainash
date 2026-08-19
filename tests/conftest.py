@@ -33,6 +33,7 @@ from typing import Any, Callable, Dict, List
 from fixtures.backend_registry import (
     REGISTRY as BACKEND_REGISTRY,
     ALL_BACKENDS,
+    create_ibis_sqlite_table,
 )
 TEMPORAL_BACKENDS = [
     "polars",
@@ -239,7 +240,7 @@ def ibis_polars_df(sample_data) -> Any:
 def ibis_sqlite_df(sample_data) -> Any:
     """Create Ibis Table with SQLite backend from sample data."""
     conn = ibis.sqlite.connect(":memory:")
-    return conn.create_table("sample", sample_data, overwrite=True)
+    return create_ibis_sqlite_table(conn, "sample", sample_data)
 
 
 @pytest.fixture

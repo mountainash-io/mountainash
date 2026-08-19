@@ -12,6 +12,8 @@ import pandas as pd
 import narwhals as nw
 import ibis
 
+from .backend_registry import create_ibis_sqlite_table
+
 
 class BackendResultHelper:
     """
@@ -48,7 +50,7 @@ class BackendResultHelper:
         """
         if backend_name.startswith("ibis-"):
             return df.count().execute()
-        elif backend_name == "polars-lazy":
+        elif backend_name in ("polars-lazy", "narwhals-lazy"):
             return df.collect().shape[0]
         elif backend_name in ["polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas"]:
             return df.shape[0]
@@ -299,7 +301,7 @@ class BackendDataFrameFactory:
             return conn.create_table("test_table", pl_df, overwrite=True)
         elif backend_name == "ibis-sqlite":
             conn = ibis.sqlite.connect(":memory:")
-            return conn.create_table("test_table", data, overwrite=True)
+            return create_ibis_sqlite_table(conn, "test_table", data)
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
 
@@ -340,8 +342,8 @@ class BackendDataFrameFactory:
             return left, right
         elif backend_name == "ibis-sqlite":
             conn = ibis.sqlite.connect(":memory:")
-            left = conn.create_table(left_name, left_data, overwrite=True)
-            right = conn.create_table(right_name, right_data, overwrite=True)
+            left = create_ibis_sqlite_table(conn, left_name, left_data)
+            right = create_ibis_sqlite_table(conn, right_name, right_data)
             return left, right
         else:
             # Non-ibis backends: independent DataFrames, no shared connection needed.
