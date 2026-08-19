@@ -75,11 +75,31 @@ def test_coverage_doc_is_current(report, rel_path, renderer):
 # ---------------------------------------------------------------------------
 
 
+def _operand_key_from_json(d: dict) -> tuple:
+    """Inverse of render_markdown._operand_json — rebuilds the exact
+    schema._operand_key tuple shape from the wire (kind-tagged) form."""
+    kind = d["kind"]
+    if kind == 0:
+        return (0,)
+    if kind == 1:
+        return (1, tuple(d["value"]))
+    if kind == 2:
+        return (2, d["value"])
+    if kind == 3:
+        return (3, d["type"], d["value"])
+    return (4, d["value"])
+
+
+def _clause_key_from_json(c: dict) -> tuple:
+    return (c["path"], c["op"], _operand_key_from_json(c["operand"]))
+
+
 def _json_fact_identity(f_dict: dict) -> tuple:
     """The §4.4 fact identity (minus operation_key / backend, which the JSON
     carries on the cell) rebuilt from a JSON fact dict. Mirrors `fact_sort_key`'s
     field order so the multiset comparison is total over the same lexicographic
     key. Strings are kept (not enum-typed) because the JSON form is wire-only."""
+    predicate = f_dict.get("predicate")
     return (
         f_dict["dialect"] or "",
         f_dict["param"],
@@ -95,7 +115,7 @@ def _json_fact_identity(f_dict: dict) -> tuple:
         f_dict["upstream_ref"] or "",
         tuple(f_dict["native_errors"]),
         f_dict["probe_exempt"] or "",
-        (),  # predicate term — empty for synthetic facts (none carry a predicate)
+        tuple(_clause_key_from_json(c) for c in predicate) if predicate else (),
     )
 
 

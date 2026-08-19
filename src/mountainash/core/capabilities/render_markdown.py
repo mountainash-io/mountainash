@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable
 
 from mountainash.core.capabilities.coverage import (
@@ -25,6 +26,7 @@ from mountainash.core.capabilities.schema import (
     CapabilityFact,
     CapabilityLevel,
     Enforcement,  # summary stats
+    ValueClass,
 )
 
 if TYPE_CHECKING:
@@ -589,13 +591,35 @@ def _op_key(operation_key: Any) -> dict[str, str]:
     return {"family": type(operation_key).__name__, "op": operation_key.name}
 
 
+def _operand_json(operand: Any) -> dict[str, Any]:
+    """JSON-safe tagged encoding of a predicate clause operand, mirroring
+    schema._operand_key's own kind tagging (0=None, 1=frozenset, 2=ValueClass,
+    3=other Enum, 4=scalar) so the committed JSON round-trips the exact same
+    identity tuple test_json_completeness compares against the live model."""
+    if operand is None:
+        return {"kind": 0, "value": None}
+    if isinstance(operand, frozenset):
+        return {"kind": 1, "value": sorted(str(m) for m in operand)}
+    if isinstance(operand, ValueClass):
+        return {"kind": 2, "value": operand.value}
+    if isinstance(operand, Enum):
+        return {"kind": 3, "type": type(operand).__name__, "value": operand.value}
+    return {"kind": 4, "value": operand}
+
+
+def _clause_dict(clause: Any) -> dict[str, Any]:
+    return {"path": clause.path, "op": clause.op.name, "operand": _operand_json(clause.operand)}
+
+
 def _fact_dict(f: CapabilityFact) -> dict[str, Any]:
     """Serialize one CapabilityFact as a dict (spec §4.6 <fact> shape).
 
     `option_value` is None -> JSON `null`; `native_errors=()` -> JSON `[]`.
     `value_class` is None -> JSON `null`; the level/enforcement/boundary
     are serialized by .value. `condition`/`message` are always strings (the
-    model's default is "" so absent-prose is "" not null here)."""
+    model's default is "" so absent-prose is "" not null here). `predicate`
+    is None for the vast majority of facts (no predicate); item 108 adds the
+    first production predicate fact, so this field is no longer vestigial."""
     return {
         "dialect": f.dialect,
         "param": f.param,
@@ -611,6 +635,7 @@ def _fact_dict(f: CapabilityFact) -> dict[str, Any]:
         "since": f.since,
         "native_errors": [e.__name__ for e in f.native_errors],
         "probe_exempt": f.probe_exempt,
+        "predicate": [_clause_dict(c) for c in f.predicate.clauses] if f.predicate is not None else None,
     }
 
 
