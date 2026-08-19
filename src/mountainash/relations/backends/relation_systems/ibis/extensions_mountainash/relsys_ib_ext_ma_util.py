@@ -10,6 +10,9 @@ import ibis.expr.types as ir
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
+from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
+    ensure_sqlite_nat_adapter,
+)
 
 
 class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemProtocol[ir.Table]):
@@ -130,6 +133,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
                 MountainashPolarsExtensionRelationSystem,
             )
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
+            ensure_sqlite_nat_adapter()
             return ibis.memtable(lf.collect().to_arrow())
 
         fmt = self._detect_format_name(resource)
@@ -158,6 +162,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
+        ensure_sqlite_nat_adapter()
         return ibis.memtable(rf.parse_resource_to_arrow(resource))
 
     @staticmethod

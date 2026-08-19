@@ -657,6 +657,10 @@ class UnifiedRelationVisitor:
             source_type = type(value).__name__
             try:
                 import ibis
+                from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
+                    ensure_sqlite_nat_adapter,
+                )
+                ensure_sqlite_nat_adapter()
                 if is_narwhals_lazyframe(value):
                     value = value.to_native()
                 return ibis.memtable(value)
