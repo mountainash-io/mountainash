@@ -1,6 +1,8 @@
 """Consumer audit for predicate facts (backlog 66b)."""
 from __future__ import annotations
 
+import pytest
+
 from mountainash.core.capabilities import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
     CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate,
@@ -8,14 +10,46 @@ from mountainash.core.capabilities.schema import (
 from mountainash.core.constants import CONST_BACKEND
 
 
-def test_no_production_predicate_facts_yet():
-    """Invariant: the mechanism ships with zero predicate facts (spec §7 —
-    no consumer has arrived). If one lands, it MUST be accompanied by the §6
-    compound-cell probe (see plan Task 5 deferred note)."""
+def test_first_predicate_fact_is_the_join_asof_strategy_gate():
+    """Invariant flip (item 108): the mechanism now ships with exactly one
+    production predicate fact — the ibis-polars join_asof strategy gate."""
     from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_MOUNTAINASH_REL,
+    )
     load_all_capability_declarations()
     facts = [f for f in CapabilityRegistry.facts() if f.predicate is not None]
-    assert facts == []
+    assert len(facts) == 1
+    assert facts[0].operation_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
+    assert facts[0].param == "strategy"
+    assert facts[0].dialect == "ibis-polars"
+
+
+def test_first_predicate_fact_is_compound_cell_safe():
+    """The §6 compound-cell probe: gate_params=("tolerance", "strategy") binds
+    BOTH params conjunctively into the BoundCall, but the predicate clause only
+    inspects `strategy`. A call that also sets `tolerance` must not spuriously
+    trigger or suppress the gate — the two gate_params are independent axes."""
+    import polars as pl
+    from mountainash.core.constants import CONST_BACKEND
+    import mountainash as ma
+    from mountainash.core.types import BackendCapabilityError
+
+    left = pl.DataFrame({"t": [1, 3]})
+    right = pl.DataFrame({"t": [2, 4]})
+
+    # backward + tolerance on ibis-polars: NOT gated (predicate only checks strategy).
+    import ibis
+    con = ibis.polars.connect()
+    L = con.create_table("cp_l", left, overwrite=True)
+    R = con.create_table("cp_r", right, overwrite=True)
+    ma.relation(L).join_asof(R, on="t", strategy="backward", tolerance=1).to_polars()
+
+    # forward + tolerance on ibis-polars: IS gated (strategy predicate fires
+    # regardless of the co-bound tolerance value).
+    with pytest.raises(BackendCapabilityError) as ei:
+        ma.relation(L).join_asof(R, on="t", strategy="forward", tolerance=1).to_polars()
+    assert ei.value.limitation.predicate is not None
 
 
 def test_fact_sort_key_is_total_over_predicate_facts():

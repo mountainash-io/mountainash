@@ -128,11 +128,9 @@ class TestRegistrationValidation:
         finally:
             CapabilityRegistry._kinds.pop("substrait", None)
 
-    def test_ungateable_relation_param_rejected(self):
+    def test_non_protocol_param_rejected(self):
         # JOIN_ASOF is handler-routed; a param outside gate_params can never
-        # gate. (Passes trivially before Task 10 adds gate_params — 'nonsense'
-        # is also not a protocol param, so either error is acceptable; assert
-        # ValueError only.)
+        # gate. 'nonsense' is not a protocol param and not in gate_params.
         from mountainash.relations.core.relation_system.relation_keys.enums import (
             RKEY_MOUNTAINASH_REL,
         )
@@ -141,8 +139,20 @@ class TestRegistrationValidation:
                 CONST_BACKEND.NARWHALS,
                 [_fact(backend=CONST_BACKEND.NARWHALS,
                        operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
-                       param="strategy", level=CapabilityLevel.UNSUPPORTED)],
+                       param="nonsense", level=CapabilityLevel.UNSUPPORTED)],
             )
+
+    def test_strategy_param_now_gateable(self):
+        # Task 2: strategy joined gate_params, so a strategy-scoped fact registers.
+        from mountainash.relations.core.relation_system.relation_keys.enums import (
+            RKEY_MOUNTAINASH_REL,
+        )
+        CapabilityRegistry.register_backend(
+            CONST_BACKEND.NARWHALS,
+            [_fact(backend=CONST_BACKEND.NARWHALS,
+                   operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+                   param="strategy", level=CapabilityLevel.UNSUPPORTED)],
+        )
 
 
 class TestResolutionOrder:

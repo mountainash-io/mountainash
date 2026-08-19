@@ -232,7 +232,7 @@ MOUNTAINASH_OPERATIONS = [
         extension_uri=MountainashRelExtension.UTIL,
         protocol_method=ExtProto.join_asof,
         handler=handlers.visit_join_asof,
-        gate_params=("tolerance",),
+        gate_params=("tolerance", "strategy"),
         wraps_native_call=True,
     ),
     RelationOperationDef(
