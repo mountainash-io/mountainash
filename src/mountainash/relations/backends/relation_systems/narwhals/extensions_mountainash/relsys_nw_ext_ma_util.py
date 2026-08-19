@@ -170,9 +170,89 @@ class MountainashNarwhalsExtensionRelationSystem(
         strategy: str,
         tolerance: Any,
     ) -> Any:
+        if strategy == "nearest" and self._is_pandas(left):
+            return self._nearest_forward_wins(left, right, on=on, by=by)
         return left.join_asof(
             right,
             on=on,
             by=by if by else None,
             strategy=strategy,
         )
+
+    @staticmethod
+    def _is_pandas(frame: Any) -> bool:
+        from narwhals import Implementation
+        return getattr(frame, "implementation", None) is Implementation.PANDAS
+
+    def _nearest_forward_wins(
+        self, left: Any, right: Any, *, on: str, by: Optional[list[str]]
+    ) -> Any:
+        """Portable fix (spec §5.3) for the genuine defect: pandas merge_asof
+        picks the BACKWARD candidate on an equidistant nearest tie between two
+        DIFFERENT-valued candidates, where Polars picks forward. Fixed with a
+        dual backward/forward join and a distance comparison.
+
+        Colliding payload names: right payload columns sharing a name with a
+        left column are aliased to `{c}_right` up front (mirroring the ibis
+        emulation's own convention) -- without this, the `when/then/otherwise`
+        alias collides with the identically-named left column already in the
+        select list and narwhals raises `DuplicateError`. This is a genuine
+        crash fix, kept regardless of the narrower tie-break scope below.
+
+        NOT fixed (declared: NW-REL-05): when the right frame has MULTIPLE
+        rows at the SAME matched value (a duplicate-key tie, not a cross-side
+        tie), this inherits pandas merge_asof's own first-of-duplicates
+        convention on the forward leg and last-of-duplicates on the backward
+        leg -- so the winning side's OWN duplicate pick may differ from
+        Polars' uniform last-of-tied-group rule. Reproducing that exactly
+        needs a within-tie-group row reversal that proved fragile across
+        interleaved-by-group inputs in earlier drafts of this plan; the
+        narrower, declared-divergence approach is deliberately preferred.
+        """
+        import narwhals as nw
+
+        by_cols = [by] if isinstance(by, str) else list(by or [])
+        left_cols = list(left.columns)
+        right_cols = list(right.columns)
+
+        right_payload_raw = [c for c in right_cols if c not in (by_cols + [on])]
+        rename_map = {c: (f"{c}_right" if c in left_cols else c) for c in right_payload_raw}
+        right_aliased = right.rename(rename_map) if rename_map != {c: c for c in right_payload_raw} else right
+
+        left_id = left.with_row_index("_ma_left_id")
+        # Alias the right `on` column before join_asof: narwhals coalesces the
+        # shared `on` key into the left's value, so without this the matched
+        # right-side key is unrecoverable for a distance comparison.
+        right2 = right_aliased.with_columns(nw.col(on).alias("_ma_right_key"))
+
+        back = left_id.join_asof(right2, on=on, by=by_cols or None, strategy="backward")
+        fwd = left_id.join_asof(right2, on=on, by=by_cols or None, strategy="forward")
+        merged = back.join(fwd, on="_ma_left_id", how="left", suffix="_fwd")
+
+        # Forward wins when it matched and is no farther than the backward
+        # candidate (equidistant -> forward, per the normative tie rule).
+        fwd_wins = (
+            (~merged["_ma_right_key_fwd"].is_null())
+            & (
+                merged["_ma_right_key"].is_null()
+                | (
+                    (merged["_ma_right_key_fwd"] - merged[on]).abs()
+                    <= (merged["_ma_right_key"] - merged[on]).abs()
+                )
+            )
+        )
+
+        right_payload_out = [rename_map[c] for c in right_payload_raw]
+        left_payload = [c for c in left_cols if c not in (by_cols + [on])]
+
+        keep = [merged[on], merged["_ma_left_id"]]
+        keep += [merged[c] for c in by_cols]
+        keep += [merged[c] for c in left_payload]
+        for c in right_payload_out:
+            keep.append(
+                nw.when(fwd_wins).then(merged[f"{c}_fwd"]).otherwise(merged[c]).alias(c)
+            )
+
+        result = merged.select(keep)
+        result = result.sort([*by_cols, on, "_ma_left_id"])
+        return result.drop("_ma_left_id")
