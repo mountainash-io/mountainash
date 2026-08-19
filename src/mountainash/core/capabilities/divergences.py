@@ -681,6 +681,90 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-18",
         ),
         DivergenceFact(
+            id="NW-REL-03",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof tolerance param
+            # "pandas" is listed literally because a raw pd.DataFrame's runtime
+            # identity resolves to family=NARWHALS, dialect="narwhals-pandas"
+            # (identify_backend's fallback wraps unrecognized frames via
+            # narwhals). The existing tolerance CapabilityFact
+            # (capabilities/narwhals.py:31, backend=NARWHALS, no dialect) is
+            # family-wide, so it fires on every narwhals-routed dialect
+            # including "narwhals-lazy".
+            backends=("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas"),
+            summary="narwhals join_asof(tolerance=...) is GATE-UNSUPPORTED family-wide (capabilities/narwhals.py); a raw pandas.DataFrame is routed through the same narwhals identity at runtime",
+            impact="Relation.join_asof(tolerance=...) raises BackendCapabilityError on all narwhals-family dialects, including the 'pandas' test backend",
+            workaround="Drop tolerance= or use the polars/ibis backends",
+            upstream_ref=None,
+            since="2026-08-18",
+        ),
+        DivergenceFact(
+            id="NW-REL-04",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof null keys
+            backends=("narwhals-pandas", "pandas"),
+            summary="pandas merge_asof raises ValueError on null as-of keys (left or right side); narwhals-polars/narwhals-lazy compute no-match rows like Polars",
+            impact="Relation.join_asof() with null keys raises on narwhals-pandas and the 'pandas' test backend; polars/narwhals-polars/narwhals-lazy/ibis compute no-match rows",
+            workaround="Use a polars, narwhals-polars, narwhals-lazy, or ibis backend for asof joins over null keys",
+            upstream_ref=None,
+            since="2026-08-18",
+        ),
+        DivergenceFact(
+            id="NW-REL-05",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof nearest duplicate-key ties
+            backends=("narwhals-pandas", "pandas"),
+            summary="narwhals-pandas nearest may pick a different duplicate right row than Polars on a duplicate-right-key tie (Polars keeps the last of a tied group; the portable forward-wins fix inherits pandas merge_asof's own first-of-duplicates convention within each of its two internal legs) — the genuine cross-side tie (forward candidate vs a DIFFERENT-valued backward candidate) is unaffected and matches Polars",
+            impact="Relation.join_asof(strategy='nearest') on narwhals-pandas/'pandas' may select a different (but still equally-near) right row than Polars when the right frame has duplicate keys at the winning distance",
+            workaround="Use polars, narwhals-polars, narwhals-lazy, or an ibis backend for exact duplicate-tie parity under nearest",
+            upstream_ref=None,
+            since="2026-08-19",
+        ),
+        DivergenceFact(
+            id="IB-REL-14",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof temporal nearest/tolerance
+            backends=("ibis-sqlite",),
+            summary="ibis-sqlite has no TimestampDelta translation (OperationNotDefinedError, probe-confirmed on ibis 12.0.0); the asof emulation cannot compute a temporal distance there",
+            impact="Relation.join_asof(strategy='nearest') or tolerance=... over a temporal `on` column raises BackendCapabilityError on ibis-sqlite; forward/backward over temporal keys (no distance needed) work fine there",
+            workaround="Use ibis-duckdb, polars, or narwhals for temporal nearest/tolerance asof joins",
+            upstream_ref=None,
+            since="2026-08-18",
+        ),
+        DivergenceFact(
+            id="IB-REL-15",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof strategy param
+            backends=("ibis-polars",),
+            summary="ibis-polars rejects the emulation's non-equality candidate join (TypeError: Only equality join predicates supported with pandas, probe-confirmed); forward/nearest strategies are permanently capability-gated there",
+            impact="Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
+            workaround="Use ibis-duckdb, ibis-sqlite, polars, or narwhals for forward/nearest asof joins",
+            upstream_ref=None,
+            since="2026-08-18",
+        ),
+        DivergenceFact(
+            id="IB-REL-16",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof backward duplicate-key ties
+            backends=("ibis-duckdb",),
+            summary="ibis-duckdb's native asof_join picks the FIRST equal-key right row on a duplicate-right-key tie under backward; Polars picks the LAST (probe-confirmed on ibis 12.0.0). ibis-polars native (delegating to real Polars) and the Ibis emulation used everywhere else both already match Polars on this",
+            impact="Relation.join_asof(strategy='backward') on ibis-duckdb may select a different (but still equally-valid, at-or-before) right row than Polars when the right frame has duplicate keys at the matched value",
+            workaround="Use ibis-sqlite, ibis-polars, polars, or narwhals for exact duplicate-tie parity under backward",
+            upstream_ref=None,
+            since="2026-08-19",
+        ),
+        DivergenceFact(
+            id="IB-REL-17",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op join_asof by-grouped row order
+            backends=("ibis-duckdb", "ibis-sqlite"),
+            summary="Ibis's SQL-backend asof paths (native duckdb backward, and the emulation used for forward/nearest and all sqlite strategies) order output by [by, on] for determinism, which groups rows contiguously by `by` value; Polars (and narwhals/pandas natively, and ibis-polars natively) instead preserve the left input's own row order, which differs whenever `by` groups are interleaved in that input",
+            impact="Relation.join_asof(by=...) on ibis-duckdb/ibis-sqlite returns rows grouped by `by` value rather than in left input order when groups interleave; matched values are always correct, only row position differs",
+            workaround="Use ibis-polars, polars, or narwhals if exact left-input row order must be preserved for interleaved by-groups",
+            upstream_ref=None,
+            since="2026-08-19",
+        ),
+        DivergenceFact(
             id="IB-REL-12",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation op cross_join
