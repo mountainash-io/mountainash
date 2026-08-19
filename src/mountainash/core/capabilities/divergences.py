@@ -728,7 +728,7 @@ def _all() -> tuple[DivergenceFact, ...]:
             summary="ibis-polars rejects the emulation's non-equality candidate join (TypeError: Only equality join predicates supported with pandas, probe-confirmed); forward/nearest strategies are permanently capability-gated there",
             impact="Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
             workaround="Use ibis-duckdb, ibis-sqlite, polars, or narwhals for forward/nearest asof joins",
-            upstream_ref=None,
+            upstream_ref="IB-REL-15",
             since="2026-08-18",
         ),
         DivergenceFact(

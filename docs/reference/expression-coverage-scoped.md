@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 43 · Facts: 1466 · Registered operations: 326 · Implementation records: 978
+Declarations: 43 · Facts: 1467 · Registered operations: 326 · Implementation records: 978
 
 Legend — scoped deviations:
 
@@ -1983,6 +1983,12 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | tolerance | — | — | unsupported | gate | build | tolerance is not None | join_asof(tolerance=...) is not supported by the Narwhals backend | Drop tolerance= or use the Polars backend. | — | 2026-07-05 | — | — |
+
+### `JOIN_ASOF` × ibis (RKEY_MOUNTAINASH_REL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-polars | strategy | — | — | unsupported | gate | build | — | join_asof forward/nearest lowers to a non-equality candidate join; the ibis Polars backend rejects non-equality join predicates (TypeError: Only equality join predicates supported with pandas). | Use ibis-duckdb/ibis-sqlite, or polars/narwhals backends. | IB-REL-15 | 2026-08-18 | — | — |
 
 ### `READ_RESOURCE` × polars (RKEY_MOUNTAINASH_REL)
 

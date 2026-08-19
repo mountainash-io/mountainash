@@ -1,8 +1,6 @@
 """Consumer audit for predicate facts (backlog 66b)."""
 from __future__ import annotations
 
-import pytest
-
 from mountainash.core.capabilities import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
     CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate,
@@ -31,9 +29,11 @@ def test_first_predicate_fact_is_compound_cell_safe():
     inspects `strategy`. A call that also sets `tolerance` must not spuriously
     trigger or suppress the gate — the two gate_params are independent axes."""
     import polars as pl
-    from mountainash.core.constants import CONST_BACKEND
     import mountainash as ma
-    from mountainash.core.types import BackendCapabilityError
+    from fixtures.capability_gating import assert_predicate_capability_gated
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_MOUNTAINASH_REL,
+    )
 
     left = pl.DataFrame({"t": [1, 3]})
     right = pl.DataFrame({"t": [2, 4]})
@@ -47,9 +47,10 @@ def test_first_predicate_fact_is_compound_cell_safe():
 
     # forward + tolerance on ibis-polars: IS gated (strategy predicate fires
     # regardless of the co-bound tolerance value).
-    with pytest.raises(BackendCapabilityError) as ei:
-        ma.relation(L).join_asof(R, on="t", strategy="forward", tolerance=1).to_polars()
-    assert ei.value.limitation.predicate is not None
+    err = assert_predicate_capability_gated(
+        lambda: ma.relation(L).join_asof(R, on="t", strategy="forward", tolerance=1).to_polars()
+    )
+    assert err.function_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
 
 
 def test_fact_sort_key_is_total_over_predicate_facts():

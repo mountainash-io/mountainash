@@ -1,7 +1,7 @@
 {
   "stamp": {
     "declarations": 43,
-    "facts": 1466,
+    "facts": 1467,
     "operations": 326,
     "implementation_records": 978
   },
@@ -39,8 +39,8 @@
           "unknown": 0
         },
         "default_capable": 138,
-        "audited_clean": 111,
-        "constrained": 77,
+        "audited_clean": 110,
+        "constrained": 78,
         "audited_unknown": 0
       }
     },
@@ -50,19 +50,19 @@
       "expr_capable": 149,
       "literal_only": 65,
       "polymorphic": 9,
-      "unsupported": 1243
+      "unsupported": 1244
     },
     "facts_by_enforcement": {
-      "gate": 1459,
+      "gate": 1460,
       "router_metadata": 3,
       "materialize_residue": 4
     },
     "facts_by_backend": {
       "polars": 265,
       "narwhals": 586,
-      "ibis": 615
+      "ibis": 616
     },
-    "facts_total": 1466
+    "facts_total": 1467
   },
   "families": [
     {
@@ -42942,15 +42942,32 @@
               "impl_protocol": "MountainashIbisExtensionRelationSystem",
               "audited": true,
               "whole_op": null,
-              "constrained": false,
+              "constrained": true,
               "contradiction": false,
               "selector_counts": {
-                "params": 0,
+                "params": 1,
                 "option_selectors": 0,
                 "value_classes": 0,
-                "dialects": 0
+                "dialects": 1
               },
-              "constraints": [],
+              "constraints": [
+                {
+                  "dialect": "ibis-polars",
+                  "param": "strategy",
+                  "option_value": null,
+                  "value_class": null,
+                  "level": "unsupported",
+                  "enforcement": "gate",
+                  "boundary": "build",
+                  "condition": null,
+                  "message": "join_asof forward/nearest lowers to a non-equality candidate join; the ibis Polars backend rejects non-equality join predicates (TypeError: Only equality join predicates supported with pandas).",
+                  "workaround": "Use ibis-duckdb/ibis-sqlite, or polars/narwhals backends.",
+                  "upstream_ref": "IB-REL-15",
+                  "since": "2026-08-18",
+                  "native_errors": [],
+                  "probe_exempt": null
+                }
+              ],
               "residue": [],
               "routed": [],
               "refinements": []
@@ -46506,6 +46523,22 @@
           "since": "2026-08-01",
           "native_errors": [],
           "probe_exempt": "relation op-level gap; covered by relation with_row_index cross-backend tests"
+        },
+        {
+          "dialect": "ibis-polars",
+          "param": "strategy",
+          "option_value": null,
+          "value_class": null,
+          "level": "unsupported",
+          "enforcement": "gate",
+          "boundary": "build",
+          "condition": null,
+          "message": "join_asof forward/nearest lowers to a non-equality candidate join; the ibis Polars backend rejects non-equality join predicates (TypeError: Only equality join predicates supported with pandas).",
+          "workaround": "Use ibis-duckdb/ibis-sqlite, or polars/narwhals backends.",
+          "upstream_ref": "IB-REL-15",
+          "since": "2026-08-18",
+          "native_errors": [],
+          "probe_exempt": null
         }
       ]
     },
@@ -70069,17 +70102,57 @@
       "since": "2026-08-06"
     },
     {
-      "id": "IB-REL-13",
+      "id": "IB-REL-14",
       "kind": "engine_leniency",
       "operation_keys": [],
       "backends": [
         "ibis-sqlite"
       ],
-      "summary": "ibis-sqlite: asof join raises UnsupportedOperationError — no ASOF JOIN translation",
-      "impact": "Relation.join_asof() raises on ibis-sqlite; polars/narwhals and ibis-duckdb compute it correctly",
-      "workaround": "Use a polars or narwhals backend for asof joins",
-      "upstream_ref": "IB-REL-13",
+      "summary": "ibis-sqlite has no TimestampDelta translation (OperationNotDefinedError, probe-confirmed on ibis 12.0.0); the asof emulation cannot compute a temporal distance there",
+      "impact": "Relation.join_asof(strategy='nearest') or tolerance=... over a temporal `on` column raises BackendCapabilityError on ibis-sqlite; forward/backward over temporal keys (no distance needed) work fine there",
+      "workaround": "Use ibis-duckdb, polars, or narwhals for temporal nearest/tolerance asof joins",
+      "upstream_ref": null,
       "since": "2026-08-18"
+    },
+    {
+      "id": "IB-REL-15",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "ibis-polars"
+      ],
+      "summary": "ibis-polars rejects the emulation's non-equality candidate join (TypeError: Only equality join predicates supported with pandas, probe-confirmed); forward/nearest strategies are permanently capability-gated there",
+      "impact": "Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
+      "workaround": "Use ibis-duckdb, ibis-sqlite, polars, or narwhals for forward/nearest asof joins",
+      "upstream_ref": "IB-REL-15",
+      "since": "2026-08-18"
+    },
+    {
+      "id": "IB-REL-16",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "ibis-duckdb"
+      ],
+      "summary": "ibis-duckdb's native asof_join picks the FIRST equal-key right row on a duplicate-right-key tie under backward; Polars picks the LAST (probe-confirmed on ibis 12.0.0). ibis-polars native (delegating to real Polars) and the Ibis emulation used everywhere else both already match Polars on this",
+      "impact": "Relation.join_asof(strategy='backward') on ibis-duckdb may select a different (but still equally-valid, at-or-before) right row than Polars when the right frame has duplicate keys at the matched value",
+      "workaround": "Use ibis-sqlite, ibis-polars, polars, or narwhals for exact duplicate-tie parity under backward",
+      "upstream_ref": null,
+      "since": "2026-08-19"
+    },
+    {
+      "id": "IB-REL-17",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "ibis-duckdb",
+        "ibis-sqlite"
+      ],
+      "summary": "Ibis's SQL-backend asof paths (native duckdb backward, and the emulation used for forward/nearest and all sqlite strategies) order output by [by, on] for determinism, which groups rows contiguously by `by` value; Polars (and narwhals/pandas natively, and ibis-polars natively) instead preserve the left input's own row order, which differs whenever `by` groups are interleaved in that input",
+      "impact": "Relation.join_asof(by=...) on ibis-duckdb/ibis-sqlite returns rows grouped by `by` value rather than in left input order when groups interleave; matched values are always correct, only row position differs",
+      "workaround": "Use ibis-polars, polars, or narwhals if exact left-input row order must be preserved for interleaved by-groups",
+      "upstream_ref": null,
+      "since": "2026-08-19"
     },
     {
       "id": "IB-STR-11",
@@ -70989,6 +71062,50 @@
       "workaround": "Use a polars or ibis backend for unnest",
       "upstream_ref": null,
       "since": "2026-08-06"
+    },
+    {
+      "id": "NW-REL-03",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "narwhals-polars",
+        "narwhals-pandas",
+        "narwhals-lazy",
+        "pandas"
+      ],
+      "summary": "narwhals join_asof(tolerance=...) is GATE-UNSUPPORTED family-wide (capabilities/narwhals.py); a raw pandas.DataFrame is routed through the same narwhals identity at runtime",
+      "impact": "Relation.join_asof(tolerance=...) raises BackendCapabilityError on all narwhals-family dialects, including the 'pandas' test backend",
+      "workaround": "Drop tolerance= or use the polars/ibis backends",
+      "upstream_ref": null,
+      "since": "2026-08-18"
+    },
+    {
+      "id": "NW-REL-04",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "narwhals-pandas",
+        "pandas"
+      ],
+      "summary": "pandas merge_asof raises ValueError on null as-of keys (left or right side); narwhals-polars/narwhals-lazy compute no-match rows like Polars",
+      "impact": "Relation.join_asof() with null keys raises on narwhals-pandas and the 'pandas' test backend; polars/narwhals-polars/narwhals-lazy/ibis compute no-match rows",
+      "workaround": "Use a polars, narwhals-polars, narwhals-lazy, or ibis backend for asof joins over null keys",
+      "upstream_ref": null,
+      "since": "2026-08-18"
+    },
+    {
+      "id": "NW-REL-05",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "narwhals-pandas",
+        "pandas"
+      ],
+      "summary": "narwhals-pandas nearest may pick a different duplicate right row than Polars on a duplicate-right-key tie (Polars keeps the last of a tied group; the portable forward-wins fix inherits pandas merge_asof's own first-of-duplicates convention within each of its two internal legs) — the genuine cross-side tie (forward candidate vs a DIFFERENT-valued backward candidate) is unaffected and matches Polars",
+      "impact": "Relation.join_asof(strategy='nearest') on narwhals-pandas/'pandas' may select a different (but still equally-near) right row than Polars when the right frame has duplicate keys at the winning distance",
+      "workaround": "Use polars, narwhals-polars, narwhals-lazy, or an ibis backend for exact duplicate-tie parity under nearest",
+      "upstream_ref": null,
+      "since": "2026-08-19"
     },
     {
       "id": "NW-STR-14",
