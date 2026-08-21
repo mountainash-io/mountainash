@@ -140,6 +140,8 @@ def _normalize_remote_netloc(parts: Any) -> str:
     if hostname is None:
         raise ValueError("hierarchical URI has no host")
     hostname = hostname.lower()
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
     userinfo = ""
     if parts.username is not None:
         userinfo = parts.username
