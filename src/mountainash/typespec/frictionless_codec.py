@@ -26,6 +26,8 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.spec import TypeSpec
 from mountainash.typespec.errors import (
+    DescriptorError,
+    DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
@@ -608,7 +610,7 @@ def _reject_resolved_v1_markers(
         kind=kind,
         resource_name=resource_name,
     )
-    if "profile" in raw:
+    if "profile" in raw and _is_v1_profile_uri(raw["profile"]):
         raise _unsupported_version(
             "the v1 profile property is not supported",
             descriptor_path=f"{descriptor_path}.profile",
@@ -686,21 +688,50 @@ def resolve_descriptor_mapping(
     descriptor_path: str,
     resource_name: str,
 ) -> Mapping[str, Any]:
-    raw = (
-        context.resolver.resolve(
-            value,
-            base_uri=context.base_uri,
+    is_reference = isinstance(value, str)
+    if is_reference:
+        try:
+            raw = context.resolver.resolve(
+                value,
+                base_uri=context.base_uri,
+                expected_kind=expected_kind,
+            )
+        except DescriptorError:
+            raise
+        except Exception as exc:
+            raise DescriptorReferenceInvalid(
+                "descriptor reference could not be resolved",
+                descriptor_kind=expected_kind.value,
+                descriptor_path=descriptor_path,
+                resource_name=resource_name,
+                reference=value,
+                expected_kind=expected_kind.value,
+                rejected_value=value,
+                required_form=f"resolvable {expected_kind.value} JSON reference",
+            ) from exc
+    else:
+        raw = value
+
+    try:
+        validate_resolved_mapping(
+            raw,
             expected_kind=expected_kind,
+            descriptor_path=descriptor_path,
+            resource_name=resource_name,
         )
-        if isinstance(value, str)
-        else value
-    )
-    validate_resolved_mapping(
-        raw,
-        expected_kind=expected_kind,
-        descriptor_path=descriptor_path,
-        resource_name=resource_name,
-    )
+    except InvalidDescriptorStructure as exc:
+        if not is_reference:
+            raise
+        raise DescriptorReferenceInvalid(
+            "resolved descriptor has an invalid structure",
+            descriptor_kind=expected_kind.value,
+            descriptor_path=descriptor_path,
+            resource_name=resource_name,
+            reference=value,
+            expected_kind=expected_kind.value,
+            rejected_value=exc.rejected_value,
+            required_form=exc.required_form,
+        ) from exc
     return raw
 
 

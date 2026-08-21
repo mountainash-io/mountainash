@@ -12,6 +12,11 @@ from mountainash.typespec.descriptor_context import (
     LocalDescriptorResolver,
 )
 from mountainash.typespec.spec import TypeSpec
+from mountainash.typespec.errors import (
+    DescriptorError,
+    DescriptorReferenceInvalid,
+    InvalidDescriptorStructure,
+)
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
 
@@ -165,18 +170,49 @@ class DataResource(BaseModel):
             validate_foreign_key_relationships,
         )
 
+        source = self.table_schema
         raw = resolve_descriptor_mapping(
-            self.table_schema,
+            source,
             context=self._descriptor_context,
             expected_kind=DescriptorKind.SCHEMA,
             descriptor_path="$.schema",
             resource_name=self.name,
         )
-        validate_foreign_key_relationships(
-            raw,
-            resource_names=self._package_resource_names,
-        )
-        return typespec_from_frictionless(raw)
+        try:
+            validate_foreign_key_relationships(
+                raw,
+                resource_names=self._package_resource_names,
+            )
+            return typespec_from_frictionless(raw)
+        except InvalidDescriptorStructure as exc:
+            if not isinstance(source, str):
+                raise
+            raise DescriptorReferenceInvalid(
+                "resolved schema has an invalid structure",
+                descriptor_kind=DescriptorKind.SCHEMA.value,
+                descriptor_path="$.schema",
+                resource_name=self.name,
+                reference=source,
+                expected_kind=DescriptorKind.SCHEMA.value,
+                rejected_value=exc.rejected_value,
+                required_form=exc.required_form,
+            ) from exc
+        except DescriptorError:
+            raise
+        except Exception as exc:
+            error_type = (
+                DescriptorReferenceInvalid
+                if isinstance(source, str)
+                else InvalidDescriptorStructure
+            )
+            raise error_type(
+                "schema mapping could not be converted",
+                descriptor_kind=DescriptorKind.SCHEMA.value,
+                descriptor_path="$.schema",
+                resource_name=self.name,
+                rejected_value=raw,
+                required_form="valid Table Schema mapping",
+            ) from exc
 
     def to_dialect(self) -> TableDialect | None:
         if self.dialect is None:
@@ -188,15 +224,33 @@ class DataResource(BaseModel):
             validate_dialect_family,
         )
 
+        source = self.dialect
         raw = resolve_descriptor_mapping(
-            self.dialect,
+            source,
             context=self._descriptor_context,
             expected_kind=DescriptorKind.DIALECT,
             descriptor_path="$.dialect",
             resource_name=self.name,
         )
-        validate_dialect_family(raw, resource_format=self.format)
-        return TableDialect.from_descriptor(raw)
+        try:
+            validate_dialect_family(raw, resource_format=self.format)
+            return TableDialect.from_descriptor(raw)
+        except DescriptorError:
+            raise
+        except Exception as exc:
+            error_type = (
+                DescriptorReferenceInvalid
+                if isinstance(source, str)
+                else InvalidDescriptorStructure
+            )
+            raise error_type(
+                "dialect mapping could not be converted",
+                descriptor_kind=DescriptorKind.DIALECT.value,
+                descriptor_path="$.dialect",
+                resource_name=self.name,
+                rejected_value=raw,
+                required_form="valid Table Dialect mapping",
+            ) from exc
 
     def to_contract(self, *, name: Optional[str] = None) -> Any:
         spec = self.to_typespec()

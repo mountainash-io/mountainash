@@ -154,6 +154,17 @@ def test_to_typespec_raises_on_garbage_schema():
         r.to_typespec()
 
 
+def test_inline_wrong_schema_kind_stays_structural_error() -> None:
+    resource = DataResource(
+        name="orders",
+        path="orders.csv",
+        schema={"resources": []},
+    )
+    with pytest.raises(InvalidDescriptorStructure):
+        resource.to_typespec()
+
+
+
 def test_to_contract_raises_when_no_schema():
     r = DataResource(name="t", path="t.csv")
     with pytest.raises(ValueError, match="table_schema"):
@@ -243,6 +254,32 @@ class SingleDocumentResolver:
         return dict(self.document)
 
 
+class RaisingResolver:
+    def resolve(self, reference, *, base_uri, expected_kind):
+        raise PermissionError(reference)
+
+
+def test_resolver_transport_failure_is_typed_with_cause() -> None:
+    resource = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "schema": "schema.json",
+                }
+            ]
+        },
+        resolver=RaisingResolver(),
+    ).resources[0]
+
+    with pytest.raises(DescriptorReferenceInvalid) as caught:
+        resource.to_typespec()
+    assert isinstance(caught.value.__cause__, PermissionError)
+
+
+
+
 def test_schema_and_dialect_resolution_is_lazy_and_one_hop() -> None:
     resolver = RecordingResolver({
         "schema.json": {"fields": [{"name": "id", "type": "integer"}]},
@@ -315,7 +352,7 @@ def test_resolved_documents_must_match_expected_kind(
         },
         resolver=SingleDocumentResolver(document),
     ).resources[0]
-    with pytest.raises((InvalidDescriptorStructure, DescriptorReferenceInvalid)):
+    with pytest.raises(DescriptorReferenceInvalid):
         getattr(resource, accessor)()
 
 
@@ -367,6 +404,102 @@ def test_resolved_documents_reject_v1_markers(
     assert len(resolver.calls) == 1
 
 
+def test_resolved_unknown_schema_profile_is_allowed() -> None:
+    resolver = SingleDocumentResolver(
+        {
+            "fields": [{"name": "id"}],
+            "profile": "https://example.com/custom-profile",
+        }
+    )
+    resource = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "schema": "schema.json",
+                }
+            ]
+        },
+        resolver=resolver,
+    ).resources[0]
+
+    assert resource.to_typespec().field_names == ["id"]
+
+
+def test_resolved_unknown_dialect_profile_is_allowed() -> None:
+    resolver = SingleDocumentResolver(
+        {
+            "delimiter": ";",
+            "profile": "https://example.com/custom-profile",
+        }
+    )
+    resource = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "dialect": "dialect.json",
+                }
+            ]
+        },
+        resolver=resolver,
+    ).resources[0]
+
+    assert resource.to_dialect().delimiter == ";"
+
+
+def test_resolved_invalid_dialect_shape_is_typed_with_cause() -> None:
+    resolver = SingleDocumentResolver({"header": {}})
+    resource = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "dialect": "dialect.json",
+                }
+            ]
+        },
+        resolver=resolver,
+    ).resources[0]
+
+    with pytest.raises(DescriptorReferenceInvalid) as caught:
+        resource.to_dialect()
+    assert caught.value.__cause__ is not None
+
+
+def test_resolved_invalid_foreign_key_shape_is_typed_with_cause() -> None:
+    resolver = SingleDocumentResolver(
+        {
+            "fields": [{"name": "customer_id"}],
+            "foreignKeys": [
+                {
+                    "fields": 1,
+                    "reference": {"resource": "", "fields": ["id"]},
+                }
+            ],
+        }
+    )
+    resource = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "schema": "schema.json",
+                }
+            ]
+        },
+        resolver=resolver,
+    ).resources[0]
+
+    with pytest.raises(DescriptorReferenceInvalid) as caught:
+        resource.to_typespec()
+    assert caught.value.__cause__ is not None
+
+
 @pytest.mark.parametrize(
     ("reference", "expected_kind", "nested_key", "accessor"),
     [
@@ -400,6 +533,6 @@ def test_resolved_nested_reference_is_rejected_without_second_call(
         },
         resolver=resolver,
     ).resources[0]
-    with pytest.raises((InvalidDescriptorStructure, DescriptorReferenceInvalid)):
+    with pytest.raises(DescriptorReferenceInvalid):
         getattr(resource, accessor)()
     assert resolver.calls == [(reference, expected_kind)]
