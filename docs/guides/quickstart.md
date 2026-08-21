@@ -107,7 +107,7 @@ ma.relation(df).conform(spec).to_polars()
 `conform()` builds a `ProjectRelNode` from TypeSpec fields — cross-backend automatic. The Frictionless Data Package model is the canonical multi-resource form:
 
 ```python
-pkg = ma.DataPackage.from_descriptor("datapackage.json")
+pkg = ma.DataPackage.from_path("datapackage.json")
 dag = pkg.to_relation_dag()
 df  = dag.collect("orders")
 ```

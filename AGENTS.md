@@ -298,7 +298,7 @@ A `DataPackage` (Frictionless multi-resource container) bridges in both directio
 import mountainash as ma
 
 # Read a Frictionless descriptor → DAG → collect a resource
-pkg = ma.DataPackage.from_descriptor("datapackage.json")
+pkg = ma.DataPackage.from_path("datapackage.json")
 dag = pkg.to_relation_dag()
 df  = dag.collect("orders")
 
