@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import json
-import posixpath
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
 from typing import AbstractSet, Any, Protocol
 from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
 
@@ -24,6 +23,15 @@ from mountainash.typespec.errors import (
     InvalidDescriptorStructure,
     MissingDescriptorBase,
 )
+
+try:
+    from mountainash_transport._core.exceptions import (
+        PathNotFoundError as _TransportPathNotFoundError,
+    )
+except ImportError:  # pragma: no cover - optional storage dependency
+    _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError,)
+else:
+    _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError, _TransportPathNotFoundError)
 
 
 class DescriptorKind(StrEnum):
@@ -75,18 +83,27 @@ def _invalid_reference(
 def _normalize_remote_path(path: str, *, trailing_slash: bool = False) -> str:
     if not path:
         return "/" if trailing_slash else ""
+
     had_trailing_slash = path.endswith("/")
-    normalized = posixpath.normpath(path)
-    if path.startswith("/") and not normalized.startswith("/"):
-        normalized = "/" + normalized
-    if normalized == ".":
-        normalized = ""
+    segments = path.split("/")
+    normalized_segments: list[str] = []
+    for segment in segments:
+        if segment == ".":
+            continue
+        if segment == "..":
+            if normalized_segments and normalized_segments[-1] not in ("", ".."):
+                normalized_segments.pop()
+            elif normalized_segments and normalized_segments[-1] == ".." and not path.startswith("/"):
+                normalized_segments.append(segment)
+            continue
+        normalized_segments.append(segment)
+
+    normalized = "/".join(normalized_segments)
     if (trailing_slash or had_trailing_slash) and normalized and not normalized.endswith("/"):
         normalized += "/"
     if trailing_slash and not normalized:
         normalized = "/"
     return normalized
-
 
 def _normalize_remote_netloc(parts: Any) -> str:
     hostname = parts.hostname
@@ -150,9 +167,14 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
     if value is None:
         return None
     if isinstance(value, Path):
+        if not value.is_absolute():
+            raise _base_error(value, "descriptor base URI must be absolute")
         return value.resolve().as_uri() + "/"
 
-    parts = urlsplit(value)
+    try:
+        parts = urlsplit(value)
+    except ValueError as exc:
+        raise _base_error(value, "descriptor base URI is malformed") from exc
     if not parts.scheme:
         path = Path(value)
         if not path.is_absolute():
@@ -178,7 +200,13 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
 
 def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
     """Return one canonical absolute document URI."""
-    parts = urlsplit(reference)
+    try:
+        parts = urlsplit(reference)
+    except ValueError as exc:
+        raise DescriptorReferenceInvalid(
+            "descriptor reference is malformed",
+            reference=reference,
+        ) from exc
     if not parts.scheme:
         path = Path(reference)
         if path.is_absolute():
@@ -325,7 +353,7 @@ class StorageDescriptorResolver:
             )
         try:
             payload = facade_read_bytes(normalized)
-        except FileNotFoundError as exc:
+        except _STORAGE_NOT_FOUND_ERRORS as exc:
             raise DescriptorReferenceNotFound(
                 "descriptor reference does not exist",
                 reference=reference,

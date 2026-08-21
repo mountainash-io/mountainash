@@ -19,6 +19,7 @@ from mountainash.typespec.descriptor_context import (
     build_descriptor_context,
     descriptor_cache_key,
     normalize_base_uri,
+    normalize_document_uri,
 )
 
 
@@ -35,6 +36,31 @@ def test_invalid_explicit_base_is_typed(value: str) -> None:
     with pytest.raises(InvalidDescriptorStructure) as caught:
         normalize_base_uri(value)
     assert caught.value.descriptor_path == "$base_uri"
+
+
+def test_relative_path_object_base_is_typed() -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        normalize_base_uri(Path("relative/base"))
+    assert caught.value.descriptor_path == "$base_uri"
+
+
+def test_remote_repeated_slashes_are_preserved() -> None:
+    assert normalize_document_uri(
+        "https://example.com/a//schema.json",
+        base_uri=None,
+    ) == "https://example.com/a//schema.json"
+
+
+def test_malformed_base_uri_is_typed_with_cause() -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        normalize_base_uri("https://[bad")
+    assert isinstance(caught.value.__cause__, ValueError)
+
+
+def test_malformed_document_uri_is_typed_with_cause() -> None:
+    with pytest.raises(DescriptorReferenceInvalid) as caught:
+        normalize_document_uri("https://[bad", base_uri=None)
+    assert isinstance(caught.value.__cause__, ValueError)
 
 
 def test_local_resolver_normalizes_path_and_file_uri(tmp_path: Path) -> None:
@@ -136,6 +162,25 @@ def test_equivalent_local_forms_share_cache_key(tmp_path: Path) -> None:
     ) == descriptor_cache_key(
         path.as_uri(), base_uri=None, expected_kind=DescriptorKind.SCHEMA
     )
+
+
+def test_storage_resolver_translates_transport_missing_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transport_errors = pytest.importorskip("mountainash_transport._core.exceptions")
+
+    def read_bytes(reference: str) -> bytes:
+        raise transport_errors.PathNotFoundError(reference)
+
+    module = importlib.import_module("mountainash.typespec.descriptor_context")
+    monkeypatch.setattr(module, "facade_read_bytes", read_bytes)
+    with pytest.raises(DescriptorReferenceNotFound) as caught:
+        StorageDescriptorResolver(allowed_schemes={"https"}).resolve(
+            "https://example.com/missing.json",
+            base_uri=None,
+            expected_kind=DescriptorKind.SCHEMA,
+        )
+    assert isinstance(caught.value.__cause__, transport_errors.PathNotFoundError)
 
 
 def test_expected_kind_is_part_of_cache_key(tmp_path: Path) -> None:
