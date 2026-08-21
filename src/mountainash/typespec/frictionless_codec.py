@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from mountainash.typespec.datapackage import DataPackage, DataResource
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
+    DescriptorKind,
     build_descriptor_context,
     DescriptorResolver,
 )
@@ -83,7 +84,8 @@ _RESOURCE_FIELDS = {
 }
 _DIALECT_DELIMITED = {
     "delimiter", "lineTerminator", "quoteChar", "doubleQuote", "escapeChar",
-    "nullSequence", "skipInitialSpace",
+    "nullSequence", "skipInitialSpace", "header", "headerRows", "headerJoin",
+    "commentChar", "commentRows",
 }
 _DIALECT_STRUCTURED = {"property", "itemType", "itemKeys"}
 _DIALECT_SPREADSHEET = {"sheetName", "sheetNumber"}
@@ -578,6 +580,223 @@ def _validate_schema(value: Any, *, path: str, resource_name: str | None) -> Non
             descriptor_kind="schema",
             resource_name=resource_name,
         )
+
+def _dialect_family_names(value: Mapping[str, Any]) -> list[str]:
+    families: list[str] = []
+    for family, triggers in (
+        ("delimited text", _DIALECT_DELIMITED),
+        ("structured", _DIALECT_STRUCTURED),
+        ("spreadsheet", _DIALECT_SPREADSHEET),
+        ("database", _DIALECT_DATABASE),
+    ):
+        if any(key in value for key in triggers):
+            families.append(family)
+    return families
+
+
+def _reject_resolved_v1_markers(
+    raw: Mapping[str, Any],
+    *,
+    expected_kind: DescriptorKind,
+    descriptor_path: str,
+    resource_name: str,
+) -> None:
+    kind = expected_kind.value
+    _reject_v1_schema(
+        raw,
+        path=descriptor_path,
+        kind=kind,
+        resource_name=resource_name,
+    )
+    if "profile" in raw:
+        raise _unsupported_version(
+            "the v1 profile property is not supported",
+            descriptor_path=f"{descriptor_path}.profile",
+            rejected_value=raw["profile"],
+            required_form="$schema v2 profile URI or omitted $schema",
+            descriptor_kind=kind,
+            resource_name=resource_name,
+        )
+    if expected_kind is DescriptorKind.DIALECT:
+        for marker in ("caseSensitiveHeader", "csvddfVersion"):
+            if marker in raw:
+                raise _unsupported_version(
+                    f"v1 dialect property {marker!r} is not supported",
+                    descriptor_path=f"{descriptor_path}.{marker}",
+                    rejected_value=raw[marker],
+                    required_form="v2 dialect properties",
+                    descriptor_kind=kind,
+                    resource_name=resource_name,
+                )
+
+
+def validate_resolved_mapping(
+    raw: Mapping[str, Any],
+    *,
+    expected_kind: DescriptorKind,
+    descriptor_path: str,
+    resource_name: str,
+) -> None:
+    """Validate one resolved standalone schema or dialect document."""
+    if not isinstance(raw, Mapping):
+        raise _structure_error(
+            "resolved descriptor must have a mapping root",
+            descriptor_path=descriptor_path,
+            rejected_value=raw,
+            required_form=f"{expected_kind.value} mapping",
+            descriptor_kind=expected_kind.value,
+            resource_name=resource_name,
+        )
+    _reject_resolved_v1_markers(
+        raw,
+        expected_kind=expected_kind,
+        descriptor_path=descriptor_path,
+        resource_name=resource_name,
+    )
+    nested_key = expected_kind.value
+    if isinstance(raw.get(nested_key), str):
+        raise _structure_error(
+            f"resolved {nested_key} must not be another reference",
+            descriptor_path=f"{descriptor_path}.{nested_key}",
+            rejected_value=raw[nested_key],
+            required_form=f"inline {nested_key} mapping",
+            descriptor_kind=expected_kind.value,
+            resource_name=resource_name,
+        )
+    if expected_kind is DescriptorKind.SCHEMA:
+        _validate_schema(raw, path=descriptor_path, resource_name=resource_name)
+    else:
+        if not raw:
+            raise _structure_error(
+                "resolved dialect mapping must not be empty",
+                descriptor_path=descriptor_path,
+                rejected_value=raw,
+                required_form="non-empty Table Dialect mapping",
+                descriptor_kind="dialect",
+                resource_name=resource_name,
+            )
+        _validate_dialect(raw, path=descriptor_path, resource_name=resource_name)
+
+
+def resolve_descriptor_mapping(
+    value: Mapping[str, Any] | str,
+    *,
+    context: DescriptorContext,
+    expected_kind: DescriptorKind,
+    descriptor_path: str,
+    resource_name: str,
+) -> Mapping[str, Any]:
+    raw = (
+        context.resolver.resolve(
+            value,
+            base_uri=context.base_uri,
+            expected_kind=expected_kind,
+        )
+        if isinstance(value, str)
+        else value
+    )
+    validate_resolved_mapping(
+        raw,
+        expected_kind=expected_kind,
+        descriptor_path=descriptor_path,
+        resource_name=resource_name,
+    )
+    return raw
+
+
+def validate_foreign_key_relationships(
+    raw: Mapping[str, Any],
+    *,
+    resource_names: frozenset[str],
+) -> None:
+    """Validate resolved schema foreign-key targets against package resources."""
+    foreign_keys = raw.get("foreignKeys") or []
+    for fk_index, foreign_key in enumerate(foreign_keys):
+        path = f"$.foreignKeys[{fk_index}]"
+        if not isinstance(foreign_key, Mapping):
+            raise _structure_error(
+                "foreign key must be a mapping",
+                descriptor_path=path,
+                rejected_value=foreign_key,
+                required_form="foreign-key mapping",
+                descriptor_kind="schema",
+            )
+        reference = foreign_key.get("reference")
+        if not isinstance(reference, Mapping):
+            raise _structure_error(
+                "foreign key reference must be a mapping",
+                descriptor_path=f"{path}.reference",
+                rejected_value=reference,
+                required_form="foreign-key reference mapping",
+                descriptor_kind="schema",
+            )
+        target = reference.get("resource", "")
+        if not isinstance(target, str):
+            raise _structure_error(
+                "foreign key reference resource must be a string",
+                descriptor_path=f"{path}.reference.resource",
+                rejected_value=target,
+                required_form="resource name string",
+                descriptor_kind="schema",
+            )
+        if target and target not in resource_names:
+            raise InvalidDescriptorRelationship(
+                "foreign key references an unknown resource",
+                descriptor_kind="schema",
+                descriptor_path=f"{path}.reference.resource",
+                rejected_value=target,
+                required_form="empty self-reference or package resource name",
+            )
+
+
+def validate_dialect_family(
+    raw: Mapping[str, Any],
+    *,
+    resource_format: str | None,
+) -> None:
+    """Validate dialect document shape and compatibility with resource format."""
+    if not isinstance(raw, Mapping):
+        _validate_dialect(raw, path="$.dialect", resource_name=None)
+        return
+    if not raw:
+        raise _structure_error(
+            "dialect mapping must not be empty",
+            descriptor_path="$.dialect",
+            rejected_value=raw,
+            required_form="non-empty Table Dialect mapping",
+            descriptor_kind="dialect",
+        )
+    _validate_dialect(raw, path="$.dialect", resource_name=None)
+    families = _dialect_family_names(raw)
+    if not families or resource_format is None:
+        return
+    format_name = resource_format.lower().lstrip(".")
+    format_family = {
+        "csv": "delimited text",
+        "tsv": "delimited text",
+        "tab": "delimited text",
+        "txt": "delimited text",
+        "json": "structured",
+        "jsonl": "structured",
+        "ndjson": "structured",
+        "geojson": "structured",
+        "xls": "spreadsheet",
+        "xlsx": "spreadsheet",
+        "xlsm": "spreadsheet",
+        "ods": "spreadsheet",
+        "db": "database",
+        "sqlite": "database",
+        "sql": "database",
+    }.get(format_name)
+    if format_family is not None and families[0] != format_family:
+        raise UnsupportedResourceDialect(
+            "dialect family is incompatible with resource format",
+            descriptor_kind="dialect",
+            descriptor_path="$.dialect",
+            rejected_value=raw,
+            required_form=f"{format_family} dialect properties for format {resource_format!r}",
+        )
+
 
 
 def _validate_resource(raw: Mapping[str, Any], *, path: str) -> None:

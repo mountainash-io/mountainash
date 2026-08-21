@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any, Optional, TYPE_CHECKING
-
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
+    DescriptorKind,
     DescriptorResolver,
     LocalDescriptorResolver,
 )
@@ -15,7 +16,6 @@ from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
@@ -56,8 +56,8 @@ class TableDialect(BaseModel):
     extras: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
-    def from_descriptor(cls, raw: dict[str, Any]) -> "TableDialect":
-        return cls.model_validate(raw)
+    def from_descriptor(cls, raw: Mapping[str, Any]) -> "TableDialect":
+        return cls.model_validate(dict(raw))
 
     def to_descriptor(self) -> dict[str, Any]:
         out = self.model_dump(by_alias=True, exclude_none=True)
@@ -154,19 +154,49 @@ class DataResource(BaseModel):
 
         return _encode_resource_preserve(self)
 
-    def to_typespec(self) -> Optional["TypeSpec"]:
+    def to_typespec(self) -> TypeSpec | None:
         if self.table_schema is None:
             return None
         if isinstance(self.table_schema, TypeSpec):
             return self.table_schema
-        if isinstance(self.table_schema, dict):
-            from mountainash.typespec.frictionless import typespec_from_frictionless
-
-            return typespec_from_frictionless(self.table_schema)
-        raise TypeError(
-            f"DataResource {self.name!r}.table_schema must be a dict or TypeSpec, "
-            f"got {type(self.table_schema).__name__}"
+        from mountainash.typespec.frictionless import typespec_from_frictionless
+        from mountainash.typespec.frictionless_codec import (
+            resolve_descriptor_mapping,
+            validate_foreign_key_relationships,
         )
+
+        raw = resolve_descriptor_mapping(
+            self.table_schema,
+            context=self._descriptor_context,
+            expected_kind=DescriptorKind.SCHEMA,
+            descriptor_path="$.schema",
+            resource_name=self.name,
+        )
+        validate_foreign_key_relationships(
+            raw,
+            resource_names=self._package_resource_names,
+        )
+        return typespec_from_frictionless(raw)
+
+    def to_dialect(self) -> TableDialect | None:
+        if self.dialect is None:
+            return None
+        if isinstance(self.dialect, TableDialect):
+            return self.dialect
+        from mountainash.typespec.frictionless_codec import (
+            resolve_descriptor_mapping,
+            validate_dialect_family,
+        )
+
+        raw = resolve_descriptor_mapping(
+            self.dialect,
+            context=self._descriptor_context,
+            expected_kind=DescriptorKind.DIALECT,
+            descriptor_path="$.dialect",
+            resource_name=self.name,
+        )
+        validate_dialect_family(raw, resource_format=self.format)
+        return TableDialect.from_descriptor(raw)
 
     def to_contract(self, *, name: Optional[str] = None) -> Any:
         spec = self.to_typespec()

@@ -14,6 +14,7 @@ Reference: https://specs.frictionlessdata.io/table-schema/
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -27,7 +28,7 @@ from .universal_types import UniversalType, parse_universal
 # Foreign key helpers
 # ---------------------------------------------------------------------------
 
-def foreign_key_from_dict(raw_fk: Dict[str, Any]) -> ForeignKey:
+def foreign_key_from_dict(raw_fk: Mapping[str, Any]) -> ForeignKey:
     """Build a ForeignKey from a Frictionless ``foreignKeys`` entry."""
     ref = raw_fk.get("reference") or {}
     return ForeignKey(
@@ -232,7 +233,7 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
 # Import: Frictionless dict / JSON string / Path → TypeSpec
 # ---------------------------------------------------------------------------
 
-def _field_from_frictionless_dict(raw_field: Dict[str, Any]) -> "FieldSpec":
+def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
     """Import one Frictionless field descriptor into a FieldSpec.
 
     Recurses into ``x-mountainash.object_fields`` (item 102) so nested
@@ -298,8 +299,7 @@ def _field_from_frictionless_dict(raw_field: Dict[str, Any]) -> "FieldSpec":
         object_fields=object_fields,
     )
 
-
-def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSpec:
+def typespec_from_frictionless(data: Union[Mapping[str, Any], str, Path]) -> TypeSpec:
     """Create a TypeSpec from a Frictionless Table Schema descriptor.
 
     Args:
@@ -316,7 +316,7 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         - Unknown extension keys (other than ``x-mountainash``) are silently
           ignored.
     """
-    descriptor: Dict[str, Any]
+    descriptor: Mapping[str, Any]
 
     if isinstance(data, Path):
         descriptor = json.loads(data.read_text(encoding="utf-8"))

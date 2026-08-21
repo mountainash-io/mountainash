@@ -97,7 +97,18 @@ def test_relative_reference_requires_base() -> None:
         )
 
 
-@pytest.mark.parametrize("reference", ["https://example.com/schema.json", "s3://bucket/schema.json"])
+@pytest.mark.parametrize(
+    "reference",
+    [
+        "http://example.com/schema.json",
+        "https://example.com/schema.json",
+        "s3://bucket/schema.json",
+        "gs://bucket/schema.json",
+        "ftp://example.com/schema.json",
+        "memory://bucket/schema.json",
+        "custom+scheme://example.com/schema.json",
+    ],
+)
 def test_default_resolver_denies_remote_scheme(reference: str) -> None:
     with pytest.raises(DescriptorReferenceSchemeDenied):
         LocalDescriptorResolver().resolve(
