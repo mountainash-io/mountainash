@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any, Optional, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
@@ -21,6 +20,7 @@ from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""

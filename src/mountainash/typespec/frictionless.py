@@ -14,9 +14,11 @@ Reference: https://specs.frictionlessdata.io/table-schema/
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 from mountainash.conform.contract import validate_contract_dict
 
