@@ -32,6 +32,11 @@ def test_csv_dialect_round_trips():
     assert d.to_descriptor() == raw
 
 
+def test_extras_flatten_into_descriptor() -> None:
+    dialect = TableDialect(extras={"futureFlag": True})
+    assert dialect.to_descriptor() == {"futureFlag": True}
+
+
 def test_unknown_keys_are_dropped_silently():
     raw = {"delimiter": ",", "futureFlag": True}
     d = TableDialect.from_descriptor(raw)

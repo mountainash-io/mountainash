@@ -100,6 +100,22 @@ def test_dialect_round_trip():
     assert r.to_descriptor() == raw
 
 
+def test_descriptor_owns_raw_mapping_values() -> None:
+    dialect = {"dialect": {"delimiter": ";"}}
+    schema = {"fields": [{"name": "id"}]}
+    resource = DataResource(
+        name="orders",
+        path="orders.csv",
+        dialect=dialect,
+        schema=schema,
+    )
+    descriptor = resource.to_descriptor()
+    descriptor["dialect"]["dialect"]["delimiter"] = "|"
+    descriptor["schema"]["fields"][0]["name"] = "order_id"
+    assert resource.dialect == dialect
+    assert resource.table_schema == schema
+
+
 
 def test_to_typespec_none_when_no_schema():
     r = DataResource(name="t", path="t.csv")

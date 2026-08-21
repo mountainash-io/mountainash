@@ -58,8 +58,9 @@ class TableDialect(BaseModel):
 
     def to_descriptor(self) -> dict[str, Any]:
         out = self.model_dump(by_alias=True, exclude_none=True)
-        if not self.extras:
-            out.pop("extras", None)
+        extras = out.pop("extras", None)
+        if extras:
+            out.update(deepcopy(extras))
         return out
 
     def to_polars_read_csv_kwargs(self) -> dict[str, Any]:
@@ -192,11 +193,15 @@ class DataResource(BaseModel):
         if self.dialect is not None:
             if isinstance(self.dialect, TableDialect):
                 dialect = self.dialect.to_descriptor()
+            elif isinstance(self.dialect, dict):
+                dialect = deepcopy(self.dialect)
             else:
                 dialect = self.dialect
             out["dialect"] = dialect
         if self.table_schema is not None:
-            if isinstance(self.table_schema, (dict, str)):
+            if isinstance(self.table_schema, dict):
+                out["schema"] = deepcopy(self.table_schema)
+            elif isinstance(self.table_schema, str):
                 out["schema"] = self.table_schema
             else:
                 out["schema"] = typespec_to_frictionless(self.table_schema)
