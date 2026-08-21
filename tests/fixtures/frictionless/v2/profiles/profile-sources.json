@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/frictionlessdata/datapackage",
+  "commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+  "profiles": {
+    "datapackage.json": {
+      "source_path": "public/profiles/2.0/datapackage.json",
+      "sha256": "a9ef0fc168b3402ae7aa7d22bbcb798e0db6b639e7ee15ff4aa177463cea7112"
+    },
+    "dataresource.json": {
+      "source_path": "public/profiles/2.0/dataresource.json",
+      "sha256": "067d769b44b22178615620d37ac4e9f732cf0459c5540255cbba2480aa91c35a"
+    },
+    "tabledialect.json": {
+      "source_path": "public/profiles/2.0/tabledialect.json",
+      "sha256": "54e884a84e499b9f63b2f04e8e8aa47f4f2257fdf94a71b9462f40ed19a1d3b3"
+    },
+    "tableschema.json": {
+      "source_path": "public/profiles/2.0/tableschema.json",
+      "sha256": "a67779642acc7f51031d2e881166d31ef8dd90cd8a92c9ff8821d7a8821d0490"
+    }
+  }
+}
