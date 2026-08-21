@@ -8,6 +8,7 @@ def test_default_dialect_round_trips_to_empty_dict():
 
 def test_csv_dialect_round_trips():
     raw = {
+        "$schema": "https://example.com/dialect",
         "delimiter": ";",
         "lineTerminator": "\r\n",
         "quoteChar": "'",
@@ -19,8 +20,13 @@ def test_csv_dialect_round_trips():
         "headerRows": [1],
         "headerJoin": " ",
         "commentChar": "#",
-        "caseSensitiveHeader": False,
-        "csvddfVersion": "1.2",
+        "commentRows": [2],
+        "itemType": "object",
+        "itemKeys": ["id"],
+        "property": "sheet",
+        "sheetName": "Orders",
+        "sheetNumber": 1,
+        "table": "orders",
     }
     d = TableDialect.from_descriptor(raw)
     assert d.to_descriptor() == raw

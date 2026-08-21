@@ -1,8 +1,59 @@
 import pytest
 
-from mountainash.typespec.datapackage import DataResource, TableDialect
+from mountainash.typespec.datapackage import DataResource
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
+
+from mountainash.typespec.descriptor_context import (
+    DescriptorContext,
+    LocalDescriptorResolver,
+)
+
+
+def test_resource_accepts_raw_schema_and_dialect_references() -> None:
+    resource = DataResource(
+        name="orders",
+        path="orders.csv",
+        schema="schema.json",
+        dialect="dialect.json",
+    )
+    assert resource.table_schema == "schema.json"
+    assert resource.dialect == "dialect.json"
+
+
+def test_resource_has_v2_schema_url_and_homepage() -> None:
+    resource = DataResource(
+        name="orders",
+        path="orders.csv",
+        schema_url="https://example.com/resource-profile",
+        homepage="https://example.com/orders",
+    )
+    assert resource.schema_url.endswith("resource-profile")
+    assert resource.homepage.endswith("/orders")
+
+
+def test_context_does_not_change_equality() -> None:
+    left = DataResource(name="orders", path="orders.csv")
+    right = DataResource(name="orders", path="orders.csv")
+    right._descriptor_context = DescriptorContext(
+        base_uri="file:///tmp/",
+        resolver=LocalDescriptorResolver(),
+        package_sources=(),
+    )
+    right._package_resource_names = frozenset({"orders"})
+    assert left == right
+
+
+def test_effective_sources_returns_a_fresh_list() -> None:
+    resource = DataResource(name="orders", path="orders.csv")
+    resource._descriptor_context = DescriptorContext(
+        base_uri=None,
+        resolver=LocalDescriptorResolver(),
+        package_sources=({"title": "catalog"},),
+    )
+    first = resource.effective_sources
+    first[0]["title"] = "changed"
+    assert resource.effective_sources == [{"title": "catalog"}]
 
 
 def test_minimal_resource_with_path():
@@ -45,7 +96,7 @@ def test_dialect_round_trip():
         "dialect": {"delimiter": ";"},
     }
     r = DataResource.from_descriptor(raw)
-    assert isinstance(r.dialect, TableDialect)
+    assert r.dialect == raw["dialect"]
     assert r.to_descriptor() == raw
 
 

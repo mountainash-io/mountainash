@@ -1,22 +1,37 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+
+from mountainash.typespec.descriptor_context import (
+    DescriptorContext,
+    LocalDescriptorResolver,
+)
+from mountainash.typespec.spec import TypeSpec
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from mountainash.typespec.spec import TypeSpec
-    # from upath import Path
 
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
+
+
+def _default_descriptor_context() -> DescriptorContext:
+    return DescriptorContext(
+        base_uri=None,
+        resolver=LocalDescriptorResolver(),
+        package_sources=(),
+    )
+
 
 class TableDialect(BaseModel):
     """Frictionless Table Dialect spec — closed schema, unknown keys are dropped."""
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
+    schema_url: Optional[str] = Field(default=None, alias="$schema")
     delimiter: Optional[str] = None
     line_terminator: Optional[str] = Field(default=None, alias="lineTerminator")
     quote_char: Optional[str] = Field(default=None, alias="quoteChar")
@@ -28,15 +43,24 @@ class TableDialect(BaseModel):
     header_rows: Optional[list[int]] = Field(default=None, alias="headerRows")
     header_join: Optional[str] = Field(default=None, alias="headerJoin")
     comment_char: Optional[str] = Field(default=None, alias="commentChar")
-    case_sensitive_header: Optional[bool] = Field(default=None, alias="caseSensitiveHeader")
-    csvddf_version: Optional[str] = Field(default=None, alias="csvddfVersion")
+    comment_rows: Optional[list[int]] = Field(default=None, alias="commentRows")
+    item_type: Optional[str] = Field(default=None, alias="itemType")
+    item_keys: Optional[list[str]] = Field(default=None, alias="itemKeys")
+    property: Optional[str] = None
+    sheet_name: Optional[str] = Field(default=None, alias="sheetName")
+    sheet_number: Optional[int] = Field(default=None, alias="sheetNumber")
+    table: Optional[str] = None
+    extras: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def from_descriptor(cls, raw: dict[str, Any]) -> "TableDialect":
         return cls.model_validate(raw)
 
     def to_descriptor(self) -> dict[str, Any]:
-        return self.model_dump(by_alias=True, exclude_none=True)
+        out = self.model_dump(by_alias=True, exclude_none=True)
+        if not self.extras:
+            out.pop("extras", None)
+        return out
 
     def to_polars_read_csv_kwargs(self) -> dict[str, Any]:
         """Translate to ``polars.read_csv`` kwargs. Unsupported keys are dropped silently."""
@@ -59,8 +83,8 @@ class TableDialect(BaseModel):
 
 
 _KNOWN_RESOURCE_FIELDS = {
-    "name", "path", "data", "type", "dialect", "schema",
-    "title", "description", "format", "mediatype", "encoding",
+    "name", "path", "data", "type", "dialect", "schema", "$schema",
+    "homepage", "title", "description", "format", "mediatype", "encoding",
     "bytes", "hash", "sources", "licenses",
 }
 
@@ -68,15 +92,24 @@ _KNOWN_RESOURCE_FIELDS = {
 class DataResource(BaseModel):
     """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=(), populate_by_name=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        protected_namespaces=(),
+        populate_by_name=True,
+    )
 
     name: str
     path: Optional[str | list[str]] = None
     data: Optional[Any] = None
     type: Optional[str] = None
-    dialect: Optional[TableDialect] = None
+    dialect: dict[str, Any] | str | TableDialect | None = None
     # 'schema' shadows BaseModel.schema() — use table_schema internally, alias "schema"
-    table_schema: Optional[Any] = Field(default=None, alias="schema")
+    table_schema: dict[str, Any] | str | TypeSpec | None = Field(
+        default=None,
+        alias="schema",
+    )
+    schema_url: Optional[str] = Field(default=None, alias="$schema")
+    homepage: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     format: Optional[str] = None
@@ -89,6 +122,11 @@ class DataResource(BaseModel):
     licenses: Optional[list[dict[str, Any]]] = None
     extras: dict[str, Any] = Field(default_factory=dict)
 
+    _descriptor_context: DescriptorContext = PrivateAttr(
+        default_factory=_default_descriptor_context
+    )
+    _package_resource_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
+
     def model_post_init(self, _ctx: Any) -> None:
         has_path = self.path is not None
         has_data = self.data is not None
@@ -96,6 +134,21 @@ class DataResource(BaseModel):
             raise ValueError(
                 f"DataResource '{self.name}' must declare exactly one of path or data"
             )
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, DataResource):
+            return self.model_dump() == other.model_dump()
+        return super().__eq__(other)
+
+    @property
+    def effective_sources(self) -> list[dict[str, Any]]:
+        """Return independently owned resource or package source metadata."""
+        source_values = (
+            self.sources
+            if self.sources is not None
+            else self._descriptor_context.package_sources
+        )
+        return deepcopy(list(source_values))
 
     @classmethod
     def from_descriptor(cls, raw: dict[str, Any]) -> "DataResource":
@@ -106,10 +159,7 @@ class DataResource(BaseModel):
                 kwargs[k] = v
             else:
                 extras[k] = v
-        if "dialect" in kwargs and isinstance(kwargs["dialect"], dict):
-            kwargs["dialect"] = TableDialect.from_descriptor(kwargs["dialect"])
-        # Store schema as raw dict for lossless round-trip; callers that need
-        # a TypeSpec can call typespec_from_frictionless(resource.table_schema).
+        # Preserve raw schema and dialect values through this transitional path.
         kwargs["extras"] = extras
         return cls.model_validate(kwargs)
 
@@ -121,19 +171,32 @@ class DataResource(BaseModel):
             out["path"] = self.path
         if self.data is not None:
             out["data"] = self.data
-        for k in ("type", "title", "description", "format", "mediatype",
-                  "encoding", "hash", "sources", "licenses"):
+        for k in (
+            "type",
+            "schema_url",
+            "homepage",
+            "title",
+            "description",
+            "format",
+            "mediatype",
+            "encoding",
+            "hash",
+            "sources",
+            "licenses",
+        ):
             v = getattr(self, k)
             if v is not None:
-                out[k] = v
+                out["$schema" if k == "schema_url" else k] = v
         if self.bytes_ is not None:
             out["bytes"] = self.bytes_
         if self.dialect is not None:
-            d = self.dialect.to_descriptor()
-            if d:
-                out["dialect"] = d
+            if isinstance(self.dialect, TableDialect):
+                dialect = self.dialect.to_descriptor()
+            else:
+                dialect = self.dialect
+            out["dialect"] = dialect
         if self.table_schema is not None:
-            if isinstance(self.table_schema, dict):
+            if isinstance(self.table_schema, (dict, str)):
                 out["schema"] = self.table_schema
             else:
                 out["schema"] = typespec_to_frictionless(self.table_schema)
@@ -143,11 +206,11 @@ class DataResource(BaseModel):
     def to_typespec(self) -> Optional["TypeSpec"]:
         if self.table_schema is None:
             return None
-        from mountainash.typespec.spec import TypeSpec
         if isinstance(self.table_schema, TypeSpec):
             return self.table_schema
         if isinstance(self.table_schema, dict):
             from mountainash.typespec.frictionless import typespec_from_frictionless
+
             return typespec_from_frictionless(self.table_schema)
         raise TypeError(
             f"DataResource {self.name!r}.table_schema must be a dict or TypeSpec, "
@@ -157,7 +220,9 @@ class DataResource(BaseModel):
     def to_contract(self, *, name: Optional[str] = None) -> Any:
         spec = self.to_typespec()
         if spec is None:
-            raise ValueError(f"DataResource {self.name!r} has no table_schema — cannot build a contract")
+            raise ValueError(
+                f"DataResource {self.name!r} has no table_schema — cannot build a contract"
+            )
         return spec.to_contract(name=name)
 
 
