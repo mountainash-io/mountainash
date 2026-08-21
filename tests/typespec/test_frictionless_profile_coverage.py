@@ -105,6 +105,33 @@ def test_committed_profile_coverage_is_closed() -> None:
     assert errors == []
 
 
+def test_ma_v2_01_covers_all_schema_url_rows() -> None:
+    manifest = load_json(PROFILE_DIR / "profile-coverage.json")
+    rows = {
+        row["capability"]: row
+        for row in manifest["rows"]
+        if row["capability"]
+        in {"package:$schema", "resource:$schema", "dialect:$schema", "schema:$schema"}
+    }
+    assert set(rows) == {
+        "package:$schema",
+        "resource:$schema",
+        "dialect:$schema",
+        "schema:$schema",
+    }
+    for row in rows.values():
+        assert all(
+            row[dimension]["status"] == "local_policy"
+            and row[dimension]["decision_reference"] == "MA-V2-01"
+            for dimension in ("storage", "typed", "execution")
+        )
+    contributor_role = next(
+        row for row in manifest["rows"]
+        if row["capability"] == "package:contributors[].role"
+    )
+    assert contributor_role["storage"]["status"] == "implemented"
+
+
 def test_unknown_snapshot_path_fails_closed() -> None:
     profiles = deepcopy(load_profile_set(PROFILE_DIR))
     profiles["datapackage.json"]["properties"]["futureProperty"] = {"type": "string"}

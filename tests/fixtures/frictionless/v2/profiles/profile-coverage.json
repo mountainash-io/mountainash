@@ -79,13 +79,22 @@
     {
       "capability": "dialect:$schema",
       "storage": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "typed": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "execution": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       }
     },
     {
@@ -394,13 +403,22 @@
     {
       "capability": "package:$schema",
       "storage": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "typed": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "execution": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       }
     },
     {
@@ -478,10 +496,7 @@
     {
       "capability": "package:contributors[].role",
       "storage": {
-        "status": "local_policy",
-        "reason": "Mountainash preserves the legacy contributor role alias as local descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -749,13 +764,22 @@
     {
       "capability": "resource:$schema",
       "storage": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "typed": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "execution": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       }
     },
     {
@@ -1047,13 +1071,22 @@
     {
       "capability": "schema:$schema",
       "storage": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "typed": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "execution": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       }
     },
     {
