@@ -41,8 +41,8 @@ _MAPPABLE_DIALECT_FIELDS = frozenset(
 _NATIVE_SAFE_DIALECT_FIELDS = frozenset(
     {"delimiter", "header", "quote_char", "null_sequence"}
 )
-# No dialect metadata fields are ignored. Every reader-set field must remain a
-# current TableDialect field so descriptor/model drift fails closed.
+# No descriptor dialect fields are ignored. ``extras`` is an implementation-only
+# model field and is skipped explicitly in the loops below.
 _IGNORED_DIALECT_FIELDS = frozenset()
 
 _GLOB_CHARS = frozenset("*?[")
@@ -81,7 +81,7 @@ def ensure_dialect_supported(dialect: Any) -> None:
         value = getattr(dialect, name)
         if value is None:
             continue
-        if name in _MAPPABLE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
+        if name == "extras" or name in _MAPPABLE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
             continue
         raise UnsupportedResourceFormat(
             f"CSV dialect field {name!r} is not supported by the "
@@ -122,7 +122,7 @@ def dialect_is_default(dialect: Any) -> bool:
     if dialect.header not in (None, True):
         return False
     for name in type(dialect).model_fields:
-        if name in {"delimiter", "header"} or name in _IGNORED_DIALECT_FIELDS:
+        if name == "extras" or name in {"delimiter", "header"} or name in _IGNORED_DIALECT_FIELDS:
             continue
         if getattr(dialect, name) is not None:
             return False
@@ -143,7 +143,7 @@ def dialect_native_safe(dialect: Any) -> bool:
     if dialect is None:
         return True
     for name in type(dialect).model_fields:
-        if name in _NATIVE_SAFE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
+        if name == "extras" or name in _NATIVE_SAFE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
             continue
         if getattr(dialect, name) is not None:
             return False
@@ -197,7 +197,7 @@ def _archive_and_stem(name: str, gzip_cls, zip_cls):
     return None, name
 
 
-def _file_source_specs(resource: Any) -> list[Any]:
+def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
     """One FileSourceSpec per path entry (spec §A.3). Handles glob + gzip/zip.
     Single-path resources yield a one-element list.
 
@@ -216,7 +216,7 @@ def _file_source_specs(resource: Any) -> list[Any]:
         fmt = _normalise_format(resource, stem)
         format_arg: Any = fmt
         if fmt == "csv":
-            format_arg = _csv_spec_from_dialect(resource.dialect)
+            format_arg = _csv_spec_from_dialect(dialect)
         specs.append(
             FileSourceSpec(path=base, glob=pattern, format=format_arg,
                            archive=archive)
@@ -254,7 +254,7 @@ def _part_data_to_arrow(data: Any, resource_name: str) -> "pa.Table":
     )
 
 
-def parse_resource_to_arrow(resource: Any) -> "pa.Table":
+def parse_resource_to_arrow(resource: Any, *, dialect: Any) -> "pa.Table":
     """Read a DataResource's file(s) into one pyarrow.Table via mountainash-files.
 
     EAGER (full materialization). Local vs remote, glob, and archive expansion
@@ -276,7 +276,7 @@ def parse_resource_to_arrow(resource: Any) -> "pa.Table":
 
     try:
         tables: list[pa.Table] = []
-        for spec in _file_source_specs(resource):
+        for spec in _file_source_specs(resource, dialect):
             for part in parse(spec):
                 tables.append(_part_data_to_arrow(part.data, resource.name))
     except ImportError as exc:  # transitive dep surfacing during parse()

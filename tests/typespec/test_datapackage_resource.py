@@ -20,6 +20,12 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 
+def test_resource_decoding_stays_at_package_boundary() -> None:
+    raw_resource = {"name": "orders", "path": "orders.csv"}
+    package = DataPackage.from_descriptor({"resources": [raw_resource]})
+    assert not hasattr(DataResource, "from_descriptor")
+    assert package.resources[0].to_descriptor() == raw_resource
+
 def test_resource_accepts_raw_schema_and_dialect_references() -> None:
     resource = DataResource(
         name="orders",

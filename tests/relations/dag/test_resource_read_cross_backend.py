@@ -25,6 +25,25 @@ def _get_narwhals_ext():
     return MountainashNarwhalsExtensionRelationSystem()
 
 
+
+
+class CountingResolver:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, object]] = []
+        self.documents = {
+            "schema.json": {
+                "fields": [
+                    {"name": "id", "type": "integer"},
+                    {"name": "name", "type": "string"},
+                ]
+            },
+            "dialect.json": {"delimiter": ";"},
+        }
+
+    def resolve(self, reference, *, base_uri, expected_kind):
+        self.calls.append((reference, expected_kind))
+        return self.documents[reference]
+
 def _get_ibis_ext():
     from mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util import (
         MountainashIbisExtensionRelationSystem,
@@ -118,10 +137,9 @@ def test_polars_json_uses_files_fallback(tmp_path, monkeypatch):
     calls = {"n": 0}
     real = rf.parse_resource_to_arrow
 
-    def spy(resource):
+    def spy(resource, *, dialect):
         calls["n"] += 1
-        return real(resource)
-
+        return real(resource, dialect=dialect)
     monkeypatch.setattr(rf, "parse_resource_to_arrow", spy)
     p = tmp_path / "d.json"; p.write_text('[{"a": 1, "b": "x"}]')
     from mountainash.typespec.datapackage import DataResource
@@ -169,7 +187,10 @@ def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):
     calls = {"n": 0}
     real = rf.parse_resource_to_arrow
     monkeypatch.setattr(rf, "parse_resource_to_arrow",
-                        lambda r: (calls.__setitem__("n", calls["n"] + 1), real(r))[1])
+                        lambda r, *, dialect: (
+                            calls.__setitem__("n", calls["n"] + 1),
+                            real(r, dialect=dialect),
+                        )[1])
     p = tmp_path / "d.json"; p.write_text('[{"a": 1}, {"a": 2}]')
     res = DataResource(name="d", path=str(p), format="json")
     sys.modules.pop("pandas", None)
@@ -185,6 +206,43 @@ def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 _DAG_BACKENDS = ["polars", "narwhals", "ibis"]
+
+@pytest.mark.parametrize("backend", _DAG_BACKENDS)
+def test_referenced_schema_and_dialect_resolve_once_per_backend(backend, tmp_path):
+    from mountainash.typespec.datapackage import DataPackage
+    from mountainash.typespec.descriptor_context import DescriptorKind
+
+    path = tmp_path / "rows.csv"
+    path.write_text("id;name\n1;alice\n2;bob\n")
+    resolver = CountingResolver()
+    package = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "rows",
+                    "path": "rows.csv",
+                    "format": "csv",
+                    "schema": "schema.json",
+                    "dialect": "dialect.json",
+                }
+            ]
+        },
+        base_uri=tmp_path,
+        resolver=resolver,
+    )
+    resource = package.resources[0]
+    resource.path = str(path)
+
+    rows = _to_dict_list(_collect_via_dag(resource, backend))
+
+    assert rows == [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}]
+    assert [kind for _, kind in resolver.calls] == [
+        DescriptorKind.DIALECT,
+        DescriptorKind.SCHEMA,
+    ]
+    assert resource.table_schema == "schema.json"
+    assert resource.dialect == "dialect.json"
+
 
 
 def _collect_via_dag(res, backend: str):
@@ -266,9 +324,9 @@ class TestItem32FallbackViaDAG:
         from mountainash.relations.dag.errors import MissingFilesDependency
         from mountainash.typespec.datapackage import DataResource
 
-        def boom(_resource):
-            raise MissingFilesDependency("needs mountainash[files]")
 
+        def boom(_resource, *, dialect):
+            raise MissingFilesDependency("needs mountainash[files]")
         monkeypatch.setattr(rf, "parse_resource_to_arrow", boom)
         p = tmp_path / "d.json"; p.write_text('[{"a": 1}]')
         res = DataResource(name="d", path=str(p), format="json")
@@ -331,7 +389,10 @@ class TestReaderTimingAndSchema:
         calls = {"n": 0}
         real = rf.parse_resource_to_arrow
         monkeypatch.setattr(rf, "parse_resource_to_arrow",
-                            lambda r: (calls.__setitem__("n", calls["n"] + 1), real(r))[1])
+                            lambda r, *, dialect: (
+                                calls.__setitem__("n", calls["n"] + 1),
+                                real(r, dialect=dialect),
+                            )[1])
         p = tmp_path / "d.csv"; p.write_text("a\n1\n")
         res = DataResource(name="d", path=str(p), format="csv")
         _to_dict_list(_collect_via_dag(res, backend))
@@ -344,7 +405,10 @@ class TestReaderTimingAndSchema:
         calls = {"n": 0}
         real = rf.parse_resource_to_arrow
         monkeypatch.setattr(rf, "parse_resource_to_arrow",
-                            lambda r: (calls.__setitem__("n", calls["n"] + 1), real(r))[1])
+                            lambda r, *, dialect: (
+                                calls.__setitem__("n", calls["n"] + 1),
+                                real(r, dialect=dialect),
+                            )[1])
         p = tmp_path / "d.json"; p.write_text('[{"a": 1}]')
         res = DataResource(name="d", path=str(p), format="json")
         _to_dict_list(_collect_via_dag(res, backend))
@@ -386,8 +450,7 @@ class TestReaderTimingAndSchema:
         import mountainash.relations.backends.relation_systems.resource_files as rf
         from mountainash.typespec.datapackage import DataResource
         called = {"n": 0}
-
-        def fake_parse(resource):
+        def fake_parse(resource, *, dialect):
             called["n"] += 1
             return pa.table({"a": [1, 2]})
 

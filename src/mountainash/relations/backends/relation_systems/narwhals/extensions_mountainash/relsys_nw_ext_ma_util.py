@@ -117,6 +117,7 @@ class MountainashNarwhalsExtensionRelationSystem(
             MountainashPolarsExtensionRelationSystem,
         )
 
+        dialect = resource.to_dialect()
         if resource.data is not None:
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
             return nw.from_native(lf)  # stays lazy
@@ -127,25 +128,27 @@ class MountainashNarwhalsExtensionRelationSystem(
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
         # Uniform fail-closed (consistency-guarantees) -- see the Polars reader.
         if fmt == "csv":
-            rf.ensure_dialect_supported(resource.dialect)
+            rf.ensure_dialect_supported(dialect)
         raw_path = resource.path
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
         all_local = all(not is_remote(p) for p in paths)
         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
         no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
 
-        # A native-unsafe CSV dialect (e.g. escape_char) routes to the fallback so
-        # it is honoured identically to the other backends (consistency-guarantees).
-        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(resource.dialect)
+        # A native-unsafe CSV dialect (e.g. escape_char) routes to the fallback
+        # so it is honoured identically to the other backends.
+        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(dialect)
         if all_local and no_glob and no_archive and fmt in ("csv", "parquet") and native_dialect_ok:
-            kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(resource, fmt)
+            kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
+                resource, fmt, dialect
+            )
             scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
             frames = [scan(p, backend="polars", **(kwargs if fmt == "csv" else {})) for p in paths]
             return frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")
 
         # Files fallback: Arrow -> Polars lazy -> Narwhals lazy.
         import polars as pl
-        table = rf.parse_resource_to_arrow(resource)
+        table = rf.parse_resource_to_arrow(resource, dialect=dialect)
         return nw.from_native(pl.from_arrow(table).lazy())
 
     def empty_frame(self, spec: Any) -> Any:
