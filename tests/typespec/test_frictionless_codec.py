@@ -163,6 +163,28 @@ def test_unknown_extension_properties_are_preserved_at_each_level() -> None:
     assert resource.table_schema["schemaExtension"] == 1
     assert resource.dialect["dialectExtension"] == 2
 
+@pytest.mark.parametrize(
+    "profile_uri",
+    [
+        "https://datapackage.org/schemas/data-package.json",
+        "https://specs.frictionlessdata.io/profiles/1.0/datapackage.json",
+    ],
+)
+def test_unrecognized_cross_family_profile_uris_are_preserved(profile_uri) -> None:
+    raw = {"$schema": profile_uri, **minimal_descriptor()}
+    assert DataPackage.from_descriptor(raw).dollar_schema == profile_uri
+
+
+def test_mixed_local_and_remote_path_array_is_accepted() -> None:
+    path = ["orders.csv", "https://example.com/orders-2.csv"]
+    package = DataPackage.from_descriptor({"resources": [{"name": "orders", "path": path}]})
+    assert package.resources[0].path == path
+
+
+def test_negative_integer_bytes_is_accepted() -> None:
+    raw = {"resources": [{"name": "orders", "path": "orders.csv", "bytes": -1}]}
+    assert DataPackage.from_descriptor(raw).resources[0].bytes_ == -1
+
 def test_decoder_binds_one_shared_context_and_inherited_sources() -> None:
     raw = {
         "sources": [{"title": "catalog", "extension": {"owner": "team"}}],
@@ -182,7 +204,7 @@ def test_decoder_binds_one_shared_context_and_inherited_sources() -> None:
 
 
 _V1_URIS = [
-    *(f"https://datapackage.org/profiles/1.0/{name}.json" for name in ("datapackage", "dataresource", "tabledialect", "tableschema")),
+    *(f"{scheme}://datapackage.org/profiles/1.0/{name}.json" for scheme in ("http", "https") for name in ("datapackage", "dataresource", "tabledialect", "tableschema")),
     *(f"{scheme}://{www}specs.frictionlessdata.io/schemas/{name}.json" for scheme in ("http", "https") for www in ("", "www.") for name in ("data-package", "data-resource", "tabular-data-resource", "tabular-data-package", "fiscal-data-package", "table-schema", "csv-dialect")),
     *(f"{scheme}://{www}frictionlessdata.io/schemas/{name}.json" for scheme in ("http", "https") for www in ("", "www.") for name in ("data-package", "data-resource", "tabular-data-resource", "tabular-data-package", "fiscal-data-package", "table-schema", "csv-dialect")),
 ]

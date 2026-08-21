@@ -38,11 +38,37 @@ from mountainash.typespec.errors import (
 V2_HASH_PATTERN = re.compile(r"^([^:]+:[a-fA-F0-9]+|[a-fA-F0-9]{32}|)$")
 _CREATED_ADAPTER = TypeAdapter(AwareDatetime)
 
-_V1_PROFILE_PATHS = {
-    *(f"/profiles/1.0/{name}.json" for name in ("datapackage", "dataresource", "tabledialect", "tableschema")),
-    *(f"/schemas/{name}.json" for name in ("data-package", "data-resource", "tabular-data-resource", "tabular-data-package", "fiscal-data-package", "table-schema", "csv-dialect")),
+_V1_PROFILE_PATHS_BY_HOST = {
+    "datapackage.org": {
+        f"/profiles/1.0/{name}.json"
+        for name in ("datapackage", "dataresource", "tabledialect", "tableschema")
+    },
+    "specs.frictionlessdata.io": {
+        f"/schemas/{name}.json"
+        for name in (
+            "data-package",
+            "data-resource",
+            "tabular-data-resource",
+            "tabular-data-package",
+            "fiscal-data-package",
+            "table-schema",
+            "csv-dialect",
+        )
+    },
+    "frictionlessdata.io": {
+        f"/schemas/{name}.json"
+        for name in (
+            "data-package",
+            "data-resource",
+            "tabular-data-resource",
+            "tabular-data-package",
+            "fiscal-data-package",
+            "table-schema",
+            "csv-dialect",
+        )
+    },
 }
-_V1_PROFILE_HOSTS = {"datapackage.org", "specs.frictionlessdata.io", "frictionlessdata.io"}
+_V1_PROFILE_HOSTS = set(_V1_PROFILE_PATHS_BY_HOST)
 
 _PACKAGE_FIELDS = {
     "name", "id", "licenses", "$schema", "title", "description", "homepage",
@@ -209,7 +235,10 @@ def _profile_identity(value: Any) -> tuple[str, str] | None:
 
 def _is_v1_profile_uri(value: Any) -> bool:
     identity = _profile_identity(value)
-    return identity is not None and identity[1] in _V1_PROFILE_PATHS
+    if identity is None:
+        return False
+    host, path = identity
+    return path in _V1_PROFILE_PATHS_BY_HOST[host]
 
 
 def _reject_v1_schema(mapping: Mapping[str, Any], *, path: str, kind: str, resource_name: str | None = None) -> None:
@@ -419,28 +448,18 @@ def _validate_resource_path(value: Any, *, path: str, resource_name: str | None)
             descriptor_kind="resource",
             resource_name=resource_name,
         )
-    remote_flags = {_is_remote_path(item) for item in values}
-    if len(remote_flags) > 1:
-        raise _structure_error(
-            "resource path list cannot mix local paths and remote URLs",
-            descriptor_path=path,
-            rejected_value=value,
-            required_form="all local paths or all remote URLs",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    if remote_flags == {True}:
-        return
-    if any(item.startswith("/") for item in values if isinstance(item, str)):
-        raise _structure_error(
-            "local resource paths must be relative",
-            descriptor_path=path,
-            rejected_value=value,
-            required_form="relative local path",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
     for item in values:
+        if _is_remote_path(item):
+            continue
+        if item.startswith("/"):
+            raise _structure_error(
+                "local resource paths must be relative",
+                descriptor_path=path,
+                rejected_value=value,
+                required_form="relative local path",
+                descriptor_kind="resource",
+                resource_name=resource_name,
+            )
         segments = item.split("/")
         for segment in segments:
             if segment in {".", ".."} or segment.startswith("."):
@@ -595,12 +614,12 @@ def _validate_resource(raw: Mapping[str, Any], *, path: str) -> None:
     for key in ("title", "description", "homepage", "format", "mediatype", "encoding", "hash"):
         _ensure_string(raw, key, path, kind="resource", resource_name=resource_name)
     _ensure_string(raw, "$schema", path, kind="resource", resource_name=resource_name)
-    if "bytes" in raw and (isinstance(raw["bytes"], bool) or not isinstance(raw["bytes"], int) or raw["bytes"] < 0):
+    if "bytes" in raw and (isinstance(raw["bytes"], bool) or not isinstance(raw["bytes"], int)):
         raise _structure_error(
-            "resource bytes must be a non-negative integer",
+            "resource bytes must be an integer",
             descriptor_path=f"{path}.bytes",
             rejected_value=raw["bytes"],
-            required_form="non-negative integer",
+            required_form="integer",
             descriptor_kind="resource",
             resource_name=resource_name,
         )
