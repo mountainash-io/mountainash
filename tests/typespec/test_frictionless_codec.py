@@ -543,3 +543,38 @@ def test_raw_resource_tests_use_package_decoder() -> None:
     raw = {"name": "orders", "path": "orders.csv", "futurePropX": 42}
     resource = DataPackage.from_descriptor({"resources": [raw]}).resources[0]
     assert resource.extras == {"futurePropX": 42}
+
+
+def test_canonical_preserves_nested_profile_extensions() -> None:
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="orders",
+                path="orders.csv",
+                schema={"profile": {"name": "schema-extension"}, "fields": []},
+                dialect={"profile": {"name": "dialect-extension"}},
+            )
+        ]
+    )
+    result = package.to_canonical_descriptor()
+    assert result["resources"][0]["schema"]["profile"] == {"name": "schema-extension"}
+    assert result["resources"][0]["dialect"]["profile"] == {"name": "dialect-extension"}
+
+
+def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None:
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="orders",
+                path="orders.csv",
+                dialect={
+                    "line_terminator": "\\n",
+                    "lineTerminator": "\\r\\n",
+                },
+            )
+        ]
+    )
+    result = package.to_canonical_descriptor()
+    dialect = result["resources"][0]["dialect"]
+    assert dialect["line_terminator"] == "\\n"
+    assert dialect["lineTerminator"] == "\\r\\n"

@@ -903,23 +903,6 @@ _PACKAGE_PROFILE = "https://datapackage.org/profiles/2.0/datapackage.json"
 _RESOURCE_PROFILE = "https://datapackage.org/profiles/2.0/dataresource.json"
 _SCHEMA_PROFILE = "https://datapackage.org/profiles/2.0/tableschema.json"
 _DIALECT_PROFILE = "https://datapackage.org/profiles/2.0/tabledialect.json"
-_DIALECT_CANONICAL_KEYS = {
-    "schema_url": "$schema",
-    "line_terminator": "lineTerminator",
-    "quote_char": "quoteChar",
-    "double_quote": "doubleQuote",
-    "escape_char": "escapeChar",
-    "null_sequence": "nullSequence",
-    "skip_initial_space": "skipInitialSpace",
-    "header_rows": "headerRows",
-    "header_join": "headerJoin",
-    "comment_char": "commentChar",
-    "comment_rows": "commentRows",
-    "item_type": "itemType",
-    "item_keys": "itemKeys",
-    "sheet_name": "sheetName",
-    "sheet_number": "sheetNumber",
-}
 
 
 def _encode_resource_preserve(resource: DataResource) -> dict[str, Any]:
@@ -1024,17 +1007,13 @@ def _canonicalize_contributors(value: Any) -> Any:
     return result
 
 
-def _canonicalize_dialect(value: Any) -> Any:
+def _canonicalize_dialect(value: Any, *, typed: bool = False) -> Any:
     if not isinstance(value, Mapping):
         return deepcopy(value)
-    result: dict[str, Any] = {}
-    for key, raw_value in value.items():
-        if key in {"profile", "caseSensitiveHeader", "csvddfVersion"}:
-            continue
-        canonical_key = _DIALECT_CANONICAL_KEYS.get(key, key)
-        if canonical_key in result and key != canonical_key:
-            continue
-        result[canonical_key] = deepcopy(raw_value)
+    result = deepcopy(dict(value))
+    if typed:
+        for marker in ("caseSensitiveHeader", "csvddfVersion"):
+            result.pop(marker, None)
     result["$schema"] = _canonical_profile(result.get("$schema"), _DIALECT_PROFILE)
     return result
 
@@ -1043,7 +1022,6 @@ def _canonicalize_schema(value: Any, *, resource_name: str) -> Any:
     if not isinstance(value, Mapping):
         return deepcopy(value)
     result = deepcopy(dict(value))
-    result.pop("profile", None)
     result["$schema"] = _canonical_profile(result.get("$schema"), _SCHEMA_PROFILE)
     if "primaryKey" in result:
         result["primaryKey"] = _as_string_list(result["primaryKey"])
@@ -1072,16 +1050,21 @@ def _canonicalize_schema(value: Any, *, resource_name: str) -> Any:
 
 def _encode_package_canonical(package: DataPackage) -> dict[str, Any]:
     """Encode a package with the section 10.2 canonical normalizations."""
+    from mountainash.typespec.datapackage import TableDialect
+
     result = _encode_package_preserve(package)
     result["$schema"] = _canonical_profile(result.get("$schema"), _PACKAGE_PROFILE)
     if "contributors" in result:
         result["contributors"] = _canonicalize_contributors(result["contributors"])
-    for resource in result["resources"]:
+    for resource, resource_model in zip(result["resources"], package.resources):
         resource["$schema"] = _canonical_profile(resource.get("$schema"), _RESOURCE_PROFILE)
         if resource.get("type") != "table":
             resource.pop("type", None)
         if "dialect" in resource:
-            resource["dialect"] = _canonicalize_dialect(resource["dialect"])
+            resource["dialect"] = _canonicalize_dialect(
+                resource["dialect"],
+                typed=isinstance(resource_model.dialect, TableDialect),
+            )
         if "schema" in resource:
             resource["schema"] = _canonicalize_schema(
                 resource["schema"],
