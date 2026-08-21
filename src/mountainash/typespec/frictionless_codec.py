@@ -1007,13 +1007,12 @@ def _canonicalize_contributors(value: Any) -> Any:
     return result
 
 
-def _canonicalize_dialect(value: Any, *, typed: bool = False) -> Any:
+def _canonicalize_dialect(value: Any) -> Any:
     if not isinstance(value, Mapping):
         return deepcopy(value)
     result = deepcopy(dict(value))
-    if typed:
-        for marker in ("caseSensitiveHeader", "csvddfVersion"):
-            result.pop(marker, None)
+    for marker in ("caseSensitiveHeader", "csvddfVersion"):
+        result.pop(marker, None)
     result["$schema"] = _canonical_profile(result.get("$schema"), _DIALECT_PROFILE)
     return result
 
@@ -1050,21 +1049,16 @@ def _canonicalize_schema(value: Any, *, resource_name: str) -> Any:
 
 def _encode_package_canonical(package: DataPackage) -> dict[str, Any]:
     """Encode a package with the section 10.2 canonical normalizations."""
-    from mountainash.typespec.datapackage import TableDialect
-
     result = _encode_package_preserve(package)
     result["$schema"] = _canonical_profile(result.get("$schema"), _PACKAGE_PROFILE)
     if "contributors" in result:
         result["contributors"] = _canonicalize_contributors(result["contributors"])
-    for resource, resource_model in zip(result["resources"], package.resources):
+    for resource in result["resources"]:
         resource["$schema"] = _canonical_profile(resource.get("$schema"), _RESOURCE_PROFILE)
         if resource.get("type") != "table":
             resource.pop("type", None)
         if "dialect" in resource:
-            resource["dialect"] = _canonicalize_dialect(
-                resource["dialect"],
-                typed=isinstance(resource_model.dialect, TableDialect),
-            )
+            resource["dialect"] = _canonicalize_dialect(resource["dialect"])
         if "schema" in resource:
             resource["schema"] = _canonicalize_schema(
                 resource["schema"],

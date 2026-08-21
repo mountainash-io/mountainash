@@ -568,6 +568,9 @@ def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None
                 name="orders",
                 path="orders.csv",
                 dialect={
+                    "profile": {"name": "dialect-extension"},
+                    "caseSensitiveHeader": True,
+                    "csvddfVersion": "1.0",
                     "line_terminator": "\\n",
                     "lineTerminator": "\\r\\n",
                 },
@@ -578,3 +581,6 @@ def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None
     dialect = result["resources"][0]["dialect"]
     assert dialect["line_terminator"] == "\\n"
     assert dialect["lineTerminator"] == "\\r\\n"
+    assert dialect["profile"] == {"name": "dialect-extension"}
+    assert "caseSensitiveHeader" not in dialect
+    assert "csvddfVersion" not in dialect
