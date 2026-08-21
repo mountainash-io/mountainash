@@ -272,14 +272,18 @@ def test_unsupported_dialect_options_are_execution_deferred() -> None:
     unsupported = {
         "dialect:commentChar",
         "dialect:commentRows[]",
+        "dialect:doubleQuote",
         "dialect:headerJoin",
         "dialect:headerRows[]",
         "dialect:itemKeys[]",
         "dialect:itemType",
+        "dialect:itemType=value:\"array\"",
+        "dialect:itemType=value:\"object\"",
         "dialect:lineTerminator",
         "dialect:property",
         "dialect:sheetName",
         "dialect:sheetNumber",
+        "dialect:skipInitialSpace",
         "dialect:table",
     }
     assert all(

@@ -422,7 +422,12 @@ def _field_capability_paths(
         for root in roots:
             paths.update(f"{root}{alias}{suffix}" for suffix in suffixes)
     if extension_name is not None:
-        for root in roots:
+        extension_roots = (
+            ("schema:fields[].",)
+            if class_name == "FieldConstraints" and field_name == "enum_weights"
+            else roots
+        )
+        for root in extension_roots:
             paths.update(
                 f"x-mountainash:{root}{extension_name}{suffix}" for suffix in suffixes
             )

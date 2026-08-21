@@ -3,10 +3,10 @@
   "source_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
   "prose_capabilities": [
     {
-      "capability": "x-mountainash:descriptor.profile",
+      "capability": "package:contributors[].role",
       "source_url": "https://datapackage.org/standard/data-package/",
-      "section_anchor": "#profiles",
-      "quotation": "A descriptor profile declaration is handled by Mountainash policy but is absent from the pinned profile schema.",
+      "section_anchor": "#contributors",
+      "quotation": "Contributor role metadata is accepted by the Mountainash descriptor model but is absent from the pinned profile schema.",
       "absent_from_profile": true
     }
   ],
@@ -141,7 +141,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -244,7 +248,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -256,7 +264,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -356,7 +368,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -462,14 +478,18 @@
     {
       "capability": "package:contributors[].role",
       "storage": {
-        "status": "implemented"
+        "status": "local_policy",
+        "reason": "Mountainash preserves the legacy contributor role alias as local descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
       },
       "typed": {
         "status": "implemented"
       },
       "execution": {
         "status": "implemented"
-      }
+      },
+      "absent_from_profile": true
     },
     {
       "capability": "package:contributors[].roles[]",
@@ -2015,28 +2035,6 @@
       }
     },
     {
-      "capability": "x-mountainash:descriptor.profile",
-      "absent_from_profile": true,
-      "storage": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats descriptor profile metadata as optional.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
-      },
-      "typed": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats descriptor profile metadata as optional.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
-      },
-      "execution": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats descriptor profile metadata as optional.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
-      }
-    },
-    {
       "capability": "x-mountainash:schema:contract",
       "storage": {
         "status": "implemented"
@@ -2061,7 +2059,7 @@
       }
     },
     {
-      "capability": "x-mountainash:schema:fields[].constraints.enum_weights",
+      "capability": "x-mountainash:schema:fields[].custom_cast",
       "storage": {
         "status": "implemented"
       },
@@ -2073,7 +2071,7 @@
       }
     },
     {
-      "capability": "x-mountainash:schema:fields[].custom_cast",
+      "capability": "x-mountainash:schema:fields[].enum_weights",
       "storage": {
         "status": "implemented"
       },
