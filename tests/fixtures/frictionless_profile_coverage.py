@@ -17,6 +17,25 @@ from typing import Any, get_args, get_origin
 _PROFILE_COMMIT = "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09"
 _PROFILE_NAMES = ("datapackage.json", "dataresource.json", "tabledialect.json", "tableschema.json")
 _ROOT_KINDS = frozenset({"package", "resource", "dialect", "schema"})
+_DESIGN_REFERENCE = (
+    "2026-08-20-frictionless-v2-descriptor-codec-design.md"
+    "#source-exceptions-and-local-policy"
+)
+_UPSTREAM_EXCEPTION_PATHS = {
+    "DP-V2-01": frozenset({"schema:fields[].type=value:\"list\""}),
+    "DP-V2-02": frozenset({"schema:fields[].type=value:\"string\""}),
+    "DP-V2-03": frozenset(
+        {
+            "package:$schema",
+            "resource:$schema",
+            "dialect:$schema",
+            "schema:$schema",
+        }
+    ),
+    "DP-V2-04": frozenset({"schema:fields[].itemType"}),
+    "DP-V2-05": frozenset({"resource:dialect"}),
+    "DP-V2-06": frozenset({"package:contributors[].role"}),
+}
 _SCHEMA_ANNOTATION_KEYS = frozenset(
     {
         "$schema",
@@ -691,13 +710,90 @@ def validate_profile_coverage(
     source_commit = manifest.get("source_commit")
     if source_commit != _PROFILE_COMMIT:
         errors.append(("manifest", "source_commit: manifest commit does not match pinned profile commit"))
-    for exception in manifest.get("upstream_exceptions", []):
+    exceptions = manifest.get("upstream_exceptions", [])
+    if not isinstance(exceptions, list):
+        errors.append(("manifest", "upstream_exceptions: must be a list"))
+        exceptions = []
+    seen_discrepancies: set[str] = set()
+    for exception in exceptions:
         if not isinstance(exception, Mapping):
             errors.append(("manifest", "upstream exception: record must be an object"))
             continue
+        discrepancy_id = exception.get("discrepancy_id")
+        if not isinstance(discrepancy_id, str):
+            errors.append(("manifest", "upstream exception: discrepancy_id is required"))
+            continue
+        expected_paths = _UPSTREAM_EXCEPTION_PATHS.get(discrepancy_id)
+        if expected_paths is None:
+            errors.append(
+                (discrepancy_id, f"{discrepancy_id}: unknown upstream discrepancy")
+            )
+            continue
+        if discrepancy_id in seen_discrepancies:
+            errors.append(
+                (discrepancy_id, f"{discrepancy_id}: duplicate upstream discrepancy")
+            )
+        seen_discrepancies.add(discrepancy_id)
         evidence_commit = exception.get("evidence_commit")
         if evidence_commit != source_commit:
-            affected = exception.get("affected_path") or exception.get("discrepancy_id") or "unknown"
-            errors.append((str(affected), f"{affected}: evidence_commit does not match source_commit"))
-
+            errors.append(
+                (
+                    discrepancy_id,
+                    f"{discrepancy_id}: evidence_commit does not match source_commit",
+                )
+            )
+        affected_path = exception.get("affected_path")
+        affected_paths = exception.get("affected_paths")
+        if affected_paths is None:
+            paths = (affected_path,) if isinstance(affected_path, str) else ()
+        elif isinstance(affected_paths, list) and all(
+            isinstance(path, str) for path in affected_paths
+        ):
+            paths = tuple(affected_paths)
+            if affected_path != paths[0] if paths else affected_path is not None:
+                errors.append(
+                    (
+                        discrepancy_id,
+                        f"{discrepancy_id}: affected_path must match the first affected_paths entry",
+                    )
+                )
+        else:
+            paths = ()
+            errors.append(
+                (
+                    discrepancy_id,
+                    f"{discrepancy_id}: affected_paths must be a list of strings",
+                )
+            )
+        if frozenset(paths) != expected_paths:
+            errors.append(
+                (
+                    discrepancy_id,
+                    f"{discrepancy_id}: affected_path {paths!r} does not match "
+                    f"the expected capability path(s) {sorted(expected_paths)!r}",
+                )
+            )
+        for path in paths:
+            if path not in known_ids:
+                errors.append(
+                    (
+                        discrepancy_id,
+                        f"{discrepancy_id}: affected_path {path!r} is not a known capability",
+                    )
+                )
+        if exception.get("decision_reference") != _DESIGN_REFERENCE:
+            errors.append(
+                (
+                    discrepancy_id,
+                    f"{discrepancy_id}: decision_reference must point to the design spec",
+                )
+            )
+        if exception.get("review_date") != "2026-08-20":
+            errors.append(
+                (discrepancy_id, f"{discrepancy_id}: review_date must be 2026-08-20")
+            )
+    for discrepancy_id in sorted(set(_UPSTREAM_EXCEPTION_PATHS) - seen_discrepancies):
+        errors.append(
+            (discrepancy_id, f"{discrepancy_id}: upstream exception record is missing")
+        )
     return [error for _capability, error in sorted(errors, key=lambda item: (item[0], item[1]))]

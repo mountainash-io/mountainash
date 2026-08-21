@@ -107,6 +107,12 @@ def test_committed_profile_coverage_is_closed() -> None:
 
 def test_ma_v2_01_covers_all_schema_url_rows() -> None:
     manifest = load_json(PROFILE_DIR / "profile-coverage.json")
+    policy = next(
+        item for item in manifest["local_policies"] if item["decision_id"] == "MA-V2-01"
+    )
+    assert "interpreted as v2" in policy["normative_behavior"]
+    assert "canonical output emits" in policy["selected_behavior"]
+    assert "preserve output keeps it absent" in policy["selected_behavior"]
     rows = {
         row["capability"]: row
         for row in manifest["rows"]
@@ -129,7 +135,8 @@ def test_ma_v2_01_covers_all_schema_url_rows() -> None:
         row for row in manifest["rows"]
         if row["capability"] == "package:contributors[].role"
     )
-    assert contributor_role["storage"]["status"] == "implemented"
+    assert contributor_role["storage"]["status"] == "upstream_exception"
+    assert contributor_role["storage"]["discrepancy_id"] == "DP-V2-06"
 
 
 def test_unknown_snapshot_path_fails_closed() -> None:
@@ -346,3 +353,17 @@ def test_evidence_commit_mutation_is_named() -> None:
         manifest=manifest,
     )
     assert any("evidence_commit" in error for error in errors)
+
+def test_wrong_upstream_exception_attribution_fails_closed() -> None:
+    manifest = deepcopy(load_json(PROFILE_DIR / "profile-coverage.json"))
+    exception = next(
+        item
+        for item in manifest["upstream_exceptions"]
+        if item["discrepancy_id"] == "DP-V2-06"
+    )
+    exception["affected_path"] = "package:licenses[].path"
+    errors = validate_profile_coverage(
+        profiles=load_profile_set(PROFILE_DIR),
+        manifest=manifest,
+    )
+    assert any("DP-V2-06" in error and "affected_path" in error for error in errors)

@@ -244,6 +244,45 @@ def test_referenced_schema_and_dialect_resolve_once_per_backend(backend, tmp_pat
     assert resource.dialect == "dialect.json"
 
 
+def test_referenced_schema_inference_matches_inline_schema(tmp_path):
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+        ResourceReadRelNode,
+    )
+    from mountainash.relations.schema_inference import infer_schema
+    from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+        _declared_polars_schema,
+    )
+    from mountainash.typespec.datapackage import DataPackage
+
+    (tmp_path / "schema.json").write_text(
+        '{"fields": [{"name": "id", "type": "integer"}]}',
+        encoding="utf-8",
+    )
+    package = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "referenced",
+                    "path": "rows.csv",
+                    "schema": "schema.json",
+                }
+            ]
+        },
+        base_uri=tmp_path,
+    )
+    referenced = package.resources[0]
+    inline = DataResource(
+        name="inline",
+        path="rows.csv",
+        schema={"fields": [{"name": "id", "type": "integer"}]},
+    )
+
+    assert _declared_polars_schema(referenced) == {"id": pl.Int64}
+    assert _declared_polars_schema(referenced) == _declared_polars_schema(inline)
+    assert infer_schema(ResourceReadRelNode(resource=referenced)) == infer_schema(
+        ResourceReadRelNode(resource=inline)
+    )
+
 
 def _collect_via_dag(res, backend: str):
     """Read a DataResource through a real one-node RelationDAG on `backend`.

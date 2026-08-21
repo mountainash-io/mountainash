@@ -191,6 +191,16 @@ class TestFromFrictionless:
         assert spec.fields[1].name == "label"
         assert spec.fields[1].type == UniversalType.STRING
 
+
+    def test_mapping_only_rejects_json_text_and_paths(self, tmp_path: Path):
+        descriptor = {"fields": [{"name": "id", "type": "integer"}]}
+        path = tmp_path / "schema.json"
+        path.write_text(json.dumps(descriptor), encoding="utf-8")
+
+        with pytest.raises(TypeError, match="resolved schema mapping"):
+            typespec_from_frictionless(path)
+        with pytest.raises(TypeError, match="resolved schema mapping"):
+            typespec_from_frictionless(path.read_text(encoding="utf-8"))
     def test_title_description_imported(self):
         descriptor = {
             "title": "My Schema",

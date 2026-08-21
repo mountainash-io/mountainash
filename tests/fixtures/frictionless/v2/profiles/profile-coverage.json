@@ -8,70 +8,96 @@
       "section_anchor": "#contributors",
       "quotation": "Contributor role metadata is accepted by the Mountainash descriptor model but is absent from the pinned profile schema.",
       "absent_from_profile": true
+    },
+    {
+      "capability": "resource:dialect",
+      "source_url": "https://datapackage.org/standard/data-resource/",
+      "section_anchor": "#dialect",
+      "quotation": "The v2 Data Resource prose permits dialect as an object or URL-or-Path string.",
+      "absent_from_profile": true
+    },
+    {
+      "capability": "schema:fields[].type=value:\"list\"",
+      "source_url": "https://datapackage.org/standard/table-schema/",
+      "section_anchor": "#list",
+      "quotation": "The v2 Table Schema prose defines list as a field type, but the pinned profile omits the list branch.",
+      "absent_from_profile": true
     }
   ],
   "upstream_exceptions": [
     {
       "discrepancy_id": "DP-V2-01",
       "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
-      "prose_evidence": "The v2 profile retains the table resource type branch.",
-      "affected_path": "resource:type=value:\"table\"",
-      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "prose_evidence": "The v2 Table Schema prose defines `list` as a field type, but the pinned profile omits the list branch.",
+      "affected_path": "schema:fields[].type=value:\"list\"",
+      "selected_behavior": "Preserve the pinned profile snapshot; record the missing list branch for downstream typed work.",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#source-exceptions-and-local-policy",
       "review_date": "2026-08-20"
     },
     {
       "discrepancy_id": "DP-V2-02",
       "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
-      "prose_evidence": "The v2 profile permits a resource path array.",
-      "affected_path": "resource:path[]",
-      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "prose_evidence": "The v2 prose says an omitted field type selects `any`, while the pinned profile selects `string`.",
+      "affected_path": "schema:fields[].type=value:\"string\"",
+      "selected_behavior": "Preserve the pinned profile snapshot; defer the omitted-type `any` interpretation to Unit B.",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#source-exceptions-and-local-policy",
       "review_date": "2026-08-20"
     },
     {
       "discrepancy_id": "DP-V2-03",
       "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
-      "prose_evidence": "The v2 profile includes the year field type.",
-      "affected_path": "schema:fields[].type=value:\"year\"",
-      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "prose_evidence": "All four v2 descriptor profiles declare v1 `$schema` defaults.",
+      "affected_path": "package:$schema",
+      "affected_paths": [
+        "package:$schema",
+        "resource:$schema",
+        "dialect:$schema",
+        "schema:$schema"
+      ],
+      "selected_behavior": "MA-V2-01 treats omission as v2 for all four descriptor kinds; explicit v1 identities remain rejected.",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#source-exceptions-and-local-policy",
       "review_date": "2026-08-20"
     },
     {
       "discrepancy_id": "DP-V2-04",
       "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
-      "prose_evidence": "The v2 profile includes the topojson format branch.",
-      "affected_path": "schema:fields[].format=value:\"topojson\"",
-      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "prose_evidence": "The v2 list section misspells `datetime` as `datetme` in `itemType`.",
+      "affected_path": "schema:fields[].itemType",
+      "selected_behavior": "Record the `datetme` prose typo and defer its typed interpretation to the owning unit.",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#source-exceptions-and-local-policy",
       "review_date": "2026-08-20"
     },
     {
       "discrepancy_id": "DP-V2-05",
       "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
-      "prose_evidence": "The v2 profile includes structured array item types.",
-      "affected_path": "dialect:itemType=value:\"array\"",
-      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "prose_evidence": "The v2 resource prose permits a dialect URL-or-Path reference, while the pinned profile accepts only an object.",
+      "affected_path": "resource:dialect",
+      "selected_behavior": "Preserve raw dialect reference storage and resolve it one hop through descriptor context.",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#source-exceptions-and-local-policy",
       "review_date": "2026-08-20"
     },
     {
       "discrepancy_id": "DP-V2-06",
       "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
-      "prose_evidence": "The v2 profile retains path-based license descriptors.",
-      "affected_path": "package:licenses[].path",
-      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "prose_evidence": "The v2 package profile omits contributor `role` even though prose requires fallback when `roles` is absent.",
+      "affected_path": "package:contributors[].role",
+      "selected_behavior": "Use `roles` when present and singular `role` as fallback; canonical output emits `roles`.",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#source-exceptions-and-local-policy",
       "review_date": "2026-08-20"
     }
   ],
   "local_policies": [
     {
       "decision_id": "MA-V2-01",
-      "normative_behavior": "Descriptor $schema is optional and absent values remain absent.",
-      "selected_behavior": "Do not synthesize a $schema value when decoding or encoding any descriptor kind.",
+      "normative_behavior": "An omitted $schema is interpreted as v2, not rejected or treated as v1; canonical output emits the corresponding standard v2 URI, while preserve output leaves an omitted value absent.",
+      "selected_behavior": "Treat omitted $schema as v2 for package, resource, dialect, and schema descriptors; canonical output emits the standard v2 URI, while preserve output keeps it absent.",
       "affected_kinds": [
         "package",
         "resource",
         "dialect",
         "schema"
       ],
-      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec.md#ma-v2-01",
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec-design.md#ma-v2-01",
       "review_date": "2026-08-20"
     }
   ],
@@ -80,19 +106,19 @@
       "capability": "dialect:$schema",
       "storage": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "typed": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "execution": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       }
@@ -248,10 +274,7 @@
     {
       "capability": "dialect:itemType=value:\"array\"",
       "storage": {
-        "status": "upstream_exception",
-        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
-        "discrepancy_id": "DP-V2-05",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -404,19 +427,19 @@
       "capability": "package:$schema",
       "storage": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "typed": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "execution": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       }
@@ -496,7 +519,10 @@
     {
       "capability": "package:contributors[].role",
       "storage": {
-        "status": "implemented"
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-06",
+        "review_date": "2026-08-20"
       },
       "typed": {
         "status": "implemented"
@@ -629,10 +655,7 @@
     {
       "capability": "package:licenses[].path",
       "storage": {
-        "status": "upstream_exception",
-        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
-        "discrepancy_id": "DP-V2-06",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -765,19 +788,19 @@
       "capability": "resource:$schema",
       "storage": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "typed": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "execution": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       }
@@ -809,6 +832,22 @@
         "owner_unit": "D",
         "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-d"
       }
+    },
+    {
+      "capability": "resource:dialect",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-05",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      },
+      "absent_from_profile": true
     },
     {
       "capability": "resource:description",
@@ -957,10 +996,7 @@
     {
       "capability": "resource:path[]",
       "storage": {
-        "status": "upstream_exception",
-        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
-        "discrepancy_id": "DP-V2-02",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -1056,10 +1092,7 @@
     {
       "capability": "resource:type=value:\"table\"",
       "storage": {
-        "status": "upstream_exception",
-        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
-        "discrepancy_id": "DP-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -1072,19 +1105,19 @@
       "capability": "schema:$schema",
       "storage": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "typed": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       },
       "execution": {
         "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "reason": "Omitted $schema is interpreted as v2; canonical output emits the corresponding standard v2 URI, while preserve output leaves it absent.",
         "decision_reference": "MA-V2-01",
         "review_date": "2026-08-20"
       }
@@ -1536,10 +1569,7 @@
     {
       "capability": "schema:fields[].format=value:\"topojson\"",
       "storage": {
-        "status": "upstream_exception",
-        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
-        "discrepancy_id": "DP-V2-04",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -1587,7 +1617,10 @@
     {
       "capability": "schema:fields[].itemType",
       "storage": {
-        "status": "implemented"
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-04",
+        "review_date": "2026-08-20"
       },
       "typed": {
         "status": "implemented"
@@ -1813,6 +1846,30 @@
       }
     },
     {
+      "capability": "schema:fields[].type=value:\"list\"",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "deferred",
+        "reason": "Unit B owns typed interpretation of the profile-exception list branch.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit B owns execution support for the profile-exception list branch.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
+      },
+      "absent_from_profile": true
+    },
+    {
       "capability": "schema:fields[].type=value:\"number\"",
       "storage": {
         "status": "implemented"
@@ -1839,7 +1896,10 @@
     {
       "capability": "schema:fields[].type=value:\"string\"",
       "storage": {
-        "status": "implemented"
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-02",
+        "review_date": "2026-08-20"
       },
       "typed": {
         "status": "implemented"
@@ -1863,10 +1923,7 @@
     {
       "capability": "schema:fields[].type=value:\"year\"",
       "storage": {
-        "status": "upstream_exception",
-        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
-        "discrepancy_id": "DP-V2-03",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"

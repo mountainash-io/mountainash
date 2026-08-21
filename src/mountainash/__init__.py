@@ -110,9 +110,32 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
         return contract_from_typespec(_spec)
 
     if isinstance(source, (str, _Path)):
-        from mountainash.typespec.frictionless import typespec_from_frictionless
+        import json
 
-        _spec = typespec_from_frictionless(source)
+        from mountainash.typespec.datapackage import DataPackage
+
+        path = _Path(source)
+        if isinstance(source, _Path) or path.is_file():
+            schema_source: object = path.name
+            base_uri: _Path | None = path.parent
+        else:
+            schema_source = json.loads(source)
+            base_uri = None
+        package = DataPackage.from_descriptor(
+            {
+                "resources": [
+                    {
+                        "name": path.stem if path.stem else "schema",
+                        "data": [],
+                        "schema": schema_source,
+                    }
+                ]
+            },
+            base_uri=base_uri,
+        )
+        _spec = package.resources[0].to_typespec()
+        if _spec is None:
+            raise TypeError("Frictionless schema input did not produce a schema mapping")
         return contract_from_typespec(_spec)
 
     if isinstance(source, dict):

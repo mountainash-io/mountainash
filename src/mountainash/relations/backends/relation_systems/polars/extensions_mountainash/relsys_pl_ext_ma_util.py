@@ -16,18 +16,14 @@ from mountainash.relations.core.relation_protocols.relation_systems.extensions_m
 )
 
 
-def _declared_polars_schema(table_schema: Any) -> Optional[dict[str, Any]]:
-    """Resolve a resource's ``table_schema`` to a Polars {name: dtype} map.
+def _declared_polars_schema(resource: Any) -> Optional[dict[str, Any]]:
+    """Resolve a resource's schema to a Polars {name: dtype} map.
 
-    ``table_schema`` may be a raw Frictionless dict or an already-built
-    ``TypeSpec`` (``DataResource.table_schema`` is ``Optional[Any]``). Reuses
-    the same resolver ``empty_frame`` uses (``to_polars_schema`` ->
-    ``_resolve_field_native``): ``ANY`` -> ``STRING``, honours unparameterised
-    ``backend_type``. Keys on the field *output* name, so ``rename_from`` never
-    enters this path. Returns ``None`` for a missing or unknown-shaped schema
-    (read un-cast — do not guess); a genuinely malformed dict lets
-    ``typespec_from_frictionless`` raise (no swallow wrapper — item 53 §8.2).
+    Raw Frictionless mappings stay on the direct adapter path. References and
+    authored TypeSpec values resolve through ``resource.to_typespec()`` so the
+    descriptor codec remains the single resolution boundary.
     """
+    table_schema = resource.table_schema
     if table_schema is None:
         return None
     from mountainash.typespec.spec import TypeSpec
@@ -39,7 +35,9 @@ def _declared_polars_schema(table_schema: Any) -> Optional[dict[str, Any]]:
 
         spec = typespec_from_frictionless(table_schema)
     else:
-        return None
+        spec = resource.to_typespec()
+        if spec is None:
+            return None
 
     from mountainash.typespec.converters import to_polars_schema
 
@@ -228,7 +226,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         # policy, item 53 §3.3): typed columns are never touched, so no
         # strict-cast regression is possible for data that diverges from its
         # schema.
-        declared = _declared_polars_schema(resource.table_schema)
+        declared = _declared_polars_schema(resource)
         if declared:
             casts = {
                 name: dt
