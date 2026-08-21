@@ -81,25 +81,55 @@ def _invalid_reference(
 
 
 def _normalize_remote_path(path: str, *, trailing_slash: bool = False) -> str:
+    """Apply RFC 3986 section 5.2.4 without collapsing empty segments."""
     if not path:
         return "/" if trailing_slash else ""
 
-    had_trailing_slash = path.endswith("/")
-    segments = path.split("/")
-    normalized_segments: list[str] = []
-    for segment in segments:
-        if segment == ".":
-            continue
-        if segment == "..":
-            if normalized_segments and normalized_segments[-1] not in ("", ".."):
-                normalized_segments.pop()
-            elif normalized_segments and normalized_segments[-1] == ".." and not path.startswith("/"):
-                normalized_segments.append(segment)
-            continue
-        normalized_segments.append(segment)
+    input_buffer = path
+    output_buffer: list[str] = []
 
-    normalized = "/".join(normalized_segments)
-    if (trailing_slash or had_trailing_slash) and normalized and not normalized.endswith("/"):
+    def remove_last_segment() -> None:
+        while output_buffer and output_buffer[-1] != "/":
+            output_buffer.pop()
+        if output_buffer:
+            output_buffer.pop()
+
+    while input_buffer:
+        if input_buffer.startswith("../"):
+            input_buffer = input_buffer[3:]
+        elif input_buffer.startswith("./"):
+            input_buffer = input_buffer[2:]
+        elif input_buffer.startswith("/./"):
+            input_buffer = "/" + input_buffer[3:]
+        elif input_buffer == "/.":
+            input_buffer = "/"
+        elif input_buffer.startswith("/../"):
+            input_buffer = "/" + input_buffer[4:]
+            remove_last_segment()
+        elif input_buffer == "/..":
+            input_buffer = "/"
+            remove_last_segment()
+        elif input_buffer in (".", ".."):
+            input_buffer = ""
+        elif input_buffer.startswith("/"):
+            slash = input_buffer.find("/", 1)
+            if slash == -1:
+                output_buffer.extend(input_buffer)
+                input_buffer = ""
+            else:
+                output_buffer.extend(input_buffer[:slash])
+                input_buffer = input_buffer[slash:]
+        else:
+            slash = input_buffer.find("/")
+            if slash == -1:
+                output_buffer.extend(input_buffer)
+                input_buffer = ""
+            else:
+                output_buffer.extend(input_buffer[:slash])
+                input_buffer = input_buffer[slash:]
+
+    normalized = "".join(output_buffer)
+    if trailing_slash and normalized and not normalized.endswith("/"):
         normalized += "/"
     if trailing_slash and not normalized:
         normalized = "/"
@@ -110,9 +140,6 @@ def _normalize_remote_netloc(parts: Any) -> str:
     if hostname is None:
         raise ValueError("hierarchical URI has no host")
     hostname = hostname.lower()
-    if ":" in hostname and not hostname.startswith("["):
-        hostname = f"[{hostname}]"
-
     userinfo = ""
     if parts.username is not None:
         userinfo = parts.username

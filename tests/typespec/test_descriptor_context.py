@@ -51,6 +51,13 @@ def test_remote_repeated_slashes_are_preserved() -> None:
     ) == "https://example.com/a//schema.json"
 
 
+def test_remote_dot_segments_preserve_repeated_slashes() -> None:
+    assert normalize_document_uri(
+        "https://example.com/a//b/../schema.json",
+        base_uri=None,
+    ) == "https://example.com/a//schema.json"
+
+
 def test_malformed_base_uri_is_typed_with_cause() -> None:
     with pytest.raises(InvalidDescriptorStructure) as caught:
         normalize_base_uri("https://[bad")
