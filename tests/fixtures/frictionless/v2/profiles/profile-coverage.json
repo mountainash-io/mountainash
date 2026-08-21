@@ -3,31 +3,10 @@
   "source_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
   "prose_capabilities": [
     {
-      "capability": "dialect:$schema",
+      "capability": "x-mountainash:descriptor.profile",
       "source_url": "https://datapackage.org/standard/data-package/",
-      "section_anchor": "#schema",
-      "quotation": "A descriptor MAY include a $schema URL identifying its profile.",
-      "absent_from_profile": true
-    },
-    {
-      "capability": "package:$schema",
-      "source_url": "https://datapackage.org/standard/data-package/",
-      "section_anchor": "#schema",
-      "quotation": "A descriptor MAY include a $schema URL identifying its profile.",
-      "absent_from_profile": true
-    },
-    {
-      "capability": "resource:$schema",
-      "source_url": "https://datapackage.org/standard/data-package/",
-      "section_anchor": "#schema",
-      "quotation": "A descriptor MAY include a $schema URL identifying its profile.",
-      "absent_from_profile": true
-    },
-    {
-      "capability": "schema:$schema",
-      "source_url": "https://datapackage.org/standard/data-package/",
-      "section_anchor": "#schema",
-      "quotation": "A descriptor MAY include a $schema URL identifying its profile.",
+      "section_anchor": "#profiles",
+      "quotation": "A descriptor profile declaration is handled by Mountainash policy but is absent from the pinned profile schema.",
       "absent_from_profile": true
     }
   ],
@@ -99,24 +78,14 @@
   "rows": [
     {
       "capability": "dialect:$schema",
-      "absent_from_profile": true,
       "storage": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "execution": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       }
     },
     {
@@ -128,7 +97,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -140,7 +113,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -200,7 +177,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -212,7 +193,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -224,7 +209,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -236,7 +225,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -275,7 +268,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -299,7 +296,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -323,7 +324,11 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
@@ -336,7 +341,7 @@
       },
       "execution": {
         "status": "deferred",
-        "reason": "Unit E owns the complete v2 support for this capability.",
+        "reason": "Unit E owns spreadsheet dialect execution.",
         "since": "2026-08-20",
         "owner_unit": "E",
         "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
@@ -363,29 +368,23 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
       }
     },
     {
       "capability": "package:$schema",
-      "absent_from_profile": true,
       "storage": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "execution": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       }
     },
     {
@@ -729,24 +728,14 @@
     },
     {
       "capability": "resource:$schema",
-      "absent_from_profile": true,
       "storage": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "typed": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       },
       "execution": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
+        "status": "implemented"
       }
     },
     {
@@ -771,7 +760,7 @@
       },
       "execution": {
         "status": "deferred",
-        "reason": "Unit D owns the complete v2 support for this capability.",
+        "reason": "Unit D owns data-backed resource execution.",
         "since": "2026-08-20",
         "owner_unit": "D",
         "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-d"
@@ -1037,34 +1026,8 @@
     },
     {
       "capability": "schema:$schema",
-      "absent_from_profile": true,
       "storage": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
-      },
-      "typed": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
-      },
-      "execution": {
-        "status": "local_policy",
-        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
-        "decision_reference": "MA-V2-01",
-        "review_date": "2026-08-20"
-      }
-    },
-    {
-      "capability": "schema:contract",
-      "storage": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 support for this capability.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "typed": {
         "status": "implemented"
@@ -1111,18 +1074,6 @@
     },
     {
       "capability": "schema:fields[]",
-      "storage": {
-        "status": "implemented"
-      },
-      "typed": {
-        "status": "implemented"
-      },
-      "execution": {
-        "status": "implemented"
-      }
-    },
-    {
-      "capability": "schema:fields[].backendType",
       "storage": {
         "status": "implemented"
       },
@@ -1230,18 +1181,6 @@
       }
     },
     {
-      "capability": "schema:fields[].constraints.enumWeights",
-      "storage": {
-        "status": "implemented"
-      },
-      "typed": {
-        "status": "implemented"
-      },
-      "execution": {
-        "status": "implemented"
-      }
-    },
-    {
       "capability": "schema:fields[].constraints.enum[]",
       "storage": {
         "status": "implemented"
@@ -1256,37 +1195,73 @@
     {
       "capability": "schema:fields[].constraints.exclusiveMaximum",
       "storage": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       }
     },
     {
       "capability": "schema:fields[].constraints.exclusiveMinimum",
       "storage": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       }
     },
     {
       "capability": "schema:fields[].constraints.jsonSchema",
       "storage": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
       }
     },
     {
@@ -1368,22 +1343,6 @@
       },
       "typed": {
         "status": "implemented"
-      },
-      "execution": {
-        "status": "implemented"
-      }
-    },
-    {
-      "capability": "schema:fields[].customCast",
-      "storage": {
-        "status": "implemented"
-      },
-      "typed": {
-        "status": "deferred",
-        "reason": "Unit C owns the complete v2 support for this capability.",
-        "since": "2026-08-20",
-        "owner_unit": "C",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-c"
       },
       "execution": {
         "status": "implemented"
@@ -1645,47 +1604,7 @@
       }
     },
     {
-      "capability": "schema:fields[].nullFill",
-      "storage": {
-        "status": "implemented"
-      },
-      "typed": {
-        "status": "implemented"
-      },
-      "execution": {
-        "status": "implemented"
-      }
-    },
-    {
-      "capability": "schema:fields[].objectFields[]",
-      "storage": {
-        "status": "implemented"
-      },
-      "typed": {
-        "status": "deferred",
-        "reason": "Unit C owns the complete v2 support for this capability.",
-        "since": "2026-08-20",
-        "owner_unit": "C",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-c"
-      },
-      "execution": {
-        "status": "implemented"
-      }
-    },
-    {
       "capability": "schema:fields[].rdfType",
-      "storage": {
-        "status": "implemented"
-      },
-      "typed": {
-        "status": "implemented"
-      },
-      "execution": {
-        "status": "implemented"
-      }
-    },
-    {
-      "capability": "schema:fields[].renameFrom",
       "storage": {
         "status": "implemented"
       },
@@ -2085,6 +2004,124 @@
     },
     {
       "capability": "schema:uniqueKeys[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:descriptor.profile",
+      "absent_from_profile": true,
+      "storage": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats descriptor profile metadata as optional.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats descriptor profile metadata as optional.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "execution": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats descriptor profile metadata as optional.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:contract",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].backend_type",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].constraints.enum_weights",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].custom_cast",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].null_fill",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].object_fields[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].rename_from",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields_match",
       "storage": {
         "status": "implemented"
       },

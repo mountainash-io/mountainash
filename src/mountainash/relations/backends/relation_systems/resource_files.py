@@ -41,8 +41,9 @@ _MAPPABLE_DIALECT_FIELDS = frozenset(
 _NATIVE_SAFE_DIALECT_FIELDS = frozenset(
     {"delimiter", "header", "quote_char", "null_sequence"}
 )
-# Fields that are metadata (do not affect parsing) -> neither mapped nor fatal.
-_IGNORED_DIALECT_FIELDS = frozenset({"csvddf_version"})
+# No dialect metadata fields are ignored. Every reader-set field must remain a
+# current TableDialect field so descriptor/model drift fails closed.
+_IGNORED_DIALECT_FIELDS = frozenset()
 
 _GLOB_CHARS = frozenset("*?[")
 # suffix -> archive kind

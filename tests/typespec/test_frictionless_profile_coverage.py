@@ -6,6 +6,7 @@ import shutil
 import pytest
 
 import mountainash.conform.expressions as conform_expressions
+import mountainash.relations.backends.relation_systems.resource_files as resource_files
 from tests.fixtures.frictionless_profile_coverage import (
     discover_mountainash_capabilities,
     discover_code_field_capabilities,
@@ -68,6 +69,25 @@ def test_enum_variants_have_stable_ids() -> None:
     capabilities = extract_profile_capabilities(profile, root_kind="resource")
     assert "resource:type=value:\"table\"" in capabilities
     assert "resource:type=value:\"file\"" in capabilities
+
+
+def test_local_ref_shape_drives_array_and_enum_capabilities() -> None:
+    profile = {
+        "$defs": {
+            "tags": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "kind": {"enum": ["table", "file"]},
+        },
+        "properties": {
+            "tags": {"$ref": "#/$defs/tags"},
+            "kind": {"$ref": "#/$defs/kind"},
+        },
+    }
+    capabilities = extract_profile_capabilities(profile, root_kind="resource")
+    assert "resource:tags[]" in capabilities
+    assert "resource:kind=value:\"table\"" in capabilities
 
 
 def test_embedded_boundaries_rebase_to_standalone_kinds() -> None:
@@ -191,9 +211,100 @@ def test_snapshot_digest_mutation_is_named(tmp_path: Path) -> None:
         json.dumps(sources),
         encoding="utf-8",
     )
+
     assert verify_snapshot_digests(copied) == [
         "datapackage.json: snapshot digest mismatch"
     ]
+def test_missing_snapshot_provenance_record_is_named(tmp_path: Path) -> None:
+    copied = tmp_path / "profiles"
+    shutil.copytree(PROFILE_DIR, copied)
+    sources = load_json(copied / "profile-sources.json")
+    del sources["profiles"]["tabledialect.json"]
+    (copied / "profile-sources.json").write_text(
+        json.dumps(sources),
+        encoding="utf-8",
+    )
+    assert verify_snapshot_digests(copied) == [
+        "tabledialect.json: provenance record missing"
+    ]
+
+
+def test_unknown_reader_set_name_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        resource_files,
+        "_IGNORED_DIALECT_FIELDS",
+        frozenset({"future_reader_field"}),
+    )
+    with pytest.raises(ValueError, match="future_reader_field"):
+        discover_dialect_reader_capabilities()
+
+
+def test_absent_prose_overlap_with_official_capability_is_named() -> None:
+    manifest = deepcopy(load_json(PROFILE_DIR / "profile-coverage.json"))
+    manifest["prose_capabilities"].append(
+        {
+            "capability": "schema:fields[]",
+            "source_url": "https://example.invalid",
+            "section_anchor": "#fields",
+            "quotation": "This is evidence.",
+            "absent_from_profile": True,
+        }
+    )
+    errors = validate_profile_coverage(
+        profiles=load_profile_set(PROFILE_DIR),
+        manifest=manifest,
+    )
+    assert any(
+        "schema:fields[]" in error and "overlaps official" in error
+        for error in errors
+    )
+
+
+def test_dataclass_extensions_use_live_mountainash_namespace() -> None:
+    discovered = discover_mountainash_capabilities()
+    assert "x-mountainash:schema:fields[].backend_type" in discovered
+    assert "x-mountainash:schema:fields[].custom_cast" in discovered
+    assert "x-mountainash:schema:fields[].backendType" not in discovered
+
+
+def test_unsupported_dialect_options_are_execution_deferred() -> None:
+    manifest = load_json(PROFILE_DIR / "profile-coverage.json")
+    unsupported = {
+        "dialect:commentChar",
+        "dialect:commentRows[]",
+        "dialect:headerJoin",
+        "dialect:headerRows[]",
+        "dialect:itemKeys[]",
+        "dialect:itemType",
+        "dialect:lineTerminator",
+        "dialect:property",
+        "dialect:sheetName",
+        "dialect:sheetNumber",
+        "dialect:table",
+    }
+    assert all(
+        next(row for row in manifest["rows"] if row["capability"] == capability)[
+            "execution"
+        ]["status"]
+        == "deferred"
+        for capability in unsupported
+    )
+
+
+def test_unsupported_constraints_are_unit_b_deferred() -> None:
+    manifest = load_json(PROFILE_DIR / "profile-coverage.json")
+    unsupported = {
+        "schema:fields[].constraints.exclusiveMaximum",
+        "schema:fields[].constraints.exclusiveMinimum",
+        "schema:fields[].constraints.jsonSchema",
+    }
+    for capability in unsupported:
+        row = next(
+            row for row in manifest["rows"] if row["capability"] == capability
+        )
+        for dimension in ("storage", "typed", "execution"):
+            assert row[dimension]["status"] == "deferred"
+            assert row[dimension]["owner_unit"] == "B"
 
 
 def test_evidence_commit_mutation_is_named() -> None:

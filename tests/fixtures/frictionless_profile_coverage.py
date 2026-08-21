@@ -119,7 +119,13 @@ def verify_snapshot_digests(profile_dir: Path) -> list[str]:
         return ["profile-sources.json: profiles must be an object"]
 
     errors: list[str] = []
-    for name in sorted(profiles):
+    expected_names = set(_PROFILE_NAMES)
+    actual_names = set(profiles)
+    for name in sorted(expected_names - actual_names):
+        errors.append(f"{name}: provenance record missing")
+    for name in sorted(actual_names - expected_names):
+        errors.append(f"{name}: unexpected provenance record")
+    for name in sorted(actual_names & expected_names):
         record = profiles[name]
         if not isinstance(record, dict):
             errors.append(f"{name}: provenance record is not an object")
@@ -193,17 +199,24 @@ def extract_profile_capabilities(
         properties = node.get("properties")
         if isinstance(properties, Mapping):
             for name, child in properties.items():
-                if not isinstance(name, str) or name in {"$schema"}:
+                if not isinstance(name, str):
                     continue
                 child_path = f"{path}.{name}" if path else name
                 child_pointer = f"{pointer}/properties/{_escape_pointer(name)}"
-                is_array = isinstance(child, Mapping) and (
-                    child.get("type") == "array" or "items" in child
+                shape_child = child
+                if isinstance(child, Mapping):
+                    child_ref = child.get("$ref")
+                    if isinstance(child_ref, str) and child_ref.startswith("#/"):
+                        resolved, _resolved_pointer = _resolve_local_ref(profile, child_ref)
+                        if resolved is not None:
+                            shape_child = resolved
+                is_array = isinstance(shape_child, Mapping) and (
+                    shape_child.get("type") == "array" or "items" in shape_child
                 )
                 capability_id = f"{root_kind}:{child_path}{'[]' if is_array else ''}"
                 add(capability_id, child_pointer, branch)
-                if isinstance(child, Mapping):
-                    enum_values = child.get("enum")
+                if isinstance(shape_child, Mapping):
+                    enum_values = shape_child.get("enum")
                     if isinstance(enum_values, list):
                         for enum_value in enum_values:
                             add(
@@ -376,17 +389,58 @@ def _model_field_names(cls: type[Any]) -> list[tuple[str, str, Any]]:
         (field.name, _camel_case(field.name), hints.get(field.name, field.type))
         for field in dataclass_fields(cls)
     ]
+def _field_capability_paths(
+    class_name: str,
+    roots: tuple[str, ...],
+    field_name: str,
+    alias: str,
+    annotation: Any,
+) -> set[str]:
+    suffixes = _array_suffixes(annotation)
+    extension_name: str | None = None
+    extension_only = False
+    if class_name == "TypeSpec" and field_name == "contract":
+        extension_name = "contract"
+        extension_only = True
+    elif class_name == "TypeSpec" and field_name == "fields_match":
+        extension_name = "fields_match"
+    elif class_name == "FieldSpec" and field_name in {
+        "backend_type",
+        "custom_cast",
+        "null_fill",
+        "object_fields",
+        "rename_from",
+    }:
+        extension_name = field_name
+        extension_only = True
+    elif class_name == "FieldConstraints" and field_name == "enum_weights":
+        extension_name = "enum_weights"
+        extension_only = True
+
+    paths: set[str] = set()
+    if not extension_only:
+        for root in roots:
+            paths.update(f"{root}{alias}{suffix}" for suffix in suffixes)
+    if extension_name is not None:
+        for root in roots:
+            paths.update(
+                f"x-mountainash:{root}{extension_name}{suffix}" for suffix in suffixes
+            )
+    return paths
+
+
 def _model_capabilities() -> set[str]:
     capabilities: set[str] = set()
     for module_name, class_name, roots in _MODEL_ROOTS:
         cls = getattr(importlib.import_module(module_name), class_name)
-        for _name, alias, annotation in _model_field_names(cls):
+        for field_name, alias, annotation in _model_field_names(cls):
             if alias == "extras":
                 continue
-            for root in roots:
-                path = f"{root}{alias}"
-                for suffix in _array_suffixes(annotation):
-                    capabilities.add(path + suffix)
+            capabilities.update(
+                _field_capability_paths(
+                    class_name, roots, field_name, alias, annotation
+                )
+            )
     # A resource's embedded descriptor boundaries are represented by the
     # standalone schema and dialect roots in the official profile set.
     capabilities.discard("resource:schema")
@@ -441,7 +495,9 @@ def _code_field_capabilities(field_name: str) -> set[str]:
         annotation = __import__("typing").get_type_hints(cls).get(
             field_name, cls.__dataclass_fields__[field_name].type
         )
-        return {f"{roots[0]}{alias}{suffix}" for suffix in _array_suffixes(annotation)}
+        return _field_capability_paths(
+            class_name, roots, field_name, alias, annotation
+        )
     return set()
 
 
@@ -495,8 +551,6 @@ def discover_dialect_reader_capabilities() -> set[str]:
         for internal_name in getattr(reader, set_name):
             field = model_fields.get(internal_name)
             if field is None:
-                if set_name == "_IGNORED_DIALECT_FIELDS":
-                    continue
                 raise ValueError(
                     f"{set_name}: reader field {internal_name!r} has no TableDialect field"
                 )
@@ -597,6 +651,19 @@ def validate_profile_coverage(
             continue
         if not item.get("source_url") or not item.get("section_anchor") or not item.get("quotation"):
             errors.append((capability, f"{capability}: prose evidence is incomplete"))
+    for capability in sorted(set(official) & prose_ids):
+        if any(
+            isinstance(item, Mapping)
+            and item.get("capability") == capability
+            and item.get("absent_from_profile") is True
+            for item in prose
+        ):
+            errors.append(
+                (
+                    capability,
+                    f"{capability}: absent_from_profile prose overlaps official capability",
+                )
+            )
 
     for capability in sorted(prose_ids):
         if capability not in row_map:
