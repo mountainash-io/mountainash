@@ -1,6 +1,6 @@
 import pytest
 
-from mountainash.typespec.datapackage import DataResource
+from mountainash.typespec.datapackage import DataPackage, DataResource
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
@@ -83,7 +83,7 @@ def test_multi_file_path_array():
 
 def test_extras_preserved():
     raw = {"name": "orders", "path": "orders.csv", "futurePropX": 42}
-    r = DataResource.from_descriptor(raw)
+    r = DataPackage.from_descriptor({"resources": [raw]}).resources[0]
     assert r.extras == {"futurePropX": 42}
     assert r.to_descriptor() == raw
 
@@ -95,7 +95,7 @@ def test_dialect_round_trip():
         "type": "table",
         "dialect": {"delimiter": ";"},
     }
-    r = DataResource.from_descriptor(raw)
+    r = DataPackage.from_descriptor({"resources": [raw]}).resources[0]
     assert r.dialect == raw["dialect"]
     assert r.to_descriptor() == raw
 

@@ -7,13 +7,15 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
+    DescriptorResolver,
     LocalDescriptorResolver,
 )
 from mountainash.typespec.spec import TypeSpec
 
-if TYPE_CHECKING:
-    from pathlib import Path
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from pathlib import Path
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
 
@@ -83,12 +85,6 @@ class TableDialect(BaseModel):
         return out
 
 
-_KNOWN_RESOURCE_FIELDS = {
-    "name", "path", "data", "type", "dialect", "schema", "$schema",
-    "homepage", "title", "description", "format", "mediatype", "encoding",
-    "bytes", "hash", "sources", "licenses",
-}
-
 
 class DataResource(BaseModel):
     """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
@@ -151,18 +147,6 @@ class DataResource(BaseModel):
         )
         return deepcopy(list(source_values))
 
-    @classmethod
-    def from_descriptor(cls, raw: dict[str, Any]) -> "DataResource":
-        kwargs: dict[str, Any] = {}
-        extras: dict[str, Any] = {}
-        for k, v in raw.items():
-            if k in _KNOWN_RESOURCE_FIELDS:
-                kwargs[k] = v
-            else:
-                extras[k] = v
-        # Preserve raw schema and dialect values through this transitional path.
-        kwargs["extras"] = extras
-        return cls.model_validate(kwargs)
 
     def to_descriptor(self) -> dict[str, Any]:
         from mountainash.typespec.frictionless import typespec_to_frictionless
@@ -231,11 +215,6 @@ class DataResource(BaseModel):
         return spec.to_contract(name=name)
 
 
-_KNOWN_PACKAGE_FIELDS = {
-    "name", "id", "licenses", "$schema", "profile",
-    "title", "description", "homepage", "version", "created",
-    "keywords", "contributors", "sources", "image", "resources",
-}
 
 
 class DataPackage(BaseModel):
@@ -252,7 +231,6 @@ class DataPackage(BaseModel):
     id: Optional[str] = None
     licenses: Optional[list[dict[str, Any]]] = None
     dollar_schema: Optional[str] = Field(default=None, alias="$schema")
-    profile: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     homepage: Optional[str] = None
@@ -263,6 +241,14 @@ class DataPackage(BaseModel):
     sources: Optional[list[dict[str, Any]]] = None
     image: Optional[str] = None
     extras: dict[str, Any] = Field(default_factory=dict)
+    _descriptor_context: DescriptorContext = PrivateAttr(
+        default_factory=_default_descriptor_context
+    )
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, DataPackage):
+            return self.model_dump() == other.model_dump()
+        return super().__eq__(other)
 
     def model_post_init(self, _ctx: Any) -> None:
         if not self.resources:
@@ -286,26 +272,39 @@ class DataPackage(BaseModel):
                     )
 
     @classmethod
-    def from_descriptor(cls, raw: "dict[str, Any] | str | Path") -> "DataPackage":
-        from pathlib import Path
-        import json
-        if isinstance(raw, (str, Path)):
-            p = Path(raw)
-            if p.exists():
-                raw = json.loads(p.read_text())
-            else:
-                raw = json.loads(str(raw))
-        assert isinstance(raw, dict)
-        kwargs: dict[str, Any] = {}
-        extras: dict[str, Any] = {}
-        for k, v in raw.items():
-            if k in _KNOWN_PACKAGE_FIELDS:
-                kwargs[k] = v
-            else:
-                extras[k] = v
-        kwargs["resources"] = [DataResource.from_descriptor(r) for r in kwargs["resources"]]
-        kwargs["extras"] = extras
-        return cls.model_validate(kwargs)
+    def from_descriptor(
+        cls,
+        raw: Mapping[str, Any],
+        *,
+        base_uri: str | Path | None = None,
+        resolver: DescriptorResolver | None = None,
+    ) -> DataPackage:
+        from mountainash.typespec.frictionless_codec import decode_package_descriptor
+
+        return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
+
+    @classmethod
+    def from_json(
+        cls,
+        text: str,
+        *,
+        base_uri: str | Path | None = None,
+        resolver: DescriptorResolver | None = None,
+    ) -> DataPackage:
+        from mountainash.typespec.frictionless_codec import decode_package_json
+
+        return decode_package_json(text, base_uri=base_uri, resolver=resolver)
+
+    @classmethod
+    def from_path(
+        cls,
+        path: str | Path,
+        *,
+        resolver: DescriptorResolver | None = None,
+    ) -> DataPackage:
+        from mountainash.typespec.frictionless_codec import decode_package_path
+
+        return decode_package_path(path, resolver=resolver)
 
     def to_descriptor(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -313,7 +312,7 @@ class DataPackage(BaseModel):
             out["$schema"] = self.dollar_schema
         for k in ("name", "id", "title", "description", "homepage", "version",
                   "created", "keywords", "contributors", "sources", "image",
-                  "licenses", "profile"):
+                  "licenses"):
             v = getattr(self, k)
             if v is not None:
                 out[k] = v
