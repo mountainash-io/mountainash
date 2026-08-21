@@ -66,6 +66,7 @@ from mountainash.typespec.datapackage import (  # noqa: F401
     DataResource,
     TableDialect,
 )
+from mountainash.typespec.frictionless_codec import DescriptorWriteMode  # noqa: F401
 
 # TypeSpec - backend-agnostic type specification
 from mountainash.typespec.spec import TypeSpec  # noqa: F401

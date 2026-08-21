@@ -1,8 +1,10 @@
 from copy import deepcopy
 import json
 
+import mountainash as ma
 import pytest
 
+from mountainash import DescriptorWriteMode
 from mountainash.exceptions import (
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -10,7 +12,10 @@ from mountainash.exceptions import (
     UnsupportedDescriptorVersion,
     UnsupportedResourceDialect,
 )
-from mountainash.typespec.datapackage import DataPackage
+from mountainash.typespec.datapackage import DataPackage, DataResource, TableDialect
+from mountainash.typespec.frictionless import typespec_to_frictionless
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
 
 
 def minimal_descriptor() -> dict[str, object]:
@@ -386,6 +391,153 @@ def test_resource_decoder_is_removed() -> None:
 
     assert not hasattr(DataResource, "from_descriptor")
 
+PACKAGE_PROFILE = "https://datapackage.org/profiles/2.0/datapackage.json"
+RESOURCE_PROFILE = "https://datapackage.org/profiles/2.0/dataresource.json"
+SCHEMA_PROFILE = "https://datapackage.org/profiles/2.0/tableschema.json"
+DIALECT_PROFILE = "https://datapackage.org/profiles/2.0/tabledialect.json"
+
+
+def complete_v2_descriptor() -> dict[str, object]:
+    return {
+        "$schema": PACKAGE_PROFILE,
+        "id": "urn:example:package",
+        "name": "example",
+        "title": "Example",
+        "description": "Descriptor coverage fixture",
+        "homepage": "https://example.com",
+        "version": "1.0.0",
+        "created": "2026-08-20T12:00:00Z",
+        "keywords": ["example"],
+        "licenses": [{"name": "CC-BY-4.0"}],
+        "contributors": [{"title": "Author", "role": "author"}],
+        "sources": [{"title": "Catalog", "path": "https://example.com/catalog"}],
+        "image": "https://example.com/image.png",
+        "futurePackage": {"enabled": True},
+        "resources": [
+            {
+                "$schema": RESOURCE_PROFILE,
+                "name": "orders",
+                "path": "orders.csv",
+                "type": "table",
+                "title": "Orders",
+                "description": "Order rows",
+                "homepage": "https://example.com/orders",
+                "format": "csv",
+                "mediatype": "text/csv",
+                "encoding": "utf-8",
+                "bytes": 12,
+                "hash": "d25c9c77f588f5dc32059d2da1136c02",
+                "licenses": [{"name": "CC-BY-4.0"}],
+                "sources": [{"title": "Orders source"}],
+                "dialect": {
+                    "$schema": DIALECT_PROFILE,
+                    "delimiter": ";",
+                    "futureDialect": True,
+                },
+                "schema": {
+                    "$schema": SCHEMA_PROFILE,
+                    "fields": [{"name": "id", "type": "integer"}],
+                    "primaryKey": "id",
+                    "foreignKeys": [
+                        {
+                            "fields": "id",
+                            "reference": {"resource": "", "fields": "id"},
+                        }
+                    ],
+                    "futureSchema": True,
+                },
+                "futureResource": True,
+            }
+        ],
+    }
+
+
+def expected_canonical_descriptor() -> dict[str, object]:
+    expected = deepcopy(complete_v2_descriptor())
+    expected["contributors"] = [{"title": "Author", "roles": ["author"]}]
+    schema = expected["resources"][0]["schema"]
+    schema["primaryKey"] = ["id"]
+    schema["foreignKeys"][0]["fields"] = ["id"]
+    schema["foreignKeys"][0]["reference"] = {"fields": ["id"]}
+    return expected
+
+
+def test_preserve_and_canonical_outputs_are_independently_owned() -> None:
+    package = DataPackage.from_descriptor(complete_v2_descriptor())
+    preserve = package.to_descriptor()
+    canonical = package.to_canonical_descriptor()
+    preserve["resources"][0]["schema"]["fields"][0]["name"] = "changed"
+    canonical["contributors"][0]["roles"].append("changed")
+    assert package.to_descriptor() == complete_v2_descriptor()
+    assert package.to_canonical_descriptor() == expected_canonical_descriptor()
+
+
+def test_canonical_preserves_extension_profile_identity() -> None:
+    raw = complete_v2_descriptor()
+    raw["$schema"] = "https://example.com/profiles/custom-package"
+    result = DataPackage.from_descriptor(raw).to_canonical_descriptor()
+    assert result["$schema"] == raw["$schema"]
+
+
+@pytest.mark.parametrize(
+    ("contributors", "canonical_roles"),
+    [
+        ([{"title": "A", "roles": ["author"]}], ["author"]),
+        ([{"title": "A", "role": "author"}], ["author"]),
+        ([{"title": "A", "role": "ignored", "roles": ["owner"]}], ["owner"]),
+    ],
+)
+def test_canonical_contributor_role_fallback(contributors, canonical_roles) -> None:
+    raw = complete_v2_descriptor()
+    raw["contributors"] = contributors
+    result = DataPackage.from_descriptor(raw).to_canonical_descriptor()
+    assert result["contributors"][0]["roles"] == canonical_roles
+
+
+def test_authored_operational_models_use_typed_adapters() -> None:
+    spec = TypeSpec(
+        fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]
+    )
+    dialect = TableDialect(delimiter=";")
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="orders",
+                path="orders.csv",
+                schema=spec,
+                dialect=dialect,
+            )
+        ]
+    )
+    result = package.to_descriptor()
+    assert result["resources"][0]["schema"] == typespec_to_frictionless(spec)
+    assert result["resources"][0]["dialect"] == {"delimiter": ";"}
+
+
+def test_canonical_output_adds_standard_nested_profile_uris() -> None:
+    raw = complete_v2_descriptor()
+    del raw["$schema"]
+    resource = raw["resources"][0]
+    del resource["$schema"]
+    del resource["schema"]["$schema"]
+    del resource["dialect"]["$schema"]
+    result = DataPackage.from_descriptor(raw).to_canonical_descriptor()
+    assert result["$schema"] == PACKAGE_PROFILE
+    assert result["resources"][0]["$schema"] == RESOURCE_PROFILE
+    assert result["resources"][0]["schema"]["$schema"] == SCHEMA_PROFILE
+    assert result["resources"][0]["dialect"]["$schema"] == DIALECT_PROFILE
+
+
+def test_canonical_output_does_not_infer_resource_type() -> None:
+    result = DataPackage.from_descriptor(
+        {"resources": [{"name": "orders", "path": "orders.csv"}]}
+    ).to_canonical_descriptor()
+    assert "type" not in result["resources"][0]
+
+
+def test_write_mode_is_the_only_new_top_level_export() -> None:
+    assert ma.DescriptorWriteMode is DescriptorWriteMode
+    assert not hasattr(ma, "DescriptorError")
 
 def test_raw_resource_tests_use_package_decoder() -> None:
     raw = {"name": "orders", "path": "orders.csv", "futurePropX": 42}

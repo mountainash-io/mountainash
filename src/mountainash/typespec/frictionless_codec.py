@@ -11,17 +11,19 @@ from dataclasses import replace
 import json
 from pathlib import Path
 import re
-from typing import Any
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
-
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-from mountainash.typespec.datapackage import DataPackage, DataResource
+if TYPE_CHECKING:
+    from mountainash.typespec.datapackage import DataPackage, DataResource
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     build_descriptor_context,
     DescriptorResolver,
 )
+from mountainash.typespec.spec import TypeSpec
 from mountainash.typespec.errors import (
     DescriptorReferenceNotFound,
     InvalidDescriptorRelationship,
@@ -734,6 +736,7 @@ def _capture_resource_kwargs(raw: Mapping[str, Any]) -> dict[str, Any]:
 
 def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContext) -> DataPackage:
     """Decode an already-owned mapping without making another defensive copy."""
+    from mountainash.typespec.datapackage import DataPackage, DataResource
     # 1. Confirm the required document kind.
     if not isinstance(owned, Mapping):
         raise _structure_error(
@@ -891,7 +894,217 @@ def decode_package_path(
     )
 
 
+class DescriptorWriteMode(StrEnum):
+    PRESERVE = "preserve"
+    CANONICAL = "canonical"
+
+
+_PACKAGE_PROFILE = "https://datapackage.org/profiles/2.0/datapackage.json"
+_RESOURCE_PROFILE = "https://datapackage.org/profiles/2.0/dataresource.json"
+_SCHEMA_PROFILE = "https://datapackage.org/profiles/2.0/tableschema.json"
+_DIALECT_PROFILE = "https://datapackage.org/profiles/2.0/tabledialect.json"
+_DIALECT_CANONICAL_KEYS = {
+    "schema_url": "$schema",
+    "line_terminator": "lineTerminator",
+    "quote_char": "quoteChar",
+    "double_quote": "doubleQuote",
+    "escape_char": "escapeChar",
+    "null_sequence": "nullSequence",
+    "skip_initial_space": "skipInitialSpace",
+    "header_rows": "headerRows",
+    "header_join": "headerJoin",
+    "comment_char": "commentChar",
+    "comment_rows": "commentRows",
+    "item_type": "itemType",
+    "item_keys": "itemKeys",
+    "sheet_name": "sheetName",
+    "sheet_number": "sheetNumber",
+}
+
+
+def _encode_resource_preserve(resource: DataResource) -> dict[str, Any]:
+    """Encode one resource while owning every value in the returned graph."""
+    from mountainash.typespec.datapackage import TableDialect
+    from mountainash.typespec.frictionless import typespec_to_frictionless
+
+    out: dict[str, Any] = {"name": deepcopy(resource.name)}
+    for field in (
+        "path",
+        "data",
+        "type",
+        "homepage",
+        "title",
+        "description",
+        "format",
+        "mediatype",
+        "encoding",
+        "hash",
+        "sources",
+        "licenses",
+    ):
+        value = getattr(resource, field)
+        if value is not None:
+            out[field] = deepcopy(value)
+    if resource.schema_url is not None:
+        out["$schema"] = deepcopy(resource.schema_url)
+    if resource.bytes_ is not None:
+        out["bytes"] = deepcopy(resource.bytes_)
+
+    if resource.dialect is not None:
+        if isinstance(resource.dialect, TableDialect):
+            dialect = resource.dialect.to_descriptor()
+        else:
+            dialect = resource.dialect
+        out["dialect"] = deepcopy(dialect)
+    if resource.table_schema is not None:
+        if isinstance(resource.table_schema, TypeSpec):
+            schema = typespec_to_frictionless(resource.table_schema)
+        else:
+            schema = resource.table_schema
+        out["schema"] = deepcopy(schema)
+    out.update(deepcopy(resource.extras))
+    return out
+
+
+def _encode_package_preserve(package: DataPackage) -> dict[str, Any]:
+    """Encode a package without normalizing authored consumer-facing forms."""
+    out: dict[str, Any] = {}
+    if package.dollar_schema is not None:
+        out["$schema"] = deepcopy(package.dollar_schema)
+    for field in (
+        "name",
+        "id",
+        "title",
+        "description",
+        "homepage",
+        "version",
+        "created",
+        "keywords",
+        "contributors",
+        "sources",
+        "image",
+        "licenses",
+    ):
+        value = getattr(package, field)
+        if value is not None:
+            out[field] = deepcopy(value)
+    out["resources"] = [_encode_resource_preserve(resource) for resource in package.resources]
+    out.update(deepcopy(package.extras))
+    return out
+
+
+def _canonical_profile(value: Any, standard: str) -> Any:
+    if value is None or value == standard or _is_v1_profile_uri(value):
+        return standard
+    return deepcopy(value)
+
+
+def _as_string_list(value: Any) -> Any:
+    if isinstance(value, str):
+        return [value]
+    return deepcopy(value)
+
+
+def _canonicalize_contributors(value: Any) -> Any:
+    if not isinstance(value, list):
+        return deepcopy(value)
+    result: list[Any] = []
+    for contributor in value:
+        if not isinstance(contributor, Mapping):
+            result.append(deepcopy(contributor))
+            continue
+        owned = deepcopy(dict(contributor))
+        roles = owned.get("roles")
+        if roles is None and owned.get("role") is not None:
+            roles = [owned["role"]]
+        owned.pop("role", None)
+        if roles is not None:
+            owned["roles"] = deepcopy(roles)
+        result.append(owned)
+    return result
+
+
+def _canonicalize_dialect(value: Any) -> Any:
+    if not isinstance(value, Mapping):
+        return deepcopy(value)
+    result: dict[str, Any] = {}
+    for key, raw_value in value.items():
+        if key in {"profile", "caseSensitiveHeader", "csvddfVersion"}:
+            continue
+        canonical_key = _DIALECT_CANONICAL_KEYS.get(key, key)
+        if canonical_key in result and key != canonical_key:
+            continue
+        result[canonical_key] = deepcopy(raw_value)
+    result["$schema"] = _canonical_profile(result.get("$schema"), _DIALECT_PROFILE)
+    return result
+
+
+def _canonicalize_schema(value: Any, *, resource_name: str) -> Any:
+    if not isinstance(value, Mapping):
+        return deepcopy(value)
+    result = deepcopy(dict(value))
+    result.pop("profile", None)
+    result["$schema"] = _canonical_profile(result.get("$schema"), _SCHEMA_PROFILE)
+    if "primaryKey" in result:
+        result["primaryKey"] = _as_string_list(result["primaryKey"])
+    foreign_keys = result.get("foreignKeys")
+    if isinstance(foreign_keys, list):
+        normalized: list[Any] = []
+        for foreign_key in foreign_keys:
+            if not isinstance(foreign_key, Mapping):
+                normalized.append(deepcopy(foreign_key))
+                continue
+            owned_fk = deepcopy(dict(foreign_key))
+            if "fields" in owned_fk:
+                owned_fk["fields"] = _as_string_list(owned_fk["fields"])
+            reference = owned_fk.get("reference")
+            if isinstance(reference, Mapping):
+                owned_reference = deepcopy(dict(reference))
+                if "fields" in owned_reference:
+                    owned_reference["fields"] = _as_string_list(owned_reference["fields"])
+                if owned_reference.get("resource") in ("", resource_name):
+                    owned_reference.pop("resource", None)
+                owned_fk["reference"] = owned_reference
+            normalized.append(owned_fk)
+        result["foreignKeys"] = normalized
+    return result
+
+
+def _encode_package_canonical(package: DataPackage) -> dict[str, Any]:
+    """Encode a package with the section 10.2 canonical normalizations."""
+    result = _encode_package_preserve(package)
+    result["$schema"] = _canonical_profile(result.get("$schema"), _PACKAGE_PROFILE)
+    if "contributors" in result:
+        result["contributors"] = _canonicalize_contributors(result["contributors"])
+    for resource in result["resources"]:
+        resource["$schema"] = _canonical_profile(resource.get("$schema"), _RESOURCE_PROFILE)
+        if resource.get("type") != "table":
+            resource.pop("type", None)
+        if "dialect" in resource:
+            resource["dialect"] = _canonicalize_dialect(resource["dialect"])
+        if "schema" in resource:
+            resource["schema"] = _canonicalize_schema(
+                resource["schema"],
+                resource_name=resource.get("name", ""),
+            )
+        resource.pop("profile", None)
+    result.pop("profile", None)
+    return result
+
+
+def encode_package_descriptor(
+    package: DataPackage,
+    *,
+    mode: DescriptorWriteMode,
+) -> dict[str, Any]:
+    if mode is DescriptorWriteMode.PRESERVE:
+        return _encode_package_preserve(package)
+    return _encode_package_canonical(package)
+
+
 __all__ = [
+    "DescriptorWriteMode",
+    "encode_package_descriptor",
     "decode_package_descriptor",
     "decode_package_json",
     "decode_package_path",

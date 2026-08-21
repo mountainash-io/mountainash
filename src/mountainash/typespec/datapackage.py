@@ -11,6 +11,7 @@ from mountainash.typespec.descriptor_context import (
     LocalDescriptorResolver,
 )
 from mountainash.typespec.spec import TypeSpec
+from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
 
 if TYPE_CHECKING:
@@ -149,48 +150,9 @@ class DataResource(BaseModel):
 
 
     def to_descriptor(self) -> dict[str, Any]:
-        from mountainash.typespec.frictionless import typespec_to_frictionless
+        from mountainash.typespec.frictionless_codec import _encode_resource_preserve
 
-        out: dict[str, Any] = {"name": self.name}
-        if self.path is not None:
-            out["path"] = self.path
-        if self.data is not None:
-            out["data"] = self.data
-        for k in (
-            "type",
-            "schema_url",
-            "homepage",
-            "title",
-            "description",
-            "format",
-            "mediatype",
-            "encoding",
-            "hash",
-            "sources",
-            "licenses",
-        ):
-            v = getattr(self, k)
-            if v is not None:
-                out["$schema" if k == "schema_url" else k] = v
-        if self.bytes_ is not None:
-            out["bytes"] = self.bytes_
-        if self.dialect is not None:
-            if isinstance(self.dialect, TableDialect):
-                dialect = self.dialect.to_descriptor()
-            elif isinstance(self.dialect, dict):
-                dialect = deepcopy(self.dialect)
-            else:
-                dialect = self.dialect
-            out["dialect"] = dialect
-        if self.table_schema is not None:
-            if isinstance(self.table_schema, dict):
-                out["schema"] = deepcopy(self.table_schema)
-            elif isinstance(self.table_schema, str):
-                out["schema"] = self.table_schema
-            else:
-                out["schema"] = typespec_to_frictionless(self.table_schema)
-        out.update(self.extras)
-        return out
+        return _encode_resource_preserve(self)
 
     def to_typespec(self) -> Optional["TypeSpec"]:
         if self.table_schema is None:
@@ -307,23 +269,27 @@ class DataPackage(BaseModel):
         return decode_package_path(path, resolver=resolver)
 
     def to_descriptor(self) -> dict[str, Any]:
-        out: dict[str, Any] = {}
-        if self.dollar_schema is not None:
-            out["$schema"] = self.dollar_schema
-        for k in ("name", "id", "title", "description", "homepage", "version",
-                  "created", "keywords", "contributors", "sources", "image",
-                  "licenses"):
-            v = getattr(self, k)
-            if v is not None:
-                out[k] = v
-        out["resources"] = [r.to_descriptor() for r in self.resources]
-        out.update(self.extras)
-        return out
+        from mountainash.typespec.frictionless_codec import encode_package_descriptor
 
-    def write(self, path: "str | Path") -> None:
-        from pathlib import Path
+        return encode_package_descriptor(self, mode=DescriptorWriteMode.PRESERVE)
+
+    def to_canonical_descriptor(self) -> dict[str, Any]:
+        from mountainash.typespec.frictionless_codec import encode_package_descriptor
+
+        return encode_package_descriptor(self, mode=DescriptorWriteMode.CANONICAL)
+
+    def write(
+        self,
+        path: str | Path,
+        *,
+        mode: DescriptorWriteMode = DescriptorWriteMode.PRESERVE,
+    ) -> None:
         import json
-        Path(path).write_text(json.dumps(self.to_descriptor(), indent=2))
+        from pathlib import Path
+        from mountainash.typespec.frictionless_codec import encode_package_descriptor
+
+        descriptor = encode_package_descriptor(self, mode=mode)
+        Path(path).write_text(json.dumps(descriptor, indent=2), encoding="utf-8")
 
     def to_relation_dag(
         self,

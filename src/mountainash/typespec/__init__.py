@@ -68,6 +68,7 @@ from mountainash.typespec.descriptor_context import (
     LocalDescriptorResolver,
     StorageDescriptorResolver,
 )
+from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
 __all__ = [
     # Universal type enum
@@ -122,6 +123,7 @@ __all__ = [
     "TableDialect",
     "DataResource",
     "DataPackage",
+    "DescriptorWriteMode",
     # Descriptor context and resolution
     "DescriptorKind",
     "DescriptorResolver",
