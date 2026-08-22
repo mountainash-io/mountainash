@@ -9,7 +9,6 @@
     }
   ],
   "name": "gold-prices",
-  "profile": "data-package",
   "related": [
     {
       "formats": [
@@ -50,7 +49,6 @@
       "mediatype": "text/csv",
       "name": "annual",
       "path": "data/annual.csv",
-      "profile": "tabular-data-resource",
       "schema": {
         "fields": [
           {
@@ -75,7 +73,6 @@
       "mediatype": "text/csv",
       "name": "monthly",
       "path": "data/monthly.csv",
-      "profile": "tabular-data-resource",
       "schema": {
         "fields": [
           {

@@ -219,6 +219,30 @@ def _schema_from_table_schema(
     return result
 
 
+def _schema_from_typespec(
+    spec: Any,
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Extract canonical schema from a resolved TypeSpec."""
+    fields = getattr(spec, "fields", ())
+    result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+    for field in fields:
+        type_value = field.type
+        try:
+            universal_type = (
+                parse_universal(type_value)
+                if isinstance(type_value, str)
+                else type_value
+            )
+            canon = to_canonical(universal_type)
+        except (KeyError, TypeError, UnknownDtypeError):
+            result[field.name] = SchemaTypeStatus.UNKNOWN
+            continue
+        result[field.name] = (
+            SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
+        )
+    return result
+
+
 def infer_schema(
     node: Any,
     ref_resolver: Optional[
@@ -270,7 +294,8 @@ def infer_schema(
         ts = node.resource.table_schema
         if isinstance(ts, dict):
             return _schema_from_table_schema(ts)
-        return {}
+        spec = node.resource.to_typespec()
+        return _schema_from_typespec(spec) if spec is not None else {}
 
     if isinstance(node, SourceRelNode):
         return _schema_from_source_data(node.data)

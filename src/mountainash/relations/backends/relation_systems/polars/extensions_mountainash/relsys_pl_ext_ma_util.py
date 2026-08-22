@@ -16,18 +16,14 @@ from mountainash.relations.core.relation_protocols.relation_systems.extensions_m
 )
 
 
-def _declared_polars_schema(table_schema: Any) -> Optional[dict[str, Any]]:
-    """Resolve a resource's ``table_schema`` to a Polars {name: dtype} map.
+def _declared_polars_schema(resource: Any) -> Optional[dict[str, Any]]:
+    """Resolve a resource's schema to a Polars {name: dtype} map.
 
-    ``table_schema`` may be a raw Frictionless dict or an already-built
-    ``TypeSpec`` (``DataResource.table_schema`` is ``Optional[Any]``). Reuses
-    the same resolver ``empty_frame`` uses (``to_polars_schema`` ->
-    ``_resolve_field_native``): ``ANY`` -> ``STRING``, honours unparameterised
-    ``backend_type``. Keys on the field *output* name, so ``rename_from`` never
-    enters this path. Returns ``None`` for a missing or unknown-shaped schema
-    (read un-cast — do not guess); a genuinely malformed dict lets
-    ``typespec_from_frictionless`` raise (no swallow wrapper — item 53 §8.2).
+    Raw Frictionless mappings stay on the direct adapter path. References and
+    authored TypeSpec values resolve through ``resource.to_typespec()`` so the
+    descriptor codec remains the single resolution boundary.
     """
+    table_schema = resource.table_schema
     if table_schema is None:
         return None
     from mountainash.typespec.spec import TypeSpec
@@ -39,7 +35,9 @@ def _declared_polars_schema(table_schema: Any) -> Optional[dict[str, Any]]:
 
         spec = typespec_from_frictionless(table_schema)
     else:
-        return None
+        spec = resource.to_typespec()
+        if spec is None:
+            return None
 
     from mountainash.typespec.converters import to_polars_schema
 
@@ -141,6 +139,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
 
     def read_resource(self, resource: Any) -> pl.LazyFrame:
         """Load a DataResource into a Polars LazyFrame."""
+        dialect = resource.to_dialect()
         if resource.data is not None:
             return self._read_inline(resource)
         fmt = self._detect_format(resource)
@@ -155,7 +154,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         # backend, so a native Polars scan never silently reads a dialect the
         # Ibis fallback would reject (consistency-guarantees).
         if fmt == "csv":
-            rf.ensure_dialect_supported(resource.dialect)
+            rf.ensure_dialect_supported(dialect)
 
         all_local = all(not is_remote(p) for p in paths)
         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
@@ -165,18 +164,23 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         # A CSV dialect with a native-unsafe field (e.g. escape_char, which has no
         # correct pl.scan_csv target) also routes to the fallback so it is honoured
         # identically to Ibis (consistency-guarantees), not read natively-and-wrong.
-        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(resource.dialect)
+        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(dialect)
         if all_local and no_glob and no_archive and fmt in ("csv", "parquet") and native_dialect_ok:
-            return self._native_local_scan(fmt, paths, resource)
-        return pl.from_arrow(rf.parse_resource_to_arrow(resource)).lazy()
+            return self._native_local_scan(fmt, paths, resource, dialect)
+        return pl.from_arrow(
+            rf.parse_resource_to_arrow(resource, dialect=dialect)
+        ).lazy()
 
-    def _native_local_scan(self, fmt: str, paths: list[str], resource: Any) -> pl.LazyFrame:
-        kwargs = self._reader_kwargs(resource, fmt)
+    def _native_local_scan(
+        self, fmt: str, paths: list[str], resource: Any, dialect: Any
+    ) -> pl.LazyFrame:
+        kwargs = self._reader_kwargs(resource, fmt, dialect)
         if fmt == "csv":
             frames = [pl.scan_csv(p, **kwargs) for p in paths]
         else:
             frames = [pl.scan_parquet(p) for p in paths]
         return frames[0] if len(frames) == 1 else pl.concat(frames, how="vertical")
+
 
     @staticmethod
     def _detect_format(resource: Any) -> str:
@@ -199,9 +203,9 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         )
 
     @staticmethod
-    def _reader_kwargs(resource: Any, fmt: str) -> dict[str, Any]:
-        if fmt == "csv" and resource.dialect:
-            return resource.dialect.to_polars_read_csv_kwargs()
+    def _reader_kwargs(resource: Any, fmt: str, dialect: Any) -> dict[str, Any]:
+        if fmt == "csv" and dialect is not None:
+            return dialect.to_polars_read_csv_kwargs()
         return {}
 
     def empty_frame(self, spec: Any) -> pl.LazyFrame:
@@ -222,7 +226,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         # policy, item 53 §3.3): typed columns are never touched, so no
         # strict-cast regression is possible for data that diverges from its
         # schema.
-        declared = _declared_polars_schema(resource.table_schema)
+        declared = _declared_polars_schema(resource)
         if declared:
             casts = {
                 name: dt

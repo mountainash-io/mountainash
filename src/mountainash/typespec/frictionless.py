@@ -13,9 +13,8 @@ Reference: https://specs.frictionlessdata.io/table-schema/
 """
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from collections.abc import Mapping
+from typing import Any, Dict, List, Optional
 
 from mountainash.conform.contract import validate_contract_dict
 
@@ -23,11 +22,13 @@ from .spec import FieldConstraints, FieldSpec, ForeignKey, ForeignKeyReference, 
 from .universal_types import UniversalType, parse_universal
 
 
+
+
 # ---------------------------------------------------------------------------
 # Foreign key helpers
 # ---------------------------------------------------------------------------
 
-def foreign_key_from_dict(raw_fk: Dict[str, Any]) -> ForeignKey:
+def foreign_key_from_dict(raw_fk: Mapping[str, Any]) -> ForeignKey:
     """Build a ForeignKey from a Frictionless ``foreignKeys`` entry."""
     ref = raw_fk.get("reference") or {}
     return ForeignKey(
@@ -228,11 +229,10 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     return descriptor
 
 
-# ---------------------------------------------------------------------------
-# Import: Frictionless dict / JSON string / Path → TypeSpec
+# Import: resolved Frictionless schema mapping → TypeSpec
 # ---------------------------------------------------------------------------
 
-def _field_from_frictionless_dict(raw_field: Dict[str, Any]) -> "FieldSpec":
+def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
     """Import one Frictionless field descriptor into a FieldSpec.
 
     Recurses into ``x-mountainash.object_fields`` (item 102) so nested
@@ -298,15 +298,14 @@ def _field_from_frictionless_dict(raw_field: Dict[str, Any]) -> "FieldSpec":
         object_fields=object_fields,
     )
 
+def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
+    """Create a TypeSpec from a resolved Frictionless Table Schema mapping.
 
-def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSpec:
-    """Create a TypeSpec from a Frictionless Table Schema descriptor.
+    The v2 descriptor codec resolves JSON text and path references before
+    calling this adapter. Direct callers must provide a schema mapping.
 
     Args:
-        data: One of:
-            - A dict (Frictionless descriptor)
-            - A JSON string
-            - A pathlib.Path or path string pointing to a JSON file
+        data: A resolved Frictionless Table Schema descriptor mapping.
 
     Returns:
         A TypeSpec populated from the descriptor.
@@ -316,20 +315,10 @@ def typespec_from_frictionless(data: Union[Dict[str, Any], str, Path]) -> TypeSp
         - Unknown extension keys (other than ``x-mountainash``) are silently
           ignored.
     """
-    descriptor: Dict[str, Any]
+    if not isinstance(data, Mapping):
+        raise TypeError("typespec_from_frictionless() requires a resolved schema mapping")
 
-    if isinstance(data, Path):
-        descriptor = json.loads(data.read_text(encoding="utf-8"))
-    elif isinstance(data, str):
-        # Determine whether it's a file path or a raw JSON string
-        p = Path(data)
-        if p.exists():
-            descriptor = json.loads(p.read_text(encoding="utf-8"))
-        else:
-            descriptor = json.loads(data)
-    else:
-        descriptor = data
-
+    descriptor = data
     # -- Spec-level fields --
     title: Optional[str] = descriptor.get("title")
     description: Optional[str] = descriptor.get("description")

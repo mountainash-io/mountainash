@@ -1,22 +1,45 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any, Optional, TYPE_CHECKING
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from pydantic import BaseModel, ConfigDict, Field
+from mountainash.typespec.descriptor_context import (
+    DescriptorContext,
+    DescriptorKind,
+    DescriptorResolver,
+    LocalDescriptorResolver,
+)
+from mountainash.typespec.spec import TypeSpec
+from mountainash.typespec.errors import (
+    DescriptorError,
+    DescriptorReferenceInvalid,
+    InvalidDescriptorStructure,
+)
+from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
-    from mountainash.typespec.spec import TypeSpec
-    # from upath import Path
-
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
+
+
+def _default_descriptor_context() -> DescriptorContext:
+    return DescriptorContext(
+        base_uri=None,
+        resolver=LocalDescriptorResolver(),
+        package_sources=(),
+    )
+
 
 class TableDialect(BaseModel):
     """Frictionless Table Dialect spec — closed schema, unknown keys are dropped."""
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
+    schema_url: Optional[str] = Field(default=None, alias="$schema")
     delimiter: Optional[str] = None
     line_terminator: Optional[str] = Field(default=None, alias="lineTerminator")
     quote_char: Optional[str] = Field(default=None, alias="quoteChar")
@@ -28,15 +51,25 @@ class TableDialect(BaseModel):
     header_rows: Optional[list[int]] = Field(default=None, alias="headerRows")
     header_join: Optional[str] = Field(default=None, alias="headerJoin")
     comment_char: Optional[str] = Field(default=None, alias="commentChar")
-    case_sensitive_header: Optional[bool] = Field(default=None, alias="caseSensitiveHeader")
-    csvddf_version: Optional[str] = Field(default=None, alias="csvddfVersion")
+    comment_rows: Optional[list[int]] = Field(default=None, alias="commentRows")
+    item_type: Optional[str] = Field(default=None, alias="itemType")
+    item_keys: Optional[list[str]] = Field(default=None, alias="itemKeys")
+    property: Optional[str] = None
+    sheet_name: Optional[str] = Field(default=None, alias="sheetName")
+    sheet_number: Optional[int] = Field(default=None, alias="sheetNumber")
+    table: Optional[str] = None
+    extras: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
-    def from_descriptor(cls, raw: dict[str, Any]) -> "TableDialect":
-        return cls.model_validate(raw)
+    def from_descriptor(cls, raw: Mapping[str, Any]) -> "TableDialect":
+        return cls.model_validate(dict(raw))
 
     def to_descriptor(self) -> dict[str, Any]:
-        return self.model_dump(by_alias=True, exclude_none=True)
+        out = self.model_dump(by_alias=True, exclude_none=True)
+        extras = out.pop("extras", None)
+        if extras:
+            out.update(deepcopy(extras))
+        return out
 
     def to_polars_read_csv_kwargs(self) -> dict[str, Any]:
         """Translate to ``polars.read_csv`` kwargs. Unsupported keys are dropped silently."""
@@ -58,25 +91,28 @@ class TableDialect(BaseModel):
         return out
 
 
-_KNOWN_RESOURCE_FIELDS = {
-    "name", "path", "data", "type", "dialect", "schema",
-    "title", "description", "format", "mediatype", "encoding",
-    "bytes", "hash", "sources", "licenses",
-}
-
 
 class DataResource(BaseModel):
     """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=(), populate_by_name=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        protected_namespaces=(),
+        populate_by_name=True,
+    )
 
     name: str
     path: Optional[str | list[str]] = None
     data: Optional[Any] = None
     type: Optional[str] = None
-    dialect: Optional[TableDialect] = None
+    dialect: dict[str, Any] | str | TableDialect | None = None
     # 'schema' shadows BaseModel.schema() — use table_schema internally, alias "schema"
-    table_schema: Optional[Any] = Field(default=None, alias="schema")
+    table_schema: dict[str, Any] | str | TypeSpec | None = Field(
+        default=None,
+        alias="schema",
+    )
+    schema_url: Optional[str] = Field(default=None, alias="$schema")
+    homepage: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     format: Optional[str] = None
@@ -89,6 +125,11 @@ class DataResource(BaseModel):
     licenses: Optional[list[dict[str, Any]]] = None
     extras: dict[str, Any] = Field(default_factory=dict)
 
+    _descriptor_context: DescriptorContext = PrivateAttr(
+        default_factory=_default_descriptor_context
+    )
+    _package_resource_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
+
     def model_post_init(self, _ctx: Any) -> None:
         has_path = self.path is not None
         has_data = self.data is not None
@@ -97,75 +138,129 @@ class DataResource(BaseModel):
                 f"DataResource '{self.name}' must declare exactly one of path or data"
             )
 
-    @classmethod
-    def from_descriptor(cls, raw: dict[str, Any]) -> "DataResource":
-        kwargs: dict[str, Any] = {}
-        extras: dict[str, Any] = {}
-        for k, v in raw.items():
-            if k in _KNOWN_RESOURCE_FIELDS:
-                kwargs[k] = v
-            else:
-                extras[k] = v
-        if "dialect" in kwargs and isinstance(kwargs["dialect"], dict):
-            kwargs["dialect"] = TableDialect.from_descriptor(kwargs["dialect"])
-        # Store schema as raw dict for lossless round-trip; callers that need
-        # a TypeSpec can call typespec_from_frictionless(resource.table_schema).
-        kwargs["extras"] = extras
-        return cls.model_validate(kwargs)
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, DataResource):
+            return self.model_dump() == other.model_dump()
+        return super().__eq__(other)
+
+    @property
+    def effective_sources(self) -> list[dict[str, Any]]:
+        """Return independently owned resource or package source metadata."""
+        source_values = (
+            self.sources
+            if self.sources is not None
+            else self._descriptor_context.package_sources
+        )
+        return deepcopy(list(source_values))
+
 
     def to_descriptor(self) -> dict[str, Any]:
-        from mountainash.typespec.frictionless import typespec_to_frictionless
+        from mountainash.typespec.frictionless_codec import _encode_resource_preserve
 
-        out: dict[str, Any] = {"name": self.name}
-        if self.path is not None:
-            out["path"] = self.path
-        if self.data is not None:
-            out["data"] = self.data
-        for k in ("type", "title", "description", "format", "mediatype",
-                  "encoding", "hash", "sources", "licenses"):
-            v = getattr(self, k)
-            if v is not None:
-                out[k] = v
-        if self.bytes_ is not None:
-            out["bytes"] = self.bytes_
-        if self.dialect is not None:
-            d = self.dialect.to_descriptor()
-            if d:
-                out["dialect"] = d
-        if self.table_schema is not None:
-            if isinstance(self.table_schema, dict):
-                out["schema"] = self.table_schema
-            else:
-                out["schema"] = typespec_to_frictionless(self.table_schema)
-        out.update(self.extras)
-        return out
+        return _encode_resource_preserve(self)
 
-    def to_typespec(self) -> Optional["TypeSpec"]:
+    def to_typespec(self) -> TypeSpec | None:
         if self.table_schema is None:
             return None
-        from mountainash.typespec.spec import TypeSpec
         if isinstance(self.table_schema, TypeSpec):
             return self.table_schema
-        if isinstance(self.table_schema, dict):
-            from mountainash.typespec.frictionless import typespec_from_frictionless
-            return typespec_from_frictionless(self.table_schema)
-        raise TypeError(
-            f"DataResource {self.name!r}.table_schema must be a dict or TypeSpec, "
-            f"got {type(self.table_schema).__name__}"
+        from mountainash.typespec.frictionless import typespec_from_frictionless
+        from mountainash.typespec.frictionless_codec import (
+            resolve_descriptor_mapping,
+            validate_foreign_key_relationships,
         )
+
+        source = self.table_schema
+        raw = resolve_descriptor_mapping(
+            source,
+            context=self._descriptor_context,
+            expected_kind=DescriptorKind.SCHEMA,
+            descriptor_path="$.schema",
+            resource_name=self.name,
+        )
+        try:
+            validate_foreign_key_relationships(
+                raw,
+                resource_names=self._package_resource_names,
+            )
+            return typespec_from_frictionless(raw)
+        except InvalidDescriptorStructure as exc:
+            if not isinstance(source, str):
+                raise
+            raise DescriptorReferenceInvalid(
+                "resolved schema has an invalid structure",
+                descriptor_kind=DescriptorKind.SCHEMA.value,
+                descriptor_path="$.schema",
+                resource_name=self.name,
+                reference=source,
+                expected_kind=DescriptorKind.SCHEMA.value,
+                rejected_value=exc.rejected_value,
+                required_form=exc.required_form,
+            ) from exc
+        except DescriptorError:
+            raise
+        except Exception as exc:
+            error_type = (
+                DescriptorReferenceInvalid
+                if isinstance(source, str)
+                else InvalidDescriptorStructure
+            )
+            raise error_type(
+                "schema mapping could not be converted",
+                descriptor_kind=DescriptorKind.SCHEMA.value,
+                descriptor_path="$.schema",
+                resource_name=self.name,
+                rejected_value=raw,
+                required_form="valid Table Schema mapping",
+            ) from exc
+
+    def to_dialect(self) -> TableDialect | None:
+        if self.dialect is None:
+            return None
+        if isinstance(self.dialect, TableDialect):
+            return self.dialect
+        from mountainash.typespec.frictionless_codec import (
+            resolve_descriptor_mapping,
+            validate_dialect_family,
+        )
+
+        source = self.dialect
+        raw = resolve_descriptor_mapping(
+            source,
+            context=self._descriptor_context,
+            expected_kind=DescriptorKind.DIALECT,
+            descriptor_path="$.dialect",
+            resource_name=self.name,
+        )
+        try:
+            validate_dialect_family(raw, resource_format=self.format)
+            return TableDialect.from_descriptor(raw)
+        except DescriptorError:
+            raise
+        except Exception as exc:
+            error_type = (
+                DescriptorReferenceInvalid
+                if isinstance(source, str)
+                else InvalidDescriptorStructure
+            )
+            raise error_type(
+                "dialect mapping could not be converted",
+                descriptor_kind=DescriptorKind.DIALECT.value,
+                descriptor_path="$.dialect",
+                resource_name=self.name,
+                rejected_value=raw,
+                required_form="valid Table Dialect mapping",
+            ) from exc
 
     def to_contract(self, *, name: Optional[str] = None) -> Any:
         spec = self.to_typespec()
         if spec is None:
-            raise ValueError(f"DataResource {self.name!r} has no table_schema — cannot build a contract")
+            raise ValueError(
+                f"DataResource {self.name!r} has no table_schema — cannot build a contract"
+            )
         return spec.to_contract(name=name)
 
 
-_KNOWN_PACKAGE_FIELDS = {
-    "name", "id", "licenses", "$schema", "profile",
-    "title", "description", "homepage", "version", "created",
-    "keywords", "contributors", "sources", "image", "resources",
-}
 
 
 class DataPackage(BaseModel):
@@ -182,7 +277,6 @@ class DataPackage(BaseModel):
     id: Optional[str] = None
     licenses: Optional[list[dict[str, Any]]] = None
     dollar_schema: Optional[str] = Field(default=None, alias="$schema")
-    profile: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     homepage: Optional[str] = None
@@ -193,6 +287,14 @@ class DataPackage(BaseModel):
     sources: Optional[list[dict[str, Any]]] = None
     image: Optional[str] = None
     extras: dict[str, Any] = Field(default_factory=dict)
+    _descriptor_context: DescriptorContext = PrivateAttr(
+        default_factory=_default_descriptor_context
+    )
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, DataPackage):
+            return self.model_dump() == other.model_dump()
+        return super().__eq__(other)
 
     def model_post_init(self, _ctx: Any) -> None:
         if not self.resources:
@@ -216,45 +318,62 @@ class DataPackage(BaseModel):
                     )
 
     @classmethod
-    def from_descriptor(cls, raw: "dict[str, Any] | str | Path") -> "DataPackage":
-        from pathlib import Path
-        import json
-        if isinstance(raw, (str, Path)):
-            p = Path(raw)
-            if p.exists():
-                raw = json.loads(p.read_text())
-            else:
-                raw = json.loads(str(raw))
-        assert isinstance(raw, dict)
-        kwargs: dict[str, Any] = {}
-        extras: dict[str, Any] = {}
-        for k, v in raw.items():
-            if k in _KNOWN_PACKAGE_FIELDS:
-                kwargs[k] = v
-            else:
-                extras[k] = v
-        kwargs["resources"] = [DataResource.from_descriptor(r) for r in kwargs["resources"]]
-        kwargs["extras"] = extras
-        return cls.model_validate(kwargs)
+    def from_descriptor(
+        cls,
+        raw: Mapping[str, Any],
+        *,
+        base_uri: str | Path | None = None,
+        resolver: DescriptorResolver | None = None,
+    ) -> DataPackage:
+        from mountainash.typespec.frictionless_codec import decode_package_descriptor
+
+        return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
+
+    @classmethod
+    def from_json(
+        cls,
+        text: str,
+        *,
+        base_uri: str | Path | None = None,
+        resolver: DescriptorResolver | None = None,
+    ) -> DataPackage:
+        from mountainash.typespec.frictionless_codec import decode_package_json
+
+        return decode_package_json(text, base_uri=base_uri, resolver=resolver)
+
+    @classmethod
+    def from_path(
+        cls,
+        path: str | Path,
+        *,
+        resolver: DescriptorResolver | None = None,
+    ) -> DataPackage:
+        from mountainash.typespec.frictionless_codec import decode_package_path
+
+        return decode_package_path(path, resolver=resolver)
 
     def to_descriptor(self) -> dict[str, Any]:
-        out: dict[str, Any] = {}
-        if self.dollar_schema is not None:
-            out["$schema"] = self.dollar_schema
-        for k in ("name", "id", "title", "description", "homepage", "version",
-                  "created", "keywords", "contributors", "sources", "image",
-                  "licenses", "profile"):
-            v = getattr(self, k)
-            if v is not None:
-                out[k] = v
-        out["resources"] = [r.to_descriptor() for r in self.resources]
-        out.update(self.extras)
-        return out
+        from mountainash.typespec.frictionless_codec import encode_package_descriptor
 
-    def write(self, path: "str | Path") -> None:
-        from pathlib import Path
+        return encode_package_descriptor(self, mode=DescriptorWriteMode.PRESERVE)
+
+    def to_canonical_descriptor(self) -> dict[str, Any]:
+        from mountainash.typespec.frictionless_codec import encode_package_descriptor
+
+        return encode_package_descriptor(self, mode=DescriptorWriteMode.CANONICAL)
+
+    def write(
+        self,
+        path: str | Path,
+        *,
+        mode: DescriptorWriteMode = DescriptorWriteMode.PRESERVE,
+    ) -> None:
         import json
-        Path(path).write_text(json.dumps(self.to_descriptor(), indent=2))
+        from pathlib import Path
+        from mountainash.typespec.frictionless_codec import encode_package_descriptor
+
+        descriptor = encode_package_descriptor(self, mode=mode)
+        Path(path).write_text(json.dumps(descriptor, indent=2), encoding="utf-8")
 
     def to_relation_dag(
         self,

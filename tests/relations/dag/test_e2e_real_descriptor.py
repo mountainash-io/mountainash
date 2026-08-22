@@ -43,10 +43,15 @@ def _stub_resources(raw: dict, tmp_path: Path, *, drop_schema: bool = True) -> d
             local.write_text(f"{header}\n{row}\n")
         else:
             local.write_text("col\nx\n")
-        r["path"] = str(local)
+        r["path"] = f"{r['name']}.csv"
         if drop_schema:
             r.pop("schema", None)
     return raw
+
+def _bind_stub_paths(package: DataPackage, tmp_path: Path) -> DataPackage:
+    for resource in package.resources:
+        resource.path = str(tmp_path / f"{resource.name}.csv")
+    return package
 
 
 def test_descriptor_round_trip_through_dag(tmp_path: Path) -> None:
@@ -61,6 +66,7 @@ def test_descriptor_round_trip_through_dag(tmp_path: Path) -> None:
     raw = _stub_resources(raw, tmp_path, drop_schema=True)
 
     pkg = DataPackage.from_descriptor(raw)
+    pkg = _bind_stub_paths(pkg, tmp_path)
     dag = pkg.to_relation_dag()
     pkg2 = dag.to_package()
 
@@ -71,6 +77,49 @@ def test_descriptor_round_trip_through_dag(tmp_path: Path) -> None:
     # the round-trip should also produce no table_schema (symmetric)
     schemas_out = {r.name: r.table_schema for r in pkg2.resources if r.table_schema}
     assert schemas_out == {}
+
+def test_descriptor_dag_preserves_lazy_reads_and_source_inheritance(tmp_path: Path) -> None:
+    raw = json.loads((FIXTURES / "gdp.datapackage.json").read_text())
+
+    package = DataPackage.from_descriptor(raw)
+    resource = package.resources[0]
+    resource.path = str(tmp_path / "deferred.csv")
+    assert all(r.sources is None for r in package.resources)
+    dag = package.to_relation_dag()
+    exported = dag.to_package()
+
+    # Building and packaging the DAG do not read the resource.
+    assert all(r.sources is None for r in exported.resources)
+    assert all("sources" not in r.to_descriptor() for r in exported.resources)
+
+    Path(resource.path).write_text("country,year,gdp_trillion\nx,1,0\n")
+    result = dag.collect(resource.name)
+    assert _to_eager(result).shape == (1, 3)
+
+
+def test_descriptor_foreign_keys_stay_constraint_edges() -> None:
+    raw = {
+        "resources": [
+            {"name": "parents", "type": "table", "path": "parents.csv", "schema": {"fields": [{"name": "id"}]}},
+            {
+                "name": "children",
+                "type": "table",
+                "path": "children.csv",
+                "schema": {
+                    "fields": [{"name": "parent_id"}],
+                    "foreignKeys": [
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"resource": "parents", "fields": ["id"]},
+                        }
+                    ],
+                },
+            },
+        ]
+    }
+    dag = DataPackage.from_descriptor(raw).to_relation_dag()
+    assert ("parents", "children") in dag.constraint_edges
+    assert ("parents", "children") not in dag.dependency_edges
 
 
 def test_descriptor_round_trip_preserves_schema(tmp_path: Path) -> None:
@@ -96,9 +145,10 @@ def test_descriptor_round_trip_preserves_schema(tmp_path: Path) -> None:
             local.write_text(f"{header}\n{row}\n")
         else:
             local.write_text("col\nx\n")
-        r["path"] = str(local)
+        r["path"] = f"{r['name']}.csv"
 
     pkg = DataPackage.from_descriptor(raw)
+    pkg = _bind_stub_paths(pkg, tmp_path)
     dag = pkg.to_relation_dag()
     pkg2 = dag.to_package()
 
@@ -118,6 +168,7 @@ def test_descriptor_collect_one_resource(tmp_path: Path) -> None:
     raw = _stub_resources(raw, tmp_path, drop_schema=True)
 
     pkg = DataPackage.from_descriptor(raw)
+    pkg = _bind_stub_paths(pkg, tmp_path)
     dag = pkg.to_relation_dag()
     result = dag.collect(target_name)
     df = _to_eager(result)
@@ -130,6 +181,7 @@ def test_descriptor_collect_all_resources(tmp_path: Path) -> None:
     raw = _stub_resources(raw, tmp_path, drop_schema=True)
 
     pkg = DataPackage.from_descriptor(raw)
+    pkg = _bind_stub_paths(pkg, tmp_path)
     dag = pkg.to_relation_dag()
 
     for name in dag.relations:

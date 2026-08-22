@@ -84,7 +84,7 @@ def _load_package(tmp_path: Path, *, parents: list[dict], children: list[dict]) 
     descriptor["resources"][1]["data"] = children
     p = tmp_path / "datapackage.json"
     p.write_text(json.dumps(descriptor))
-    return DataPackage.from_descriptor(p)
+    return DataPackage.from_path(p)
 
 
 def _status(check_summaries, check_id: str) -> str:

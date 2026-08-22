@@ -18,6 +18,11 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 )
 
 
+def _parse(resource):
+    return rf.parse_resource_to_arrow(
+        resource, dialect=resource.to_dialect()
+    )
+
 @pytest.fixture(scope="module", autouse=True)
 def _load_capabilities():
     from mountainash.core.capabilities import load_all_capability_declarations
@@ -101,7 +106,7 @@ def test_parse_local_csv_to_arrow(tmp_path):
     p = tmp_path / "d.csv"
     p.write_text("a,b\n1,x\n2,y\n")
     res = DataResource(name="d", path=str(p), format="csv")
-    table = rf.parse_resource_to_arrow(res)
+    table = _parse(res)
     assert isinstance(table, pa.Table)
     assert table.column_names == ["a", "b"]
     assert table.num_rows == 2
@@ -111,7 +116,7 @@ def test_parse_multipath_concats(tmp_path):
     p1 = tmp_path / "a.csv"; p1.write_text("a\n1\n")
     p2 = tmp_path / "b.csv"; p2.write_text("a\n2\n")
     res = DataResource(name="d", path=[str(p1), str(p2)], format="csv")
-    table = rf.parse_resource_to_arrow(res)
+    table = _parse(res)
     assert sorted(table.column("a").to_pylist()) == [1, 2]
 
 
@@ -119,7 +124,7 @@ def test_parse_glob_expands(tmp_path):
     (tmp_path / "p1.csv").write_text("a\n1\n")
     (tmp_path / "p2.csv").write_text("a\n2\n")
     res = DataResource(name="d", path=f"{tmp_path}/*.csv", format="csv")
-    table = rf.parse_resource_to_arrow(res)
+    table = _parse(res)
     assert sorted(table.column("a").to_pylist()) == [1, 2]
 
 
@@ -129,7 +134,7 @@ def test_parse_gzip_csv_with_dialect(tmp_path):
     p.write_bytes(gzip.compress(b"a;b\n1;NA\n"))
     res = DataResource(name="d", path=str(p), format="csv",
                        dialect=TableDialect(delimiter=";", null_sequence="NA"))
-    table = rf.parse_resource_to_arrow(res)
+    table = _parse(res)
     assert table.column_names == ["a", "b"]
     assert table.column("a").to_pylist() == [1]
     assert table.column("b").to_pylist() == [None]
@@ -150,7 +155,7 @@ def test_missing_files_direct_import_is_typed(monkeypatch, tmp_path):
     p = tmp_path / "d.csv"; p.write_text("a\n1\n")
     res = DataResource(name="d", path=str(p), format="csv")
     with pytest.raises(MissingFilesDependency, match=r"mountainash\[files\]"):
-        rf.parse_resource_to_arrow(res)
+        _parse(res)
 
 
 def test_missing_transitive_dep_during_parse_is_typed(monkeypatch, tmp_path):
@@ -174,7 +179,7 @@ def test_missing_transitive_dep_during_parse_is_typed(monkeypatch, tmp_path):
         lambda: (boom, FileSourceSpec, CsvSpec, GzipCompression, ZipArchive),
     )
     with pytest.raises(MissingFilesDependency, match=r"mountainash\[files\]"):
-        rf.parse_resource_to_arrow(res)
+        _parse(res)
 
 
 # ---- JSON: non-Arrow ParseResult.data normalises to a pa.Table -------------
@@ -186,7 +191,7 @@ def test_parse_local_json_records_to_arrow(tmp_path):
     p = tmp_path / "d.json"
     p.write_text('[{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]')
     res = DataResource(name="d", path=str(p), format="json")
-    table = rf.parse_resource_to_arrow(res)
+    table = _parse(res)
     assert isinstance(table, pa.Table)
     assert table.column_names == ["a", "b"]
     assert table.column("a").to_pylist() == [1, 2]
@@ -197,7 +202,7 @@ def test_parse_single_json_object_is_one_row(tmp_path):
     p = tmp_path / "d.json"
     p.write_text('{"a": 1, "b": "x"}')
     res = DataResource(name="d", path=str(p), format="json")
-    table = rf.parse_resource_to_arrow(res)
+    table = _parse(res)
     assert table.num_rows == 1
     assert table.column("a").to_pylist() == [1]
 
@@ -209,7 +214,7 @@ def test_json_array_of_scalars_fails_closed(tmp_path):
     p.write_text("[1, 2, 3]")
     res = DataResource(name="d", path=str(p), format="json")
     with pytest.raises(UnsupportedResourceFormat, match="non-record"):
-        rf.parse_resource_to_arrow(res)
+        _parse(res)
 
 
 # ---- mountainash-files error types normalise to mountainash's hierarchy ----
@@ -220,7 +225,7 @@ def test_unknown_format_normalises_to_unsupported(tmp_path):
     p = tmp_path / "d.bogus"; p.write_text("whatever")
     res = DataResource(name="d", path=str(p), format="bogusfmt")
     with pytest.raises(UnsupportedResourceFormat):
-        rf.parse_resource_to_arrow(res)
+        _parse(res)
 
 
 def test_missing_format_dependency_normalises_to_missing_files(monkeypatch, tmp_path):
@@ -237,7 +242,7 @@ def test_missing_format_dependency_normalises_to_missing_files(monkeypatch, tmp_
     p = tmp_path / "d.csv"; p.write_text("a\n1\n")
     res = DataResource(name="d", path=str(p), format="csv")
     with pytest.raises(MissingFilesDependency, match=r"mountainash\[files\]|optional"):
-        rf.parse_resource_to_arrow(res)
+        _parse(res)
 
 
 class TestRouterMetadataBridge:

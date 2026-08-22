@@ -4,7 +4,33 @@ from pathlib import Path
 
 import pytest
 
+from mountainash import DescriptorWriteMode
 from mountainash.typespec.datapackage import DataPackage
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_write_defaults_to_preserve(tmp_path):
+    raw = {
+        "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
+        "contributors": [{"title": "Author", "role": "author"}],
+        "resources": [{"name": "orders", "path": "orders.csv"}],
+    }
+    path = tmp_path / "datapackage.json"
+    DataPackage.from_descriptor(raw).write(path)
+    assert json.loads(path.read_text()) == raw
+
+
+def test_write_accepts_explicit_canonical_mode(tmp_path):
+    raw = {
+        "contributors": [{"title": "Author", "role": "author"}],
+        "resources": [{"name": "orders", "path": "orders.csv"}],
+    }
+    path = tmp_path / "datapackage.json"
+    DataPackage.from_descriptor(raw).write(path, mode=DescriptorWriteMode.CANONICAL)
+    result = json.loads(path.read_text())
+    assert result["$schema"] == "https://datapackage.org/profiles/2.0/datapackage.json"
+    assert result["contributors"] == [{"title": "Author", "roles": ["author"]}]
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

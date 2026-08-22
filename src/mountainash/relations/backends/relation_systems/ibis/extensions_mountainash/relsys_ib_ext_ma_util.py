@@ -128,6 +128,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
         for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
         with the other backends (spec §A.6)."""
+        dialect = resource.to_dialect()
         if resource.data is not None:
             from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
                 MountainashPolarsExtensionRelationSystem,
@@ -144,6 +145,8 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         from mountainash.core.io import is_remote
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
+        if fmt == "csv":
+            rf.ensure_dialect_supported(dialect)
         all_local = all(not is_remote(p) for p in paths)
         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
         no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
@@ -155,7 +158,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         native_ok = (
             all_local and no_glob and no_archive and native
             and hasattr(con, native)
-            and (fmt != "csv" or rf.dialect_is_default(resource.dialect))
+            and (fmt != "csv" or rf.dialect_is_default(dialect))
         )
         if native_ok:
             return getattr(con, native)(paths if len(paths) > 1 else paths[0])
@@ -163,7 +166,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
         ensure_sqlite_nat_adapter()
-        return ibis.memtable(rf.parse_resource_to_arrow(resource))
+        return ibis.memtable(rf.parse_resource_to_arrow(resource, dialect=dialect))
 
     @staticmethod
     def _detect_format_name(resource: Any) -> str:

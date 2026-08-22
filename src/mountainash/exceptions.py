@@ -35,6 +35,18 @@ from mountainash.core.dtypes.errors import (
 )
 from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.validation import SchemaValidationError
+from mountainash.typespec.errors import (
+    DescriptorError,
+    InvalidDescriptorSyntax,
+    InvalidDescriptorStructure,
+    UnsupportedDescriptorVersion,
+    MissingDescriptorBase,
+    DescriptorReferenceNotFound,
+    DescriptorReferenceInvalid,
+    DescriptorReferenceSchemeDenied,
+    InvalidDescriptorRelationship,
+    UnsupportedResourceDialect,
+)
 from mountainash.pipelines.errors import StepEmptyError
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
@@ -75,6 +87,16 @@ __all__ = [
     "DtypeMappingError",
     "BackendCapabilityError",
     "SchemaValidationError",
+    "DescriptorError",
+    "InvalidDescriptorSyntax",
+    "InvalidDescriptorStructure",
+    "UnsupportedDescriptorVersion",
+    "MissingDescriptorBase",
+    "DescriptorReferenceNotFound",
+    "DescriptorReferenceInvalid",
+    "DescriptorReferenceSchemeDenied",
+    "InvalidDescriptorRelationship",
+    "UnsupportedResourceDialect",
     "StepEmptyError",
     "UnsupportedCollectionError",
     "ValidationError",
