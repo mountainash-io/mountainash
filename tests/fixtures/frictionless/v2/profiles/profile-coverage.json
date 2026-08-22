@@ -1224,10 +1224,18 @@
         "status": "implemented"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "No LabeledValue typed shape exists; categorical_values() discards the label key on read, so the typed model does not preserve it.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "categorical_values() drops the label key; no operational consumer preserves it. Unit B adds LabeledValue round-tripping.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       }
     },
     {
@@ -1659,10 +1667,18 @@
         "status": "implemented"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "No LabeledValue typed shape exists; the field-level missingValues label is not preserved by any typed accessor.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "No operational consumer preserves the field-level missingValues label today. Unit B adds LabeledValue round-tripping.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       }
     },
     {
@@ -1815,10 +1831,18 @@
         "status": "implemented"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "UniversalType.GEOJSON does not exist; Unit B adds it with static canonical JSON resolution.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "UniversalType.GEOJSON does not exist, so no canonical or backend conversion is possible; Unit B adds canonical JSON execution support.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       }
     },
     {
@@ -1827,10 +1851,18 @@
         "status": "implemented"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "UniversalType.GEOPOINT does not exist; Unit B adds it with format-aware canonical resolution via resolve_field_canonical.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "UniversalType.GEOPOINT does not exist, so no canonical or backend conversion is possible; Unit B adds resolve_field_canonical execution support.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       }
     },
     {
@@ -2058,10 +2090,18 @@
         "status": "implemented"
       },
       "typed": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "No LabeledValue typed shape exists; the schema-level missingValues label is not preserved by any typed accessor.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       },
       "execution": {
-        "status": "implemented"
+        "status": "deferred",
+        "reason": "No operational consumer preserves the schema-level missingValues label today. Unit B adds LabeledValue round-tripping.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-20-frictionless-v2-typespec-cutover-design.md#unit-b"
       }
     },
     {
