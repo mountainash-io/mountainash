@@ -188,34 +188,28 @@ treated as v2 for package, resource, schema, and dialect documents. This avoids
 reintroducing the v1 defaults currently present in upstream v2 profile sources.
 
 Preserve output keeps an omitted profile omitted. Canonical output writes the standard
-v2 URI for each descriptor kind. The coverage manifest records `MA-V2-01` as the
-storage, typed, and execution disposition for all four `$schema` capabilities.
+v2 URI for each descriptor kind (`frictionless_codec.py`'s `_canonical_profile`,
+`_canonicalize_dialect`, `_canonicalize_schema`, `_encode_package_canonical`). See the
+central backlog, item 113, for the `MA-V2-01` design record.
 
-## Coverage maintenance
+## Upstream profile snapshots
 
-The coverage gate uses the four vendored v2 profile snapshots (package, resource,
-dialect, and schema) pinned to upstream commit
-`6a201af8ed2eacbb3a2440e82e4c55d5807f9c09`. `profile-sources.json` records each
-snapshot digest. `profile-coverage.json` records one storage, typed, and execution
-disposition for every discovered capability, including evidence-backed upstream
-exceptions, local policies, and dated Unit B-E deferrals.
+The four vendored v2 profile snapshots (package, resource, dialect, and schema),
+pinned to upstream commit `6a201af8ed2eacbb3a2440e82e4c55d5807f9c09`, live at
+`tests/fixtures/frictionless/v2/profiles/`. `profile-sources.json` records each
+snapshot's SHA-256 digest for provenance.
 
-Run the closed coverage checks with:
+Documented discrepancies between this pinned upstream commit and mountainash's
+behavior (`DP-V2-01` through `DP-V2-06`) and local policy decisions (`MA-V2-01`) are
+recorded in the central backlog, item 113 — that is the single source of truth; do not
+duplicate it elsewhere.
 
-```bash
-hatch run test:test-target-quick tests/typespec/test_frictionless_profile_coverage.py -v
-```
+Correctness for each descriptor kind is defended by the functional test suite
+(`tests/typespec/test_frictionless_codec.py`, `test_frictionless_v2_smoke.py`, and the
+round-trip suites), which exercise real decode/encode paths against real descriptors —
+not by a separate coverage-tracking fixture.
 
-The checks recompute every SHA-256 digest, compare the pinned upstream commit with the
-upstream discrepancy evidence, discover instance-path capabilities, and fail closed on
-unknown profile paths, missing dispositions, duplicate dimensions, orphan manifest rows,
-or incomplete evidence. A prose-backed capability absent from a profile must have an
-evidence row and an `absent_from_profile` manifest entry; it must not be hidden by
-editing a snapshot.
+When upstream changes, refresh the vendored snapshots and `profile-sources.json`'s
+digests together, then update the central backlog's discrepancy record if behavior
+changes as a result.
 
-When upstream changes, refresh all snapshots and their provenance atomically. Update
-the discrepancy record and manifest dispositions together, then rerun the coverage
-tests. For a digest or commit mismatch, restore the last verified snapshot set or
-refresh it from the recorded upstream commit before investigating behavior. For an
-unknown capability or orphan row, add the correct disposition and evidence (or a dated
-Unit owner and acceptance reference for deferred work) rather than weakening the gate.
