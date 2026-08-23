@@ -28,7 +28,7 @@ class TestVisitorApplyConform:
         visitor = UnifiedRelationVisitor(rel_sys, expr_visitor)
 
         lf = pl.DataFrame({"raw_id": ["1", "2"], "extra": [10, 20]}).lazy()
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id"),
             ],
@@ -104,7 +104,7 @@ class TestVisitorDriftReports:
         """Sequential apply_conform() calls on one visitor append in order,
         each with a deterministic node_id derived from the running count."""
         visitor = _make_visitor()
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
 
         lf1 = pl.DataFrame({"n": ["1", "2"]}).lazy()
         visitor.apply_conform(lf1, spec).collect()
@@ -118,7 +118,7 @@ class TestVisitorDriftReports:
 
     def test_drift_report_carries_resource_name_when_supplied(self):
         visitor = _make_visitor()
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
         lf = pl.DataFrame({"n": ["1", "2"]}).lazy()
 
         visitor.apply_conform(lf, spec, resource_name="orders").collect()
@@ -130,7 +130,7 @@ class TestVisitorDriftReports:
         """A bare Relation.conform() call (no resource context) leaves
         resource_name None -- matches apply_conform's default param."""
         visitor = _make_visitor()
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
         lf = pl.DataFrame({"n": ["1", "2"]}).lazy()
 
         visitor.apply_conform(lf, spec).collect()

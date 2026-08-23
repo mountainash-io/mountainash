@@ -13,6 +13,8 @@ from mountainash.typespec.universal_types import (
     parse_universal,
 )
 from mountainash.typespec.spec import (
+    LabeledValue,
+    MissingValue,
     FieldConstraints,
     ForeignKeyReference,
     ForeignKey,
@@ -89,6 +91,8 @@ __all__ = [
     "parse_universal",
 
     # Spec classes
+    "LabeledValue",
+    "MissingValue",
     "FieldConstraints",
     "ForeignKeyReference",
     "ForeignKey",

@@ -79,7 +79,9 @@ def test_raw_dict_schema_via_from_descriptor():
                     {"name": "v", "type": "integer"},
                 ],
                 "primaryKey": ["date", "v"],
-                "fieldsMatch": "open",
+                # "open" is a Mountainash extension mode — carried only at
+                # x-mountainash.fields_match, never at the standard fieldsMatch key.
+                "x-mountainash": {"fields_match": "open"},
             },
         }],
     }

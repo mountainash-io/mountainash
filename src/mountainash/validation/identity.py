@@ -40,7 +40,7 @@ def resolve_identity(
         return RowIdentity(kind="keyed", key_fields=tuple(natural_key))
     primary_key = getattr(spec, "primary_key", None) if spec is not None else None
     if primary_key:
-        keys = [primary_key] if isinstance(primary_key, str) else list(primary_key)
+        keys = list(primary_key)
         return RowIdentity(kind="keyed", key_fields=tuple(keys))
     if row_identity == "row_number":
         return RowIdentity(kind="row_number")

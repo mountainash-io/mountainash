@@ -41,12 +41,22 @@ from mountainash.typespec.universal_types import UniversalType, to_canonical
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _spec(*fields, fields_match=None, missing_values=None):
-    """Build a TypeSpec with minimal boilerplate."""
+_UNSET = object()
+
+
+def _spec(*fields, fields_match=_UNSET, missing_values=None):
+    """Build a TypeSpec with minimal boilerplate.
+
+    When ``fields_match`` is not supplied, the TypeSpec default ("exact")
+    applies — the model default is non-optional post-cutover.
+    """
+    kwargs = {}
+    if fields_match is not _UNSET:
+        kwargs["fields_match"] = fields_match
     return TypeSpec(
         fields=list(fields),
-        fields_match=fields_match,
         missing_values=missing_values or [],
+        **kwargs,
     )
 
 
@@ -59,12 +69,12 @@ def _fld(name, type_=UniversalType.STRING, **kwargs):
 # ---------------------------------------------------------------------------
 
 class TestFieldsMatchResolution:
-    """fields_match defaults to 'open' when spec.fields_match is None."""
+    """fields_match defaults to 'exact' when omitted; 'open' must be explicit."""
 
-    def test_none_resolves_to_open(self):
+    def test_default_resolves_to_exact(self):
         spec = _spec(_fld("a"))
-        contract = resolve_conform_output(spec, available_columns=None)
-        assert contract.fields_match == "open"
+        contract = resolve_conform_output(spec, available_columns=["a"])
+        assert contract.fields_match == "exact"
 
     def test_explicit_open(self):
         spec = _spec(_fld("a"), fields_match="open")
@@ -77,7 +87,7 @@ class TestFieldsMatchResolution:
         assert contract.fields_match == "equal"
 
     def test_keeps_unmapped_true_for_open(self):
-        spec = _spec(_fld("a"))
+        spec = _spec(_fld("a"), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=None)
         assert contract.keeps_unmapped is True
 

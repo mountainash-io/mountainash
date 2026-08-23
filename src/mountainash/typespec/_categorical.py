@@ -12,9 +12,17 @@ from typing import Any
 
 
 def categorical_values(categories: list[Any]) -> list[Any]:
-    """Extract raw values from a categories list (simple or {value,label}
-    object form). Returns a NEW list — never aliases the input."""
-    return [c["value"] if isinstance(c, dict) else c for c in categories]
+    """Extract raw values from a categories list (simple values, LabeledValue
+    objects, or {value,label} dicts). Returns a NEW list — never aliases the
+    input."""
+    from mountainash.typespec.spec import LabeledValue
+
+    return [
+        c.value
+        if isinstance(c, LabeledValue)
+        else (c["value"] if isinstance(c, dict) else c)
+        for c in categories
+    ]
 
 
 __all__ = ["categorical_values"]

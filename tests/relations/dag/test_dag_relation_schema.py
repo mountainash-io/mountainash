@@ -57,6 +57,11 @@ def test_assess_drift_plain_relation_over_ref_is_degenerate():
         RefRelNode,
     )
     spec = ma.typespec({"x": "integer", "y": "string"})
+    # fields_match must be "open" explicitly (the model default is now the
+    # strict "exact", which would raise on the ref's empty inferred schema
+    # instead of under-assessing). This test pins the resolver-less degenerate
+    # path, not exact-mode column enforcement.
+    spec.fields_match = "open"
     plain = Relation(RefRelNode(name="raw")).conform(spec)
     # Should not raise; returns a list (possibly under-assessed). This is the
     # baseline the DAGRelation override improves on.

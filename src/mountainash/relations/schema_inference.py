@@ -334,7 +334,7 @@ def infer_schema(
         # own bare-KeyError-on-unknown-preset behaviour is a pinned
         # invariant we must not trigger directly — see
         # UnifiedRelationVisitor.apply_conform's identical guard).
-        fields_match = spec.fields_match if spec.fields_match is not None else "open"
+        fields_match = spec.fields_match
         resolved_contract = (
             resolve_contract(
                 fields_match,

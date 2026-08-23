@@ -4,6 +4,7 @@ import polars as pl
 import mountainash as ma
 from mountainash.relations.dag.dag import RelationDAG
 from mountainash.typespec.spec import ForeignKey, ForeignKeyReference, TypeSpec, FieldSpec
+from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.fk import build_fk_checks
 
 
@@ -38,7 +39,7 @@ def test_spec_fk_union_and_dedup():
     dag = _dag()
     dag.add_constraint("orders_clean", _fk())
     spec = TypeSpec(
-        fields=[FieldSpec(name="customer_id")],
+        fields=[FieldSpec(name="customer_id", type=UniversalType.ANY)],
         foreign_keys=[_fk()],  # duplicate of the metadata declaration
     )
     rules, errors = build_fk_checks(dag, {"orders_clean": spec})
@@ -89,7 +90,7 @@ def test_missing_field_is_error_summary():
 def test_self_reference_normalises_to_child():
     dag = RelationDAG()
     dag.add("employees", ma.relation(pl.DataFrame({"id": [1], "manager_id": [1]})))
-    fk = ForeignKey(fields=["manager_id"], reference=ForeignKeyReference(resource="", fields=["id"]))
+    fk = ForeignKey(fields=["manager_id"], reference=ForeignKeyReference(resource=None, fields=["id"]))
     spec = TypeSpec(fields=[], foreign_keys=[fk])
     rules, errors = build_fk_checks(dag, {"employees": spec})
     assert errors == []
@@ -106,7 +107,7 @@ def test_spec_fields_validate_without_schema_inference(monkeypatch):
         lambda self, name: (_ for _ in ()).throw(RuntimeError("inference unavailable")),
     )
     spec = TypeSpec(
-        fields=[FieldSpec(name="customer_id")],  # declares fields; "ghost" absent
+        fields=[FieldSpec(name="customer_id", type=UniversalType.ANY)],  # declares fields; "ghost" absent
         foreign_keys=[_fk(child_field="ghost")],
     )
     rules, errors = build_fk_checks(dag, {"orders": spec})

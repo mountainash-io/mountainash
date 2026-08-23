@@ -428,7 +428,7 @@ class UnifiedRelationVisitor:
         else:
             available = None
 
-        fields_match = schema.fields_match if schema.fields_match is not None else "open"
+        fields_match = schema.fields_match
         # Validate before resolve_contract(): resolve_contract's
         # FIELDS_MATCH_PRESETS[fields_match] lookup deliberately raises a
         # bare KeyError on an unknown preset name (pinned by

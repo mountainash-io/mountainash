@@ -16,6 +16,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.conform.errors import ConformError
+from mountainash.typespec.errors import InvalidFieldMatchDeclaration
 from mountainash.typespec.frictionless import (
     typespec_from_frictionless,
     typespec_to_frictionless,
@@ -115,15 +116,16 @@ def test_write_empty_contract_emits_no_x_mountainash():
 # --- Read: legacy + new form -------------------------------------------------
 
 
-def test_read_legacy_fields_match_open_still_works():
-    """Old descriptors written before this change used the standard
-    fieldsMatch key for "open" -- must still parse correctly."""
+def test_read_legacy_standard_open_now_raises():
+    """The legacy standard-location "open" fallback is not retained: an
+    "open" value at the standard fieldsMatch key is now an invalid
+    declaration (open lives only at x-mountainash.fields_match)."""
     descriptor = {
         "fields": [{"name": "a", "type": "string"}],
         "fieldsMatch": "open",
     }
-    spec = typespec_from_frictionless(descriptor)
-    assert spec.fields_match == "open"
+    with pytest.raises(InvalidFieldMatchDeclaration):
+        typespec_from_frictionless(descriptor)
 
 
 def test_read_new_form_x_mountainash_fields_match_open():
@@ -135,15 +137,16 @@ def test_read_new_form_x_mountainash_fields_match_open():
     assert spec.fields_match == "open"
 
 
-def test_read_x_mountainash_fields_match_takes_precedence_over_legacy_key():
-    """If both are somehow present, the new namespaced form wins."""
+def test_read_both_fields_match_locations_raises():
+    """Both locations present is an invalid declaration — the reader never
+    silently picks one."""
     descriptor = {
         "fields": [{"name": "a", "type": "string"}],
         "fieldsMatch": "subset",
         "x-mountainash": {"fields_match": "open"},
     }
-    spec = typespec_from_frictionless(descriptor)
-    assert spec.fields_match == "open"
+    with pytest.raises(InvalidFieldMatchDeclaration):
+        typespec_from_frictionless(descriptor)
 
 
 def test_read_contract_round_trips():

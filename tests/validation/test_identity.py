@@ -6,6 +6,7 @@ data across all backends) lives in cross_backend/test_identity_keyed.py.
 import pytest
 
 from mountainash.typespec.spec import TypeSpec, FieldSpec
+from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.errors import (
     CheckDeclarationError,
     IdentityRequiredError,
@@ -19,12 +20,12 @@ from mountainash.validation.identity import (
 
 class TestResolution:
     def test_explicit_natural_key_wins(self):
-        spec = TypeSpec(fields=[FieldSpec(name="id")], primary_key="id")
+        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.ANY)], primary_key=["id"])
         identity = resolve_identity(natural_key=["code"], spec=spec)
         assert identity == RowIdentity(kind="keyed", key_fields=("code",))
 
     def test_primary_key_from_spec(self):
-        spec = TypeSpec(fields=[FieldSpec(name="id")], primary_key="id")
+        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.ANY)], primary_key=["id"])
         assert resolve_identity(spec=spec) == RowIdentity(kind="keyed", key_fields=("id",))
 
     def test_composite_primary_key(self):

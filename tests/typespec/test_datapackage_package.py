@@ -1,5 +1,12 @@
 import pytest
 from mountainash.typespec.datapackage import DataPackage, DataResource
+from mountainash.typespec.spec import (
+    FieldSpec,
+    ForeignKey,
+    ForeignKeyReference,
+    TypeSpec,
+)
+from mountainash.typespec.universal_types import UniversalType
 
 
 def _r(name: str, **kw) -> DataResource:
@@ -40,3 +47,20 @@ def test_dollar_schema_preserved():
     pkg = DataPackage.from_descriptor(raw)
     assert pkg.dollar_schema == "https://datapackage.org/profiles/2.0/datapackage.json"
     assert pkg.to_descriptor()["$schema"] == raw["$schema"]
+
+
+def test_package_accepts_typed_self_reference_none():
+    spec = TypeSpec(
+        fields=[FieldSpec("id", UniversalType.INTEGER)],
+        foreign_keys=[
+            ForeignKey(
+                fields=["id"],
+                reference=ForeignKeyReference(None, ["id"]),
+            )
+        ],
+    )
+    package = DataPackage(
+        name="p",
+        resources=[DataResource(name="r", data=[], schema=spec)],
+    )
+    assert package.resources[0].to_typespec() is spec

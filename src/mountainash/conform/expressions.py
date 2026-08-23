@@ -461,7 +461,9 @@ def resolve_conform_output(
             ``data_type``, or ``keys``) that tripped.
     """
     # --- 1. Resolve and validate fields_match mode ---
-    fields_match = spec.fields_match if spec.fields_match is not None else "open"
+    # fields_match is non-optional (defaults to "exact" on the TypeSpec); a
+    # permissive caller must pass "open" explicitly.
+    fields_match = spec.fields_match
     if fields_match not in _VALID_FIELDS_MATCH:
         raise ConformError(
             f"Invalid fields_match={fields_match!r}. "

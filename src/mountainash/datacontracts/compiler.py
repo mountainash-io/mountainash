@@ -193,9 +193,7 @@ def primary_key_check(spec: "TypeSpec") -> "RelationRule | None":
     of the §7 identity precondition (which raises)."""
     if not spec.primary_key:
         return None
-    keys = (
-        [spec.primary_key] if isinstance(spec.primary_key, str) else list(spec.primary_key)
-    )
+    keys = list(spec.primary_key)
 
     def plan(rel: Any, _keys: "tuple[str, ...]" = tuple(keys)) -> Any:
         return (

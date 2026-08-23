@@ -50,7 +50,8 @@ def apply_native_conversions_for_egress(
     Example:
         >>> spec = TypeSpec(fields=[
         ...     FieldSpec(name="id", type=UniversalType.INTEGER),   # Native
-        ...     FieldSpec(name="amount", custom_cast="safe_float"), # Custom
+        ...     # custom_cast takes routing precedence over type (here ANY):
+        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),
         ... ])
         >>> df, python_only = apply_native_conversions_for_egress(df, spec)
         >>> # Only 'id' cast applied in DataFrame, 'amount' left for post-extraction
@@ -88,7 +89,10 @@ def apply_native_conversions_for_egress(
     conform_fields = native_fields + rename_only_fields
 
     if conform_fields:
-        conform_spec = TypeSpec(fields=conform_fields)
+        # Egress conform casts/renames the native fields and keeps any unmapped
+        # columns — the permissive "open" mode (the model default is now the
+        # strict "exact", which would enforce column-shape here).
+        conform_spec = TypeSpec(fields=conform_fields, fields_match="open")
         import mountainash as ma
         df = ma.relation(df).conform(conform_spec).to_polars()
     elif not isinstance(df, pl.DataFrame):
@@ -126,7 +130,8 @@ def apply_custom_converters_to_python_data(
         List with custom conversions applied
 
     Example:
-        >>> field = FieldSpec(name="amount", custom_cast="safe_float")
+        >>> # custom_cast takes routing precedence over type (here ANY):
+        >>> field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         >>> data = [{"amount": "42.5"}, {"amount": "99.9"}]
         >>> result = apply_custom_converters_to_python_data(data, {"amount": field}, "dict")
         >>> result
@@ -313,7 +318,8 @@ def apply_hybrid_egress_conversion(
     Example:
         >>> spec = TypeSpec(fields=[
         ...     FieldSpec(name="id", type=UniversalType.INTEGER),   # Native
-        ...     FieldSpec(name="amount", custom_cast="safe_float"), # Custom
+        ...     # custom_cast takes routing precedence over type (here ANY):
+        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),
         ... ])
         >>> result = apply_hybrid_egress_conversion(
         ...     df, spec, extract_func=lambda d: d.to_dicts(), data_format="dict"

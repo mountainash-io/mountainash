@@ -107,7 +107,7 @@ def full_table_schema():
         fields=fields,
         title="Employee",
         description="Employee records",
-        primary_key="employee_id",
+        primary_key=["employee_id"],
     )
 
 

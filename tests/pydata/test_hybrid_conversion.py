@@ -46,7 +46,7 @@ class TestSeparateConversions:
 
     def test_custom_safe_float_is_narwhals(self):
         """safe_float has a Narwhals converter → goes to narwhals tier."""
-        spec = TypeSpec(fields=[FieldSpec(name="amount", custom_cast="safe_float")])
+        spec = TypeSpec(fields=[FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")])
         python_only, narwhals, native = separate_conversions(spec)
         assert "amount" in narwhals
         assert "amount" not in python_only
@@ -54,7 +54,7 @@ class TestSeparateConversions:
 
     def test_no_cast_is_native(self):
         """Field with no cast type goes to native (nothing to do but pass through)."""
-        spec = TypeSpec(fields=[FieldSpec(name="label")])
+        spec = TypeSpec(fields=[FieldSpec(name="label", type=UniversalType.ANY)])
         python_only, narwhals, native = separate_conversions(spec)
         assert "label" in native
         assert "label" not in python_only
@@ -64,9 +64,9 @@ class TestSeparateConversions:
         """Mixed spec routes each field to the correct tier."""
         spec = TypeSpec(
             fields=[
-                FieldSpec(name="amount", custom_cast="safe_float"),   # → narwhals
+                FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),   # → narwhals
                 FieldSpec(name="id", type=UniversalType.INTEGER),      # → native
-                FieldSpec(name="tag", rename_from="label"),            # → native
+                FieldSpec(name="tag", type=UniversalType.ANY, rename_from="label"),            # → native
             ]
         )
         python_only, narwhals, native = separate_conversions(spec)
@@ -93,7 +93,7 @@ class TestSeparateConversions:
             )
 
         try:
-            spec = TypeSpec(fields=[FieldSpec(name="col", custom_cast=name)])
+            spec = TypeSpec(fields=[FieldSpec(name="col", type=UniversalType.ANY, custom_cast=name)])
             python_only, narwhals, native = separate_conversions(spec)
             assert "col" in python_only
             assert "col" not in narwhals
@@ -112,7 +112,7 @@ class TestTier3PythonEdge:
 
     def test_single_dict_safe_float(self):
         """safe_float converter on 'amount' field converts string to float."""
-        field = FieldSpec(name="amount", custom_cast="safe_float")
+        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         custom_conversions = {"amount": field}
         data = {"amount": "42.5", "id": "123", "name": "Alice"}
         result = apply_custom_converters_to_dict(data, custom_conversions)
@@ -124,7 +124,7 @@ class TestTier3PythonEdge:
 
     def test_list_of_dicts(self):
         """safe_float converter applied to multiple rows."""
-        field = FieldSpec(name="amount", custom_cast="safe_float")
+        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         custom_conversions = {"amount": field}
         data = [
             {"amount": "10.0", "label": "a"},
@@ -152,7 +152,7 @@ class TestTier3PythonEdge:
 
     def test_none_value_safe_float(self):
         """safe_float handles None value without error."""
-        field = FieldSpec(name="amount", custom_cast="safe_float")
+        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         custom_conversions = {"amount": field}
         data = {"amount": None, "id": "1"}
         result = apply_custom_converters_to_dict(data, custom_conversions)
@@ -195,7 +195,7 @@ class TestTier2NarwhalsVectorized:
     def test_safe_float_vectorized(self):
         """safe_float via Narwhals converts string column to Float64."""
         df = pl.DataFrame({"amount": ["1.5", "2.7", "10.0"]})
-        field = FieldSpec(name="amount", custom_cast="safe_float")
+        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         narwhals_custom = {"amount": field}
         result = _apply_narwhals_custom_converters(df, narwhals_custom)
         assert result["amount"].dtype == pl.Float64
@@ -204,7 +204,7 @@ class TestTier2NarwhalsVectorized:
     def test_safe_float_vectorized_with_none(self):
         """safe_float via Narwhals converts NaN values to None."""
         df = pl.DataFrame({"amount": ["1.5", None, "3.0"]})
-        field = FieldSpec(name="amount", custom_cast="safe_float")
+        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         narwhals_custom = {"amount": field}
         result = _apply_narwhals_custom_converters(df, narwhals_custom)
         assert result["amount"].dtype == pl.Float64
@@ -248,7 +248,7 @@ class TestHybridEndToEnd:
         """apply_hybrid_conversion with safe_float produces Float64 column."""
         spec = TypeSpec(
             fields=[
-                FieldSpec(name="price", custom_cast="safe_float"),
+                FieldSpec(name="price", type=UniversalType.ANY, custom_cast="safe_float"),
                 FieldSpec(name="name", type=UniversalType.STRING),
             ],
         )
@@ -261,9 +261,9 @@ class TestHybridEndToEnd:
         """separate_conversions routes safe_float to narwhals, integer to native."""
         spec = TypeSpec(
             fields=[
-                FieldSpec(name="amount", custom_cast="safe_float"),
+                FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),
                 FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="tag", rename_from="label"),
+                FieldSpec(name="tag", type=UniversalType.ANY, rename_from="label"),
             ],
         )
         python_only, narwhals_custom, native = separate_conversions(spec)

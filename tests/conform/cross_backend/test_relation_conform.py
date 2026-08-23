@@ -27,7 +27,7 @@ _STRUCT = [
 class TestRelationConformBasic:
     def test_rename_and_cast(self, backend_name, backend_factory):
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -36,16 +36,16 @@ class TestRelationConformBasic:
 
     def test_null_fill_and_cast(self, backend_name, backend_factory):
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
 
     def test_default_keeps_unmapped(self, backend_name, backend_factory):
-        """Unset fields_match defaults to open — unmapped columns preserved."""
+        """fields_match="open" keeps unmapped columns."""
         df = backend_factory.create({"keep": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -57,7 +57,7 @@ class TestRelationConformBasic:
 class TestRelationConformComposition:
     def test_conform_then_filter(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
         )
         result = (
@@ -70,7 +70,7 @@ class TestRelationConformComposition:
 
     def test_conform_then_sort(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["3", "1", "2"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
         )
         result = (
@@ -90,7 +90,7 @@ class TestRelationConformStructAccess:
             {"id": 1, "score": {"strain": 10.5, "kilojoule": 500.0}},
             {"id": 2, "score": {"strain": 8.2, "kilojoule": 350.0}},
         ])
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="id", type=UniversalType.INTEGER),
                 FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
@@ -151,7 +151,7 @@ class TestRelationConformStructCastOffPolars:
     def test_struct_cast_raises_dtype_mapping_error_off_polars(self, backend_name, backend_factory):
         from mountainash.core.dtypes import DtypeMappingError
         df = backend_factory.create({"addr": [{"street": "Main St", "zip": "12345"}]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
                 FieldSpec(name="street", type=UniversalType.STRING),
                 FieldSpec(name="zip", type=UniversalType.STRING),
@@ -172,7 +172,7 @@ class TestRelationConformFullPipeline:
             "raw_label": ["foo", "bar", None],
             "extra": [10, 20, 30],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
                 FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
@@ -190,7 +190,7 @@ class TestRelationConformEdgeCases:
         import polars as pl
 
         df = pl.DataFrame({"a": [1], "b": [2]})
-        spec = TypeSpec(fields=[])
+        spec = TypeSpec(fields_match="open", fields=[])
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a", "b"]
 
@@ -208,7 +208,7 @@ class TestRelationConformEdgeCases:
         import polars as pl
 
         df = pl.DataFrame({"val": ["hello", "world"]})
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.ANY)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -223,7 +223,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"keep": [1, 2], "extra": [10, 20]})
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="keep", type=UniversalType.INTEGER),
                 FieldSpec(name="gone", type=UniversalType.STRING),
@@ -239,7 +239,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"raw_id": ["1", "2"]})
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id"),
                 FieldSpec(name="duration", type=UniversalType.NUMBER, rename_from="stress_duration"),
@@ -253,7 +253,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"id": [1, 2]})
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="id", type=UniversalType.INTEGER),
                 FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
@@ -267,7 +267,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"a": [1, 2]})
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="x", type=UniversalType.INTEGER),
                 FieldSpec(name="y", type=UniversalType.STRING),
@@ -313,11 +313,11 @@ class TestRelationConformFieldsMatchOpen:
         assert result["extra"].to_list() == [10, 20]
 
     def test_default_fields_match_keeps_extra(self, backend_name, backend_factory):
-        """Unset fields_match defaults to 'open' — unmapped columns are preserved."""
+        """fields_match="open" preserves unmapped columns."""
         df = backend_factory.create(
             {"raw_id": ["1", "2"], "extra": [10, 20]}, backend_name,
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -396,12 +396,15 @@ class TestFieldsMatchModes:
         result = ma.relation(df).conform(spec).to_polars()
         assert sorted(result.columns) == ["a", "b", "c"]
 
-    def test_none_defaults_to_open(self, backend_name, backend_factory):
+    def test_open_keeps_unmapped(self, backend_name, backend_factory):
+        # fields_match must be set to "open" explicitly (the model default is
+        # now the strict "exact"); open keeps the unmapped b/c columns.
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
+            fields_match="open",
         )
-        assert spec.fields_match is None
+        assert spec.fields_match == "open"
         result = ma.relation(df).conform(spec).to_polars()
         assert sorted(result.columns) == ["a", "b", "c"]
 
