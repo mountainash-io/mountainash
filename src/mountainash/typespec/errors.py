@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mountainash.core.errors import MountainashError
+
+if TYPE_CHECKING:
+    from mountainash.typespec.universal_types import UniversalType
 
 
 class DescriptorError(MountainashError):
@@ -68,6 +71,83 @@ class UnsupportedResourceDialect(DescriptorError, ValueError):
     """A dialect combines incompatible format-family properties."""
 
 
+class TypeSpecError(MountainashError, ValueError):
+    """Base for field-value/type-shape structural errors (sibling to DescriptorError)."""
+
+
+class AmbiguousGeospatialTypeError(TypeSpecError):
+    def __init__(self, universal_type: "UniversalType") -> None:
+        self.universal_type = universal_type
+        super().__init__(
+            f"{universal_type.value!r} has no single canonical mapping without field "
+            f"context; use converters.resolve_field_canonical(field), not to_canonical() directly"
+        )
+
+
+class InvalidGeospatialFormatError(TypeSpecError):
+    def __init__(
+        self,
+        field_name: str,
+        universal_type: "UniversalType",
+        rejected_format: str,
+        allowed_formats: list[str],
+    ) -> None:
+        self.field_name = field_name
+        self.universal_type = universal_type
+        self.rejected_format = rejected_format
+        self.allowed_formats = allowed_formats
+        super().__init__(
+            f"field {field_name!r}: format {rejected_format!r} is not valid for "
+            f"{universal_type.value!r}; allowed: {allowed_formats}"
+        )
+
+
+class InvalidKeyShapeError(TypeSpecError):
+    def __init__(self, label: str, rejected_value: Any, required_form: str) -> None:
+        self.field_name = label
+        self.rejected_value = rejected_value
+        self.required_form = required_form
+        super().__init__(
+            f"{label}: {rejected_value!r} is not a valid key shape; required: {required_form}"
+        )
+
+
+class IncompatibleFieldPropertiesError(TypeSpecError):
+    def __init__(
+        self,
+        field_name: str,
+        property_name: str,
+        actual_type: "UniversalType",
+        required_types: tuple["UniversalType", ...],
+    ) -> None:
+        self.field_name = field_name
+        self.property_name = property_name
+        self.actual_type = actual_type
+        self.required_types = required_types
+        allowed = " or ".join(t.value for t in required_types)
+        super().__init__(
+            f"field {field_name!r}: {property_name!r} requires type in ({allowed}), "
+            f"got {actual_type.value!r}"
+        )
+
+
+class InvalidFieldMatchDeclaration(TypeSpecError):
+    def __init__(
+        self,
+        standard_value: Any,
+        extension_value: Any,
+        reason: str,
+    ) -> None:
+        self.standard_value = standard_value
+        self.extension_value = extension_value
+        self.reason = reason
+        super().__init__(
+            "invalid fieldsMatch declaration "
+            f"({reason}): standard={standard_value!r}, "
+            f"x-mountainash={extension_value!r}"
+        )
+
+
 __all__ = [
     "DescriptorError",
     "InvalidDescriptorSyntax",
@@ -79,4 +159,10 @@ __all__ = [
     "DescriptorReferenceSchemeDenied",
     "InvalidDescriptorRelationship",
     "UnsupportedResourceDialect",
+    "TypeSpecError",
+    "AmbiguousGeospatialTypeError",
+    "InvalidGeospatialFormatError",
+    "InvalidKeyShapeError",
+    "IncompatibleFieldPropertiesError",
+    "InvalidFieldMatchDeclaration",
 ]

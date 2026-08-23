@@ -69,6 +69,14 @@ from mountainash.typespec.descriptor_context import (
     StorageDescriptorResolver,
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+from mountainash.typespec.errors import (
+    TypeSpecError,
+    AmbiguousGeospatialTypeError,
+    InvalidGeospatialFormatError,
+    InvalidKeyShapeError,
+    IncompatibleFieldPropertiesError,
+    InvalidFieldMatchDeclaration,
+)
 
 __all__ = [
     # Universal type enum
@@ -134,4 +142,12 @@ __all__ = [
     "descriptor_cache_key",
     "LocalDescriptorResolver",
     "StorageDescriptorResolver",
+
+    # Errors
+    "TypeSpecError",
+    "AmbiguousGeospatialTypeError",
+    "InvalidGeospatialFormatError",
+    "InvalidKeyShapeError",
+    "IncompatibleFieldPropertiesError",
+    "InvalidFieldMatchDeclaration",
 ]

@@ -46,6 +46,12 @@ from mountainash.typespec.errors import (
     DescriptorReferenceSchemeDenied,
     InvalidDescriptorRelationship,
     UnsupportedResourceDialect,
+    TypeSpecError,
+    AmbiguousGeospatialTypeError,
+    InvalidGeospatialFormatError,
+    InvalidKeyShapeError,
+    IncompatibleFieldPropertiesError,
+    InvalidFieldMatchDeclaration,
 )
 from mountainash.pipelines.errors import StepEmptyError
 from mountainash.expressions.membership.errors import (
@@ -97,6 +103,12 @@ __all__ = [
     "DescriptorReferenceSchemeDenied",
     "InvalidDescriptorRelationship",
     "UnsupportedResourceDialect",
+    "TypeSpecError",
+    "AmbiguousGeospatialTypeError",
+    "InvalidGeospatialFormatError",
+    "InvalidKeyShapeError",
+    "IncompatibleFieldPropertiesError",
+    "InvalidFieldMatchDeclaration",
     "StepEmptyError",
     "UnsupportedCollectionError",
     "ValidationError",
