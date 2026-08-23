@@ -23,8 +23,17 @@ if TYPE_CHECKING:
     from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
     from mountainash.validation.checks import ValidationCheck
 
-# Truthful Python annotations (spec §13: the legacy str-mapping of temporals
-# was a defect — native contracts must not imply stringification).
+# Truthful Python annotations. DATE/TIME/DATETIME map to their real
+# datetime.* types. DURATION/YEAR/YEARMONTH map to str — not a legacy
+# stringification defect, but the correct v2 annotation: item 113 Unit B
+# (spec §8.2/§11) makes these canonical semantic-string types
+# (MountainashDtype.XSD_DURATION/XSD_YEAR/XSD_YEARMONTH), whose physical
+# representation is a string on every dtype target (an XSD duration/year/
+# yearmonth is a lexical form, e.g. "P3Y6M4DT12H30M5S" / "2024" / "2024-01",
+# not a bounded physical int/timedelta — and native string extraction
+# cannot prove XML Schema lexical validity). str is therefore the accurate,
+# spec-mandated native-contract annotation for these three, matching
+# to_canonical()'s boundary mapping (universal_types.py).
 UNIVERSAL_TYPE_TO_PYTHON: dict[UniversalType, type] = {
     UniversalType.STRING: str,
     UniversalType.INTEGER: int,
