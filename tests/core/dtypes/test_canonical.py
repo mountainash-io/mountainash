@@ -27,11 +27,21 @@ class TestEnum:
             "string", "binary",
             "date", "time", "timestamp", "duration",
             "list", "struct",
+            "json", "xsd_duration", "xsd_year", "xsd_yearmonth",
         }
 
     def test_new_container_members(self):
         assert D.LIST.value == "list"
         assert D.STRUCT.value == "struct"
+
+    def test_v2_semantic_string_members(self):
+        # Task 2 (item 113 Unit B): semantic-string canonical types for the
+        # Frictionless v2 boundary — JSON (GEOJSON), and the XSD lexical-form
+        # types (duration/year/yearmonth). Physically string on every target.
+        assert D.JSON.value == "json"
+        assert D.XSD_DURATION.value == "xsd_duration"
+        assert D.XSD_YEAR.value == "xsd_year"
+        assert D.XSD_YEARMONTH.value == "xsd_yearmonth"
 
 
 class TestParseDtype:

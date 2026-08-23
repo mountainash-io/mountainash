@@ -20,11 +20,60 @@ from mountainash.core.dtypes import (
     UnknownDtypeError,
     registry,
 )
-from mountainash.typespec.universal_types import to_canonical
+from mountainash.typespec.errors import InvalidGeospatialFormatError
+from mountainash.typespec.universal_types import UniversalType, to_canonical
 
 if TYPE_CHECKING:
     from .spec import FieldSpec, TypeSpec
     import pyarrow as pa
+
+
+# ============================================================================
+# Geospatial field-aware resolution (spec §8.3)
+# ============================================================================
+
+_GEOPOINT_FORMAT_CANONICAL: dict[str, MountainashDtype] = {
+    "default": MountainashDtype.STRING,
+    "array": MountainashDtype.LIST,
+    "object": MountainashDtype.STRUCT,
+}
+_GEOJSON_FORMATS: frozenset[str] = frozenset({"default", "topojson"})
+
+
+def resolve_field_canonical(field: "FieldSpec") -> Any:
+    """Resolve a FieldSpec's canonical dtype, with field-context (format)
+    handling for the geospatial types that to_canonical() cannot resolve
+    on its own.
+
+    GEOPOINT's canonical shape depends on field.format: "default" is a
+    lexical string, "array" is a two-element list, "object" is a struct.
+    GEOJSON always maps to canonical JSON (itself a native string on every
+    dtype target) regardless of format ("default" or "topojson" — both are
+    JSON objects per the Frictionless spec).
+
+    Every other UniversalType delegates to to_canonical(field.type)
+    unchanged.
+    """
+    fmt = field.format
+    if field.type is UniversalType.GEOPOINT:
+        if fmt not in _GEOPOINT_FORMAT_CANONICAL:
+            raise InvalidGeospatialFormatError(
+                field.name,
+                UniversalType.GEOPOINT,
+                fmt,
+                sorted(_GEOPOINT_FORMAT_CANONICAL),
+            )
+        return _GEOPOINT_FORMAT_CANONICAL[fmt]
+    if field.type is UniversalType.GEOJSON:
+        if fmt not in _GEOJSON_FORMATS:
+            raise InvalidGeospatialFormatError(
+                field.name,
+                UniversalType.GEOJSON,
+                fmt,
+                sorted(_GEOJSON_FORMATS),
+            )
+        return MountainashDtype.JSON
+    return to_canonical(field.type)
 
 
 # ============================================================================
@@ -47,7 +96,7 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
         if parsed is not None:
             return parsed
         raise InvalidBackendTypeError(field.name, field.backend_type, target)
-    canon = to_canonical(field.type)
+    canon = resolve_field_canonical(field)
     if canon is None:
         canon = MountainashDtype.STRING
     native = registry.to_native_schema(canon, target)
@@ -293,4 +342,7 @@ __all__ = [
 
     # Generic converter
     "convert_to_backend",
+
+    # Field-aware resolution
+    "resolve_field_canonical",
 ]

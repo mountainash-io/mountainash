@@ -33,8 +33,8 @@ UNIVERSAL_TYPE_TO_PYTHON: dict[UniversalType, type] = {
     UniversalType.DATE: datetime.date,
     UniversalType.TIME: datetime.time,
     UniversalType.DATETIME: datetime.datetime,
-    UniversalType.DURATION: datetime.timedelta,
-    UniversalType.YEAR: int,
+    UniversalType.DURATION: str,
+    UniversalType.YEAR: str,
     UniversalType.YEARMONTH: str,
     UniversalType.ANY: object,
 }

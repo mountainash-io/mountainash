@@ -45,6 +45,7 @@ from mountainash.typespec.converters import (
     to_arrow_schema,
     to_ibis_schema,
     convert_to_backend,
+    resolve_field_canonical,
 )
 from mountainash.typespec.custom_types import (
     TypeConverter,
@@ -120,6 +121,7 @@ __all__ = [
     "to_arrow_schema",
     "to_ibis_schema",
     "convert_to_backend",
+    "resolve_field_canonical",
 
     # Custom types
     "TypeConverter",

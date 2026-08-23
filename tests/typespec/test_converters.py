@@ -13,14 +13,19 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.core.dtypes import MountainashDtype as D
+from mountainash.core.dtypes import TypeTarget, registry
 from mountainash.typespec.converters import (
+    _resolve_field_native,
     convert_to_backend,
+    resolve_field_canonical,
     to_arrow_schema,
     to_ibis_schema,
     to_pandas_dtypes,
     to_polars_schema,
 )
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.typespec.universal_types import UniversalType as U
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 
 
@@ -368,6 +373,37 @@ class TestNestedListItemType:
         # chain: __cause__ is the original UnknownDtypeError parse_universal
         # raised, not swallowed by a message-only copy
         assert isinstance(exc_info.value.__cause__, UnknownDtypeError)
+
+
+# ============================================================================
+# TestGeospatialItemType (item 113 Unit B, Task 2)
+#
+# item_type is a raw UniversalType-string carriage (parsed via
+# parse_universal then to_canonical) — it has no FieldSpec.format context of
+# its own, so item_type="geopoint" hits to_canonical(GEOPOINT) directly and
+# must raise the same AmbiguousGeospatialTypeError a bare to_canonical()
+# call would. item_type="geojson" resolves statically to canonical JSON
+# (a string on every target) with no field-context ambiguity — the LIST
+# wraps a JSON-string element.
+# ============================================================================
+
+class TestGeospatialItemType:
+    def _spec(self, item_type):
+        return TypeSpec(fields=[
+            FieldSpec(name="lst", type=UniversalType.ARRAY, item_type=item_type),
+        ])
+
+    def test_item_type_geopoint_raises_ambiguous(self):
+        from mountainash.typespec.errors import AmbiguousGeospatialTypeError
+        with pytest.raises(AmbiguousGeospatialTypeError):
+            to_polars_schema(self._spec("geopoint"))
+
+    def test_item_type_geojson_produces_string_backed_list(self):
+        import polars as pl
+        result = to_polars_schema(self._spec("geojson"))
+        assert result["lst"] == pl.List(pl.String)
+
+
 # ============================================================================
 # TestNestedStructObjectFields (item 102)
 # ============================================================================
@@ -495,14 +531,18 @@ class TestCategoricalRefactorRegression:
 # ============================================================================
 
 class TestConvertersOverRegistry:
-    def test_year_now_int32(self):
+    def test_year_now_string(self):
+        """item 113 Unit B, Task 2: YEAR's canonical mapping changed from
+        the physical int32 refinement to the semantic-string XSD_YEAR type
+        (an XSD year is a lexical form, not a bounded physical integer) —
+        it now materializes as string on every target, same as YEARMONTH."""
         import polars as pl
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema, to_pandas_dtypes
         spec = TypeSpec(fields=[FieldSpec(name="y", type=UniversalType.YEAR)])
-        assert to_polars_schema(spec)["y"] is pl.Int32
-        assert to_pandas_dtypes(spec)["y"] == "Int32"   # spec: known change (was Int64)
+        assert to_polars_schema(spec)["y"] is pl.String
+        assert to_pandas_dtypes(spec)["y"] == "string"
 
     def test_yearmonth_now_string_on_pandas(self):
         from mountainash.typespec import TypeSpec, FieldSpec
@@ -591,3 +631,44 @@ class TestConvertersOverRegistry:
         ])
         with pytest.raises(InvalidBackendTypeError, match="garbage"):
             to_polars_schema(spec)
+
+
+# ============================================================================
+# TestV2FieldsAcrossTargets (item 113 Unit B, Task 2)
+#
+# Introspected cross product over every TypeTarget — the exhaustive
+# converter-fixture migration this task requires: these fixtures call
+# _resolve_field_native(field, target) (the field-aware path), not the old
+# context-free to_canonical(field.type) — GEOPOINT with no field.format
+# override would raise AmbiguousGeospatialTypeError through that path.
+# ============================================================================
+
+@pytest.mark.parametrize("target", list(TypeTarget))
+@pytest.mark.parametrize(
+    "field,canonical",
+    [
+        (FieldSpec("list", U.LIST), D.LIST),
+        (FieldSpec("array", U.ARRAY), D.LIST),
+        (FieldSpec("point_text", U.GEOPOINT), D.STRING),
+        (FieldSpec("point_array", U.GEOPOINT, format="array"), D.LIST),
+        (FieldSpec("point_object", U.GEOPOINT, format="object"), D.STRUCT),
+        (FieldSpec("geojson", U.GEOJSON), D.JSON),
+        (FieldSpec("topojson", U.GEOJSON, format="topojson"), D.JSON),
+        (FieldSpec("duration", U.DURATION), D.XSD_DURATION),
+        (FieldSpec("year", U.YEAR), D.XSD_YEAR),
+        (FieldSpec("yearmonth", U.YEARMONTH), D.XSD_YEARMONTH),
+    ],
+)
+def test_v2_fields_resolve_on_every_target(target, field, canonical) -> None:
+    assert _resolve_field_native(field, target) == registry.to_native_schema(
+        canonical, target
+    )
+
+
+class TestResolveFieldCanonicalPublicSurface:
+    """resolve_field_canonical is re-exported from the typespec package
+    surface (mountainash.typespec.__init__), not just converters.py."""
+
+    def test_importable_from_typespec_package(self) -> None:
+        from mountainash.typespec import resolve_field_canonical as pkg_resolve
+        assert pkg_resolve is resolve_field_canonical
