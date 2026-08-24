@@ -197,13 +197,34 @@ class RelationDAG:
     # ------------------------------------------------------------------
 
     def collect(self, name: str, *, backend: Optional[str] = None) -> Any:
-        """Topologically walk dependencies of ``name`` and compile each in order.
+        """Topologically walk dependencies and materialize residue once."""
+        result, visitor = self._collect_with_visitor(name, backend=backend)
+        has_trace = any(
+            trace.records for trace in visitor.diagnostic_traces.values()
+        )
+        if not visitor.residue_checks and not has_trace:
+            return result
 
-        Each upstream relation's compiled value is cached for the duration of
-        this call and exposed to the visitor as ``ref_resolver(name)``.
-        Returns the backend-native compiled value for ``name`` itself.
-        """
-        result, _visitor = self._collect_with_visitor(name, backend=backend)
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import (
+            is_ibis_table,
+            is_narwhals_lazyframe,
+            is_polars_lazyframe,
+        )
+        from mountainash.relations.core.relation_api.relation import _materialize
+
+        original = result
+        result = enrich_materialization(
+            visitor.backend,
+            lambda: _materialize(result, unwrap=False),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
+        )
+        if is_ibis_table(original) and not is_ibis_table(result):
+            import ibis
+            result = ibis.memtable(result)
+        if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
+            result = result.lazy()
         return result
 
     def collect_with_drift(
@@ -226,11 +247,15 @@ class RelationDAG:
         from mountainash.conform.drift import ConformCollection
         from mountainash.relations.core.relation_api.relation import _materialize
         from mountainash.relations.schema_inference import _schema_from_dataframe
-
         from mountainash.core.limitations import enrich_materialization
 
         result, visitor = self._collect_with_visitor(name, backend=backend)
-        frame = enrich_materialization(visitor.backend, lambda: _materialize(result))
+        frame = enrich_materialization(
+            visitor.backend,
+            lambda: _materialize(result),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
+        )
         return ConformCollection(
             frame=frame,
             drifts=list(visitor.drift_reports),
@@ -513,6 +538,11 @@ class RelationDAG:
                     raise ValueError(f"relation {n!r} has no _node attribute")
 
                 ref_family, ref_dialect = self._resolve_actual_identity_for(n)
+                checks_start = len(visitor.residue_checks)
+                trace_counts = {
+                    key: len(trace.records)
+                    for key, trace in visitor.diagnostic_traces.items()
+                }
 
                 # Each dependency is key-assessed against ITS OWN
                 # constraints, unconditionally -- including a no-leaf
@@ -531,7 +561,8 @@ class RelationDAG:
                         relation_system,
                         expr_visitor,
                     )
-                    canonical[n] = (root.accept(visitor), None, None)
+                    compiled = root.accept(visitor)
+                    canonical[n] = (compiled, None, None)
                 elif ref_family == resolved_backend and ref_dialect == dialect:
                     # Same family + same dialect as the anchor: reuse the
                     # anchor's ORIGINAL objects (item 89's zero-cost path).
@@ -539,7 +570,8 @@ class RelationDAG:
                         relation_system,
                         expr_visitor,
                     )
-                    canonical[n] = (root.accept(visitor), ref_family, ref_dialect)
+                    compiled = root.accept(visitor)
+                    canonical[n] = (compiled, ref_family, ref_dialect)
                 else:
                     # Foreign family, or same family with a different
                     # dialect: compile with the ref's OWN (family, dialect)
@@ -551,7 +583,57 @@ class RelationDAG:
                     visitor.expr_visitor = UnifiedExpressionVisitor(
                         get_expression_system(ref_family)(dialect=ref_dialect)
                     )
-                    canonical[n] = (root.accept(visitor), ref_family, ref_dialect)
+                    compiled = root.accept(visitor)
+                    canonical[n] = (compiled, ref_family, ref_dialect)
+
+                dependency_checks = visitor.residue_checks[checks_start:]
+                dep_family = getattr(visitor.backend, "backend_type", None)
+                dep_dialect = getattr(visitor.backend, "dialect", None)
+                dep_trace = visitor.diagnostic_traces.get((dep_family, dep_dialect))
+                dep_trace_records = ()
+                if dep_trace is not None:
+                    dep_trace_records = dep_trace.records[
+                        trace_counts.get((dep_family, dep_dialect), 0):
+                    ]
+                if dependency_checks or dep_trace_records:
+                    from types import SimpleNamespace
+
+                    from mountainash.core.limitations import enrich_materialization
+                    from mountainash.relations.core.relation_api.relation import (
+                        _materialize,
+                    )
+                    from mountainash.core.types import (
+                        is_ibis_table,
+                        is_narwhals_lazyframe,
+                        is_polars_lazyframe,
+                    )
+
+                    scoped_trace = (
+                        SimpleNamespace(records=dep_trace_records)
+                        if dep_trace_records
+                        else None
+                    )
+                    original = compiled
+                    compiled = enrich_materialization(
+                        visitor.backend,
+                        lambda: _materialize(compiled, unwrap=False),
+                        diagnostic_trace=scoped_trace,
+                        residue_checks=dependency_checks,
+                    )
+                    if is_ibis_table(original) and not is_ibis_table(compiled):
+                        import ibis
+                        compiled = ibis.memtable(compiled)
+                    if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
+                        compiled = compiled.lazy()
+                    if dep_trace is not None and dep_trace_records:
+                        consumed = {id(record) for record in dep_trace_records}
+                        dep_trace._records = [
+                            record
+                            for record in dep_trace._records
+                            if id(record) not in consumed
+                        ]
+                    del visitor.residue_checks[checks_start:]
+                    canonical[n] = (compiled, ref_family, ref_dialect)
 
             # Restore the anchor's ORIGINAL backend/expr_visitor/key_context
             # ONCE, after the loop -- never per-branch (a trailing no-leaf

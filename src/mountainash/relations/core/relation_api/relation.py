@@ -607,7 +607,10 @@ class Relation(RelationBase):
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         return enrich_materialization(
-            visitor.backend, lambda: _materialize(result, unwrap=unwrap)
+            visitor.backend,
+            lambda: _materialize(result, unwrap=unwrap),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
         )
 
     def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
@@ -632,11 +635,14 @@ class Relation(RelationBase):
         """
         from mountainash.conform.drift import ConformCollection
         from mountainash.relations.schema_inference import _schema_from_dataframe
-
         from mountainash.core.limitations import enrich_materialization
-
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
-        frame = enrich_materialization(visitor.backend, lambda: _materialize(result))
+        frame = enrich_materialization(
+            visitor.backend,
+            lambda: _materialize(result),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
+        )
         return ConformCollection(
             frame=frame,
             drifts=list(visitor.drift_reports),

@@ -55,7 +55,7 @@ class OperationDiagnosticTrace:
         backend_family: str,
         dialect: str | None,
         conform_node_id: str | None,
-    ) -> None:
+    ) -> OperationDiagnostic:
         fingerprint = tuple(
             sorted(
                 (name, _string_value(value))
@@ -65,23 +65,23 @@ class OperationDiagnosticTrace:
         )
         context = node.diagnostic_context
         failure_behavior = node.options.get("failure_behavior")
-        self._records.append(
-            OperationDiagnostic(
-                function_key=node.function_key,
-                backend_family=_string_value(backend_family),
-                dialect=dialect,
-                conform_node_id=conform_node_id,
-                routing_fingerprint=fingerprint,
-                failure_behavior=(
-                    _string_value(failure_behavior)
-                    if failure_behavior is not None
-                    else None
-                ),
-                field_name=context.get("field_name", ""),
-                logical_type=context.get("logical_type", ""),
-                format=context.get("format", ""),
-            )
+        record = OperationDiagnostic(
+            function_key=node.function_key,
+            backend_family=_string_value(backend_family),
+            dialect=dialect,
+            conform_node_id=conform_node_id,
+            routing_fingerprint=fingerprint,
+            failure_behavior=(
+                _string_value(failure_behavior)
+                if failure_behavior is not None
+                else None
+            ),
+            field_name=context.get("field_name", ""),
+            logical_type=context.get("logical_type", ""),
+            format=context.get("format", ""),
         )
+        self._records.append(record)
+        return record
 
 
 __all__ = ["OperationDiagnostic", "OperationDiagnosticTrace"]

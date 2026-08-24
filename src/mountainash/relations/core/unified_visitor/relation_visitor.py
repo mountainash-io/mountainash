@@ -16,6 +16,17 @@ from mountainash.expressions.core.expression_nodes import (
     ExpressionNode, ScalarFunctionNode, CastNode, IfThenNode,
     SingularOrListNode, WindowFunctionNode, OverNode,
 )
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
+    FKEY_MOUNTAINASH_SCALAR_STRING,
+    FKEY_MOUNTAINASH_SCALAR_STRUCT,
+    FKEY_SUBSTRAIT_CAST,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+)
 
 from ..relation_nodes import RelationNode, ReadRelNode
 
@@ -91,6 +102,27 @@ def _present_operation_keys(node: RelationNode, op: Any) -> frozenset:
 _UNRESOLVED = object()
 
 
+
+CONFORM_TRANSFORM_KEYS = frozenset(
+    {
+        FKEY_SUBSTRAIT_CAST.CAST,
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON,
+        FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+        FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+        FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
+        FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+    }
+)
 def _first_input_node(node: RelationNode) -> "RelationNode | None":
     from mountainash.relations.core.relation_nodes import (
         AggregateRelNode, ConformRelNode, ExtensionRelNode, FetchRelNode,
@@ -135,6 +167,9 @@ class UnifiedRelationVisitor:
         self.key_context = key_context
         self.identity_resolver = identity_resolver
         self.enforce_capabilities = enforce_capabilities
+        self.diagnostic_traces: dict[tuple[Any, Any], Any] = {}
+        self.residue_checks: list[Any] = []
+        self.residue_check_nodes: dict[str, str] = {}
         if enforce_capabilities:
             # A gating consumer must ensure the capability declaration modules
             # are imported before querying the registry (bootstrap.py contract);
@@ -361,6 +396,35 @@ class UnifiedRelationVisitor:
             kwargs.update(getattr(node, op.options_field))
         return kwargs
 
+    def _active_diagnostic_trace(self) -> Any:
+        family = getattr(self.backend, "backend_type", None)
+        dialect = getattr(self.backend, "dialect", None)
+        key = (family, dialect)
+        from mountainash.conform.diagnostics import OperationDiagnosticTrace
+        trace = self.diagnostic_traces.get(key)
+        if trace is None:
+            trace = OperationDiagnosticTrace()
+            self.diagnostic_traces[key] = trace
+        return trace
+
+    @staticmethod
+    def _marker_alias(
+        conform_node_id: str,
+        residue_index: int,
+        occupied: set[str],
+    ) -> str:
+        base = "__ma_residue_{}_{}".format(
+            conform_node_id.replace(":", "_").replace("-", "_"),
+            residue_index,
+        )
+        alias = base
+        suffix = 1
+        while alias in occupied:
+            alias = f"{base}_{suffix}"
+            suffix += 1
+        occupied.add(alias)
+        return alias
+
     def apply_conform(
         self,
         native: Any,
@@ -409,9 +473,9 @@ class UnifiedRelationVisitor:
         from mountainash.conform.contract import resolve_contract
         from mountainash.conform.expressions import _VALID_FIELDS_MATCH, _build_conform_exprs
         from mountainash.conform.errors import ConformError, ConformTransformError
+        from mountainash.core.types import BackendCapabilityError
         from mountainash.typespec.source_shape import extract_source_shapes
         from mountainash.relations.schema_inference import _schema_from_dataframe
-        import mountainash as ma
 
         # dtype-aware detection first ({} degrades honestly for an
         # unrecognized backend or a genuinely zero-column frame); falls back
@@ -499,38 +563,88 @@ class UnifiedRelationVisitor:
             and resolved_contract.mapping == "by_name"
         )
 
+        trace = self._active_diagnostic_trace()
+        previous_trace = getattr(self.expr_visitor, "diagnostic_trace", None)
+        previous_node_id = getattr(self.expr_visitor, "conform_node_id", None)
+        self.expr_visitor.diagnostic_trace = trace
+        self.expr_visitor.conform_node_id = node_id
+        self.expr_visitor.raising_diagnostic = None
         try:
-            rel = ma.relation(native)
-
-            for keep in conform_result.row_filters:
-                rel = rel.filter(keep)
-
-            if use_open:
-                rel = rel.with_columns(*conform_result.exprs)
-                if conform_result.renamed_sources:
-                    rel = rel.drop(*conform_result.renamed_sources)
-            else:
-                rel = rel.select(*conform_result.exprs)
-
-            return rel._compile_and_execute()
+            compiled_exprs = [
+                self.compile_expression(expr) for expr in conform_result.exprs
+            ]
+            compiled_filters = [
+                self.compile_expression(keep) for keep in conform_result.row_filters
+            ]
+            occupied = set(available or ())
+            occupied.update(getattr(field, "name", "") for field in schema.fields)
+            marker_exprs = []
+            import dataclasses
+            residue_checks = []
+            marker_trace = self.expr_visitor.diagnostic_trace
+            self.expr_visitor.diagnostic_trace = None
+            try:
+                for index, check in enumerate(conform_result.residue_checks):
+                    alias = self._marker_alias(node_id, index, occupied)
+                    marker_expr = self.compile_expression(check.marker).alias(alias)
+                    marker_exprs.append(marker_expr)
+                    residue_checks.append(dataclasses.replace(check, marker=alias))
+                    self.residue_check_nodes[alias] = node_id
+            finally:
+                self.expr_visitor.diagnostic_trace = marker_trace
+            self.residue_checks.extend(residue_checks)
+        except (BackendCapabilityError, ConformError):
+            raise
         except Exception as e:
-            # Build spec summary for diagnostic (parsing properties only)
-            parsing_props = []
-            for f in schema.fields:
-                if getattr(f, "decimal_char", None) and f.decimal_char != ".":
-                    parsing_props.append(f"decimalChar={f.decimal_char!r}")
-                if getattr(f, "group_char", None):
-                    parsing_props.append(f"groupChar={f.group_char!r}")
-                if getattr(f, "bare_number", None) is False:
-                    parsing_props.append("bareNumber=false")
-                if getattr(f, "delimiter", None) and f.delimiter != ",":
-                    parsing_props.append(f"delimiter={f.delimiter!r}")
-            if parsing_props:
+            candidate = getattr(self.expr_visitor, "raising_diagnostic", None)
+            candidates = (
+                (candidate,)
+                if candidate is not None
+                and candidate.function_key in CONFORM_TRANSFORM_KEYS
+                and candidate.failure_behavior == "throw"
+                else ()
+            )
+            if candidates:
                 raise ConformTransformError(
                     original_error=e,
-                    spec_summary=", ".join(parsing_props),
+                    candidates=candidates,
                 ) from e
             raise
+        finally:
+            self.expr_visitor.diagnostic_trace = previous_trace
+            self.expr_visitor.conform_node_id = previous_node_id
+
+        try:
+            rel = self.backend.read(native)
+            for predicate in compiled_filters:
+                rel = self.backend.filter(rel, predicate)
+
+            if use_open:
+                rel = self.backend.project_with_columns(
+                    rel, compiled_exprs + marker_exprs
+                )
+                if conform_result.renamed_sources:
+                    rel = self.backend.project_drop(
+                        rel, list(conform_result.renamed_sources)
+                    )
+            else:
+                rel = self.backend.project_select(
+                    rel, compiled_exprs + marker_exprs
+                )
+            return rel
+        except (BackendCapabilityError, ConformError):
+            raise
+        except Exception as error:
+            from mountainash.core.limitations import enrich_materialization
+
+            def _raise_native(error=error):
+                raise error
+
+            return enrich_materialization(
+                self.backend,
+                _raise_native,
+                diagnostic_trace=trace,
+            )
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:
         """Visit the right side of a join, coercing to match the left's type if needed.

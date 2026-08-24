@@ -87,16 +87,25 @@ class UnifiedExpressionVisitor:
         >>> backend_expr = visitor.visit(node)
     """
 
-    def __init__(self, expression_system: Any, enforce_capabilities: bool = True) -> None:
+    def __init__(
+        self,
+        expression_system: Any,
+        enforce_capabilities: bool = True,
+        *,
+        diagnostic_trace: Any = None,
+        conform_node_id: str | None = None,
+    ) -> None:
         """Initialize the visitor with a backend expression system.
 
-        Args:
-            expression_system: Backend ExpressionSystem instance
-                              (e.g., PolarsExpressionSystem, IbisExpressionSystem)
-            enforce_capabilities: When False, skip the compile-time capability gate.
+        ``diagnostic_trace`` is supplied only by relation conform
+        compilation. Keeping it optional preserves standalone expression
+        compilation exactly as before.
         """
         self.backend = expression_system
         self.enforce_capabilities = enforce_capabilities
+        self.diagnostic_trace = diagnostic_trace
+        self.conform_node_id = conform_node_id
+        self.raising_diagnostic = None
         if enforce_capabilities:
             # A gating consumer must ensure the capability declaration modules
             # are imported before querying the registry (bootstrap.py contract):
@@ -411,10 +420,21 @@ class UnifiedExpressionVisitor:
                         function_key=node.function_key,
                         limitation=fact,
                     )
-        if options:
-            return method(*args, **options)
-        else:
+        diagnostic = None
+        if self.diagnostic_trace is not None:
+            diagnostic = self.diagnostic_trace.record(
+                node,
+                backend_family=self.backend.backend_type,
+                dialect=getattr(self.backend, "dialect", None),
+                conform_node_id=self.conform_node_id,
+            )
+        try:
+            if options:
+                return method(*args, **options)
             return method(*args)
+        except Exception:
+            self.raising_diagnostic = diagnostic
+            raise
 
     def visit_if_then(self, node: IfThenNode) -> SupportedExpressions:
         """Compile a conditional expression to backend expression.

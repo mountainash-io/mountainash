@@ -104,7 +104,7 @@ def _diagnostic_matches(
             error is None or not isinstance(error, fact.native_errors)
         ):
             continue
-        if diagnostic.failure_behavior not in (None, "throw"):
+        if signal is ResidueSignal.EXCEPTION and diagnostic.failure_behavior != "throw":
             continue
         matches.append((diagnostic, fact))
     if not matches:
@@ -129,7 +129,6 @@ def _is_true_marker(result: Any, marker: str) -> bool:
     if hasattr(values, "any"):
         return bool(values.any())
     return any(bool(value) for value in values)
-
 
 def _drop_markers(result: Any, markers: Iterable[str]) -> Any:
     names = tuple(dict.fromkeys(markers))
@@ -198,6 +197,9 @@ def enrich_materialization(
     facts = CapabilityRegistry.residue_candidates(family, active_dialect)
     try:
         result = fn()
+        from mountainash.core.types import is_ibis_table
+        if is_ibis_table(result):
+            result = result.execute()
     except BackendCapabilityError:
         raise
     except ConformError:
@@ -273,58 +275,58 @@ def enrich_materialization(
             candidate_fields=fields,
             candidate_fact_keys=fact_keys,
         ) from exc
-
     true_checks = tuple(check for check in checks if _is_true_marker(result, check.marker))
+    if not true_checks:
+        return _drop_markers(result, (check.marker for check in checks))
+
+    matched: list[tuple[Any, Any]] = []
     for check in true_checks:
-        matching = []
+        check_matches = []
         for diagnostic in diagnostics:
             if diagnostic.function_key != check.function_key:
                 continue
             if diagnostic.field_name != check.field_name:
                 continue
-            matching.extend(
+            check_matches.extend(
                 _diagnostic_matches(
                     diagnostic,
                     facts,
                     signal=ResidueSignal.NON_NULL_TO_NULL,
                 )
             )
-        if not matching:
+        if not check_matches:
             raise CapabilityResidueInvariantError(
                 f"materialization residue marker has no declared fact for field {check.field_name!r}"
             )
-        fact_keys = tuple(sorted({fact.fact_key for _, fact in matching}))
-        fields = tuple(sorted({diagnostic.field_name for diagnostic, _ in matching}))
-        if len(fact_keys) == 1:
-            fact = matching[0][1]
-            message = fact.message
-            function_key = fact.operation_key
-            limitation = fact
-            context = None
-            diagnostics_for_fact = tuple(
-                diagnostic
-                for diagnostic, candidate_fact in matching
-                if candidate_fact.fact_key == fact.fact_key
-            )
-            if len(diagnostics_for_fact) == 1:
-                diagnostic = diagnostics_for_fact[0]
-                context = {
-                    "field_name": diagnostic.field_name,
-                    "logical_type": diagnostic.logical_type,
-                    "format": diagnostic.format,
-                }
-        else:
-            message = "multiple conform operations produced null-emergence residue"
-            function_key = None
-            limitation = None
-            context = None
-        raise BackendCapabilityError(
-            message,
-            backend=getattr(backend, "BACKEND_NAME", "unknown"),
-            function_key=function_key,
-            limitation=limitation,
-            context=context,
-            candidate_fields=fields,
-            candidate_fact_keys=fact_keys,
-        )
-    return _drop_markers(result, (check.marker for check in checks))
+        matched.extend(check_matches)
+
+    fact_keys = tuple(sorted({fact.fact_key for _, fact in matched}))
+    fields = tuple(sorted({diagnostic.field_name for diagnostic, _ in matched}))
+    diagnostics_for_fact = tuple(
+        diagnostic for diagnostic, fact in matched if fact.fact_key == fact_keys[0]
+    ) if len(fact_keys) == 1 else ()
+    if len(true_checks) == 1 and len(fact_keys) == 1 and len(diagnostics_for_fact) == 1:
+        fact = next(fact for _, fact in matched if fact.fact_key == fact_keys[0])
+        diagnostic = diagnostics_for_fact[0]
+        message = fact.message
+        function_key = fact.operation_key
+        limitation = fact
+        context = {
+            "field_name": diagnostic.field_name,
+            "logical_type": diagnostic.logical_type,
+            "format": diagnostic.format,
+        }
+    else:
+        message = "multiple conform operations produced null-emergence residue"
+        function_key = None
+        limitation = None
+        context = None
+    raise BackendCapabilityError(
+        message,
+        backend=getattr(backend, "BACKEND_NAME", "unknown"),
+        function_key=function_key,
+        limitation=limitation,
+        context=context,
+        candidate_fields=fields,
+        candidate_fact_keys=fact_keys,
+    )
