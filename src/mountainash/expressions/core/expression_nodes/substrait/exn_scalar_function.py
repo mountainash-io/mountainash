@@ -14,6 +14,15 @@ from ...expression_system.function_keys.enums import (
 )
 
 
+
+class _ImmutableDiagnosticContext(dict[str, str]):
+    def _immutable(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("diagnostic_context is immutable")
+
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = _immutable
+
+
+
 class ScalarFunctionNode(ExpressionNode):
     """A scalar function call.
 
@@ -47,6 +56,14 @@ class ScalarFunctionNode(ExpressionNode):
     arguments: List[ExpressionNode]
     options: Dict[str, Any] = {}
     diagnostic_context: Dict[str, str] = Field(default_factory=dict)
+
+
+    def model_post_init(self, __context: Any) -> None:
+        object.__setattr__(
+            self,
+            "diagnostic_context",
+            _ImmutableDiagnosticContext(self.diagnostic_context),
+        )
 
     def accept(self, visitor: Any) -> Any:
         """Accept a visitor for double-dispatch."""

@@ -216,6 +216,26 @@ def enrich_materialization(
                 )
             )
         if not matched:
+            residue = CapabilityRegistry.residue_for(family, active_dialect)
+            candidates = residue.items()
+            if prefer_operation_keys is not None:
+                candidates = [
+                    item for item in candidates
+                    if item[0][0] in prefer_operation_keys
+                ]
+            legacy_matches = [
+                (op_key, fact)
+                for (op_key, _param), fact in candidates
+                if isinstance(exc, fact.native_errors)
+            ]
+            if len(legacy_matches) == 1:
+                op_key, fact = legacy_matches[0]
+                raise BackendCapabilityError(
+                    fact.message,
+                    backend=getattr(backend, "BACKEND_NAME", "unknown"),
+                    function_key=op_key,
+                    limitation=fact,
+                ) from exc
             raise
         fact_keys = tuple(sorted({fact.fact_key for _, fact in matched}))
         fields = tuple(sorted({diagnostic.field_name for diagnostic, _ in matched}))

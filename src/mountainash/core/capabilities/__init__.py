@@ -21,6 +21,7 @@ from mountainash.core.capabilities.schema import (
     ClauseOp,
     DivergenceFact,
     Enforcement,
+    DivergenceKind,
     Fidelity,
     GapKind,
     KnownGap,

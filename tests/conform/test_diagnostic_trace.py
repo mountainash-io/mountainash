@@ -14,6 +14,8 @@ from mountainash.core.capabilities import (
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
+    Clause,
+    ClauseOp,
     Enforcement,
     Predicate,
     ResidueSignal,
@@ -70,6 +72,68 @@ def test_diagnostic_context_serializes_but_does_not_enter_options() -> None:
     dumped = node.model_dump(mode="json")
     assert dumped["diagnostic_context"]["field_name"] == "values"
     assert "field_name" not in node.options
+def test_diagnostic_context_is_immutable() -> None:
+    node = _node()
+    with pytest.raises(TypeError):
+        node.diagnostic_context["field_name"] = "other"
+
+
+def test_legacy_residue_fallback_survives_unmatched_trace() -> None:
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.register_backend(
+            BACKEND, [_fact(native_errors=(KeyError,))]
+        )
+        trace = OperationDiagnosticTrace()
+        trace.record(
+            ScalarFunctionNode(
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM,
+                arguments=[FieldReferenceNode(field="raw")],
+                diagnostic_context={
+                    "field_name": "other",
+                    "logical_type": "list",
+                    "format": "default",
+                },
+            ),
+            backend_family=BACKEND.value,
+            dialect=Backend().dialect,
+            conform_node_id="other",
+        )
+        with pytest.raises(BackendCapabilityError) as raised:
+            enrich_materialization(
+                Backend(),
+                lambda: (_ for _ in ()).throw(KeyError("native")),
+                diagnostic_trace=trace,
+            )
+        assert raised.value.function_key == KEY
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+def test_fact_key_namespaces_operation_enum_type() -> None:
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    )
+
+    first = _fact(operation_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM)
+    second = _fact(operation_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM)
+    assert first.fact_key != second.fact_key
+
+
+def test_fact_key_accepts_mixed_predicate_set_operands() -> None:
+    fact = _fact(
+        param="item_type",
+        boundary=Boundary.BUILD,
+        enforcement=Enforcement.GATE,
+        predicate=Predicate(
+            (
+                Clause("item_type", ClauseOp.IN, frozenset({"integer", 1})),
+            )
+        ),
+    )
+    assert fact.fact_key
+
+
 
 
 def test_trace_fingerprint_uses_only_safe_routing_options() -> None:
@@ -288,12 +352,24 @@ def test_existing_capability_and_conform_errors_pass_through() -> None:
         assert raised.value is original
 
 
-def test_null_marker_is_removed_when_false() -> None:
-    frame = pd.DataFrame({"values": [1], "__ma_residue_0": [False]})
+def test_null_markers_are_removed_when_false() -> None:
+    frame = pd.DataFrame(
+        {"values": [1], "__ma_residue_0": [False], "__ma_residue_1": [False]}
+    )
     trace = OperationDiagnosticTrace()
-    trace.record(_node(), backend_family=BACKEND.value, dialect=Backend().dialect, conform_node_id="n1")
-    checks = (MaterializationResidueCheck(KEY, "values", "__ma_residue_0"),)
-    result = enrich_materialization(Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks)
+    trace.record(
+        _node(),
+        backend_family=BACKEND.value,
+        dialect=Backend().dialect,
+        conform_node_id="n1",
+    )
+    checks = (
+        MaterializationResidueCheck(KEY, "values", "__ma_residue_0"),
+        MaterializationResidueCheck(KEY, "values", "__ma_residue_1"),
+    )
+    result = enrich_materialization(
+        Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks
+    )
     assert list(result.columns) == ["values"]
 
 

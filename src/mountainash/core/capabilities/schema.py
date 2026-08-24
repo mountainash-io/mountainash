@@ -186,7 +186,8 @@ def _normalized_value(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, frozenset):
-        return sorted(_normalized_value(item) for item in value)
+        normalized = [_normalized_value(item) for item in value]
+        return sorted(normalized, key=lambda item: (type(item).__name__, repr(item)))
     if isinstance(value, tuple):
         return [_normalized_value(item) for item in value]
     return value
@@ -358,12 +359,16 @@ class CapabilityFact:
 
     @property
     def fact_key(self) -> str:
-        """Stable identity for deterministic residue attribution."""
+        operation_type = (
+            f"{type(self.operation_key).__module__}."
+            f"{type(self.operation_key).__qualname__}"
+        )
         operation = getattr(self.operation_key, "name", str(self.operation_key))
         backend = getattr(self.backend, "value", str(self.backend))
         dialect = self.dialect or ""
         return "|".join(
             (
+                operation_type,
                 str(operation),
                 self.param,
                 str(backend),
