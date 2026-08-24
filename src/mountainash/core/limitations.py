@@ -216,8 +216,12 @@ def enrich_materialization(
                 )
             )
         if not matched:
+            active_operation_keys = {diagnostic.function_key for diagnostic in diagnostics}
             residue = CapabilityRegistry.residue_for(family, active_dialect)
-            candidates = residue.items()
+            candidates = (
+                item for item in residue.items()
+                if item[0][0] not in active_operation_keys
+            )
             if prefer_operation_keys is not None:
                 candidates = [
                     item for item in candidates

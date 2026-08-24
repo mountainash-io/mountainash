@@ -20,6 +20,7 @@ class _ImmutableDiagnosticContext(dict[str, str]):
         raise TypeError("diagnostic_context is immutable")
 
     __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = _immutable
+    __ior__ = _immutable
 
 
 

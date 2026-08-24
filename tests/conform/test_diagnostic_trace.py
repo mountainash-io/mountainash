@@ -78,6 +78,20 @@ def test_diagnostic_context_is_immutable() -> None:
         node.diagnostic_context["field_name"] = "other"
 
 
+def test_diagnostic_context_union_cannot_mutate_trace_attribution() -> None:
+    node = _node()
+    trace = OperationDiagnosticTrace()
+    trace.record(
+        node,
+        backend_family=BACKEND.value,
+        dialect=Backend().dialect,
+        conform_node_id="immutable",
+    )
+    with pytest.raises(TypeError):
+        node.diagnostic_context |= {"field_name": "other"}
+    assert trace.records[0].field_name == "values"
+
+
 def test_legacy_residue_fallback_survives_unmatched_trace() -> None:
     snapshot = CapabilityRegistry.snapshot()
     try:
@@ -108,6 +122,31 @@ def test_legacy_residue_fallback_survives_unmatched_trace() -> None:
         assert raised.value.function_key == KEY
     finally:
         CapabilityRegistry.restore(snapshot)
+
+def test_active_unmatched_diagnostic_blocks_legacy_cross_attribution() -> None:
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.register_backend(
+            BACKEND, [_fact(native_errors=(KeyError,))]
+        )
+        trace = OperationDiagnosticTrace()
+        trace.record(
+            _node(failure_behavior="null"),
+            backend_family=BACKEND.value,
+            dialect=Backend().dialect,
+            conform_node_id="same-key",
+        )
+        original = KeyError("native")
+        with pytest.raises(KeyError) as raised:
+            enrich_materialization(
+                Backend(),
+                lambda: (_ for _ in ()).throw(original),
+                diagnostic_trace=trace,
+            )
+        assert raised.value is original
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
 
 
 def test_fact_key_namespaces_operation_enum_type() -> None:
