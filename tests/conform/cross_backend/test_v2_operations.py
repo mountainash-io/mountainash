@@ -1076,13 +1076,39 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
     assert all(value is None or bool(pd.isna(value)) for value in values)
 
 
+_GEOJSON_DOCUMENTS = (
+    ("object", '{"type":"Point","coordinates":[1,2]}', True),
+    ("empty-object", "{}", True),
+    (
+        "leading-whitespace-object",
+        ' \n\t{"type":"Point","coordinates":[1,2]} ',
+        True,
+    ),
+    ("null-root", "null", False),
+    ("string-root", '"not an object"', False),
+    ("number-root", "42", False),
+    ("boolean-root", "true", False),
+    ("array-root", "[]", False),
+    ("malformed-json", "{bad", False),
+    ("non-canonical-json", '{"type":"Point","coordinates":[1,]}', False),
+)
+
+
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("format_name", ("default", "topojson"))
 @pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
-def test_geojson_parse_matrix_valid_and_top_level_null_or_exact_gate(
+@pytest.mark.parametrize(
+    ("document_name", "document", "valid"),
+    _GEOJSON_DOCUMENTS,
+    ids=[document[0] for document in _GEOJSON_DOCUMENTS],
+)
+def test_geojson_parse_exceptional_documents_one_per_test(
     backend_name: str,
     format_name: str,
     failure_behavior: CaseFailureBehaviour,
+    document_name: str,
+    document: str | None,
+    valid: bool,
 ) -> None:
     expr = ma.col("geometry").geo.parse_geojson(
         format=format_name,
@@ -1102,60 +1128,30 @@ def test_geojson_parse_matrix_valid_and_top_level_null_or_exact_gate(
         )
         return
 
-    compiled = visitor()
-    valid = '{"type":"Point","coordinates":[1,2]}'
-    values = _extract(
-        backend_name,
-        {"geometry": [valid, None]},
-        compiled,
-        "geometry",
-    )
-    assert values == [valid, None]
-
-
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-@pytest.mark.parametrize("format_name", ("default", "topojson"))
-@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
-def test_geojson_parse_matrix_malformed_root_and_canonical_revalidation(
-    backend_name: str,
-    format_name: str,
-    failure_behavior: CaseFailureBehaviour,
-) -> None:
-    expr = ma.col("geometry").geo.parse_geojson(
-        format=format_name,
-        field_name="geometry",
-        failure_behavior=failure_behavior,
-    )
-    visitor = lambda: _compile_for(backend_name, expr)
-    if backend_name not in {"polars", "polars-lazy"}:
-        family, dialect = _gate(backend_name)
-        assert_capability_gated(
-            FK_GEO.PARSE_GEOJSON,
-            family,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=visitor,
+    if valid:
+        values = _extract(
+            backend_name,
+            {"geometry": [document]},
+            visitor(),
+            "geometry",
         )
-        return
-
-    # The first value is an object-root JSON document. The remaining
-    # documents exercise root validation, malformed syntax, and canonical
-    # JSON revalidation (a trailing comma is not canonical JSON).
-    data = {
-        "geometry": [
-            '{"type":"Point","coordinates":[1,2]}',
-            "[1,2]",
-            "{bad",
-            '{"type":"Point","coordinates":[1,]}',
-        ]
-    }
-    if failure_behavior is CaseFailureBehaviour.THROW:
+        assert values == [document], document_name
+    elif failure_behavior is CaseFailureBehaviour.THROW:
         with pytest.raises(Exception):
-            _extract(backend_name, data, visitor(), "geometry")
+            _extract(
+                backend_name,
+                {"geometry": [document]},
+                visitor(),
+                "geometry",
+            )
     else:
-        values = _extract(backend_name, data, visitor(), "geometry")
-        assert values == [data["geometry"][0], None, None, None]
+        values = _extract(
+            backend_name,
+            {"geometry": [document]},
+            visitor(),
+            "geometry",
+        )
+        assert values == [None], document_name
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
