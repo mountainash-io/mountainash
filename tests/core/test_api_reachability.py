@@ -33,6 +33,7 @@ from core.test_compile_smoke import _resolve_api_callable
 def _builders() -> dict[Enum, Callable[[], Any]]:
     """Public entry points the generic resolver cannot construct."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN as MB,
         FKEY_MOUNTAINASH_SCALAR_DATETIME as MD,
         FKEY_MOUNTAINASH_SCALAR_LIST as ML,
         FKEY_MOUNTAINASH_SCALAR_STRUCT as MS,
@@ -49,6 +50,13 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         # c/s/b defined inside `_init_shared_fkey_builders`. The local `c`
         # below feeds only the unique-to-A overrides.
         **_init_shared_fkey_builders(),
+        MB.PARSE_TOKENS: lambda: c.parse_boolean(
+            true_values=("true",), false_values=("false",), field_name="x"
+        ),
+        MD.PARSE_DEFAULT: lambda: c.dt.parse_default(field_name="x"),
+        MD.PARSE_XSD_DURATION: lambda: c.dt.parse_xsd_duration(field_name="x"),
+        MD.PARSE_XSD_PARTIAL_DATE: lambda: c.dt.parse_xsd_partial_date(kind="year", field_name="x"),
+        MD.PARSE_TEMPORAL_ANY: lambda: c.dt.parse_temporal_any("date", field_name="x"),
         # Options with no auto-constructible default (unique to A).
         MD.OFFSET_BY: lambda: c.dt.offset_by("1d"),
         MD.TRUNCATE: lambda: c.dt.truncate("day"),

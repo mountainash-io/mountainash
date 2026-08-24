@@ -234,3 +234,23 @@ def test_native_scalar_list_null_action_preserves_original_null_children() -> No
 
 
 
+
+@pytest.mark.parametrize("action", ("coerce", "evolve", "freeze", "discard_value", "discard_row"))
+def test_every_data_type_action_has_one_evaluator_branch(action: str) -> None:
+    import dataclasses
+    from mountainash.conform.contract import resolve_contract
+
+    spec = _spec(FieldSpec(name="value", type=UniversalType.INTEGER), fields_match="open")
+    contract = dataclasses.replace(
+        resolve_contract("open"), data_type=action, from_preset=False
+    )
+    result = resolve_conform_output(
+        spec,
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(MountainashDtype.STRING)},
+        contract=contract,
+        raise_on_freeze=False,
+    )
+    assert result.drift is not None
+    mismatch = result.drift.type_mismatches[0]
+    assert mismatch.action == action

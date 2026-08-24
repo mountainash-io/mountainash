@@ -458,7 +458,7 @@ def _build_field_expr(
             UniversalType.ARRAY: {MountainashDtype.LIST},
             UniversalType.OBJECT: {MountainashDtype.STRUCT},
             UniversalType.GEOPOINT: {MountainashDtype.STRING, MountainashDtype.LIST, MountainashDtype.STRUCT},
-            UniversalType.GEOJSON: {MountainashDtype.STRING, MountainashDtype.JSON},
+            UniversalType.GEOJSON: {MountainashDtype.STRING, MountainashDtype.JSON, MountainashDtype.STRUCT},
         }
         if fld.type in allowed and canonical not in allowed[fld.type]:
             raise IncompatibleSourceTypeError(field_name=fld.name, source_detail=_shape_detail(shape) or "unknown", requirement=f"{fld.type.value} source")
@@ -562,6 +562,9 @@ def _build_field_expr(
                     raise IncompatibleSourceTypeError(field_name=fld.name, source_detail=_shape_detail(shape) or "unknown", requirement="numeric lon/lat native object geopoint")
         representation = "lexical" if lexical else "native"
         expr = expr.geo.parse_geopoint(format=fmt, source_representation=representation, field_name=fld.name, failure_behavior=failure)
+    elif fld.type == UniversalType.GEOJSON and canonical is MountainashDtype.STRUCT and not lexical:
+        fmt = fld.format if fld.format in {"default", "topojson"} else "default"
+        expr = expr.geo.serialize_geojson(format=fmt, field_name=fld.name)
     elif fld.type == UniversalType.GEOJSON and lexical:
         fmt = fld.format if fld.format in {"default", "topojson"} else "default"
         expr = expr.geo.parse_geojson(format=fmt, field_name=fld.name, failure_behavior=failure)

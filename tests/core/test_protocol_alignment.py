@@ -694,6 +694,7 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainAshScalarSetExpressionSystemProtocol: "mountainash_scalar_set",
     MountainAshScalarStringExpressionSystemProtocol: "mountainash_scalar_string",
     MountainAshScalarStructExpressionSystemProtocol: "mountainash_scalar_struct",
+    MountainAshScalarGeospatialExpressionSystemProtocol: "mountainash_scalar_geospatial",
     MountainashWindowExpressionSystemProtocol: "mountainash_window",
 }
 
@@ -1125,6 +1126,15 @@ def _check_function_registry(protocol_cls: type, method_name: str) -> bool:
         if "." in qualname:
             cls_part, method_part = qualname.rsplit(".", 1)
             if cls_part == protocol_cls.__name__ and method_part == method_name:
+                return True
+            # Frictionless default parsing is exposed as
+            # ``parse_datetime_default`` in the expression-system protocol,
+            # while the public API uses the concise ``parse_default`` name.
+            if (
+                protocol_cls is SubstraitScalarDatetimeExpressionSystemProtocol
+                and method_name == "parse_default"
+                and method_part == "parse_datetime_default"
+            ):
                 return True
 
         # Fallback: identity comparison (handles aliased protocol classes)

@@ -93,6 +93,30 @@ Use `DescriptorWriteMode.PRESERVE` (the default) when the authored storage form 
 contract; use `DescriptorWriteMode.CANONICAL` when a normalized v2 descriptor is the
 contract.
 
+## Execution through a relation DAG
+
+`DataPackage.to_relation_dag(overrides=...)` can replace a tabular resource with an
+in-memory native frame. When the resource has a table schema, the override follows
+the same conform path as a resource read. `dag.collect(name)` therefore applies the
+declared schema before returning the collected frame.
+
+The v2 conform path preserves nulls while it performs the declared conversions:
+
+- lexical `list` fields split with their declared `delimiter` and cast each item;
+- native `array` fields retain list shape and can cast nested struct items;
+- native `object` fields retain struct shape and cast declared members recursively;
+- `geopoint` supports default lexical text, lexical arrays, native numeric arrays, and
+  native `lon`/`lat` objects according to its declared format;
+- lexical `geojson` and `topojson` values remain valid JSON text after parsing;
+- default datetimes become backend datetime values, while XSD duration and partial-date
+  values retain their semantic string representation;
+- `format: "any"` datetime fields use the temporal parser and preserve nulls.
+
+Conform diagnostics and internal marker columns are consumed at the collection
+boundary. Marker columns are not part of the returned public frame. Unsupported
+backend cells raise `BackendCapabilityError` with the declared operation key and
+capability fact attached to the exception.
+
 ## Schema and dialect references
 
 A resource stores `schema` and `dialect` as their raw mapping, reference string, or

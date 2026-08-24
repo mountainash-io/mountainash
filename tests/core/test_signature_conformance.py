@@ -332,6 +332,7 @@ def _init_a2_local_builders() -> dict:
     change. Keeping the overlay A2-local avoids all of that cross-suite
     ripple. Since 2026-08-11."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
         FKEY_MOUNTAINASH_SCALAR_DATETIME,
         FKEY_MOUNTAINASH_SCALAR_LIST,
@@ -339,6 +340,7 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
         FKEY_MOUNTAINASH_WINDOW,
+        FKEY_SUBSTRAIT_CONDITIONAL,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
@@ -366,6 +368,12 @@ def _init_a2_local_builders() -> dict:
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR: lambda: ma.corr(c, b),
         # Namespace collision: the generic resolver finds list.median first.
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN: lambda: ma.median(0, c),
+        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(c).then(s).otherwise(b),
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS: lambda: c.parse_boolean(
+            true_values=("true",), false_values=("false",), field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: c.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: c.list.to_array(width=2),
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE: lambda: ma.quantile([0.5], 2, 1, "LINEAR"),
         SUBSTRAIT_ARITHMETIC_WINDOW.NTILE: lambda: c.ntile(4).over("b"),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY: lambda: ma.today(),
