@@ -29,11 +29,12 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def cast_items(
         self,
         *,
-        item_object_fields: tuple["FieldSpec", ...],
+        item_object_fields: tuple["FieldSpec", ...] = (),
+        item_type: str | None = None,
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
-        """Recursively cast native list struct items."""
+        """Cast native list items using a scalar type or recursive struct schema."""
         ...
 
     def sum(self) -> BaseExpressionAPI:

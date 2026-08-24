@@ -6,15 +6,21 @@ and the DAG visitor's apply_conform.
 """
 from __future__ import annotations
 
-from mountainash.conform.expressions import ConformResult, _build_conform_exprs
+from mountainash.conform.expressions import (
+    ConformResult,
+    FieldBuildResult,
+    _build_conform_exprs,
+)
 from mountainash.conform.errors import (
     ConformError,
     MissingFieldsError,
     ExtraFieldsError,
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     NoMatchingFieldsError,
     ConformTransformError,
     SchemaDriftError,
+    UnresolvedSourceTypeError,
+    IncompatibleSourceTypeError,
 )
 from mountainash.conform.drift import (
     TypeDrift,
@@ -26,14 +32,17 @@ from mountainash.conform.drift import (
 
 __all__ = [
     "ConformResult",
+    "FieldBuildResult",
     "_build_conform_exprs",
     "ConformError",
     "MissingFieldsError",
     "ExtraFieldsError",
-    "ExactFieldCountError",
+    "ExactFieldsMismatchError",
     "NoMatchingFieldsError",
     "ConformTransformError",
     "SchemaDriftError",
+    "UnresolvedSourceTypeError",
+    "IncompatibleSourceTypeError",
     "TypeDrift",
     "ColumnDrift",
     "KeyDrift",

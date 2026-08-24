@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.conform.errors import (
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     ExtraFieldsError,
     MissingFieldsError,
     NoMatchingFieldsError,
@@ -203,18 +203,16 @@ class TestEqualMode:
 # ---------------------------------------------------------------------------
 
 class TestExactMode:
-    def test_exact_maps_positionally(self):
+    def test_exact_maps_by_name_after_order_guard(self):
         spec = _spec(_fld("x"), _fld("y"), fields_match="exact")
-        contract = resolve_conform_output(spec, available_columns=["col_a", "col_b"])
-        assert contract.emitted[0].source_name == "col_a"
-        assert contract.emitted[0].field.name == "x"
-        assert contract.emitted[1].source_name == "col_b"
-        assert contract.emitted[1].field.name == "y"
+        contract = resolve_conform_output(spec, available_columns=["x", "y"])
+        assert [field.source_name for field in contract.emitted] == ["x", "y"]
 
     def test_exact_raises_on_count_mismatch(self):
         spec = _spec(_fld("x"), _fld("y"), fields_match="exact")
-        with pytest.raises(ExactFieldCountError):
-            resolve_conform_output(spec, available_columns=["col_a"])
+        with pytest.raises(ExactFieldsMismatchError) as exc_info:
+            resolve_conform_output(spec, available_columns=["x"])
+        assert exc_info.value.reason == "count"
 
 
 # ---------------------------------------------------------------------------

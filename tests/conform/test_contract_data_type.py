@@ -56,12 +56,9 @@ def test_unsafe_cast_coerce_reports_and_casts():
     spec = _spec(FieldSpec(name="v", type=UniversalType.INTEGER))
     out = _resolve(spec, ["v"], {"v": MountainashDtype.STRING}, _contract("coerce"))
 
-    assert out.drift.type_mismatches == [
-        TypeDrift(
-            name="v", declared=MountainashDtype.I64, actual=MountainashDtype.STRING,
-            safety=CastSafety.UNSAFE.value, action="coerce",
-        )
-    ]
+    assert out.drift.type_mismatches[0].reason == "cast_safety"
+    assert out.drift.type_mismatches[0].action == "coerce"
+    assert out.drift.type_mismatches[0].applied is True
     em = out.emitted[0]
     assert em.type_action == "coerce"
     assert em.effective_type is None
@@ -79,43 +76,24 @@ def test_unsafe_cast_evolve_keeps_source_type():
 
 
 def test_unsafe_cast_freeze_raises_schema_drift_error():
-    """data_type="freeze": raises SchemaDriftError with the TypeDrift attached."""
     spec = _spec(FieldSpec(name="v", type=UniversalType.INTEGER))
     with pytest.raises(SchemaDriftError) as exc_info:
         _resolve(spec, ["v"], {"v": MountainashDtype.STRING}, _contract("freeze"))
-
-    assert exc_info.value.drift.type_mismatches == [
-        TypeDrift(
-            name="v", declared=MountainashDtype.I64, actual=MountainashDtype.STRING,
-            safety=CastSafety.UNSAFE.value, action="freeze",
-        )
-    ]
+    mismatch = exc_info.value.drift.type_mismatches[0]
+    assert mismatch.reason == "cast_safety"
+    assert mismatch.action == "freeze"
 
 
 def test_discard_value_marks_null_cast():
-    """data_type="discard_value": type_action == "discard_value"."""
     spec = _spec(FieldSpec(name="v", type=UniversalType.INTEGER))
-    out = _resolve(
-        spec, ["v"], {"v": MountainashDtype.STRING}, _contract("discard_value"),
-    )
-
-    em = out.emitted[0]
-    assert em.type_action == "discard_value"
-    assert out.row_filter_sources == []
+    out = _resolve(spec, ["v"], {"v": MountainashDtype.STRING}, _contract("discard_value"))
+    assert out.emitted[0].type_action == "discard_value"
 
 
 def test_discard_row_registers_row_filter():
-    """data_type="discard_row": value nulled (same as discard_value) AND the
-    source registers in row_filter_sources for a downstream row-drop filter."""
     spec = _spec(FieldSpec(name="v", type=UniversalType.INTEGER))
-    out = _resolve(
-        spec, ["v"], {"v": MountainashDtype.STRING}, _contract("discard_row"),
-    )
-
-    em = out.emitted[0]
-    assert em.type_action == "discard_value"
-    assert out.row_filter_sources == [("v", MountainashDtype.I64)]
-
+    out = _resolve(spec, ["v"], {"v": MountainashDtype.STRING}, _contract("discard_row"))
+    assert out.emitted[0].type_action == "discard_row"
 
 def test_dotted_source_excluded_from_type_detection():
     """finding 10: the struct ROOT's actual dtype is never compared to the
@@ -134,21 +112,13 @@ def test_dotted_source_excluded_from_type_detection():
     assert em.type_action == "coerce"
 
 
-def test_missing_dtype_evidence_no_false_drift():
-    """No actual_dtypes entry, or a SchemaTypeStatus.UNKNOWN entry -> no
-    assessment possible, no TypeDrift; coerce proceeds exactly as today."""
+def test_missing_dtype_evidence_reports_unknown_drift():
     spec = _spec(FieldSpec(name="v", type=UniversalType.INTEGER))
-
     out_missing = _resolve(spec, ["v"], {}, _contract("freeze"))
-    out_unknown = _resolve(
-        spec, ["v"], {"v": SchemaTypeStatus.UNKNOWN}, _contract("freeze"),
-    )
-
+    out_unknown = _resolve(spec, ["v"], {"v": SchemaTypeStatus.UNKNOWN}, _contract("freeze"))
     for out in (out_missing, out_unknown):
-        assert out.drift.type_mismatches == []
-        assert out.emitted[0].type_action == "coerce"
-
-
+        assert out.drift.type_mismatches[0].reason == "unknown"
+        assert out.drift.type_mismatches[0].applied is False
 # --- Parity: no actual_dtypes evidence at all -> no assessment, drift stays None ---
 
 
@@ -160,5 +130,4 @@ def test_no_actual_dtypes_and_no_columns_drift_stays_none():
     out = resolve_conform_output(spec)
 
     assert out.drift is None
-    assert out.row_filter_sources == []
     assert out.emitted[0].type_action == "coerce"

@@ -81,6 +81,12 @@ def visit_source(node: Any, visitor: Any) -> Any:
 def visit_conform(node: Any, visitor: Any) -> Any:
     native = visitor.visit(node.input)
     return visitor._enrich_native_call(
-        node, RKEY_MOUNTAINASH_REL.CONFORM,
-        lambda: visitor.apply_conform(native, node.spec, contract=node.contract),
+        node,
+        RKEY_MOUNTAINASH_REL.CONFORM,
+        lambda: visitor.apply_conform(
+            native,
+            node.spec,
+            contract=node.contract,
+            apply_value_transforms=node.apply_value_transforms,
+        ),
     )

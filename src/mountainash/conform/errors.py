@@ -43,17 +43,54 @@ class ExtraFieldsError(ConformError):
         )
 
 
-class ExactFieldCountError(ConformError):
-    """Field count mismatch in exact mode (positional mapping)."""
+class ExactFieldsMismatchError(ConformError):
+    """Ordered exact-field mismatch with a stable machine-readable reason."""
 
-    def __init__(self, *, expected_count: int, actual_count: int) -> None:
-        self.expected_count = expected_count
-        self.actual_count = actual_count
+    def __init__(
+        self,
+        *,
+        expected: list[str] | tuple[str, ...],
+        actual: list[str] | tuple[str, ...],
+        reason: str,
+    ) -> None:
+        self.expected = tuple(expected)
+        self.actual = tuple(actual)
+        self.reason = reason
         super().__init__(
-            f"fieldsMatch='exact': spec has {expected_count} fields but data "
-            f"has {actual_count} columns. Exact mode requires identical count."
+            f"fieldsMatch='exact': {reason} mismatch; expected "
+            f"{self.expected!r}, actual {self.actual!r}"
         )
 
+
+class UnresolvedSourceTypeError(ConformError):
+    """The source representation is required but schema evidence is unknown."""
+
+    def __init__(self, *, field_name: str, requirement: str) -> None:
+        self.field_name = field_name
+        self.requirement = requirement
+        super().__init__(
+            f"field {field_name!r} requires resolved source type evidence: "
+            f"{requirement}"
+        )
+
+
+class IncompatibleSourceTypeError(ConformError):
+    """The source representation cannot satisfy a field operation."""
+
+    def __init__(
+        self,
+        *,
+        field_name: str,
+        source_detail: str,
+        requirement: str,
+    ) -> None:
+        self.field_name = field_name
+        self.source_detail = source_detail
+        self.requirement = requirement
+        super().__init__(
+            f"field {field_name!r} has incompatible source type "
+            f"{source_detail!r}; requires {requirement}"
+        )
 
 class NoMatchingFieldsError(ConformError):
     """No overlap between spec fields and data source columns."""

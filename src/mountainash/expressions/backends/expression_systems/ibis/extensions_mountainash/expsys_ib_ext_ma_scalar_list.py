@@ -76,9 +76,16 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         x,
         /,
         *,
-        item_object_fields: tuple[FieldSpec, ...],
+        item_object_fields: tuple[FieldSpec, ...] = (),
+        item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if item_type is not None:
+            from mountainash.typespec.universal_types import parse_universal, to_canonical
+            from mountainash.core.dtypes import registry
+            canonical = to_canonical(parse_universal(item_type))
+            dtype = registry.to_native_schema(canonical, TypeTarget.IBIS)
+            return x.try_cast(f"array<{dtype}>") if failure_behavior == "null" else x.cast(f"array<{dtype}>")
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.IBIS)
         return x.try_cast(dtype) if failure_behavior == "null" else x.cast(dtype)

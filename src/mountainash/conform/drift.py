@@ -18,14 +18,17 @@ from typing import Any, Optional
 
 @dataclass(frozen=True)
 class TypeDrift:
-    """A single column whose actual dtype diverged from the declared dtype."""
+    """A single source/type divergence with evaluator evidence."""
 
     name: str
-    declared: Any  # MountainashDtype
-    actual: Any  # MountainashDtype
-    safety: str  # CastSafety.value ("safe" | "unsafe"; finer classes later)
-    action: str  # coerce|evolve|freeze|discard_value|discard_row
-
+    declared: Any
+    actual: Any
+    safety: str
+    action: str | None = None
+    reason: str = "cast_safety"
+    source_detail: str | None = None
+    requirement: str | None = None
+    applied: bool = True
 
 @dataclass(frozen=True)
 class ColumnDrift:

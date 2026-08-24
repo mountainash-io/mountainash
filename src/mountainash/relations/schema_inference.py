@@ -348,21 +348,29 @@ def infer_schema(
             contract=resolved_contract,
             node_identity=(node_id, None, getattr(spec, "name", None)),
             raise_on_freeze=False,
+            apply_value_transforms=node.apply_value_transforms,
         )
         if _drifts is not None and contract.drift is not None:
             _drifts.append(contract.drift)
-
-        emitted = {
-            em.field.name: _declared_dtype_for_infer(em, input_schema)
-            for em in contract.emitted
-        }
-        if contract.keeps_unmapped:  # open → with_columns semantics
+        if not node.apply_value_transforms:
+            emitted = {
+                em.field.name: input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
+                if em.type_action != "null_fill"
+                else _declared_dtype_for_infer(em, input_schema)
+                for em in contract.emitted
+            }
+        else:
+            emitted = {
+                em.field.name: _declared_dtype_for_infer(em, input_schema)
+                for em in contract.emitted
+            }
+        if contract.keeps_unmapped:
             result = dict(input_schema)
-            for s in contract.renamed_sources:
-                result.pop(s, None)
+            for source in contract.renamed_sources:
+                result.pop(source, None)
             result.update(emitted)
             return result
-        return emitted  # select modes → projection only
+        return emitted
 
     if isinstance(node, ExtensionRelNode):
         return infer_schema(node.input, ref_resolver, _drifts=_drifts)

@@ -19,7 +19,12 @@ from mountainash.conform.contract import (
     resolve_contract,
     validate_contract_dict,
 )
-from mountainash.conform.errors import ConformError, MissingFieldsError, SchemaDriftError
+from mountainash.conform.errors import (
+    ConformError,
+    ExactFieldsMismatchError,
+    MissingFieldsError,
+    SchemaDriftError,
+)
 
 
 # --- Preset table matrix (locked to current fields_match behaviour) -------
@@ -35,7 +40,7 @@ PRESET_TABLE = {
     "exact": {
         "extra_columns": "freeze",
         "missing_columns": "freeze",
-        "mapping": "positional",
+        "mapping": "by_name",
         "count_must_match": True,
         "minimum_overlap": 0,
     },
@@ -363,15 +368,11 @@ def test_resolve_conform_output_non_preset_contract_without_violation_does_not_r
     assert {em.source_name for em in out.emitted} == {"a", "b"}
 
 
-def test_resolve_conform_output_positional_mapping_skips_column_dimension_guards():
-    """mapping="positional" (exact preset) only runs the count guard, even
-    when passed explicitly as a non-preset contract -- matches today's
-    'exact' behaviour (parity gate, brief step 1)."""
+def test_resolve_conform_output_exact_requires_ordered_names():
     spec = _spec("exact", ["a", "b"])
     contract = dataclasses.replace(resolve_contract("exact"), from_preset=False)
-    # Count matches, so no guard fires despite extra_columns/missing_columns
-    # both being "freeze" on this preset.
-    out = resolve_conform_output(
-        spec, available_columns=["x", "y"], contract=contract,
-    )
-    assert [em.source_name for em in out.emitted] == ["x", "y"]
+    with pytest.raises(ExactFieldsMismatchError) as exc_info:
+        resolve_conform_output(
+            spec, available_columns=["x", "y"], contract=contract,
+        )
+    assert exc_info.value.reason == "name"

@@ -8,20 +8,24 @@ from mountainash.conform.errors import (
     ConformError,
     MissingFieldsError,
     ExtraFieldsError,
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     NoMatchingFieldsError,
     ConformTransformError,
     SchemaDriftError,
+    UnresolvedSourceTypeError,
+    IncompatibleSourceTypeError,
 )
 
 ALL = [
     ConformError,
     MissingFieldsError,
     ExtraFieldsError,
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     NoMatchingFieldsError,
     ConformTransformError,
     SchemaDriftError,
+    UnresolvedSourceTypeError,
+    IncompatibleSourceTypeError,
 ]
 
 

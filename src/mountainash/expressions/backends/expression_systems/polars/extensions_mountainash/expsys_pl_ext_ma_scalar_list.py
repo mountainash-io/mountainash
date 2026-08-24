@@ -83,9 +83,22 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         x,
         /,
         *,
-        item_object_fields: tuple[FieldSpec, ...],
+        item_object_fields: tuple[FieldSpec, ...] = (),
+        item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if item_type is not None:
+            from mountainash.core.dtypes import registry
+            from mountainash.typespec.universal_types import parse_universal, to_canonical
+            canonical = to_canonical(parse_universal(item_type))
+            dtype = registry.to_native_schema(canonical, TypeTarget.POLARS)
+            result = x.list.eval(pl.element().cast(dtype, strict=failure_behavior != "null"))
+            if failure_behavior == "null":
+                original_count = x.list.eval(pl.element().is_not_null()).list.sum()
+                result_count = result.list.eval(pl.element().is_not_null()).list.sum()
+                invalid = result_count < original_count
+                return pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
+            return result
         field = FieldSpec(
             name="_items",
             type=UniversalType.ARRAY,

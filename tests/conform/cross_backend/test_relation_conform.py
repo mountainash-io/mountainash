@@ -146,19 +146,19 @@ _STRUCT_CAST = [
 
 @pytest.mark.parametrize("backend_name", _STRUCT_CAST)
 class TestRelationConformStructCastOffPolars:
-    """Struct conform materialization is deliberately Polars-only."""
+    """Struct conform lowers through the backend-neutral struct operation."""
 
-    def test_struct_cast_raises_dtype_mapping_error_off_polars(self, backend_name, backend_factory):
-        from mountainash.core.dtypes import DtypeMappingError
+    def test_struct_cast_uses_neutral_operation(self, backend_name, backend_factory):
         df = backend_factory.create({"addr": [{"street": "Main St", "zip": "12345"}]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
                 FieldSpec(name="street", type=UniversalType.STRING),
                 FieldSpec(name="zip", type=UniversalType.STRING),
             ])],
         )
-        with pytest.raises(DtypeMappingError):
-            ma.relation(df).conform(spec).to_polars()
+        result = ma.relation(df).conform(spec).to_polars()
+        assert "addr" in result.columns
 
 
 
@@ -444,15 +444,15 @@ class TestFieldsMatchModes:
         assert sorted(result.columns) == ["a", "b"]
 
     def test_exact_raises_on_count_mismatch(self, backend_name, backend_factory):
-        from mountainash.conform.errors import ExactFieldCountError
-
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
+            fields=[FieldSpec(name="a"), FieldSpec(name="b")],
             fields_match="exact",
         )
-        with pytest.raises(ExactFieldCountError):
+        from mountainash.conform.errors import ExactFieldsMismatchError
+        with pytest.raises(ExactFieldsMismatchError) as error:
             ma.relation(df).conform(spec).to_polars()
+        assert error.value.reason == "count"
 
     def test_equal_passes_when_columns_match(self, backend_name, backend_factory):
         df = backend_factory.create({"a": ["1"], "b": ["2"]}, backend_name)

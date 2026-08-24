@@ -44,3 +44,4 @@ class ConformRelNode(RelationNode):
     input: RelationNode
     spec: Any
     contract: Optional[Any] = None
+    apply_value_transforms: bool = True

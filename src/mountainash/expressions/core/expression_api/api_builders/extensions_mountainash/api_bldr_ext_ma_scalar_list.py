@@ -18,21 +18,28 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
     def cast_items(
         self,
         *,
-        item_object_fields: tuple["FieldSpec", ...],
+        item_object_fields: tuple["FieldSpec", ...] = (),
+        item_type: str | None = None,
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
-        """Recursively cast native struct items in a list."""
-        fields = validate_fields("cast_items", "item_object_fields", item_object_fields)
+        """Cast native list items using either a scalar item type or struct schema."""
+        fields = validate_fields("cast_items", "item_object_fields", item_object_fields) if item_type is None else ()
         validate_field_name("cast_items", field_name)
         failure = validate_failure_behavior("cast_items", failure_behavior)
+        if item_type is not None:
+            from ._operation_options import validate_item_type
+            validate_item_type("cast_items", item_type)
+        options = {
+            "item_object_fields": fields,
+            "failure_behavior": failure.value,
+        }
+        if item_type is not None:
+            options["item_type"] = item_type
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
             arguments=[self._node],
-            options={
-                "item_object_fields": fields,
-                "failure_behavior": failure.value,
-            },
+            options=options,
             diagnostic_context={
                 "field_name": field_name,
                 "logical_type": "array",

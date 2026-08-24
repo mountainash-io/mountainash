@@ -196,6 +196,7 @@ class Relation(RelationBase):
         spec: Any,
         *,
         contract: Optional[Union[str, Mapping[str, str]]] = None,
+        apply_value_transforms: bool = True,
     ) -> Relation:
         """Conform the relation to a TypeSpec.
 
@@ -232,7 +233,7 @@ class Relation(RelationBase):
             else:
                 validate_contract_dict(contract)
         from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
-        return self._make(ConformRelNode(input=self._node, spec=spec, contract=contract))
+        return self._make(ConformRelNode(input=self._node, spec=spec, contract=contract, apply_value_transforms=apply_value_transforms))
 
     # --- Sorting ---
 

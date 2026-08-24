@@ -369,6 +369,7 @@ class UnifiedRelationVisitor:
         empty_from_schema: bool = False,
         contract: Optional[Any] = None,
         resource_name: Optional[str] = None,
+        apply_value_transforms: bool = True,
     ) -> Any:
         """Apply conform from a TypeSpec or raw Frictionless schema dict.
 
@@ -408,9 +409,7 @@ class UnifiedRelationVisitor:
         from mountainash.conform.contract import resolve_contract
         from mountainash.conform.expressions import _VALID_FIELDS_MATCH, _build_conform_exprs
         from mountainash.conform.errors import ConformError, ConformTransformError
-        from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
-            CaseFailureBehaviour,
-        )
+        from mountainash.typespec.source_shape import extract_source_shapes
         from mountainash.relations.schema_inference import _schema_from_dataframe
         import mountainash as ma
 
@@ -431,6 +430,10 @@ class UnifiedRelationVisitor:
         fields_match = schema.fields_match
         # Validate before resolve_contract(): resolve_contract's
         # FIELDS_MATCH_PRESETS[fields_match] lookup deliberately raises a
+        try:
+            actual_shapes = extract_source_shapes(native)
+        except (TypeError, ImportError):
+            actual_shapes = None
         # bare KeyError on an unknown preset name (pinned by
         # tests/conform/test_contract.py::
         # test_resolve_contract_unknown_fields_match_raises_keyerror) —
@@ -476,20 +479,18 @@ class UnifiedRelationVisitor:
             schema,
             available_columns=available,
             actual_dtypes=available_schema or None,
+            actual_shapes=actual_shapes,
             contract=resolved_contract,
             node_identity=(node_id, resource_name, getattr(schema, "name", None)),
             key_fks=key_fks,
             key_resource_name=key_resource_name,
             schema_of=key_schema_of,
+            apply_value_transforms=apply_value_transforms,
         )
         if conform_result.drift is not None:
             self.drift_reports.append(conform_result.drift)
 
-        # Zero-column reconstruction (resource-read path only). The fields_match
-        # guard above has already run and raised for strict modes; only the
-        # tolerant modes (open/superset) reach here with a zero-column read.
-        # MUST be `available == []` (known-zero-columns), never None
-        # (uninspectable) and never falsy — see design doc finding 3.
+        # Zero-column reconstruction (resource-read path only).
         if empty_from_schema and available == [] and schema.fields:
             return self.backend.empty_frame(schema)
 
@@ -501,19 +502,7 @@ class UnifiedRelationVisitor:
         try:
             rel = ma.relation(native)
 
-            # discard_row predicate (item 48 Task 6/7, finding 12): drop iff
-            # the raw source is non-null AND a null-on-failure cast of it
-            # fails. Legitimately-null source rows are always kept. Must run
-            # on the *raw* source column before the with_columns/select
-            # projection below — in select mode the original column may be
-            # renamed or dropped by the projection.
-            for src, declared in conform_result.row_filter_sources:
-                keep = ~(
-                    ma.col(src).is_not_null()
-                    & ma.col(src)
-                    .cast(declared, failure_behavior=CaseFailureBehaviour.NULL)
-                    .is_null()
-                )
+            for keep in conform_result.row_filters:
                 rel = rel.filter(keep)
 
             if use_open:

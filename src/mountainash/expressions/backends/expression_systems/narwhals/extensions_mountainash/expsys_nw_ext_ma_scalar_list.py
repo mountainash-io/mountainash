@@ -78,9 +78,16 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         x,
         /,
         *,
-        item_object_fields: tuple[FieldSpec, ...],
+        item_object_fields: tuple[FieldSpec, ...] = (),
+        item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if item_type is not None:
+            from mountainash.typespec.universal_types import parse_universal, to_canonical
+            canonical = to_canonical(parse_universal(item_type))
+            from mountainash.core.dtypes import registry
+            dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
+            return x.cast(nw.List(dtype))
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
         return x.cast(dtype)
