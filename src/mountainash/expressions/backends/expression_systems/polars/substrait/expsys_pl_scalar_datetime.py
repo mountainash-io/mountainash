@@ -415,12 +415,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         strict = failure_behavior != "null"
         has_timezone = x.str.contains(r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$")
         normalized = x.str.replace(r"Z$", "+00:00")
-        with_timezone = normalized.str.to_datetime(
+        timezone_input = pl.when(has_timezone).then(normalized).otherwise(None)
+        with_timezone = timezone_input.str.to_datetime(
             "%Y-%m-%dT%H:%M:%S%.f%z",
             strict=strict,
         )
         with_timezone = with_timezone.dt.convert_time_zone("UTC").dt.replace_time_zone(None)
-        without_timezone = x.str.to_datetime(
+        naive_input = pl.when(has_timezone).then(None).otherwise(x)
+        without_timezone = naive_input.str.to_datetime(
             "%Y-%m-%dT%H:%M:%S%.f",
             strict=strict,
         )

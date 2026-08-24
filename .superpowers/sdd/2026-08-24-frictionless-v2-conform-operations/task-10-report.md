@@ -108,3 +108,21 @@ Focused verification:
 
 - `tests/conform/cross_backend/test_v2_type_actions.py tests/core/test_capability_declarations.py tests/core/test_capability_predicate_registry.py`: **51 passed**.
 - Categorical capability coverage: **77 passed, 864 deselected**.
+
+## Controller-context final datetime branch fix
+
+- Masked each strict Polars default-datetime parser input with the
+  `has_timezone` predicate before parsing, so strict timezone and naive
+  branches never evaluate incompatible rows.
+- Kept the anchored Frictionless grammar, UTC-naive offset normalization,
+  and throw/null strictness unchanged.
+- Added a public `DataPackage -> RelationDAG -> collect` regression covering
+  mixed naive and offset-bearing valid datetime values.
+
+Verification:
+
+- Red regression before the production change: mixed public DAG input raised
+  from the strict timezone parser on the naive row.
+- Focused regression after the change: **1 passed, 2 deselected**.
+- Final Unit C gate: **4156 passed, 39 skipped, 93 xfailed, 48 warnings**.
+- Final public DAG smoke: **3 passed**.

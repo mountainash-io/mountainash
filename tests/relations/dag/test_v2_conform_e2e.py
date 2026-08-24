@@ -132,6 +132,28 @@ def test_public_descriptor_dag_conform_collect() -> None:
     assert result["any_time"].to_list()[0].year == 2024
     assert not any("marker" in name.lower() for name in result.columns)
 
+def test_public_default_datetime_accepts_mixed_naive_and_offset_values() -> None:
+    package = DataPackage.from_descriptor(_descriptor())
+    frame = _native_frame().with_columns(
+        pl.Series(
+            "when",
+            [
+                "2024-01-02T03:04:05",
+                "2024-02-03T04:05:06+02:00",
+                None,
+            ],
+        )
+    )
+    result = package.to_relation_dag(overrides={"records": frame}).collect("records")
+    if isinstance(result, pl.LazyFrame):
+        result = result.collect()
+
+    assert result["when"].to_list() == [
+        __import__("datetime").datetime(2024, 1, 2, 3, 4, 5),
+        __import__("datetime").datetime(2024, 2, 3, 2, 5, 6),
+        None,
+    ]
+
 def test_public_conform_reports_exact_declared_capability_error() -> None:
     descriptor = {
         "name": "unit-c-capability-smoke",
