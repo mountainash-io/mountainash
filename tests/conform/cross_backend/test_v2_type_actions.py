@@ -6,6 +6,7 @@ import pytest
 from mountainash.conform.errors import (
     ExactFieldsMismatchError,
     IncompatibleSourceTypeError,
+    SchemaDriftError,
     UnresolvedSourceTypeError,
 )
 from mountainash.conform.expressions import resolve_conform_output
@@ -63,7 +64,7 @@ def test_unknown_actual_shape_is_unknown_drift_evidence() -> None:
     assert mismatch.source_detail is None
 
 
-def test_equal_canonical_dtype_with_declared_item_shape_reports_shape_drift() -> None:
+def test_native_list_representation_drift_precedes_item_shape() -> None:
     spec = _spec(FieldSpec(name="a", type=UniversalType.LIST, item_type="string"), fields_match="open")
     result = resolve_conform_output(
         spec,
@@ -72,7 +73,49 @@ def test_equal_canonical_dtype_with_declared_item_shape_reports_shape_drift() ->
     )
     assert result.drift is not None
     mismatch = result.drift.type_mismatches[0]
-    assert mismatch.reason == "shape"
+    assert mismatch.reason == "representation"
+
+
+@pytest.mark.parametrize("action", ("evolve", "discard_value", "discard_row"))
+def test_native_list_representation_carries_data_type_action(action: str) -> None:
+    import dataclasses
+
+    from mountainash.conform.contract import resolve_contract
+
+    spec = _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"), fields_match="open")
+    contract = dataclasses.replace(resolve_contract("open"), data_type=action, from_preset=False)
+    result = resolve_conform_output(
+        spec,
+        available_columns=("items",),
+        actual_shapes={
+            "items": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))
+        },
+        contract=contract,
+    )
+
+    assert result.drift is not None
+    mismatch = result.drift.type_mismatches[0]
+    assert mismatch.reason == "representation"
+    assert mismatch.action == action
+    assert result.emitted[0].type_action == action
+
+
+def test_native_list_representation_freeze_raises_schema_drift() -> None:
+    import dataclasses
+
+    from mountainash.conform.contract import resolve_contract
+
+    spec = _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"), fields_match="open")
+    contract = dataclasses.replace(resolve_contract("open"), data_type="freeze", from_preset=False)
+    with pytest.raises(SchemaDriftError):
+        resolve_conform_output(
+            spec,
+            available_columns=("items",),
+            actual_shapes={
+                "items": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))
+            },
+            contract=contract,
+        )
 
 
 def test_nested_struct_shape_detail_reports_child_types() -> None:
@@ -98,6 +141,36 @@ def test_nested_struct_shape_detail_reports_child_types() -> None:
     assert mismatch.reason == "shape"
     assert "child:" in mismatch.source_detail
     assert "child:" in mismatch.requirement
+
+
+def test_object_lon_lat_children_remain_ordered() -> None:
+    spec = _spec(
+        FieldSpec(
+            name="record",
+            type=UniversalType.OBJECT,
+            object_fields=[
+                FieldSpec(name="lon", type=UniversalType.NUMBER),
+                FieldSpec(name="lat", type=UniversalType.NUMBER),
+            ],
+        ),
+        fields_match="open",
+    )
+    result = resolve_conform_output(
+        spec,
+        available_columns=("record",),
+        actual_shapes={
+            "record": SourceShape(
+                MountainashDtype.STRUCT,
+                struct_fields=(
+                    ("lat", SourceShape(MountainashDtype.FP64)),
+                    ("lon", SourceShape(MountainashDtype.FP64)),
+                ),
+            )
+        },
+    )
+
+    assert result.drift is not None
+    assert result.drift.type_mismatches[0].reason == "shape"
 
 def test_shape_drift_uses_configured_action() -> None:
     import dataclasses
@@ -231,6 +304,31 @@ def test_native_list_discard_value_emits_typed_null() -> None:
         spec, contract={"data_type": "discard_value"}
     ).to_polars()
     assert result["items"].to_list() == [None, None]
+
+
+@pytest.mark.parametrize(
+    ("action", "expected"),
+    [
+        ("evolve", [[1, 2], [3, 4]]),
+        ("discard_value", [None, None]),
+        ("discard_row", []),
+    ],
+)
+def test_native_list_representation_action_materializes(
+    action: str, expected: list[object]
+) -> None:
+    import polars as pl
+    from mountainash import relation
+
+    spec = _spec(
+        FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
+        fields_match="open",
+    )
+    result = relation(pl.DataFrame({"items": [[1, 2], [3, 4]]})).conform(
+        spec, contract={"data_type": action}
+    ).to_polars()
+
+    assert result["items"].to_list() == expected
 
 
 

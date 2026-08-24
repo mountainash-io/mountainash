@@ -207,3 +207,17 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
 def test_probe_evidence_validates_date():
     with pytest.raises(ValueError, match="probe_date"):
         ProbeEvidence(probe_date="not-a-date", library_versions=(), fixtures=())
+
+
+def test_narwhals_lazy_categorical_gate_is_declared_once() -> None:
+    facts = [
+        fact
+        for fact in CapabilityRegistry.facts()
+        if fact.operation_key is FK_CAT.CAST
+        and fact.backend is CONST_BACKEND.NARWHALS
+        and fact.dialect == "narwhals-lazy"
+        and fact.param == "value_type"
+        and fact.option_value == "integer"
+    ]
+
+    assert len(facts) == 1

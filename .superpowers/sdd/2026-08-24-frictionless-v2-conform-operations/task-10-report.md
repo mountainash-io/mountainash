@@ -97,3 +97,14 @@ Focused verification for this repair commit:
 - Ruff on all changed production files and focused regressions: **passed**.
 - Changed-source/test `compileall`: **passed**.
 - Native callback audit: targeted geospatial and categorical implementations contain no `map_elements`/`map_batches`; Polars temporal contains only the permitted `parse_temporal_any` batch parser.
+
+## Pre-PR controller repairs
+
+- Physical native `LIST` sources declared as lexical `LIST` now produce representation drift before field lowering, so configured `evolve`, `discard_value`, `discard_row`, and `freeze` actions reach the emitted field and follow their policy.
+- GEOPOINT coordinate-key order is unordered only when the shape comparison is running in GEOPOINT numeric-child context; ordinary `OBJECT` structs with `lon` and `lat` remain ordered.
+- The Narwhals categorical capability declarations now emit one `narwhals-lazy` integer gate instead of cloning duplicate facts.
+
+Focused verification:
+
+- `tests/conform/cross_backend/test_v2_type_actions.py tests/core/test_capability_declarations.py tests/core/test_capability_predicate_registry.py`: **51 passed**.
+- Categorical capability coverage: **77 passed, 864 deselected**.

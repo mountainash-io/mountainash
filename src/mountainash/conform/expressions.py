@@ -211,7 +211,7 @@ def _shape_diff(
         actual_fields = dict(actual.struct_fields)
         expected_names = tuple(name for name, _ in expected.struct_fields)
         actual_names = tuple(actual_fields)
-        if set(expected_names) == {"lon", "lat"}:
+        if numeric_children and set(expected_names) == {"lon", "lat"}:
             if set(actual_names) != {"lon", "lat"}:
                 return True
         elif expected_names != actual_names:
@@ -371,6 +371,21 @@ def resolve_conform_output(
                     "unknown",
                     requirement=requirement,
                     applied=apply_value_transforms,
+                )
+            elif (
+                em.field.type is UniversalType.LIST
+                and actual_shape.canonical_type is MountainashDtype.LIST
+            ):
+                mismatch = TypeDrift(
+                    em.field.name,
+                    declared,
+                    actual_shape.canonical_type,
+                    "unsafe",
+                    None,
+                    "representation",
+                    _shape_detail(actual_shape),
+                    requirement,
+                    apply_value_transforms,
                 )
             elif actual_shape.canonical_type != declared:
                 safety = classify_cast(actual_shape.canonical_type, declared)

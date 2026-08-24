@@ -1,7 +1,6 @@
 """Capability declarations for categorical casts."""
 from __future__ import annotations
 
-from dataclasses import replace
 from mountainash.core.capabilities import CapabilityDeclaration, FactSource, Domain, ProbeEvidence
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT
@@ -13,11 +12,7 @@ _FACTS = (
     unsupported(FK_CAT.CAST, CONST_BACKEND.IBIS, "ibis-sqlite", message=_MSG, option="value_type", value_type="integer"),
     unsupported(FK_CAT.CAST, CONST_BACKEND.NARWHALS, "narwhals-polars", message=_MSG, option="value_type", value_type="integer", failure_behavior="null"),
     unsupported(FK_CAT.CAST, CONST_BACKEND.NARWHALS, "narwhals-pandas", message=_MSG, option="value_type", value_type="integer", failure_behavior="null"),
-)
-_FACTS = _FACTS + tuple(
-    replace(f, dialect="narwhals-lazy")
-    for f in _FACTS
-    if f.backend is CONST_BACKEND.NARWHALS
+    unsupported(FK_CAT.CAST, CONST_BACKEND.NARWHALS, "narwhals-lazy", message=_MSG, option="value_type", value_type="integer", failure_behavior="null"),
 )
 
 _EVIDENCE = ProbeEvidence(probe_date=SINCE, library_versions=(), fixtures=("categorical-base-scalar",))
