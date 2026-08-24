@@ -56,7 +56,7 @@ def resolve_field_canonical(field: "FieldSpec") -> Any:
     """
     fmt = field.format
     if field.type is UniversalType.GEOPOINT:
-        if fmt not in _GEOPOINT_FORMAT_CANONICAL:
+        if not isinstance(fmt, str) or fmt not in _GEOPOINT_FORMAT_CANONICAL:
             raise InvalidGeospatialFormatError(
                 field.name,
                 UniversalType.GEOPOINT,
@@ -65,7 +65,7 @@ def resolve_field_canonical(field: "FieldSpec") -> Any:
             )
         return _GEOPOINT_FORMAT_CANONICAL[fmt]
     if field.type is UniversalType.GEOJSON:
-        if fmt not in _GEOJSON_FORMATS:
+        if not isinstance(fmt, str) or fmt not in _GEOJSON_FORMATS:
             raise InvalidGeospatialFormatError(
                 field.name,
                 UniversalType.GEOJSON,

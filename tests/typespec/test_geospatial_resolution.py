@@ -67,6 +67,18 @@ class TestInvalidGeospatialFormats:
         assert err.rejected_format == "object"
         assert err.allowed_formats == ["default", "topojson"]
 
+    @pytest.mark.parametrize(
+        "field",
+        [
+            FieldSpec("point", U.GEOPOINT, format=[]),
+            FieldSpec("geometry", U.GEOJSON, format={"format": "json"}),
+        ],
+    )
+    def test_unhashable_geospatial_formats_are_typed(self, field: FieldSpec) -> None:
+        with pytest.raises(InvalidGeospatialFormatError) as exc_info:
+            resolve_field_canonical(field)
+        assert exc_info.value.rejected_format is field.format
+
 
 class TestNonGeospatialDelegatesToCanonical:
     """Every other UniversalType delegates unchanged to to_canonical()."""

@@ -88,13 +88,13 @@ def _normalize_fields_match(
             standard, extension, "both standard and extension locations present"
         )
     if has_extension:
-        if extension != "open":
+        if not isinstance(extension, str) or extension != "open":
             raise InvalidFieldMatchDeclaration(
                 None, extension, "x-mountainash.fields_match must be 'open'"
             )
         return "open"
     if has_standard:
-        if standard not in _STANDARD_FIELDS_MATCH:
+        if not isinstance(standard, str) or standard not in _STANDARD_FIELDS_MATCH:
             raise InvalidFieldMatchDeclaration(
                 standard, None, "fieldsMatch is not one of the five standard modes"
             )
@@ -499,6 +499,8 @@ def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
     )
 
     raw_unique_keys = descriptor.get("uniqueKeys")  # Gap 4
+    if raw_unique_keys is not None and not isinstance(raw_unique_keys, list):
+        raise InvalidKeyShapeError("unique_keys", raw_unique_keys, "list[list[str]]")
     unique_keys: Optional[List[List[str]]] = (
         None
         if raw_unique_keys is None

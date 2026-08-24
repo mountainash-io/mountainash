@@ -84,6 +84,8 @@ class ForeignKeyReference:
     fields: List[str]
 
     def __post_init__(self) -> None:
+        if self.resource == "":
+            raise ValueError("ForeignKeyReference.resource must be None or a non-empty string")
         _validate_key_shape(self.fields, "foreign_key.reference.fields")
 
 

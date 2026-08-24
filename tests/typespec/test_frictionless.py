@@ -757,3 +757,16 @@ def test_fk_reference_fields_reject_noncanonical_iterables(raw) -> None:
                 "foreignKeys": [{"fields": ["cid"], "reference": {"resource": "r", "fields": raw}}],
             }
         )
+@pytest.mark.parametrize("raw", [(["id"],), {"id": ["x"]}, {"id"}, "id", 7])
+def test_unique_keys_requires_list_container(raw) -> None:
+    with pytest.raises(InvalidKeyShapeError) as exc_info:
+        typespec_from_frictionless({"fields": [], "uniqueKeys": raw})
+    assert exc_info.value.field_name == "unique_keys"
+    assert exc_info.value.rejected_value is raw
+
+
+@pytest.mark.parametrize("raw", [["exact"], {"mode": "exact"}, 7])
+def test_fields_match_rejects_non_string_values(raw) -> None:
+    with pytest.raises(InvalidFieldMatchDeclaration) as exc_info:
+        typespec_from_frictionless({"fields": [], "fieldsMatch": raw})
+    assert exc_info.value.standard_value is raw

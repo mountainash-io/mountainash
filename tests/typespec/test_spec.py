@@ -384,6 +384,10 @@ class TestForeignKeyReference:
         ref = ForeignKeyReference(resource=None, fields=["manager_id"])
         assert ref.resource is None
 
+    def test_empty_string_resource_is_rejected_on_direct_construction(self):
+        with pytest.raises(ValueError, match="resource"):
+            ForeignKeyReference(resource="", fields=["id"])
+
     def test_composite_key(self):
         ref = ForeignKeyReference(resource="orders", fields=["order_id", "line_id"])
         assert len(ref.fields) == 2
