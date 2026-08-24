@@ -73,13 +73,17 @@ def _parse_object_native_throw(value):
     return coordinates
 
 
+def _reject_json_constant(value):
+    raise ValueError(f"invalid JSON constant: {value}")
+
+
 def _parse_geojson_throw(value):
     if value is None:
         return None
     if not isinstance(value, str) or not value.lstrip().startswith("{"):
         raise ValueError(f"invalid GeoJSON value: {value!r}")
     try:
-        json.loads(value)
+        json.loads(value, parse_constant=_reject_json_constant)
     except (TypeError, ValueError):
         raise ValueError(f"invalid GeoJSON value: {value!r}") from None
     return value

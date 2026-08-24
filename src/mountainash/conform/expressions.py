@@ -189,6 +189,8 @@ def _shape_diff(
         return False
     if expected.canonical_type is None:
         return False
+    if actual.canonical_type is None:
+        return True
     if numeric_children and expected.canonical_type.name.startswith(("I", "U", "FP")):
         return not actual.canonical_type.name.startswith(("I", "U", "FP"))
     if expected.canonical_type != actual.canonical_type:

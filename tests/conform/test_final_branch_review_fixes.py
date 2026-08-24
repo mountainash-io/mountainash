@@ -22,6 +22,9 @@ from mountainash.expressions.backends.expression_systems.polars import PolarsExp
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+    CaseFailureBehaviour,
+)
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
 from mountainash.typespec.source_shape import SourceShape
 from mountainash.typespec.spec import FieldSpec, TypeSpec
@@ -149,6 +152,64 @@ def test_geopoint_numeric_children_are_shape_compatible(child: MountainashDtype)
         raise_on_freeze=False,
     )
     assert result.drift.type_mismatches == []
+
+
+@pytest.mark.parametrize(
+    ("format_name", "actual_shape"),
+    [
+        ("array", SourceShape(MountainashDtype.LIST, SourceShape(None))),
+        (
+            "object",
+            SourceShape(
+                MountainashDtype.STRUCT,
+                struct_fields=(
+                    ("lon", SourceShape(None)),
+                    ("lat", SourceShape(MountainashDtype.I64)),
+                ),
+            ),
+        ),
+    ],
+    ids=["array-child", "object-child"],
+)
+def test_unknown_geopoint_numeric_child_reports_shape_drift(
+    format_name: str, actual_shape: SourceShape
+) -> None:
+    result = resolve_conform_output(
+        _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format=format_name)),
+        available_columns=("point",),
+        actual_shapes={"point": actual_shape},
+        contract=_contract("freeze"),
+        raise_on_freeze=False,
+    )
+    assert len(result.drift.type_mismatches) == 1
+    assert result.drift.type_mismatches[0].reason == "shape"
+
+
+@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
+@pytest.mark.parametrize(
+    "document",
+    [
+        '{"type":"Point","coordinates":[NaN,0]}',
+        '{"type":"Point","coordinates":[Infinity,0]}',
+        '{"type":"Point","coordinates":[-Infinity,0]}',
+    ],
+    ids=["nan", "infinity", "negative-infinity"],
+)
+def test_polars_geojson_rejects_nonfinite_json_constants(
+    failure_behavior: CaseFailureBehaviour, document: str
+) -> None:
+    expr = ma.col("geometry").geo.parse_geojson(
+        format="default",
+        field_name="geometry",
+        failure_behavior=failure_behavior,
+    )
+    compiled = _compile(expr).alias("geometry")
+    if failure_behavior is CaseFailureBehaviour.THROW:
+        with pytest.raises(Exception):
+            pl.DataFrame({"geometry": [document]}).select(compiled)
+    else:
+        result = pl.DataFrame({"geometry": [document]}).select(compiled)
+        assert result["geometry"].to_list() == [None]
 
 
 def test_integer_categories_resolve_declared_base_type() -> None:

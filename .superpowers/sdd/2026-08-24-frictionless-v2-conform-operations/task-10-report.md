@@ -65,3 +65,16 @@ Repository-local Task 10 closeout is complete. Commit: `95b0f974` (`feat(conform
 - Polars GEOPOINT matrix: **56 passed**.
 - Changed implementation and final-fix regression Ruff scope: **passed**.
 - `compileall` over `src/mountainash` and changed tests: **passed**.
+
+### Controller-context final edge fixes
+
+- `_shape_diff()` now treats an unknown recursive source child as shape drift before applying numeric GEOPOINT compatibility checks, avoiding an `AttributeError` for `SourceShape(None)` coordinate children while preserving the existing unknown top-level drift classification.
+- Polars throw-mode GeoJSON parsing now supplies a strict `parse_constant` callback to `json.loads()`, rejecting `NaN`, `Infinity`, and `-Infinity` in the same way as null mode.
+- Added regressions for unknown GEOPOINT array/object coordinate children and all three non-finite GeoJSON constants in both throw and null modes.
+
+Targeted verification:
+
+- `hatch run test:pytest -q tests/conform/test_final_branch_review_fixes.py`: **30 passed**.
+- `hatch run test:pytest -q tests/conform/cross_backend/test_v2_operations.py -k 'geojson_parse_exceptional_documents_one_per_test or polars_geojson_parse_and_serialize'`: **361 passed, 497 deselected**.
+- Changed-source/test Ruff check: **passed**.
+- Changed-file `compileall`: **passed**.
