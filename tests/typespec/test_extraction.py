@@ -136,6 +136,10 @@ class TestExtractFromPandas:
         assert "id" in schema.field_names
         assert "name" in schema.field_names
 
+    def test_preserve_backend_types_keeps_pandas_scalar_dtype(self, pandas_df):
+        schema = extract_from_dataframe(pandas_df, preserve_backend_types=True)
+        assert schema.get_field("id").backend_type == "int64"
+
 
 # ============================================================================
 # TestExtractFromPyArrow

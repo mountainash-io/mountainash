@@ -534,6 +534,10 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
             if shape.canonical_type is not None
             else _universal_from_native(dtype, TypeTarget.PANDAS)
         )
+        recursive_shape = (
+            shape.canonical_type is not None
+            and shape.canonical_type.name in {"LIST", "STRUCT"}
+        )
         fields.append(
             _field_from_source_shape(
                 col_name,
@@ -541,7 +545,7 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
                 universal_type=universal_type,
                 backend_type=(
                     str(dtype)
-                    if preserve_backend_types and shape.canonical_type is None
+                    if preserve_backend_types and not recursive_shape
                     else None
                 ),
             )
