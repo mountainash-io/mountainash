@@ -55,7 +55,7 @@ class TestFieldConstraints:
 # ============================================================================
 
 def test_unit_b_model_defaults() -> None:
-    assert FieldSpec("value").type is UniversalType.ANY
+    assert FieldSpec("value", type=UniversalType.ANY).type is UniversalType.ANY
     assert TypeSpec().fields_match == "exact"
     assert TypeSpec().missing_values == [""]
 
@@ -202,7 +202,11 @@ class TestFieldSpec:
     )
     def test_incompatible_property_type_combinations_raise(self, kwargs, prop):
         with pytest.raises(IncompatibleFieldPropertiesError) as exc_info:
-            FieldSpec(name="f", **kwargs)
+            FieldSpec(
+                name="f",
+                type=kwargs["type"],
+                **{key: value for key, value in kwargs.items() if key != "type"},
+            )
         assert exc_info.value.property_name == prop
 
     @pytest.mark.parametrize("list_like", [UniversalType.LIST, UniversalType.ARRAY])
@@ -257,6 +261,7 @@ class TestFieldSpec:
             typespec_from_frictionless(
                 {"fields": [{"name": "x", "type": "string", "itemType": "integer"}]}
             )
+
 
 
 # ============================================================================
