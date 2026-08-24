@@ -417,7 +417,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
                 pattern += r"-(?:0[1-9]|1[0-2])"
             pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
             valid = x.re_search(pattern) & ~x.re_search(r"^-0000")
-            valid = valid & ~x.re_search(r"\+14:[0-5][1-9]$")
+            valid = valid & ~x.re_search(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
             return valid.ifelse(x, None)
         return x
     def parse_temporal_any(

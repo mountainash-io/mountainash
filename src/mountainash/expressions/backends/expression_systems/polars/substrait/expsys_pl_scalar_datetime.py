@@ -435,7 +435,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
                 + r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
             )
             valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
-            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
+            valid = valid & ~x.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
             return pl.when(valid).then(x).otherwise(None)
         if failure_behavior == "throw":
             from mountainash.typespec.temporal import parse_xsd_partial_date

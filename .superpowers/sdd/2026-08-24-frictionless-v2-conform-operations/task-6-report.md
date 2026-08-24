@@ -68,3 +68,17 @@ Correction verification:
 - Reworked the ALL_BACKENDS matrix to use backend factories/result helpers, including real lazy-frame collection.
 - Regression: 62 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.
 - Final matrix/parser regression: 61 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.
+
+## Post-cap repair wave
+
+- Restored one dialect-scoped `WILDCARD_PARAM` `GATE` fact for each XSD operation on `ibis-sqlite`, while retaining all eight XSD `MATERIALIZE_RESIDUE` / `NON_NULL_TO_NULL` facts.
+- Tightened every Polars, Narwhals, and Ibis partial-date predicate to reject both signs of every nonzero-minute `14:00` offset, including minute values ending in zero.
+- Replaced the narrow temporal tests with an `ALL_BACKENDS` matrix for XSD duration, XSD year/yearmonth, and temporal-any across both failure modes. Supported cells materialize through `BackendDataFrameFactory` and `BackendResultHelper`; unsupported cells assert the exact capability gate.
+
+Verification:
+
+- `hatch run test:test-target-quick tests/conform/cross_backend/test_temporal_operations.py -q`: 309 passed, 2 existing Polars deprecation warnings.
+- `hatch run test:test-target-quick tests/typespec/test_temporal.py tests/conform/cross_backend/test_temporal_operations.py -q`: 354 passed, 2 existing Polars deprecation warnings.
+- `hatch run test:test-target-quick tests/core/test_capability_declarations.py tests/core/test_capability_registry.py -q`: 27 passed.
+- `hatch run ruff:check src/mountainash/expressions/backends/capabilities/datetime/xsd.py src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_datetime.py src/mountainash/expressions/backends/expression_systems/narwhals/substrait/expsys_nw_scalar_datetime.py src/mountainash/expressions/backends/expression_systems/ibis/substrait/expsys_ib_scalar_datetime.py tests/conform/cross_backend/test_temporal_operations.py`: passed.
+- `git diff --check`: passed.
