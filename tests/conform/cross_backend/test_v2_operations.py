@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import polars as pl
+import narwhals as nw
+import pandas as pd
 import pytest
 
 import mountainash as ma
@@ -698,4 +700,11 @@ def test_narwhals_pandas_categorical_integer_nulls_invalid_values(
         _compile_for(backend_name, expr),
         "status",
     )
-    assert values == [None, 2, None]
+    frame = BackendDataFrameFactory.create(
+        {"status": ["bad", "2", None]}, backend_name,
+    )
+    result = frame.select(_compile_for(backend_name, expr).alias("status"))
+    assert result["status"].dtype == nw.Int64
+    assert values[1] == 2
+    assert pd.isna(values[0])
+    assert pd.isna(values[2])

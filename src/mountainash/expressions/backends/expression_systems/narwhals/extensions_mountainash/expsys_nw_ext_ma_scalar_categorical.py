@@ -9,7 +9,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 def _cast_integer_null(series):
     """Cast integer-like values without raising for invalid values."""
-    import numpy as np
+    import pandas as pd
 
     values = []
     for value in series.to_numpy():
@@ -34,7 +34,9 @@ def _cast_integer_null(series):
             values.append(None)
         else:
             values.append(converted if converted == value else None)
-    return np.asarray(values, dtype=object)
+    return series._with_native(
+        pd.Series(values, index=series.native.index, dtype="Int64"),
+    )
 
 
 class MountainAshNarwhalsScalarCategoricalExpressionSystem(
@@ -59,5 +61,5 @@ class MountainAshNarwhalsScalarCategoricalExpressionSystem(
             and value_type == "integer"
             and failure_behavior == "null"
         ):
-            return x.map_batches(_cast_integer_null)
+            return x.map_batches(_cast_integer_null, return_dtype=nw.Int64)
         return x.cast(target)

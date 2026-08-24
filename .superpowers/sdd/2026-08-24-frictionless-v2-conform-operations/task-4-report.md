@@ -70,3 +70,15 @@ Implemented the Task 4 list, categorical, and struct operation slices.
 - `hatch run test:test-target-quick tests/core/test_capability_declarations.py tests/core/test_capability_gate.py tests/core/test_divergence_facts.py tests/conform/cross_backend/test_v2_operations.py -k 'list or categorical or struct or ibis_polars or narwhals_pandas' -v` — 282 passed, 35 deselected, 4 warnings.
 - `hatch run ruff:check src/mountainash/expressions/backends/capabilities/list.py src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
 - `git diff --check` — passed.
+
+## Post-repair Important defect
+
+- Narwhals-Pandas integer categorical null-mode conversion now declares `return_dtype=nw.Int64`.
+- The batch converter returns a pandas nullable `Int64` series, so invalid values and original nulls remain null without falling back to object dtype.
+- The regression asserts the valid integer value, null behavior, and `nw.Int64` dtype for both the `pandas` alias and `narwhals-pandas` dialect.
+
+## Post-repair verification
+
+- `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_invalid_values -q` — 2 passed.
+- `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k categorical -q` — 39 passed, 248 deselected.
+- `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
