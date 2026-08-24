@@ -178,8 +178,8 @@ Publish a supported distribution only when installation, dependency resolution, 
 
 ## Development and contribution links
 
-- [Technical feature guides](docs/website/features-technical/)
-- [Data Package reference](docs/reference/datapackage.md)
+- [Technical feature guides](https://github.com/mountainash-io/mountainash/tree/develop/docs/website/features-technical)
+- [Data Package reference](https://github.com/mountainash-io/mountainash/blob/develop/docs/reference/datapackage.md)
 - [Contributing](CONTRIBUTING.md)
 - [Testing](TESTING.md)
 - [Security policy](SECURITY.md)
