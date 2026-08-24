@@ -378,6 +378,37 @@ class TestDeclaredType:
         assert contract.emitted[0].declared_type == to_canonical(UniversalType.DATE)
 
 
+    @pytest.mark.parametrize(
+        "format_name",
+        ["default", "array", "object"],
+    )
+    def test_geopoint_formats_use_field_aware_canonical(
+        self, format_name
+    ):
+        from mountainash.typespec.converters import resolve_field_canonical
+
+        field = FieldSpec(
+            name="location",
+            type=UniversalType.GEOPOINT,
+            format=format_name,
+        )
+        spec = _spec(field, fields_match="open")
+        contract = resolve_conform_output(spec, available_columns=["location"])
+        assert contract.emitted[0].declared_type == resolve_field_canonical(field)
+
+    @pytest.mark.parametrize("format_name", ["default", "topojson"])
+    def test_geojson_formats_use_field_aware_canonical(self, format_name):
+        from mountainash.typespec.converters import resolve_field_canonical
+
+        field = FieldSpec(
+            name="geometry",
+            type=UniversalType.GEOJSON,
+            format=format_name,
+        )
+        spec = _spec(field, fields_match="open")
+        contract = resolve_conform_output(spec, available_columns=["geometry"])
+        assert contract.emitted[0].declared_type == resolve_field_canonical(field)
+
 # ---------------------------------------------------------------------------
 # ConformOutputContract structural properties
 # ---------------------------------------------------------------------------

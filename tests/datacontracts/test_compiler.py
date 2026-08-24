@@ -10,6 +10,36 @@ from mountainash.datacontracts.compiler import contract_from_typespec
 from mountainash.datacontracts.contract import BaseDataContract
 
 
+from fixtures.backend_registry import ALL_BACKENDS
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_isin_from_labeled_categories(backend_name, backend_factory) -> None:
+    from mountainash.typespec.spec import LabeledValue
+
+    spec = TypeSpec(
+        fields=[
+            FieldSpec(
+                "status",
+                UniversalType.STRING,
+                categories=[
+                    LabeledValue("active", "Active"),
+                    LabeledValue("cancelled", "Cancelled"),
+                ],
+            )
+        ]
+    )
+    Contract = contract_from_typespec(spec)
+    Contract.Config.coerce = False
+    good = backend_factory.create(
+        {"status": ["active", "cancelled"]}, backend_name
+    )
+    bad = backend_factory.create(
+        {"status": ["active", "unknown"]}, backend_name
+    )
+    assert Contract.validate_datacontract(good).passes is True
+    assert Contract.validate_datacontract(bad).passes is False
+
 def _make_spec(*fields: FieldSpec) -> TypeSpec:
     return TypeSpec(fields=list(fields))
 

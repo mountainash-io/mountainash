@@ -20,6 +20,65 @@ from fixtures.backend_registry import ALL_BACKENDS
 # ]
 
 
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_missing_values_schema_level_labeled_sentinel(
+    backend_name, backend_factory
+) -> None:
+    from mountainash.typespec.spec import LabeledValue
+
+    spec = TypeSpec(
+        fields=[FieldSpec(name="value", type=UniversalType.STRING)],
+        missing_values=[LabeledValue("", "Empty")],
+    )
+    frame = backend_factory.create({"value": ["ok", ""]}, backend_name)
+    assert ma.relation(frame).conform(spec).to_polars()["value"].to_list() == [
+        "ok",
+        None,
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_missing_values_field_level_labeled_sentinel(
+    backend_name, backend_factory
+) -> None:
+    from mountainash.typespec.spec import LabeledValue
+
+    spec = TypeSpec(
+        fields=[
+            FieldSpec(
+                name="value",
+                type=UniversalType.STRING,
+                missing_values=[LabeledValue("", "Empty")],
+            )
+        ],
+    )
+    frame = backend_factory.create({"value": ["ok", ""]}, backend_name)
+    assert ma.relation(frame).conform(spec).to_polars()["value"].to_list() == [
+        "ok",
+        None,
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    "missing_values,expected",
+    [
+        (None, ["ok", None]),
+        ([], ["ok", ""]),
+    ],
+)
+def test_missing_values_default_and_explicit_empty(
+    backend_name, backend_factory, missing_values, expected
+) -> None:
+    kwargs = {} if missing_values is None else {"missing_values": missing_values}
+    spec = TypeSpec(
+        fields=[FieldSpec("value", UniversalType.STRING)],
+        **kwargs,
+    )
+    frame = backend_factory.create({"value": ["ok", ""]}, backend_name)
+    assert ma.relation(frame).conform(spec).to_polars()["value"].to_list() == expected
+
+
 # ---------------------------------------------------------------------------
 # Unit tests: _build_conform_exprs produces the right expression count
 # ---------------------------------------------------------------------------

@@ -60,10 +60,8 @@ def _maybe_guard(nullable: bool, col: str, test: Any) -> Any:
 def _category_values(categories: "list[Any] | None") -> "list[Any] | None":
     if not categories:
         return None
-    values = [
-        cat["value"] if isinstance(cat, dict) and "value" in cat else cat
-        for cat in categories
-    ]
+    from mountainash.typespec._categorical import categorical_values
+    values = categorical_values(categories)
     return values or None
 
 

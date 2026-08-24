@@ -299,6 +299,7 @@ def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
     unchanged from the pre-extraction inline version.
     """
     from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.converters import resolve_field_canonical
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     is_dotted = "." in source_name
@@ -320,9 +321,9 @@ def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
         # Stage 5c: boolean mapping → to_canonical(BOOLEAN)
         canon = to_canonical(UniversalType.BOOLEAN)
         return canon if canon is not None else UNDETERMINED
-    if fld.type and fld.type != UniversalType.ANY:
+    if fld.type and fld.type is not UniversalType.ANY:
         # Stage 5d: default canonical cast
-        canon = to_canonical(fld.type)
+        canon = resolve_field_canonical(fld)
         return canon if canon is not None else PASSTHROUGH
     # ANY / None — no cast in stage 5
     if fld.null_fill is not None or is_dotted:
@@ -854,6 +855,8 @@ def _build_field_expr(
         if fld.missing_values is not None
         else schema_missing_values
     )
+    from mountainash.typespec._categorical import categorical_values
+    sentinel_values = categorical_values(list(sentinels))
     # Only emit sentinel replacement when:
     # 1. There are sentinel values to check, AND
     # 2. The field is a scalar type (not array/object/any), AND
@@ -863,12 +866,12 @@ def _build_field_expr(
     # emitting is_in([""]) on a non-string column raises at runtime.
     _has_explicit_sentinels = (
         fld.missing_values is not None  # field-level always explicit
-        or sentinels != [""]            # schema-level beyond default
+        or sentinel_values != [""]      # schema-level beyond default
     )
     _sentinel_applicable = (
         _has_explicit_sentinels or fld.type == UniversalType.STRING
     )
-    if sentinels and fld.type in _SCALAR_TYPES and _sentinel_applicable:
+    if sentinel_values and fld.type in _SCALAR_TYPES and _sentinel_applicable:
         # Warn if boolean field's sentinels overlap with true/false values
         if fld.type == UniversalType.BOOLEAN:
             true_vals = fld.true_values or [
@@ -877,7 +880,7 @@ def _build_field_expr(
             false_vals = fld.false_values or [
                 "false", "False", "FALSE", "0",
             ]
-            overlap = set(sentinels) & set(true_vals + false_vals)
+            overlap = set(sentinel_values) & set(true_vals + false_vals)
             if overlap:
                 warnings.warn(
                     f"Field {fld.name!r}: missingValues {sorted(overlap)} "
@@ -887,7 +890,7 @@ def _build_field_expr(
                     stacklevel=3,
                 )
         expr = (
-            ma.when(expr.is_in(*sentinels))
+            ma.when(expr.is_in(*sentinel_values))
             .then(ma.lit(None))
             .otherwise(expr)
         )
