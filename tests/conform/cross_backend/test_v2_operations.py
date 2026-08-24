@@ -810,3 +810,43 @@ def test_ibis_sqlite_geopoint_default_throw_is_gated() -> None:
     assert_predicate_capability_gated(
         lambda: UnifiedExpressionVisitor(IbisExpressionSystem("ibis-sqlite")).visit(expr._node)
     )
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_geopoint_default_null_mode_all_backends(backend_name: str) -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="default",
+        source_representation="lexical",
+        field_name="point",
+        failure_behavior=CaseFailureBehaviour.NULL,
+    )
+    compiled = UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    frame = BackendDataFrameFactory.create({"point": ["1.0, 2.0", "bad", None]}, backend_name)
+    values = BackendResultHelper.select_and_extract(frame, compiled, "point", backend_name)
+    assert values[0] == "1.0, 2.0"
+    assert all(pd.isna(value) for value in values[1:])
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_geojson_is_polars_only_with_exact_backend_gates(backend_name: str) -> None:
+    expr = ma.col("geometry").geo.parse_geojson(
+        format="default", field_name="geometry", failure_behavior=CaseFailureBehaviour.NULL
+    )
+    visitor = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    if backend_name == "polars":
+        compiled = visitor()
+        frame = pl.DataFrame({"geometry": ['{"type":"Point","coordinates":[1,2]}', "[1,2]"]})
+        assert frame.select(compiled).to_series().to_list() == [
+            '{"type":"Point","coordinates":[1,2]}',
+            None,
+        ]
+    else:
+        family, dialect = _gate(backend_name)
+        assert_capability_gated(
+            FK_GEO.PARSE_GEOJSON,
+            family,
+            dialect=dialect,
+            param="*",
+            option_value=None,
+            build=visitor,
+        )

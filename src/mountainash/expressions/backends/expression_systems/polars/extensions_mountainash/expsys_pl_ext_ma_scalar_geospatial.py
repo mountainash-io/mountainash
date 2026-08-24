@@ -8,7 +8,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarGeospatialExpressionSystemProtocol,
 )
 FRICTIONLESS_NUMBER = r"[+-]?(?:(?:[0-9]+(?:\.[0-9]*)?)|(?:\.[0-9]+))(?:E[+-]?[0-9]+)?"
-SPECIAL_NUMBER = r"(?:NaN|INF|-INF)"
+SPECIAL_NUMBER = r"(?i:NaN|INF|-INF)"
 DEFAULT_NUMBER = rf"(?:{FRICTIONLESS_NUMBER}|{SPECIAL_NUMBER})"
 JSON_NUMBER = r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
 DEFAULT_PATTERN = rf"^{DEFAULT_NUMBER}, ?{DEFAULT_NUMBER}$"
@@ -109,10 +109,11 @@ class MountainAshPolarsScalarGeospatialExpressionSystem(
     ) -> pl.Expr:
         stripped = x.str.strip_chars()
         object_root = stripped.str.starts_with("{")
+        if failure_behavior == "null":
+            valid = object_root & x.str.json_path_match("$").is_not_null()
+            return pl.when(x.is_null()).then(pl.lit(None, dtype=pl.String)).when(valid).then(x).otherwise(pl.lit(None, dtype=pl.String))
         decoded = x.str.json_decode(dtype=pl.Struct({}))
         valid = object_root & decoded.is_not_null()
-        if failure_behavior == "null":
-            return pl.when(x.is_null()).then(pl.lit(None, dtype=pl.String)).when(valid).then(x).otherwise(pl.lit(None, dtype=pl.String))
         marker = _throw_marker(valid, x)
         suffix = marker.cast(pl.String).str.replace("0", "")
         return x + suffix
