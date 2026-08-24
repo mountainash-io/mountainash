@@ -399,7 +399,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        if failure_behavior == "null":
+        if failure_behavior in {"null", "throw"}:
             valid = x.re_search(r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$")
             valid = valid & ~x.isin(["P", "-P", "PT", "-PT"]) & ~x.re_search(r"T$")
             return valid.ifelse(x, None)
@@ -411,7 +411,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         kind: str,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        if failure_behavior == "null":
+        if failure_behavior in {"null", "throw"}:
             pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
             if kind == "yearmonth":
                 pattern += r"-(?:0[1-9]|1[0-2])"

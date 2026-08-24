@@ -415,6 +415,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
                 r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
             ) & ~x.is_in(["P", "-P", "PT", "-PT"]) & ~x.str.ends_with("T")
             valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
+            return pl.when(valid).then(x).otherwise(None)
         if failure_behavior == "throw":
             from mountainash.typespec.temporal import parse_xsd_duration
             return x.map_elements(parse_xsd_duration, return_dtype=pl.String)

@@ -403,7 +403,7 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        if failure_behavior == "null":
+        if failure_behavior in {"null", "throw"}:
             valid = x.str.contains(
                 r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
             ) & ~x.is_in(["P", "-P", "PT", "-PT"]) & ~x.str.ends_with("T")
@@ -418,7 +418,7 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         kind: str,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        if failure_behavior == "null":
+        if failure_behavior in {"null", "throw"}:
             pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
             if kind == "yearmonth":
                 pattern += r"-(?:0[1-9]|1[0-2])"

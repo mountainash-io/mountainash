@@ -59,4 +59,12 @@ Correction verification:
 - Replaced generic XSD unsupported declarations with eight exact `NON_NULL_TO_NULL` materialization-residue facts across Ibis DuckDB/Polars and Narwhals Polars/Pandas.
 - Corrected all backend XSD predicates for `.5S`, trailing `T`, timezone suffixes, and signed `14:00` bounds.
 - Added real ALL_BACKENDS execution/gate and residue-fact matrices; Polars lazy remains an execution cell.
+
+## Final matrix review correction
+
+- Retained the two Ibis SQLite wildcard XSD gates alongside the eight dialect-specific residue facts.
+- Made all four Ibis/Narwhals XSD throw cells emit null-on-invalid residue expressions.
+- Corrected Polars duration null-mode return flow and signed `14:MM` bounds.
+- Reworked the ALL_BACKENDS matrix to use backend factories/result helpers, including real lazy-frame collection.
+- Regression: 62 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.
 - Final matrix/parser regression: 61 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.
