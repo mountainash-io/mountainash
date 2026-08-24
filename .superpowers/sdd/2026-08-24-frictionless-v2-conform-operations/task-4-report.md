@@ -48,3 +48,12 @@ Implemented the Task 4 list, categorical, and struct operation slices.
 - Capability/declaration/divergence suites: `40 passed`.
 - Scoped Ruff, `git diff --check`: passed.
 - Final selected gate: `458 passed, 39 skipped, 37 xfailed`; Ruff and compileall pass.
+
+## Round 5/5 complete-matrix evidence
+
+- Replaced representative backend checks with `ALL_BACKENDS` matrices for all seven `LIST.PARSE` item types, throw/null invalid complete-list values, recursive `LIST.CAST_ITEMS`, recursive `STRUCT.CAST`, and string/integer `CATEGORICAL.CAST` values.
+- Every unsupported cell asserts its exact operation key, backend family, dialect, parameter, option value, and predicate when conditioned. `narwhals-lazy` now compiles through `NarwhalsExpressionSystem("narwhals-lazy")` rather than the eager Polars dialect.
+- Narwhals categorical casts use the supported Narwhals cast signature while preserving the declared base scalar output.
+- Focused Task 4 gate: `279 passed, 23 deselected, 4 warnings` from `hatch run test:test-target-quick tests/conform/test_v2_operation_ast.py tests/conform/cross_backend/test_v2_operations.py -k "list or categorical or struct" -v`.
+- Scoped Ruff: `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+- `git diff --check` passed.

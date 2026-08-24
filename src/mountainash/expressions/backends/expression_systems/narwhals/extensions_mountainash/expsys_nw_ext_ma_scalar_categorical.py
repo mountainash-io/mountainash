@@ -24,4 +24,4 @@ class MountainAshNarwhalsScalarCategoricalExpressionSystem(
         failure_behavior: str = "throw",
     ):
         target = nw.String if value_type == "string" else nw.Int64
-        return x.cast(target, strict=failure_behavior != "null")
+        return x.cast(target)
