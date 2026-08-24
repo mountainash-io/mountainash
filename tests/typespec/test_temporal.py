@@ -84,7 +84,7 @@ def test_xsd_partial_date_accepts_year_and_yearmonth_forms(text: str, kind: str)
     [
         ("-0000", "year"),
         ("2024-00", "yearmonth"),
-        ("2024-13", "yearmonth"),
+        ("-0000-01", "yearmonth"),
         ("2024-01+14:01", "yearmonth"),
         ("2024-01+99:00", "yearmonth"),
         ("202", "year"),

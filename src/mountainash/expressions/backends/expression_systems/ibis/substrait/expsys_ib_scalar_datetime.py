@@ -400,10 +400,9 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         if failure_behavior == "null":
-            valid = x.re_search(r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?S)?)?$")
-            valid = valid & ~x.isin(["P", "-P", "PT", "-PT"])
+            valid = x.re_search(r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$")
+            valid = valid & ~x.isin(["P", "-P", "PT", "-PT"]) & ~x.re_search(r"T$")
             return valid.ifelse(x, None)
-        return x
 
     def parse_xsd_partial_date(
         self,
@@ -418,6 +417,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
                 pattern += r"-(?:0[1-9]|1[0-2])"
             pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
             valid = x.re_search(pattern) & ~x.re_search(r"^-0000")
+            valid = valid & ~x.re_search(r"\+14:[0-5][1-9]$")
             return valid.ifelse(x, None)
         return x
     def parse_temporal_any(

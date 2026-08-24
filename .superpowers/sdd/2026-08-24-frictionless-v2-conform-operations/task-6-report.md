@@ -46,3 +46,10 @@ Correction verification:
 - Added `parse_datetime_default` protocol/backend dispatch and exact wire mapping.
 - Hardened XSD grammar and backend null/throw validation predicates, timezone handling, `-0000` rejection, and non-Polars custom time capability facts.
 - Rereview focused gates: 565 passed, 1575 deselected, 12 existing deprecation warnings.
+
+## Final rereview correction wave
+
+- Closed XSD null-mode lexical parity for fractional seconds, trailing `T`, timezone `14:00` bounds, and negative-zero partial dates across backend predicates.
+- Added throw-mode XSD gates and expanded temporal capability declarations.
+- Added ALL_BACKENDS default-datetime execution/gate, Polars typed-null temporal-any, and non-Polars XSD throw gate matrices.
+- Final regression gates: 64 passed, 26 deselected, 1 existing Polars deprecation warning; compile and scoped Ruff checks passed.

@@ -13,28 +13,38 @@ _EVIDENCE = ProbeEvidence(
     fixtures=("ibis-sqlite", "ibis-duckdb", "ibis-polars", "narwhals-polars", "narwhals-pandas", "polars"),
 )
 
-# SQLite cannot materialize the throw-mode residue expressions. The visitor
-# gates these cells before execution; null mode remains portable.
-_FACTS = tuple(
-    CapabilityFact(
-        operation_key=op_key,
-        param="failure_behavior",
-        option_value="throw",
-        level=CapabilityLevel.UNSUPPORTED,
-        backend=CONST_BACKEND.IBIS,
-        dialect="ibis-sqlite",
-        message="Ibis SQLite cannot materialize XSD throw-mode validation",
-        since=_SINCE,
+_OPS = (FK_DT.PARSE_XSD_DURATION, FK_DT.PARSE_XSD_PARTIAL_DATE)
+
+
+def _facts(backend: CONST_BACKEND, dialect: str | None = None) -> tuple[CapabilityFact, ...]:
+    return tuple(
+        CapabilityFact(
+            operation_key=op_key,
+            param="failure_behavior",
+            option_value="throw",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=backend,
+            dialect=dialect,
+            message="XSD throw-mode validation is gated where no residue materializer exists",
+            since=_SINCE,
+        )
+        for op_key in _OPS
     )
-    for op_key in (FK_DT.PARSE_XSD_DURATION, FK_DT.PARSE_XSD_PARTIAL_DATE)
-)
+
 
 DECLARATIONS = (
     CapabilityDeclaration(
         backend=CONST_BACKEND.IBIS,
         domain=Domain.DATETIME,
         source=FactSource.MOUNTAINASH,
-        facts=_FACTS,
+        facts=_facts(CONST_BACKEND.IBIS, "ibis-sqlite") + _facts(CONST_BACKEND.IBIS),
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS,
+        domain=Domain.DATETIME,
+        source=FactSource.MOUNTAINASH,
+        facts=_facts(CONST_BACKEND.NARWHALS),
         evidence=_EVIDENCE,
     ),
 )

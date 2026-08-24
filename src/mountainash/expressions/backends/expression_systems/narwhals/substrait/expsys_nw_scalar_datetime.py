@@ -405,8 +405,9 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
     ) -> NarwhalsExpr:
         if failure_behavior == "null":
             valid = x.str.contains(
-                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?S)?)?$"
-            ) & ~x.is_in(["P", "-P", "PT", "-PT"])
+                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
+            ) & ~x.is_in(["P", "-P", "PT", "-PT"]) & ~x.str.ends_with("T")
+            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
             return nw.when(valid).then(x).otherwise(None)
         return x
 
@@ -421,8 +422,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
             pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
             if kind == "yearmonth":
                 pattern += r"-(?:0[1-9]|1[0-2])"
-            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
             valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
+            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
             return nw.when(valid).then(x).otherwise(None)
         return x
     def parse_temporal_any(

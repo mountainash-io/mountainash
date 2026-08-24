@@ -91,7 +91,7 @@ def parse_xsd_partial_date(value: str, *, kind: PartialDateKind) -> str:
         raise TypeError("XSD partial date must be text")
     if kind not in _PARTIAL_DATE:
         raise ValueError(f"invalid XSD partial-date kind: {kind!r}")
-    if _PARTIAL_DATE[kind].fullmatch(value) is None or value == "-0000":
+    if _PARTIAL_DATE[kind].fullmatch(value) is None or value.startswith("-0000"):
         raise ValueError(f"invalid XSD partial date: {value!r}")
     tz_match = re.search(r"(?:Z|[+-][0-9]{2}:[0-9]{2})$", value)
     if tz_match and tz_match.group() != "Z":
