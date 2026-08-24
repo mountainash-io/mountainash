@@ -20,7 +20,6 @@ from mountainash.typespec.spec import (
     ForeignKey,
     ForeignKeyReference,
     LabeledValue,
-    SpecDiff,
     TypeSpec,
     compare_specs,
 )

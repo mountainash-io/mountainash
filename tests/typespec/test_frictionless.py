@@ -4,13 +4,11 @@ Tests for mountainash.typespec.frictionless — Frictionless Table Schema import
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from mountainash.typespec.errors import (
-    IncompatibleFieldPropertiesError,
     InvalidFieldMatchDeclaration,
     InvalidKeyShapeError,
 )
@@ -27,6 +25,9 @@ from mountainash.typespec.spec import (
     TypeSpec,
 )
 from mountainash.typespec.universal_types import UniversalType
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 # ============================================================================

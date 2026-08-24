@@ -32,7 +32,6 @@ def test_polars_empty_frame_typed():
         assert df.schema[name] == pl.String
 
 def test_ibis_empty_frame_typed():
-    import ibis
     from mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util import (
         MountainashIbisExtensionRelationSystem,
     )

@@ -6,7 +6,6 @@ import mountainash.exceptions as ma_exceptions
 
 from mountainash import MountainashError
 from mountainash.exceptions import (
-    AmbiguousGeospatialTypeError,
     IncompatibleFieldPropertiesError,
     InvalidFieldMatchDeclaration,
     InvalidGeospatialFormatError,

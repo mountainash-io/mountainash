@@ -15,10 +15,9 @@ Backend support (post strptime-format-honoring fix):
 """
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, time
 
 import pytest
-import polars as pl
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.spec import FieldSpec, TypeSpec

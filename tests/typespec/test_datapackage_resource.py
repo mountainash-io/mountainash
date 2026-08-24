@@ -5,7 +5,6 @@ import pytest
 from mountainash.exceptions import (
     DescriptorReferenceInvalid,
     IncompatibleFieldPropertiesError,
-    InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     InvalidFieldMatchDeclaration,
     InvalidKeyShapeError,

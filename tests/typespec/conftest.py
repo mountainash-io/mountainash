@@ -18,7 +18,7 @@ import pytest
 
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
-from mountainash.typespec.custom_types import CustomTypeRegistry, _register_standard_converters
+from mountainash.typespec.custom_types import CustomTypeRegistry
 
 
 # ============================================================================

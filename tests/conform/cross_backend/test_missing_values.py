@@ -128,7 +128,7 @@ class TestBuildConformExprsMissingValues:
         """ARRAY is excluded from sentinel replacement (is_in may raise)."""
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(fields_match="open", 
+        _spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.ARRAY)],
             missing_values=[""],
         )

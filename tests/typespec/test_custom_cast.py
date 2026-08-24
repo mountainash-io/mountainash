@@ -1,7 +1,6 @@
 """Tests for custom_cast field on FieldSpec and Frictionless round-trip."""
 from __future__ import annotations
 
-import pytest
 
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType

@@ -388,15 +388,6 @@ class TestFieldsMatchModes:
     """Comprehensive tests for all six fields_match modes."""
 
     def test_open_keeps_unmapped(self, backend_name, backend_factory):
-        df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
-            fields_match="open",
-        )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert sorted(result.columns) == ["a", "b", "c"]
-
-    def test_open_keeps_unmapped(self, backend_name, backend_factory):
         # fields_match must be set to "open" explicitly (the model default is
         # now the strict "exact"); open keeps the unmapped b/c columns.
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)

@@ -10,9 +10,12 @@ from __future__ import annotations
 import pytest
 
 from mountainash.typespec.frictionless import (
+    _field_to_frictionless_dict,
     typespec_from_frictionless,
     typespec_to_frictionless,
 )
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
 
 # ---------------------------------------------------------------------------
 # Gap fixtures
@@ -166,12 +169,6 @@ def test_field_round_trip(descriptor):
     assert result == descriptor
 
 
-from mountainash.typespec.frictionless import (
-    _field_to_frictionless_dict,
-    typespec_to_frictionless,
-)
-from mountainash.typespec.spec import FieldSpec, TypeSpec
-from mountainash.typespec.universal_types import UniversalType
 
 
 class TestFieldDictSerialization:

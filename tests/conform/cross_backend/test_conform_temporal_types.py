@@ -1,6 +1,5 @@
 """Conform on DURATION / YEAR / YEARMONTH — blocked pre-unification by the
 incomplete type bridge. Cross-backend per testing-philosophy."""
-import datetime
 
 import polars as pl
 import pytest

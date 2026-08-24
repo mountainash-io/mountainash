@@ -1,7 +1,6 @@
 """End-to-end test exercising all stages of the conform pipeline."""
 from __future__ import annotations
 
-import pytest
 from datetime import date
 
 import polars as pl

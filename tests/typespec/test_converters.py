@@ -61,7 +61,6 @@ class TestToPolarsSchema:
 
     def test_all_universal_types_produce_a_result(self):
         """Every UniversalType value should map to a Polars dtype without raising."""
-        import polars as pl
 
         fields = [FieldSpec(name=f"col_{ut.value}", type=ut) for ut in UniversalType]
         schema = TypeSpec(fields=fields)
@@ -322,11 +321,10 @@ class TestNestedListItemType:
 
     def test_narwhals_item_type_resolves_inner(self):
         import narwhals as nw
-        result = to_polars_schema(self._spec("integer"))
+        _ = to_polars_schema(self._spec("integer"))
         # narwhals wraps the already-cast polars-native frame on the live
         # consumers (empty_frame / inline-read); assert the narwhals-native
         # form of the same inner type is reachable via the registry.
-        from mountainash.core.dtypes import TypeTarget, registry
         from mountainash.typespec.converters import _resolve_field_native
         native = _resolve_field_native(self._spec("integer").fields[0], TypeTarget.NARWHALS)
         assert native == nw.List(nw.Int64)
@@ -565,7 +563,7 @@ class TestConvertersOverRegistry:
         are skipped — their parsers are already correct and regression-locked
         (Task 5), so an unparseable string there is not the primary surface."""
         from mountainash.core.dtypes import InvalidBackendTypeError, TypeTarget
-        from mountainash.typespec import TypeSpec, FieldSpec
+        from mountainash.typespec import FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import _resolve_field_native
         field = FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="garbage")
@@ -621,7 +619,6 @@ class TestConvertersOverRegistry:
         """Validation strictness (item 54, §5): a non-empty, non-None
         backend_type that the target cannot parse raises — the resolver no
         longer silently falls back to canonical."""
-        import polars as pl
         from mountainash.core.dtypes import InvalidBackendTypeError
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType

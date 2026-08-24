@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytest
-import polars as pl
 import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
