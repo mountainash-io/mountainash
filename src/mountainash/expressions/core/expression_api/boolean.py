@@ -30,7 +30,6 @@ from .api_builders.substrait import (
     SubstraitScalarStringAPIBuilder,
 )
 
-# Import Mountainash extension builders
 from .api_builders.extensions_mountainash import (
     MountainAshNameAPIBuilder,
     MountainAshNativeAPIBuilder,
@@ -40,10 +39,11 @@ from .api_builders.extensions_mountainash import (
     MountainAshScalarBooleanAPIBuilder,
     MountainAshScalarComparisonAPIBuilder,
     MountainAshScalarDatetimeAPIBuilder,
+    MountainAshScalarGeospatialAPIBuilder,
+    MountainAshScalarListAPIBuilder,
     MountainAshScalarSetAPIBuilder,
     MountainAshScalarStringAPIBuilder,
     MountainAshScalarStructAPIBuilder,
-    MountainAshScalarListAPIBuilder,
     MountainAshScalarCategoricalAPIBuilder,
     MountainAshScalarTernaryAPIBuilder,
 )
@@ -88,6 +88,11 @@ class CategoricalAPIBuilder(MountainAshScalarCategoricalAPIBuilder):
     pass
 
 
+class GeospatialAPIBuilder(MountainAshScalarGeospatialAPIBuilder):
+    """Unified geospatial builder for the .geo namespace."""
+    pass
+
+
 # Import base namespace type for type hints
 
 
@@ -125,10 +130,6 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         >>> expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
         >>> result = df.filter(expr.compile(df))
     """
-
-    # Flat namespaces - methods dispatched via __getattr__
-    # TernaryNamespace first so ternary-specific methods (t_is_true, t_is_false, etc.)
-    # are found before Substrait comparison methods
     _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionAPIBuilder], ...]] = (
         # Mountainash extensions first
         MountainAshScalarTernaryAPIBuilder,
@@ -154,13 +155,14 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         SubstraitWindowArithmeticAPIBuilder,
     )
 
-    # Explicit namespace descriptors - accessed via .str, .dt, .name, .struct, .list, .cat
+    # Explicit namespace descriptors - accessed via .str, .dt, .name, .struct, .list, .cat, .geo
     str = NamespaceDescriptor(StringAPIBuilder)
     dt = NamespaceDescriptor(DatetimeAPIBuilder)
     name = NamespaceDescriptor(MountainAshNameAPIBuilder)
     struct = NamespaceDescriptor(StructAPIBuilder)
     list = NamespaceDescriptor(ListAPIBuilder)
     cat = NamespaceDescriptor(CategoricalAPIBuilder)
+    geo = NamespaceDescriptor(GeospatialAPIBuilder)
 
     @classmethod
     def create(cls, node: ExpressionNode) -> BooleanExpressionAPI:

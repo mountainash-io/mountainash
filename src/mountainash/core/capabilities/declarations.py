@@ -33,6 +33,7 @@ class Domain(Enum):
     LIST = "list"
     CATEGORICAL = "categorical"
     STRUCT = "struct"
+    GEOSPATIAL = "geospatial"
     SET = "set"
     TERNARY = "ternary"
     RELATION = "relation"
@@ -48,6 +49,7 @@ _DOMAIN_SUFFIXES: dict[str, Domain] = {
     "CATEGORICAL": Domain.CATEGORICAL,
     "STRUCT": Domain.STRUCT,
     "SET": Domain.SET,
+    "GEOSPATIAL": Domain.GEOSPATIAL,
     "TERNARY": Domain.TERNARY,
 }
 

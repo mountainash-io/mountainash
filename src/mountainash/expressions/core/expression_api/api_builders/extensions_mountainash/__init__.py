@@ -18,6 +18,7 @@ from .api_bldr_ext_ma_scalar_set import MountainashScalarSetAPIBuilder as Mounta
 from .api_bldr_ext_ma_scalar_struct import MountainAshScalarStructAPIBuilder
 from .api_bldr_ext_ma_scalar_categorical import MountainAshScalarCategoricalAPIBuilder
 from .api_bldr_ext_ma_scalar_list import MountainAshScalarListAPIBuilder
+from .api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilder
 
 __all__ = [
     "MountainAshNameAPIBuilder",
@@ -31,6 +32,7 @@ __all__ = [
     "MountainAshScalarStringAPIBuilder",
     "MountainAshScalarStructAPIBuilder",
     "MountainAshScalarCategoricalAPIBuilder",
+    "MountainAshScalarGeospatialAPIBuilder",
     "MountainAshScalarListAPIBuilder",
     "MountainAshScalarTernaryAPIBuilder",
 ]

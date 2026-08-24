@@ -55,6 +55,9 @@ class MountainashExtension:
     CATEGORICAL = "file://extensions/functions_categorical.yaml"
 
 
+    GEOSPATIAL = "file://extensions/functions_geospatial.yaml"
+
+
 
 class FKEY_SUBSTRAIT_CONDITIONAL(Enum):
     """Substrait comparison functions.
@@ -645,6 +648,14 @@ class FKEY_MOUNTAINASH_SCALAR_CATEGORICAL(Enum):
     """Mountainash categorical operations."""
 
     CAST = auto()
+
+class FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL(Enum):
+    """Mountainash geospatial operations."""
+
+    PARSE_GEOPOINT = auto()
+    PARSE_GEOJSON = auto()
+    SERIALIZE_GEOJSON = auto()
+
 class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     """Mountainash list operations."""
 
@@ -805,6 +816,7 @@ MountainashFunction = Union[
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
     FKEY_MOUNTAINASH_WINDOW,
 ]
 
@@ -846,6 +858,7 @@ __all__ = [
     "FKEY_MOUNTAINASH_SCALAR_LIST",
     "FKEY_MOUNTAINASH_SCALAR_STRUCT",
     "FKEY_MOUNTAINASH_SCALAR_CATEGORICAL",
+    "FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL",
     "FKEY_MOUNTAINASH_SCALAR_SET",
     "FKEY_MOUNTAINASH_NAME",
     "FKEY_MOUNTAINASH_SCALAR_TERNARY",

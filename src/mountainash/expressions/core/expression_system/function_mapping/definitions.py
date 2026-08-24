@@ -45,6 +45,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_LIST,
     FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -83,6 +84,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarListExpressionSystemProtocol,
     MountainAshScalarCategoricalExpressionSystemProtocol,
+    MountainAshScalarGeospatialExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
 )
@@ -2237,6 +2239,33 @@ def register_all_functions() -> None:
             protocol_method=MountainAshScalarCategoricalExpressionSystemProtocol.cast_categorical,
         ),
     ]
+    MOUNTAINASH_GEOSPATIAL_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+            substrait_uri=MountainashExtension.GEOSPATIAL,
+            substrait_name="parse_geopoint",
+            is_extension=True,
+            options=("format", "source_representation", "failure_behavior"),
+            protocol_method=MountainAshScalarGeospatialExpressionSystemProtocol.parse_geopoint,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON,
+            substrait_uri=MountainashExtension.GEOSPATIAL,
+            substrait_name="parse_geojson",
+            is_extension=True,
+            options=("format", "failure_behavior"),
+            protocol_method=MountainAshScalarGeospatialExpressionSystemProtocol.parse_geojson,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON,
+            substrait_uri=MountainashExtension.GEOSPATIAL,
+            substrait_name="serialize_geojson",
+            is_extension=True,
+            options=("format", "failure_behavior"),
+            protocol_method=MountainAshScalarGeospatialExpressionSystemProtocol.serialize_geojson,
+        ),
+    ]
+
 
     MOUNTAINASH_STRUCT_FUNCTIONS = [
         ExpressionFunctionDef(
@@ -2555,6 +2584,7 @@ def register_all_functions() -> None:
         + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_CATEGORICAL_FUNCTIONS
+        + MOUNTAINASH_GEOSPATIAL_FUNCTIONS
         + MOUNTAINASH_STRUCT_FUNCTIONS
         + MOUNTAINASH_LIST_FUNCTIONS
         + MOUNTAINASH_AGGREGATE_FUNCTIONS

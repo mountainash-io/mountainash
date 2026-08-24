@@ -336,6 +336,7 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_DATETIME,
         FKEY_MOUNTAINASH_SCALAR_LIST,
         FKEY_MOUNTAINASH_SCALAR_STRUCT,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
         FKEY_MOUNTAINASH_WINDOW,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
@@ -381,6 +382,15 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: c.struct.cast(
             fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
         ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(
+            format="default", source_representation="lexical", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON: lambda: c.geo.parse_geojson(
+            format="default", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON: lambda: c.geo.serialize_geojson(
+            format="default", field_name="x"
+        ),
         FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: lambda: s.str.parse_list(field_name="x"),
         FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: c.list.cast_items(
             item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
@@ -409,7 +419,7 @@ def _init_a2_local_builders() -> dict:
 _A2_LOCAL_BUILDERS = _init_a2_local_builders()
 
 _NAMESPACE_PREFIXES = {"list_": "list", "struct_": "struct"}
-_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct")
+_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct", "geo")
 
 
 def _resolve_api_callable(

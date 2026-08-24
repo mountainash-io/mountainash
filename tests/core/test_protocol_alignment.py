@@ -306,6 +306,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarComparisonExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarCategoricalExpressionSystemProtocol,
+    MountainAshScalarGeospatialExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarListExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
@@ -343,6 +344,7 @@ from mountainash.expressions.backends.expression_systems.polars.extensions_mount
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import MountainAshPolarsScalarBooleanExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_comparison import MountainAshPolarsScalarComparisonExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_geospatial import MountainAshPolarsScalarGeospatialExpressionSystem
 
 # =============================================================================
 # Ibis Backend Implementation Imports
@@ -369,6 +371,7 @@ from mountainash.expressions.backends.expression_systems.ibis.extensions_mountai
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_boolean import MountainAshIbisScalarBooleanExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_comparison import MountainAshIbisScalarComparisonExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_geospatial import MountainAshIbisScalarGeospatialExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
 
 # =============================================================================
@@ -395,6 +398,7 @@ from mountainash.expressions.backends.expression_systems.narwhals.extensions_mou
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_boolean import MountainAshNarwhalsScalarBooleanExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_comparison import MountainAshNarwhalsScalarComparisonExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_geospatial import MountainAshNarwhalsScalarGeospatialExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
 
@@ -435,6 +439,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
     MountainAshScalarArithmeticAPIBuilderProtocol,
     MountainAshScalarDatetimeAPIBuilderProtocol,
     MountainAshScalarBooleanAPIBuilderProtocol,
+    MountainAshScalarGeospatialAPIBuilderProtocol,
     MountainAshScalarTernaryAPIBuilderProtocol,
 )
 
@@ -468,6 +473,7 @@ from mountainash.expressions.core.expression_api.api_builders.extensions_mountai
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
 
 
@@ -552,6 +558,7 @@ MOUNTAINASH_PROTOCOLS = [
     (MountainAshScalarBooleanExpressionSystemProtocol, "scalar_boolean"),
     (MountainAshScalarDatetimeExpressionSystemProtocol, "scalar_datetime"),
     (MountainAshScalarTernaryExpressionSystemProtocol, "scalar_ternary"),
+    (MountainAshScalarGeospatialExpressionSystemProtocol, "scalar_geospatial"),
     # (MountainAshScalarAggregateExpressionSystemProtocol, "scalar_aggregate"),
 ]
 
@@ -560,6 +567,7 @@ POLARS_MOUNTAINASH_IMPLEMENTATIONS = {
     "name": MountainAshPolarsNameExpressionSystem,
     "scalar_arithmetic": MountainAshPolarsScalarArithmeticExpressionSystem,
     "scalar_boolean": MountainAshPolarsScalarBooleanExpressionSystem,
+    "scalar_geospatial": MountainAshPolarsScalarGeospatialExpressionSystem,
     "scalar_comparison": MountainAshPolarsScalarComparisonExpressionSystem,
     "scalar_datetime": MountainAshPolarsScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshPolarsScalarTernaryExpressionSystem,
@@ -570,6 +578,7 @@ IBIS_MOUNTAINASH_IMPLEMENTATIONS = {
     "name": MountainAshIbisNameExpressionSystem,
     "scalar_arithmetic": MountainAshIbisScalarArithmeticExpressionSystem,
     "scalar_boolean": MountainAshIbisScalarBooleanExpressionSystem,
+    "scalar_geospatial": MountainAshIbisScalarGeospatialExpressionSystem,
     "scalar_comparison": MountainAshIbisScalarComparisonExpressionSystem,
     "scalar_datetime": MountainAshIbisScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshIbisScalarTernaryExpressionSystem,
@@ -579,6 +588,7 @@ NARWHALS_MOUNTAINASH_IMPLEMENTATIONS = {
     "null": MountainAshNarwhalsNullExpressionSystem,
     "name": MountainAshNarwhalsNameExpressionSystem,
     "scalar_arithmetic": MountainAshNarwhalsScalarArithmeticExpressionSystem,
+    "scalar_geospatial": MountainAshNarwhalsScalarGeospatialExpressionSystem,
     "scalar_boolean": MountainAshNarwhalsScalarBooleanExpressionSystem,
     "scalar_comparison": MountainAshNarwhalsScalarComparisonExpressionSystem,
     "scalar_datetime": MountainAshNarwhalsScalarDatetimeExpressionSystem,
@@ -629,6 +639,7 @@ MOUNTAINASH_API_BUILDER_PROTOCOLS = [
     # (MountainAshScalarAggregateAPIBuilderProtocol, "scalar_aggregate"),
     (MountainAshScalarArithmeticAPIBuilderProtocol, "scalar_arithmetic"),
     (MountainAshScalarDatetimeAPIBuilderProtocol, "scalar_datetime"),
+    (MountainAshScalarGeospatialAPIBuilderProtocol, "scalar_geospatial"),
     (MountainAshScalarBooleanAPIBuilderProtocol, "scalar_boolean"),
     (MountainAshScalarTernaryAPIBuilderProtocol, "scalar_ternary"),
 ]
@@ -640,6 +651,7 @@ MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
     "scalar_arithmetic": MountainAshScalarArithmeticAPIBuilder,
     "scalar_datetime": MountainAshScalarDatetimeAPIBuilder,
     "scalar_boolean": MountainAshScalarBooleanAPIBuilder,
+    "scalar_geospatial": MountainAshScalarGeospatialAPIBuilder,
     "scalar_ternary": MountainAshScalarTernaryAPIBuilder,
 }
 

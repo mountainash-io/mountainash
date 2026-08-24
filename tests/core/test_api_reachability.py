@@ -37,6 +37,7 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         FKEY_MOUNTAINASH_SCALAR_LIST as ML,
         FKEY_MOUNTAINASH_SCALAR_STRUCT as MS,
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as MC,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as MG,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE as SA,
         FKEY_SUBSTRAIT_SCALAR_DATETIME as SD,
         SUBSTRAIT_ARITHMETIC_WINDOW as SW,
@@ -60,6 +61,9 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         ML.PARSE: lambda: c.str.parse_list(field_name="x"),
         MS.FIELD: lambda: c.struct.field("x"),
         MS.CAST: lambda: c.struct.cast(fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        MG.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(format="default", source_representation="lexical", field_name="x"),
+        MG.PARSE_GEOJSON: lambda: c.geo.parse_geojson(format="default", field_name="x"),
+        MG.SERIALIZE_GEOJSON: lambda: c.geo.serialize_geojson(format="default", field_name="x"),
         MC.CAST: lambda: c.cat.cast(value_type="integer", categories=(1, 2), ordered=True, field_name="x"),
         SW.NTILE: lambda: c.ntile(4).over("b"),
         # Namespace collision: the generic resolver finds list.median first.

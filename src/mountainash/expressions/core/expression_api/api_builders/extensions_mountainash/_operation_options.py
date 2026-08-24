@@ -61,3 +61,29 @@ def validate_categories(method: str, value_type: Any, categories: Any, ordered: 
     if not isinstance(ordered, bool):
         invalid(method, "ordered", "must be bool")
     return categories
+
+
+GEOPOINT_FORMATS = frozenset({"default", "array", "object"})
+GEOPOINT_REPRESENTATIONS = frozenset({"lexical", "native"})
+GEOJSON_FORMATS = frozenset({"default", "topojson"})
+
+
+def validate_geopoint_options(method: str, format: Any, source_representation: Any) -> tuple[str, str]:
+    if not isinstance(format, str) or format not in GEOPOINT_FORMATS:
+        invalid(method, "format", "must be default, array, or object")
+    if not isinstance(source_representation, str) or source_representation not in GEOPOINT_REPRESENTATIONS:
+        invalid(method, "source_representation", "must be lexical or native")
+    if (format, source_representation) not in {
+        ("default", "lexical"),
+        ("array", "lexical"),
+        ("array", "native"),
+        ("object", "native"),
+    }:
+        invalid(method, "source_representation", "incompatible with format")
+    return format, source_representation
+
+
+def validate_geojson_format(method: str, format: Any) -> str:
+    if not isinstance(format, str) or format not in GEOJSON_FORMATS:
+        invalid(method, "format", "must be default or topojson")
+    return format

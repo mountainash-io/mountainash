@@ -51,6 +51,7 @@ from .extensions_mountainash.expsys_ib_ext_ma_scalar_struct import MountainAshIb
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_list import MountainAshIbisScalarListExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_categorical import MountainAshIbisScalarCategoricalExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_aggregate import MountainAshIbisScalarAggregateExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_geospatial import MountainAshIbisScalarGeospatialExpressionSystem
 
 
 
@@ -93,6 +94,7 @@ class IbisExpressionSystem(
     MountainAshIbisScalarStructExpressionSystem,
     MountainAshIbisScalarListExpressionSystem,
     MountainAshIbisScalarCategoricalExpressionSystem,
+    MountainAshIbisScalarGeospatialExpressionSystem,
     MountainAshIbisScalarAggregateExpressionSystem,
 
 ):

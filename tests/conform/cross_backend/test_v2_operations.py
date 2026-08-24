@@ -14,6 +14,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT,
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
 )
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
     CaseFailureBehaviour,
@@ -733,3 +734,79 @@ def test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow(
     assert pd.isna(values[0])
     assert values[1] == 2
     assert pd.isna(values[2])
+
+
+def test_polars_geopoint_default_preserves_valid_text_and_nulls() -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="default",
+        source_representation="lexical",
+        field_name="point",
+        failure_behavior=CaseFailureBehaviour.NULL,
+    )
+    result = pl.DataFrame({"point": ["1.0, 2.0", "NaN, INF", "-INF, 3", None, "bad"]}).select(_compile(expr))
+    assert result.to_series().to_list() == ["1.0, 2.0", "NaN, INF", "-INF, 3", None, None]
+
+
+def test_polars_geopoint_throw_rejects_invalid_native_coordinates() -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="array",
+        source_representation="native",
+        field_name="point",
+    )
+    with pytest.raises(Exception):
+        pl.DataFrame({"point": [[1.0], [float("inf"), 2.0]]}).select(_compile(expr))
+
+
+def test_polars_geopoint_lexical_array_parses_json_numbers() -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="array",
+        source_representation="lexical",
+        field_name="point",
+    )
+    result = pl.DataFrame({"point": ["[1,-2.5e2]"]}).select(_compile(expr))
+    assert result.to_series().to_list() == [[1.0, -250.0]]
+
+
+def test_polars_geopoint_native_array_rejects_wrong_length_in_null_mode() -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="array",
+        source_representation="native",
+        field_name="point",
+        failure_behavior=CaseFailureBehaviour.NULL,
+    )
+    result = pl.DataFrame({"point": [[1.0], [1.0, 2.0], None]}).select(_compile(expr))
+    assert result.to_series().to_list() == [None, [1.0, 2.0], None]
+
+
+def test_polars_geojson_parse_and_serialize() -> None:
+    parse = ma.col("geometry").geo.parse_geojson(format="default", field_name="geometry")
+    parsed = pl.DataFrame({"geometry": ['{"type":"Point","coordinates":[1,2]}']}).select(_compile(parse))
+    assert parsed.to_series().to_list() == ['{"type":"Point","coordinates":[1,2]}']
+
+    serialize = ma.col("geometry").geo.serialize_geojson(format="default", field_name="geometry")
+    serialized = pl.DataFrame({"geometry": [{"type": "Point", "coordinates": [1.0, 2.0]}]}).select(_compile(serialize))
+    assert serialized.to_series().to_list() == ['{"type":"Point","coordinates":[1.0,2.0]}']
+
+
+def test_geospatial_capability_predicate_gates_unsupported_cells() -> None:
+    lexical_array = ma.col("point").geo.parse_geopoint(
+        format="array",
+        source_representation="lexical",
+        field_name="point",
+    )
+    assert_predicate_capability_gated(
+        lambda: UnifiedExpressionVisitor(NarwhalsExpressionSystem("narwhals-polars")).visit(
+            lexical_array._node
+        )
+    )
+
+
+def test_ibis_sqlite_geopoint_default_throw_is_gated() -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="default",
+        source_representation="lexical",
+        field_name="point",
+    )
+    assert_predicate_capability_gated(
+        lambda: UnifiedExpressionVisitor(IbisExpressionSystem("ibis-sqlite")).visit(expr._node)
+    )

@@ -72,7 +72,7 @@ ALL_BACKENDS = [
 ]
 
 _NAMESPACE_PREFIXES = {"list_": "list", "struct_": "struct"}
-_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct")
+_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct", "geo")
 
 
 def _resolve_api_callable(

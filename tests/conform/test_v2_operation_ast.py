@@ -9,6 +9,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT,
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
 )
 from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
@@ -154,3 +155,89 @@ def test_recursive_list_and_struct_options_are_backend_agnostic() -> None:
             type(value).__module__.startswith(("polars", "narwhals", "ibis"))
             for value in walk(built._node.options)
         )
+
+
+def test_geospatial_keys_have_one_exact_mapping() -> None:
+    expected = {
+        FK_GEO.PARSE_GEOPOINT: ("parse_geopoint", "parse_geopoint"),
+        FK_GEO.PARSE_GEOJSON: ("parse_geojson", "parse_geojson"),
+        FK_GEO.SERIALIZE_GEOJSON: ("serialize_geojson", "serialize_geojson"),
+    }
+    for key, (name, protocol) in expected.items():
+        fdef = ExpressionFunctionRegistry.get(key)
+        assert fdef.substrait_name == name
+        assert fdef.protocol_method.__name__ == protocol
+
+
+def test_geospatial_nodes_keep_raw_options_and_diagnostics_separate() -> None:
+    source = ma.col("source")
+    nodes = (
+        source.geo.parse_geopoint(
+            format="default",
+            source_representation="lexical",
+            field_name="point",
+        ),
+        source.geo.parse_geojson(format="default", field_name="geometry"),
+        source.geo.serialize_geojson(format="topojson", field_name="geometry"),
+    )
+    for built in nodes:
+        node = built._node
+        assert len(node.arguments) == 1
+        assert node.options
+        assert "field_name" not in node.options
+        assert node.diagnostic_context["field_name"]
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda source: source.geo.parse_geopoint(
+            format="default",
+            source_representation="native",
+            field_name="point",
+        ),
+        lambda source: source.geo.parse_geopoint(
+            format="object",
+            source_representation="lexical",
+            field_name="point",
+        ),
+        lambda source: source.geo.parse_geopoint(
+            format="bad",
+            source_representation="lexical",
+            field_name="point",
+        ),
+        lambda source: source.geo.parse_geopoint(
+            format="array",
+            source_representation="lexical",
+            field_name="point",
+            failure_behavior="throw",
+        ),
+        lambda source: source.geo.parse_geojson(format="bad", field_name="geometry"),
+        lambda source: source.geo.parse_geopoint(
+            format="default",
+            source_representation="lexical",
+            field_name="",
+        ),
+    ],
+)
+def test_geospatial_builders_reject_invalid_options_before_node_creation(build) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        build(ma.col("source"))
+
+
+def test_geopoint_legal_format_representation_pairs() -> None:
+    source = ma.col("source")
+    legal = {
+        ("default", "lexical"),
+        ("array", "lexical"),
+        ("array", "native"),
+        ("object", "native"),
+    }
+    for format_, representation in legal:
+        node = source.geo.parse_geopoint(
+            format=format_,
+            source_representation=representation,
+            field_name="point",
+        )._node
+        assert node.options["format"] == format_
+        assert node.options["source_representation"] == representation
