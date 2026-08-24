@@ -304,9 +304,9 @@ def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
 
     is_dotted = "." in source_name
 
-    if fld.type == UniversalType.ARRAY:
-        # Stage 5a: list split + element cast → to_canonical(ARRAY)
-        return to_canonical(UniversalType.ARRAY)  # type: ignore[return-value]
+    if fld.type == UniversalType.LIST:
+        # Stage 5a: list split + element cast → canonical LIST
+        return to_canonical(UniversalType.LIST)  # type: ignore[return-value]
     if fld.categories is not None:
         # Stage 5b: categorical → Polars Categorical/Enum; dtype registry
         # maps pl.Categorical/pl.Enum to canonical STRING (target_polars.py:30-31)
@@ -923,7 +923,7 @@ def _build_field_expr(
     # Uses mountainash str.string_split for the split.  Element-level
     # casting uses list.agg with a native pl.element().cast() expression
     # — acknowledged as Polars-specific, same as the categorical stage.
-    if fld.type == UniversalType.ARRAY:
+    if fld.type == UniversalType.LIST:
         delimiter = fld.delimiter or ","
         expr = expr.str.string_split(ma.lit(delimiter))
 

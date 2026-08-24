@@ -22,7 +22,9 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
 )
 from mountainash.typespec.frictionless import typespec_from_frictionless
-from mountainash.typespec.universal_types import parse_universal, to_canonical
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.converters import resolve_field_canonical
+from mountainash.typespec.universal_types import parse_universal
 
 
 class SchemaTypeStatus(Enum):
@@ -186,35 +188,34 @@ def _schema_from_dataframe(
                 result[name] = SchemaTypeStatus.UNKNOWN
         return result
     return {}
-
-
 def _schema_from_table_schema(
     table_schema: dict,
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-    """Extract canonical schema from a Frictionless table_schema dict.
-
-    Each field's Frictionless type string is parsed and converted to a
-    canonical ``MountainashDtype``. A missing/empty type or an unrecognized
-    string yields ``SchemaTypeStatus.UNKNOWN``; an explicitly typeless ``any``
-    field yields ``SchemaTypeStatus.UNCONSTRAINED``. Isolated for future
-    refinement.
-    """
+    """Extract field-aware canonical schema from a Frictionless table schema."""
     fields = table_schema.get("fields", [])
     if not fields:
         return {}
     result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
-    for f in fields:
-        type_str = f.get("type")
-        if not type_str:
-            result[f["name"]] = SchemaTypeStatus.UNKNOWN
+    for raw_field in fields:
+        name = raw_field.get("name")
+        if not name or not raw_field.get("type"):
+            if name:
+                result[name] = SchemaTypeStatus.UNKNOWN
             continue
         try:
-            canon = to_canonical(parse_universal(type_str))
-        except UnknownDtypeError:
-            result[f["name"]] = SchemaTypeStatus.UNKNOWN
+            field = FieldSpec(
+                name=name,
+                type=parse_universal(raw_field["type"]),
+                format=raw_field.get("format", "default"),
+                item_type=raw_field.get("itemType"),
+                delimiter=raw_field.get("delimiter"),
+            )
+            canonical = resolve_field_canonical(field)
+        except (KeyError, TypeError, ValueError):
+            result[name] = SchemaTypeStatus.UNKNOWN
             continue
-        result[f["name"]] = (
-            SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
+        result[name] = (
+            SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
         )
     return result
 
@@ -222,23 +223,17 @@ def _schema_from_table_schema(
 def _schema_from_typespec(
     spec: Any,
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-    """Extract canonical schema from a resolved TypeSpec."""
+    """Extract field-aware canonical schema from a resolved TypeSpec."""
     fields = getattr(spec, "fields", ())
     result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
     for field in fields:
-        type_value = field.type
         try:
-            universal_type = (
-                parse_universal(type_value)
-                if isinstance(type_value, str)
-                else type_value
-            )
-            canon = to_canonical(universal_type)
-        except (KeyError, TypeError, UnknownDtypeError):
+            canonical = resolve_field_canonical(field)
+        except (KeyError, TypeError, ValueError):
             result[field.name] = SchemaTypeStatus.UNKNOWN
             continue
         result[field.name] = (
-            SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
+            SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
         )
     return result
 

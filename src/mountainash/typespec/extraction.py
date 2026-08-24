@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     import pyarrow as pa
     import ibis
     from pydantic import BaseModel
+    from .source_shape import SourceShape
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,46 @@ def _universal_from_native(native: Any, target: TypeTarget) -> UniversalType:
     canon = registry.from_native(native, target=target)
     universal, _fmt = from_canonical(canon)
     return universal
+
+
+def _field_from_source_shape(
+    name: str,
+    shape: "SourceShape",
+    *,
+    universal_type: UniversalType | None = None,
+    backend_type: str | None = None,
+) -> FieldSpec:
+    """Build a complete native field descriptor from recursive schema evidence."""
+    if universal_type is None:
+        universal_type = (
+            from_canonical(shape.canonical_type)[0]
+            if shape.canonical_type is not None
+            else UniversalType.ANY
+        )
+
+    object_fields = None
+    item_object_fields = None
+    if shape.canonical_type is not None:
+        if shape.canonical_type.name == "STRUCT":
+            object_fields = [
+                _field_from_source_shape(child_name, child_shape)
+                for child_name, child_shape in shape.struct_fields
+            ]
+        elif shape.canonical_type.name == "LIST":
+            child = shape.item_shape
+            if child is not None and child.canonical_type.name == "STRUCT":
+                item_object_fields = [
+                    _field_from_source_shape(child_name, child_shape)
+                    for child_name, child_shape in child.struct_fields
+                ]
+
+    return FieldSpec(
+        name=name,
+        type=universal_type,
+        object_fields=object_fields,
+        item_object_fields=item_object_fields,
+        backend_type=backend_type,
+    )
 
 # ============================================================================
 # Schema Caching (for dataclass and Pydantic models)
@@ -430,25 +471,6 @@ def extract_from_dataframe(
 from_dataframe = extract_from_dataframe
 
 
-def _fields_from_polars_struct(dtype: "pl.Struct") -> list["FieldSpec"]:
-    """Recursively build FieldSpec.object_fields from a Polars struct."""
-    from mountainash.core.lazy_imports import import_polars
-    pl = import_polars()
-    fields = []
-    for f in dtype.fields:
-        name, inner = f.name, f.dtype
-        item_type = None
-        if isinstance(inner, pl.List) and inner.inner is not None:
-            inner_universal, _ = from_canonical(
-                registry.from_native(inner.inner, target=TypeTarget.POLARS)
-            )
-            item_type = inner_universal.value
-        object_fields = _fields_from_polars_struct(inner) if isinstance(inner, pl.Struct) else None
-        universal_type, _ = from_canonical(registry.from_native(inner, target=TypeTarget.POLARS))
-        fields.append(FieldSpec(
-            name=name, type=universal_type, item_type=item_type, object_fields=object_fields,
-        ))
-    return fields
 
 
 def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -> TypeSpec:
@@ -459,32 +481,27 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
         raise ImportError("polars is required")
 
     fields = []
+    from .source_shape import extract_source_shapes
 
-    # Get schema dict {name: DataType}
     schema_dict = df.schema
-
+    shapes = extract_source_shapes(df)
     for col_name, dtype in schema_dict.items():
         universal_type = _universal_from_native(dtype, TypeTarget.POLARS)
-
-        item_type = None
-        object_fields = None
-        if isinstance(dtype, pl.List) and dtype.inner is not None:
-            inner_universal, _ = from_canonical(
-                registry.from_native(dtype.inner, target=TypeTarget.POLARS)
-            )
-            item_type = inner_universal.value
-        elif isinstance(dtype, pl.Struct):
-            object_fields = _fields_from_polars_struct(dtype)
-
-        backend_type_str = None if isinstance(dtype, pl.Struct) else str(dtype)
-        schema_field = FieldSpec(
-            name=col_name,
-            type=universal_type,
-            item_type=item_type,
-            object_fields=object_fields,
-            backend_type=backend_type_str if preserve_backend_types else None,
+        shape = shapes[col_name]
+        nested_struct = (
+            shape.item_shape is not None
+            and shape.item_shape.canonical_type is not None
+            and shape.item_shape.canonical_type.name == "STRUCT"
         )
-        fields.append(schema_field)
+        backend_type_str = None if isinstance(dtype, pl.Struct) or nested_struct else str(dtype)
+        fields.append(
+            _field_from_source_shape(
+                col_name,
+                shapes[col_name],
+                universal_type=universal_type,
+                backend_type=backend_type_str if preserve_backend_types else None,
+            )
+        )
 
     return TypeSpec(
         fields=fields,
@@ -502,22 +519,21 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
         raise ImportError("pandas is required")
 
     fields = []
+    from .source_shape import extract_source_shapes
+    shapes = extract_source_shapes(df)
 
     for col_name in df.columns:
         dtype = df[col_name].dtype
-
-        # Get backend type name
         backend_type_str = str(dtype)
-
-        # Convert to universal type
         universal_type = _universal_from_native(dtype, TypeTarget.PANDAS)
-
-        schema_field = FieldSpec(
-            name=col_name,
-            type=universal_type,
-            backend_type=backend_type_str if preserve_backend_types else None,
+        fields.append(
+            _field_from_source_shape(
+                col_name,
+                shapes[col_name],
+                universal_type=universal_type,
+                backend_type=backend_type_str if preserve_backend_types else None,
+            )
         )
-        fields.append(schema_field)
 
     return TypeSpec(
         fields=fields,
@@ -527,25 +543,6 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
     )
 
 
-def _fields_from_pyarrow_struct(dtype: "pa.StructType") -> list["FieldSpec"]:
-    """Recursively build FieldSpec.object_fields from a PyArrow struct."""
-    from mountainash.core.lazy_imports import import_pyarrow
-    pa = import_pyarrow()
-    fields = []
-    for f in dtype:
-        name, inner = f.name, f.type
-        item_type = None
-        if pa.types.is_list(inner):
-            inner_universal, _ = from_canonical(
-                registry.from_native(inner.value_type, target=TypeTarget.PYARROW)
-            )
-            item_type = inner_universal.value
-        object_fields = _fields_from_pyarrow_struct(inner) if pa.types.is_struct(inner) else None
-        universal_type, _ = from_canonical(registry.from_native(inner, target=TypeTarget.PYARROW))
-        fields.append(FieldSpec(
-            name=name, type=universal_type, item_type=item_type, object_fields=object_fields,
-        ))
-    return fields
 
 
 def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -> TypeSpec:
@@ -556,30 +553,31 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
         raise ImportError("pyarrow is required")
 
     fields = []
+    from .source_shape import extract_source_shapes
+    shapes = extract_source_shapes(table)
 
     for field in table.schema:
         backend_type = field.type
         universal_type = _universal_from_native(backend_type, TypeTarget.PYARROW)
-
-        item_type = None
-        object_fields = None
-        if pa.types.is_list(backend_type):
-            inner_universal, _ = from_canonical(
-                registry.from_native(backend_type.value_type, target=TypeTarget.PYARROW)
-            )
-            item_type = inner_universal.value
-        elif pa.types.is_struct(backend_type):
-            object_fields = _fields_from_pyarrow_struct(backend_type)
-
-        backend_type_str = None if pa.types.is_struct(backend_type) else str(backend_type)
-        schema_field = FieldSpec(
-            name=field.name,
-            type=universal_type,
-            item_type=item_type,
-            object_fields=object_fields,
-            backend_type=backend_type_str if preserve_backend_types else None,
+        shape = shapes[field.name]
+        nested_struct = (
+            shape.item_shape is not None
+            and shape.item_shape.canonical_type is not None
+            and shape.item_shape.canonical_type.name == "STRUCT"
         )
-        fields.append(schema_field)
+        backend_type_str = (
+            None
+            if pa.types.is_struct(backend_type) or nested_struct
+            else str(backend_type)
+        )
+        fields.append(
+            _field_from_source_shape(
+                field.name,
+                shapes[field.name],
+                universal_type=universal_type,
+                backend_type=backend_type_str if preserve_backend_types else None,
+            )
+        )
 
     return TypeSpec(
         fields=fields,
@@ -591,27 +589,22 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
 
 def _from_ibis(table: 'ibis.Table', preserve_backend_types: bool, **metadata) -> TypeSpec:
     """Extract schema from Ibis Table."""
-    fields = []
+    from .source_shape import extract_source_shapes
 
-    # Get Ibis schema
     schema = table.schema()
-
+    shapes = extract_source_shapes(table)
+    fields = []
     for field_name in schema.names:
-        # Get field type
         field_type = schema[field_name]
-
-        # Convert to string
-        backend_type_str = str(field_type)
-
-        # Convert to universal type
         universal_type = _universal_from_native(field_type, TypeTarget.IBIS)
-
-        schema_field = FieldSpec(
-            name=field_name,
-            type=universal_type,
-            backend_type=backend_type_str if preserve_backend_types else None,
+        fields.append(
+            _field_from_source_shape(
+                field_name,
+                shapes[field_name],
+                universal_type=universal_type,
+                backend_type=str(field_type) if preserve_backend_types else None,
+            )
         )
-        fields.append(schema_field)
 
     return TypeSpec(
         fields=fields,
@@ -620,32 +613,26 @@ def _from_ibis(table: 'ibis.Table', preserve_backend_types: bool, **metadata) ->
         primary_key=metadata.get("primary_key"),
     )
 
-
 def _from_narwhals(df: Any, preserve_backend_types: bool, **metadata) -> TypeSpec:
     """Extract schema from Narwhals DataFrame."""
     from mountainash.core.lazy_imports import import_narwhals
     nw = import_narwhals()
     if nw is None:
         raise ImportError("narwhals is required")
-
-    fields = []
-
-    # Narwhals provides a unified schema API
+    from .source_shape import extract_source_shapes
     schema_dict = df.schema
-
+    shapes = extract_source_shapes(df)
+    fields = []
     for col_name, dtype in schema_dict.items():
-        # Get backend type
-        backend_type_str = str(dtype)
-
-        # Narwhals has its own target module
         universal_type = _universal_from_native(dtype, TypeTarget.NARWHALS)
-
-        schema_field = FieldSpec(
-            name=col_name,
-            type=universal_type,
-            backend_type=backend_type_str if preserve_backend_types else None,
+        fields.append(
+            _field_from_source_shape(
+                col_name,
+                shapes[col_name],
+                universal_type=universal_type,
+                backend_type=str(dtype) if preserve_backend_types else None,
+            )
         )
-        fields.append(schema_field)
 
     return TypeSpec(
         fields=fields,

@@ -100,7 +100,9 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
     if canon is None:
         canon = MountainashDtype.STRING
     native = registry.to_native_schema(canon, target)
-    if canon is MountainashDtype.LIST and field.item_type:
+    if canon is MountainashDtype.LIST and field.item_object_fields:
+        native = _resolve_list_object_inner(field.name, field.item_object_fields, target, native)
+    elif canon is MountainashDtype.LIST and field.item_type:
         native = _resolve_list_inner(field.name, field.item_type, target, native)
     elif canon is MountainashDtype.STRUCT and field.object_fields:
         native = _resolve_struct_inner(field.name, field.object_fields, target, native)
@@ -130,6 +132,35 @@ def _resolve_struct_inner(
         inner_str = ", ".join(f"{name}: {native}" for name, native in inner_pairs)
         return f"struct<{inner_str}>"
     return bare_native
+def _resolve_list_object_inner(
+    field_name: str,
+    item_object_fields: list["FieldSpec"],
+    target: TypeTarget,
+    bare_native: Any,
+) -> Any:
+    """Parameterize a native list with its schema-proven struct item shape."""
+    if target is TypeTarget.PANDAS:
+        return bare_native
+    struct_native = _resolve_struct_inner(
+        field_name,
+        item_object_fields,
+        target,
+        registry.to_native_schema(MountainashDtype.STRUCT, target),
+    )
+    if target is TypeTarget.POLARS:
+        from mountainash.core.lazy_imports import import_polars
+        return import_polars().List(struct_native)
+    if target is TypeTarget.NARWHALS:
+        from mountainash.core.lazy_imports import import_narwhals
+        return import_narwhals().List(struct_native)
+    if target is TypeTarget.PYARROW:
+        from mountainash.core.lazy_imports import import_pyarrow
+        return import_pyarrow().list_(struct_native)
+    if target is TypeTarget.IBIS:
+        return f"array<{struct_native}>"
+    return bare_native
+
+
 
 
 def _resolve_list_inner(

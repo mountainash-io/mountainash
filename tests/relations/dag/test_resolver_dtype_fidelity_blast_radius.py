@@ -29,7 +29,7 @@ UPGRADED_SPEC = TypeSpec(fields=[
         categories=["a", "b"], categories_ordered=True,
     ),
     FieldSpec(
-        name="lst", type=UniversalType.ARRAY, item_type="integer",
+        name="lst", type=UniversalType.LIST, item_type="integer",
     ),
 ])
 
@@ -38,7 +38,7 @@ UPGRADED_SCHEMA_DICT = {"fields": [
     {"name": "ts", "type": "any",
      "x-mountainash": {"backend_type": "Datetime(time_unit='us', time_zone='UTC')"}},
     {"name": "cat", "type": "string", "categories": ["a", "b"], "categoriesOrdered": True},
-    {"name": "lst", "type": "array", "itemType": "integer"},
+    {"name": "lst", "type": "list", "itemType": "integer"},
 ]}
 
 ALL_NULL_DATA = {"ts": [None], "cat": [None], "lst": [None]}

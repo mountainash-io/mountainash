@@ -1,4 +1,5 @@
 import polars as pl
+import pytest
 
 import mountainash as ma
 from mountainash.core.dtypes import MountainashDtype as D
@@ -39,3 +40,45 @@ def test_any_resource_field_is_unconstrained():
     )
     assert schema["a"] is SchemaTypeStatus.UNCONSTRAINED
     assert schema["n"] is D.I64
+
+
+@pytest.mark.parametrize(
+    ("type_name", "format_name", "expected"),
+    [
+        ("geopoint", "default", D.STRING),
+        ("geopoint", "array", D.LIST),
+        ("geopoint", "object", D.STRUCT),
+        ("geojson", "default", D.JSON),
+        ("geojson", "topojson", D.JSON),
+    ],
+)
+def test_resource_read_schema_uses_field_aware_geospatial_canonical(
+    type_name, format_name, expected
+):
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash.typespec.datapackage import DataResource
+    resource = DataResource(
+        name="geo",
+        data=[],
+        table_schema={"fields": [{"name": "shape", "type": type_name, "format": format_name}]},
+    )
+    assert infer_schema(ResourceReadRelNode(resource=resource)) == {"shape": expected}
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        {"name": "shape", "type": "geopoint", "format": "invalid"},
+        {"name": "shape", "type": "geojson", "format": "invalid"},
+        {"name": "shape", "type": "not-a-type"},
+        {"name": "shape"},
+    ],
+)
+def test_resource_read_schema_unknown_for_malformed_or_absent_schema_evidence(field):
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash.typespec.datapackage import DataResource
+
+    resource = DataResource(name="geo", data=[], table_schema={"fields": [field]})
+    assert infer_schema(ResourceReadRelNode(resource=resource)) == {
+        "shape": SchemaTypeStatus.UNKNOWN
+    }

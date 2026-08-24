@@ -359,6 +359,13 @@ class TestDeclaredType:
         expected = to_canonical(UniversalType.ARRAY)
         assert contract.emitted[0].declared_type == expected
 
+    def test_list_type_yields_canonical_list(self):
+        """LIST lexical parsing still emits the physical canonical list."""
+        field = FieldSpec(name="f", type=UniversalType.LIST, item_type="integer")
+        spec = _spec(field, fields_match="open")
+        contract = resolve_conform_output(spec, available_columns=["f"])
+        assert contract.emitted[0].declared_type == to_canonical(UniversalType.LIST)
+
     def test_temporal_with_custom_format_yields_canonical(self):
         """DATE/DATETIME/TIME with custom format → to_canonical(type)."""
         spec = _spec(

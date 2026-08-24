@@ -399,7 +399,7 @@ class TestExtractFromPydantic:
 
 
 class TestExtractionOverRegistry:
-    def test_polars_list_populates_item_type(self):
+    def test_polars_native_list_has_no_lexical_properties(self):
         import polars as pl
         from mountainash.typespec.extraction import extract_from_dataframe
         from mountainash.typespec.universal_types import UniversalType
@@ -407,7 +407,51 @@ class TestExtractionOverRegistry:
         spec = extract_from_dataframe(df)
         (field,) = [f for f in spec.fields if f.name == "tags"]
         assert field.type == UniversalType.ARRAY
-        assert field.item_type == "integer"
+        assert field.item_type is None
+        assert field.delimiter is None
+        assert field.item_object_fields is None
+
+    def test_polars_array_of_structs_recurses_nested_array_of_structs(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame(
+            {
+                "rows": [
+                    [{"name": "outer", "children": [{"id": 1, "tags": ["a"]}]}],
+                ],
+            }
+        )
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "rows"]
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        assert field.delimiter is None
+        assert [(f.name, f.type) for f in field.item_object_fields] == [
+            ("name", UniversalType.STRING),
+            ("children", UniversalType.ARRAY),
+        ]
+        (children,) = [f for f in field.item_object_fields if f.name == "children"]
+        assert children.item_type is None
+        assert children.delimiter is None
+        assert [(f.name, f.type) for f in children.item_object_fields] == [
+            ("id", UniversalType.INTEGER),
+            ("tags", UniversalType.ARRAY),
+        ]
+        (tags,) = [f for f in children.item_object_fields if f.name == "tags"]
+        assert tags.item_type is None
+        assert tags.item_object_fields is None
+        from mountainash.typespec.converters import to_polars_schema
+        assert to_polars_schema(spec)["rows"] == pl.List(
+            pl.Struct(
+                {
+                    "name": pl.String,
+                    "children": pl.List(
+                        pl.Struct({"id": pl.Int64, "tags": pl.List(pl.String)})
+                    ),
+                }
+            )
+        )
 
     def test_polars_struct_populates_object_fields(self):
         import polars as pl
@@ -464,6 +508,36 @@ class TestExtractionOverRegistry:
         spec = extract_from_dataframe(table, preserve_backend_types=True)
         (field,) = [f for f in spec.fields if f.name == "addr"]
         assert field.backend_type is None
+
+    def test_pyarrow_array_of_structs_recurses_nested_array_of_structs(self):
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+
+        child_type = pa.struct([pa.field("code", pa.string())])
+        row_type = pa.struct(
+            [
+                pa.field("id", pa.int64()),
+                pa.field("children", pa.list_(child_type)),
+            ]
+        )
+        table = pa.table(
+            {
+                "rows": pa.array(
+                    [[{"id": 1, "children": [{"code": "x"}]}]],
+                    type=pa.list_(row_type),
+                )
+            }
+        )
+        spec = extract_from_dataframe(table)
+        (field,) = [f for f in spec.fields if f.name == "rows"]
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        (children,) = [f for f in field.item_object_fields if f.name == "children"]
+        assert children.type is UniversalType.ARRAY
+        (code,) = [f for f in children.item_object_fields if f.name == "code"]
+        assert code.type is UniversalType.STRING
 
     def test_extraction_resolver_round_trip_pins_full_struct_not_just_no_raise(self):
         import polars as pl

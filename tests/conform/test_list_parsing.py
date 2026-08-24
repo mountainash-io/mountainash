@@ -21,7 +21,7 @@ class TestListParsingDefaultDelimiter:
     def test_comma_split_string_items(self):
         df = pl.DataFrame({"tags": ["a,b,c", "d,e"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="tags", type=UniversalType.ARRAY)],
+            fields=[FieldSpec(name="tags", type=UniversalType.LIST)],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["tags"].to_list() == [["a", "b", "c"], ["d", "e"]]
@@ -29,7 +29,7 @@ class TestListParsingDefaultDelimiter:
     def test_single_value_no_delimiter(self):
         df = pl.DataFrame({"tags": ["solo"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="tags", type=UniversalType.ARRAY)],
+            fields=[FieldSpec(name="tags", type=UniversalType.LIST)],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["tags"].to_list() == [["solo"]]
@@ -37,7 +37,7 @@ class TestListParsingDefaultDelimiter:
     def test_empty_string(self):
         df = pl.DataFrame({"tags": [""]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="tags", type=UniversalType.ARRAY)],
+            fields=[FieldSpec(name="tags", type=UniversalType.LIST)],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["tags"].to_list() == [[""]]
@@ -50,7 +50,7 @@ class TestListParsingCustomDelimiter:
         df = pl.DataFrame({"tags": ["a|b|c", "d|e"]})
         spec = TypeSpec(
             fields=[
-                FieldSpec(name="tags", type=UniversalType.ARRAY, delimiter="|"),
+                FieldSpec(name="tags", type=UniversalType.LIST, delimiter="|"),
             ],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -60,7 +60,7 @@ class TestListParsingCustomDelimiter:
         df = pl.DataFrame({"tags": ["x;y;z"]})
         spec = TypeSpec(
             fields=[
-                FieldSpec(name="tags", type=UniversalType.ARRAY, delimiter=";"),
+                FieldSpec(name="tags", type=UniversalType.LIST, delimiter=";"),
             ],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -70,7 +70,7 @@ class TestListParsingCustomDelimiter:
         df = pl.DataFrame({"tags": ["a\tb\tc"]})
         spec = TypeSpec(
             fields=[
-                FieldSpec(name="tags", type=UniversalType.ARRAY, delimiter="\t"),
+                FieldSpec(name="tags", type=UniversalType.LIST, delimiter="\t"),
             ],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -85,7 +85,7 @@ class TestListParsingItemType:
         spec = TypeSpec(
             fields=[
                 FieldSpec(
-                    name="ids", type=UniversalType.ARRAY, item_type="integer",
+                    name="ids", type=UniversalType.LIST, item_type="integer",
                 ),
             ],
         )
@@ -97,7 +97,7 @@ class TestListParsingItemType:
         spec = TypeSpec(
             fields=[
                 FieldSpec(
-                    name="vals", type=UniversalType.ARRAY, item_type="number",
+                    name="vals", type=UniversalType.LIST, item_type="number",
                 ),
             ],
         )
@@ -115,7 +115,7 @@ class TestListParsingItemType:
         spec = TypeSpec(
             fields=[
                 FieldSpec(
-                    name="flags", type=UniversalType.ARRAY, item_type="boolean",
+                    name="flags", type=UniversalType.LIST, item_type="boolean",
                 ),
             ],
         )
@@ -128,7 +128,7 @@ class TestListParsingItemType:
         spec = TypeSpec(
             fields=[
                 FieldSpec(
-                    name="tags", type=UniversalType.ARRAY, item_type="string",
+                    name="tags", type=UniversalType.LIST, item_type="string",
                 ),
             ],
         )
@@ -145,7 +145,7 @@ class TestListParsingWithOtherStages:
             fields=[
                 FieldSpec(
                     name="tags",
-                    type=UniversalType.ARRAY,
+                    type=UniversalType.LIST,
                     rename_from="old_tags",
                 ),
             ],
@@ -161,7 +161,7 @@ class TestListParsingWithOtherStages:
             fields=[
                 FieldSpec(
                     name="tags",
-                    type=UniversalType.ARRAY,
+                    type=UniversalType.LIST,
                     null_fill="default",
                 ),
             ],
@@ -176,7 +176,7 @@ class TestListParsingWithOtherStages:
             fields=[
                 FieldSpec(
                     name="ids",
-                    type=UniversalType.ARRAY,
+                    type=UniversalType.LIST,
                     delimiter="|",
                     item_type="integer",
                 ),

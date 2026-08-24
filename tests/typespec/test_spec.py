@@ -208,12 +208,18 @@ class TestFieldSpec:
             )
         assert exc_info.value.property_name == prop
 
-    @pytest.mark.parametrize("list_like", [UniversalType.LIST, UniversalType.ARRAY])
-    def test_item_type_and_delimiter_legal_on_list_like(self, list_like):
-        # Interim (Unit B -> Unit C): both LIST and ARRAY may carry item_type/delimiter.
-        f = FieldSpec(name="tags", type=list_like, item_type="integer", delimiter=";")
+    def test_item_type_and_delimiter_legal_on_list(self):
+        f = FieldSpec(name="tags", type=UniversalType.LIST, item_type="integer", delimiter=";")
         assert f.item_type == "integer"
         assert f.delimiter == ";"
+
+    @pytest.mark.parametrize(
+        "property_name,value",
+        [("item_type", UniversalType.INTEGER), ("delimiter", "|")],
+    )
+    def test_array_rejects_lexical_properties(self, property_name, value):
+        with pytest.raises(IncompatibleFieldPropertiesError):
+            FieldSpec(name="values", type=UniversalType.ARRAY, **{property_name: value})
 
     def test_item_object_fields_legal_on_array(self):
         f = FieldSpec(
