@@ -27,7 +27,7 @@ Commit: `feat(conform): add Frictionless temporal operations` (final hash report
 
 ## Correction wave
 
-- Enforced XML Schema year/yearMonth lexical grammar, including valid `0000`/`+0000` and invalid `-0000`, ASCII duration digits, and explicit duration guards.
+- Enforced XML Schema year/yearMonth lexical grammar, including valid `0000` and invalid plus-prefixed years/`-0000`, ASCII duration digits, and explicit duration guards.
 - Restricted default datetime text to the required `T`-separated forms and normalized aware native datetime/time values to UTC-naive values.
 - Added partial-date and temporal-any kind validation, exact `parse_datetime_default` wire naming, and diagnostic-only field metadata for new temporal operations.
 - Updated backend signatures, custom temporal null-mode capability facts, and temporal AST contract coverage.
@@ -39,3 +39,10 @@ Correction verification:
 - Temporal signature subset: 59 passed.
 - Temporal AST subset: 5 passed.
 - Scoped Ruff checks and `git diff --check`: passed.
+
+## Rereview correction wave
+
+- Removed the global visitor option mutation; only custom temporal builders place optional field names in diagnostic metadata.
+- Added `parse_datetime_default` protocol/backend dispatch and exact wire mapping.
+- Hardened XSD grammar and backend null/throw validation predicates, timezone handling, `-0000` rejection, and non-Polars custom time capability facts.
+- Rereview focused gates: 565 passed, 1575 deselected, 12 existing deprecation warnings.

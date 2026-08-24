@@ -77,7 +77,7 @@ def parse_xsd_duration(value: str) -> str:
     return value
 
 
-_YEAR = r"(?:\+[0-9]{4}|[0-9]{4}|[1-9][0-9]{4,})"
+_YEAR = r"(?:[0-9]{4}|[1-9][0-9]{4,})"
 _NEGATIVE_YEAR = r"(?:-[0-9]{4}|-[1-9][0-9]{4,})"
 _PARTIAL_DATE = {
     "year": re.compile(rf"^(?:{_YEAR}|{_NEGATIVE_YEAR}){_TZ}?$"),
@@ -93,10 +93,9 @@ def parse_xsd_partial_date(value: str, *, kind: PartialDateKind) -> str:
         raise ValueError(f"invalid XSD partial-date kind: {kind!r}")
     if _PARTIAL_DATE[kind].fullmatch(value) is None or value == "-0000":
         raise ValueError(f"invalid XSD partial date: {value!r}")
-    if value.endswith("Z"):
-        return value
-    tz = value[-6:] if len(value) >= 6 and value[-6] in "+-" else None
-    if tz is not None:
+    tz_match = re.search(r"(?:Z|[+-][0-9]{2}:[0-9]{2})$", value)
+    if tz_match and tz_match.group() != "Z":
+        tz = tz_match.group()
         hours, minutes = int(tz[1:3]), int(tz[4:6])
         if hours > 14 or (hours == 14 and minutes != 0):
             raise ValueError(f"invalid XSD partial date: {value!r}")

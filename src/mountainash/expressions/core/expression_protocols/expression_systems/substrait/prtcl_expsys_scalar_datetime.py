@@ -196,6 +196,14 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
     ) -> ExpressionT:
         """Parse a Frictionless default datetime value."""
         ...
+    def parse_datetime_default(
+        self,
+        x: ExpressionT,
+        /,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse a Frictionless default datetime value."""
+        ...
 
     def parse_xsd_duration(
         self,

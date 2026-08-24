@@ -827,6 +827,17 @@ _TEMPORAL_NULL_FACTS = tuple(
     )
     for backend in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS)
 )
+_TEMPORAL_THROW_FACTS = tuple(
+    CapabilityFact(
+        operation_key=FK_MA_STR.TO_TIME,
+        param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=backend,
+        message="custom time parsing is supported only by Polars",
+        since="2026-08-21",
+    )
+    for backend in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS)
+)
 
 _EVIDENCE_ASCII_FOLD = ProbeEvidence(
     probe_date=_SINCE_ASCII_FOLD,
@@ -1042,14 +1053,14 @@ DECLARATIONS = (
         backend=CONST_BACKEND.IBIS,
         domain=Domain.STRING,
         source=FactSource.MOUNTAINASH,
-        facts=(_TEMPORAL_NULL_FACTS[0],),
+        facts=(_TEMPORAL_THROW_FACTS[0], _TEMPORAL_NULL_FACTS[0]),
         evidence=_EVIDENCE,
     ),
     CapabilityDeclaration(
         backend=CONST_BACKEND.NARWHALS,
         domain=Domain.STRING,
         source=FactSource.MOUNTAINASH,
-        facts=(_TEMPORAL_NULL_FACTS[1],),
+        facts=(_TEMPORAL_THROW_FACTS[1], _TEMPORAL_NULL_FACTS[1]),
         evidence=_EVIDENCE,
     ),
     CapabilityDeclaration(

@@ -388,6 +388,22 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
+    def parse_default(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return x.cast(pl.Datetime, strict=failure_behavior != "null")
+
+    def parse_datetime_default(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
+
     def parse_xsd_duration(
         self,
         x: PolarsExpr,
@@ -399,6 +415,9 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
                 r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?S)?)?$"
             ) & ~x.is_in(["P", "-P", "PT", "-PT"])
             return pl.when(valid).then(x).otherwise(None)
+        if failure_behavior == "throw":
+            from mountainash.typespec.temporal import parse_xsd_duration
+            return x.map_elements(parse_xsd_duration, return_dtype=pl.String)
         return x
 
     def parse_xsd_partial_date(
@@ -414,8 +433,11 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
                 + (r"-(?:0[1-9]|1[0-2])" if kind == "yearmonth" else "")
                 + r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
             )
-            valid = x.str.contains(pattern) & ~x.is_in(["-0000"])
+            valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
             return pl.when(valid).then(x).otherwise(None)
+        if failure_behavior == "throw":
+            from mountainash.typespec.temporal import parse_xsd_partial_date
+            return x.map_elements(lambda value: parse_xsd_partial_date(value, kind=kind), return_dtype=pl.String)
         return x
 
     def parse_temporal_any(

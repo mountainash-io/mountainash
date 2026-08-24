@@ -374,9 +374,7 @@ class UnifiedExpressionVisitor:
             )
         method = getattr(self.backend, method_name)
 
-        # Diagnostic metadata is carried on the node but is not a backend option.
-        options = dict(node.options or {})
-        options.pop("field_name", None)
+        options = node.options or {}
         if options and self.enforce_capabilities:
             from mountainash.core.capabilities import (
                 CapabilityLevel,

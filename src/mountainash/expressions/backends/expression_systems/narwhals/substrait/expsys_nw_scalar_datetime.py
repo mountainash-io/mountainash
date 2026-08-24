@@ -389,6 +389,13 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
         return x.str.to_datetime()
+    def parse_datetime_default(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
 
     def parse_xsd_duration(
         self,
@@ -415,7 +422,7 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
             if kind == "yearmonth":
                 pattern += r"-(?:0[1-9]|1[0-2])"
             pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
-            valid = x.str.contains(pattern) & ~x.is_in(["-0000"])
+            valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
             return nw.when(valid).then(x).otherwise(None)
         return x
     def parse_temporal_any(

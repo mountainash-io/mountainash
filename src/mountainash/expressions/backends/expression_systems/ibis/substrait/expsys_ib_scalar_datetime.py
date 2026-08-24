@@ -385,6 +385,13 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         return x.cast("timestamp")
+    def parse_datetime_default(
+        self,
+        x: IbisValueExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
 
     def parse_xsd_duration(
         self,
@@ -410,7 +417,7 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
             if kind == "yearmonth":
                 pattern += r"-(?:0[1-9]|1[0-2])"
             pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
-            valid = x.re_search(pattern) & ~x.isin(["-0000"])
+            valid = x.re_search(pattern) & ~x.re_search(r"^-0000")
             return valid.ifelse(x, None)
         return x
     def parse_temporal_any(

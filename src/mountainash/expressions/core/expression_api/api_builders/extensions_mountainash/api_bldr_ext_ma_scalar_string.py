@@ -191,7 +191,8 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
             arguments=[self._node],
-            options={"format": format, "field_name": field_name, "failure_behavior": failure_behavior.value},
+            options={"format": format, "failure_behavior": failure_behavior.value},
+            diagnostic_context={"logical_type": "date", "format": format, **({"field_name": field_name} if field_name is not None else {})},
         )
         return self._build(node)
 
@@ -206,8 +207,7 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         """Parse string to datetime using format string."""
         if field_name is not None:
             field_name = validate_field_name("to_datetime", field_name)
-        failure_behavior = validate_failure_behavior("to_datetime", failure_behavior)
-        options = {"format": format, "field_name": field_name, "failure_behavior": failure_behavior.value}
+        options = {"format": format, "failure_behavior": failure_behavior.value}
         if timezone is not None:
             from ..api_builder_base import _reject_expression
             from mountainash.core.capabilities.schema import ValueClass
@@ -222,6 +222,7 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
             arguments=[self._node],
             options=options,
+            diagnostic_context={"logical_type": "datetime", "format": format, **({"field_name": field_name} if field_name is not None else {})},
         )
         return self._build(node)
 
@@ -239,10 +240,10 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
             arguments=[self._node],
-            options={"format": format, "field_name": field_name, "failure_behavior": failure_behavior.value},
+            options={"format": format, "failure_behavior": failure_behavior.value},
+            diagnostic_context={"logical_type": "time", "format": format, **({"field_name": field_name} if field_name is not None else {})},
         )
         return self._build(node)
-
 
     def to_integer(self, base: int = 10) -> "BaseExpressionAPI":
         """Parse string to integer with given base."""

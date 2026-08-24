@@ -67,7 +67,6 @@ def test_xsd_duration_rejects_invalid_lexical_forms(text: str) -> None:
 @pytest.mark.parametrize(
     "text,kind",
     [
-        ("+0000", "year"),
         ("0000", "year"),
         ("2024-01", "yearmonth"),
         ("-2024", "year"),

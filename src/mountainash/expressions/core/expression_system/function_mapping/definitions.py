@@ -792,7 +792,7 @@ def register_all_functions() -> None:
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="parse_datetime_default",
             is_extension=True,
-            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_default,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_datetime_default,
             options=("failure_behavior",),
         ),
         ExpressionFunctionDef(
