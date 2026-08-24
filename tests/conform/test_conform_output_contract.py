@@ -12,7 +12,7 @@ Declared-type table (from spec 2026-06-25-conform-output-contract-design.md):
   | type ANY/None, non-dotted, no fill  | PASSTHROUGH         |
   | type ANY/None + null_fill           | UNDETERMINED        |
   | type ANY/None, dotted source        | UNDETERMINED        |
-  | categories                          | STRING              |
+  | categories                          | declared base scalar type |
   | type ARRAY                          | to_canonical(ARRAY) |
 """
 from __future__ import annotations
@@ -338,14 +338,14 @@ class TestDeclaredType:
         contract = resolve_conform_output(spec, available_columns=["f"])
         assert contract.emitted[0].declared_type == MountainashDtype.STRING
 
-    def test_categories_on_integer_field_yields_string(self):
-        """categories on an integer-base field still → STRING (registry rule)."""
+    def test_categories_on_integer_field_yields_integer(self):
+        """categories preserve the declared integer base type."""
         spec = _spec(
             FieldSpec(name="f", type=UniversalType.INTEGER, categories=[1, 2, 3]),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
-        assert contract.emitted[0].declared_type == MountainashDtype.STRING
+        assert contract.emitted[0].declared_type == MountainashDtype.I64
 
     def test_array_type_yields_canonical_array(self):
         """ARRAY → to_canonical(ARRAY)."""

@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time
 
 import pytest
 
@@ -52,7 +52,7 @@ def test_temporal_any_rejects_wrong_runtime_types(value: object, kind: str) -> N
 
 @pytest.mark.parametrize(
     "text",
-    ["P3Y6M4DT12H30M5S", "PT.5S", "PT1.S", "PT1.0S", "-P1D"],
+    ["P3Y6M4DT12H30M5S", "P1DT2H", "PT.5S", "PT1.S", "PT1.0S", "-P1D"],
 )
 def test_xsd_duration_accepts_lexical_boundaries(text: str) -> None:
     assert parse_xsd_duration(text) == text

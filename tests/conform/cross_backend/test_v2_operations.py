@@ -1187,4 +1187,4 @@ def test_geojson_serialization_matrix_and_topojson_gates(
         compiled,
         "geometry",
     )
-    assert values == ['{"type":"Point","coordinates":[1.0,2.0]}', "null"]
+    assert values == ['{"type":"Point","coordinates":[1.0,2.0]}', None]

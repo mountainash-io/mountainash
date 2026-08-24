@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 
 import pandas as pd
 import pytest
 
 from mountainash.conform.diagnostics import OperationDiagnosticTrace
-from mountainash.conform.errors import ConformError
+from mountainash.conform.errors import ConformError, ConformTransformError
 from mountainash.conform.expressions import MaterializationResidueCheck
 from mountainash.core.capabilities import (
     Boundary,
@@ -453,15 +452,16 @@ def test_relation_terminal_removes_collision_safe_residue_marker() -> None:
     ).conform(spec).collect()
     assert list(result.columns) == ["duration", "__ma_residue_conform_0_0"]
 
-def test_relation_terminal_true_residue_without_fact_is_invariant() -> None:
+def test_polars_throw_mode_temporal_failure_is_transform_error() -> None:
     import polars as pl
 
     spec = TypeSpec(
         fields_match="open",
         fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
     )
-    with pytest.raises(CapabilityResidueInvariantError):
+    with pytest.raises(ConformTransformError) as raised:
         relation(pl.DataFrame({"duration": ["not-a-duration"]})).conform(spec).collect()
+    assert raised.value.candidates[0].field_name == "duration"
 
 def test_relation_lazy_terminal_removes_residue_markers() -> None:
     import polars as pl

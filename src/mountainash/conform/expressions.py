@@ -121,14 +121,13 @@ def _raise_drift(
 
 
 def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
-    from mountainash.core.dtypes import MountainashDtype
     from mountainash.typespec.converters import resolve_field_canonical
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     if fld.type == UniversalType.LIST:
         return to_canonical(UniversalType.LIST)  # type: ignore[return-value]
     if fld.categories is not None:
-        return MountainashDtype.STRING
+        return resolve_field_canonical(fld) or UNDETERMINED
     if fld.type in {UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME} and fld.format not in ("default", None, "any"):
         return to_canonical(fld.type) or UNDETERMINED
     if fld.type == UniversalType.GEOPOINT:
@@ -180,23 +179,42 @@ def _shape_detail(shape: SourceShape | None) -> str | None:
     return str(shape.canonical_type)
 
 
-def _shape_diff(expected: SourceShape | None, actual: SourceShape | None) -> bool:
+def _shape_diff(
+    expected: SourceShape | None,
+    actual: SourceShape | None,
+    *,
+    numeric_children: bool = False,
+) -> bool:
     if expected is None or actual is None:
         return False
-    if expected.canonical_type != actual.canonical_type:
-        return True
     if expected.canonical_type is None:
         return False
+    if numeric_children and expected.canonical_type.name.startswith(("I", "U", "FP")):
+        return not actual.canonical_type.name.startswith(("I", "U", "FP"))
+    if expected.canonical_type != actual.canonical_type:
+        return True
     if expected.canonical_type.name == "LIST":
-        if (expected.item_shape is None) != (actual.item_shape is None):
+        if expected.item_shape is None:
+            return False
+        if actual.item_shape is None:
             return True
-        return _shape_diff(expected.item_shape, actual.item_shape)
+        return _shape_diff(
+            expected.item_shape,
+            actual.item_shape,
+            numeric_children=numeric_children,
+        )
     if expected.canonical_type.name == "STRUCT":
+        if not expected.struct_fields:
+            return False
         actual_fields = dict(actual.struct_fields)
         if tuple(name for name, _ in expected.struct_fields) != tuple(actual_fields):
             return True
         return any(
-            _shape_diff(child, actual_fields.get(name))
+            _shape_diff(
+                child,
+                actual_fields.get(name),
+                numeric_children=numeric_children,
+            )
             for name, child in expected.struct_fields
         )
     return False
@@ -236,7 +254,7 @@ def _expected_shape(fld: "FieldSpec") -> SourceShape | None:
                     ),
                 ),
             )
-        return SourceShape(canonical, SourceShape(MountainashDtype.STRING))
+        return SourceShape(canonical)
     if canonical is MountainashDtype.STRUCT and fld.object_fields:
         return SourceShape(
             canonical,
@@ -266,6 +284,7 @@ def resolve_conform_output(
     from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
     from mountainash.core.dtypes import CastSafety, MountainashDtype, classify_cast
     from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.typespec.universal_types import UniversalType
 
     fields_match = spec.fields_match
     if fields_match not in _VALID_FIELDS_MATCH:
@@ -336,7 +355,16 @@ def resolve_conform_output(
             expected_shape = _expected_shape(em.field)
             requirement = _shape_detail(expected_shape) or str(declared)
             if actual_shape is None or actual_shape.canonical_type is None:
-                mismatch = TypeDrift(em.field.name, declared, None, "unknown", None, "unknown", requirement=requirement, applied=apply_value_transforms)
+                mismatch = TypeDrift(
+                    em.field.name,
+                    declared,
+                    None,
+                    "unknown",
+                    None,
+                    "unknown",
+                    requirement=requirement,
+                    applied=apply_value_transforms,
+                )
             elif actual_shape.canonical_type != declared:
                 safety = classify_cast(actual_shape.canonical_type, declared)
                 numeric = {
@@ -346,9 +374,33 @@ def resolve_conform_output(
                 }
                 if safety is not CastSafety.SAFE or actual_shape.canonical_type not in numeric or declared not in numeric:
                     reason = "cast_safety" if safety is not CastSafety.SAFE else "representation"
-                    mismatch = TypeDrift(em.field.name, declared, actual_shape.canonical_type, safety.value, None, reason, _shape_detail(actual_shape), requirement, apply_value_transforms)
-            elif _shape_diff(expected_shape, actual_shape):
-                mismatch = TypeDrift(em.field.name, declared, actual_shape.canonical_type, "unsafe", None, "shape", _shape_detail(actual_shape), requirement, apply_value_transforms)
+                    mismatch = TypeDrift(
+                        em.field.name,
+                        declared,
+                        actual_shape.canonical_type,
+                        safety.value,
+                        None,
+                        reason,
+                        _shape_detail(actual_shape),
+                        requirement,
+                        apply_value_transforms,
+                    )
+            elif _shape_diff(
+                expected_shape,
+                actual_shape,
+                numeric_children=em.field.type is UniversalType.GEOPOINT,
+            ):
+                mismatch = TypeDrift(
+                    em.field.name,
+                    declared,
+                    actual_shape.canonical_type,
+                    "unsafe",
+                    None,
+                    "shape",
+                    _shape_detail(actual_shape),
+                    requirement,
+                    apply_value_transforms,
+                )
         elif declared is not None and actual_dtypes is not None:
             requirement = _shape_detail(_expected_shape(em.field)) or str(declared)
             if actual_dtype is None or isinstance(actual_dtype, SchemaTypeStatus):
@@ -430,6 +482,7 @@ def _build_field_expr(
     import mountainash as ma
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+    from mountainash.typespec.spec import FieldSpec
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     fld = field
@@ -450,8 +503,23 @@ def _build_field_expr(
     shape_known = source_shape is not None
     shape = source_shape or SourceShape(None)
     canonical = shape.canonical_type
-    if shape_known and canonical is None and fld.type in {UniversalType.LIST, UniversalType.ARRAY, UniversalType.OBJECT, UniversalType.GEOPOINT, UniversalType.GEOJSON}:
-        raise UnresolvedSourceTypeError(field_name=fld.name, requirement="source shape for typed operation")
+    typed_shapes = {
+        UniversalType.LIST,
+        UniversalType.ARRAY,
+        UniversalType.OBJECT,
+        UniversalType.GEOPOINT,
+        UniversalType.GEOJSON,
+    }
+    unknown_lexical = (
+        fld.type == UniversalType.LIST
+        or (fld.type == UniversalType.GEOPOINT and fld.format == "default")
+    )
+    if canonical is None and fld.type in typed_shapes and not unknown_lexical:
+        raise UnresolvedSourceTypeError(
+            field_name=fld.name,
+            requirement="source shape for typed operation",
+        )
+    incompatible_source = False
     if shape_known:
         allowed = {
             UniversalType.LIST: {MountainashDtype.STRING, MountainashDtype.LIST},
@@ -460,8 +528,29 @@ def _build_field_expr(
             UniversalType.GEOPOINT: {MountainashDtype.STRING, MountainashDtype.LIST, MountainashDtype.STRUCT},
             UniversalType.GEOJSON: {MountainashDtype.STRING, MountainashDtype.JSON, MountainashDtype.STRUCT},
         }
-        if fld.type in allowed and canonical not in allowed[fld.type]:
-            raise IncompatibleSourceTypeError(field_name=fld.name, source_detail=_shape_detail(shape) or "unknown", requirement=f"{fld.type.value} source")
+        if canonical is not None and fld.type in allowed and canonical not in allowed[fld.type]:
+            incompatible_source = True
+        if fld.type == UniversalType.GEOPOINT:
+            numeric = {
+                MountainashDtype.I8, MountainashDtype.I16, MountainashDtype.I32, MountainashDtype.I64,
+                MountainashDtype.U8, MountainashDtype.U16, MountainashDtype.U32, MountainashDtype.U64,
+                MountainashDtype.FP32, MountainashDtype.FP64,
+            }
+            if canonical is MountainashDtype.STRING:
+                incompatible_source |= fld.format == "object"
+            elif canonical is MountainashDtype.LIST:
+                incompatible_source |= (
+                    fld.format != "array"
+                    or shape.item_shape is None
+                    or shape.item_shape.canonical_type not in numeric
+                )
+            elif canonical is MountainashDtype.STRUCT:
+                names = {name for name, _ in shape.struct_fields}
+                incompatible_source |= (
+                    fld.format != "object"
+                    or names != {"lon", "lat"}
+                    or any(child.canonical_type not in numeric for _, child in shape.struct_fields)
+                )
     scalar_types = {
         UniversalType.STRING,
         UniversalType.NUMBER,
@@ -502,6 +591,70 @@ def _build_field_expr(
     if fld.null_fill is not None:
         expr = ma.coalesce(expr, ma.lit(fld.null_fill))
         transform_input = expr
+    if incompatible_source:
+        if type_action == "coerce":
+            raise IncompatibleSourceTypeError(
+                field_name=fld.name,
+                source_detail=_shape_detail(shape) or "unknown",
+                requirement=f"{fld.type.value} source",
+            )
+        if type_action in {"discard_value", "discard_row"}:
+            output = ma.lit(None)
+            typed_value = None
+
+            def _placeholder(inner):
+                if inner.object_fields:
+                    return {
+                        child.name: _placeholder(child)
+                        for child in inner.object_fields
+                    }
+                return None
+
+            if fld.type in {UniversalType.LIST, UniversalType.ARRAY}:
+                if fld.item_object_fields:
+                    typed_value = ma.lit([]).list.cast_items(
+                        item_object_fields=tuple(fld.item_object_fields),
+                        field_name=fld.name,
+                        failure_behavior=CaseFailureBehaviour.NULL,
+                    )
+                elif fld.item_type:
+                    typed_value = ma.lit([]).list.cast_items(
+                        item_type=fld.item_type,
+                        field_name=fld.name,
+                        failure_behavior=CaseFailureBehaviour.NULL,
+                    )
+                else:
+                    typed_value = ma.lit([])
+            elif fld.type == UniversalType.GEOPOINT and fld.format == "array":
+                typed_value = ma.lit([]).list.cast_items(
+                    item_type="number",
+                    field_name=fld.name,
+                    failure_behavior=CaseFailureBehaviour.NULL,
+                )
+            elif fld.type == UniversalType.OBJECT and fld.object_fields:
+                typed_value = ma.lit(_placeholder(fld)).struct.cast(
+                    fields=tuple(fld.object_fields),
+                    field_name=fld.name,
+                    failure_behavior=CaseFailureBehaviour.NULL,
+                )
+            elif fld.type == UniversalType.GEOPOINT and fld.format == "object":
+                coordinate_fields = (
+                    FieldSpec(name="lon", type=UniversalType.NUMBER),
+                    FieldSpec(name="lat", type=UniversalType.NUMBER),
+                )
+                typed_value = ma.lit({"lon": None, "lat": None}).struct.cast(
+                    fields=coordinate_fields,
+                    field_name=fld.name,
+                    failure_behavior=CaseFailureBehaviour.NULL,
+                )
+            if typed_value is not None:
+                output = ma.when(ma.lit(False)).then(typed_value).otherwise(output)
+            elif isinstance(declared_type, MountainashDtype):
+                output = output.cast(declared_type)
+            discard = None
+            if type_action == "discard_row":
+                discard = ~(post_missing.is_not_null() & output.is_null())
+            return FieldBuildResult(output.name.alias(fld.name), discard)
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(fld.name))
     failure = CaseFailureBehaviour.THROW if type_action == "coerce" else CaseFailureBehaviour.NULL
@@ -538,53 +691,52 @@ def _build_field_expr(
         )
     elif fld.type == UniversalType.GEOPOINT:
         fmt = fld.format
-        if shape_known:
-            if canonical is MountainashDtype.STRING:
-                if fmt == "object":
-                    raise IncompatibleSourceTypeError(field_name=fld.name, source_detail="STRING", requirement="native object or lexical array/default geopoint")
-            elif canonical is MountainashDtype.LIST:
-                if fmt != "array" or shape.item_shape is None or shape.item_shape.canonical_type not in {
-                    MountainashDtype.I8, MountainashDtype.I16, MountainashDtype.I32, MountainashDtype.I64,
-                    MountainashDtype.U8, MountainashDtype.U16, MountainashDtype.U32, MountainashDtype.U64,
-                    MountainashDtype.FP32, MountainashDtype.FP64,
-                }:
-                    raise IncompatibleSourceTypeError(field_name=fld.name, source_detail=_shape_detail(shape) or "unknown", requirement="numeric native array geopoint")
-            elif canonical is MountainashDtype.STRUCT:
-                names = {name for name, child in shape.struct_fields}
-                if fmt != "object" or names != {"lon", "lat"} or any(
-                    child.canonical_type not in {
-                        MountainashDtype.I8, MountainashDtype.I16, MountainashDtype.I32, MountainashDtype.I64,
-                        MountainashDtype.U8, MountainashDtype.U16, MountainashDtype.U32, MountainashDtype.U64,
-                        MountainashDtype.FP32, MountainashDtype.FP64,
-                    }
-                    for _, child in shape.struct_fields
-                ):
-                    raise IncompatibleSourceTypeError(field_name=fld.name, source_detail=_shape_detail(shape) or "unknown", requirement="numeric lon/lat native object geopoint")
         representation = "lexical" if lexical else "native"
-        expr = expr.geo.parse_geopoint(format=fmt, source_representation=representation, field_name=fld.name, failure_behavior=failure)
+        expr = expr.geo.parse_geopoint(
+            format=fmt,
+            source_representation=representation,
+            field_name=fld.name,
+            failure_behavior=failure,
+        )
     elif fld.type == UniversalType.GEOJSON and canonical is MountainashDtype.STRUCT and not lexical:
         fmt = fld.format if fld.format in {"default", "topojson"} else "default"
         expr = expr.geo.serialize_geojson(format=fmt, field_name=fld.name)
     elif fld.type == UniversalType.GEOJSON and lexical:
         fmt = fld.format if fld.format in {"default", "topojson"} else "default"
         expr = expr.geo.parse_geojson(format=fmt, field_name=fld.name, failure_behavior=failure)
-    elif fld.type in {UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME} and fld.format not in ("default", None, "any") and lexical:
-        method = {UniversalType.DATE: expr.str.to_date, UniversalType.DATETIME: expr.str.to_datetime, UniversalType.TIME: expr.str.to_time}[fld.type]
-        expr = method(fld.format, field_name=fld.name, failure_behavior=failure)
-    elif fld.type == UniversalType.DATETIME and fld.format == "default" and lexical:
-        expr = expr.dt.parse_default(field_name=fld.name, failure_behavior=failure)
+    elif fld.type == UniversalType.YEAR and canonical in {
+        MountainashDtype.I8, MountainashDtype.I16, MountainashDtype.I32, MountainashDtype.I64,
+        MountainashDtype.U8, MountainashDtype.U16, MountainashDtype.U32, MountainashDtype.U64,
+    }:
+        text = expr.cast(MountainashDtype.STRING)
+        absolute = text.str.regexp_replace(r"^-", "").str.lpad(4, "0")
+        expr = ma.when(text.str.starts_with("-")).then(
+            ma.lit("-").str.concat(absolute)
+        ).otherwise(absolute)
+        expr = expr.dt.parse_xsd_partial_date(
+            kind="year",
+            field_name=fld.name,
+            failure_behavior=failure,
+        )
+        if type_action == "coerce":
+            residue.append(MaterializationResidueCheck(expr.node.function_key, fld.name, transform_input.is_not_null() & expr.is_null()))
     elif fld.type == UniversalType.DURATION and lexical:
-        expr = expr.dt.parse_xsd_duration(field_name=fld.name, failure_behavior=CaseFailureBehaviour.NULL)
+        expr = expr.dt.parse_xsd_duration(field_name=fld.name, failure_behavior=failure)
         if type_action == "coerce":
             residue.append(MaterializationResidueCheck(expr.node.function_key, fld.name, transform_input.is_not_null() & expr.is_null()))
     elif fld.type in {UniversalType.YEAR, UniversalType.YEARMONTH} and lexical:
-        expr = expr.dt.parse_xsd_partial_date(kind=fld.type.value, field_name=fld.name, failure_behavior=CaseFailureBehaviour.NULL)
+        expr = expr.dt.parse_xsd_partial_date(kind=fld.type.value, field_name=fld.name, failure_behavior=failure)
         if type_action == "coerce":
             residue.append(MaterializationResidueCheck(expr.node.function_key, fld.name, transform_input.is_not_null() & expr.is_null()))
     elif fld.type in {UniversalType.DATE, UniversalType.TIME} and fld.format == "any" and lexical:
         expr = expr.dt.parse_temporal_any(fld.type.value, field_name=fld.name, failure_behavior=failure)
     elif fld.type == UniversalType.DATETIME and fld.format == "any" and lexical:
         expr = expr.dt.parse_temporal_any("datetime", field_name=fld.name, failure_behavior=failure)
+    elif fld.type in {UniversalType.DATE, UniversalType.DATETIME, UniversalType.TIME} and fld.format not in ("default", None, "any") and lexical:
+        method = {UniversalType.DATE: expr.str.to_date, UniversalType.DATETIME: expr.str.to_datetime, UniversalType.TIME: expr.str.to_time}[fld.type]
+        expr = method(fld.format, field_name=fld.name, failure_behavior=failure)
+    elif fld.type == UniversalType.DATETIME and fld.format == "default" and lexical:
+        expr = expr.dt.parse_default(field_name=fld.name, failure_behavior=failure)
     elif fld.type and fld.type is not UniversalType.ANY:
         target = to_canonical(fld.type)
         if target is not None:

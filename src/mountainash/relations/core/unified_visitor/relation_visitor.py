@@ -580,11 +580,19 @@ class UnifiedRelationVisitor:
             occupied.update(getattr(field, "name", "") for field in schema.fields)
             marker_exprs = []
             import dataclasses
+            from mountainash.core.capabilities import CapabilityRegistry, ResidueSignal
             residue_checks = []
             marker_trace = self.expr_visitor.diagnostic_trace
             self.expr_visitor.diagnostic_trace = None
             try:
                 for index, check in enumerate(conform_result.residue_checks):
+                    facts = CapabilityRegistry.residue_candidates(
+                        self.backend.backend_type,
+                        getattr(self.backend, "dialect", None),
+                        operation_key=check.function_key,
+                    )
+                    if not any(fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL for fact in facts):
+                        continue
                     alias = self._marker_alias(node_id, index, occupied)
                     marker_expr = self.compile_expression(check.marker).alias(alias)
                     marker_exprs.append(marker_expr)

@@ -394,7 +394,22 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        return x.cast(pl.Datetime, strict=failure_behavior != "null")
+        from mountainash.typespec.temporal import parse_default_datetime
+
+        def parse(value):
+            if value is None:
+                return None
+            try:
+                return parse_default_datetime(value)
+            except (TypeError, ValueError, OverflowError):
+                if failure_behavior == "null":
+                    return None
+                raise
+
+        return x.map_batches(
+            lambda series: series.map_elements(parse, return_dtype=pl.Datetime),
+            return_dtype=pl.Datetime,
+        )
 
     def parse_datetime_default(
         self,

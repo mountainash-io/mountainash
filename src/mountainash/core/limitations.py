@@ -218,12 +218,37 @@ def enrich_materialization(
                 )
             )
         if not matched:
+            from mountainash.relations.core.unified_visitor.relation_visitor import (
+                CONFORM_TRANSFORM_KEYS,
+            )
+            eligible = tuple(
+                diagnostic
+                for diagnostic in diagnostics
+                if diagnostic.backend_family == getattr(family, "value", family)
+                and (
+                    diagnostic.dialect is None
+                    or diagnostic.dialect == active_dialect
+                )
+                and diagnostic.failure_behavior == "throw"
+                and diagnostic.function_key in CONFORM_TRANSFORM_KEYS
+                and (
+                    prefer_operation_keys is None
+                    or diagnostic.function_key in prefer_operation_keys
+                )
+            )
+            if eligible:
+                from mountainash.conform.errors import ConformTransformError
+
+                raise ConformTransformError(
+                    original_error=exc,
+                    candidates=eligible,
+                ) from exc
             active_operation_keys = {diagnostic.function_key for diagnostic in diagnostics}
             residue = CapabilityRegistry.residue_for(family, active_dialect)
-            candidates = (
+            candidates = [
                 item for item in residue.items()
                 if item[0][0] not in active_operation_keys
-            )
+            ]
             if prefer_operation_keys is not None:
                 candidates = [
                     item for item in candidates

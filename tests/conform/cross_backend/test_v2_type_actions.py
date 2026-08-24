@@ -63,8 +63,8 @@ def test_unknown_actual_shape_is_unknown_drift_evidence() -> None:
     assert mismatch.source_detail is None
 
 
-def test_equal_canonical_dtype_with_different_shape_reports_shape_drift() -> None:
-    spec = _spec(FieldSpec(name="a", type=UniversalType.LIST), fields_match="open")
+def test_equal_canonical_dtype_with_declared_item_shape_reports_shape_drift() -> None:
+    spec = _spec(FieldSpec(name="a", type=UniversalType.LIST, item_type="string"), fields_match="open")
     result = resolve_conform_output(
         spec,
         available_columns=("a",),
@@ -103,7 +103,7 @@ def test_shape_drift_uses_configured_action() -> None:
     import dataclasses
     from mountainash.conform.contract import resolve_contract
 
-    spec = _spec(FieldSpec(name="a", type=UniversalType.LIST), fields_match="open")
+    spec = _spec(FieldSpec(name="a", type=UniversalType.LIST, item_type="string"), fields_match="open")
     contract = dataclasses.replace(
         resolve_contract("open"), data_type="discard_value", from_preset=False,
     )
@@ -136,15 +136,15 @@ def test_structural_only_builder_keeps_projection_without_type_operation() -> No
     assert result.residue_checks == []
 
 
-def test_unknown_and_incompatible_shapes_fail_before_operation_lowering() -> None:
+def test_unknown_lexical_and_incompatible_shapes_dispatch_by_contract() -> None:
     from mountainash.conform.expressions import _build_conform_exprs
     unknown = _spec(FieldSpec(name="items", type=UniversalType.LIST), fields_match="open")
-    with pytest.raises(UnresolvedSourceTypeError):
-        _build_conform_exprs(
-            unknown,
-            available_columns=("items",),
-            actual_shapes={"items": SourceShape(None)},
-        )
+    result = _build_conform_exprs(
+        unknown,
+        available_columns=("items",),
+        actual_shapes={"items": SourceShape(None)},
+    )
+    assert result.exprs[0].node.arguments[0].function_key.name == "PARSE"
     incompatible = _spec(FieldSpec(name="items", type=UniversalType.LIST), fields_match="open")
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(

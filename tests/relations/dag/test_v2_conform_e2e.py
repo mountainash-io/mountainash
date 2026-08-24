@@ -116,15 +116,16 @@ def test_public_descriptor_dag_conform_collect() -> None:
     assert result["point_array"].to_list() == [[1.0, 2.0], None, [3.0, 4.0]]
     assert result["point_object"].to_list() == [{"lon": 1.0, "lat": 2.0}, None, {"lon": 3.0, "lat": 4.0}]
     assert result["geometry"].to_list()[0] == '{"type":"Point","coordinates":[1,2]}'
+    assert result["geometry"].to_list()[1] is None
     assert result["topology"].to_list()[0] == '{"type":"Topology","objects":{}}'
     native_geojson = ma.col("native").geo.serialize_geojson(format="default", field_name="native")
     native_compiled = UnifiedExpressionVisitor(PolarsExpressionSystem("polars")).visit(
         native_geojson._node
     )
     native_result = pl.DataFrame(
-        {"native": [{"type": "Point", "coordinates": [1.0, 2.0]}]}
-    ).select(native_compiled)
-    assert native_result["native"].to_list() == ['{"type":"Point","coordinates":[1.0,2.0]}']
+        {"native": [{"type": "Point", "coordinates": [1.0, 2.0]}, None]}
+    ).select(native_compiled.alias("native"))
+    assert native_result["native"].to_list() == ['{"type":"Point","coordinates":[1.0,2.0]}', None]
     assert result["when"].to_list()[0].year == 2024
     assert result["duration"].to_list()[0] is not None
     assert result["year"].to_list() == ["2024", None, "2025"]
