@@ -305,7 +305,7 @@ _LIST_THROW_SUPPORTED = {
     "narwhals-pandas": {"string", "integer", "boolean", "number", "date"},
     "narwhals-lazy": {"string", "integer", "boolean", "number", "date"},
     "ibis-duckdb": {"string", "integer", "boolean", "number", "date", "time"},
-    "ibis-polars": {"string", "integer", "boolean", "number", "date"},
+    "ibis-polars": {"string"},
     "ibis-sqlite": set(),
 }
 _LIST_NULL_SUPPORTED = {
@@ -370,9 +370,6 @@ def test_list_parse_matrix_covers_every_item_type(
                 compiled, "values",
             )
         return
-    if backend_name == "ibis-polars" and item_type != "string":
-        assert build() is not None
-        return
     values = _extract(
         backend_name, {"values": list(_LIST_INPUTS[item_type])}, build(), "values",
     )
@@ -386,7 +383,6 @@ def test_list_parse_matrix_covers_every_item_type(
         assert values == [[True, False], [True, False]]
     elif item_type == "number":
         assert values == [[1.5, 2.5], [3.5, 4.5]]
-
 
 _LIST_INVALID_INPUTS = {
     "integer": ("1|bad", "3|4"),
@@ -452,9 +448,6 @@ def test_list_parse_invalid_item_is_complete_value_failure(
                 compiled,
                 "values",
             )
-        return
-    if backend_name == "ibis-polars" and item_type != "string":
-        assert build() is not None
         return
     if failure_behavior is CaseFailureBehaviour.THROW:
         with pytest.raises(Exception):
@@ -548,9 +541,6 @@ def test_list_cast_items_recursive_matrix(
             build=build,
         )
         return
-    if backend_name == "ibis-polars":
-        assert build() is not None
-        return
     values = _extract(
         backend_name,
         {"items": [[{"payload": {"id": "1"}}, {"payload": {"id": "2"}}]]},
@@ -613,9 +603,6 @@ def test_struct_cast_recursive_matrix(
             option_value=failure_behavior.value,
             build=build,
         )
-        return
-    if backend_name == "ibis-polars":
-        assert build() is not None
         return
     values = _extract(
         backend_name,
@@ -693,3 +680,22 @@ def test_categorical_cast_preserves_supported_base_values(
         backend_name, {"status": [source_value]}, build(), "status",
     )
     assert values == ([source_value] if value_type == "string" else [2])
+
+@pytest.mark.parametrize("backend_name", ("pandas", "narwhals-pandas"))
+def test_narwhals_pandas_categorical_integer_nulls_invalid_values(
+    backend_name: str,
+) -> None:
+    expr = ma.col("status").cat.cast(
+        value_type="integer",
+        categories=(1, 2),
+        ordered=True,
+        failure_behavior=CaseFailureBehaviour.NULL,
+        field_name="status",
+    )
+    values = _extract(
+        backend_name,
+        {"status": ["bad", "2", None]},
+        _compile_for(backend_name, expr),
+        "status",
+    )
+    assert values == [None, 2, None]

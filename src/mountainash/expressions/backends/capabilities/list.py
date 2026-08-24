@@ -15,7 +15,7 @@ _THROW_SUPPORTED = {
     (CONST_BACKEND.NARWHALS, "narwhals-pandas"): {"string", "integer", "number", "boolean", "date"},
     (CONST_BACKEND.NARWHALS, "narwhals-lazy"): {"string", "integer", "number", "boolean", "date"},
     (CONST_BACKEND.IBIS, "ibis-duckdb"): {"string", "integer", "boolean", "number", "date", "time"},
-    (CONST_BACKEND.IBIS, "ibis-polars"): {"string", "integer", "boolean", "number", "date"},
+    (CONST_BACKEND.IBIS, "ibis-polars"): {"string"},
     (CONST_BACKEND.IBIS, "ibis-sqlite"): set(),
 }
 _NULL_SUPPORTED = {

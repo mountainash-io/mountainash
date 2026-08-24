@@ -57,3 +57,16 @@ Implemented the Task 4 list, categorical, and struct operation slices.
 - Focused Task 4 gate: `279 passed, 23 deselected, 4 warnings` from `hatch run test:test-target-quick tests/conform/test_v2_operation_ast.py tests/conform/cross_backend/test_v2_operations.py -k "list or categorical or struct" -v`.
 - Scoped Ruff: `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
 - `git diff --check` passed.
+
+## Post-cap blocker repairs
+
+- Ibis-Polars `LIST.PARSE` non-string cells materialized through `_extract()` and exposed an upstream `ArrayMap` execution gap. The capability matrix now declares only string parsing supported on this dialect, and the ALL_BACKENDS tests assert exact `item_type` gates for integer, boolean, number, date, datetime, and time cells. Compile-only exits were removed for parse, invalid-item, recursive list-cast, and recursive struct-cast paths; the latter two now materialize and assert behavior.
+- Narwhals-Pandas integer categorical null mode now uses a null-on-failure `map_batches` conversion, preserving valid integers and returning null for invalid or original-null values. Added regression coverage for both the `pandas` alias and `narwhals-pandas` dialect.
+
+## Focused verification
+
+- `hatch run test:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k 'ibis-polars' -v` — 30 passed.
+- `hatch run test:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_invalid_values -v` — 2 passed.
+- `hatch run test:test-target-quick tests/core/test_capability_declarations.py tests/core/test_capability_gate.py tests/core/test_divergence_facts.py tests/conform/cross_backend/test_v2_operations.py -k 'list or categorical or struct or ibis_polars or narwhals_pandas' -v` — 282 passed, 35 deselected, 4 warnings.
+- `hatch run ruff:check src/mountainash/expressions/backends/capabilities/list.py src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+- `git diff --check` — passed.
