@@ -15,3 +15,8 @@ class MountainashError(Exception):
 
 class InvalidOptionValueError(MountainashError, ValueError):
     """Raised when a known Substrait option receives an illegal value."""
+
+
+
+class CapabilityResidueInvariantError(MountainashError, RuntimeError):
+    """A true materialization marker has no declared residue fact."""

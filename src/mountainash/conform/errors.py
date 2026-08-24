@@ -5,11 +5,12 @@ field count mismatches, and transform compilation failures.
 
 See: https://datapackage.org/standard/table-schema/#fieldsMatch
 """
-from __future__ import annotations
-
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
 from mountainash.core.errors import MountainashError
+
+if TYPE_CHECKING:
+    from mountainash.conform.diagnostics import OperationDiagnostic
 
 
 class ConformError(MountainashError):
@@ -72,14 +73,32 @@ class ConformTransformError(ConformError):
     """The conform pipeline failed due to incompatible source data types."""
 
     def __init__(
-        self, *, original_error: Exception, spec_summary: str
+        self,
+        *,
+        original_error: Exception,
+        candidates: tuple["OperationDiagnostic", ...] = (),
+        spec_summary: str | None = None,
     ) -> None:
         self.original_error = original_error
-        self.spec_summary = spec_summary
-        super().__init__(
-            f"Conform transform failed: {original_error}. "
-            f"Check TypeSpec parsing properties: {spec_summary}"
+        self.candidates = tuple(
+            sorted(candidates, key=lambda item: (item.field_name, item.logical_type, item.format))
         )
+        # Kept while older callers migrate to the diagnostic trace contract.
+        self.spec_summary = spec_summary
+        if len(self.candidates) == 1:
+            candidate = self.candidates[0]
+            detail = (
+                f"field {candidate.field_name!r}, logical type "
+                f"{candidate.logical_type!r}, format {candidate.format!r}"
+            )
+        elif self.candidates:
+            fields = sorted({candidate.field_name for candidate in self.candidates})
+            detail = f"candidate fields {fields!r}"
+        elif spec_summary is not None:
+            detail = f"Check TypeSpec parsing properties: {spec_summary}"
+        else:
+            detail = "no matching conform operation diagnostic"
+        super().__init__(f"Conform transform failed: {original_error}; {detail}")
 
 
 class SchemaDriftError(ConformError):

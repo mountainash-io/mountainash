@@ -11,7 +11,11 @@ level (the root is the only error exported from the package `__init__`).
 """
 from __future__ import annotations
 
-from mountainash.core.errors import InvalidOptionValueError, MountainashError
+from mountainash.core.errors import (
+    CapabilityResidueInvariantError,
+    InvalidOptionValueError,
+    MountainashError,
+)
 from mountainash.conform.errors import (
     ConformError,
     MissingFieldsError,
@@ -88,6 +92,7 @@ __all__ = [
     "RelationDAGRequired",
     "MissingResourceSchema",
     "UnsupportedResourceFormat",
+    "CapabilityResidueInvariantError",
     "DtypeError",
     "UnknownDtypeError",
     "DtypeMappingError",

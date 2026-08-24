@@ -5,6 +5,7 @@ Corresponds to Substrait's ScalarFunction message.
 
 from __future__ import annotations
 from typing import Any, Dict, List
+from pydantic import Field
 
 from .exn_base import ExpressionNode
 from ...expression_system.function_keys.enums import (
@@ -45,6 +46,7 @@ class ScalarFunctionNode(ExpressionNode):
     # substrait_name: str
     arguments: List[ExpressionNode]
     options: Dict[str, Any] = {}
+    diagnostic_context: Dict[str, str] = Field(default_factory=dict)
 
     def accept(self, visitor: Any) -> Any:
         """Accept a visitor for double-dispatch."""

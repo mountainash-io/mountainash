@@ -143,6 +143,13 @@ class EmittedField:
     effective_type: Optional[Any] = None
 
 
+
+@dataclass(frozen=True)
+class MaterializationResidueCheck:
+    function_key: Any
+    field_name: str
+    marker: Any
+
 @dataclass(frozen=True)
 class ConformOutputContract:
     """The pure structural decision of what conform will produce.
