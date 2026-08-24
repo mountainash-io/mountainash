@@ -88,3 +88,69 @@ def test_recursive_fields_remain_raw_serializable_options() -> None:
     dumped = node.model_dump(mode="json")
     assert dumped["options"]["fields"][0]["object_fields"][0]["name"] == "id"
     assert not any(type(value).__name__ == "NativeNode" for value in node.options.values())
+def test_structural_builders_reject_every_invalid_literal_shape() -> None:
+    source = ma.col("source")
+    field = FieldSpec(name="id", type=UniversalType.INTEGER)
+    invalid_builders = (
+        lambda: source.str.parse_list(field_name=None),
+        lambda: source.str.parse_list(field_name="x", item_type=None),
+        lambda: source.str.parse_list(field_name="x", item_type=object()),
+        lambda: source.str.parse_list(field_name="x", delimiter=None),
+        lambda: source.str.parse_list(field_name="x", delimiter=1),
+        lambda: source.str.parse_list(field_name="x", failure_behavior="throw"),
+        lambda: source.list.cast_items(field_name="x", item_object_fields=None),
+        lambda: source.list.cast_items(field_name="x", item_object_fields=[field]),
+        lambda: source.list.cast_items(field_name="x", item_object_fields=(object(),)),
+        lambda: source.cat.cast(field_name="x", value_type=None, categories=(), ordered=False),
+        lambda: source.cat.cast(field_name="x", value_type="float", categories=(), ordered=False),
+        lambda: source.cat.cast(field_name="x", value_type="string", categories=["x"], ordered=False),
+        lambda: source.cat.cast(field_name="x", value_type="string", categories=(1,), ordered=False),
+        lambda: source.cat.cast(field_name="x", value_type="integer", categories=(True,), ordered=False),
+        lambda: source.cat.cast(field_name="x", value_type="integer", categories=(1,), ordered=1),
+        lambda: source.struct.cast(field_name="x", fields=None),
+        lambda: source.struct.cast(field_name="x", fields=[field]),
+        lambda: source.struct.cast(field_name="x", fields=(object(),)),
+    )
+    for build in invalid_builders:
+        with pytest.raises(InvalidOptionValueError):
+            build()
+
+
+def test_recursive_list_and_struct_options_are_backend_agnostic() -> None:
+    nested = FieldSpec(
+        name="items",
+        type=UniversalType.ARRAY,
+        item_object_fields=[
+            FieldSpec(
+                name="payload",
+                type=UniversalType.OBJECT,
+                object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+            )
+        ],
+    )
+    nodes = (
+        ma.col("source").list.cast_items(item_object_fields=(nested,), field_name="items"),
+        ma.col("source").struct.cast(fields=(nested,), field_name="payload"),
+    )
+    forbidden = ("NativeNode", "Expr", "DataType", "DType")
+    for built in nodes:
+        dumped = built._node.model_dump(mode="json")
+        assert dumped["options"]
+        key = "item_object_fields" if "item_object_fields" in dumped["options"] else "fields"
+        assert dumped["options"][key][0]["name"] == "items"
+        nested_key = "item_object_fields" if "item_object_fields" in dumped["options"][key][0] else "object_fields"
+        assert dumped["options"][key][0][nested_key][0]["name"] == "payload"
+        def walk(value):
+            if isinstance(value, dict):
+                for child in value.values():
+                    yield from walk(child)
+            elif isinstance(value, (list, tuple)):
+                for child in value:
+                    yield from walk(child)
+            else:
+                yield value
+        assert not any(type(value).__name__ in forbidden for value in walk(built._node.options))
+        assert not any(
+            type(value).__module__.startswith(("polars", "narwhals", "ibis"))
+            for value in walk(built._node.options)
+        )

@@ -24,7 +24,7 @@ def unsupported(
     if conditions:
         param = option or next(iter(conditions))
         if value is None:
-            value = conditions.get("failure_behavior")
+            value = conditions.get(param) or conditions.get("failure_behavior")
     else:
         param = option or "*"
     return CapabilityFact(

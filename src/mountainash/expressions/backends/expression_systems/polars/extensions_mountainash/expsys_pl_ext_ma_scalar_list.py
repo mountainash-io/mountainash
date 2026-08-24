@@ -36,9 +36,17 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
             normalized = (
                 pl.element()
                 .cast(pl.String, strict=False)
-                .str.to_lowercase()
                 .replace_strict(
-                    {"true": "1", "1": "1", "false": "0", "0": "0"},
+                    {
+                        "true": "1",
+                        "True": "1",
+                        "TRUE": "1",
+                        "1": "1",
+                        "false": "0",
+                        "False": "0",
+                        "FALSE": "0",
+                        "0": "0",
+                    },
                     default="__invalid__",
                     return_dtype=pl.String,
                 )

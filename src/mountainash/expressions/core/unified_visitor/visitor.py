@@ -395,6 +395,7 @@ class UnifiedExpressionVisitor:
                 )
                 blocks_option = (
                     fact is not None
+                    and fact.predicate is None
                     and fact.enforcement is Enforcement.GATE
                     and (
                         fact.level is CapabilityLevel.UNSUPPORTED

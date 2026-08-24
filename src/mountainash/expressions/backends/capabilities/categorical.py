@@ -12,7 +12,6 @@ _MSG = "This backend cannot execute CATEGORICAL.CAST for the requested value typ
 _FACTS = (
     unsupported(FK_CAT.CAST, CONST_BACKEND.IBIS, "ibis-sqlite", message=_MSG, option="value_type", value_type="integer"),
     unsupported(FK_CAT.CAST, CONST_BACKEND.NARWHALS, "narwhals-polars", message=_MSG, option="value_type", value_type="integer", failure_behavior="null"),
-    unsupported(FK_CAT.CAST, CONST_BACKEND.IBIS, "ibis-sqlite", message=_MSG, option="value_type", value_type="integer", failure_behavior="null"),
 )
 _FACTS = _FACTS + tuple(
     replace(f, dialect="narwhals-lazy")

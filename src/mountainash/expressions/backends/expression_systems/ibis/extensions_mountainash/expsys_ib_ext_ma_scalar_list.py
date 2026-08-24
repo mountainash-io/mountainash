@@ -35,10 +35,27 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         values = x.split(delimiter)
         if item_type == "string":
             return values
+        if item_type == "boolean":
+            true_values = ("true", "True", "TRUE", "1")
+            false_values = ("false", "False", "FALSE", "0")
+            invalid = ibis.literal("__invalid_boolean_token__").cast("boolean")
+            parsed = values.map(
+                lambda item: ibis.cases(
+                    (item.isin(true_values), ibis.literal(True)),
+                    (item.isin(false_values), ibis.literal(False)),
+                    else_=invalid,
+                )
+            )
+            if failure_behavior == "null":
+                invalid_items = parsed.map(lambda item: item.isnull()).anys().fill_null(False)
+                return ibis.ifelse(
+                    x.isnull(), ibis.null(),
+                    ibis.ifelse(invalid_items, ibis.null(), parsed),
+                )
+            return parsed
         target = {
             "integer": "int64",
             "number": "float64",
-            "boolean": "boolean",
             "datetime": "timestamp",
             "date": "date",
             "time": "time",

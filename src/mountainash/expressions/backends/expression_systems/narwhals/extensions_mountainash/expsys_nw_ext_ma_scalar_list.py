@@ -27,13 +27,46 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         delimiter: str = ",",
         failure_behavior: str = "throw",
     ):
+        return self._call_with_expr_support(
+            lambda: self._parse_list_impl(
+                x,
+                item_type=item_type,
+                delimiter=delimiter,
+                failure_behavior=failure_behavior,
+            ),
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            item_type=item_type,
+            failure_behavior=failure_behavior,
+        )
+
+    def _parse_list_impl(
+        self,
+        x,
+        *,
+        item_type: str,
+        delimiter: str,
+        failure_behavior: str,
+    ):
         values = x.str.split(delimiter)
         if item_type == "string":
             return values
+        if item_type == "boolean":
+            import re
+
+            escaped = re.escape(delimiter)
+            normalized = x
+            for tokens, replacement in (
+                ("true|True|TRUE|1", "1"),
+                ("false|False|FALSE|0", "0"),
+            ):
+                normalized = normalized.str.replace_all(
+                    rf"(^|{escaped})({tokens})",
+                    rf"${{1}}{replacement}",
+                )
+            return normalized.str.split(delimiter).cast(nw.List(nw.Int8)).cast(nw.List(nw.Boolean))
         target = {
             "integer": nw.Int64,
             "number": nw.Float64,
-            "boolean": nw.Boolean,
             "datetime": nw.Datetime,
             "date": nw.Date,
             "time": nw.Time,
@@ -51,7 +84,6 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
         return x.cast(dtype)
-    """Narwhals implementation of list operations."""
 
     def list_sum(self, x: NarwhalsExpr, /):
         return x.list.sum()

@@ -400,6 +400,20 @@ class CapabilityRegistry:
             )
             if vc_fact is not None:
                 return vc_fact
+            conditioned = sorted(
+                (
+                    fact
+                    for fact in cls._predicate_facts
+                    if fact.operation_key == operation_key
+                    and fact.param == param
+                    and fact.option_value == option_value
+                    and fact.backend is backend
+                    and (fact.dialect is None or fact.dialect == dialect)
+                ),
+                key=lambda fact: fact.fact_key,
+            )
+            if conditioned:
+                return conditioned[0]
         for key in (
             (operation_key, param, backend, dialect, None),
             (operation_key, param, backend, None, None),
