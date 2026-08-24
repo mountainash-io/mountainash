@@ -82,3 +82,16 @@ Implemented the Task 4 list, categorical, and struct operation slices.
 - `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_invalid_values -q` — 2 passed.
 - `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k categorical -q` — 39 passed, 248 deselected.
 - `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+
+## Signed-Int64 overflow repair
+
+- Added a Narwhals-Pandas categorical integer null-mode regression for `"9223372036854775808"` across both the `pandas` alias and `narwhals-pandas` dialect. The test keeps the valid `"2"` result and original `None` null behavior, and asserts `nw.Int64` output.
+- `_cast_integer_null` now maps every converted integer outside signed 64-bit range (`[-2**63, 2**63 - 1]`) to null before constructing pandas nullable `Int64`; in-range values and existing invalid/null handling remain unchanged.
+
+## Overflow repair verification
+
+- Red regression: `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow -q` — **2 failed** with pandas `OverflowError` before the repair.
+- Green regression: same command — **2 passed**.
+- Focused categorical suite: `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k categorical -q` — **41 passed, 248 deselected**.
+- Scoped Ruff: `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+- `git diff --check` — passed.

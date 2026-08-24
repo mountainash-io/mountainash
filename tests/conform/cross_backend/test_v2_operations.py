@@ -708,3 +708,28 @@ def test_narwhals_pandas_categorical_integer_nulls_invalid_values(
     assert values[1] == 2
     assert pd.isna(values[0])
     assert pd.isna(values[2])
+
+@pytest.mark.parametrize("backend_name", ("pandas", "narwhals-pandas"))
+def test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow(
+    backend_name: str,
+) -> None:
+    expr = ma.col("status").cat.cast(
+        value_type="integer",
+        categories=(1, 2),
+        ordered=True,
+        failure_behavior=CaseFailureBehaviour.NULL,
+        field_name="status",
+    )
+    data = {"status": ["9223372036854775808", "2", None]}
+    values = _extract(
+        backend_name,
+        data,
+        _compile_for(backend_name, expr),
+        "status",
+    )
+    frame = BackendDataFrameFactory.create(data, backend_name)
+    result = frame.select(_compile_for(backend_name, expr).alias("status"))
+    assert result["status"].dtype == nw.Int64
+    assert pd.isna(values[0])
+    assert values[1] == 2
+    assert pd.isna(values[2])

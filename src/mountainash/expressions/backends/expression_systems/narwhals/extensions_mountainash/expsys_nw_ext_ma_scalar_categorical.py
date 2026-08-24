@@ -26,14 +26,20 @@ def _cast_integer_null(series):
             if not value.lstrip("+-").isdigit():
                 values.append(None)
                 continue
-            values.append(int(value))
-            continue
-        try:
             converted = int(value)
-        except (TypeError, ValueError, OverflowError):
-            values.append(None)
         else:
-            values.append(converted if converted == value else None)
+            try:
+                converted = int(value)
+            except (TypeError, ValueError, OverflowError):
+                values.append(None)
+                continue
+            if converted != value:
+                values.append(None)
+                continue
+        if -(1 << 63) <= converted <= (1 << 63) - 1:
+            values.append(converted)
+        else:
+            values.append(None)
     return series._with_native(
         pd.Series(values, index=series.native.index, dtype="Int64"),
     )
