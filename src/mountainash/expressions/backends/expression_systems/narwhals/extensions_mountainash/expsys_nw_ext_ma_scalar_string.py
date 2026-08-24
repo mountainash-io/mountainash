@@ -43,7 +43,6 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         x,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ):
         from mountainash.core.types import BackendCapabilityError

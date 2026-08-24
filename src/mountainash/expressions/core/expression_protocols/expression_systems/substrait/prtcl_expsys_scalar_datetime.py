@@ -153,7 +153,6 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         x: ExpressionT,
         /,
         format: str,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Parse string into time using provided format."""
@@ -164,7 +163,6 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         x: ExpressionT,
         /,
         format: str,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Parse string into date using provided format."""
@@ -176,7 +174,6 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         /,
         format: str,
         timezone: Optional[str] = None,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Parse string into timestamp using provided format."""
@@ -195,7 +192,6 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         self,
         x: ExpressionT,
         /,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Parse a Frictionless default datetime value."""
@@ -205,7 +201,6 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         self,
         x: ExpressionT,
         /,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Validate an XSD duration lexical value."""
@@ -215,7 +210,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         self,
         x: ExpressionT,
         /,
-        field_name: Optional[str] = None,
+        kind: str,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Validate an XSD partial-date lexical value."""
@@ -226,7 +221,6 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         x: ExpressionT,
         /,
         kind: str,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Parse a Frictionless temporal-any value."""

@@ -15,6 +15,7 @@ from mountainash.core.capabilities import (
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+    FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
 )
 
 
@@ -814,6 +815,19 @@ _EVIDENCE = ProbeEvidence(
     ),
 )
 
+_TEMPORAL_NULL_FACTS = tuple(
+    CapabilityFact(
+        operation_key=FK_MA_STR.TO_TIME,
+        param="failure_behavior",
+        option_value="null",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=backend,
+        message="null-on-invalid custom time parsing is supported only by Polars",
+        since="2026-08-21",
+    )
+    for backend in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS)
+)
+
 _EVIDENCE_ASCII_FOLD = ProbeEvidence(
     probe_date=_SINCE_ASCII_FOLD,
     library_versions=(("ibis", "12.0.0"), ("narwhals", "2.24.0")),
@@ -1023,6 +1037,20 @@ DECLARATIONS = (
         facts=_IBIS_SQLITE_REGEXP_STRING_SPLIT_FACTS
         + _IBIS_POLARS_REGEXP_STRING_SPLIT_DYNAMIC_FACTS,
         evidence=_EVIDENCE_SPLIT_FAMILY,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.IBIS,
+        domain=Domain.STRING,
+        source=FactSource.MOUNTAINASH,
+        facts=(_TEMPORAL_NULL_FACTS[0],),
+        evidence=_EVIDENCE,
+    ),
+    CapabilityDeclaration(
+        backend=CONST_BACKEND.NARWHALS,
+        domain=Domain.STRING,
+        source=FactSource.MOUNTAINASH,
+        facts=(_TEMPORAL_NULL_FACTS[1],),
+        evidence=_EVIDENCE,
     ),
     CapabilityDeclaration(
         backend=CONST_BACKEND.NARWHALS, domain=Domain.STRING,

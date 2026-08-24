@@ -482,7 +482,7 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def parse_default(
         self,
         *,
-        field_name: Optional[str] = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         """Parse a Frictionless default datetime value."""
@@ -491,7 +491,7 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def parse_xsd_duration(
         self,
         *,
-        field_name: Optional[str] = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         """Validate an XSD duration lexical value."""
@@ -500,7 +500,8 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
     def parse_xsd_partial_date(
         self,
         *,
-        field_name: Optional[str] = None,
+        kind: str,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         """Validate an XSD partial-date lexical value."""
@@ -510,7 +511,7 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
         self,
         kind: str,
         *,
-        field_name: Optional[str] = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         """Parse a Frictionless temporal-any value."""

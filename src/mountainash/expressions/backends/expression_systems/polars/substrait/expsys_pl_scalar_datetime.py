@@ -20,6 +20,15 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
+def _valid_or_none(value, parser):
+    if value is None:
+        return False
+    try:
+        parser(value)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return True
+
 # Substrait canonical unit name -> Polars duration-string suffix. Combined
 # with an integer multiplier (e.g. "2d", "3h", "1mo") this is accepted
 # natively by Polars' dt.truncate/dt.round/dt.offset_by -- verified against
@@ -354,7 +363,6 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
         return x.str.to_time(format, strict=failure_behavior != "null")
@@ -364,7 +372,6 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
         return x.str.to_date(format, strict=failure_behavior != "null")
@@ -375,38 +382,40 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         format: str,
         timezone: Optional[str] = None,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
         result = x.str.to_datetime(format, strict=failure_behavior != "null")
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
-    def parse_default(
-        self,
-        x: PolarsExpr,
-        /,
-        field_name: str | None = None,
-        failure_behavior: str = "throw",
-    ) -> PolarsExpr:
-        return x.cast(pl.Datetime, strict=failure_behavior != "null")
-
     def parse_xsd_duration(
         self,
         x: PolarsExpr,
         /,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
+        if failure_behavior == "null":
+            valid = x.str.contains(
+                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?S)?)?$"
+            ) & ~x.is_in(["P", "-P", "PT", "-PT"])
+            return pl.when(valid).then(x).otherwise(None)
         return x
 
     def parse_xsd_partial_date(
         self,
         x: PolarsExpr,
         /,
-        field_name: str | None = None,
+        kind: str,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
+        if failure_behavior == "null":
+            pattern = (
+                r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+                + (r"-(?:0[1-9]|1[0-2])" if kind == "yearmonth" else "")
+                + r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+            )
+            valid = x.str.contains(pattern) & ~x.is_in(["-0000"])
+            return pl.when(valid).then(x).otherwise(None)
         return x
 
     def parse_temporal_any(
@@ -414,17 +423,20 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         kind: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
         from mountainash.typespec.temporal import parse_temporal_any
 
         dtype = {"date": pl.Date, "time": pl.Time, "datetime": pl.Datetime}[kind]
+        def parse(value):
+            try:
+                return parse_temporal_any(value, kind=kind)
+            except (TypeError, ValueError, OverflowError):
+                if failure_behavior == "null":
+                    return None
+                raise
         return x.map_batches(
-            lambda series: series.map_elements(
-                lambda value: parse_temporal_any(value, kind=kind) if value is not None else None,
-                return_dtype=dtype,
-            ),
+            lambda series: series.map_elements(parse, return_dtype=dtype),
             return_dtype=dtype,
         )
 

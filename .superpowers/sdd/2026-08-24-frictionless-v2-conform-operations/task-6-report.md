@@ -24,3 +24,18 @@ Status: complete
   - Passed.
 
 Commit: `feat(conform): add Frictionless temporal operations` (final hash reported with delivery)
+
+## Correction wave
+
+- Enforced XML Schema year/yearMonth lexical grammar, including valid `0000`/`+0000` and invalid `-0000`, ASCII duration digits, and explicit duration guards.
+- Restricted default datetime text to the required `T`-separated forms and normalized aware native datetime/time values to UTC-naive values.
+- Added partial-date and temporal-any kind validation, exact `parse_datetime_default` wire naming, and diagnostic-only field metadata for new temporal operations.
+- Updated backend signatures, custom temporal null-mode capability facts, and temporal AST contract coverage.
+
+Correction verification:
+
+- Final focused Task 6 command: 652 passed, 2387 deselected, 12 existing deprecation warnings.
+- Temporal parser tests: 46 passed.
+- Temporal signature subset: 59 passed.
+- Temporal AST subset: 5 passed.
+- Scoped Ruff checks and `git diff --check`: passed.

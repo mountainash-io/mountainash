@@ -73,6 +73,7 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 from mountainash.typespec.temporal import (
+    PartialDateKind,
     TemporalKind,
     parse_default_datetime,
     parse_temporal_any,
@@ -139,6 +140,7 @@ __all__ = [
     "NarwhalsConverter",
     "TypeConverterSpec",
     # Temporal parsers
+    "PartialDateKind",
     "TemporalKind",
     "parse_default_datetime",
     "parse_temporal_any",

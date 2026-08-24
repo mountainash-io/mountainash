@@ -355,7 +355,6 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
         raise NotImplementedError(
@@ -367,7 +366,6 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
         return x.str.to_date(format=format)
@@ -378,7 +376,6 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         format: str,
         timezone: str = None,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
         result = x.str.to_datetime(format=format)
@@ -389,7 +386,6 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
         return x.str.to_datetime()
@@ -398,26 +394,35 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
+        if failure_behavior == "null":
+            valid = x.str.contains(
+                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?S)?)?$"
+            ) & ~x.is_in(["P", "-P", "PT", "-PT"])
+            return nw.when(valid).then(x).otherwise(None)
         return x
 
     def parse_xsd_partial_date(
         self,
         x: NarwhalsExpr,
         /,
-        field_name: str | None = None,
+        kind: str,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
+        if failure_behavior == "null":
+            pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+            if kind == "yearmonth":
+                pattern += r"-(?:0[1-9]|1[0-2])"
+            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+            valid = x.str.contains(pattern) & ~x.is_in(["-0000"])
+            return nw.when(valid).then(x).otherwise(None)
         return x
-
     def parse_temporal_any(
         self,
         x: NarwhalsExpr,
         /,
         kind: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
         return x

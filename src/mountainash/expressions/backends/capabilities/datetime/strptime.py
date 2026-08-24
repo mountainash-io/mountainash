@@ -70,6 +70,18 @@ _IBIS_SQLITE_FACTS = tuple(
     )
     for op_key in (FK_SUB_DT.STRPTIME_DATE, FK_SUB_DT.STRPTIME_TIMESTAMP)
 )
+_IBIS_NULL_FACTS = tuple(
+    CapabilityFact(
+        operation_key=op_key,
+        param="failure_behavior",
+        option_value="null",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        message="null-on-invalid custom temporal parsing is supported only by Polars",
+        since="2026-08-21",
+    )
+    for op_key in (FK_SUB_DT.STRPTIME_DATE, FK_SUB_DT.STRPTIME_TIMESTAMP)
+)
 
 _NARWHALS_PANDAS_MSG = (
     "narwhals raises NotImplementedError for str.to_date() on the default "
@@ -77,6 +89,18 @@ _NARWHALS_PANDAS_MSG = (
     "the polars API); str.to_datetime() is unaffected and stays supported"
 )
 
+_NARWHALS_NULL_FACTS = tuple(
+    CapabilityFact(
+        operation_key=op_key,
+        param="failure_behavior",
+        option_value="null",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.NARWHALS,
+        message="null-on-invalid custom temporal parsing is supported only by Polars",
+        since="2026-08-21",
+    )
+    for op_key in (FK_SUB_DT.STRPTIME_DATE, FK_SUB_DT.STRPTIME_TIMESTAMP)
+)
 _NARWHALS_FACTS = (
     CapabilityFact(
         operation_key=FK_SUB_DT.STRPTIME_DATE,
@@ -111,13 +135,13 @@ DECLARATIONS = (
     CapabilityDeclaration(
         backend=CONST_BACKEND.IBIS, domain=Domain.DATETIME,
         source=FactSource.SUBSTRAIT,
-        facts=_IBIS_SQLITE_FACTS,
+        facts=_IBIS_SQLITE_FACTS + _IBIS_NULL_FACTS,
         evidence=_EVIDENCE,
     ),
     CapabilityDeclaration(
         backend=CONST_BACKEND.NARWHALS, domain=Domain.DATETIME,
         source=FactSource.SUBSTRAIT,
-        facts=_NARWHALS_FACTS,
+        facts=_NARWHALS_FACTS + _NARWHALS_NULL_FACTS,
         evidence=_EVIDENCE,
     ),
 )

@@ -356,7 +356,6 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         return x.cast("time")
@@ -366,7 +365,6 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         return x.as_date(format)
@@ -377,7 +375,6 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         format: str,
         timezone: str = None,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         return x.as_timestamp(format).cast("timestamp")
@@ -385,7 +382,6 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         return x.cast("timestamp")
@@ -394,26 +390,34 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         self,
         x: IbisValueExpr,
         /,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
+        if failure_behavior == "null":
+            valid = x.re_search(r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?S)?)?$")
+            valid = valid & ~x.isin(["P", "-P", "PT", "-PT"])
+            return valid.ifelse(x, None)
         return x
 
     def parse_xsd_partial_date(
         self,
         x: IbisValueExpr,
         /,
-        field_name: str | None = None,
+        kind: str,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
+        if failure_behavior == "null":
+            pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+            if kind == "yearmonth":
+                pattern += r"-(?:0[1-9]|1[0-2])"
+            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+            valid = x.re_search(pattern) & ~x.isin(["-0000"])
+            return valid.ifelse(x, None)
         return x
-
     def parse_temporal_any(
         self,
         x: IbisValueExpr,
         /,
         kind: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
         return x

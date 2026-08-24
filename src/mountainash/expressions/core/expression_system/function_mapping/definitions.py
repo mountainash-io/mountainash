@@ -770,14 +770,14 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_date",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_date,
-            options=("format", "field_name", "failure_behavior"),
+            options=("format", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_timestamp",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
-            options=("format", "timezone", "field_name", "failure_behavior"),
+            options=("format", "timezone", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
@@ -785,15 +785,15 @@ def register_all_functions() -> None:
             substrait_name="to_time",
             is_extension=True,
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.to_time,
-            options=("format", "field_name", "failure_behavior"),
+            options=("format", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
             substrait_uri=MountainashExtension.DATETIME,
-            substrait_name="parse_default",
+            substrait_name="parse_datetime_default",
             is_extension=True,
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_default,
-            options=("field_name", "failure_behavior"),
+            options=("failure_behavior",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
@@ -801,7 +801,7 @@ def register_all_functions() -> None:
             substrait_name="parse_xsd_duration",
             is_extension=True,
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_xsd_duration,
-            options=("field_name", "failure_behavior"),
+            options=("failure_behavior",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
@@ -809,7 +809,7 @@ def register_all_functions() -> None:
             substrait_name="parse_xsd_partial_date",
             is_extension=True,
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_xsd_partial_date,
-            options=("field_name", "failure_behavior"),
+            options=("kind", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
@@ -817,7 +817,7 @@ def register_all_functions() -> None:
             substrait_name="parse_temporal_any",
             is_extension=True,
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_temporal_any,
-            options=("kind", "field_name", "failure_behavior"),
+            options=("kind", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,

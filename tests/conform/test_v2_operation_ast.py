@@ -10,6 +10,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
 from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
@@ -28,6 +29,31 @@ def test_structural_keys_have_one_exact_mapping() -> None:
         fdef = ExpressionFunctionRegistry.get(key)
         assert fdef.substrait_name == name
         assert fdef.protocol_method.__name__ == protocol
+
+
+def test_temporal_keys_have_exact_wire_mappings() -> None:
+    expected = {
+        FK_DT.PARSE_DEFAULT: "parse_datetime_default",
+        FK_DT.PARSE_XSD_DURATION: "parse_xsd_duration",
+        FK_DT.PARSE_XSD_PARTIAL_DATE: "parse_xsd_partial_date",
+        FK_DT.PARSE_TEMPORAL_ANY: "parse_temporal_any",
+    }
+    for key, name in expected.items():
+        assert ExpressionFunctionRegistry.get(key).substrait_name == name
+
+
+def test_temporal_nodes_keep_diagnostics_out_of_backend_options() -> None:
+    expr = ma.col("source")
+    nodes = (
+        expr.dt.parse_default(field_name="value"),
+        expr.dt.parse_xsd_duration(field_name="duration"),
+        expr.dt.parse_xsd_partial_date(kind="yearmonth", field_name="yearmonth"),
+        expr.dt.parse_temporal_any("datetime", field_name="value"),
+    )
+    for built in nodes:
+        node = built._node
+        assert "field_name" not in node.options
+        assert node.diagnostic_context["field_name"]
 
 
 def test_structural_nodes_keep_arguments_options_and_diagnostics_separate() -> None:

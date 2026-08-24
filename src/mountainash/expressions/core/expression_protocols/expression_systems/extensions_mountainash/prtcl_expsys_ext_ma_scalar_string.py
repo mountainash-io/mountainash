@@ -56,7 +56,6 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
         x: ExpressionT,
         /,
         format: str,
-        field_name: Optional[str] = None,
         failure_behavior: str = "throw",
     ) -> ExpressionT:
         """Parse string to time using format string."""

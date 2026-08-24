@@ -398,6 +398,14 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
             value_type="integer", categories=(1, 2), ordered=True, field_name="x"
         ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: lambda: c.dt.parse_default(field_name="x"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION: lambda: c.dt.parse_xsd_duration(field_name="x"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE: lambda: c.dt.parse_xsd_partial_date(
+            kind="year", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY: lambda: c.dt.parse_temporal_any(
+            "date", field_name="x"
+        ),
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),

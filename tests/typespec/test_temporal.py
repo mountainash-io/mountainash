@@ -64,15 +64,37 @@ def test_xsd_duration_rejects_invalid_lexical_forms(text: str) -> None:
         parse_xsd_duration(text)
 
 
-@pytest.mark.parametrize("text", ["2024", "2024-01", "-2024", "12345678901234567890-12", "2024-01Z", "2024-01+14:00"])
-def test_xsd_partial_date_accepts_year_and_yearmonth_forms(text: str) -> None:
-    assert parse_xsd_partial_date(text) == text
+@pytest.mark.parametrize(
+    "text,kind",
+    [
+        ("+0000", "year"),
+        ("0000", "year"),
+        ("2024-01", "yearmonth"),
+        ("-2024", "year"),
+        ("12345678901234567890-12", "yearmonth"),
+        ("2024-01Z", "yearmonth"),
+        ("2024-01+14:00", "yearmonth"),
+    ],
+)
+def test_xsd_partial_date_accepts_year_and_yearmonth_forms(text: str, kind: str) -> None:
+    assert parse_xsd_partial_date(text, kind=kind) == text
 
 
-@pytest.mark.parametrize("text", ["0000", "-0000", "2024-00", "2024-13", "2024-01+14:01", "2024-01+99:00"])
-def test_xsd_partial_date_rejects_invalid_lexical_forms(text: str) -> None:
+@pytest.mark.parametrize(
+    "text,kind",
+    [
+        ("-0000", "year"),
+        ("2024-00", "yearmonth"),
+        ("2024-13", "yearmonth"),
+        ("2024-01+14:01", "yearmonth"),
+        ("2024-01+99:00", "yearmonth"),
+        ("202", "year"),
+        ("01234", "year"),
+    ],
+)
+def test_xsd_partial_date_rejects_invalid_lexical_forms(text: str, kind: str) -> None:
     with pytest.raises(ValueError):
-        parse_xsd_partial_date(text)
+        parse_xsd_partial_date(text, kind=kind)
 
 
 def test_default_datetime_accepts_native_values_and_required_forms() -> None:
@@ -81,14 +103,23 @@ def test_default_datetime_accepts_native_values_and_required_forms() -> None:
     dt = datetime(2024, 1, 2, 3, 4, 5)
     assert parse_default_datetime(d) == datetime(2024, 1, 2)
     assert parse_default_datetime(t) == datetime(2000, 1, 1, 3, 4, 5)
-    assert parse_default_datetime(dt) is dt
+    assert parse_default_datetime(dt) == dt
     assert parse_default_datetime("2024-01-02T03:04:05") == dt
-    assert parse_default_datetime("2024-01-02 03:04:05") == dt
+    assert parse_default_datetime("2024-01-02T03:04:05.1") == datetime(2024, 1, 2, 3, 4, 5, 100000)
+    assert parse_default_datetime("2024-01-02T03:04:05Z") == dt
+    assert parse_default_datetime("2024-01-02T03:04:05+02:00") == datetime(2024, 1, 2, 1, 4, 5)
 
 
 def test_default_datetime_rejects_invalid_text() -> None:
     with pytest.raises((TypeError, ValueError)):
         parse_default_datetime("not-a-datetime")
+
+
+def test_default_datetime_rejects_date_only_and_space_forms() -> None:
+    with pytest.raises(ValueError):
+        parse_default_datetime("2024-01-02")
+    with pytest.raises(ValueError):
+        parse_default_datetime("2024-01-02 03:04:05")
 
 
 @pytest.mark.parametrize("method", ["to_date", "to_datetime", "to_time"])

@@ -9,7 +9,7 @@ from typing import Literal
 from dateutil.parser import UnknownTimezoneWarning, parse, parserinfo
 
 TemporalKind = Literal["date", "time", "datetime"]
-
+PartialDateKind = Literal["year", "yearmonth"]
 
 class _FixedParserInfo(parserinfo):
     def convertyear(self, year: int, century_specified: bool = False) -> int:
@@ -57,63 +57,73 @@ def parse_temporal_any(
     return parsed
 
 
-_TZ = r"(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)"
+_TZ = r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])"
 _DURATION = re.compile(
-    r"^-?P(?=\d|T(?:\d|\.))"
-    r"(?:\d+Y)?"
-    r"(?:\d+M)?"
-    r"(?:\d+D)?"
-    r"(?:T(?:(?:\d+H)?(?:\d+M)?(?:(?:\d+(?:\.\d*)?|\.\d+)S)?))?$"
+    r"^-?P"
+    r"(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?"
+    r"(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?$"
 )
 
 
 def parse_xsd_duration(value: str) -> str:
     """Validate and return an XSD duration lexical value."""
-    if not isinstance(value, str) or not _DURATION.fullmatch(value):
-        raise ValueError(f"invalid XSD duration: {value!r}")
+    if not isinstance(value, str):
+        raise TypeError("XSD duration must be text")
     body = value[1:] if value.startswith("-") else value
-    if body == "P" or body.endswith("T"):
+    if body in {"P", "PT"} or body.endswith("T"):
+        raise ValueError(f"invalid XSD duration: {value!r}")
+    if _DURATION.fullmatch(value) is None:
         raise ValueError(f"invalid XSD duration: {value!r}")
     return value
 
 
-_PARTIAL_DATE = re.compile(rf"^(?P<year>-?[0-9]+)(?:-(?P<month>0[1-9]|1[0-2]))?(?P<tz>{_TZ})?$")
+_YEAR = r"(?:\+[0-9]{4}|[0-9]{4}|[1-9][0-9]{4,})"
+_NEGATIVE_YEAR = r"(?:-[0-9]{4}|-[1-9][0-9]{4,})"
+_PARTIAL_DATE = {
+    "year": re.compile(rf"^(?:{_YEAR}|{_NEGATIVE_YEAR}){_TZ}?$"),
+    "yearmonth": re.compile(rf"^(?:{_YEAR}|{_NEGATIVE_YEAR})-(?:0[1-9]|1[0-2]){_TZ}?$"),
+}
 
 
-def parse_xsd_partial_date(value: str) -> str:
-    """Validate an XSD gYear/gYearMonth lexical value."""
+def parse_xsd_partial_date(value: str, *, kind: PartialDateKind) -> str:
+    """Validate an XSD gYear or gYearMonth lexical value."""
     if not isinstance(value, str):
         raise TypeError("XSD partial date must be text")
-    match = _PARTIAL_DATE.fullmatch(value)
-    if match is None:
+    if kind not in _PARTIAL_DATE:
+        raise ValueError(f"invalid XSD partial-date kind: {kind!r}")
+    if _PARTIAL_DATE[kind].fullmatch(value) is None or value == "-0000":
         raise ValueError(f"invalid XSD partial date: {value!r}")
-    year = match.group("year")
-    if not year.lstrip("-") or set(year.lstrip("-")) == {"0"}:
-        raise ValueError(f"invalid XSD partial date: {value!r}")
-    tz = match.group("tz")
-    if tz and tz not in {"Z"}:
-        hours, minutes = map(int, tz[1:].split(":"))
+    if value.endswith("Z"):
+        return value
+    tz = value[-6:] if len(value) >= 6 and value[-6] in "+-" else None
+    if tz is not None:
+        hours, minutes = int(tz[1:3]), int(tz[4:6])
         if hours > 14 or (hours == 14 and minutes != 0):
             raise ValueError(f"invalid XSD partial date: {value!r}")
     return value
 
 
 _DEFAULT_DATETIME = re.compile(
-    rf"^(?:"
-    rf"\d{{4}}-\d{{2}}-\d{{2}}"
-    rf"(?:[T ]\d{{2}}:\d{{2}}:\d{{2}}(?:\.\d+)?(?:{_TZ})?)?"
-    rf")$"
+    rf"^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T"
+    rf"[0-9]{{2}}:[0-9]{{2}}:[0-9]{{2}}(?:\.[0-9]+)?(?:{_TZ})?$"
 )
+
+
+def _naive_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def parse_default_datetime(value: str | date | time | datetime) -> datetime:
     """Parse a Frictionless default datetime value."""
     if type(value) is datetime:
-        return value
+        return _naive_utc(value)
     if type(value) is date:
         return datetime.combine(value, time())
     if type(value) is time:
-        return datetime.combine(date(2000, 1, 1), value)
+        combined = datetime.combine(date(2000, 1, 1), value)
+        return _naive_utc(combined)
     if not isinstance(value, str):
         raise TypeError("datetime value must be text or a native temporal value")
     if _DEFAULT_DATETIME.fullmatch(value) is None:
@@ -129,4 +139,5 @@ __all__ = [
     "parse_temporal_any",
     "parse_xsd_duration",
     "parse_xsd_partial_date",
+    "PartialDateKind",
 ]

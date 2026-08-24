@@ -906,24 +906,33 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         function_key,
         *,
         kind: str | None = None,
-        field_name: str | None = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         from ._operation_options import validate_failure_behavior, validate_field_name
 
-        if field_name is not None:
-            field_name = validate_field_name(function_key.name.lower(), field_name)
+        field_name = validate_field_name(function_key.name.lower(), field_name)
         failure_behavior = validate_failure_behavior(function_key.name.lower(), failure_behavior)
-        options = {"field_name": field_name, "failure_behavior": failure_behavior.value}
+        options = {"failure_behavior": failure_behavior.value}
         if kind is not None:
             options["kind"] = kind
-        node = ScalarFunctionNode(function_key=function_key, arguments=[self._node], options=options)
+        diagnostic_context = {
+            "field_name": field_name,
+            "logical_type": kind or function_key.name.lower(),
+            "format": kind or "default",
+        }
+        node = ScalarFunctionNode(
+            function_key=function_key,
+            arguments=[self._node],
+            options=options,
+            diagnostic_context=diagnostic_context,
+        )
         return self._build(node)
 
     def parse_default(
         self,
         *,
-        field_name: str | None = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         return self._parse_temporal(
@@ -935,7 +944,7 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
     def parse_xsd_duration(
         self,
         *,
-        field_name: str | None = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
         return self._parse_temporal(
@@ -947,11 +956,16 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
     def parse_xsd_partial_date(
         self,
         *,
-        field_name: str | None = None,
+        kind: str,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
+        if kind not in {"year", "yearmonth"}:
+            from ._operation_options import invalid
+            invalid("parse_xsd_partial_date", "kind", "must be year or yearmonth")
         return self._parse_temporal(
             FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+            kind=kind,
             field_name=field_name,
             failure_behavior=failure_behavior,
         )
@@ -960,9 +974,12 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         self,
         kind: str,
         *,
-        field_name: str | None = None,
+        field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
+        if kind not in {"date", "time", "datetime"}:
+            from ._operation_options import invalid
+            invalid("parse_temporal_any", "kind", "must be date, time, or datetime")
         return self._parse_temporal(
             FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
             kind=kind,

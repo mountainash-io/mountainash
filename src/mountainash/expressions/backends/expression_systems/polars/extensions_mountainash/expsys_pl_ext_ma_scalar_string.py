@@ -42,7 +42,6 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         x,
         /,
         format: str,
-        field_name: str | None = None,
         failure_behavior: str = "throw",
     ):
         return x.str.to_time(format, strict=failure_behavior != "null")
