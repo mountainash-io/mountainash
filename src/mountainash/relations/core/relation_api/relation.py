@@ -172,6 +172,18 @@ class Relation(RelationBase):
         """
         return Relation(node)
 
+    def _without_resource_schema_conform(self) -> Relation:
+        """Copy resource-read leaves for validation before validator conform."""
+        from ..relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+        return self._make(
+            self._walk_and_push(
+                self._node,
+                lambda node: node.model_copy(update={"apply_schema_conform": False}),
+                ResourceReadRelNode,
+            )
+        )
+
     # --- Filtering ---
 
     def filter(self, *predicates: Any) -> Relation:

@@ -58,7 +58,7 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
     def _read_and_conform():
         out = visitor.backend.read_resource(node.resource)
         spec = node.resource.to_typespec()
-        if spec is not None:
+        if spec is not None and node.apply_schema_conform:
             out = visitor.apply_conform(
                 out,
                 spec,
