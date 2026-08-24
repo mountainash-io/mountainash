@@ -70,6 +70,22 @@ class TestBooleanExtensionMethods:
         assert isinstance(node, LiteralNode)
         assert node.value is False
 
+    def test_parse_boolean_tokens(self):
+        expr = ma.col("flag").parse_boolean(
+            true_values=("yes",),
+            false_values=("no",),
+            field_name="flag",
+        )
+        node = expr._node
+        assert isinstance(node, ScalarFunctionNode)
+        assert node.function_key == FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS
+        assert node.options == {
+            "true_values": ("yes",),
+            "false_values": ("no",),
+            "failure_behavior": "throw",
+        }
+        assert node.diagnostic_context["field_name"] == "flag"
+
 
 class TestBooleanAliases:
     def test_xor_alias(self):

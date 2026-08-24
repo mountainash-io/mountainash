@@ -173,7 +173,10 @@ def _shape_detail(shape: SourceShape | None) -> str | None:
     if shape.canonical_type.name == "LIST" and shape.item_shape is not None:
         return f"LIST[{_shape_detail(shape.item_shape) or 'unknown'}]"
     if shape.canonical_type.name == "STRUCT":
-        return "STRUCT{" + ",".join(name for name, _ in shape.struct_fields) + "}"
+        return "STRUCT{" + ",".join(
+            f"{name}:{_shape_detail(child) or 'unknown'}"
+            for name, child in shape.struct_fields
+        ) + "}"
     return str(shape.canonical_type)
 
 
@@ -202,14 +205,38 @@ def _shape_diff(expected: SourceShape | None, actual: SourceShape | None) -> boo
 def _expected_shape(fld: "FieldSpec") -> SourceShape | None:
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.typespec.converters import resolve_field_canonical
-    from mountainash.typespec.universal_types import parse_universal, to_canonical
+    from mountainash.typespec.universal_types import parse_universal, to_canonical, UniversalType
 
     canonical = resolve_field_canonical(fld)
     if canonical is None:
         return None
-    if canonical is MountainashDtype.LIST and fld.item_type:
-        item = to_canonical(parse_universal(fld.item_type))
-        return SourceShape(canonical, SourceShape(item)) if item else SourceShape(canonical)
+    if fld.type is UniversalType.GEOPOINT:
+        if fld.format == "array":
+            return SourceShape(canonical, SourceShape(MountainashDtype.FP64))
+        if fld.format == "object":
+            return SourceShape(
+                canonical,
+                struct_fields=(
+                    ("lon", SourceShape(MountainashDtype.FP64)),
+                    ("lat", SourceShape(MountainashDtype.FP64)),
+                ),
+            )
+    if canonical is MountainashDtype.LIST:
+        if fld.item_type:
+            item = to_canonical(parse_universal(fld.item_type))
+            return SourceShape(canonical, SourceShape(item)) if item else SourceShape(canonical)
+        if fld.item_object_fields:
+            return SourceShape(
+                canonical,
+                SourceShape(
+                    MountainashDtype.STRUCT,
+                    struct_fields=tuple(
+                        (inner.name, _expected_shape(inner) or SourceShape(None))
+                        for inner in fld.item_object_fields
+                    ),
+                ),
+            )
+        return SourceShape(canonical, SourceShape(MountainashDtype.STRING))
     if canonical is MountainashDtype.STRUCT and fld.object_fields:
         return SourceShape(
             canonical,
@@ -306,19 +333,28 @@ def resolve_conform_output(
         actual_dtype = (actual_dtypes or {}).get(em.source_name)
         mismatch: TypeDrift | None = None
         if declared is not None and actual_shapes is not None:
+            expected_shape = _expected_shape(em.field)
+            requirement = _shape_detail(expected_shape) or str(declared)
             if actual_shape is None or actual_shape.canonical_type is None:
-                mismatch = TypeDrift(em.field.name, declared, None, "unknown", None, "unknown", requirement=str(declared), applied=apply_value_transforms)
+                mismatch = TypeDrift(em.field.name, declared, None, "unknown", None, "unknown", requirement=requirement, applied=apply_value_transforms)
             elif actual_shape.canonical_type != declared:
                 safety = classify_cast(actual_shape.canonical_type, declared)
-                if safety is not CastSafety.SAFE:
-                    mismatch = TypeDrift(em.field.name, declared, actual_shape.canonical_type, safety.value, None, "cast_safety", _shape_detail(actual_shape), str(declared), apply_value_transforms)
-            elif _shape_diff(_expected_shape(em.field), actual_shape):
-                mismatch = TypeDrift(em.field.name, declared, actual_shape.canonical_type, "unsafe", None, "shape", _shape_detail(actual_shape), str(declared), apply_value_transforms)
+                numeric = {
+                    MountainashDtype.I8, MountainashDtype.I16, MountainashDtype.I32, MountainashDtype.I64,
+                    MountainashDtype.U8, MountainashDtype.U16, MountainashDtype.U32, MountainashDtype.U64,
+                    MountainashDtype.FP32, MountainashDtype.FP64,
+                }
+                if safety is not CastSafety.SAFE or actual_shape.canonical_type not in numeric or declared not in numeric:
+                    reason = "cast_safety" if safety is not CastSafety.SAFE else "representation"
+                    mismatch = TypeDrift(em.field.name, declared, actual_shape.canonical_type, safety.value, None, reason, _shape_detail(actual_shape), requirement, apply_value_transforms)
+            elif _shape_diff(expected_shape, actual_shape):
+                mismatch = TypeDrift(em.field.name, declared, actual_shape.canonical_type, "unsafe", None, "shape", _shape_detail(actual_shape), requirement, apply_value_transforms)
         elif declared is not None and actual_dtypes is not None:
+            requirement = _shape_detail(_expected_shape(em.field)) or str(declared)
             if actual_dtype is None or isinstance(actual_dtype, SchemaTypeStatus):
-                mismatch = TypeDrift(em.field.name, declared, actual_dtype, "unknown", None, "unknown", None, str(declared), apply_value_transforms)
+                mismatch = TypeDrift(em.field.name, declared, actual_dtype, "unknown", None, "unknown", None, requirement, apply_value_transforms)
             elif classify_cast(actual_dtype, declared) is not CastSafety.SAFE:
-                mismatch = TypeDrift(em.field.name, declared, actual_dtype, "unsafe", None, "cast_safety", str(actual_dtype), str(declared), apply_value_transforms)
+                mismatch = TypeDrift(em.field.name, declared, actual_dtype, "unsafe", None, "cast_safety", str(actual_dtype), requirement, apply_value_transforms)
         if mismatch is None:
             resolved.append(em)
             continue
@@ -445,7 +481,7 @@ def _build_field_expr(
     sentinels = fld.missing_values if fld.missing_values is not None else schema_missing_values
     from mountainash.typespec._categorical import categorical_values
     sentinel_values = categorical_values(list(sentinels))
-    if sentinel_values and fld.type in scalar_types and lexical and (fld.missing_values is not None or sentinel_values != [""] or fld.type == UniversalType.STRING):
+    if sentinel_values and fld.type in scalar_types and lexical:
         if fld.type == UniversalType.BOOLEAN:
             true_values = fld.true_values or ["true", "True", "TRUE", "1"]
             false_values = fld.false_values or ["false", "False", "FALSE", "0"]
@@ -481,15 +517,14 @@ def _build_field_expr(
     elif fld.type == UniversalType.ARRAY and canonical is MountainashDtype.LIST and fld.item_object_fields and not lexical:
         expr = expr.list.cast_items(item_object_fields=tuple(fld.item_object_fields), field_name=fld.name, failure_behavior=failure)
     elif fld.type == UniversalType.BOOLEAN:
-        true_values = fld.true_values or ["true", "True", "TRUE", "1"]
-        false_values = fld.false_values or ["false", "False", "FALSE", "0"]
-        text = expr.cast(MountainashDtype.STRING)
-        mapped = (
-            ma.when(text.is_in(*true_values)).then(ma.lit(True))
-            .when(text.is_in(*false_values)).then(ma.lit(False))
-            .otherwise(ma.lit(None))
+        true_values = tuple(fld.true_values or ["true", "True", "TRUE", "1"])
+        false_values = tuple(fld.false_values or ["false", "False", "FALSE", "0"])
+        expr = expr.parse_boolean(
+            true_values=true_values,
+            false_values=false_values,
+            field_name=fld.name,
+            failure_behavior=failure,
         )
-        expr = mapped.cast(MountainashDtype.BOOL, failure_behavior=failure)
     elif fld.type == UniversalType.OBJECT and fld.object_fields and not lexical:
         expr = expr.struct.cast(fields=tuple(fld.object_fields), field_name=fld.name, failure_behavior=failure)
     elif fld.categories is not None:
@@ -593,7 +628,10 @@ def _build_conform_exprs(
         if not apply_value_transforms:
             import mountainash as ma
             if emitted.type_action == "null_fill":
-                exprs.append(ma.lit(None).name.alias(emitted.field.name))
+                source = ma.lit(None)
+                if isinstance(emitted.declared_type, MountainashDtype):
+                    source = source.cast(emitted.declared_type)
+                exprs.append(source.name.alias(emitted.field.name))
                 continue
             source = ma.col(emitted.source_name.split(".", 1)[0])
             for part in emitted.source_name.split(".")[1:]:

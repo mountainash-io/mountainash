@@ -28,6 +28,7 @@ class FactSource(Enum):
 
 class Domain(Enum):
     STRING = "string"
+    BOOLEAN = "boolean"
     ARITHMETIC = "arithmetic"
     DATETIME = "datetime"
     LIST = "list"
@@ -43,6 +44,7 @@ class Domain(Enum):
 # the extension is forced, not forgotten.
 _DOMAIN_SUFFIXES: dict[str, Domain] = {
     "STRING": Domain.STRING,
+    "BOOLEAN": Domain.BOOLEAN,
     "ARITHMETIC": Domain.ARITHMETIC,
     "DATETIME": Domain.DATETIME,
     "LIST": Domain.LIST,

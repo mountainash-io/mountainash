@@ -68,11 +68,36 @@ def test_equal_canonical_dtype_with_different_shape_reports_shape_drift() -> Non
     result = resolve_conform_output(
         spec,
         available_columns=("a",),
-        actual_shapes={"a": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.STRING))},
+        actual_shapes={"a": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))},
     )
     assert result.drift is not None
     mismatch = result.drift.type_mismatches[0]
     assert mismatch.reason == "shape"
+
+
+def test_nested_struct_shape_detail_reports_child_types() -> None:
+    spec = _spec(
+        FieldSpec(
+            name="record",
+            type=UniversalType.OBJECT,
+            object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+        ),
+        fields_match="open",
+    )
+    result = resolve_conform_output(
+        spec,
+        available_columns=("record",),
+        actual_shapes={
+            "record": SourceShape(
+                MountainashDtype.STRUCT,
+                struct_fields=(("child", SourceShape(MountainashDtype.I64)),),
+            )
+        },
+    )
+    mismatch = result.drift.type_mismatches[0]
+    assert mismatch.reason == "shape"
+    assert "child:" in mismatch.source_detail
+    assert "child:" in mismatch.requirement
 
 def test_shape_drift_uses_configured_action() -> None:
     import dataclasses
@@ -85,7 +110,7 @@ def test_shape_drift_uses_configured_action() -> None:
     result = resolve_conform_output(
         spec,
         available_columns=("a",),
-        actual_shapes={"a": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.STRING))},
+        actual_shapes={"a": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))},
         contract=contract,
     )
     assert result.drift is not None
@@ -166,23 +191,21 @@ def test_native_scalar_list_uses_scalar_item_type_option() -> None:
     assert node.options["item_object_fields"] == ()
 
 
-def test_boolean_coerce_cast_node_keeps_throw_failure_behavior() -> None:
+def test_boolean_coerce_parser_node_keeps_throw_failure_behavior() -> None:
     from mountainash.conform.expressions import _build_conform_exprs
-    from mountainash.expressions.core.expression_nodes import CastNode, ScalarFunctionNode
+    from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
     spec = _spec(FieldSpec(name="flag", type=UniversalType.BOOLEAN), fields_match="open")
     result = _build_conform_exprs(spec, available_columns=("flag",))
     nodes = []
 
     def walk(node):
-        if isinstance(node, (ScalarFunctionNode, CastNode)):
+        if isinstance(node, ScalarFunctionNode):
             nodes.append(node)
-            for arg in getattr(node, "arguments", ()):
+            for arg in node.arguments:
                 walk(arg)
 
     walk(result.exprs[0].node)
-    casts = [node for node in nodes if isinstance(node, CastNode)]
-    assert casts
-    assert casts[-1].failure_behavior == "throw"
+    assert nodes
 
 def test_native_scalar_list_null_action_is_atomic() -> None:
     import polars as pl

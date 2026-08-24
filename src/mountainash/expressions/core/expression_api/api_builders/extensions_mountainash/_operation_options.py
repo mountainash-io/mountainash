@@ -63,6 +63,15 @@ def validate_categories(method: str, value_type: Any, categories: Any, ordered: 
     return categories
 
 
+def validate_boolean_tokens(method: str, option: str, values: Any) -> tuple[str, ...]:
+    if not isinstance(values, tuple) or not values:
+        invalid(method, option, "must be a non-empty tuple of strings")
+    for index, value in enumerate(values):
+        if not isinstance(value, str):
+            invalid(method, f"{option}[{index}]", "must be a string")
+    return values
+
+
 GEOPOINT_FORMATS = frozenset({"default", "array", "object"})
 GEOPOINT_REPRESENTATIONS = frozenset({"lexical", "native"})
 GEOJSON_FORMATS = frozenset({"default", "topojson"})

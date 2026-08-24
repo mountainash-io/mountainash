@@ -302,6 +302,14 @@ def register_all_functions() -> None:
             is_extension=True,
             protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.xor_parity,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+            substrait_uri=MountainashExtension.BOOLEAN,
+            substrait_name="parse_boolean",
+            is_extension=True,
+            options=("true_values", "false_values", "failure_behavior"),
+            protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.parse_boolean,
+        ),
     ]
 
     # ========================================

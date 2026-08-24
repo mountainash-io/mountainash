@@ -53,6 +53,7 @@ class MountainashExtension:
     LIST = "file://extensions/functions_list.yaml"
     AGGREGATE = "file://extensions/functions_aggregate.yaml"
     CATEGORICAL = "file://extensions/functions_categorical.yaml"
+    BOOLEAN = "file://extensions/functions_boolean.yaml"
 
 
     GEOSPATIAL = "file://extensions/functions_geospatial.yaml"
@@ -585,6 +586,7 @@ class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
     """Mountainash boolean extensions not in Substrait."""
 
     XOR_PARITY = "xor_parity"
+    PARSE_TOKENS = "parse_tokens"
 
 
 class FKEY_MOUNTAINASH_SCALAR_AGGREGATE(Enum):

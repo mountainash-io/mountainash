@@ -30,6 +30,17 @@ class MountainAshScalarBooleanAPIBuilderProtocol(Protocol):
         """Boolean constant FALSE."""
         ...
 
+    def parse_boolean(
+        self,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        field_name: str,
+        failure_behavior: Any = ...,
+    ) -> BaseExpressionAPI:
+        """Parse configured literal tokens into a nullable boolean."""
+        ...
+
     # Short alias
     def xor_(
         self,
