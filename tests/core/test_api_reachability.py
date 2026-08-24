@@ -19,6 +19,8 @@ import mountainash as ma
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
 
 _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
@@ -34,6 +36,7 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         FKEY_MOUNTAINASH_SCALAR_DATETIME as MD,
         FKEY_MOUNTAINASH_SCALAR_LIST as ML,
         FKEY_MOUNTAINASH_SCALAR_STRUCT as MS,
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as MC,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE as SA,
         FKEY_SUBSTRAIT_SCALAR_DATETIME as SD,
         SUBSTRAIT_ARITHMETIC_WINDOW as SW,
@@ -53,7 +56,11 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         MD.ROUND: lambda: c.dt.round("day"),
         ML.GET: lambda: c.list.get(0),
         ML.TO_ARRAY: lambda: c.list.to_array(width=2),
+        ML.CAST_ITEMS: lambda: c.list.cast_items(item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        ML.PARSE: lambda: c.str.parse_list(field_name="x"),
         MS.FIELD: lambda: c.struct.field("x"),
+        MS.CAST: lambda: c.struct.cast(fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        MC.CAST: lambda: c.cat.cast(value_type="integer", categories=(1, 2), ordered=True, field_name="x"),
         SW.NTILE: lambda: c.ntile(4).over("b"),
         # Namespace collision: the generic resolver finds list.median first.
         SA.MEDIAN: lambda: ma.median(0, c),

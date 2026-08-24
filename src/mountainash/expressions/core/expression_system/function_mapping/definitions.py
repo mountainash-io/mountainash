@@ -44,6 +44,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_LIST,
+    FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -81,8 +82,9 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarListExpressionSystemProtocol,
-    MountainAshScalarTernaryExpressionSystemProtocol,
+    MountainAshScalarCategoricalExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
+    MountainAshScalarTernaryExpressionSystemProtocol,
 )
 
 
@@ -2221,6 +2223,21 @@ def register_all_functions() -> None:
     # Mountainash Struct Extensions
     # ========================================
 
+    # ========================================
+    # Mountainash Categorical Extensions
+    # ========================================
+
+    MOUNTAINASH_CATEGORICAL_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST,
+            substrait_uri=MountainashExtension.CATEGORICAL,
+            substrait_name="cast_categorical",
+            is_extension=True,
+            options=("value_type", "categories", "ordered", "failure_behavior"),
+            protocol_method=MountainAshScalarCategoricalExpressionSystemProtocol.cast_categorical,
+        ),
+    ]
+
     MOUNTAINASH_STRUCT_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD,
@@ -2230,6 +2247,14 @@ def register_all_functions() -> None:
             options=("field_name",),
             protocol_method=MountainAshScalarStructExpressionSystemProtocol.struct_field,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
+            substrait_uri=MountainashExtension.STRUCT,
+            substrait_name="cast_struct",
+            is_extension=True,
+            options=("fields", "failure_behavior"),
+            protocol_method=MountainAshScalarStructExpressionSystemProtocol.cast_struct,
+        ),
     ]
 
     # ========================================
@@ -2237,6 +2262,22 @@ def register_all_functions() -> None:
     # ========================================
 
     MOUNTAINASH_LIST_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            substrait_uri=MountainashExtension.LIST,
+            substrait_name="parse_list",
+            is_extension=True,
+            options=("item_type", "delimiter", "failure_behavior"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.parse_list,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            substrait_uri=MountainashExtension.LIST,
+            substrait_name="cast_list_items",
+            is_extension=True,
+            options=("item_object_fields", "failure_behavior"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.cast_list_items,
+        ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_sum", is_extension=True,
@@ -2513,9 +2554,10 @@ def register_all_functions() -> None:
         + MOUNTAINASH_DATETIME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_LIST_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_AGGREGATE_FUNCTIONS  # Mountainash aggregate extensions
+        + MOUNTAINASH_CATEGORICAL_FUNCTIONS
+        + MOUNTAINASH_STRUCT_FUNCTIONS
+        + MOUNTAINASH_LIST_FUNCTIONS
+        + MOUNTAINASH_AGGREGATE_FUNCTIONS
         + MOUNTAINASH_COMPARISON_FUNCTIONS  # Mountainash comparison extensions
     )
 

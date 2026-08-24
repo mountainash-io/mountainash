@@ -31,10 +31,11 @@ class Domain(Enum):
     ARITHMETIC = "arithmetic"
     DATETIME = "datetime"
     LIST = "list"
+    CATEGORICAL = "categorical"
+    STRUCT = "struct"
     SET = "set"
     TERNARY = "ternary"
     RELATION = "relation"
-
 
 # Enum-class-name suffix -> Domain. Extended only when a new FKEY/RKEY
 # category gains declaration facts; classify_domain raises on unknowns so
@@ -44,6 +45,8 @@ _DOMAIN_SUFFIXES: dict[str, Domain] = {
     "ARITHMETIC": Domain.ARITHMETIC,
     "DATETIME": Domain.DATETIME,
     "LIST": Domain.LIST,
+    "CATEGORICAL": Domain.CATEGORICAL,
+    "STRUCT": Domain.STRUCT,
     "SET": Domain.SET,
     "TERNARY": Domain.TERNARY,
 }

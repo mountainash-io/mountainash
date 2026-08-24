@@ -326,11 +326,10 @@ class CapabilityFact:
                     f"CapabilityFact({self.operation_key}, {self.param}): predicate "
                     "facts must use the BUILD boundary (§4.5)"
                 )
-            if self.option_value is not None or self.value_class is not None:
+            if self.value_class is not None:
                 raise ValueError(
                     f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
-                    "fact is value-agnostic — the predicate carries the value scoping; "
-                    "option_value and value_class must be None"
+                    "fact cannot also use value_class"
                 )
             if self.param == WILDCARD_PARAM:
                 raise ValueError(

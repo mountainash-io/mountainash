@@ -26,6 +26,7 @@ from .prtcl_expsys_ext_ma_name import MountainAshNameExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_set import SubstraitScalarSetExpressionSystemProtocol as MountainAshScalarSetExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_struct import MountainAshScalarStructExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_scalar_list import MountainAshScalarListExpressionSystemProtocol
+from .prtcl_expsys_ext_ma_scalar_categorical import MountainAshScalarCategoricalExpressionSystemProtocol
 from .prtcl_expsys_ext_ma_window import MountainashWindowExpressionSystemProtocol
 
 __all__ = [
@@ -41,5 +42,6 @@ __all__ = [
     "MountainAshScalarSetExpressionSystemProtocol",
     "MountainAshScalarStructExpressionSystemProtocol",
     "MountainAshScalarListExpressionSystemProtocol",
+    "MountainAshScalarCategoricalExpressionSystemProtocol",
     "MountainashWindowExpressionSystemProtocol",
 ]

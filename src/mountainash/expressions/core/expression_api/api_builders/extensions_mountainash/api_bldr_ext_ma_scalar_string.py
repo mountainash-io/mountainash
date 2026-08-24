@@ -15,8 +15,16 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_SUBSTRAIT_SCALAR_DATETIME,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
 )
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
+from ._operation_options import (
+    validate_delimiter,
+    validate_failure_behavior,
+    validate_field_name,
+    validate_item_type,
+)
 
 
 if TYPE_CHECKING:
@@ -75,6 +83,34 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
             arguments=[self._node],
             options=options,
+        )
+        return self._build(node)
+    def parse_list(
+        self,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Split lexical text and parse each item into a list."""
+        validate_item_type("parse_list", item_type)
+        validate_delimiter("parse_list", delimiter)
+        validate_field_name("parse_list", field_name)
+        failure = validate_failure_behavior("parse_list", failure_behavior)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            arguments=[self._node],
+            options={
+                "item_type": item_type,
+                "delimiter": delimiter,
+                "failure_behavior": failure.value,
+            },
+            diagnostic_context={
+                "field_name": field_name,
+                "logical_type": "list",
+                "format": "default",
+            },
         )
         return self._build(node)
 

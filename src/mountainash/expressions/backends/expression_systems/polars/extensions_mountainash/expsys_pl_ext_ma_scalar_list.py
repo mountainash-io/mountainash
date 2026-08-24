@@ -2,14 +2,16 @@
 from __future__ import annotations
 
 from typing import Any, FrozenSet, Optional
-
 import polars as pl
 
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
-
-
+from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import TypeTarget
+from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
 _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
@@ -17,6 +19,76 @@ _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of list operations."""
+    def parse_list(
+        self,
+        x,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: str = "throw",
+    ):
+        values = x.str.split(delimiter)
+        if item_type == "string":
+            return values
+        strict = failure_behavior != "null"
+        if item_type == "boolean":
+            normalized = (
+                pl.element()
+                .cast(pl.String, strict=False)
+                .str.to_lowercase()
+                .replace_strict(
+                    {"true": "1", "1": "1", "false": "0", "0": "0"},
+                    default="__invalid__",
+                    return_dtype=pl.String,
+                )
+            )
+            parsed = values.list.eval(normalized.cast(pl.Int8, strict=strict).cast(pl.Boolean))
+        else:
+            dtype = {
+                "integer": pl.Int64,
+                "number": pl.Float64,
+                "datetime": pl.Datetime,
+                "date": pl.Date,
+                "time": pl.Time,
+            }[item_type]
+            if item_type == "datetime":
+                element = (
+                    pl.element()
+                    .str.to_datetime(strict=strict, time_zone="UTC")
+                    .dt.replace_time_zone(None)
+                )
+            elif item_type == "date":
+                element = pl.element().str.to_date(strict=strict)
+            elif item_type == "time":
+                element = pl.element().str.to_time(strict=strict)
+            else:
+                element = pl.element().cast(dtype, strict=strict)
+            parsed = values.list.eval(element)
+        if failure_behavior == "null":
+            invalid = parsed.list.eval(pl.element().is_null()).list.any().fill_null(False)
+            return pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(parsed)
+        return parsed
+
+    def cast_list_items(
+        self,
+        x,
+        /,
+        *,
+        item_object_fields: tuple[FieldSpec, ...],
+        failure_behavior: str = "throw",
+    ):
+        field = FieldSpec(
+            name="_items",
+            type=UniversalType.ARRAY,
+            item_object_fields=list(item_object_fields),
+        )
+        dtype = _resolve_field_native(field, TypeTarget.POLARS)
+        result = x.cast(dtype, strict=failure_behavior != "null")
+        if failure_behavior == "null":
+            invalid = _invalid_nested(x, field)
+            result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
+        return result
 
     def list_sum(self, x, /):
         return x.list.sum()

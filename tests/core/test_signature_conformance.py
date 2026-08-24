@@ -9,8 +9,10 @@ from __future__ import annotations
 import inspect
 import re
 from typing import get_type_hints
-
 import pytest
+
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
 
 from mountainash.expressions.backends.expression_systems.ibis import (
     IbisExpressionSystem,
@@ -330,12 +332,12 @@ def _init_a2_local_builders() -> dict:
     change. Keeping the overlay A2-local avoids all of that cross-suite
     ripple. Since 2026-08-11."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
         FKEY_MOUNTAINASH_SCALAR_DATETIME,
         FKEY_MOUNTAINASH_SCALAR_LIST,
         FKEY_MOUNTAINASH_SCALAR_STRUCT,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
         FKEY_MOUNTAINASH_WINDOW,
-        FKEY_SUBSTRAIT_CONDITIONAL,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
@@ -376,9 +378,16 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE: lambda: c.dt.truncate(unit="1d"),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by(offset="1d"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: c.struct.field("x"),
-        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: c.list.get(0),
-        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: c.list.to_array(width=3),
-        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(c.gt(1)).then(c).otherwise(b),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: c.struct.cast(
+            fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: lambda: s.str.parse_list(field_name="x"),
+        FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: c.list.cast_items(
+            item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
+            value_type="integer", categories=(1, 2), ordered=True, field_name="x"
+        ),
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),

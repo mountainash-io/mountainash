@@ -1,9 +1,10 @@
 """Protocol for mountainash list operations."""
 from __future__ import annotations
 
-from typing import Any, FrozenSet, Optional, Protocol
+from typing import Any, FrozenSet, Optional, Protocol, Literal
 
 from mountainash.core.types import ExpressionT
+from mountainash.typespec.spec import FieldSpec  # noqa: TCH002
 
 
 class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):
@@ -97,3 +98,21 @@ class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):
     def list_sample(self, x: ExpressionT, /, n: ExpressionT | None = None, *, fraction: float | None = None, with_replacement: bool = False, shuffle: bool = False, seed: int | None = None) -> ExpressionT: ...
 
     def list_agg(self, x: ExpressionT, /, expr: ExpressionT) -> ExpressionT: ...
+    def parse_list(
+        self,
+        x: ExpressionT,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> ExpressionT: ...
+
+    def cast_list_items(
+        self,
+        x: ExpressionT,
+        /,
+        *,
+        item_object_fields: tuple[FieldSpec, ...],
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> ExpressionT: ...

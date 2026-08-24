@@ -10,9 +10,11 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-
+from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import TypeTarget
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
-
 
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
@@ -21,6 +23,48 @@ _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of list operations."""
+    def parse_list(
+        self,
+        x,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: str = "throw",
+    ):
+        values = x.split(delimiter)
+        if item_type == "string":
+            return values
+        target = {
+            "integer": "int64",
+            "number": "float64",
+            "boolean": "boolean",
+            "datetime": "timestamp",
+            "date": "date",
+            "time": "time",
+        }[item_type]
+        caster = (
+            (lambda item: item.try_cast(target))
+            if failure_behavior == "null"
+            else (lambda item: item.cast(target))
+        )
+        parsed = values.map(caster)
+        if failure_behavior == "null":
+            invalid = parsed.map(lambda item: item.isnull()).anys().fill_null(False)
+            return ibis.ifelse(x.isnull(), ibis.null(), ibis.ifelse(invalid, ibis.null(), parsed))
+        return parsed
+
+    def cast_list_items(
+        self,
+        x,
+        /,
+        *,
+        item_object_fields: tuple[FieldSpec, ...],
+        failure_behavior: str = "throw",
+    ):
+        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
+        dtype = _resolve_field_native(field, TypeTarget.IBIS)
+        return x.try_cast(dtype) if failure_behavior == "null" else x.cast(dtype)
 
     def list_sum(self, x, /):
         return x.sums()

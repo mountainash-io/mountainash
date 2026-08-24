@@ -5,14 +5,41 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarListAPIBuilderProtocol
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
-
+from ._operation_options import validate_failure_behavior, validate_field_name, validate_fields
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
+    from mountainash.typespec.spec import FieldSpec
 
 
 class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarListAPIBuilderProtocol):
+    def cast_items(
+        self,
+        *,
+        item_object_fields: tuple["FieldSpec", ...],
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Recursively cast native struct items in a list."""
+        fields = validate_fields("cast_items", "item_object_fields", item_object_fields)
+        validate_field_name("cast_items", field_name)
+        failure = validate_failure_behavior("cast_items", failure_behavior)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            arguments=[self._node],
+            options={
+                "item_object_fields": fields,
+                "failure_behavior": failure.value,
+            },
+            diagnostic_context={
+                "field_name": field_name,
+                "logical_type": "array",
+                "format": "default",
+            },
+        )
+        return self._build(node)
     """API builder for the .list namespace."""
 
     def sum(self) -> BaseExpressionAPI:

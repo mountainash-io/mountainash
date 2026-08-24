@@ -12,10 +12,10 @@ from __future__ import annotations
 
 from typing import Any, Optional, Protocol, TYPE_CHECKING
 
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
-
-
 class MountainAshScalarStringAPIBuilderProtocol(Protocol):
     """Builder protocol for Mountainash string extensions.
 
@@ -55,6 +55,16 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
 
     def len_chars(self) -> BaseExpressionAPI:
         """Alias for char_length() — Polars compatibility."""
+        ...
+    def parse_list(
+        self,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Split and parse lexical list text."""
         ...
 
     # Convenience methods (AST-level composition)

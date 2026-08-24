@@ -13,7 +13,10 @@ from __future__ import annotations
 
 from typing import Any, Protocol, Union, TYPE_CHECKING
 
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+
 if TYPE_CHECKING:
+    from mountainash.typespec.spec import FieldSpec
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
     from mountainash.expressions.core.expression_nodes import ExpressionNode
 
@@ -23,6 +26,15 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
 
     Defines user-facing fluent API methods for the .list namespace.
     """
+    def cast_items(
+        self,
+        *,
+        item_object_fields: tuple["FieldSpec", ...],
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Recursively cast native list struct items."""
+        ...
 
     def sum(self) -> BaseExpressionAPI:
         """Sum all elements in each list."""

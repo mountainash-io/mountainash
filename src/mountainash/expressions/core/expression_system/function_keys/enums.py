@@ -52,6 +52,7 @@ class MountainashExtension:
     STRUCT = "file://extensions/functions_struct.yaml"
     LIST = "file://extensions/functions_list.yaml"
     AGGREGATE = "file://extensions/functions_aggregate.yaml"
+    CATEGORICAL = "file://extensions/functions_categorical.yaml"
 
 
 
@@ -635,14 +636,20 @@ class FKEY_MOUNTAINASH_SCALAR_SET(Enum):
 
 
 class FKEY_MOUNTAINASH_SCALAR_STRUCT(Enum):
-    """Mountainash struct field operations."""
+    """Mountainash struct operations."""
 
     FIELD = auto()
+    CAST = auto()
 
+class FKEY_MOUNTAINASH_SCALAR_CATEGORICAL(Enum):
+    """Mountainash categorical operations."""
 
+    CAST = auto()
 class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     """Mountainash list operations."""
 
+    PARSE = auto()
+    CAST_ITEMS = auto()
     SUM = auto()
     MIN = auto()
     MAX = auto()
@@ -797,6 +804,7 @@ MountainashFunction = Union[
     FKEY_MOUNTAINASH_SCALAR_LIST,
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_SET,
+    FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
     FKEY_MOUNTAINASH_WINDOW,
 ]
 
@@ -835,9 +843,13 @@ __all__ = [
     "FKEY_MOUNTAINASH_SCALAR_STRING",
     "FKEY_MOUNTAINASH_SCALAR_COMPARISON",
     "FKEY_MOUNTAINASH_SCALAR_DATETIME",
-    "FKEY_MOUNTAINASH_NULL",
+    "FKEY_MOUNTAINASH_SCALAR_LIST",
+    "FKEY_MOUNTAINASH_SCALAR_STRUCT",
+    "FKEY_MOUNTAINASH_SCALAR_CATEGORICAL",
+    "FKEY_MOUNTAINASH_SCALAR_SET",
     "FKEY_MOUNTAINASH_NAME",
     "FKEY_MOUNTAINASH_SCALAR_TERNARY",
+    "FKEY_MOUNTAINASH_NULL",
     # Ternary function categories (single source of truth)
     "MOUNTAINASH_TERNARY_TERMINAL",
     "MOUNTAINASH_TERNARY_NON_TERMINAL",

@@ -9,12 +9,48 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-
+from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import TypeTarget
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[nw.Expr]):
+    def parse_list(
+        self,
+        x,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: str = "throw",
+    ):
+        values = x.str.split(delimiter)
+        if item_type == "string":
+            return values
+        target = {
+            "integer": nw.Int64,
+            "number": nw.Float64,
+            "boolean": nw.Boolean,
+            "datetime": nw.Datetime,
+            "date": nw.Date,
+            "time": nw.Time,
+        }[item_type]
+        return values.cast(nw.List(target()))
+
+    def cast_list_items(
+        self,
+        x,
+        /,
+        *,
+        item_object_fields: tuple[FieldSpec, ...],
+        failure_behavior: str = "throw",
+    ):
+        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
+        dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        return x.cast(dtype)
     """Narwhals implementation of list operations."""
 
     def list_sum(self, x: NarwhalsExpr, /):

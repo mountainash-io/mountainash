@@ -305,6 +305,8 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarBooleanExpressionSystemProtocol,
     MountainAshScalarComparisonExpressionSystemProtocol,
     MountainAshScalarDatetimeExpressionSystemProtocol,
+    MountainAshScalarCategoricalExpressionSystemProtocol,
+    MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarListExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarStringExpressionSystemProtocol,
@@ -674,11 +676,12 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainAshScalarArithmeticExpressionSystemProtocol: "mountainash_scalar_arithmetic",
     MountainAshScalarBooleanExpressionSystemProtocol: "mountainash_scalar_boolean",
     MountainAshScalarComparisonExpressionSystemProtocol: "mountainash_scalar_comparison",
+    MountainashExtensionAggregateExpressionSystemProtocol: "mountainash_aggregate",
+    MountainAshScalarCategoricalExpressionSystemProtocol: "mountainash_scalar_categorical",
     MountainAshScalarListExpressionSystemProtocol: "mountainash_scalar_list",
     MountainAshScalarSetExpressionSystemProtocol: "mountainash_scalar_set",
     MountainAshScalarStringExpressionSystemProtocol: "mountainash_scalar_string",
     MountainAshScalarStructExpressionSystemProtocol: "mountainash_scalar_struct",
-    MountainashExtensionAggregateExpressionSystemProtocol: "mountainash_aggregate",
     MountainashWindowExpressionSystemProtocol: "mountainash_window",
 }
 
