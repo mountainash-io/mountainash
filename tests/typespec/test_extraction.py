@@ -539,6 +539,47 @@ class TestExtractionOverRegistry:
         (code,) = [f for f in children.item_object_fields if f.name == "code"]
         assert code.type is UniversalType.STRING
 
+    def test_pandas_arrow_list_and_struct_use_source_shapes(self):
+        pytest.importorskip("pyarrow")
+        import pandas as pd
+        import pyarrow as pa
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+
+        row_type = pa.struct([pa.field("id", pa.int64())])
+        df = pd.DataFrame(
+            {
+                "rows": pd.Series(
+                    [[{"id": 1}]],
+                    dtype=pd.ArrowDtype(pa.list_(row_type)),
+                ),
+                "addr": pd.Series(
+                    [{"id": 1}],
+                    dtype=pd.ArrowDtype(row_type),
+                ),
+            }
+        )
+        spec = extract_from_dataframe(df)
+        rows = spec.get_field("rows")
+        addr = spec.get_field("addr")
+        assert rows.type is UniversalType.ARRAY
+        assert rows.item_object_fields[0].type is UniversalType.INTEGER
+        assert addr.type is UniversalType.OBJECT
+        assert addr.object_fields[0].type is UniversalType.INTEGER
+
+    def test_polars_list_null_child_has_bare_array_shape(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+
+        spec = extract_from_dataframe(
+            pl.DataFrame({"values": pl.Series([None], dtype=pl.List(pl.Null))})
+        )
+        field = spec.get_field("values")
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        assert field.item_object_fields is None
+
     def test_extraction_resolver_round_trip_pins_full_struct_not_just_no_raise(self):
         import polars as pl
         from mountainash.typespec.extraction import extract_from_dataframe

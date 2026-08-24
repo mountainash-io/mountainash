@@ -74,7 +74,11 @@ def _field_from_source_shape(
             ]
         elif shape.canonical_type.name == "LIST":
             child = shape.item_shape
-            if child is not None and child.canonical_type.name == "STRUCT":
+            if (
+                child is not None
+                and child.canonical_type is not None
+                and child.canonical_type.name == "STRUCT"
+            ):
                 item_object_fields = [
                     _field_from_source_shape(child_name, child_shape)
                     for child_name, child_shape in child.struct_fields
@@ -524,14 +528,22 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
 
     for col_name in df.columns:
         dtype = df[col_name].dtype
-        backend_type_str = str(dtype)
-        universal_type = _universal_from_native(dtype, TypeTarget.PANDAS)
+        shape = shapes[col_name]
+        universal_type = (
+            from_canonical(shape.canonical_type)[0]
+            if shape.canonical_type is not None
+            else _universal_from_native(dtype, TypeTarget.PANDAS)
+        )
         fields.append(
             _field_from_source_shape(
                 col_name,
-                shapes[col_name],
+                shape,
                 universal_type=universal_type,
-                backend_type=backend_type_str if preserve_backend_types else None,
+                backend_type=(
+                    str(dtype)
+                    if preserve_backend_types and shape.canonical_type is None
+                    else None
+                ),
             )
         )
 

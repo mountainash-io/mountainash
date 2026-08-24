@@ -481,6 +481,16 @@ class TestNestedStructObjectFields:
         result = to_polars_schema(self._spec([]))
         assert result["addr"] is pl.Struct
 
+    def test_empty_array_item_object_fields_preserves_struct_hierarchy(self):
+        import polars as pl
+        field = FieldSpec(
+            name="rows",
+            type=UniversalType.ARRAY,
+            item_object_fields=(),
+        )
+        result = to_polars_schema(TypeSpec(fields=[field]))
+        assert result["rows"] == pl.List(pl.Struct({}))
+
     def test_inner_field_categories_resolve_correctly(self):
         import polars as pl
         fields = [FieldSpec(name="kind", type=UniversalType.STRING,

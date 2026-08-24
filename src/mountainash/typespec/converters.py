@@ -100,7 +100,7 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
     if canon is None:
         canon = MountainashDtype.STRING
     native = registry.to_native_schema(canon, target)
-    if canon is MountainashDtype.LIST and field.item_object_fields:
+    if canon is MountainashDtype.LIST and field.item_object_fields is not None:
         native = _resolve_list_object_inner(field.name, field.item_object_fields, target, native)
     elif canon is MountainashDtype.LIST and field.item_type:
         native = _resolve_list_inner(field.name, field.item_type, target, native)
