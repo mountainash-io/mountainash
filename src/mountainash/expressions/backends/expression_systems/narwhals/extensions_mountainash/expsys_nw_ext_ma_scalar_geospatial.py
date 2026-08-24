@@ -43,15 +43,18 @@ class MountainAshNarwhalsScalarGeospatialExpressionSystem(
             lat = native.list.get(1)
             valid = (
                 (native.list.len() == 2)
-                & lon.is_not_null()
-                & lat.is_not_null()
+                & ~lon.is_null()
+                & ~lat.is_null()
+                & ~lon.is_nan()
+                & ~lat.is_nan()
                 & lon.is_finite()
                 & lat.is_finite()
             )
-            if failure_behavior == "null":
-                return nw.when(x.is_null() | valid).then(native).otherwise(nw.lit(None))
             marker = nw.when(x.is_null() | valid).then(nw.lit("0")).otherwise(nw.lit("__invalid__")).cast(nw.Int8)
-            return nw.when(x.is_null() | valid).then(native).otherwise((lon + marker.cast(nw.Float64) * 0).cast(nw.List(nw.Float64)))
+            rebuilt = nw.when(marker == 0).then(native).otherwise(native)
+            if failure_behavior == "null":
+                return nw.when(x.is_null()).then(nw.lit(None)).when(valid).then(rebuilt).otherwise(nw.lit(None))
+            return nw.when(x.is_null()).then(nw.lit(None)).otherwise(rebuilt)
         raise NotImplementedError("portable Narwhals geospatial cell is unavailable")
 
     def parse_geojson(self, x, /, *, format: str, failure_behavior: str = "throw"):

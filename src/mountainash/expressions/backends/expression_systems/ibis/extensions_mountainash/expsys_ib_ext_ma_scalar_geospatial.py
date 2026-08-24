@@ -44,22 +44,31 @@ class MountainAshIbisScalarGeospatialExpressionSystem(
                 (native.length() == 2)
                 & lon.notnull()
                 & lat.notnull()
-                & lon.is_finite()
-                & lat.is_finite()
+                & ~lon.isnan()
+                & ~lat.isnan()
+                & ~lon.isinf()
+                & ~lat.isinf()
             )
+            marker = ibis.ifelse(x.isnull() | valid, ibis.literal("0"), ibis.literal("__invalid__")).cast("int8")
+            rebuilt = ibis.array([
+                lon + marker.cast("float64") * 0,
+                lat + marker.cast("float64") * 0,
+            ])
             if failure_behavior == "null":
-                return ibis.ifelse(x.isnull(), ibis.null(), ibis.ifelse(valid, native, ibis.null()))
-            invalid = ibis.literal("__invalid__").cast("array<float64>")
-            return ibis.ifelse(x.isnull() | valid, native, invalid)
+                return ibis.ifelse(x.isnull(), ibis.null(), ibis.ifelse(valid, rebuilt, ibis.null()))
+            return ibis.ifelse(x.isnull(), ibis.null(), rebuilt)
         if format == "object" and source_representation == "native":
             lon = x["lon"].cast("float64")
             lat = x["lat"].cast("float64")
-            valid = lon.notnull() & lat.notnull() & lon.is_finite() & lat.is_finite()
-            value = ibis.struct({"lon": lon, "lat": lat})
+            valid = lon.notnull() & lat.notnull() & ~lon.isnan() & ~lat.isnan() & ~lon.isinf() & ~lat.isinf()
+            marker = ibis.ifelse(x.isnull() | valid, ibis.literal("0"), ibis.literal("__invalid__")).cast("int8")
+            value = ibis.struct({
+                "lon": lon + marker.cast("float64") * 0,
+                "lat": lat + marker.cast("float64") * 0,
+            })
             if failure_behavior == "null":
                 return ibis.ifelse(x.isnull(), ibis.null(), ibis.ifelse(valid, value, ibis.null()))
-            invalid = ibis.literal("__invalid__").cast("struct<lon:float64,lat:float64>")
-            return ibis.ifelse(x.isnull() | valid, value, invalid)
+            return ibis.ifelse(x.isnull(), ibis.null(), value)
         raise NotImplementedError("Ibis geospatial cell is unavailable")
 
     def parse_geojson(self, x, /, *, format: str, failure_behavior: str = "throw"):

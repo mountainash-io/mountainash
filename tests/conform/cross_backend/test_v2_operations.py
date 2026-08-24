@@ -833,13 +833,15 @@ def test_geojson_is_polars_only_with_exact_backend_gates(backend_name: str) -> N
         format="default", field_name="geometry", failure_behavior=CaseFailureBehaviour.NULL
     )
     visitor = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
-    if backend_name == "polars":
+    if backend_name in {"polars", "polars-lazy"}:
         compiled = visitor()
-        frame = pl.DataFrame({"geometry": ['{"type":"Point","coordinates":[1,2]}', "[1,2]"]})
-        assert frame.select(compiled).to_series().to_list() == [
-            '{"type":"Point","coordinates":[1,2]}',
-            None,
-        ]
+        frame = BackendDataFrameFactory.create(
+            {"geometry": ['{"type":"Point","coordinates":[1,2]}', "[1,2]"]},
+            backend_name,
+        )
+        assert BackendResultHelper.select_and_extract(
+            frame, compiled, "geometry", backend_name
+        ) == ['{"type":"Point","coordinates":[1,2]}', None]
     else:
         family, dialect = _gate(backend_name)
         assert_capability_gated(
@@ -850,3 +852,15 @@ def test_geojson_is_polars_only_with_exact_backend_gates(backend_name: str) -> N
             option_value=None,
             build=visitor,
         )
+
+
+@pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas", "ibis-duckdb", "ibis-polars"])
+def test_native_geopoint_array_throw_executes_supported_backends(backend_name: str) -> None:
+    expr = ma.col("point").geo.parse_geopoint(
+        format="array", source_representation="native", field_name="point"
+    )
+    compiled = UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    frame = BackendDataFrameFactory.create({"point": [[1.0, 2.0], None]}, backend_name)
+    values = BackendResultHelper.select_and_extract(frame, compiled, "point", backend_name)
+    assert list(values[0]) == [1.0, 2.0]
+    assert pd.isna(values[1]) or values[1] is None
