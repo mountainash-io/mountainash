@@ -11,21 +11,25 @@ from mountainash.relations.backends.relation_systems.polars.extensions_mountaina
 
 SPEC = TypeSpec(
     fields=[
-        FieldSpec(name="date", type=UniversalType.STRING),
-        FieldSpec(name="v", type=UniversalType.INTEGER),
-    ],
-    primary_key=["date", "v"],
-    fields_match="open",
+        FieldSpec("list", UniversalType.LIST, item_type="integer"),
+        FieldSpec("point", UniversalType.GEOPOINT, format="array"),
+        FieldSpec("geometry", UniversalType.GEOJSON),
+        FieldSpec("duration", UniversalType.DURATION),
+        FieldSpec("year", UniversalType.YEAR),
+        FieldSpec("yearmonth", UniversalType.YEARMONTH),
+    ]
 )
 
 
 def test_polars_empty_frame_typed():
     lf = MountainashPolarsExtensionRelationSystem().empty_frame(SPEC)
     df = lf.collect()
-    assert df.shape == (0, 2)
-    assert df.columns == ["date", "v"]
-    assert df.dtypes == [pl.String, pl.Int64]
-
+    assert df.shape == (0, 6)
+    assert df.columns == ["list", "point", "geometry", "duration", "year", "yearmonth"]
+    assert df.schema["list"] == pl.List(pl.Int64)
+    assert df.schema["point"].base_type() is pl.List
+    for name in ("geometry", "duration", "year", "yearmonth"):
+        assert df.schema[name] == pl.String
 
 def test_ibis_empty_frame_typed():
     import ibis
@@ -35,13 +39,13 @@ def test_ibis_empty_frame_typed():
 
     t = MountainashIbisExtensionRelationSystem().empty_frame(SPEC)
     df = t.execute()
-    assert list(df.columns) == ["date", "v"]
+    assert list(df.columns) == ["list", "point", "geometry", "duration", "year", "yearmonth"]
     assert len(df) == 0
-    # dtype parity: string-ish and integer-ish (exact ibis/pandas dtype tolerated)
     schema = t.schema()
-    assert schema["date"].is_string()
-    assert schema["v"].is_integer()
-
+    assert schema["list"].is_array()
+    assert schema["point"].is_array()
+    for name in ("geometry", "duration", "year", "yearmonth"):
+        assert schema[name].is_string()
 
 def test_narwhals_empty_frame_typed():
     import narwhals as nw
@@ -52,7 +56,9 @@ def test_narwhals_empty_frame_typed():
     lazy = MountainashNarwhalsExtensionRelationSystem().empty_frame(SPEC)
     assert isinstance(lazy, nw.LazyFrame)
     frame = lazy.collect()
-    assert list(frame.columns) == ["date", "v"]
-    assert frame.shape == (0, 2)
-    assert frame.schema["date"] == nw.String
-    assert frame.schema["v"] == nw.Int64
+    assert list(frame.columns) == ["list", "point", "geometry", "duration", "year", "yearmonth"]
+    assert frame.shape == (0, 6)
+    assert frame.schema["list"] == nw.List(nw.Int64)
+    assert frame.schema["point"] == nw.List
+    for name in ("geometry", "duration", "year", "yearmonth"):
+        assert frame.schema[name] == nw.String

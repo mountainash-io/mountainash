@@ -672,3 +672,48 @@ class TestResolveFieldCanonicalPublicSurface:
     def test_importable_from_typespec_package(self) -> None:
         from mountainash.typespec import resolve_field_canonical as pkg_resolve
         assert pkg_resolve is resolve_field_canonical
+
+
+# ============================================================================
+# TestV2SixFieldCrossTargetIntegration (item 113 Unit B, Task 6)
+# ============================================================================
+
+V2_INTEGRATION_SPEC = TypeSpec(
+    fields=[
+        FieldSpec("list", U.LIST, item_type="integer"),
+        FieldSpec("point", U.GEOPOINT, format="array"),
+        FieldSpec("geometry", U.GEOJSON),
+        FieldSpec("duration", U.DURATION),
+        FieldSpec("year", U.YEAR),
+        FieldSpec("yearmonth", U.YEARMONTH),
+    ]
+)
+
+
+@pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS, TypeTarget.IBIS])
+def test_v2_six_field_spec_resolves_on_polars_narwhals_and_ibis(target) -> None:
+    resolved = {
+        field.name: _resolve_field_native(field, target)
+        for field in V2_INTEGRATION_SPEC.fields
+    }
+    assert set(resolved) == {
+        "list", "point", "geometry", "duration", "year", "yearmonth",
+    }
+    if target is TypeTarget.POLARS:
+        import polars as pl
+        assert resolved["list"] == pl.List(pl.Int64)
+        assert resolved["point"] is pl.List
+        string_type = pl.String
+    elif target is TypeTarget.NARWHALS:
+        import narwhals as nw
+        assert resolved["list"] == nw.List(nw.Int64)
+        assert resolved["point"] is nw.List
+        string_type = nw.String
+    else:
+        assert resolved["list"] == "array<int64>"
+        assert resolved["point"] == "array"
+        string_type = "string"
+    assert resolved["point"] == registry.to_native_schema(D.LIST, target)
+    for name in ("geometry", "duration", "year", "yearmonth"):
+        assert resolved[name] == string_type
+        assert registry.from_native(resolved[name], target) is D.STRING
