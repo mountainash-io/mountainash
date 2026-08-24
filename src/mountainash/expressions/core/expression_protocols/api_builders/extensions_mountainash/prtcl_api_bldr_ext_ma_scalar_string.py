@@ -80,15 +80,34 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
         """Remove suffix from string if present."""
         ...
 
-    def to_date(self, format: str) -> BaseExpressionAPI:
+    def to_date(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
         """Parse string to date using format string."""
         ...
 
-    def to_datetime(self, format: str) -> BaseExpressionAPI:
+    def to_datetime(
+        self,
+        format: str,
+        timezone: Optional[str] = None,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
         """Parse string to datetime using format string."""
         ...
 
-    def to_time(self, format: str) -> BaseExpressionAPI:
+    def to_time(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
         """Parse string to time using format string."""
         ...
 

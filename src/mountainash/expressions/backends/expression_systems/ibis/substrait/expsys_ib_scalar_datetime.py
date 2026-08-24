@@ -356,20 +356,9 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         format: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            time_string: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-
-        Note:
-            Ibis may not have strptime_time. Falls back to cast.
-        """
-        # Ibis doesn't have strptime for time - fallback
         return x.cast("time")
 
     def strptime_date(
@@ -377,18 +366,9 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         format: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
-        # ibis >= 10 honors the strptime format directly; the previous
-        # `x.cast("date")` silently discarded it (spec 2026-07-28 section 3).
         return x.as_date(format)
 
     def strptime_timestamp(
@@ -397,24 +377,47 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         format: str,
         timezone: str = None,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
-        # `.as_timestamp()` returns timestamp('UTC'); the recast restores the
-        # naive wall-clock dtype the previous `cast("timestamp")` produced, so
-        # the fix changes the parse and nothing else. `timezone` is ignored --
-        # ibis has no timezone primitives (matches assume_timezone/to_timezone/
-        # local_timestamp/extract.timezone); a declared_unsupported fact gates
-        # this in production.
         return x.as_timestamp(format).cast("timestamp")
+    def parse_default(
+        self,
+        x: IbisValueExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return x.cast("timestamp")
+
+    def parse_xsd_duration(
+        self,
+        x: IbisValueExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return x
+
+    def parse_xsd_partial_date(
+        self,
+        x: IbisValueExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return x
+
+    def parse_temporal_any(
+        self,
+        x: IbisValueExpr,
+        /,
+        kind: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return x
+
 
     # =========================================================================
     # Formatting Methods

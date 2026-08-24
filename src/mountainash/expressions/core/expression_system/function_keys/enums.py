@@ -555,6 +555,11 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
     TOTAL_DAYS = auto()
     TOTAL_HOURS = auto()
     TOTAL_NANOSECONDS = auto()
+    # Frictionless temporal parsing
+    PARSE_DEFAULT = auto()
+    PARSE_XSD_DURATION = auto()
+    PARSE_XSD_PARTIAL_DATE = auto()
+    PARSE_TEMPORAL_ANY = auto()
 
 
 # =============================================================================

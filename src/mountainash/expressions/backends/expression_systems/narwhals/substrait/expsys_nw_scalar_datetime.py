@@ -355,19 +355,9 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
-        """
         raise NotImplementedError(
             "strptime_time() is not supported by the Narwhals backend."
         )
@@ -377,16 +367,9 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
         return x.str.to_date(format=format)
 
     def strptime_timestamp(
@@ -395,21 +378,50 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         format: str,
         timezone: str = None,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
         result = x.str.to_datetime(format=format)
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
+    def parse_default(
+        self,
+        x: NarwhalsExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return x.str.to_datetime()
+
+    def parse_xsd_duration(
+        self,
+        x: NarwhalsExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return x
+
+    def parse_xsd_partial_date(
+        self,
+        x: NarwhalsExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return x
+
+    def parse_temporal_any(
+        self,
+        x: NarwhalsExpr,
+        /,
+        kind: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return x
+
 
     # =========================================================================
     # Formatting Methods

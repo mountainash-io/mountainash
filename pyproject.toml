@@ -33,6 +33,7 @@ dependencies = [
     "lazy_loader>=0.3",
     "universal-pathlib>=0.2.0",
     "pyarrow>=16",
+    "python-dateutil>=2.9,<2.10",
     # mountainash-files is provided the same way as every other mountainash-*
     # sibling in this monorepo: via the CI dependency-checkout mechanism
     # (.github/config/mountainash_dependencies.yml -> temp/) and the hatch env

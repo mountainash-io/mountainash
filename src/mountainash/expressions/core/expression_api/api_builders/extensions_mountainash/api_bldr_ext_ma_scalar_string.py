@@ -151,13 +151,8 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
             arguments=[self._node, length_node, zero_node],
         )
         return self._build(node)
-
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
-        """Remove prefix from string if present.
-
-        Args:
-            prefix: The prefix string to remove.
-        """
+        """Remove prefix from string if present."""
         prefix_node = LiteralNode(value=prefix)
         starts_cond = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
@@ -175,35 +170,44 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         return self._build(node)
 
     def strip_suffix(self, suffix: str) -> BaseExpressionAPI:
-        """Remove suffix from string if present.
-
-        Args:
-            suffix: The suffix string to remove.
-        """
+        """Remove suffix from string if present."""
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,
             arguments=[self._node],
             options={"suffix": suffix},
         )
         return self._build(node)
-
-    def to_date(self, format: str) -> BaseExpressionAPI:
+    def to_date(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
         """Parse string to date using format string."""
+        if field_name is not None:
+            field_name = validate_field_name("to_date", field_name)
+        failure_behavior = validate_failure_behavior("to_date", failure_behavior)
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
             arguments=[self._node],
-            options={"format": format},
+            options={"format": format, "field_name": field_name, "failure_behavior": failure_behavior.value},
         )
         return self._build(node)
 
-    def to_datetime(self, format: str, timezone: str = None) -> BaseExpressionAPI:
-        """Parse string to datetime using format string.
-
-        Args:
-            format: strptime format string.
-            timezone: Optional IANA timezone attached to the parsed timestamp.
-        """
-        options = {"format": format}
+    def to_datetime(
+        self,
+        format: str,
+        timezone: Optional[str] = None,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse string to datetime using format string."""
+        if field_name is not None:
+            field_name = validate_field_name("to_datetime", field_name)
+        failure_behavior = validate_failure_behavior("to_datetime", failure_behavior)
+        options = {"format": format, "field_name": field_name, "failure_behavior": failure_behavior.value}
         if timezone is not None:
             from ..api_builder_base import _reject_expression
             from mountainash.core.capabilities.schema import ValueClass
@@ -221,14 +225,24 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         )
         return self._build(node)
 
-    def to_time(self, format: str) -> "BaseExpressionAPI":
+    def to_time(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> "BaseExpressionAPI":
         """Parse string to time using format string."""
+        if field_name is not None:
+            field_name = validate_field_name("to_time", field_name)
+        failure_behavior = validate_failure_behavior("to_time", failure_behavior)
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
             arguments=[self._node],
-            options={"format": format},
+            options={"format": format, "field_name": field_name, "failure_behavior": failure_behavior.value},
         )
         return self._build(node)
+
 
     def to_integer(self, base: int = 10) -> "BaseExpressionAPI":
         """Parse string to integer with given base."""

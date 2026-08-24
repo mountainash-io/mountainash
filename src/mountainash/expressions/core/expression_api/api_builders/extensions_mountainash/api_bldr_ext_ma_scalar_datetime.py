@@ -17,6 +17,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarDatetimeAPIBuilderProtocol
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 
 if TYPE_CHECKING:
@@ -900,6 +901,74 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
             options={"timezone": timezone},
         )
         return self._build(node)
+    def _parse_temporal(
+        self,
+        function_key,
+        *,
+        kind: str | None = None,
+        field_name: str | None = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        from ._operation_options import validate_failure_behavior, validate_field_name
+
+        if field_name is not None:
+            field_name = validate_field_name(function_key.name.lower(), field_name)
+        failure_behavior = validate_failure_behavior(function_key.name.lower(), failure_behavior)
+        options = {"field_name": field_name, "failure_behavior": failure_behavior.value}
+        if kind is not None:
+            options["kind"] = kind
+        node = ScalarFunctionNode(function_key=function_key, arguments=[self._node], options=options)
+        return self._build(node)
+
+    def parse_default(
+        self,
+        *,
+        field_name: str | None = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
+
+    def parse_xsd_duration(
+        self,
+        *,
+        field_name: str | None = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
+
+    def parse_xsd_partial_date(
+        self,
+        *,
+        field_name: str | None = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
+
+    def parse_temporal_any(
+        self,
+        kind: str,
+        *,
+        field_name: str | None = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+            kind=kind,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
 
     # assume_timezone / strftime are official Substrait functions_datetime.yaml
     # ops — their canonical definitions live on SubstraitScalarDatetimeAPIBuilder

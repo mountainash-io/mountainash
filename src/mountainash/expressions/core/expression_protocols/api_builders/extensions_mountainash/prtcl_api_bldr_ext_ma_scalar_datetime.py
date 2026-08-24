@@ -20,6 +20,7 @@ are direct Substrait functions and defined in prtcl_scalar_datetime.py.
 from __future__ import annotations
 
 from typing import Union, Any,Optional, Protocol, TYPE_CHECKING
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
@@ -476,6 +477,43 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
 
     def to_timezone(self, timezone: str) -> BaseExpressionAPI:
         """Convert to specified timezone."""
+        ...
+
+    def parse_default(
+        self,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse a Frictionless default datetime value."""
+        ...
+
+    def parse_xsd_duration(
+        self,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Validate an XSD duration lexical value."""
+        ...
+
+    def parse_xsd_partial_date(
+        self,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Validate an XSD partial-date lexical value."""
+        ...
+
+    def parse_temporal_any(
+        self,
+        kind: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse a Frictionless temporal-any value."""
         ...
 
     # assume_timezone / strftime are official Substrait ops — declared on

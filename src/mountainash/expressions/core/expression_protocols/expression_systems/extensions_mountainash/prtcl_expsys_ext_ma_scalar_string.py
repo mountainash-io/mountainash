@@ -51,7 +51,14 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
         """Remove suffix from end of string if present."""
         ...
 
-    def to_time(self, x: ExpressionT, /, format: str) -> ExpressionT:
+    def to_time(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
         """Parse string to time using format string."""
         ...
 

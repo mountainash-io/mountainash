@@ -148,29 +148,38 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strptime_time(self, x: ExpressionT, /, format: str) -> ExpressionT:
-        """Parse string into time using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
-
-        Substrait: strptime_time
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-        """
+    def strptime_time(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string into time using provided format."""
         ...
 
-    def strptime_date(self, x: ExpressionT, /, format: str) -> ExpressionT:
-        """Parse string into date using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
-
-        Substrait: strptime_date
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-        """
+    def strptime_date(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string into date using provided format."""
         ...
 
-    def strptime_timestamp(self, x: ExpressionT, /, format: str, timezone: Optional[str] = None) -> ExpressionT:
-        """Parse string into timestamp using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference. If timezone is present in timestamp and provided as parameter an error is thrown.
-Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is supplied as parameter and present in the parsed string the parsed timezone is used. If parameter supplied timezone is invalid an error is thrown.
-
-        Substrait: strptime_timestamp
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-        """
+    def strptime_timestamp(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        timezone: Optional[str] = None,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string into timestamp using provided format."""
         ...
 
     def strftime(self, x: ExpressionT, /, format: str) -> ExpressionT:
@@ -180,6 +189,47 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         Substrait: strftime
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
         """
+        ...
+
+    def parse_default(
+        self,
+        x: ExpressionT,
+        /,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse a Frictionless default datetime value."""
+        ...
+
+    def parse_xsd_duration(
+        self,
+        x: ExpressionT,
+        /,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Validate an XSD duration lexical value."""
+        ...
+
+    def parse_xsd_partial_date(
+        self,
+        x: ExpressionT,
+        /,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Validate an XSD partial-date lexical value."""
+        ...
+
+    def parse_temporal_any(
+        self,
+        x: ExpressionT,
+        /,
+        kind: str,
+        field_name: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse a Frictionless temporal-any value."""
         ...
 
     def round_temporal(

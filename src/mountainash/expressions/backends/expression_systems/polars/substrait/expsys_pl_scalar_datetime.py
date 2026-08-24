@@ -354,34 +354,20 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         format: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-        """
-        return x.str.to_time(format)
+        return x.str.to_time(format, strict=failure_behavior != "null")
 
     def strptime_date(
         self,
         x: PolarsExpr,
         /,
         format: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
-        return x.str.to_date(format)
+        return x.str.to_date(format, strict=failure_behavior != "null")
 
     def strptime_timestamp(
         self,
@@ -389,21 +375,59 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         format: str,
         timezone: Optional[str] = None,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
-        result = x.str.to_datetime(format)
+        result = x.str.to_datetime(format, strict=failure_behavior != "null")
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
+    def parse_default(
+        self,
+        x: PolarsExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return x.cast(pl.Datetime, strict=failure_behavior != "null")
+
+    def parse_xsd_duration(
+        self,
+        x: PolarsExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return x
+
+    def parse_xsd_partial_date(
+        self,
+        x: PolarsExpr,
+        /,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return x
+
+    def parse_temporal_any(
+        self,
+        x: PolarsExpr,
+        /,
+        kind: str,
+        field_name: str | None = None,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        from mountainash.typespec.temporal import parse_temporal_any
+
+        dtype = {"date": pl.Date, "time": pl.Time, "datetime": pl.Datetime}[kind]
+        return x.map_batches(
+            lambda series: series.map_elements(
+                lambda value: parse_temporal_any(value, kind=kind) if value is not None else None,
+                return_dtype=dtype,
+            ),
+            return_dtype=dtype,
+        )
+
 
     # =========================================================================
     # Formatting Methods
