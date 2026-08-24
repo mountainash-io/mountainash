@@ -864,3 +864,331 @@ def test_native_geopoint_array_throw_executes_supported_backends(backend_name: s
     values = BackendResultHelper.select_and_extract(frame, compiled, "point", backend_name)
     assert list(values[0]) == [1.0, 2.0]
     assert pd.isna(values[1]) or values[1] is None
+def _geopoint_expression(
+    format_name: str,
+    source_representation: str,
+    failure_behavior: CaseFailureBehaviour,
+):
+    return ma.col("point").geo.parse_geopoint(
+        format=format_name,
+        source_representation=source_representation,
+        field_name="point",
+        failure_behavior=failure_behavior,
+    )
+
+
+def _geopoint_supported(backend_name: str, format_name: str, source_representation: str, failure_behavior: CaseFailureBehaviour) -> bool:
+    if format_name == "default":
+        return not (backend_name == "ibis-sqlite" and failure_behavior is CaseFailureBehaviour.THROW)
+    if format_name == "array" and source_representation == "lexical":
+        return backend_name in {"polars", "polars-lazy"}
+    if format_name == "array" and source_representation == "native":
+        if failure_behavior is CaseFailureBehaviour.NULL:
+            return backend_name in {"polars", "polars-lazy"}
+        return backend_name not in {"ibis-sqlite"}
+    if format_name == "object" and source_representation == "native":
+        if failure_behavior is CaseFailureBehaviour.NULL:
+            return backend_name in {"polars", "polars-lazy"}
+        return backend_name in {
+            "polars",
+            "polars-lazy",
+            "ibis-duckdb",
+            "ibis-polars",
+        }
+    raise AssertionError((format_name, source_representation))
+
+
+def _geopoint_gate_predicate(
+    backend_name: str,
+    format_name: str,
+    source_representation: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> set[tuple[str, object]]:
+    expected = {
+        ("format", format_name),
+        ("source_representation", source_representation),
+    }
+    if (
+        backend_name != "ibis-sqlite"
+        and backend_name.startswith(("pandas", "narwhals-", "ibis-"))
+        and format_name == "array"
+        and source_representation == "native"
+        and failure_behavior is CaseFailureBehaviour.NULL
+    ):
+        expected.add(("failure_behavior", "null"))
+    elif (
+        backend_name != "ibis-sqlite"
+        and backend_name.startswith("ibis-")
+        and format_name == "object"
+        and source_representation == "native"
+        and failure_behavior is CaseFailureBehaviour.NULL
+    ):
+        expected.add(("failure_behavior", "null"))
+    elif (
+        backend_name == "ibis-sqlite"
+        and format_name == "default"
+        and failure_behavior is CaseFailureBehaviour.THROW
+    ):
+        expected.add(("failure_behavior", "throw"))
+    return expected
+
+
+def _assert_geopoint_gate(
+    visitor,
+    backend_name: str,
+    format_name: str,
+    source_representation: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> None:
+    error = assert_predicate_capability_gated(visitor)
+    assert error.function_key is FK_GEO.PARSE_GEOPOINT
+    actual = {
+        (clause.path, clause.operand)
+        for clause in error.limitation.predicate.clauses
+    }
+    expected = _geopoint_gate_predicate(
+        backend_name,
+        format_name,
+        source_representation,
+        failure_behavior,
+    )
+    if (
+        backend_name == "ibis-sqlite"
+        and source_representation == "native"
+        and failure_behavior is CaseFailureBehaviour.NULL
+    ):
+        # SQLite has both a format/source gate and a broader null-mode
+        # predicate declaration in the executable matrix. Either declaration
+        # may be the first sorted violation; both are exact registered facts.
+        assert actual == expected or actual == expected | {("failure_behavior", "null")}
+    else:
+        assert actual == expected
+
+
+_GEOPOINT_CELLS = (
+    ("default", "lexical"),
+    ("array", "lexical"),
+    ("array", "native"),
+    ("object", "native"),
+)
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    ("format_name", "source_representation"),
+    _GEOPOINT_CELLS,
+)
+@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
+def test_geopoint_matrix_valid_values_and_top_level_null(
+    backend_name: str,
+    format_name: str,
+    source_representation: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> None:
+    expr = _geopoint_expression(format_name, source_representation, failure_behavior)
+    visitor = lambda: _compile_for(backend_name, expr)
+    if not _geopoint_supported(
+        backend_name, format_name, source_representation, failure_behavior
+    ):
+        _assert_geopoint_gate(
+            visitor,
+            backend_name,
+            format_name,
+            source_representation,
+            failure_behavior,
+        )
+        return
+
+    valid = {
+        ("default", "lexical"): ["1.0, 2.0", "NaN, inf"],
+        ("array", "lexical"): ["[1,-2.5e2]"],
+        ("array", "native"): [[1.0, 2.0]],
+        ("object", "native"): [{"lon": 1.0, "lat": 2.0}],
+    }[(format_name, source_representation)]
+    compiled = visitor()
+    values = _extract(backend_name, {"point": [*valid, None]}, compiled, "point")
+    expected = (
+        [[1.0, -250.0]]
+        if (format_name, source_representation) == ("array", "lexical")
+        else valid
+    )
+    actual = values[:-1]
+    if actual and hasattr(actual[0], "tolist") and not isinstance(actual[0], dict):
+        actual = [value.tolist() for value in actual]
+    elif actual and isinstance(actual[0], tuple):
+        actual = [list(value) for value in actual]
+    assert actual == expected
+    assert values[-1] is None or bool(pd.isna(values[-1]))
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    ("format_name", "source_representation"),
+    _GEOPOINT_CELLS,
+)
+@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
+def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
+    backend_name: str,
+    format_name: str,
+    source_representation: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> None:
+    expr = _geopoint_expression(format_name, source_representation, failure_behavior)
+    visitor = lambda: _compile_for(backend_name, expr)
+    if not _geopoint_supported(
+        backend_name, format_name, source_representation, failure_behavior
+    ):
+        _assert_geopoint_gate(
+            visitor,
+            backend_name,
+            format_name,
+            source_representation,
+            failure_behavior,
+        )
+        return
+
+    invalid_values = {
+        ("default", "lexical"): ["bad", "1.0,  2.0", None],
+        ("array", "lexical"): ["[1]", "[1, null]", None],
+        ("array", "native"): [[1.0], [1.0, None], [float("inf"), 2.0], None],
+        ("object", "native"): [
+            {"lon": None, "lat": 2.0},
+            {"lon": float("inf"), "lat": 2.0},
+            None,
+        ],
+    }[(format_name, source_representation)]
+    if failure_behavior is CaseFailureBehaviour.THROW:
+        with pytest.raises(Exception):
+            _extract(
+                backend_name,
+                {"point": invalid_values},
+                visitor(),
+                "point",
+            )
+        return
+
+    values = _extract(
+        backend_name,
+        {"point": invalid_values},
+        visitor(),
+        "point",
+    )
+    assert all(value is None or bool(pd.isna(value)) for value in values)
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("format_name", ("default", "topojson"))
+@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
+def test_geojson_parse_matrix_valid_and_top_level_null_or_exact_gate(
+    backend_name: str,
+    format_name: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> None:
+    expr = ma.col("geometry").geo.parse_geojson(
+        format=format_name,
+        field_name="geometry",
+        failure_behavior=failure_behavior,
+    )
+    visitor = lambda: _compile_for(backend_name, expr)
+    if backend_name not in {"polars", "polars-lazy"}:
+        family, dialect = _gate(backend_name)
+        assert_capability_gated(
+            FK_GEO.PARSE_GEOJSON,
+            family,
+            dialect=dialect,
+            param="*",
+            option_value=None,
+            build=visitor,
+        )
+        return
+
+    compiled = visitor()
+    valid = '{"type":"Point","coordinates":[1,2]}'
+    values = _extract(
+        backend_name,
+        {"geometry": [valid, None]},
+        compiled,
+        "geometry",
+    )
+    assert values == [valid, None]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("format_name", ("default", "topojson"))
+@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
+def test_geojson_parse_matrix_malformed_root_and_canonical_revalidation(
+    backend_name: str,
+    format_name: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> None:
+    expr = ma.col("geometry").geo.parse_geojson(
+        format=format_name,
+        field_name="geometry",
+        failure_behavior=failure_behavior,
+    )
+    visitor = lambda: _compile_for(backend_name, expr)
+    if backend_name not in {"polars", "polars-lazy"}:
+        family, dialect = _gate(backend_name)
+        assert_capability_gated(
+            FK_GEO.PARSE_GEOJSON,
+            family,
+            dialect=dialect,
+            param="*",
+            option_value=None,
+            build=visitor,
+        )
+        return
+
+    # The first value is an object-root JSON document. The remaining
+    # documents exercise root validation, malformed syntax, and canonical
+    # JSON revalidation (a trailing comma is not canonical JSON).
+    data = {
+        "geometry": [
+            '{"type":"Point","coordinates":[1,2]}',
+            "[1,2]",
+            "{bad",
+            '{"type":"Point","coordinates":[1,]}',
+        ]
+    }
+    if failure_behavior is CaseFailureBehaviour.THROW:
+        with pytest.raises(Exception):
+            _extract(backend_name, data, visitor(), "geometry")
+    else:
+        values = _extract(backend_name, data, visitor(), "geometry")
+        assert values == [data["geometry"][0], None, None, None]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("format_name", ("default", "topojson"))
+@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
+def test_geojson_serialization_matrix_and_topojson_gates(
+    backend_name: str,
+    format_name: str,
+    failure_behavior: CaseFailureBehaviour,
+) -> None:
+    expr = ma.col("geometry").geo.serialize_geojson(
+        format=format_name,
+        field_name="geometry",
+        failure_behavior=failure_behavior,
+    )
+    visitor = lambda: _compile_for(backend_name, expr)
+    if backend_name not in {"polars", "polars-lazy"}:
+        family, dialect = _gate(backend_name)
+        assert_capability_gated(
+            FK_GEO.SERIALIZE_GEOJSON,
+            family,
+            dialect=dialect,
+            param="*",
+            option_value=None,
+            build=visitor,
+        )
+        return
+
+    compiled = visitor()
+    values = _extract(
+        backend_name,
+        {"geometry": [{"type": "Point", "coordinates": [1.0, 2.0]}, None]},
+        compiled,
+        "geometry",
+    )
+    assert values == ['{"type":"Point","coordinates":[1.0,2.0]}', "null"]
