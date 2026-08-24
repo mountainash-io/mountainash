@@ -422,8 +422,9 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
             pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
             if kind == "yearmonth":
                 pattern += r"-(?:0[1-9]|1[0-2])"
+            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
             valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
-            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
+            valid = valid & ~x.str.contains(r"[+-]14:[0-5][1-9]$")
             return nw.when(valid).then(x).otherwise(None)
         return x
     def parse_temporal_any(

@@ -53,3 +53,10 @@ Correction verification:
 - Added throw-mode XSD gates and expanded temporal capability declarations.
 - Added ALL_BACKENDS default-datetime execution/gate, Polars typed-null temporal-any, and non-Polars XSD throw gate matrices.
 - Final regression gates: 64 passed, 26 deselected, 1 existing Polars deprecation warning; compile and scoped Ruff checks passed.
+
+## Rereview 3 correction wave
+
+- Replaced generic XSD unsupported declarations with eight exact `NON_NULL_TO_NULL` materialization-residue facts across Ibis DuckDB/Polars and Narwhals Polars/Pandas.
+- Corrected all backend XSD predicates for `.5S`, trailing `T`, timezone suffixes, and signed `14:00` bounds.
+- Added real ALL_BACKENDS execution/gate and residue-fact matrices; Polars lazy remains an execution cell.
+- Final matrix/parser regression: 61 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.

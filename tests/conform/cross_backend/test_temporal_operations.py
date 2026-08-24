@@ -17,7 +17,7 @@ from tests.fixtures.capability_gating import assert_capability_gated
 def test_default_datetime_all_backends_executes_or_gates(backend_name: str) -> None:
     expr = ma.col("value").dt.parse_default(field_name="value")
     build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
-    if backend_name == "polars":
+    if backend_name in {"polars", "polars-lazy"}:
         result = pl.DataFrame({"value": ["2024-01-02T03:04:05"]}).select(build())
         assert result["value"].item().year == 2024
         return
@@ -35,15 +35,13 @@ def test_polars_temporal_any_null_mode_returns_typed_null(kind: str) -> None:
     compiled = UnifiedExpressionVisitor(_SYSTEMS["polars"]).visit(expr._node)
     result = pl.DataFrame({"value": ["not-a-temporal"]}).select(compiled)
     assert result["value"].item() is None
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "narwhals-polars", "narwhals-pandas"])
+def test_xsd_throw_mode_has_exact_residue_fact(backend_name: str) -> None:
+    from mountainash.core.capabilities import CapabilityRegistry, Enforcement, ResidueSignal
 
-
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite", "narwhals-polars", "narwhals-pandas"])
-def test_xsd_throw_mode_is_exactly_gated_on_non_polars(backend_name: str) -> None:
-    expr = ma.col("value").dt.parse_xsd_duration(
-        field_name="value", failure_behavior=CaseFailureBehaviour.THROW
-    )
-    build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
     backend, dialect = _IDENTITIES[backend_name]
-    assert_capability_gated(
-        FK_DT.PARSE_XSD_DURATION, backend, dialect=dialect, param="failure_behavior", option_value="throw", build=build
-    )
+    fact = CapabilityRegistry.capability_for(FK_DT.PARSE_XSD_DURATION, "*", backend, dialect)
+    assert fact is not None
+    assert fact.enforcement is Enforcement.MATERIALIZE_RESIDUE
+    assert fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL
+    assert not fact.native_errors
