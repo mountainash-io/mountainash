@@ -16,6 +16,7 @@ from typing import Optional
 
 import pytest
 
+from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.extraction import (
     _DATACLASS_SCHEMA_CACHE,
     extract_schema_from_dataclass,
@@ -29,6 +30,8 @@ from mountainash.typespec.extraction import (
     from_pydantic,
 )
 from mountainash.typespec.spec import TypeSpec
+
+from mountainash.typespec.source_shape import extract_source_shapes
 
 
 # ============================================================================
@@ -86,6 +89,14 @@ class TestExtractFromPolars:
         schema = extract_from_dataframe(polars_mixed_df, preserve_backend_types=False)
         id_field = schema.get_field("id")
         assert id_field.backend_type is None
+
+
+    def test_source_shapes_use_schema_without_rows(self):
+        pl = pytest.importorskip("polars")
+        frame = pl.DataFrame(schema={"values": pl.List(pl.Int64)})
+        shape = extract_source_shapes(frame)["values"]
+        assert shape.canonical_type is MountainashDtype.LIST
+        assert shape.item_shape.canonical_type is MountainashDtype.I64
 
     def test_returns_type_spec(self, polars_mixed_df):
         schema = extract_schema_from_dataframe(polars_mixed_df)
