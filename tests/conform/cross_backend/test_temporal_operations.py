@@ -219,7 +219,7 @@ def test_partial_date_rejects_signed_fourteen_hour_offsets(
 
     frame = BackendDataFrameFactory.create({"value": [value]}, backend_name)
     if backend_name in {"polars", "polars-lazy"} and failure_behavior is CaseFailureBehaviour.THROW:
-        with pytest.raises((ValueError, RuntimeError)):
+        with pytest.raises(Exception):
             BackendResultHelper.select_and_extract(frame, build(), "value", backend_name)
         return
     values = BackendResultHelper.select_and_extract(frame, build(), "value", backend_name)

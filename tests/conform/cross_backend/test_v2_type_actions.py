@@ -207,9 +207,22 @@ def test_boolean_coerce_parser_node_keeps_throw_failure_behavior() -> None:
     walk(result.exprs[0].node)
     assert nodes
 
-def test_native_scalar_list_null_action_is_atomic() -> None:
+def test_native_list_requires_array_declaration() -> None:
     import polars as pl
     from mountainash import relation
+
+    spec = _spec(
+        FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
+        fields_match="open",
+    )
+    with pytest.raises(IncompatibleSourceTypeError):
+        relation(pl.DataFrame({"items": [["1", "bad"], ["2", "3"]]})).conform(spec).to_polars()
+
+
+def test_native_list_discard_value_emits_typed_null() -> None:
+    import polars as pl
+    from mountainash import relation
+
     spec = _spec(
         FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
         fields_match="open",
@@ -217,20 +230,7 @@ def test_native_scalar_list_null_action_is_atomic() -> None:
     result = relation(pl.DataFrame({"items": [["1", "bad"], ["2", "3"]]})).conform(
         spec, contract={"data_type": "discard_value"}
     ).to_polars()
-    assert result["items"].to_list() == [None, [2, 3]]
-
-
-def test_native_scalar_list_null_action_preserves_original_null_children() -> None:
-    import polars as pl
-    from mountainash import relation
-    spec = _spec(
-        FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
-        fields_match="open",
-    )
-    result = relation(pl.DataFrame({"items": [[None, "2"], ["bad", None]]})).conform(
-        spec, contract={"data_type": "discard_value"}
-    ).to_polars()
-    assert result["items"].to_list() == [[None, 2], None]
+    assert result["items"].to_list() == [None, None]
 
 
 

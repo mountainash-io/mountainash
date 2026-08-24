@@ -209,7 +209,12 @@ def _shape_diff(
         if not expected.struct_fields:
             return False
         actual_fields = dict(actual.struct_fields)
-        if tuple(name for name, _ in expected.struct_fields) != tuple(actual_fields):
+        expected_names = tuple(name for name, _ in expected.struct_fields)
+        actual_names = tuple(actual_fields)
+        if set(expected_names) == {"lon", "lat"}:
+            if set(actual_names) != {"lon", "lat"}:
+                return True
+        elif expected_names != actual_names:
             return True
         return any(
             _shape_diff(
@@ -406,14 +411,37 @@ def resolve_conform_output(
         elif declared is not None and actual_dtypes is not None:
             requirement = _shape_detail(_expected_shape(em.field)) or str(declared)
             if actual_dtype is None or isinstance(actual_dtype, SchemaTypeStatus):
-                mismatch = TypeDrift(em.field.name, declared, actual_dtype, "unknown", None, "unknown", None, requirement, apply_value_transforms)
+                mismatch = TypeDrift(
+                    em.field.name,
+                    declared,
+                    actual_dtype,
+                    "unknown",
+                    None,
+                    "unknown",
+                    None,
+                    requirement,
+                    apply_value_transforms,
+                )
             elif classify_cast(actual_dtype, declared) is not CastSafety.SAFE:
-                mismatch = TypeDrift(em.field.name, declared, actual_dtype, "unsafe", None, "cast_safety", str(actual_dtype), requirement, apply_value_transforms)
+                mismatch = TypeDrift(
+                    em.field.name,
+                    declared,
+                    actual_dtype,
+                    "unsafe",
+                    None,
+                    "cast_safety",
+                    str(actual_dtype),
+                    requirement,
+                    apply_value_transforms,
+                )
         if mismatch is None:
             resolved.append(em)
             continue
-        action = contract.data_type if apply_value_transforms and mismatch.reason != "unknown" else None
-        applied = bool(apply_value_transforms and action is not None)
+        action = contract.data_type if apply_value_transforms else None
+        applied = bool(
+            apply_value_transforms
+            and action in {"coerce", "discard_value", "discard_row"}
+        )
         mismatch = dataclasses.replace(mismatch, action=action, applied=applied)
         type_mismatches.append(mismatch)
         if action == "evolve":
@@ -516,7 +544,12 @@ def _build_field_expr(
         fld.type == UniversalType.LIST
         or (fld.type == UniversalType.GEOPOINT and fld.format == "default")
     )
-    if canonical is None and fld.type in typed_shapes and not unknown_lexical:
+    if (
+        canonical is None
+        and fld.type in typed_shapes
+        and not unknown_lexical
+        and type_action != "evolve"
+    ):
         raise UnresolvedSourceTypeError(
             field_name=fld.name,
             requirement="source shape for typed operation",
@@ -524,13 +557,54 @@ def _build_field_expr(
     incompatible_source = False
     if shape_known:
         allowed = {
-            UniversalType.LIST: {MountainashDtype.STRING, MountainashDtype.LIST},
+            UniversalType.LIST: {MountainashDtype.STRING},
             UniversalType.ARRAY: {MountainashDtype.LIST},
             UniversalType.OBJECT: {MountainashDtype.STRUCT},
-            UniversalType.GEOPOINT: {MountainashDtype.STRING, MountainashDtype.LIST, MountainashDtype.STRUCT},
-            UniversalType.GEOJSON: {MountainashDtype.STRING, MountainashDtype.JSON, MountainashDtype.STRUCT},
+            UniversalType.GEOPOINT: {
+                MountainashDtype.STRING,
+                MountainashDtype.LIST,
+                MountainashDtype.STRUCT,
+            },
+            UniversalType.GEOJSON: {
+                MountainashDtype.STRING,
+                MountainashDtype.JSON,
+                MountainashDtype.STRUCT,
+            },
         }
         if canonical is not None and fld.type in allowed and canonical not in allowed[fld.type]:
+            incompatible_source = True
+        if canonical in {MountainashDtype.LIST, MountainashDtype.STRUCT} and fld.type not in {
+            UniversalType.ARRAY,
+            UniversalType.OBJECT,
+            UniversalType.GEOPOINT,
+            UniversalType.GEOJSON,
+        }:
+            incompatible_source = True
+        temporal_canonicals = {
+            MountainashDtype.DATE,
+            MountainashDtype.TIME,
+            MountainashDtype.TIMESTAMP,
+            MountainashDtype.DURATION,
+            MountainashDtype.XSD_DURATION,
+            MountainashDtype.XSD_YEAR,
+            MountainashDtype.XSD_YEARMONTH,
+        }
+        temporal_fields = {
+            UniversalType.DATE: {MountainashDtype.DATE},
+            UniversalType.TIME: {MountainashDtype.TIME},
+            UniversalType.DATETIME: {MountainashDtype.TIMESTAMP},
+            UniversalType.DURATION: {
+                MountainashDtype.DURATION,
+                MountainashDtype.XSD_DURATION,
+            },
+            UniversalType.YEAR: {MountainashDtype.XSD_YEAR},
+            UniversalType.YEARMONTH: {MountainashDtype.XSD_YEARMONTH},
+        }
+        if canonical in temporal_canonicals:
+            compatible_temporal = temporal_fields.get(fld.type, set())
+            if fld.type is not UniversalType.ANY and canonical not in compatible_temporal:
+                incompatible_source = True
+        if canonical is MountainashDtype.JSON and fld.type is not UniversalType.GEOJSON:
             incompatible_source = True
         if fld.type == UniversalType.GEOPOINT:
             numeric = {
@@ -568,7 +642,12 @@ def _build_field_expr(
         UniversalType.GEOPOINT,
         UniversalType.GEOJSON,
     }
-    lexical = not shape_known or canonical is None or canonical is MountainashDtype.STRING
+    lexical = (
+        not shape_known
+        or canonical is None
+        or canonical is MountainashDtype.STRING
+        or (fld.type is UniversalType.GEOJSON and canonical is MountainashDtype.JSON)
+    )
     sentinels = fld.missing_values if fld.missing_values is not None else schema_missing_values
     from mountainash.typespec._categorical import categorical_values
     sentinel_values = categorical_values(list(sentinels))
@@ -657,20 +736,23 @@ def _build_field_expr(
             if type_action == "discard_row":
                 discard = ~(post_missing.is_not_null() & output.is_null())
             return FieldBuildResult(output.name.alias(fld.name), discard)
-    if type_action == "evolve":
-        return FieldBuildResult(transform_input.name.alias(fld.name))
     failure = CaseFailureBehaviour.THROW if type_action == "coerce" else CaseFailureBehaviour.NULL
     residue: list[MaterializationResidueCheck] = []
+    if type_action == "evolve":
+        return FieldBuildResult(transform_input.name.alias(fld.name))
     if fld.type == UniversalType.LIST and lexical:
-        expr = expr.str.parse_list(item_type=fld.item_type or "string", delimiter=fld.delimiter or ",", field_name=fld.name, failure_behavior=failure)
-    elif fld.type == UniversalType.LIST and canonical is MountainashDtype.LIST and not lexical:
-        expr = expr.list.cast_items(
+        expr = expr.str.parse_list(
             item_type=fld.item_type or "string",
+            delimiter=fld.delimiter or ",",
             field_name=fld.name,
             failure_behavior=failure,
         )
     elif fld.type == UniversalType.ARRAY and canonical is MountainashDtype.LIST and fld.item_object_fields and not lexical:
-        expr = expr.list.cast_items(item_object_fields=tuple(fld.item_object_fields), field_name=fld.name, failure_behavior=failure)
+        expr = expr.list.cast_items(
+            item_object_fields=tuple(fld.item_object_fields),
+            field_name=fld.name,
+            failure_behavior=failure,
+        )
     elif fld.type == UniversalType.BOOLEAN:
         true_values = tuple(fld.true_values or ["true", "True", "TRUE", "1"])
         false_values = tuple(fld.false_values or ["false", "False", "FALSE", "0"])

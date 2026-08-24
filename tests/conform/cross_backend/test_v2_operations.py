@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import polars as pl
-import narwhals as nw
 import pandas as pd
 import pytest
 
@@ -667,7 +666,7 @@ def test_categorical_cast_preserves_supported_base_values(
         )
         return
     if (
-        backend_name in {"narwhals-polars", "narwhals-lazy"}
+        backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}
         and value_type == "integer"
         and failure_behavior is CaseFailureBehaviour.NULL
     ):
@@ -695,20 +694,15 @@ def test_narwhals_pandas_categorical_integer_nulls_invalid_values(
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="status",
     )
-    values = _extract(
-        backend_name,
-        {"status": ["bad", "2", None]},
-        _compile_for(backend_name, expr),
-        "status",
-    )
-    frame = BackendDataFrameFactory.create(
-        {"status": ["bad", "2", None]}, backend_name,
-    )
-    result = frame.select(_compile_for(backend_name, expr).alias("status"))
-    assert result["status"].dtype == nw.Int64
-    assert values[1] == 2
-    assert pd.isna(values[0])
-    assert pd.isna(values[2])
+    family, dialect = _gate(backend_name)
+    error = assert_predicate_capability_gated(lambda: _compile_for(backend_name, expr))
+    fact = error.limitation
+    assert fact.operation_key is FK_CAT.CAST
+    assert fact.backend is family
+    assert fact.dialect == dialect
+    assert fact.param == "value_type"
+    assert fact.option_value == "integer"
+
 
 @pytest.mark.parametrize("backend_name", ("pandas", "narwhals-pandas"))
 def test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow(
@@ -721,19 +715,14 @@ def test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow(
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="status",
     )
-    data = {"status": ["9223372036854775808", "2", None]}
-    values = _extract(
-        backend_name,
-        data,
-        _compile_for(backend_name, expr),
-        "status",
-    )
-    frame = BackendDataFrameFactory.create(data, backend_name)
-    result = frame.select(_compile_for(backend_name, expr).alias("status"))
-    assert result["status"].dtype == nw.Int64
-    assert pd.isna(values[0])
-    assert values[1] == 2
-    assert pd.isna(values[2])
+    family, dialect = _gate(backend_name)
+    error = assert_predicate_capability_gated(lambda: _compile_for(backend_name, expr))
+    fact = error.limitation
+    assert fact.operation_key is FK_CAT.CAST
+    assert fact.backend is family
+    assert fact.dialect == dialect
+    assert fact.param == "value_type"
+    assert fact.option_value == "integer"
 
 
 def test_polars_geopoint_default_preserves_valid_text_and_nulls() -> None:

@@ -78,3 +78,22 @@ Targeted verification:
 - `hatch run test:pytest -q tests/conform/cross_backend/test_v2_operations.py -k 'geojson_parse_exceptional_documents_one_per_test or polars_geojson_parse_and_serialize'`: **361 passed, 497 deselected**.
 - Changed-source/test Ruff check: **passed**.
 - Changed-file `compileall`: **passed**.
+
+## Whole-branch Important repairs
+
+- Repaired complete source-representation dispatch: lexical `LIST` now accepts only string/unknown lexical evidence, native arrays require `ARRAY`, and incompatible list/struct/temporal sources are rejected for scalar, boolean, category, and temporal declarations.
+- Preserved `evolve` actions for unknown source evidence and marked drift `applied` only for actions that change values or rows; `evolve` and `freeze` remain non-transforming.
+- Routed canonical JSON sources through `PARSE_GEOJSON`, compared GEOPOINT object keys as an unordered exact `lon`/`lat` set, and retained ordered comparison for ordinary structs.
+- Replaced Polars geospatial throw callbacks with native validity predicates and data-dependent cast markers.
+- Replaced Polars default/XSD temporal callbacks with native parsing, validation, and throw-marker expressions. `PARSE_TEMPORAL_ANY` remains the sole permitted Polars Python parser.
+- Removed the Narwhals-pandas categorical row loop and declared the nullable integer categorical cell as an exact capability gate.
+
+Focused verification for this repair commit:
+
+- `tests/conform/test_final_branch_review_fixes.py tests/conform/cross_backend/test_v2_type_actions.py`: **64 passed**.
+- `tests/conform/cross_backend/test_temporal_operations.py`: **309 passed**.
+- Polars/Narwhals geospatial and categorical matrix selection in `tests/conform/cross_backend/test_v2_operations.py`: **609 passed**.
+- Contract/public DAG/list-array/capability selection: **629 passed, 660 deselected**.
+- Ruff on all changed production files and focused regressions: **passed**.
+- Changed-source/test `compileall`: **passed**.
+- Native callback audit: targeted geospatial and categorical implementations contain no `map_elements`/`map_batches`; Polars temporal contains only the permitted `parse_temporal_any` batch parser.

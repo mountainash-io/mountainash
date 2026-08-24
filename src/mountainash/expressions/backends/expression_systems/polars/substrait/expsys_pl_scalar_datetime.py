@@ -20,14 +20,32 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-def _valid_or_none(value, parser):
-    if value is None:
-        return False
-    try:
-        parser(value)
-    except (TypeError, ValueError, OverflowError):
-        return False
-    return True
+
+_DEFAULT_DATETIME_PATTERN = (
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]+)?(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+)
+_XSD_DURATION_PATTERN = (
+    r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?"
+    r"(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
+)
+_XSD_PARTIAL_DATE_PATTERNS = {
+    "year": r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+    r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$",
+    "yearmonth": r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+    r"-(?:0[1-9]|1[0-2])(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$",
+}
+
+
+def _throw_marker(valid: pl.Expr, source: pl.Expr) -> pl.Expr:
+    """Create a data-dependent cast marker for throw mode."""
+    return (
+        pl.when(valid | source.is_null())
+        .then(pl.lit("0"))
+        .otherwise(pl.lit("__invalid__"))
+        .cast(pl.Int8)
+    )
+
 
 # Substrait canonical unit name -> Polars duration-string suffix. Combined
 # with an integer multiplier (e.g. "2d", "3h", "1mo") this is accepted
@@ -394,22 +412,19 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        from mountainash.typespec.temporal import parse_default_datetime
-
-        def parse(value):
-            if value is None:
-                return None
-            try:
-                return parse_default_datetime(value)
-            except (TypeError, ValueError, OverflowError):
-                if failure_behavior == "null":
-                    return None
-                raise
-
-        return x.map_batches(
-            lambda series: series.map_elements(parse, return_dtype=pl.Datetime),
-            return_dtype=pl.Datetime,
+        strict = failure_behavior != "null"
+        has_timezone = x.str.contains(r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$")
+        normalized = x.str.replace(r"Z$", "+00:00")
+        with_timezone = normalized.str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.f%z",
+            strict=strict,
         )
+        with_timezone = with_timezone.dt.convert_time_zone("UTC").dt.replace_time_zone(None)
+        without_timezone = x.str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.f",
+            strict=strict,
+        )
+        return pl.when(has_timezone).then(with_timezone).otherwise(without_timezone)
 
     def parse_datetime_default(
         self,
@@ -425,16 +440,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
+        source = x.cast(pl.String, strict=False)
+        valid = source.str.contains(_XSD_DURATION_PATTERN)
+        valid = valid & ~source.is_in(["P", "-P", "PT", "-PT"]) & ~source.str.ends_with("T")
+        valid = valid & ~source.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
         if failure_behavior == "null":
-            valid = x.str.contains(
-                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
-            ) & ~x.is_in(["P", "-P", "PT", "-PT"]) & ~x.str.ends_with("T")
-            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
-            return pl.when(valid).then(x).otherwise(None)
-        if failure_behavior == "throw":
-            from mountainash.typespec.temporal import parse_xsd_duration
-            return x.map_elements(parse_xsd_duration, return_dtype=pl.String)
-        return x
+            return pl.when(valid).then(source).otherwise(None)
+        marker = _throw_marker(valid, source)
+        return source + marker.cast(pl.String).str.replace("0", "")
 
     def parse_xsd_partial_date(
         self,
@@ -443,19 +456,14 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         kind: str,
         failure_behavior: str = "throw",
     ) -> PolarsExpr:
+        pattern = _XSD_PARTIAL_DATE_PATTERNS[kind]
+        source = x.cast(pl.String, strict=False)
+        valid = source.str.contains(pattern) & ~source.str.starts_with("-0000")
+        valid = valid & ~source.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
         if failure_behavior == "null":
-            pattern = (
-                r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
-                + (r"-(?:0[1-9]|1[0-2])" if kind == "yearmonth" else "")
-                + r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
-            )
-            valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
-            valid = valid & ~x.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
-            return pl.when(valid).then(x).otherwise(None)
-        if failure_behavior == "throw":
-            from mountainash.typespec.temporal import parse_xsd_partial_date
-            return x.map_elements(lambda value: parse_xsd_partial_date(value, kind=kind), return_dtype=pl.String)
-        return x
+            return pl.when(valid).then(source).otherwise(None)
+        marker = _throw_marker(valid, source)
+        return source + marker.cast(pl.String).str.replace("0", "")
 
     def parse_temporal_any(
         self,
@@ -467,6 +475,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         from mountainash.typespec.temporal import parse_temporal_any
 
         dtype = {"date": pl.Date, "time": pl.Time, "datetime": pl.Datetime}[kind]
+
         def parse(value):
             try:
                 return parse_temporal_any(value, kind=kind)
@@ -474,6 +483,7 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
                 if failure_behavior == "null":
                     return None
                 raise
+
         return x.map_batches(
             lambda series: series.map_elements(parse, return_dtype=dtype),
             return_dtype=dtype,

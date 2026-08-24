@@ -318,3 +318,85 @@ def test_pandas_unknown_lexical_fields_reach_operation_dispatch() -> None:
     point_spec = _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="default"))
     result = ma.relation(pd.DataFrame({"point": ["1,2"]})).conform(point_spec).to_polars()
     assert result["point"].to_list() == ["1,2"]
+
+
+@pytest.mark.parametrize(
+    ("field_type", "shape"),
+    [
+        (UniversalType.LIST, SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))),
+        (UniversalType.INTEGER, SourceShape(MountainashDtype.LIST)),
+        (UniversalType.INTEGER, SourceShape(MountainashDtype.STRUCT)),
+        (UniversalType.INTEGER, SourceShape(MountainashDtype.TIMESTAMP)),
+    ],
+    ids=["lexical-list-native-list", "integer-list", "integer-struct", "integer-timestamp"],
+)
+def test_source_representation_dispatch_rejects_incompatible_shapes(
+    field_type: UniversalType, shape: SourceShape
+) -> None:
+    with pytest.raises(IncompatibleSourceTypeError):
+        _build_conform_exprs(
+            _spec(FieldSpec(name="value", type=field_type)),
+            available_columns=("value",),
+            actual_shapes={"value": shape},
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        FieldSpec(name="items", type=UniversalType.ARRAY),
+        FieldSpec(name="record", type=UniversalType.OBJECT),
+        FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array"),
+    ],
+)
+def test_evolve_unknown_native_source_bypasses_shape_resolution(field: FieldSpec) -> None:
+    result = _build_conform_exprs(
+        _spec(field),
+        available_columns=(field.name,),
+        actual_shapes={field.name: SourceShape(None)},
+        contract=_contract("evolve"),
+    )
+    assert len(result.exprs) == 1
+    mismatch = result.drift.type_mismatches[0]
+    assert mismatch.action == "evolve"
+    assert mismatch.applied is False
+
+
+@pytest.mark.parametrize("action", ["evolve", "freeze"])
+def test_non_transforming_data_type_actions_are_not_marked_applied(action: str) -> None:
+    result = resolve_conform_output(
+        _spec(FieldSpec(name="value", type=UniversalType.INTEGER)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(MountainashDtype.STRING)},
+        contract=_contract(action),
+        raise_on_freeze=False,
+    )
+    assert result.drift.type_mismatches[0].applied is False
+
+
+def test_canonical_json_source_revalidates_through_geojson_parser() -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="geometry", type=UniversalType.GEOJSON)),
+        available_columns=("geometry",),
+        actual_shapes={"geometry": SourceShape(MountainashDtype.JSON)},
+    )
+    assert result.exprs[0].node.arguments[0].function_key.name == "PARSE_GEOJSON"
+
+
+def test_geopoint_object_shape_comparison_ignores_child_order() -> None:
+    result = resolve_conform_output(
+        _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="object")),
+        available_columns=("point",),
+        actual_shapes={
+            "point": SourceShape(
+                MountainashDtype.STRUCT,
+                struct_fields=(
+                    ("lat", SourceShape(MountainashDtype.FP64)),
+                    ("lon", SourceShape(MountainashDtype.FP64)),
+                ),
+            )
+        },
+        contract=_contract("freeze"),
+        raise_on_freeze=False,
+    )
+    assert result.drift.type_mismatches == []
