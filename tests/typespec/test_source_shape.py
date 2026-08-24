@@ -110,6 +110,17 @@ def test_pyarrow_list_families_keep_child() -> None:
     assert shapes["large"].item_shape == SourceShape(MountainashDtype.I32)
     assert shapes["fixed"].item_shape == SourceShape(MountainashDtype.I16)
 
+    if hasattr(pa, "list_view"):
+        views = pa.table(
+            {
+                "view": pa.array([[1], [2]], type=pa.list_view(pa.int64())),
+                "large_view": pa.array([[1], [2]], type=pa.large_list_view(pa.int32())),
+            }
+        )
+        view_shapes = extract_source_shapes(views)
+        assert view_shapes["view"].item_shape == SourceShape(MountainashDtype.I64)
+        assert view_shapes["large_view"].item_shape == SourceShape(MountainashDtype.I32)
+
 
 def test_pyarrow_struct_shape_is_recursive() -> None:
     pa = pytest.importorskip("pyarrow")
@@ -136,6 +147,12 @@ def test_pandas_arrow_lists_are_inspected_from_dtype_only() -> None:
     frame = pd.DataFrame({"values": pd.Series([], dtype=dtype)})
     shape = extract_source_shapes(frame)["values"]
     assert shape == SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))
+
+
+def test_ibis_non_table_expression_is_unsupported() -> None:
+    ibis = pytest.importorskip("ibis")
+    with pytest.raises(TypeError, match=r"unsupported schema carrier .*IntegerScalar"):
+        extract_source_shapes(ibis.literal(1))
 
 
 def test_ibis_arrays_and_structs_are_recursive() -> None:

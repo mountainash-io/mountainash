@@ -73,12 +73,19 @@ def _from_polars_schema(schema: Any) -> dict[str, SourceShape]:
 
 
 def _is_pyarrow_list(dtype: Any, pa: Any) -> bool:
+    if str(dtype).split("<", 1)[0] in {
+        "list",
+        "large_list",
+        "fixed_size_list",
+        "list_view",
+        "large_list_view",
+    }:
+        return True
     return any(
         checker(dtype)
         for name in ("is_list", "is_large_list", "is_fixed_size_list", "is_list_view", "is_large_list_view")
         if (checker := getattr(pa.types, name, None)) is not None
     )
-
 
 def _from_pyarrow_dtype(dtype: Any, pa: Any) -> SourceShape:
     canonical = _canonical(dtype, TypeTarget.PYARROW)
@@ -162,7 +169,7 @@ def extract_source_shapes(native: Any) -> dict[str, SourceShape]:
         return _from_pyarrow_schema(native.schema)
     if is_pandas_dataframe(native):
         return _from_pandas_dtypes(native.dtypes)
-    if is_ibis_table(native):
+    if is_ibis_table(native) and type(native).__name__ == "Table":
         return _from_ibis_schema(native.schema())
     if is_narwhals_dataframe(native) or is_narwhals_lazyframe(native):
         return _from_narwhals_schema(native)
