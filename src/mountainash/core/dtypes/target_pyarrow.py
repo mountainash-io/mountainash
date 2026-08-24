@@ -18,6 +18,8 @@ SCHEMA_TYPES: dict[D, Any] = {
     D.BINARY: pa.binary(), D.DATE: pa.date32(), D.TIME: pa.time64("ns"),
     D.TIMESTAMP: pa.timestamp("ns"), D.DURATION: pa.duration("ns"),
     D.LIST: pa.list_(pa.string()), D.STRUCT: pa.struct([]),
+    D.JSON: pa.string(), D.XSD_DURATION: pa.string(),
+    D.XSD_YEAR: pa.string(), D.XSD_YEARMONTH: pa.string(),
 }
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})

@@ -21,7 +21,37 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
+from mountainash.typespec.errors import (
+    IncompatibleFieldPropertiesError,
+    InvalidKeyShapeError,
+)
 from mountainash.typespec.universal_types import UniversalType, parse_universal
+
+
+@dataclass
+class LabeledValue:
+    """A value with an optional human-readable label.
+
+    Shared typed shape for Frictionless v2's missingValues and categories
+    labeled-object forms. ``value``'s Python type follows the property that
+    carries it: always str for missing values (Frictionless requires
+    string-typed sentinels so comparison happens before casting); the
+    field's declared type for categories (e.g. int for an integer field).
+    """
+
+    value: Any
+    label: Optional[str] = None
+
+
+MissingValue = Union[str, LabeledValue]
+
+
+def _validate_key_shape(value: Any, label: str) -> None:
+    """Module-private helper shared by TypeSpec, ForeignKey, and
+    ForeignKeyReference — every key-shaped field validates through this one
+    function. Raises InvalidKeyShapeError unless ``value`` is a list[str]."""
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+        raise InvalidKeyShapeError(label, value, "list[str]")
 
 
 @dataclass
@@ -32,11 +62,14 @@ class FieldConstraints:
     unique: bool = False
     minimum: Optional[Any] = None
     maximum: Optional[Any] = None
+    exclusive_minimum: Optional[Any] = None  # standard v2 property
+    exclusive_maximum: Optional[Any] = None  # standard v2 property
     min_length: Optional[int] = None
     max_length: Optional[int] = None
     pattern: Optional[str] = None
     enum: Optional[List[Any]] = None
     enum_weights: Optional[Dict[str, float]] = None  # x-mountainash extension
+    json_schema: Optional[Dict[str, Any]] = None  # standard v2 property
 
 
 @dataclass
@@ -44,11 +77,16 @@ class ForeignKeyReference:
     """Reference target for a foreign key (Frictionless Table Schema compliant).
 
     Attributes:
-        resource: Name of the referenced table. Empty string for self-referencing.
+        resource: Name of the referenced table. ``None`` for self-referencing.
         fields: Field name(s) in the referenced table.
     """
-    resource: str
+    resource: Optional[str]  # None = self-reference
     fields: List[str]
+
+    def __post_init__(self) -> None:
+        if self.resource == "":
+            raise ValueError("ForeignKeyReference.resource must be None or a non-empty string")
+        _validate_key_shape(self.fields, "foreign_key.reference.fields")
 
 
 @dataclass
@@ -62,6 +100,9 @@ class ForeignKey:
     fields: List[str]
     reference: ForeignKeyReference
 
+    def __post_init__(self) -> None:
+        _validate_key_shape(self.fields, "foreign_key.fields")
+
 
 @dataclass
 class FieldSpec:
@@ -73,28 +114,51 @@ class FieldSpec:
     """
 
     name: str
-    type: UniversalType = UniversalType.STRING
+    type: UniversalType = UniversalType.ANY
     format: str = "default"
     title: Optional[str] = None
     description: Optional[str] = None
     constraints: Optional[FieldConstraints] = None
-    missing_values: Optional[List[str]] = None
+    missing_values: Optional[List[MissingValue]] = None
     true_values: Optional[List[str]] = None
     false_values: Optional[List[str]] = None
-    categories: Optional[List[Any]] = None  # Gap 7: array of values or {value, label} dicts
+    categories: Optional[List[Union[Any, LabeledValue]]] = None  # array of values or LabeledValue
     categories_ordered: Optional[bool] = None
     example: Optional[Any] = None
     rdf_type: Optional[str] = None
     decimal_char: Optional[str] = None
     group_char: Optional[str] = None
     bare_number: Optional[bool] = None
-    item_type: Optional[str] = None
+    item_type: Optional[str] = None  # valid only when type is LIST or ARRAY (decision 14)
     object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: OBJECT inner-field schema
-    delimiter: Optional[str] = None
+    item_object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: ARRAY item struct schema
+    delimiter: Optional[str] = None  # valid only when type is LIST or ARRAY (decision 14)
     backend_type: Optional[str] = None
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
+
+    # Interim (Unit B -> Unit C) property/type compatibility for
+    # item_type/delimiter. See decision 14: native list extraction always
+    # emits ARRAY (never LIST — a native dtype cannot prove lexical LIST
+    # intent), and conform's pre-existing ARRAY/item_type split branch
+    # (backlog item 109) still keys on type == ARRAY. __post_init__ therefore
+    # checks membership in (LIST, ARRAY), not LIST alone; Unit C narrows this
+    # back to (LIST,) once ARRAY stops carrying these properties.
+    def __post_init__(self) -> None:
+        list_like = (UniversalType.LIST, UniversalType.ARRAY)
+        if self.item_type is not None and self.type not in list_like:
+            raise IncompatibleFieldPropertiesError(self.name, "item_type", self.type, list_like)
+        if self.delimiter is not None and self.type not in list_like:
+            raise IncompatibleFieldPropertiesError(self.name, "delimiter", self.type, list_like)
+        if self.item_object_fields is not None and self.type is not UniversalType.ARRAY:
+            raise IncompatibleFieldPropertiesError(
+                self.name, "item_object_fields", self.type, (UniversalType.ARRAY,)
+            )
+        if self.object_fields is not None and self.type is not UniversalType.OBJECT:
+            raise IncompatibleFieldPropertiesError(
+                self.name, "object_fields", self.type, (UniversalType.OBJECT,)
+            )
 
     @property
     def source_name(self) -> str:
@@ -104,50 +168,6 @@ class FieldSpec:
         name), otherwise falls back to name.
         """
         return self.rename_from if self.rename_from is not None else self.name
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to Frictionless-compatible dict."""
-        result: Dict[str, Any] = {
-            "name": self.name,
-            "type": self.type.value if isinstance(self.type, UniversalType) else str(self.type),
-        }
-        if self.format != "default":
-            result["format"] = self.format
-        if self.title:
-            result["title"] = self.title
-        if self.description:
-            result["description"] = self.description
-        if self.constraints:
-            result["constraints"] = {
-                k: v for k, v in self.constraints.__dict__.items() if v is not None and v is not False
-            }
-        if self.missing_values:
-            result["missingValues"] = self.missing_values
-        if self.categories_ordered is not None:
-            result["categoriesOrdered"] = self.categories_ordered
-        if self.example is not None:
-            result["example"] = self.example
-        if self.rdf_type is not None:
-            result["rdfType"] = self.rdf_type
-        if self.decimal_char is not None:
-            result["decimalChar"] = self.decimal_char
-        if self.group_char is not None:
-            result["groupChar"] = self.group_char
-        if self.bare_number is not None:
-            result["bareNumber"] = self.bare_number
-        if self.item_type is not None:
-            result["itemType"] = self.item_type
-        if self.object_fields is not None:
-            result["objectFields"] = [f.to_dict() for f in self.object_fields]
-        if self.delimiter is not None:
-            result["delimiter"] = self.delimiter
-        if self.backend_type:
-            result["backend_type"] = self.backend_type
-        if self.rename_from is not None:
-            result["rename_from"] = self.rename_from
-        if self.null_fill is not None:
-            result["null_fill"] = self.null_fill
-        return result
 
 
 @dataclass
@@ -160,10 +180,10 @@ class TypeSpec:
     fields: List[FieldSpec] = field(default_factory=list)
     title: Optional[str] = None
     description: Optional[str] = None
-    primary_key: Optional[Union[str, List[str]]] = None
+    primary_key: Optional[List[str]] = None
     foreign_keys: Optional[List[ForeignKey]] = None
-    missing_values: Optional[List[str]] = field(default_factory=lambda: [""])
-    fields_match: Optional[str] = None  # Gap 3: exact/equal/subset/superset/partial
+    missing_values: Optional[List[MissingValue]] = field(default_factory=lambda: [""])
+    fields_match: str = "exact"  # exact/equal/subset/superset/partial/open
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
     contract: Optional[Dict[str, str]] = None  # item 48: reconciliation contract, layered
@@ -175,6 +195,11 @@ class TypeSpec:
         # `from_preset=False` on any non-None contract) — normalise to None.
         if self.contract is not None and len(self.contract) == 0:
             self.contract = None
+        if self.primary_key is not None:
+            _validate_key_shape(self.primary_key, "primary_key")
+        if self.unique_keys is not None:
+            for i, uk in enumerate(self.unique_keys):
+                _validate_key_shape(uk, f"unique_keys[{i}]")
 
     @classmethod
     def from_simple_dict(cls, columns: Dict[str, str], **metadata: Any) -> TypeSpec:
@@ -238,22 +263,6 @@ class TypeSpec:
     def field_names(self) -> List[str]:
         """Get list of field names."""
         return [f.name for f in self.fields]
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to Frictionless-compatible dict."""
-        result: Dict[str, Any] = {}
-        if self.schema_url is not None:
-            result["$schema"] = self.schema_url
-        result["fields"] = [f.to_dict() for f in self.fields]
-        if self.title:
-            result["title"] = self.title
-        if self.description:
-            result["description"] = self.description
-        if self.primary_key:
-            result["primaryKey"] = self.primary_key
-        if self.missing_values:
-            result["missingValues"] = self.missing_values
-        return result
 
 
 @dataclass
@@ -324,6 +333,8 @@ def compare_specs(
 
 
 __all__ = [
+    "LabeledValue",
+    "MissingValue",
     "FieldConstraints",
     "ForeignKeyReference",
     "ForeignKey",

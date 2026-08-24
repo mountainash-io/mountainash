@@ -20,6 +20,65 @@ from fixtures.backend_registry import ALL_BACKENDS
 # ]
 
 
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_missing_values_schema_level_labeled_sentinel(
+    backend_name, backend_factory
+) -> None:
+    from mountainash.typespec.spec import LabeledValue
+
+    spec = TypeSpec(
+        fields=[FieldSpec(name="value", type=UniversalType.STRING)],
+        missing_values=[LabeledValue("", "Empty")],
+    )
+    frame = backend_factory.create({"value": ["ok", ""]}, backend_name)
+    assert ma.relation(frame).conform(spec).to_polars()["value"].to_list() == [
+        "ok",
+        None,
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_missing_values_field_level_labeled_sentinel(
+    backend_name, backend_factory
+) -> None:
+    from mountainash.typespec.spec import LabeledValue
+
+    spec = TypeSpec(
+        fields=[
+            FieldSpec(
+                name="value",
+                type=UniversalType.STRING,
+                missing_values=[LabeledValue("", "Empty")],
+            )
+        ],
+    )
+    frame = backend_factory.create({"value": ["ok", ""]}, backend_name)
+    assert ma.relation(frame).conform(spec).to_polars()["value"].to_list() == [
+        "ok",
+        None,
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    "missing_values,expected",
+    [
+        (None, ["ok", None]),
+        ([], ["ok", ""]),
+    ],
+)
+def test_missing_values_default_and_explicit_empty(
+    backend_name, backend_factory, missing_values, expected
+) -> None:
+    kwargs = {} if missing_values is None else {"missing_values": missing_values}
+    spec = TypeSpec(
+        fields=[FieldSpec("value", UniversalType.STRING)],
+        **kwargs,
+    )
+    frame = backend_factory.create({"value": ["ok", ""]}, backend_name)
+    assert ma.relation(frame).conform(spec).to_polars()["value"].to_list() == expected
+
+
 # ---------------------------------------------------------------------------
 # Unit tests: _build_conform_exprs produces the right expression count
 # ---------------------------------------------------------------------------
@@ -31,7 +90,7 @@ class TestBuildConformExprsMissingValues:
     def test_emits_expr_for_scalar_field(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
             missing_values=[""],
         )
@@ -41,7 +100,7 @@ class TestBuildConformExprsMissingValues:
     def test_emits_expr_for_custom_sentinels(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
             missing_values=["NA", "-"],
         )
@@ -51,7 +110,7 @@ class TestBuildConformExprsMissingValues:
     def test_field_level_override(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="a", type=UniversalType.STRING),
                 FieldSpec(
@@ -69,14 +128,14 @@ class TestBuildConformExprsMissingValues:
         """ARRAY is excluded from sentinel replacement (is_in may raise)."""
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        _spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.ARRAY)],
             missing_values=[""],
         )
         # Use ANY as a proxy — both ARRAY and ANY are excluded from
         # _SCALAR_TYPES, so neither emits a sentinel when/then. Test the
         # sentinel exclusion logic directly.
-        spec_any = TypeSpec(
+        spec_any = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.ANY)],
             missing_values=[""],
         )
@@ -89,7 +148,7 @@ class TestBuildConformExprsMissingValues:
         from mountainash.conform.expressions import _build_conform_exprs
 
         # Use ANY as a proxy — both OBJECT and ANY are excluded from _SCALAR_TYPES
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.ANY)],
             missing_values=[""],
         )
@@ -106,7 +165,7 @@ class TestBuildConformExprsMissingValues:
 class TestMissingValuesSchemaLevel:
     def test_default_empty_string_becomes_null(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["a", "", "c"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
             missing_values=[""],
         )
@@ -115,7 +174,7 @@ class TestMissingValuesSchemaLevel:
 
     def test_custom_missing_values(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1", "NaN", "-", "4"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
             missing_values=["NaN", "-"],
         )
@@ -125,7 +184,7 @@ class TestMissingValuesSchemaLevel:
     def test_empty_sentinel_list_no_replacement(self, backend_name, backend_factory):
         """When missingValues=[] (explicit empty), no sentinels are replaced."""
         df = backend_factory.create({"val": ["a", "", "c"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
             missing_values=[],
         )
@@ -144,7 +203,7 @@ class TestMissingValuesFieldLevel:
         df = backend_factory.create(
             {"a": ["x", "", "-"], "b": ["y", "", "-"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="a", type=UniversalType.STRING),
                 FieldSpec(
@@ -170,7 +229,7 @@ class TestMissingValuesInteraction:
     def test_missing_values_before_null_fill(self, backend_name, backend_factory):
         """missingValues converts sentinel → null, then null_fill replaces null."""
         df = backend_factory.create({"val": ["1", "NA", "3"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="val", type=UniversalType.STRING, null_fill="UNKNOWN"
@@ -191,7 +250,7 @@ class TestMissingValuesBooleanOverlapWarning:
     def test_warns_on_overlap_with_false_values(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="flag",
@@ -212,7 +271,7 @@ class TestMissingValuesBooleanOverlapWarning:
     def test_warns_on_overlap_with_true_values(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="flag",
@@ -233,7 +292,7 @@ class TestMissingValuesBooleanOverlapWarning:
     def test_no_warning_when_no_overlap(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="flag", type=UniversalType.BOOLEAN),
             ],

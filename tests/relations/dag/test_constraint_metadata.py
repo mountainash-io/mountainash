@@ -46,7 +46,7 @@ class TestAddConstraint:
 
     def test_empty_reference_normalises_to_self_edge(self):
         dag = _dag_two_relations()
-        dag.add_constraint("orders", _fk(["parent_id"], "", ["id"]))
+        dag.add_constraint("orders", _fk(["parent_id"], None, ["id"]))
         assert ("orders", "orders") in dag.constraint_edges
         assert ("orders", "orders") in dag.constraint_metadata
 
@@ -58,7 +58,7 @@ class TestAddConstraint:
         )
         dag.add("raw", resource_to_relation(res))
         with pytest.raises(ValueError, match="table_schema"):
-            dag.add_constraint("raw", _fk(["id"], "", ["id"]))
+            dag.add_constraint("raw", _fk(["id"], None, ["id"]))
 
     def test_repeated_identical_fk_is_idempotent(self):
         dag = _dag_two_relations()

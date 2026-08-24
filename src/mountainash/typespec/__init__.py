@@ -13,6 +13,8 @@ from mountainash.typespec.universal_types import (
     parse_universal,
 )
 from mountainash.typespec.spec import (
+    LabeledValue,
+    MissingValue,
     FieldConstraints,
     ForeignKeyReference,
     ForeignKey,
@@ -45,6 +47,7 @@ from mountainash.typespec.converters import (
     to_arrow_schema,
     to_ibis_schema,
     convert_to_backend,
+    resolve_field_canonical,
 )
 from mountainash.typespec.custom_types import (
     TypeConverter,
@@ -69,6 +72,14 @@ from mountainash.typespec.descriptor_context import (
     StorageDescriptorResolver,
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+from mountainash.typespec.errors import (
+    TypeSpecError,
+    AmbiguousGeospatialTypeError,
+    InvalidGeospatialFormatError,
+    InvalidKeyShapeError,
+    IncompatibleFieldPropertiesError,
+    InvalidFieldMatchDeclaration,
+)
 
 __all__ = [
     # Universal type enum
@@ -80,6 +91,8 @@ __all__ = [
     "parse_universal",
 
     # Spec classes
+    "LabeledValue",
+    "MissingValue",
     "FieldConstraints",
     "ForeignKeyReference",
     "ForeignKey",
@@ -112,6 +125,7 @@ __all__ = [
     "to_arrow_schema",
     "to_ibis_schema",
     "convert_to_backend",
+    "resolve_field_canonical",
 
     # Custom types
     "TypeConverter",
@@ -134,4 +148,12 @@ __all__ = [
     "descriptor_cache_key",
     "LocalDescriptorResolver",
     "StorageDescriptorResolver",
+
+    # Errors
+    "TypeSpecError",
+    "AmbiguousGeospatialTypeError",
+    "InvalidGeospatialFormatError",
+    "InvalidKeyShapeError",
+    "IncompatibleFieldPropertiesError",
+    "InvalidFieldMatchDeclaration",
 ]

@@ -160,3 +160,63 @@ class TestNoRaisePartnerRegression:
         res = DataResource(name="t", format="json", data={"i": [None]}, schema=schema)
         df = _polars_ext().read_resource(res).collect()
         assert df.schema["i"] == pl.Int64
+
+
+# ============================================================================
+# Task 6: six-field shared-resolver parity across all relation backends
+# ============================================================================
+
+V2_FIDELITY_SPEC = TypeSpec(fields=[
+    FieldSpec("list", UniversalType.LIST, item_type="integer"),
+    FieldSpec("point", UniversalType.GEOPOINT, format="array"),
+    FieldSpec("geometry", UniversalType.GEOJSON),
+    FieldSpec("duration", UniversalType.DURATION),
+    FieldSpec("year", UniversalType.YEAR),
+    FieldSpec("yearmonth", UniversalType.YEARMONTH),
+])
+
+class TestV2SharedResolverParity:
+    @pytest.mark.parametrize("backend", ["polars", "narwhals", "ibis"])
+    def test_six_field_empty_frame_preserves_native_schema(self, backend):
+        native = self._ext(backend).empty_frame(V2_FIDELITY_SPEC)
+        if backend == "polars":
+            df = native.collect()
+            assert df.shape == (0, 6)
+            assert df.columns == [
+                "list", "point", "geometry", "duration", "year", "yearmonth",
+            ]
+            assert df.schema["list"] == pl.List(pl.Int64)
+            assert df.schema["point"].base_type() is pl.List
+            for name in ("geometry", "duration", "year", "yearmonth"):
+                assert df.schema[name] == pl.String
+        elif backend == "narwhals":
+            import narwhals as nw
+
+            frame = native.collect()
+            assert frame.shape == (0, 6)
+            assert list(frame.columns) == [
+                "list", "point", "geometry", "duration", "year", "yearmonth",
+            ]
+            assert frame.schema["list"] == nw.List(nw.Int64)
+            assert frame.schema["point"] == nw.List
+            for name in ("geometry", "duration", "year", "yearmonth"):
+                assert frame.schema[name] == nw.String
+        else:
+            schema = native.schema()
+            assert schema["list"].is_array()
+            assert schema["list"].value_type.is_int64()
+            assert schema["point"].is_array()
+            for name in ("geometry", "duration", "year", "yearmonth"):
+                assert schema[name].is_string()
+            out = native.execute()
+            assert out.shape == (0, 6)
+            assert list(out.columns) == [
+                "list", "point", "geometry", "duration", "year", "yearmonth",
+            ]
+    @staticmethod
+    def _ext(backend):
+        return {
+            "polars": _polars_ext,
+            "narwhals": _narwhals_ext,
+            "ibis": _ibis_ext,
+        }[backend]()

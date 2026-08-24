@@ -38,15 +38,44 @@ class TestFromNative:
         assert registry.from_native("int32", target=TypeTarget.PANDAS) is D.I32
 
 
+# Semantic-string canonical types (item 113 Unit B, Task 2) are physically
+# indistinguishable from STRING on every target — a native string cannot
+# prove JSON/XSD-duration/XSD-year/XSD-yearmonth semantics, so from_native
+# collapses them all to STRING by design. They are structurally excluded
+# from the round-trip identity check below (which is completeness-checked
+# via set(D) so a future canonical addition is still forced to declare
+# itself into one bucket or the other).
+_SEMANTIC_STRING_DTYPES: frozenset[D] = frozenset({
+    D.JSON, D.XSD_DURATION, D.XSD_YEAR, D.XSD_YEARMONTH,
+})
+
+
 class TestRoundTrip:
     @pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS])
-    @pytest.mark.parametrize("dtype", [d for d in D])
+    @pytest.mark.parametrize(
+        "dtype", [d for d in D if d not in _SEMANTIC_STRING_DTYPES]
+    )
     def test_canon_to_native_to_canon(self, dtype, target):
         native = registry.to_native_schema(dtype, target)
         back = registry.from_native(native, target=target)
         # Width-preserving identity (STRING-collapsing types like
         # Categorical only appear in from_native, not to_native)
         assert back is dtype
+
+    @pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS])
+    @pytest.mark.parametrize(
+        "dtype", sorted(_SEMANTIC_STRING_DTYPES, key=lambda d: d.value)
+    )
+    def test_semantic_string_types_collapse_to_string_on_round_trip(
+        self, dtype, target
+    ):
+        native = registry.to_native_schema(dtype, target)
+        back = registry.from_native(native, target=target)
+        assert back is D.STRING
+
+    def test_round_trip_coverage_is_exhaustive_over_canonical_vocabulary(self):
+        # Every canonical member is in exactly one of the two buckets above.
+        assert _SEMANTIC_STRING_DTYPES <= set(D)
 
 
 class TestParseTypeString:

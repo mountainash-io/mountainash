@@ -36,7 +36,7 @@ from mountainash.typespec.universal_types import UniversalType as U
 class TestCollectWithDriftBasics:
     def test_returns_conform_collection(self):
         df = pl.DataFrame({"n": [1, 2]})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
         rel = ma.relation(df).conform(spec)
 
         collection = rel.collect_with_drift()
@@ -50,7 +50,7 @@ class TestCollectWithDriftBasics:
         """collect_with_drift is a terminal -- the frame must be eager,
         mirroring collect()'s own LazyFrame -> DataFrame unwrap contract."""
         lf = pl.DataFrame({"n": [1, 2]}).lazy()
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
         rel = ma.relation(lf).conform(spec)
 
         collection = rel.collect_with_drift()
@@ -83,7 +83,7 @@ class TestCollectWithDriftBasics:
 
     def test_backend_override_accepted(self):
         df = pl.DataFrame({"n": [1, 2]})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
         rel = ma.relation(df).conform(spec)
 
         collection = rel.collect_with_drift(backend="polars")
@@ -104,12 +104,12 @@ class TestMultiConformOrdering:
         # Relation.conform() call).
         left = ma.relation(
             {"id": [1], "a": [1], "left_extra": [9]}
-        ).conform(TypeSpec(fields=[
+        ).conform(TypeSpec(fields_match="open", fields=[
             FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="a", type=U.INTEGER),
         ]))
         right = ma.relation(
             {"id": [1], "b": [2], "right_extra": [8]}
-        ).conform(TypeSpec(fields=[
+        ).conform(TypeSpec(fields_match="open", fields=[
             FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="b", type=U.INTEGER),
         ]))
         return left.join(right, on="id")
@@ -147,7 +147,7 @@ class TestFreezeFailFast:
         left = ma.relation({"id": [1], "x": ["not-a-number"]}).conform(left_spec)
 
         # Right: no freeze, no mismatch -- must never be reached.
-        right_spec = TypeSpec(
+        right_spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="y", type=U.INTEGER)],
         )
         right = ma.relation({"id": [1], "y": [2]}).conform(right_spec)
@@ -186,7 +186,7 @@ class TestAssessDrift:
 
     def test_single_conform_node_assessed(self):
         df = pl.DataFrame({"n": ["1", "2"]})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
         rel = ma.relation(df).conform(spec)
 
         drifts = rel.assess_drift()
@@ -196,10 +196,10 @@ class TestAssessDrift:
 
     def test_aggregates_across_two_conform_nodes(self):
         left = ma.relation({"id": [1], "a": [1]}).conform(
-            TypeSpec(fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="a", type=U.INTEGER)])
+            TypeSpec(fields_match="open", fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="a", type=U.INTEGER)])
         )
         right = ma.relation({"id": [1], "b": [2]}).conform(
-            TypeSpec(fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="b", type=U.INTEGER)])
+            TypeSpec(fields_match="open", fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="b", type=U.INTEGER)])
         )
         joined = left.join(right, on="id")
 
@@ -246,7 +246,7 @@ class TestAssessDrift:
                 accessed.append(name)
                 raise AttributeError(name)
 
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
         rel = ma.relation(_WatchedFrame()).conform(spec)
 
         drifts = rel.assess_drift()

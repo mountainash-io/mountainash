@@ -14,6 +14,8 @@ SCHEMA_TYPES: dict[D, str] = {
     D.STRING: "string", D.BINARY: "object", D.DATE: "datetime64[ns]",
     D.TIME: "object", D.TIMESTAMP: "datetime64[ns]",
     D.DURATION: "timedelta64[ns]", D.LIST: "object", D.STRUCT: "object",
+    D.JSON: "string", D.XSD_DURATION: "string",
+    D.XSD_YEAR: "string", D.XSD_YEARMONTH: "string",
 }
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})

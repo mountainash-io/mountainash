@@ -4,8 +4,10 @@ import pytest
 
 from mountainash.exceptions import (
     DescriptorReferenceInvalid,
-    InvalidDescriptorRelationship,
+    IncompatibleFieldPropertiesError,
     InvalidDescriptorStructure,
+    InvalidFieldMatchDeclaration,
+    InvalidKeyShapeError,
     MissingDescriptorBase,
     UnsupportedDescriptorVersion,
     UnsupportedResourceDialect,
@@ -167,6 +169,29 @@ def test_inline_wrong_schema_kind_stays_structural_error() -> None:
         schema={"resources": []},
     )
     with pytest.raises(InvalidDescriptorStructure):
+        resource.to_typespec()
+
+
+@pytest.mark.parametrize(
+    "schema,error_type",
+    [
+        (
+            {"fields": [], "fieldsMatch": "open"},
+            InvalidFieldMatchDeclaration,
+        ),
+        (
+            {"fields": [{"name": "x", "type": "string", "itemType": "integer"}]},
+            IncompatibleFieldPropertiesError,
+        ),
+        (
+            {"fields": [], "primaryKey": {"id"}},
+            InvalidKeyShapeError,
+        ),
+    ],
+)
+def test_to_typespec_preserves_typespec_errors(schema, error_type) -> None:
+    resource = DataResource(name="r", data=[], schema=schema)
+    with pytest.raises(error_type):
         resource.to_typespec()
 
 
@@ -476,7 +501,11 @@ def test_resolved_invalid_dialect_shape_is_typed_with_cause() -> None:
     assert caught.value.__cause__ is not None
 
 
-def test_resolved_invalid_foreign_key_shape_is_typed_with_cause() -> None:
+def test_resolved_invalid_foreign_key_shape_raises_typed_key_shape_error() -> None:
+    # An invalid FK key shape resolved from a reference string is a typed
+    # structural error (InvalidKeyShapeError / TypeSpecError) and passes
+    # through unchanged — it is NOT rewrapped as a descriptor error
+    # (Section 10 / Section 12.1 boundary rule).
     resolver = SingleDocumentResolver(
         {
             "fields": [{"name": "customer_id"}],
@@ -501,9 +530,9 @@ def test_resolved_invalid_foreign_key_shape_is_typed_with_cause() -> None:
         resolver=resolver,
     ).resources[0]
 
-    with pytest.raises(DescriptorReferenceInvalid) as caught:
+    with pytest.raises(InvalidKeyShapeError) as caught:
         resource.to_typespec()
-    assert caught.value.__cause__ is not None
+    assert caught.value.field_name == "foreign_key.fields"
 
 
 @pytest.mark.parametrize(

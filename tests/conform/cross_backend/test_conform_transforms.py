@@ -28,7 +28,7 @@ _IBIS_CONF = [
 class TestConformCast:
     def test_cast_string_to_integer(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -36,7 +36,7 @@ class TestConformCast:
 
     def test_cast_string_to_number(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1.5", "2.5", "3.5"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.NUMBER)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -44,7 +44,7 @@ class TestConformCast:
 
     def test_cast_string_to_string(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["hello", "world"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -55,16 +55,16 @@ class TestConformCast:
 class TestConformRename:
     def test_rename_column(self, backend_name, backend_factory):
         df = backend_factory.create({"old_name": ["a", "b", "c"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="new_name", type=UniversalType.STRING, rename_from="old_name")],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["new_name"].to_list() == ["a", "b", "c"]
 
     def test_rename_default_keeps_unmapped(self, backend_name, backend_factory):
-        """Unset fields_match defaults to open — unmapped columns preserved, renamed source dropped."""
+        """fields_match="open" keeps unmapped columns; the renamed source is dropped."""
         df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -89,7 +89,7 @@ class TestConformRename:
 class TestConformNullFill:
     def test_null_fill_integer(self, backend_name, backend_factory):
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -97,7 +97,7 @@ class TestConformNullFill:
 
     def test_null_fill_string(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["x", None, "z"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="val", type=UniversalType.STRING, null_fill="unknown")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -107,9 +107,9 @@ class TestConformNullFill:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestConformOnlyMappedFields:
     def test_default_keeps_unmapped(self, backend_name, backend_factory):
-        """Unset fields_match defaults to open — unmapped columns preserved."""
+        """fields_match="open" keeps unmapped columns."""
         df = backend_factory.create({"keep": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -132,7 +132,7 @@ class TestConformMultiTransform:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cast_and_rename(self, backend_name, backend_factory):
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -145,7 +145,7 @@ class TestConformMultiTransform:
             "raw_label": ["foo", "bar", None],
             "extra": [10, 20, 30],
         }, backend_name)
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
                 FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
@@ -168,7 +168,8 @@ class TestConformFromFrictionless:
         }
         spec = TypeSpec.from_frictionless(frictionless_data)
         # Frictionless default is "exact" which requires available_columns.
-        # Override to None for Relation.conform() which doesn't have column info.
-        spec.fields_match = None
+        # Override to the permissive "open" mode for Relation.conform(), which
+        # doesn't have column info at build time.
+        spec.fields_match = "open"
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2]

@@ -30,7 +30,7 @@ class TestBuildConformExprsBooleanCast:
     def test_emits_expr_for_boolean_field(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
         )
         result = _build_conform_exprs(spec)
@@ -39,7 +39,7 @@ class TestBuildConformExprsBooleanCast:
     def test_emits_expr_for_custom_true_false_values(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="flag",
@@ -64,7 +64,7 @@ class TestBooleanCastingDefaults:
         df = backend_factory.create(
             {"flag": ["true", "True", "TRUE", "1"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -74,7 +74,7 @@ class TestBooleanCastingDefaults:
         df = backend_factory.create(
             {"flag": ["false", "False", "FALSE", "0"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -84,7 +84,7 @@ class TestBooleanCastingDefaults:
         df = backend_factory.create(
             {"flag": ["true", "false", "TRUE", "0"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -102,7 +102,7 @@ class TestBooleanCastingCustom:
         df = backend_factory.create(
             {"flag": ["yes", "no", "yes"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="flag",
@@ -125,7 +125,7 @@ class TestBooleanCastingAlreadyBoolean:
     def test_preserves_existing_boolean_values(self):
         """Boolean source column: cast(str).is_in() matches, preserves values."""
         df = pl.DataFrame({"flag": [True, False, True]})
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
         )
         result = ma.relation(df).conform(spec).to_polars()

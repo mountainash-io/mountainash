@@ -39,8 +39,11 @@ _ALL_MEMBERS = [
     ("DURATION", "duration"),
     ("YEAR", "year"),
     ("YEARMONTH", "yearmonth"),
+    ("LIST", "list"),
     ("ARRAY", "array"),
     ("OBJECT", "object"),
+    ("GEOPOINT", "geopoint"),
+    ("GEOJSON", "geojson"),
     ("ANY", "any"),
 ]
 

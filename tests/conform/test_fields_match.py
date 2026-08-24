@@ -17,17 +17,22 @@ from mountainash.typespec.universal_types import UniversalType
 
 class TestConformResultType:
     def test_returns_conform_result(self):
-        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)])
+        spec = TypeSpec(
+            fields=[FieldSpec(name="a", type=UniversalType.STRING)],
+            fields_match="open",
+        )
         result = _build_conform_exprs(spec)
         assert isinstance(result, ConformResult)
         assert len(result.exprs) == 1
         assert isinstance(result.fields_match, str)
         assert isinstance(result.renamed_sources, set)
 
-    def test_none_resolves_to_open(self):
+    def test_default_resolves_to_exact(self):
+        # fields_match is non-optional and defaults to "exact"; a permissive
+        # caller must pass "open" explicitly.
         spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)])
-        result = _build_conform_exprs(spec)
-        assert result.fields_match == "open"
+        result = _build_conform_exprs(spec, available_columns=["a"])
+        assert result.fields_match == "exact"
 
     def test_explicit_mode_preserved(self):
         spec = TypeSpec(
@@ -45,6 +50,7 @@ class TestFieldsMatchOpen:
                 FieldSpec(name="a", type=UniversalType.STRING),
                 FieldSpec(name="missing", type=UniversalType.STRING),
             ],
+            fields_match="open",
         )
         result = _build_conform_exprs(spec, available_columns=["a", "b"])
         assert len(result.exprs) == 1
@@ -52,6 +58,7 @@ class TestFieldsMatchOpen:
     def test_open_tracks_renamed_sources(self):
         spec = TypeSpec(
             fields=[FieldSpec(name="new_name", type=UniversalType.STRING, rename_from="old_name")],
+            fields_match="open",
         )
         result = _build_conform_exprs(spec, available_columns=["old_name", "other"])
         assert "old_name" in result.renamed_sources
@@ -62,6 +69,7 @@ class TestFieldsMatchOpen:
                 FieldSpec(name="a", type=UniversalType.STRING),
                 FieldSpec(name="b", type=UniversalType.INTEGER),
             ],
+            fields_match="open",
         )
         result = _build_conform_exprs(spec)
         assert len(result.exprs) == 2
@@ -202,7 +210,10 @@ class TestFieldsMatchRequiresColumns:
             _build_conform_exprs(spec)
 
     def test_open_mode_without_columns_ok(self):
-        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)])
+        spec = TypeSpec(
+            fields=[FieldSpec(name="a", type=UniversalType.STRING)],
+            fields_match="open",
+        )
         result = _build_conform_exprs(spec)
         assert len(result.exprs) == 1
 

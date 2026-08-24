@@ -37,6 +37,10 @@ class MountainashDtype(str, Enum):
     DURATION = "duration"
     LIST = "list"
     STRUCT = "struct"
+    JSON = "json"
+    XSD_DURATION = "xsd_duration"
+    XSD_YEAR = "xsd_year"
+    XSD_YEARMONTH = "xsd_yearmonth"
 
 
 DTYPE_ALIASES: dict[str, MountainashDtype] = {

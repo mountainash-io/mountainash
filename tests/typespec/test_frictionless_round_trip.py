@@ -10,9 +10,12 @@ from __future__ import annotations
 import pytest
 
 from mountainash.typespec.frictionless import (
+    _field_to_frictionless_dict,
     typespec_from_frictionless,
     typespec_to_frictionless,
 )
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
 
 # ---------------------------------------------------------------------------
 # Gap fixtures
@@ -142,12 +145,13 @@ GAP_FIXTURES = [
         },
         id="number-format-properties",
     ),
-    # Gap 11: list parsing properties
+    # Gap 11: list parsing properties (itemType/delimiter require a list-like
+    # type post-Unit-B — canonical "list", not the pre-cutover "string").
     pytest.param(
         {
             "fields": [{
                 "name": "tags",
-                "type": "string",
+                "type": "list",
                 "itemType": "string",
                 "delimiter": ";",
             }],
@@ -165,18 +169,19 @@ def test_field_round_trip(descriptor):
     assert result == descriptor
 
 
-from mountainash.typespec.spec import FieldSpec, TypeSpec
-from mountainash.typespec.universal_types import UniversalType
 
 
-class TestToDict:
-    """Direct to_dict tests — independent of frictionless round-trip."""
+class TestFieldDictSerialization:
+    """Serializer coverage rewritten from the deleted to_dict() methods
+    (Section 8.11) — exercises the real _field_to_frictionless_dict /
+    typespec_to_frictionless serializer."""
 
-    def test_fieldspec_to_dict_emits_all_new_fields(self):
+    def test_field_dict_emits_all_new_fields(self):
+        # list-only properties (itemType/delimiter) require a list-like type.
         fs = FieldSpec(
-            name="price",
-            type=UniversalType.NUMBER,
-            example=42.5,
+            name="tags",
+            type=UniversalType.LIST,
+            example=[1, 2],
             rdf_type="http://schema.org/price",
             categories_ordered=True,
             decimal_char=",",
@@ -185,8 +190,8 @@ class TestToDict:
             item_type="string",
             delimiter=";",
         )
-        d = fs.to_dict()
-        assert d["example"] == 42.5
+        d = _field_to_frictionless_dict(fs)
+        assert d["example"] == [1, 2]
         assert d["rdfType"] == "http://schema.org/price"
         assert d["categoriesOrdered"] is True
         assert d["decimalChar"] == ","
@@ -195,25 +200,25 @@ class TestToDict:
         assert d["itemType"] == "string"
         assert d["delimiter"] == ";"
 
-    def test_fieldspec_to_dict_omits_none_fields(self):
+    def test_field_dict_omits_none_fields(self):
         fs = FieldSpec(name="x", type=UniversalType.STRING)
-        d = fs.to_dict()
+        d = _field_to_frictionless_dict(fs)
         for key in ("example", "rdfType", "categoriesOrdered",
                      "decimalChar", "groupChar", "bareNumber",
                      "itemType", "delimiter"):
             assert key not in d
 
-    def test_typespec_to_dict_emits_schema_url(self):
+    def test_typespec_dict_emits_schema_url(self):
         ts = TypeSpec(
             fields=[FieldSpec(name="x", type=UniversalType.STRING)],
             schema_url="https://datapackage.org/profiles/1.0/tableschema.json",
         )
-        d = ts.to_dict()
+        d = typespec_to_frictionless(ts)
         assert d["$schema"] == "https://datapackage.org/profiles/1.0/tableschema.json"
 
-    def test_typespec_to_dict_omits_none_schema_url(self):
+    def test_typespec_dict_omits_none_schema_url(self):
         ts = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
-        d = ts.to_dict()
+        d = typespec_to_frictionless(ts)
         assert "$schema" not in d
 
 

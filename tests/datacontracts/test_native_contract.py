@@ -2,8 +2,10 @@
 import polars as pl
 import pytest
 
+from mountainash.datacontracts.compiler import contract_from_typespec
 from mountainash.datacontracts.contract import BaseDataContract
 from mountainash.datacontracts.field import Field
+from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.errors import IdentityInvalidError
 
@@ -153,6 +155,27 @@ class NoKeyContract(BaseDataContract):
 
     class Config:
         coerce = False
+
+
+# ============================================================================
+# TestSemanticStringNativeContract (item 113 Unit B, Task 2)
+#
+# DURATION/YEAR/YEARMONTH now compile to `str` Python annotations — their
+# canonical mapping changed to the semantic-string XSD_* types (spec §8.2),
+# so a native contract's Python type must be truthful about that, not still
+# claim datetime.timedelta / int.
+# ============================================================================
+
+class TestSemanticStringNativeContract:
+    @pytest.mark.parametrize(
+        "universal",
+        [UniversalType.DURATION, UniversalType.YEAR, UniversalType.YEARMONTH],
+    )
+    def test_semantic_string_fields_compile_to_str(self, universal) -> None:
+        contract = contract_from_typespec(
+            TypeSpec(fields=[FieldSpec("value", universal)])
+        )
+        assert contract.__annotations__["value"] is str
 
 
 def test_unique_failure_without_key_identity():

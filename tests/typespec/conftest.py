@@ -18,7 +18,7 @@ import pytest
 
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
-from mountainash.typespec.custom_types import CustomTypeRegistry, _register_standard_converters
+from mountainash.typespec.custom_types import CustomTypeRegistry
 
 
 # ============================================================================
@@ -107,7 +107,7 @@ def full_table_schema():
         fields=fields,
         title="Employee",
         description="Employee records",
-        primary_key="employee_id",
+        primary_key=["employee_id"],
     )
 
 

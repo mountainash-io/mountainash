@@ -15,10 +15,9 @@ Backend support (post strptime-format-honoring fix):
 """
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, time
 
 import pytest
-import polars as pl
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.spec import FieldSpec, TypeSpec
@@ -43,7 +42,7 @@ class TestBuildConformExprsTemporalFormat:
     def test_emits_expr_for_custom_date_format(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="%d/%m/%Y"),
             ],
@@ -54,7 +53,7 @@ class TestBuildConformExprsTemporalFormat:
     def test_emits_expr_for_custom_datetime_format(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="ts",
@@ -69,7 +68,7 @@ class TestBuildConformExprsTemporalFormat:
     def test_emits_expr_for_custom_time_format(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="t", type=UniversalType.TIME, format="%H-%M-%S"),
             ],
@@ -81,7 +80,7 @@ class TestBuildConformExprsTemporalFormat:
         """Default format should fall through to canonical default cast."""
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="default"),
             ],
@@ -93,7 +92,7 @@ class TestBuildConformExprsTemporalFormat:
         """None format should fall through to canonical default cast."""
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format=None),
             ],
@@ -105,7 +104,7 @@ class TestBuildConformExprsTemporalFormat:
         """'any' format should fall through to canonical default cast (best-effort)."""
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="any"),
             ],
@@ -127,7 +126,7 @@ class TestDateFormatParsing:
         df = backend_factory.create(
             {"dt": ["26/01/2024", "15/06/2023"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="%d/%m/%Y"),
             ],
@@ -143,7 +142,7 @@ class TestDateFormatParsing:
         df = backend_factory.create(
             {"dt": ["01-26-2024", "06-15-2023"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="%m-%d-%Y"),
             ],
@@ -169,7 +168,7 @@ class TestDatetimeFormatParsing:
         df = backend_factory.create(
             {"ts": ["26/01/2024 09:15:00"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="ts",
@@ -205,7 +204,7 @@ class TestTimeFormatParsing:
         df = backend_factory.create(
             {"t": ["09-15-30", "14-30-00"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="t", type=UniversalType.TIME, format="%H-%M-%S"),
             ],
@@ -227,7 +226,7 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="default"),
             ],
@@ -239,7 +238,7 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE),
             ],
@@ -252,7 +251,7 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="dt", type=UniversalType.DATE, format="any"),
             ],

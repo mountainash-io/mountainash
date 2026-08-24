@@ -13,6 +13,13 @@ from __future__ import annotations
 
 from mountainash.typespec._categorical import categorical_values
 
+def test_categorical_values_unwraps_labeled_values() -> None:
+    from mountainash.typespec.spec import LabeledValue
+
+    assert categorical_values(
+        ["a", LabeledValue("b", "Bee"), {"value": "c", "label": "See"}]
+    ) == ["a", "b", "c"]
+
 # Baseline recorded from conform/expressions.py:958-964's inline extraction
 # (pre-refactor, 2026-08-17): simple -> ['a', 'b']; object -> [0, 1];
 # mixed -> [0, 'x']. Identical fixtures, asserted equal below.

@@ -41,10 +41,19 @@ def test_round_trip_is_identity():
     assert foreign_key_to_dict(foreign_key_from_dict(RAW)) == RAW
 
 
-def test_self_reference_empty_resource():
+def test_self_reference_empty_resource_normalizes_to_none():
     raw = {"fields": ["parent_id"], "reference": {"resource": "", "fields": ["id"]}}
     fk = foreign_key_from_dict(raw)
-    assert fk.reference.resource == ""
+    # "" is the raw self-reference marker; the typed model normalizes it to None
+    assert fk.reference.resource is None
+    # the writer omits the resource key entirely for a self-reference
+    assert foreign_key_to_dict(fk) == {"fields": ["parent_id"], "reference": {"fields": ["id"]}}
+
+
+def test_self_reference_absent_resource_is_none():
+    raw = {"fields": ["parent_id"], "reference": {"fields": ["id"]}}
+    fk = foreign_key_from_dict(raw)
+    assert fk.reference.resource is None
     assert foreign_key_to_dict(fk) == raw
 
 

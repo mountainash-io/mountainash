@@ -9,7 +9,7 @@ class TestBuildConformExprs:
     def test_basic_rename_and_cast(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id"),
             ],
@@ -20,7 +20,7 @@ class TestBuildConformExprs:
     def test_dotted_source_name_struct_access(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
             ],
@@ -31,7 +31,7 @@ class TestBuildConformExprs:
     def test_null_fill(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1),
             ],
@@ -42,7 +42,7 @@ class TestBuildConformExprs:
     def test_type_any_skips_cast(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="val", type=UniversalType.ANY),
             ],
@@ -53,6 +53,6 @@ class TestBuildConformExprs:
     def test_empty_spec_produces_no_exprs(self):
         from mountainash.conform.expressions import _build_conform_exprs
 
-        spec = TypeSpec(fields=[])
+        spec = TypeSpec(fields_match="open", fields=[])
         result = _build_conform_exprs(spec)
         assert len(result.exprs) == 0

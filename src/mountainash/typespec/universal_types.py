@@ -21,6 +21,7 @@ from typing import Optional, Tuple
 
 from mountainash.core.dtypes import MountainashDtype
 from mountainash.core.dtypes.errors import UnknownDtypeError
+from mountainash.typespec.errors import AmbiguousGeospatialTypeError
 
 
 
@@ -52,8 +53,14 @@ class UniversalType(StrEnum):
     YEARMONTH = "yearmonth"
 
     # Complex types
+    LIST = "list"
     ARRAY = "array"
     OBJECT = "object"
+
+    # Geospatial types (format-dependent — GEOPOINT requires field context,
+    # see resolve_field_canonical in converters.py)
+    GEOPOINT = "geopoint"
+    GEOJSON = "geojson"
 
     # Special
     ANY = "any"
@@ -63,7 +70,19 @@ class UniversalType(StrEnum):
 # Boundary map: UniversalType (Frictionless) <-> MountainashDtype (canon)
 # Complete in both directions by construction (gated by test_boundary_map +
 # test_completeness). ANY <-> None means "no constraint".
+#
+# _FORMAT_DEPENDENT_MEMBERS holds UniversalType members whose canonical
+# mapping cannot be determined without field context (GEOPOINT's canonical
+# shape depends on FieldSpec.format — see resolve_field_canonical in
+# converters.py). Members here are deliberately absent from
+# UNIVERSAL_TO_CANONICAL; to_canonical() raises for them instead of
+# returning a wrong/arbitrary default. The completeness invariant is:
+#     set(UNIVERSAL_TO_CANONICAL) | set(_FORMAT_DEPENDENT_MEMBERS) == set(UniversalType)
 # ============================================================================
+
+_FORMAT_DEPENDENT_MEMBERS: frozenset[UniversalType] = frozenset({
+    UniversalType.GEOPOINT,
+})
 
 UNIVERSAL_TO_CANONICAL: dict[UniversalType, Optional[MountainashDtype]] = {
     UniversalType.STRING: MountainashDtype.STRING,
@@ -73,11 +92,13 @@ UNIVERSAL_TO_CANONICAL: dict[UniversalType, Optional[MountainashDtype]] = {
     UniversalType.DATE: MountainashDtype.DATE,
     UniversalType.TIME: MountainashDtype.TIME,
     UniversalType.DATETIME: MountainashDtype.TIMESTAMP,
-    UniversalType.DURATION: MountainashDtype.DURATION,
-    UniversalType.YEAR: MountainashDtype.I32,        # semantic refinement of int
-    UniversalType.YEARMONTH: MountainashDtype.STRING,  # "2024-01"
-    UniversalType.ARRAY: MountainashDtype.LIST,
+    UniversalType.DURATION: MountainashDtype.XSD_DURATION,  # semantic string (XSD duration lexical form)
+    UniversalType.YEAR: MountainashDtype.XSD_YEAR,           # semantic string (not a physical int)
+    UniversalType.YEARMONTH: MountainashDtype.XSD_YEARMONTH,  # semantic string, "2024-01"
+    UniversalType.LIST: MountainashDtype.LIST,
+    UniversalType.ARRAY: MountainashDtype.LIST,               # interim: LIST/ARRAY share physical LIST
     UniversalType.OBJECT: MountainashDtype.STRUCT,
+    UniversalType.GEOJSON: MountainashDtype.JSON,
     UniversalType.ANY: None,                          # unconstrained
 }
 
@@ -101,11 +122,22 @@ CANONICAL_TO_UNIVERSAL: dict[MountainashDtype, Tuple[UniversalType, Optional[str
     MountainashDtype.DURATION: (UniversalType.DURATION, None),
     MountainashDtype.LIST: (UniversalType.ARRAY, None),
     MountainashDtype.STRUCT: (UniversalType.OBJECT, None),
+    MountainashDtype.JSON: (UniversalType.GEOJSON, None),
+    MountainashDtype.XSD_DURATION: (UniversalType.DURATION, None),
+    MountainashDtype.XSD_YEAR: (UniversalType.YEAR, None),
+    MountainashDtype.XSD_YEARMONTH: (UniversalType.YEARMONTH, None),
 }
 
 
 def to_canonical(universal: UniversalType) -> Optional[MountainashDtype]:
-    """Map a Frictionless type to canon. None = unconstrained (ANY)."""
+    """Map a Frictionless type to canon. None = unconstrained (ANY).
+
+    Raises AmbiguousGeospatialTypeError for format-dependent members (only
+    GEOPOINT today) — use converters.resolve_field_canonical(field), which
+    has the FieldSpec.format context needed to resolve them.
+    """
+    if universal in _FORMAT_DEPENDENT_MEMBERS:
+        raise AmbiguousGeospatialTypeError(universal)
     return UNIVERSAL_TO_CANONICAL[universal]
 
 

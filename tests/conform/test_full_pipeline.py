@@ -1,7 +1,6 @@
 """End-to-end test exercising all stages of the conform pipeline."""
 from __future__ import annotations
 
-import pytest
 from datetime import date
 
 import polars as pl
@@ -22,7 +21,7 @@ class TestFullPipeline:
             "raw_date": ["26/01/2024", "NA", "15/06/2023"],
             "extra_col": [1, 2, 3],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="price",
@@ -60,9 +59,8 @@ class TestFullPipeline:
         # Event date: "26/01/2024" -> date(2024,1,26), "NA" -> null, "15/06/2023" -> date(2023,6,15)
         assert result["event_date"].to_list() == [date(2024, 1, 26), None, date(2023, 6, 15)]
 
-        # Column names: only spec fields (default fields_match=None -> "open",
-        # but only spec fields appear because we didn't request "open" extras
-        # — actually open mode keeps unmapped columns)
+        # Column names: this spec sets fields_match="open", so mapped spec
+        # fields plus any unmapped source columns are kept.
         assert "price" in result.columns
         assert "active" in result.columns
         assert "event_date" in result.columns
@@ -72,7 +70,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "amount": ["$1,234.56", "N/A", "€789.00"],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="amount",
@@ -95,7 +93,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "score": [1.5, None, 3.5],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="score",
@@ -112,7 +110,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "flag": ["Y", "N", "UNKNOWN", "Y"],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="flag",
@@ -132,7 +130,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "dt": ["2024-01-15 10:30:00", "-", "2023-06-20 14:00:00"],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(
                     name="dt",
@@ -170,7 +168,7 @@ class TestFullPipeline:
             "old_a": ["x", "y"],
             "old_b": [1, 2],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="new_a", type=UniversalType.STRING, rename_from="old_a"),
                 FieldSpec(name="new_b", type=UniversalType.INTEGER, rename_from="old_b"),
@@ -187,7 +185,7 @@ class TestFullPipeline:
             "a": ["NA", "ok"],
             "b": ["BLANK", "ok"],
         })
-        spec = TypeSpec(
+        spec = TypeSpec(fields_match="open", 
             fields=[
                 FieldSpec(name="a", type=UniversalType.STRING),
                 FieldSpec(

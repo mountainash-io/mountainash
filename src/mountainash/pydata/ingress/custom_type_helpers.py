@@ -36,7 +36,8 @@ def separate_conversions(
 
     Example:
         >>> spec = TypeSpec(fields=[
-        ...     FieldSpec(name="amount", custom_cast="safe_float"),  # → narwhals
+        ...     # custom_cast takes routing precedence over type (here ANY):
+        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),  # → narwhals
         ...     FieldSpec(name="id", type=UniversalType.INTEGER),    # → native
         ... ])
         >>> python_only, narwhals, native = separate_conversions(spec)
@@ -87,7 +88,8 @@ def apply_custom_converters_to_dict(
         Dictionary with custom conversions applied
 
     Example:
-        >>> field = FieldSpec(name="amount", custom_cast="safe_float")
+        >>> # custom_cast takes routing precedence over type (here ANY):
+        >>> field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         >>> result = apply_custom_converters_to_dict({"amount": "42.5"}, {"amount": field})
         >>> result["amount"]
         42.5
@@ -212,7 +214,13 @@ def apply_native_conversions_to_dataframe(
     from mountainash.typespec.spec import TypeSpec
     from mountainash.conform.expressions import _build_conform_exprs
 
-    native_spec = TypeSpec(fields=[f for f in native_conversions.values()])
+    # Permissive application (see the STEP 5 native path below): rename/null_fill
+    # expressions are applied via with_columns without available_columns, so the
+    # spec must use "open" (the model default is now the strict "exact").
+    native_spec = TypeSpec(
+        fields=[f for f in native_conversions.values()],
+        fields_match="open",
+    )
     try:
         exprs = _build_conform_exprs(native_spec)
         df = ma.relation(df).with_columns(*exprs).to_polars()
@@ -349,7 +357,14 @@ def apply_hybrid_conversion(
         from mountainash.typespec.spec import TypeSpec
         from mountainash.conform.expressions import _build_conform_exprs
 
-        native_spec = TypeSpec(fields=[f for f in native.values()])
+        # Native casting applies per-column expressions via with_columns and
+        # must not enforce schema shape — it runs without available_columns,
+        # so it needs the permissive "open" mode explicitly (the model default
+        # is now the strict "exact", which requires column information).
+        native_spec = TypeSpec(
+            fields=[f for f in native.values()],
+            fields_match="open",
+        )
         try:
             conform_result = _build_conform_exprs(native_spec)
             df = ma.relation(df).with_columns(*conform_result.exprs).to_polars()

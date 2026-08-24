@@ -144,3 +144,73 @@ class TestPython:
         from typing import Any
         assert target_python.from_native(Any) is None
         assert target_python.from_native("Any") is None
+
+
+# ============================================================================
+# TestSemanticStringTargets (item 113 Unit B, Task 2)
+#
+# JSON, XSD_DURATION, XSD_YEAR, XSD_YEARMONTH map to each target's string
+# physical type. None of the four enters CAST_UNSUPPORTED. Native reverse
+# maps are UNCHANGED — a native string still infers only STRING, never one
+# of the semantic subtypes (physically indistinguishable).
+# ============================================================================
+
+_SEMANTIC_STRING_DTYPES = (D.JSON, D.XSD_DURATION, D.XSD_YEAR, D.XSD_YEARMONTH)
+
+
+class TestSemanticStringTargets:
+    def test_polars_maps_to_string(self):
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert target_polars.SCHEMA_TYPES[d] is pl.String
+
+    def test_pyarrow_maps_to_string(self):
+        import pyarrow as pa
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert target_pyarrow.SCHEMA_TYPES[d] == pa.string()
+
+    def test_pandas_maps_to_string(self):
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert target_pandas.SCHEMA_TYPES[d] == "string"
+
+    def test_ibis_maps_to_string(self):
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert target_ibis.SCHEMA_TYPES[d] == "string"
+
+    def test_narwhals_maps_to_string(self):
+        import narwhals as nw
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert target_narwhals.SCHEMA_TYPES[d] is nw.String
+
+    def test_python_maps_to_str(self):
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert target_python.SCHEMA_TYPES[d] is str
+
+    @pytest.mark.parametrize("mod", [
+        target_polars, target_pyarrow, target_pandas, target_ibis,
+        target_narwhals, target_python,
+    ])
+    def test_none_are_cast_unsupported(self, mod):
+        for d in _SEMANTIC_STRING_DTYPES:
+            assert d not in mod.CAST_UNSUPPORTED
+
+    def test_native_string_still_infers_only_string_polars(self):
+        assert target_polars.from_native(pl.String) is D.STRING
+        assert target_polars.from_native(pl.String()) is D.STRING
+
+    def test_native_string_still_infers_only_string_pyarrow(self):
+        import pyarrow as pa
+        assert target_pyarrow.from_native(pa.string()) is D.STRING
+
+    def test_native_string_still_infers_only_string_pandas(self):
+        assert target_pandas.from_native("string") is D.STRING
+
+    def test_native_string_still_infers_only_string_ibis(self):
+        assert target_ibis.from_native("string") is D.STRING
+
+    def test_native_string_still_infers_only_string_narwhals(self):
+        import narwhals as nw
+        assert target_narwhals.from_native(nw.String) is D.STRING
+
+    def test_native_string_still_infers_only_string_python(self):
+        assert target_python.from_native(str) is D.STRING
+        assert target_python.from_native("str") is D.STRING

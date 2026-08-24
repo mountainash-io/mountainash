@@ -108,10 +108,11 @@ class TestPrimaryKeyUnique:
     def test_composite_primary_key_emits_relation_rule(self):
         from mountainash.datacontracts.compiler import compile_datacontract
         from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import UniversalType
         from mountainash.validation import RelationRule
 
         spec = TypeSpec(
-            fields=[FieldSpec(name="a"), FieldSpec(name="b")], primary_key=["a", "b"]
+            fields=[FieldSpec(name="a", type=UniversalType.ANY), FieldSpec(name="b", type=UniversalType.ANY)], primary_key=["a", "b"]
         )
         checks = compile_datacontract(spec)
         pk = [c for c in checks if c.id == "primary_key_unique"]
@@ -126,6 +127,7 @@ class TestPrimaryKeyUnique:
     def test_no_primary_key_no_check(self):
         from mountainash.datacontracts.compiler import compile_datacontract
         from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import UniversalType
 
-        checks = compile_datacontract(TypeSpec(fields=[FieldSpec(name="a")]))
+        checks = compile_datacontract(TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)]))
         assert "primary_key_unique" not in [c.id for c in checks]

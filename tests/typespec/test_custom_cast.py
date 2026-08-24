@@ -1,7 +1,6 @@
 """Tests for custom_cast field on FieldSpec and Frictionless round-trip."""
 from __future__ import annotations
 
-import pytest
 
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
@@ -15,12 +14,12 @@ from mountainash.typespec.frictionless import typespec_to_frictionless, typespec
 class TestFieldSpecCustomCast:
     def test_custom_cast_default_none(self):
         """custom_cast defaults to None when not provided."""
-        spec = FieldSpec(name="col")
+        spec = FieldSpec(name="col", type=UniversalType.ANY)
         assert spec.custom_cast is None
 
     def test_custom_cast_set(self):
         """custom_cast stores the provided string value."""
-        spec = FieldSpec(name="amount", custom_cast="safe_float")
+        spec = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
         assert spec.custom_cast == "safe_float"
 
 

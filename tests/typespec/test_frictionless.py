@@ -4,17 +4,30 @@ Tests for mountainash.typespec.frictionless — Frictionless Table Schema import
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
+from mountainash.typespec.errors import (
+    InvalidFieldMatchDeclaration,
+    InvalidKeyShapeError,
+)
 from mountainash.typespec.frictionless import (
     typespec_from_frictionless,
     typespec_to_frictionless,
 )
-from mountainash.typespec.spec import FieldConstraints, FieldSpec, ForeignKey, ForeignKeyReference, TypeSpec
+from mountainash.typespec.spec import (
+    FieldConstraints,
+    FieldSpec,
+    ForeignKey,
+    ForeignKeyReference,
+    LabeledValue,
+    TypeSpec,
+)
 from mountainash.typespec.universal_types import UniversalType
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 # ============================================================================
@@ -45,10 +58,10 @@ class TestToFrictionless:
     def test_primary_key_exported(self):
         spec = TypeSpec(
             fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
-            primary_key="id",
+            primary_key=["id"],
         )
         result = typespec_to_frictionless(spec)
-        assert result["primaryKey"] == "id"
+        assert result["primaryKey"] == ["id"]
 
     def test_constraints_exported(self):
         constraints = FieldConstraints(required=True, minimum=0, maximum=100)
@@ -212,12 +225,13 @@ class TestFromFrictionless:
         assert spec.description == "A test schema"
 
     def test_primary_key_imported(self):
+        # Bare-string primaryKey is normalized to a one-item list on read.
         descriptor = {
             "primaryKey": "id",
             "fields": [{"name": "id", "type": "integer"}],
         }
         spec = typespec_from_frictionless(descriptor)
-        assert spec.primary_key == "id"
+        assert spec.primary_key == ["id"]
 
     def test_constraints_imported(self):
         descriptor = {
@@ -266,12 +280,12 @@ class TestFromFrictionless:
         spec = typespec_from_frictionless(descriptor)
         assert spec.fields[0].null_fill == 0.0
 
-    def test_missing_type_defaults_to_string(self):
+    def test_missing_type_defaults_to_any(self):
         descriptor = {
             "fields": [{"name": "mystery_col"}]
         }
         spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].type == UniversalType.STRING
+        assert spec.fields[0].type is UniversalType.ANY
 
     def test_unknown_extensions_ignored(self):
         descriptor = {
@@ -364,7 +378,7 @@ class TestFromFrictionless:
         )
         original = TypeSpec(
             fields=[FieldSpec(name="dept_id", type=UniversalType.INTEGER)],
-            primary_key="dept_id",
+            primary_key=["dept_id"],
             foreign_keys=[fk],
         )
         descriptor = typespec_to_frictionless(original)
@@ -405,7 +419,7 @@ class TestRoundTrip:
             ],
             title="Test Schema",
             description="Round-trip test",
-            primary_key="id",
+            primary_key=["id"],
         )
 
         exported = typespec_to_frictionless(original)
@@ -459,7 +473,7 @@ class TestRoundTrip:
                 FieldSpec(name="name", type=UniversalType.STRING),
             ],
             title="JSON Test",
-            primary_key="id",
+            primary_key=["id"],
         )
 
         exported = typespec_to_frictionless(spec)
@@ -474,3 +488,285 @@ class TestRoundTrip:
         assert id_field is not None
         assert id_field.rename_from == "ID"
         assert id_field.null_fill == 0
+
+
+# ============================================================================
+# TestUnitBAdapter — v2 operational defaults, labeled values, constraints,
+# nested item fields, fmt: normalization, ANY omission, self-reference, and
+# the strict key-shape / fields_match matrices (Step 2).
+# ============================================================================
+
+def test_omitted_defaults_are_operational_defaults() -> None:
+    restored = typespec_from_frictionless({"fields": [{"name": "value"}]})
+    assert restored.fields[0].type is UniversalType.ANY
+    assert restored.fields_match == "exact"
+    assert restored.missing_values == [""]
+    assert typespec_to_frictionless(restored)["fields"] == [{"name": "value"}]
+
+
+def test_explicit_empty_missing_values_disables_default() -> None:
+    restored = typespec_from_frictionless(
+        {"fields": [{"name": "value"}], "missingValues": []}
+    )
+    assert restored.missing_values == []
+    assert typespec_to_frictionless(restored)["missingValues"] == []
+
+
+def test_schema_level_missing_values_round_trip() -> None:
+    descriptor = {"fields": [{"name": "x", "type": "string"}], "missingValues": ["", "NA"]}
+    restored = typespec_from_frictionless(descriptor)
+    assert restored.missing_values == ["", "NA"]
+    assert typespec_to_frictionless(restored)["missingValues"] == ["", "NA"]
+
+
+def test_labeled_categories_and_missing_values_round_trip() -> None:
+    descriptor = {
+        "fields": [
+            {
+                "name": "status",
+                "type": "string",
+                "categories": [{"value": "a", "label": "Active"}, "raw"],
+                "missingValues": [{"value": "-", "label": "Dash"}, ""],
+            }
+        ]
+    }
+    restored = typespec_from_frictionless(descriptor)
+    field = restored.fields[0]
+    assert field.categories == [LabeledValue("a", "Active"), "raw"]
+    assert field.missing_values == [LabeledValue("-", "Dash"), ""]
+    assert typespec_to_frictionless(restored)["fields"][0]["categories"] == [
+        {"value": "a", "label": "Active"},
+        "raw",
+    ]
+
+
+def test_v2_constraints_round_trip() -> None:
+    descriptor = {
+        "fields": [
+            {
+                "name": "n",
+                "type": "integer",
+                "constraints": {
+                    "exclusiveMinimum": 0,
+                    "exclusiveMaximum": 10,
+                    "jsonSchema": {"type": "integer"},
+                },
+            }
+        ]
+    }
+    restored = typespec_from_frictionless(descriptor)
+    c = restored.fields[0].constraints
+    assert c.exclusive_minimum == 0
+    assert c.exclusive_maximum == 10
+    assert c.json_schema == {"type": "integer"}
+    out = typespec_to_frictionless(restored)["fields"][0]["constraints"]
+    assert out == {"exclusiveMinimum": 0, "exclusiveMaximum": 10, "jsonSchema": {"type": "integer"}}
+
+
+def test_item_object_fields_round_trip_under_x_mountainash() -> None:
+    descriptor = {
+        "fields": [
+            {
+                "name": "rows",
+                "type": "array",
+                "x-mountainash": {
+                    "item_object_fields": [
+                        {"name": "a", "type": "string"},
+                        {"name": "b", "type": "integer"},
+                    ]
+                },
+            }
+        ]
+    }
+    restored = typespec_from_frictionless(descriptor)
+    iof = restored.fields[0].item_object_fields
+    assert [f.name for f in iof] == ["a", "b"]
+    assert typespec_to_frictionless(restored) == descriptor
+
+
+def test_fmt_prefix_normalized_off_on_read_and_write() -> None:
+    descriptor = {"fields": [{"name": "d", "type": "date", "format": "fmt:%Y-%m-%d"}]}
+    restored = typespec_from_frictionless(descriptor)
+    assert restored.fields[0].format == "%Y-%m-%d"
+    assert typespec_to_frictionless(restored)["fields"][0]["format"] == "%Y-%m-%d"
+
+
+def test_any_type_omitted_on_write_and_read() -> None:
+    spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.ANY)])
+    descriptor = typespec_to_frictionless(spec)
+    assert descriptor["fields"] == [{"name": "x"}]
+    assert typespec_from_frictionless(descriptor).fields[0].type is UniversalType.ANY
+
+
+def test_canonical_self_reference_round_trip() -> None:
+    # A None reference resource (self-reference) is omitted on write and an
+    # absent-or-empty resource is read back as None.
+    fk = ForeignKey(
+        fields=["parent_id"],
+        reference=ForeignKeyReference(resource=None, fields=["id"]),
+    )
+    spec = TypeSpec(
+        fields=[FieldSpec(name="parent_id", type=UniversalType.INTEGER)],
+        foreign_keys=[fk],
+    )
+    descriptor = typespec_to_frictionless(spec)
+    assert "resource" not in descriptor["foreignKeys"][0]["reference"]
+    restored = typespec_from_frictionless(descriptor)
+    assert restored.foreign_keys[0].reference.resource is None
+
+
+def test_empty_string_resource_normalizes_to_none_on_read() -> None:
+    descriptor = {
+        "fields": [{"name": "parent_id", "type": "integer"}],
+        "foreignKeys": [
+            {"fields": ["parent_id"], "reference": {"resource": "", "fields": ["id"]}}
+        ],
+    }
+    restored = typespec_from_frictionless(descriptor)
+    assert restored.foreign_keys[0].reference.resource is None
+
+
+def test_foreign_key_fields_bare_string_normalized() -> None:
+    # Regression for the character-explosion bug (Section 8.9): a bare-string
+    # FK field must become a one-item list, not a list of characters.
+    descriptor = {
+        "fields": [{"name": "customer_id", "type": "integer"}],
+        "foreignKeys": [
+            {"fields": "customer_id", "reference": {"resource": "customers", "fields": "id"}}
+        ],
+    }
+    restored = typespec_from_frictionless(descriptor)
+    fk = restored.foreign_keys[0]
+    assert fk.fields == ["customer_id"]
+    assert fk.reference.fields == ["id"]
+
+
+# --- fields_match six-value vocabulary and invalid/dual forms ---------------
+
+@pytest.mark.parametrize("mode", ["equal", "subset", "superset", "partial"])
+def test_standard_fields_match_round_trip(mode) -> None:
+    spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)], fields_match=mode)
+    descriptor = typespec_to_frictionless(spec)
+    assert descriptor["fieldsMatch"] == mode
+    assert "x-mountainash" not in descriptor
+    assert typespec_from_frictionless(descriptor).fields_match == mode
+
+
+def test_exact_fields_match_omitted_on_write() -> None:
+    spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)], fields_match="exact")
+    assert "fieldsMatch" not in typespec_to_frictionless(spec)
+
+
+def test_open_fields_match_only_at_extension() -> None:
+    spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)], fields_match="open")
+    descriptor = typespec_to_frictionless(spec)
+    assert "fieldsMatch" not in descriptor
+    assert descriptor["x-mountainash"] == {"fields_match": "open"}
+    assert typespec_from_frictionless(descriptor).fields_match == "open"
+
+
+def test_invalid_standard_fields_match_raises() -> None:
+    with pytest.raises(InvalidFieldMatchDeclaration):
+        typespec_from_frictionless({"fields": [], "fieldsMatch": "bogus"})
+
+
+def test_legacy_standard_open_now_raises() -> None:
+    # The legacy standard-location "open" fallback is not retained.
+    with pytest.raises(InvalidFieldMatchDeclaration):
+        typespec_from_frictionless({"fields": [], "fieldsMatch": "open"})
+
+
+def test_invalid_extension_fields_match_raises() -> None:
+    with pytest.raises(InvalidFieldMatchDeclaration):
+        typespec_from_frictionless(
+            {"fields": [], "x-mountainash": {"fields_match": "subset"}}
+        )
+
+
+def test_dual_location_fields_match_raises() -> None:
+    with pytest.raises(InvalidFieldMatchDeclaration):
+        typespec_from_frictionless(
+            {
+                "fields": [],
+                "fieldsMatch": "subset",
+                "x-mountainash": {"fields_match": "open"},
+            }
+        )
+
+
+# --- strict key-shape matrix ------------------------------------------------
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        ("id",),
+        {"id"},
+        {"field": "id"},
+        7,
+        ["id", 7],
+    ],
+)
+def test_primary_key_rejects_noncanonical_iterables(raw) -> None:
+    with pytest.raises(InvalidKeyShapeError):
+        typespec_from_frictionless({"fields": [], "primaryKey": raw})
+
+
+def test_primary_key_bare_string_normalized() -> None:
+    spec = typespec_from_frictionless({"fields": [], "primaryKey": "id"})
+    assert spec.primary_key == ["id"]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        ("id",),
+        {"id"},
+        {"field": "id"},
+        7,
+        ["id", 7],
+        "id",  # bare strings are NOT allowed for uniqueKeys entries
+    ],
+)
+def test_unique_keys_reject_noncanonical_and_bare_string(raw) -> None:
+    with pytest.raises(InvalidKeyShapeError):
+        typespec_from_frictionless({"fields": [], "uniqueKeys": [raw]})
+
+
+def test_unique_keys_lists_accepted() -> None:
+    spec = typespec_from_frictionless({"fields": [], "uniqueKeys": [["a"], ["a", "b"]]})
+    assert spec.unique_keys == [["a"], ["a", "b"]]
+
+
+@pytest.mark.parametrize("raw", [("id",), {"id"}, {"field": "id"}, 7, ["id", 7]])
+def test_fk_local_fields_reject_noncanonical_iterables(raw) -> None:
+    with pytest.raises(InvalidKeyShapeError):
+        typespec_from_frictionless(
+            {
+                "fields": [],
+                "foreignKeys": [{"fields": raw, "reference": {"resource": "r", "fields": ["id"]}}],
+            }
+        )
+
+
+@pytest.mark.parametrize("raw", [("id",), {"id"}, {"field": "id"}, 7, ["id", 7]])
+def test_fk_reference_fields_reject_noncanonical_iterables(raw) -> None:
+    with pytest.raises(InvalidKeyShapeError):
+        typespec_from_frictionless(
+            {
+                "fields": [],
+                "foreignKeys": [{"fields": ["cid"], "reference": {"resource": "r", "fields": raw}}],
+            }
+        )
+@pytest.mark.parametrize("raw", [(["id"],), {"id": ["x"]}, {"id"}, "id", 7])
+def test_unique_keys_requires_list_container(raw) -> None:
+    with pytest.raises(InvalidKeyShapeError) as exc_info:
+        typespec_from_frictionless({"fields": [], "uniqueKeys": raw})
+    assert exc_info.value.field_name == "unique_keys"
+    assert exc_info.value.rejected_value is raw
+
+
+@pytest.mark.parametrize("raw", [["exact"], {"mode": "exact"}, 7])
+def test_fields_match_rejects_non_string_values(raw) -> None:
+    with pytest.raises(InvalidFieldMatchDeclaration) as exc_info:
+        typespec_from_frictionless({"fields": [], "fieldsMatch": raw})
+    assert exc_info.value.standard_value is raw

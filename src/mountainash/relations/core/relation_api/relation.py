@@ -206,9 +206,10 @@ class Relation(RelationBase):
         Args:
             spec: A TypeSpec describing the target schema. Set
                 ``fields_match`` to control overflow/underflow behavior:
-                ``"open"`` keeps unmapped columns (default when unset),
-                ``"partial"`` drops them, stricter modes enforce column
-                presence.
+                ``"exact"`` (the default when unset) requires the output
+                columns to match the spec exactly; ``"open"`` keeps unmapped
+                columns; ``"partial"`` drops them; stricter modes enforce
+                column presence.
             contract: Optional reconciliation-contract override, layered on
                 top of any ``TypeSpec.contract`` and the ``fields_match``
                 preset (highest precedence). A scalar string (e.g.

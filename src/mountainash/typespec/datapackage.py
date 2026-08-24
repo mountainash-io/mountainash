@@ -15,6 +15,7 @@ from mountainash.typespec.errors import (
     DescriptorError,
     DescriptorReferenceInvalid,
     InvalidDescriptorStructure,
+    TypeSpecError,
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
@@ -197,6 +198,10 @@ class DataResource(BaseModel):
                 rejected_value=exc.rejected_value,
                 required_form=exc.required_form,
             ) from exc
+        except TypeSpecError:
+            # Typed structural errors (field/type/key shape, field-match) pass
+            # through unchanged — never wrapped as descriptor errors.
+            raise
         except DescriptorError:
             raise
         except Exception as exc:
@@ -304,8 +309,9 @@ class DataPackage(BaseModel):
             if r.name in seen:
                 raise ValueError(f"duplicate resource name: {r.name!r}")
             seen.add(r.name)
-        # FK references resolve to existing resource names (or "" for self-ref)
-        valid = seen | {""}
+        # FK references resolve to existing resource names (or None for a typed
+        # self-reference — the canonical self-ref marker on ForeignKeyReference).
+        valid = seen | {None}
         for r in self.resources:
             schema = r.table_schema  # DataResource attribute name (alias is "schema")
             if schema is None:

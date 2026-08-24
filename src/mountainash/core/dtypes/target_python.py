@@ -15,6 +15,8 @@ SCHEMA_TYPES: dict[D, Any] = {
     D.DATE: datetime.date, D.TIME: datetime.time,
     D.TIMESTAMP: datetime.datetime, D.DURATION: datetime.timedelta,
     D.LIST: list, D.STRUCT: dict,
+    D.JSON: str, D.XSD_DURATION: str,
+    D.XSD_YEAR: str, D.XSD_YEARMONTH: str,
 }
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset()  # not an expression backend
