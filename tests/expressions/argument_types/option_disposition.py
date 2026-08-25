@@ -800,6 +800,30 @@ def param_taxonomy(protocol: str, op: str, param: str) -> str:
     return "capability-declared"
 
 
+
+# Unit C wildcard gates require representative option cells on every governed
+# argument-matrix fixture, even while their full value probes remain parked in
+# conform suites.
+_UNIT_C_OP_LEVEL_VALUES: dict[tuple[str, str], dict[str, str]] = {
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_datetime_default"): {
+        "failure_behavior": "throw",
+    },
+    ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_temporal_any"): {
+        "kind": "date",
+        "failure_behavior": "throw",
+    },
+    ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geojson"): {
+        "format": "default",
+        "failure_behavior": "throw",
+    },
+    ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson"): {
+        "format": "default",
+        "failure_behavior": "throw",
+    },
+}
+_UNIT_C_OP_LEVEL_FIXTURES = ("ibis", "narwhals-polars", "narwhals-pandas")
+
+
 def expected_option_cells() -> set[CellKey]:
     """Expand every activated option into legal values plus one invalid sentinel.
 
@@ -869,4 +893,35 @@ def expected_option_cells() -> set[CellKey]:
                             dtype,
                         )
                     )
+    active_identities = {
+        (param.protocol_name, param.op_name, param.param_name)
+        for param in introspect_protocols()
+        if param.kind == "option"
+    }
+    for (protocol, op), values in _UNIT_C_OP_LEVEL_VALUES.items():
+        fkey = fkeys.get((protocol, op))
+        if fkey is None:
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+                FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
+            )
+
+            fkey = {
+                ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_datetime_default"):
+                    FK_DT.PARSE_DEFAULT,
+                ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_temporal_any"):
+                    FK_DT.PARSE_TEMPORAL_ANY,
+                ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geojson"):
+                    FK_GEO.PARSE_GEOJSON,
+                ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson"):
+                    FK_GEO.SERIALIZE_GEOJSON,
+            }.get((protocol, op))
+        if fkey is None:
+            continue
+        for param, value in values.items():
+            if (protocol, op, param) not in active_identities:
+                continue
+            for fixture in _UNIT_C_OP_LEVEL_FIXTURES:
+                expected.add((fkey, param, fixture, value, "str"))
+
     return expected

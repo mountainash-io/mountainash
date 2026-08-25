@@ -198,3 +198,30 @@ Verification:
 - Compile-smoke Unit C selectors: **56 passed**; inventory preflight/reclassification: **4 passed**.
 - Datacontract Config regression and existing native contract checks: **passing**.
 - Remaining focused failures are unrelated and intentionally unchanged: Ibis typed-null emission (6 cases), Ibis date-vs-datetime output in temporal-format tests (11 cases), and the validation-runner contextual-rule extra `extract_date` column (1 case).
+
+## Task 10 CI-repair review closure
+
+- Added representative op-level `OPTION_DISPOSITIONS` cells for every Unit C
+  wildcard gate requested by the review: `PARSE_DEFAULT`,
+  `PARSE_TEMPORAL_ANY`, `PARSE_GEOJSON`, and `SERIALIZE_GEOJSON` across the
+  Ibis and Narwhals fixtures. The closed-by-default orphan guard now checks
+  these operations explicitly, including probe-exempt wildcard facts.
+- Compile smoke now carries the selected full-bound-call predicate fact through
+  `PreparedSmokeCase` and asserts exact `exc.limitation is fact`; the generic
+  predicate-backed success bypass is removed. Added a compound GEOPOINT
+  selector regression.
+- Updated the three stale AST option dictionaries with explicit default
+  `failure_behavior="throw"` and migrated exact-mode positional-renaming
+  assertions to ordered-name mismatch or matching-name expectations.
+
+Verification for this repair:
+
+- Compile-smoke predicate selector regression: **1 passed**.
+- Unit C option integrity closure: **4 passed**.
+- Registered option probes: **685 passed, 894 xfailed**.
+- Full compile-smoke cluster: **1685 passed, 49 skipped, 433 xfailed, 1 warning**.
+- AST and exact-name targeted regressions: **5 passed**; remaining exact-order
+  source-kind checks: **5 passed**.
+- The combined affected cluster after these repairs retains one unrelated
+  categorical dtype expectation failure (`test_categorical_on_non_string_field_infers_string`);
+  the repaired CI findings themselves pass.

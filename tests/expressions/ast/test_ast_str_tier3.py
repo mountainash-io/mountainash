@@ -22,7 +22,7 @@ class TestToTimeAST:
         node = _get_node(expr)
         assert isinstance(node, ScalarFunctionNode)
         assert node.function_key == FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-        assert node.options == {"format": "%H:%M:%S"}
+        assert node.options == {"format": "%H:%M:%S", "failure_behavior": "throw"}
 
     def test_to_time_different_format(self):
         expr = ma.col("t").str.to_time("%I:%M %p")

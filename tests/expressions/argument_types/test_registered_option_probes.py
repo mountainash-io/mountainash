@@ -22,7 +22,8 @@ _CATEGORY_MODULES = (
     "test_arg_types_datetime", "test_arg_types_list",
     "test_arg_types_logarithmic", "test_arg_types_misc",
     "test_arg_types_name", "test_arg_types_null", "test_arg_types_rounding",
-    "test_arg_types_string", "test_arg_types_struct", "test_arg_types_window",
+    "test_arg_types_string", "test_arg_types_struct", "test_arg_types_unit_c",
+    "test_arg_types_window",
 )
 
 
