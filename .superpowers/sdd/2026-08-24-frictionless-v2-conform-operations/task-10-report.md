@@ -222,6 +222,25 @@ Verification for this repair:
 - Full compile-smoke cluster: **1685 passed, 49 skipped, 433 xfailed, 1 warning**.
 - AST and exact-name targeted regressions: **5 passed**; remaining exact-order
   source-kind checks: **5 passed**.
-- The combined affected cluster after these repairs retains one unrelated
-  categorical dtype expectation failure (`test_categorical_on_non_string_field_infers_string`);
-  the repaired CI findings themselves pass.
+- The combined affected cluster's categorical expectation is now aligned with
+  Unit C base-scalar behavior; the repaired CI findings and this regression
+  pass in the final targeted verification.
+
+## Task 10 final CI blocker closure
+
+- Corrected the categorical schema-inference expectation to the Unit C
+  base-scalar contract: an INTEGER field with categorical constraints infers
+  `MountainashDtype.I64`; categorical constraints do not replace the declared
+  scalar with STRING. Updated the test name and comments to distinguish this
+  from the STRING-field categorical case.
+- Moved the annotation-only `CapabilityFact` and `OptionSpec` imports into
+  `TYPE_CHECKING` blocks and removed the extra top-level blank lines reported
+  by Ruff.
+
+Verification:
+
+- Schema-inference conform tests: **29 passed**.
+- Categorical targeted tests: **2 passed**.
+- Compile-smoke compound-predicate selector regression: **1 passed**.
+- Option integrity and registered probes: **736 passed, 894 xfailed**.
+- Exact blocker Ruff scope (`TCH001,E302,E303`, preview): **clean**.

@@ -8,8 +8,8 @@ typed cast → concrete dtype, and a spec given as a raw Frictionless dict.
 
 Also includes parity-guard tests asserting that inferred schema column names
 match ``rel.to_polars().columns`` and that concretely-typed inferred dtypes
-agree with the registry-mapped Polars output dtypes — including the critical
-non-string categorical case (Polars Enum/Categorical → canonical STRING).
+agree with the registry-mapped Polars output dtypes — including categorical
+fields (STRING remains STRING; non-string fields retain their base scalar).
 
 Parity oracles use the Polars runtime only by design: ``infer_schema`` never
 compiles a plan or touches a backend (it is a pure AST walk), so the inferred
@@ -261,9 +261,10 @@ class TestParityGuards:
         assert inferred["grade"] == D.STRING
         assert _polars_schema_canonical(actual)["grade"] == D.STRING
 
-    def test_categorical_on_non_string_field_infers_string(self):
-        # Critical oracle: INTEGER-typed field + categories constraint must
-        # report STRING (Polars Enum/Categorical → canonical STRING).
+    def test_categorical_on_non_string_field_preserves_base_scalar(self):
+        # Unit C categorical behavior: an INTEGER-typed field retains its base
+        # scalar dtype (I64); categories constrain values but do not replace the
+        # declared scalar type with STRING.
         # We don't call to_polars() here because Polars cannot cast Int64→Cat
         # without an intermediate string step — the inference contract is what
         # we're verifying.
@@ -278,7 +279,7 @@ class TestParityGuards:
         )
         rel = ma.relation(df).conform(spec)
         inferred = _infer(rel)
-        assert inferred["grade"] == D.STRING
+        assert inferred["grade"] == D.I64
 
 
 # ---------------------------------------------------------------------------

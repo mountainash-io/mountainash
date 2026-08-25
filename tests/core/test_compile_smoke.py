@@ -20,7 +20,6 @@ import mountainash as ma
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
     Boundary,
-    CapabilityFact,
     CapabilityLevel,
     Enforcement,
     WILDCARD_PARAM,
@@ -40,6 +39,7 @@ from mountainash.expressions.core.unified_visitor.visitor import (
 
 if TYPE_CHECKING:
     from enum import Enum
+    from mountainash.core.capabilities.schema import CapabilityFact
 
 _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
@@ -399,6 +399,7 @@ class PreparedSmokeCase:
     param: str
     option_value: str | None
     gate_fact: CapabilityFact | None
+
 
 class _SmokeNotApplicable(Exception):  # noqa: N818 - control-flow signal, not an error
     """Signals a construction-time skip/xfail/fail decision made BEFORE any

@@ -89,10 +89,9 @@ polars/ibis ``group`` — else a value-scoped ``UNSUPPORTED`` ``CapabilityFact``
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from expressions.argument_types._introspection import introspect_protocols
-from expressions.argument_types._option_helpers import OptionSpec
 from expressions.argument_types.conftest import ALL_BACKENDS
 from mountainash.core.capabilities import CapabilityFact, CapabilityRegistry, WILDCARD_PARAM
 from mountainash.core.constants import CONST_BACKEND
@@ -105,6 +104,9 @@ from mountainash.expressions.core.expression_api.api_builders.substrait._option_
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
+
+if TYPE_CHECKING:
+    from expressions.argument_types._option_helpers import OptionSpec
 
 
 CellKey = tuple[Any, str, str, str, str]
@@ -129,7 +131,6 @@ class OptionCell(NamedTuple):
     disposition: str
     reason: str = ""
     backing_mode: str = "absence"
-
 
 
 class OptionProbeRegistration(NamedTuple):
@@ -438,7 +439,6 @@ for unit_key in _FOUR_UNIT_KEYS:
             raise AssertionError(
                 f"multiplier unit representative {v!r} found in finite domain {finite_vals!r}"
             )
-
 
 
 _CELL_DISPOSITIONS = frozenset(
@@ -798,7 +798,6 @@ def param_taxonomy(protocol: str, op: str, param: str) -> str:
     if any(cell.disposition in {"honored", "probe_exempt"} for cell in legal):
         return "value-sensitive"
     return "capability-declared"
-
 
 
 # Unit C wildcard gates require representative option cells on every governed
