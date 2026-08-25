@@ -126,3 +126,47 @@ Verification:
 - Focused regression after the change: **1 passed, 2 deselected**.
 - Final Unit C gate: **4156 passed, 39 skipped, 93 xfailed, 48 warnings**.
 - Final public DAG smoke: **3 passed**.
+
+## Release-confirmation source-dispatch repairs
+
+- Plain native ARRAY and OBJECT declarations without child schemas now preserve
+  their already-native LIST/STRUCT values instead of emitting bare container
+  casts. Parameterized ARRAY declarations still lower child casts.
+- UniversalType.ANY now accepts every physical source representation, including
+  LIST, STRUCT, and JSON, and passes values through unchanged.
+- Temporal source dispatch now uses an exact representation matrix: native
+  DATE/TIME/TIMESTAMP values may cast to STRING; matching native temporal
+  targets and lexical strings remain valid; only integer canonical sources
+  (plus lexical/XSD YEAR forms) feed YEAR; numeric sources cannot feed
+  DATE/TIME/DATETIME/DURATION/YEARMONTH.
+- Explicitly unknown custom DATE/TIME/DATETIME, temporal-any, and YEAR
+  representations raise UnresolvedSourceTypeError under transforming actions,
+  while evolve preserves them. Unknown default DATE/TIME/DATETIME, DURATION,
+  and YEARMONTH sources retain their lexical dispatch.
+- Added focused matrix regressions, including the known-integer YEAR null
+  preservation case.
+
+Verification:
+
+- Red source-dispatch regressions: **4 passed, 23 failed** before production
+  changes (failures were the expected missing matrix behavior).
+- `tests/conform/test_final_branch_review_fixes.py` and
+  `tests/conform/cross_backend/test_v2_type_actions.py`: **98 passed**.
+- `tests/conform/cross_backend/test_temporal_operations.py`: **309 passed**.
+- Changed-source and regression Ruff check: **passed**.
+
+## P1 absent source-shape normalization
+
+- A supplied but incomplete `actual_shapes` map now normalizes missing
+  top-level and dotted child lookups to `SourceShape(None)`, preserving the
+  distinction between absent evidence and no shape-evidence mode.
+- Unknown ANY is now an unresolved source representation under transforming
+  actions, while evolve continues to pass it through.
+- Added regressions for missing top-level shape entries, missing dotted child
+  entries, and evolve handling across ARRAY, OBJECT, ANY, custom DATE, and
+  YEAR.
+
+Verification:
+
+- Absent-shape regressions: **6 passed**.
+- Full focused Unit C source-dispatch set after amendment: **413 passed**.

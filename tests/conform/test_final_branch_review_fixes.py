@@ -256,13 +256,19 @@ def test_native_geojson_serializer_preserves_top_level_null() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(0, "0000"), (1, "0001"), (-1, "-0001"), (2024, "2024"), (None, None)],
+    [(0, "0000"), (1, "0001"), (-1, "-0001"), (2024, "2024")],
 )
 def test_integer_year_normalizes_before_xsd_validation(value, expected) -> None:
     result = ma.relation(pl.DataFrame({"year": [value]})).conform(
         _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
     ).to_polars()
     assert result["year"].to_list() == [expected]
+
+def test_integer_year_preserves_null_with_known_integer_schema() -> None:
+    result = ma.relation(pl.DataFrame({"year": [2024, None]})).conform(
+        _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
+    ).to_polars()
+    assert result["year"].to_list() == ["2024", None]
 
 
 def test_polars_xsd_coerce_keeps_throw_behavior() -> None:
@@ -400,3 +406,192 @@ def test_geopoint_object_shape_comparison_ignores_child_order() -> None:
         raise_on_freeze=False,
     )
     assert result.drift.type_mismatches == []
+
+@pytest.mark.parametrize(
+    ("field", "shape"),
+    [
+        (
+            FieldSpec(name="items", type=UniversalType.ARRAY),
+            SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64)),
+        ),
+        (
+            FieldSpec(name="record", type=UniversalType.OBJECT),
+            SourceShape(
+                MountainashDtype.STRUCT,
+                struct_fields=(("id", SourceShape(MountainashDtype.I64)),),
+            ),
+        ),
+    ],
+    ids=["plain-array", "plain-object"],
+)
+def test_plain_native_container_without_child_schema_preserves_source(
+    field: FieldSpec, shape: SourceShape
+) -> None:
+    result = _build_conform_exprs(
+        _spec(field),
+        available_columns=(field.name,),
+        actual_shapes={field.name: shape},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        SourceShape(MountainashDtype.LIST),
+        SourceShape(MountainashDtype.STRUCT),
+        SourceShape(MountainashDtype.JSON),
+    ],
+    ids=["list", "struct", "json"],
+)
+def test_any_accepts_every_physical_container_representation(shape: SourceShape) -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        available_columns=("value",),
+        actual_shapes={"value": shape},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [MountainashDtype.DATE, MountainashDtype.TIME, MountainashDtype.TIMESTAMP],
+    ids=["date", "time", "timestamp"],
+)
+def test_native_temporal_sources_can_cast_to_string(source: MountainashDtype) -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=UniversalType.STRING)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(source)},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+
+
+def test_year_accepts_integer_source_but_rejects_float() -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
+        available_columns=("year",),
+        actual_shapes={"year": SourceShape(MountainashDtype.I32)},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+    with pytest.raises(IncompatibleSourceTypeError):
+        _build_conform_exprs(
+            _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
+            available_columns=("year",),
+            actual_shapes={"year": SourceShape(MountainashDtype.FP64)},
+        )
+
+
+@pytest.mark.parametrize(
+    "field_type",
+    [
+        UniversalType.DATE,
+        UniversalType.TIME,
+        UniversalType.DATETIME,
+        UniversalType.DURATION,
+        UniversalType.YEARMONTH,
+    ],
+)
+def test_numeric_sources_cannot_feed_temporal_fields(field_type: UniversalType) -> None:
+    with pytest.raises(IncompatibleSourceTypeError):
+        _build_conform_exprs(
+            _spec(FieldSpec(name="value", type=field_type)),
+            available_columns=("value",),
+            actual_shapes={"value": SourceShape(MountainashDtype.FP64)},
+        )
+
+
+@pytest.mark.parametrize(
+    ("field_type", "format_name"),
+    [
+        (UniversalType.DATE, "%Y/%m/%d"),
+        (UniversalType.TIME, "%H:%M:%S"),
+        (UniversalType.DATETIME, "%Y/%m/%d %H:%M:%S"),
+        (UniversalType.DATE, "any"),
+        (UniversalType.TIME, "any"),
+        (UniversalType.DATETIME, "any"),
+        (UniversalType.YEAR, None),
+    ],
+    ids=["date-custom", "time-custom", "datetime-custom", "date-any", "time-any", "datetime-any", "year"],
+)
+def test_unknown_custom_temporal_and_year_sources_require_shape_evidence(
+    field_type: UniversalType, format_name: str | None
+) -> None:
+    field = FieldSpec(name="value", type=field_type, format=format_name)
+    with pytest.raises(UnresolvedSourceTypeError):
+        _build_conform_exprs(
+            _spec(field),
+            available_columns=("value",),
+            actual_shapes={"value": SourceShape(None)},
+        )
+    evolved = _build_conform_exprs(
+        _spec(field),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(None)},
+        contract=_contract("evolve"),
+    )
+    assert evolved.exprs[0].node.function_key.name == "ALIAS"
+
+
+@pytest.mark.parametrize(
+    "field_type",
+    [UniversalType.DATE, UniversalType.TIME, UniversalType.DATETIME],
+)
+def test_unknown_default_temporal_sources_keep_lexical_dispatch(field_type: UniversalType) -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=field_type)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(None)},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+
+
+@pytest.mark.parametrize("field_type", [UniversalType.DURATION, UniversalType.YEARMONTH])
+def test_unknown_lexical_duration_and_yearmonth_keep_dispatch(field_type: UniversalType) -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=field_type)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(None)},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        FieldSpec(name="items", type=UniversalType.ARRAY),
+        FieldSpec(name="record", type=UniversalType.OBJECT),
+        FieldSpec(name="value", type=UniversalType.ANY),
+        FieldSpec(name="value", type=UniversalType.DATE, format="%Y/%m/%d"),
+        FieldSpec(name="value", type=UniversalType.YEAR),
+    ],
+    ids=["array", "object", "any", "custom-date", "year"],
+)
+def test_absent_source_shape_evidence_is_unresolved(field: FieldSpec) -> None:
+    with pytest.raises(UnresolvedSourceTypeError):
+        _build_conform_exprs(
+            _spec(field),
+            available_columns=(field.name,),
+            actual_shapes={},
+        )
+    evolved = _build_conform_exprs(
+        _spec(field),
+        available_columns=(field.name,),
+        actual_shapes={},
+        contract=_contract("evolve"),
+    )
+    assert evolved.exprs[0].node.function_key.name == "ALIAS"
+
+
+def test_missing_dotted_source_shape_evidence_is_unresolved() -> None:
+    field = FieldSpec(
+        name="value",
+        type=UniversalType.ARRAY,
+        rename_from="payload.value",
+    )
+    with pytest.raises(UnresolvedSourceTypeError):
+        _build_conform_exprs(
+            _spec(field),
+            available_columns=("payload",),
+            actual_shapes={"payload": SourceShape(MountainashDtype.STRUCT)},
+        )
